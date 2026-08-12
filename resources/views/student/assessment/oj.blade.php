@@ -21,11 +21,11 @@
     <div class="flex items-center justify-between mb-4">
         <h1 class="font-medium text-slate-800">{{ $questionTitle }}</h1>
         <div class="flex items-center gap-2">
-            <select class="text-sm rounded-lg border border-slate-200 px-3 py-2">
+            <x-select icon="💻">
                 <option>C++17</option>
                 <option>Python 3</option>
                 <option>Java 17</option>
-            </select>
+            </x-select>
             <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">▶ Chạy thử</button>
             <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Nộp bài</button>
         </div>

@@ -17,7 +17,7 @@
         $total = $total ?? count($rows);
     @endphp
 
-    <x-page-header title="Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
+    <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
         <x-slot:actions>
             <a href="{{ route('teacher.assessments.import') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Nhập đề (Word/PDF/OCR)</a>
         </x-slot:actions>

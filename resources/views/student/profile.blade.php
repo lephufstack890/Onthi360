@@ -49,7 +49,7 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h3 class="font-medium text-slate-700 mb-2">Phụ huynh liên kết</h3>
+                <h3 class="font-medium text-slate-700 mb-2 flex items-center gap-2"><span>👨‍👩‍👧</span> Phụ huynh liên kết</h3>
                 <p class="text-sm text-slate-400 mb-3">Phụ huynh đã liên kết sẽ xem được lịch, điểm danh, tiến độ và kết quả của bạn.</p>
                 @forelse ($parentLinks as $link)
                     <div class="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3 text-sm mb-2">
@@ -65,7 +65,7 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h3 class="font-medium text-slate-700 mb-2">Đánh giá của tôi</h3>
+                <h3 class="font-medium text-slate-700 mb-2 flex items-center gap-2"><span>⭐</span> Đánh giá của tôi</h3>
                 <a href="{{ route('reviews.myReviews') }}" class="text-sm text-rose-600 font-medium">Xem các đánh giá tôi đã viết ›</a>
             </div>
         </div>

@@ -12,9 +12,16 @@
         $userRoleNames = $userModel->roles->pluck('name')->all();
     @endphp
 
-    <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại danh sách người dùng</a>
+    <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại danh sách người dùng</a>
 
-    <x-page-header :title="$userModel->name" :subtitle="$userModel->email" />
+    <div class="flex items-center gap-4 mb-6">
+        <img src="https://ui-avatars.com/api/?name={{ urlencode($userModel->name) }}&background=1e293b&color=ffffff&size=128&bold=true"
+             alt="{{ $userModel->name }}" class="w-14 h-14 rounded-2xl shrink-0">
+        <div>
+            <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $userModel->name }}</h1>
+            <p class="text-sm text-slate-500 mt-1">{{ $userModel->email }}</p>
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

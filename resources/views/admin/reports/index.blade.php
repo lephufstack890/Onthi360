@@ -9,7 +9,7 @@
 @section('page-title', 'Báo cáo')
 
 @section('content')
-    <x-page-header title="Báo cáo" subtitle="Báo cáo vận hành cơ bản cho P0; báo cáo thương mại sâu thuộc P1 (2.3)." />
+    <x-page-header title="📄 Báo cáo" subtitle="Báo cáo vận hành cơ bản cho P0; báo cáo thương mại sâu thuộc P1 (2.3)." />
 
     <x-empty-state
         title="Chưa có báo cáo nào được cấu hình"

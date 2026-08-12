@@ -19,7 +19,7 @@
         $activity = $activity ?? [];
     @endphp
 
-    <x-page-header title="Tổng quan" subtitle="Số liệu vận hành theo thời gian thực (2.1, 16 mục 9)." />
+    <x-page-header title="🏠 Tổng quan" subtitle="Số liệu vận hành theo thời gian thực (2.1, 16 mục 9)." />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         @foreach ($stats as $s)

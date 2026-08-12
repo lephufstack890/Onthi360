@@ -17,7 +17,7 @@
         $items = $items ?? [];
     @endphp
 
-    <x-page-header title="Luyện tập" subtitle="Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3)." />
+    <x-page-header title="📝 Luyện tập" subtitle="Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3)." />
 
     <x-tabs :tabs="$tabs" />
 
@@ -29,11 +29,17 @@
         <button type="button" class="px-3 py-1.5 rounded-full border border-slate-200 text-slate-500">Độ khó</button>
     </div>
 
+    @php
+        $practiceTypeIcons = ['Lập trình' => '💻', 'Trắc nghiệm' => '🔤', 'Điền đáp án' => '✏️'];
+    @endphp
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         @forelse ($items as $it)
-            <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition">
-                <x-status-badge tone="info">{{ $it['type'] }}</x-status-badge>
-                <h3 class="font-medium text-slate-800 mt-2">{{ $it['title'] }}</h3>
+            <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md hover:border-rose-200 transition">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <span class="text-lg">{{ $practiceTypeIcons[$it['type']] ?? '📝' }}</span>
+                    <x-status-badge tone="info">{{ $it['type'] }}</x-status-badge>
+                </div>
+                <h3 class="font-medium text-slate-800">{{ $it['title'] }}</h3>
                 <p class="text-xs text-slate-400 mt-1">{{ $it['source'] }}{{ $it['difficulty'] ? ' · Độ khó: '.$it['difficulty'] : '' }}</p>
                 <div class="mt-3 flex items-center justify-between">
                     <x-status-badge :tone="$it['tone']">{{ $it['status'] }}</x-status-badge>

@@ -14,7 +14,7 @@
         $classes = $classes ?? [];
     @endphp
 
-    <x-page-header title="Khóa học của tôi" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">
+    <x-page-header title="📚 Khóa học của tôi" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">
         <x-slot:actions>
             <a href="{{ route('courses.index') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">+ Khám phá khóa học mới</a>
         </x-slot:actions>
@@ -25,11 +25,16 @@
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             @foreach ($classes as $c)
-                <a href="{{ route('student.classes.show', $c['id']) }}" class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition block">
-                    <p class="text-xs font-medium text-rose-600 uppercase tracking-wide">{{ $c['course'] }}</p>
-                    <h3 class="font-semibold text-slate-800 mt-1">{{ $c['class'] }}</h3>
-                    <p class="text-sm text-slate-400 mt-1">{{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}</p>
-                    <div class="mt-4">
+                <a href="{{ route('student.classes.show', $c['id']) }}" class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md hover:border-rose-200 transition block">
+                    <div class="flex items-start gap-3">
+                        <x-icon-tile emoji="🏫" tone="rose" />
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-rose-600 uppercase tracking-wide">{{ $c['course'] }}</p>
+                            <h3 class="font-semibold text-slate-800 mt-0.5">{{ $c['class'] }}</h3>
+                            <p class="text-xs text-slate-400 mt-1.5">{{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
                         <x-progress-bar :percent="$c['percent']" label="Tiến độ" tone="brand" />
                     </div>
                 </a>

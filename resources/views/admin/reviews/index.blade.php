@@ -16,7 +16,7 @@
         $reviews = $reviews ?? [];
     @endphp
 
-    <x-page-header title="Kiểm duyệt đánh giá" subtitle="Chỉ công bố review có sao tổng; có thể ẩn nhận xét không phù hợp mà vẫn công bố sao (9.4)." />
+    <x-page-header title="⭐ Kiểm duyệt đánh giá" subtitle="Chỉ công bố review có sao tổng; có thể ẩn nhận xét không phù hợp mà vẫn công bố sao (9.4)." />
 
     <x-tabs :tabs="$tabs" />
 
@@ -24,7 +24,13 @@
         @forelse ($reviews as $r)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['target'] }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ $r['author'] }}</td>
+                <td class="px-4 py-3 text-slate-500">
+                    <div class="flex items-center gap-2.5">
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($r['author']) }}&background=e0f2fe&color=0369a1&size=64&bold=true"
+                             alt="{{ $r['author'] }}" class="w-6 h-6 rounded-full shrink-0">
+                        <span>{{ $r['author'] }}</span>
+                    </div>
+                </td>
                 <td class="px-4 py-3 text-amber-500">{{ str_repeat('★', $r['rating']) }}</td>
                 <td class="px-4 py-3 text-slate-500 max-w-xs truncate">{{ $r['excerpt'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>

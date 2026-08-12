@@ -15,7 +15,7 @@
         $products = $products ?? [];
     @endphp
 
-    <x-page-header title="Sản phẩm & Quyền" subtitle="Sản phẩm là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1).">
+    <x-page-header title="🎫 Sản phẩm & Quyền" subtitle="Sản phẩm là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1).">
         <x-slot:actions>
             <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo sản phẩm</button>
         </x-slot:actions>

@@ -14,7 +14,7 @@
         $boards = $boards ?? [];
     @endphp
 
-    <x-page-header title="Bảng xếp hạng" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1)." />
+    <x-page-header title="📊 Bảng xếp hạng" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1)." />
 
     <x-data-table :columns="['Phạm vi', 'Số người xếp hạng', 'Trạng thái', '']">
         @forelse ($boards as $b)

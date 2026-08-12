@@ -18,7 +18,7 @@
         $rights = $rights ?? [];
     @endphp
 
-    <x-page-header title="Quyền truy cập" subtitle="Quyền dạy không cấp quyền học cá nhân cho học sinh; không giới hạn class_limit khi scope = teacher_teaching (7.2)." />
+    <x-page-header title="🔐 Quyền truy cập" subtitle="Quyền dạy không cấp quyền học cá nhân cho học sinh; không giới hạn class_limit khi scope = teacher_teaching (7.2)." />
 
     <x-tabs :tabs="$tabs" />
 

@@ -16,7 +16,7 @@
         $rows = $rows ?? [];
     @endphp
 
-    <x-page-header title="Khóa & Lớp" subtitle="Một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên và tiến độ (8.1).">
+    <x-page-header title="🏫 Khóa & Lớp" subtitle="Một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên và tiến độ (8.1).">
         <x-slot:actions>
             <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo khóa học</button>
         </x-slot:actions>

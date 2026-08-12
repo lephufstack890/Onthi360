@@ -17,7 +17,7 @@
         $total = $total ?? count($users);
     @endphp
 
-    <x-page-header title="Người dùng" subtitle="Quản lý người dùng, vai trò và trạng thái phê duyệt giáo viên (3.3).">
+    <x-page-header title="👥 Người dùng" subtitle="Quản lý người dùng, vai trò và trạng thái phê duyệt giáo viên (3.3).">
         <x-slot:actions>
             <a href="{{ route('admin.teacher-approvals.index') }}" class="px-4 py-2 rounded-lg border border-amber-300 text-amber-700 text-sm font-medium bg-amber-50">
                 Hàng đợi duyệt giáo viên
@@ -30,7 +30,13 @@
     <x-data-table :columns="['Tên', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', '']">
         @forelse ($users as $u)
             <tr>
-                <td class="px-4 py-3 font-medium text-slate-700">{{ $u['name'] }}</td>
+                <td class="px-4 py-3 font-medium text-slate-700">
+                    <div class="flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($u['name']) }}&background=1e293b&color=ffffff&size=64&bold=true"
+                             alt="{{ $u['name'] }}" class="w-8 h-8 rounded-full shrink-0">
+                        <span>{{ $u['name'] }}</span>
+                    </div>
+                </td>
                 <td class="px-4 py-3 text-slate-500">{{ $u['email'] }}</td>
                 <td class="px-4 py-3">
                     @foreach ($u['roles'] as $r)

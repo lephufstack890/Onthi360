@@ -9,7 +9,7 @@
 @section('page-title', 'Cấu hình')
 
 @section('content')
-    <x-page-header title="Cấu hình hệ thống" subtitle="Chỉ Super Admin có toàn quyền cấu hình role, chính sách và tích hợp (3.1)." />
+    <x-page-header title="⚙️ Cấu hình hệ thống" subtitle="Chỉ Super Admin có toàn quyền cấu hình role, chính sách và tích hợp (3.1)." />
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-2xl border border-slate-200 p-5">

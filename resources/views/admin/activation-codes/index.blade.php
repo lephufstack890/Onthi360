@@ -14,7 +14,7 @@
         $codes = $codes ?? [];
     @endphp
 
-    <x-page-header title="Mã kích hoạt" subtitle="Thời hạn quyền bắt đầu tại thời điểm kích hoạt mã hợp lệ, không phải lúc đặt đơn (7.4)." />
+    <x-page-header title="🔑 Mã kích hoạt" subtitle="Thời hạn quyền bắt đầu tại thời điểm kích hoạt mã hợp lệ, không phải lúc đặt đơn (7.4)." />
 
     <x-data-table :columns="['Mã', 'Đơn liên quan', 'Phạm vi', 'Trạng thái', '']">
         @forelse ($codes as $c)

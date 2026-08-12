@@ -38,11 +38,14 @@
     {{-- Header lớp --}}
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 border border-slate-200 p-6 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
-                <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
-                <p class="text-sm text-slate-500 mt-1">{{ $teacherLabel }} · {{ $nextSessionLabel }}</p>
-                <div class="mt-2"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🏫</div>
+                <div>
+                    <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
+                    <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
+                    <p class="text-sm text-slate-500 mt-1">{{ $teacherLabel }} · {{ $nextSessionLabel }}</p>
+                    <div class="mt-2"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
+                </div>
             </div>
             <div class="w-40">
                 <x-progress-bar :percent="$overallPercent" label="Tiến độ chung" tone="brand" />
@@ -141,17 +144,25 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-3">Giáo viên</h3>
-                <div class="space-y-2">
+                <div class="space-y-2.5">
                     @foreach ($teachers as $t)
-                        <p class="text-sm text-slate-600">{{ $t->name }} <span class="text-xs text-slate-400">({{ $t->pivot->role ?? 'main' }})</span></p>
+                        <div class="flex items-center gap-3">
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode($t->name) }}&background=e11d48&color=ffffff&size=64&bold=true"
+                                 alt="{{ $t->name }}" class="w-8 h-8 rounded-full shrink-0">
+                            <p class="text-sm text-slate-600">{{ $t->name }} <span class="text-xs text-slate-400">({{ $t->pivot->role ?? 'main' }})</span></p>
+                        </div>
                     @endforeach
                 </div>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-3">Học sinh ({{ $students->count() }})</h3>
-                <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div class="space-y-2.5 max-h-64 overflow-y-auto">
                     @foreach ($students as $s)
-                        <p class="text-sm text-slate-600">{{ $s->name }}</p>
+                        <div class="flex items-center gap-3">
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode($s->name) }}&background=e0f2fe&color=0369a1&size=64&bold=true"
+                                 alt="{{ $s->name }}" class="w-8 h-8 rounded-full shrink-0">
+                            <p class="text-sm text-slate-600">{{ $s->name }}</p>
+                        </div>
                     @endforeach
                 </div>
             </div>

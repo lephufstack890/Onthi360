@@ -14,7 +14,7 @@
         $notifications = $notifications ?? [];
     @endphp
 
-    <x-page-header title="Thông báo" />
+    <x-page-header title="🔔 Thông báo" />
 
     <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
         @forelse ($notifications as $n)

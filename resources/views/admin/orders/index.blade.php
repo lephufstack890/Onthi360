@@ -17,7 +17,7 @@
         $total = $total ?? count($orders);
     @endphp
 
-    <x-page-header title="Đơn hàng" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log (7.4)." />
+    <x-page-header title="🧾 Đơn hàng" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log (7.4)." />
 
     <x-tabs :tabs="$tabs" />
 
@@ -25,7 +25,13 @@
         @forelse ($orders as $o)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">#OD-{{ $o['id'] }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ $o['buyer'] }}</td>
+                <td class="px-4 py-3 text-slate-500">
+                    <div class="flex items-center gap-2.5">
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($o['buyer']) }}&background=e0f2fe&color=0369a1&size=64&bold=true"
+                             alt="{{ $o['buyer'] }}" class="w-6 h-6 rounded-full shrink-0">
+                        <span>{{ $o['buyer'] }}</span>
+                    </div>
+                </td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['items'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['total'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$o['tone']">{{ $o['status'] }}</x-status-badge></td>

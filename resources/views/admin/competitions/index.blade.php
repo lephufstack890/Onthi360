@@ -15,7 +15,7 @@
         $competitions = $competitions ?? [];
     @endphp
 
-    <x-page-header title="Cuộc thi" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện (4.3, 11.1).">
+    <x-page-header title="🏆 Cuộc thi" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện (4.3, 11.1).">
         <x-slot:actions>
             <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo cuộc thi</button>
         </x-slot:actions>
