@@ -25,14 +25,23 @@
         $ratingCount = $ratingSummary->review_count ?? 0;
     @endphp
 
-    <a href="{{ route('teacher.classes.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Lớp học</a>
+    <a href="{{ route('teacher.classes.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Lớp học</a>
 
-    <div class="rounded-3xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 border border-slate-200 p-6 mb-6">
+    @if (session('status') === 'class-created')
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span> Đã tạo lớp thành công — bạn là giáo viên chính của lớp này.
+        </div>
+    @endif
+
+    <div class="rounded-3xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 border border-slate-200 p-6 lg:p-8 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
-                <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
-                <p class="text-sm text-slate-500 mt-1">{{ $studentsCount }} học sinh · {{ $nextSessionLabel }}</p>
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🏫</div>
+                <div>
+                    <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
+                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
+                    <p class="text-sm text-slate-500 mt-1">👥 {{ $studentsCount }} học sinh · 🗓 {{ $nextSessionLabel }}</p>
+                </div>
             </div>
             <div class="w-40"><x-progress-bar :percent="0" label="Hoàn thành chung" tone="info" /></div>
         </div>
@@ -51,9 +60,12 @@
         <div class="space-y-3">
             @forelse ($materials as $m)
                 <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                        <p class="font-medium text-slate-700">{{ $m['title'] }}</p>
-                        <p class="text-xs mt-1"><x-status-badge :tone="$m['tone']">{{ $m['scope'] }}</x-status-badge></p>
+                    <div class="flex items-center gap-3">
+                        <x-icon-tile emoji="📚" tone="sky" />
+                        <div>
+                            <p class="font-medium text-slate-700">{{ $m['title'] }}</p>
+                            <p class="text-xs mt-1"><x-status-badge :tone="$m['tone']">{{ $m['scope'] }}</x-status-badge></p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 text-sm">
                         <x-status-badge tone="success">{{ $m['linkedStatus'] }}</x-status-badge>
@@ -71,36 +83,51 @@
             </button>
         </div>
     @elseif ($tab === 'schedule')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+            <div class="text-4xl mb-3">🗓️</div>
             <p class="text-sm text-slate-500">TODO: lịch buổi học + bảng điểm danh từng buổi (có/vắng/xin phép).</p>
         </div>
     @elseif ($tab === 'assign')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500 mb-3">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4) — không phải cách hiển thị bài thường nhật.</p>
-            <a href="{{ route('teacher.assessments.create') }}" class="text-sm text-rose-600 font-medium">+ Tạo bài giao đánh giá mới ›</a>
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
+            <x-icon-tile emoji="🧾" tone="violet" />
+            <div>
+                <p class="text-sm text-slate-500 mb-3">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4) — không phải cách hiển thị bài thường nhật.</p>
+                <a href="{{ route('teacher.assessments.create') }}" class="text-sm text-rose-600 font-medium">+ Tạo bài giao đánh giá mới ›</a>
+            </div>
         </div>
     @elseif ($tab === 'results')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <a href="{{ route('teacher.results.index') }}" class="text-sm text-rose-600 font-medium">Xem kết quả chi tiết theo lớp này ›</a>
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
+            <x-icon-tile emoji="📈" tone="emerald" />
+            <a href="{{ route('teacher.results.index') }}" class="text-sm text-rose-600 font-medium self-center">Xem kết quả chi tiết theo lớp này ›</a>
         </div>
     @elseif ($tab === 'members')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
             <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh · TODO: trạng thái quyền cá nhân từng em (7.3).</p>
             <div class="space-y-2 max-h-96 overflow-y-auto">
                 @foreach ($members as $m)
-                    <p class="text-sm text-slate-600">{{ $m->name }}</p>
+                    <div class="flex items-center gap-3 py-1.5">
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($m->name) }}&background=e0f2fe&color=0369a1&size=64&bold=true"
+                             alt="{{ $m->name }}" class="w-8 h-8 rounded-full shrink-0">
+                        <p class="text-sm text-slate-600">{{ $m->name }}</p>
+                    </div>
                 @endforeach
             </div>
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h3 class="font-medium text-slate-700 mb-2">Rating summary nội bộ</h3>
-                <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+                <x-icon-tile emoji="⭐" tone="amber" />
+                <div>
+                    <h3 class="font-medium text-slate-700 mb-2">Rating summary nội bộ</h3>
+                    <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
+                </div>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
-                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+                <x-icon-tile emoji="🗓️" tone="sky" />
+                <div>
+                    <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
+                    <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
+                </div>
             </div>
         </div>
     @endif

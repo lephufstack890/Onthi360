@@ -19,14 +19,14 @@
         $documentLabel = $document->original_filename ?? 'chưa chọn tệp';
     @endphp
 
-    <a href="{{ route('teacher.assessments.import') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nhập đề</a>
+    <a href="{{ route('teacher.assessments.import') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nhập đề</a>
 
     <x-page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả OCR/trích xuất là bản nháp — phải rà soát và xác nhận trước khi phát hành (6.4)." />
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Tệp gốc --}}
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 class="font-medium text-slate-700 mb-3">Tệp gốc</h3>
+            <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📄</span> Tệp gốc</h3>
             <div class="aspect-[3/4] bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 text-sm">
                 Xem trước trang PDF/Word gốc
             </div>
@@ -42,7 +42,9 @@
                     </div>
                     <p class="text-sm text-slate-700 mb-3">{{ $d['title'] }}</p>
                     @if ($d['flagged'])
-                        <p class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">⚠ Vùng nhận dạng kém — vui lòng kiểm tra kỹ nội dung/đáp án trước khi xác nhận.</p>
+                        <p class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3 flex items-start gap-1.5">
+                            <span>⚠</span> Vùng nhận dạng kém — vui lòng kiểm tra kỹ nội dung/đáp án trước khi xác nhận.
+                        </p>
                     @endif
                     <div class="flex items-center gap-3 text-sm">
                         <button type="button" class="text-slate-600">Sửa nội dung</button>
@@ -62,7 +64,7 @@
     </div>
 
     <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4 mt-6 flex items-center justify-between flex-wrap gap-3">
-        <p class="text-sm text-amber-800">Chưa thể chuyển vào kho — Câu 2, Câu 3 còn thiếu xác nhận đáp án/cấu hình OJ.</p>
+        <p class="text-sm text-amber-800 flex items-center gap-2"><span>⚠️</span> Chưa thể chuyển vào kho — Câu 2, Câu 3 còn thiếu xác nhận đáp án/cấu hình OJ.</p>
         <div class="flex gap-2">
             <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Lưu tiến trình rà soát</button>
             <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Chuyển vào kho câu hỏi</button>

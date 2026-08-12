@@ -2,14 +2,17 @@
 
 namespace App\Services\Teacher;
 
+use App\Enums\ContentStatus;
 use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
 
 /** Tổng hợp dữ liệu cho teacher.classes.index/show (TEA-02/06). */
 class ClassRoomService
@@ -19,6 +22,7 @@ class ClassRoomService
         private readonly ClassSessionRepositoryInterface $classSessions,
         private readonly ClassMaterialRepositoryInterface $classMaterials,
         private readonly RatingSummaryRepositoryInterface $ratingSummaries,
+        private readonly CourseRepositoryInterface $courses,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -106,5 +110,43 @@ class ClassRoomService
     public function ensureTeaches(ClassRoom $classRoom, User $user): void
     {
         abort_unless($classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN), 403);
+    }
+
+    /** teacher.classes.create — danh sách khóa học để chọn khi tạo lớp mới. */
+    public function createFormData(): array
+    {
+        $courses = $this->courses->query()
+            ->where('status', ContentStatus::Published)
+            ->orderBy('title')
+            ->get()
+            ->map(fn ($course) => ['id' => $course->id, 'title' => $course->title])
+            ->all();
+
+        return ['courses' => $courses];
+    }
+
+    /**
+     * teacher.classes.store — tạo lớp mới thuộc một khóa đã có (8.1: Khóa học khác Lớp học,
+     * một khóa có thể có nhiều lớp) và tự gắn giáo viên hiện tại làm giáo viên chính
+     * (class_teachers role=main) — không thì lớp vừa tạo sẽ không hiện ở danh sách của
+     * chính giáo viên đó (User::classRoomsTeaching()).
+     */
+    public function store(User $teacher, array $data): ClassRoom
+    {
+        if ($this->classRooms->query()->where('code', $data['code'])->exists()) {
+            throw ValidationException::withMessages(['code' => 'Mã lớp này đã được dùng, chọn mã khác.']);
+        }
+
+        $classRoom = $this->classRooms->create([
+            'course_id' => $data['course_id'],
+            'code' => $data['code'],
+            'name' => $data['name'],
+            'schedule' => filled($data['schedule_note'] ?? null) ? ['note' => $data['schedule_note']] : null,
+            'status' => $data['status'] ?? 'active',
+        ]);
+
+        $classRoom->teachers()->attach($teacher->id, ['role' => 'main']);
+
+        return $classRoom;
     }
 }

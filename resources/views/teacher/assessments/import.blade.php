@@ -18,14 +18,14 @@
 
     <x-page-header title="Nhập đề" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4)." />
 
-    <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-10 text-center mb-6">
-        <div class="text-4xl mb-3">📄</div>
+    <div class="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-10 lg:p-14 text-center mb-6 hover:border-rose-300 transition">
+        <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center text-4xl mx-auto mb-4">📄</div>
         <p class="font-medium text-slate-700">Kéo thả file vào đây hoặc bấm để chọn</p>
         <p class="text-sm text-slate-400 mt-1">Hỗ trợ Word (.docx), PDF có lớp văn bản, PDF scan/ảnh (tự OCR tiếng Việt)</p>
         <button type="button" class="mt-4 px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Chọn file</button>
     </div>
 
-    <h3 class="font-medium text-slate-700 mb-3">Đang xử lý</h3>
+    <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>⏳</span> Đang xử lý</h3>
     <div class="space-y-3">
         @forelse ($processingFiles as $f)
             <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-4">
@@ -48,5 +48,5 @@
         @endforelse
     </div>
 
-    <p class="text-xs text-slate-400 mt-6">Khi OCR thất bại một phần, tệp vẫn vào trạng thái "Cần rà soát" — không âm thầm bỏ câu (6.4).</p>
+    <p class="text-xs text-slate-400 mt-6 flex items-center gap-1.5"><span>ℹ️</span> Khi OCR thất bại một phần, tệp vẫn vào trạng thái "Cần rà soát" — không âm thầm bỏ câu (6.4).</p>
 @endsection

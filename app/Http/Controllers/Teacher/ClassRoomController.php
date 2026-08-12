@@ -28,4 +28,26 @@ class ClassRoomController extends Controller
 
         return view('teacher.classes.show', $this->classRoomService->showForTeacher($user, $class, $tab));
     }
+
+    /** teacher.classes.create — form tạo lớp mới (8.1). */
+    public function create(Request $request): View
+    {
+        return view('teacher.classes.create', $this->classRoomService->createFormData());
+    }
+
+    /** teacher.classes.store — tạo lớp mới, tự gắn giáo viên hiện tại làm giáo viên chính. */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+            'code' => ['required', 'string', 'max:40'],
+            'name' => ['required', 'string', 'max:255'],
+            'schedule_note' => ['nullable', 'string', 'max:500'],
+            'status' => ['required', 'string', 'in:active,archived'],
+        ]);
+
+        $classRoom = $this->classRoomService->store(Auth::user(), $data);
+
+        return redirect()->route('teacher.classes.show', $classRoom->id)->with('status', 'class-created');
+    }
 }
