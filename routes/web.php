@@ -1,6 +1,12 @@
 <?php
 
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,12 +22,92 @@ use Illuminate\Support\Facades\Route;
 |   ->withMiddleware(function (Middleware $middleware) {
 |       $middleware->alias(['role' => EnsureHasRole::class]);
 |   })
+|
+| Auth login/register/logout dưới đây là bản tối giản (chưa tách
+| Controller riêng) chỉ để có luồng đăng nhập thật, phục vụ xem UI các
+| khu vực sau đăng nhập. Khi viết Controller thật, chuyển các closure này
+| sang App\Http\Controllers\Auth\* theo chuẩn Laravel, giữ nguyên route
+| name để không phải sửa view.
 */
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+// -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
+Route::get('/', fn () => view('welcome'))->name('home');
+Route::get('/khoa-hoc', fn () => view('public.courses.index'))->name('courses.index');
+Route::get('/khoa-hoc/{course}', fn ($course) => view('public.courses.show'))->name('courses.show');
+Route::get('/luyen-tap', fn () => view('public.practice.index'))->name('practice.index');
+Route::get('/tai-lieu', fn () => view('public.materials.index'))->name('materials.index');
+Route::get('/tai-lieu/{material}', fn ($material) => view('public.materials.show'))->name('materials.show');
+Route::get('/cuoc-thi', fn () => view('public.competitions.index'))->name('competitions.index');
+Route::get('/cuoc-thi/{competition}', fn ($competition) => view('public.competitions.show'))->name('competitions.show');
+Route::get('/bang-xep-hang', fn () => view('public.leaderboard.index'))->name('leaderboard.index');
+Route::get('/giao-vien-tieu-bieu', fn () => view('public.teachers.index'))->name('teachers.index');
+Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
+Route::get('/thong-tin', fn () => view('public.info.index'))->name('info.index');
 
+// -- Xác thực (ACC-01) -------------------------------------------------------
+Route::middleware(['guest'])->group(function () {
+    Route::get('/login', fn () => view('auth.login'))->name('login');
+
+    Route::post('/login', function (Request $request) {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
+
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => 'Email hoặc mật khẩu không đúng.',
+            ]);
+        }
+
+        $request->session()->regenerate();
+
+        $user = Auth::user();
+
+        // TODO: khi có role switcher thật (4.3), thay điều hướng cứng này
+        // bằng màn chọn không gian nếu user có nhiều role.
+        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        return redirect()->intended(route('dashboard'));
+    });
+
+    Route::get('/register', fn () => view('auth.register'))->name('register');
+
+    Route::post('/register', function (Request $request) {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        // TODO: gán role ban đầu theo lựa chọn thật của người dùng (3.1);
+        // mặc định tạm gán Học sinh để không tạo user không có role nào.
+        $user->assignRole(Role::STUDENT);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('dashboard'));
+    });
+});
+
+Route::post('/logout', function (Request $request) {
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('home');
+})->name('logout')->middleware('auth');
+
+// -- Sau đăng nhập (4.2) ------------------------------------------------------
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         // TODO: điều hướng theo vai trò hiện tại của user (role switcher — 4.3).
