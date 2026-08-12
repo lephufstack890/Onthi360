@@ -15,6 +15,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Ôn Thi 360') — Ôn Thi 360</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Alpine.js qua CDN: welcome.blade.php và register.blade.php dùng x-data
+         (FAQ accordion, chọn vai trò đăng ký) — nạp ở đây để chạy trên toàn bộ
+         layout công khai, giống layouts/app.blade.php. --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
     @include('partials.nav-public')

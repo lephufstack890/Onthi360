@@ -91,8 +91,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/', [TeacherDashboardController::class, 'index'])->name('dashboard');
         Route::get('classes', [TeacherClassRoomController::class, 'index'])->name('classes.index');
-        Route::get('classes/create', [TeacherClassRoomController::class, 'create'])->name('classes.create');
-        Route::post('classes', [TeacherClassRoomController::class, 'store'])->name('classes.store');
+        Route::middleware('teacher.approved')->group(function () {
+            Route::get('classes/create', [TeacherClassRoomController::class, 'create'])->name('classes.create');
+            Route::post('classes', [TeacherClassRoomController::class, 'store'])->name('classes.store');
+        });
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');

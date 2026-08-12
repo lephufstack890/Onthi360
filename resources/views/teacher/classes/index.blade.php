@@ -15,6 +15,9 @@
         $classesCollection = collect($classes);
         $totalStudents = $classesCollection->sum('students');
         $avgCompletion = $classesCollection->count() ? (int) round($classesCollection->avg('completion')) : 0;
+        // Chưa được duyệt (3.3) thì chưa cho tạo lớp mới — xem
+        // App\Http\Middleware\EnsureTeacherApproved.
+        $isTeacherApproved = auth()->user()->isTeacherApproved();
     @endphp
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
@@ -23,7 +26,11 @@
             <h1 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">Lớp học</h1>
             <p class="text-sm text-slate-500 mt-1">Quản lý lớp được giao — lịch, điểm danh, học liệu và tiến độ (8.3).</p>
         </div>
-        <a href="{{ route('teacher.classes.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm shrink-0">+ Tạo lớp mới</a>
+        @if ($isTeacherApproved)
+            <a href="{{ route('teacher.classes.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm shrink-0">+ Tạo lớp mới</a>
+        @else
+            <span class="px-5 py-2.5 rounded-lg bg-slate-100 text-slate-400 text-sm font-medium shrink-0 cursor-not-allowed" title="Hồ sơ giáo viên đang chờ Admin duyệt (3.3)">⏳ Chờ duyệt để tạo lớp</span>
+        @endif
     </div>
 
     @if ($classesCollection->isNotEmpty())
@@ -56,7 +63,11 @@
             </a>
         @empty
             <div class="col-span-full">
+                @if ($isTeacherApproved)
                 <x-empty-state title="Chưa có lớp nào" description="Tạo lớp mới để bắt đầu tổ chức dạy học." actionLabel="Tạo lớp mới" :actionHref="route('teacher.classes.create')" />
+            @else
+                <x-empty-state title="Chưa có lớp nào" description="Hồ sơ giáo viên của bạn đang chờ Admin duyệt (3.3) — được duyệt rồi mới tạo được lớp." />
+            @endif
             </div>
         @endforelse
     </div>

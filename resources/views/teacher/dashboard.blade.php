@@ -18,7 +18,27 @@
         $toOpen = $toOpen ?? [];
         $attentionStudents = $attentionStudents ?? [];
         $accessExpiring = $accessExpiring ?? null;
+        // Giáo viên tự đăng ký (3.1) vào thẳng trạng thái "Chờ duyệt" — chưa được
+        // tạo lớp/dạy thật cho tới khi Admin duyệt hồ sơ (3.3, xem
+        // App\Http\Middleware\EnsureTeacherApproved).
+        $isTeacherApproved = auth()->user()->isTeacherApproved();
     @endphp
+
+    @if (session('warning'))
+        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4 mb-6 text-sm text-amber-800">
+            {{ session('warning') }}
+        </div>
+    @endif
+
+    @unless ($isTeacherApproved)
+        <div class="rounded-2xl bg-rose-50 border border-rose-100 p-4 mb-6 flex items-center gap-4 flex-wrap">
+            <x-icon-tile emoji="⏳" tone="rose" />
+            <p class="text-sm text-rose-800 flex-1">
+                Hồ sơ giáo viên của bạn đang <strong>chờ Admin duyệt</strong> (3.3). Sau khi được duyệt, bạn mới có thể
+                tạo lớp học và giao bài kiểm tra thật cho học sinh — trong lúc chờ, bạn vẫn có thể chuẩn bị câu hỏi/đề.
+            </p>
+        </div>
+    @endunless
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-emerald-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>

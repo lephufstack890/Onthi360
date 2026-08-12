@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureHasRole::class,
             'permission' => \App\Http\Middleware\EnsureHasPermission::class,
+            'teacher.approved' => \App\Http\Middleware\EnsureTeacherApproved::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

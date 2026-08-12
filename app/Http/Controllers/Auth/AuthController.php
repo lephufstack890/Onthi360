@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -55,9 +56,15 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
+            // Chỉ 3 vai trò công khai được tự chọn (3.1) — Admin/Editor/Super
+            // Admin không có trong danh sách này, kể cả khi ai đó cố gửi thẳng
+            // request bỏ qua UI (chặn lại lần nữa ở AuthService::register()).
+            'role' => ['required', Rule::in(AuthService::SELF_REGISTERABLE_ROLES)],
+            'subjects' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $user = $this->authService->registerStudent($data);
+        $user = $this->authService->register($data, $data['role']);
 
         $this->authService->login($user);
         $request->session()->regenerate();
