@@ -10,6 +10,7 @@ use App\Enums\Visibility;
 use App\Models\ClassRoom;
 use App\Models\Material;
 use App\Models\ProgressUnlock;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\AccessDecision;
 
@@ -100,6 +101,32 @@ class AccessGateService
                 message: 'Giáo viên chưa mở nội dung này.',
                 ctaLabel: 'Xem lộ trình lớp',
                 ctaAction: 'view_class_roadmap',
+            );
+        }
+
+        return AccessDecision::allow();
+    }
+
+    /**
+     * Cổng kiểm tra "có phải thành viên của lớp" cho các trang tổng quan lớp
+     * (khác canAccessMaterial() ở trên, vốn xét một học liệu cụ thể). Thay cho
+     * điều kiện $isMember từng viết rời trong Student\ClassRoomController.
+     */
+    public function canAccessClassRoom(User $user, ClassRoom $classRoom): AccessDecision
+    {
+        $isMember = $classRoom->enrollments()
+                ->where('student_id', $user->id)
+                ->where('status', 'active')
+                ->exists()
+            || $classRoom->isTaughtBy($user)
+            || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN);
+
+        if (! $isMember) {
+            return AccessDecision::deny(
+                reasonCode: 'not_class_member',
+                message: 'Bạn không phải thành viên của lớp này.',
+                ctaLabel: 'Xem khóa/lớp phù hợp',
+                ctaAction: 'browse_courses',
             );
         }
 

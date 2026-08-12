@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Repositories\Eloquent;
+
+use App\Models\Attendance;
+use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+
+class AttendanceRepository extends EloquentRepository implements AttendanceRepositoryInterface
+{
+    protected string $modelClass = Attendance::class;
+
+    public function countPresentForStudentInClassRoom(int $studentId, int $classRoomId): int
+    {
+        return $this->query()
+            ->where('student_id', $studentId)
+            ->whereIn('status', ['present', 'late'])
+            ->whereHas('classSession', fn (Builder $q) => $q->where('class_room_id', $classRoomId))
+            ->count();
+    }
+
+    public function forStudentInClassRoom(int $studentId, int $classRoomId, int $limit = 20): Collection
+    {
+        return $this->query()
+            ->where('student_id', $studentId)
+            ->whereHas('classSession', fn (Builder $q) => $q->where('class_room_id', $classRoomId))
+            ->with('classSession')
+            ->latest('id')
+            ->limit($limit)
+            ->get();
+    }
+}
