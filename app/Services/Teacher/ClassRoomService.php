@@ -26,7 +26,10 @@ class ClassRoomService
     {
         $classRooms = $user->classRoomsTeaching()
             ->with('course')
-            ->withCount(['students' => fn ($q) => $q->wherePivot('status', 'active')])
+            // students() relation đã tự lọc wherePivot('status','active') trong định nghĩa
+            // (App\Models\ClassRoom) — không lặp lại điều kiện đó ở đây (gây lỗi SQL khi
+            // withCount() dựng subquery đếm, đã kiểm chứng bằng lỗi thực tế).
+            ->withCount('students')
             ->get();
 
         $classRoomIds = $classRooms->pluck('id')->all();
