@@ -2,8 +2,12 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\ContentStatus;
+use App\Models\Course;
+use App\Models\User;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
+use Illuminate\Support\Str;
 
 /**
  * Gom truy vấn cho admin.courses.index — "Khóa & Lớp" (8.1: Khóa học khác Lớp học).
@@ -46,5 +50,43 @@ class CourseService
         }
 
         return ['tab' => $tab, 'tabs' => $tabs, 'rows' => $rows];
+    }
+
+    /** admin.courses.create — dữ liệu tĩnh cho form (khối lớp áp dụng, trạng thái xuất bản). */
+    public function createFormData(): array
+    {
+        return [
+            'grades' => ['Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9', 'Lớp 10', 'Lớp 11', 'Lớp 12'],
+            'statuses' => [
+                ContentStatus::Draft->value => 'Bản nháp — chưa hiện công khai',
+                ContentStatus::Published->value => 'Xuất bản — hiện ngay ở trang Khóa học công khai',
+            ],
+        ];
+    }
+
+    /**
+     * admin.courses.store — tạo khóa học mới (8.1: Khóa học khác Lớp học, lớp được
+     * tạo riêng sau đó và gắn về khóa này). Slug tự sinh từ tiêu đề, tự thêm số thứ
+     * tự nếu trùng — không bắt admin phải tự nghĩ slug.
+     */
+    public function store(User $creator, array $data): Course
+    {
+        $baseSlug = Str::slug($data['title']);
+        $slug = $baseSlug;
+        $suffix = 2;
+        while ($this->courses->query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $this->courses->create([
+            'title' => $data['title'],
+            'slug' => $slug,
+            'description' => $data['description'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'grade' => $data['grade'] ?? null,
+            'status' => $data['status'],
+            'created_by' => $creator->id,
+        ]);
     }
 }

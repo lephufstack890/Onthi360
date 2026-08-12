@@ -147,6 +147,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Khóa & Lớp (8.1)
         Route::get('courses', [AdminCourseController::class, 'index'])->name('courses.index');
+        Route::get('courses/create', [AdminCourseController::class, 'create'])->name('courses.create');
+        Route::post('courses', [AdminCourseController::class, 'store'])->name('courses.store');
 
         // Sản phẩm & Quyền (ADM-03, 5.1, 7.1-7.5)
         Route::get('products', [AdminProductController::class, 'index'])->name('products.index');

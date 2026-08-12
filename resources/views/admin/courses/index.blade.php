@@ -16,10 +16,18 @@
         $rows = $rows ?? [];
     @endphp
 
+    @if (session('status') === 'course-created')
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span> Đã tạo khóa học mới.
+        </div>
+    @endif
+
     <x-page-header title="🏫 Khóa & Lớp" subtitle="Một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên và tiến độ (8.1).">
-        <x-slot:actions>
-            <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo khóa học</button>
-        </x-slot:actions>
+        @if ($tab === 'courses')
+            <x-slot:actions>
+                <a href="{{ route('admin.courses.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">+ Tạo khóa học</a>
+            </x-slot:actions>
+        @endif
     </x-page-header>
 
     <x-tabs :tabs="$tabs" />
