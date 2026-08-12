@@ -41,7 +41,9 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Nội dung đề bài</label>
-                <textarea rows="5" class="w-full rounded-lg border border-slate-200 text-sm p-3" placeholder="Nhập đề bài..."></textarea>
+                {{-- Trang này còn là khung UI (chưa nối controller thật, xem TODO đầu file) —
+                     CKEditor vẫn gắn được bình thường, chỉ chưa có name/form submit thật. --}}
+                <textarea rows="5" data-rich-editor class="w-full rounded-lg border border-slate-200 text-sm p-3" placeholder="Nhập đề bài..."></textarea>
             </div>
 
             @if ($type === 'mcq')
@@ -107,4 +109,8 @@
             <button type="button" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Phát hành</button>
         </div>
     </div>
+
+    @push('scripts')
+        @include('partials.rich-editor-assets')
+    @endpush
 @endsection

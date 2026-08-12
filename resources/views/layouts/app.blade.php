@@ -45,5 +45,9 @@
             </main>
         </div>
     </div>
+
+    {{-- Chỗ các view con push script riêng (VD: CKEditor cho 1 vài ô mô tả) —
+         không nạp global để tránh nặng những trang không cần. --}}
+    @stack('scripts')
 </body>
 </html>

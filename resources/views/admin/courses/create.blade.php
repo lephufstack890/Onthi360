@@ -67,7 +67,10 @@
 
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="description">Mô tả khóa học</label>
-                    <textarea id="description" name="description" rows="5" maxlength="5000"
+                    {{-- CKEditor gắn vào đúng textarea này (script dùng chung ở partials.rich-editor-assets,
+                         include ở @push('scripts') cuối file) — name="description" giữ nguyên nên vẫn submit
+                         đúng field cũ, không đổi backend. --}}
+                    <textarea id="description" name="description" rows="5" maxlength="5000" data-rich-editor
                               placeholder="Giới thiệu ngắn về mục tiêu, đối tượng phù hợp của khóa học..."
                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">{{ old('description') }}</textarea>
                 </div>
@@ -104,4 +107,8 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+        @include('partials.rich-editor-assets')
+    @endpush
 @endsection
