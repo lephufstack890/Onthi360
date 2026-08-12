@@ -10,8 +10,10 @@
 @section('title', 'Viết đánh giá')
 
 @section('content')
+    {{-- $type/$targetId do App\Http\Controllers\ReviewController truyền vào. --}}
     @php
-        $type = request('type', 'material');
+        $type = $type ?? request('type', 'material');
+        $targetId = $targetId ?? 1;
         $criteriaByType = [
             'material' => ['Rõ ràng/dễ học', 'Chất lượng bài tập', 'Mức phù hợp', 'Trình bày'],
             'class' => ['Tổ chức/lịch học', 'Nhịp độ phù hợp', 'Hỗ trợ học tập', 'Môi trường lớp'],

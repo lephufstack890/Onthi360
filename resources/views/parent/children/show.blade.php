@@ -10,36 +10,27 @@
 @section('page-title', 'Chi tiết con')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Parent\ChildController truyền vào. --}}
     @php
-        $tab = request('tab', 'overview');
-        $childId = request()->route('child', 1);
-        $tabDefs = ['overview' => 'Tổng quan', 'schedule' => 'Lịch & Điểm danh', 'results' => 'Kết quả & Tiến độ', 'review' => 'Đánh giá lớp'];
-        $tabsData = [];
-        foreach ($tabDefs as $key => $label) {
-            $tabsData[] = ['label' => $label, 'href' => route('parent.children.show', ['child' => $childId, 'tab' => $key]), 'active' => $tab === $key];
-        }
-        $results = [
-            ['title' => 'Trắc nghiệm chương 2', 'score' => '9/10', 'tone' => 'success', 'time' => '2 ngày trước'],
-            ['title' => 'Đề ôn chương 1', 'score' => '7/10', 'tone' => 'warning', 'time' => '1 tuần trước'],
-        ];
-        $attendance = [
-            ['date' => '05/08/2026', 'status' => 'Có mặt', 'tone' => 'success'],
-            ['date' => '30/07/2026', 'status' => 'Có mặt', 'tone' => 'success'],
-            ['date' => '23/07/2026', 'status' => 'Vắng có phép', 'tone' => 'warning'],
-        ];
+        $tab = $tab ?? 'overview';
+        $results = $results ?? [];
+        $attendance = $attendance ?? [];
+        $className = $classRoom->name ?? 'Chưa có lớp';
+        $courseTitle = $classRoom->course->title ?? '';
+        $nextSessionLabel = isset($nextSession) && $nextSession ? $nextSession->starts_at->format('d/m H:i') : 'Chưa có buổi học sắp tới';
     @endphp
 
     <a href="{{ route('parent.children.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Con của tôi</a>
 
     <div class="rounded-3xl bg-gradient-to-br from-violet-50 via-white to-rose-50 border border-slate-200 p-6 mb-6 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-violet-200 to-rose-100 flex items-center justify-center font-medium text-slate-700 text-lg">N</div>
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-violet-200 to-rose-100 flex items-center justify-center font-medium text-slate-700 text-lg">{{ mb_substr($child->name ?? 'H', 0, 1) }}</div>
             <div>
-                <h1 class="text-lg font-semibold text-slate-800">Nguyễn Minh An</h1>
-                <p class="text-sm text-slate-500">Lớp 10CT-2026 · Luyện thi vào 10 Chuyên Tin</p>
+                <h1 class="text-lg font-semibold text-slate-800">{{ $child->name ?? '' }}</h1>
+                <p class="text-sm text-slate-500">Lớp {{ $className }}{{ $courseTitle ? ' · '.$courseTitle : '' }}</p>
             </div>
         </div>
-        <div class="w-40"><x-progress-bar :percent="62" label="Tiến độ lớp" tone="brand" /></div>
+        <div class="w-40"><x-progress-bar :percent="0" label="Tiến độ lớp" tone="brand" /></div>
     </div>
 
     <x-tabs :tabs="$tabsData" />
@@ -49,18 +40,20 @@
             <table class="w-full text-sm">
                 <thead class="bg-slate-50 text-left text-slate-500"><tr><th class="px-4 py-3">Buổi học</th><th class="px-4 py-3">Trạng thái</th></tr></thead>
                 <tbody class="divide-y divide-slate-100">
-                    @foreach ($attendance as $a)
+                    @forelse ($attendance as $a)
                         <tr>
                             <td class="px-4 py-3 text-slate-700">{{ $a['date'] }}</td>
                             <td class="px-4 py-3"><x-status-badge :tone="$a['tone']">{{ $a['status'] }}</x-status-badge></td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr><td colspan="2" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu điểm danh.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
     @elseif ($tab === 'results')
         <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-            @foreach ($results as $r)
+            @forelse ($results as $r)
                 <div class="flex items-center justify-between p-4">
                     <div>
                         <p class="text-sm text-slate-700">{{ $r['title'] }}</p>
@@ -68,7 +61,9 @@
                     </div>
                     <x-status-badge :tone="$r['tone']">{{ $r['score'] }}</x-status-badge>
                 </div>
-            @endforeach
+            @empty
+                <div class="p-8"><x-empty-state title="Chưa có kết quả nào" /></div>
+            @endforelse
         </div>
     @elseif ($tab === 'review')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
@@ -79,11 +74,11 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Buổi học tới</h3>
-                <p class="text-sm text-slate-500">Hôm nay 19:00 — Cấu trúc dữ liệu nâng cao</p>
+                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Điểm danh gần đây</h3>
-                <p class="text-sm text-slate-500">6/8 buổi — 1 buổi vắng có phép</p>
+                <p class="text-sm text-slate-500">Xem chi tiết ở tab "Lịch & Điểm danh".</p>
             </div>
         </div>
     @endif

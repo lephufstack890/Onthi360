@@ -12,17 +12,16 @@
 @section('page-title', 'Rà soát đề nhập')
 
 @section('content')
+    {{-- $document, $drafts do App\Http\Controllers\Teacher\AssessmentController truyền vào. --}}
     @php
-        $drafts = [
-            ['no' => 1, 'type' => 'Trắc nghiệm', 'confidence' => 'Cao', 'tone' => 'success', 'flagged' => false, 'title' => 'Cấu trúc dữ liệu nào cho phép FIFO?'],
-            ['no' => 2, 'type' => 'Điền đáp án', 'confidence' => 'Trung bình', 'tone' => 'warning', 'flagged' => true, 'title' => 'Độ phức tạp thuật toán tìm kiếm nhị phân là O(...)'],
-            ['no' => 3, 'type' => 'Lập trình', 'confidence' => 'Thấp — có công thức/ảnh', 'tone' => 'danger', 'flagged' => true, 'title' => 'Viết hàm tính giai thừa đệ quy'],
-        ];
+        $document = $document ?? null;
+        $drafts = $drafts ?? [];
+        $documentLabel = $document->original_filename ?? 'chưa chọn tệp';
     @endphp
 
     <a href="{{ route('teacher.assessments.import') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nhập đề</a>
 
-    <x-page-header title="Rà soát: De_thi_thu_HSG.docx" subtitle="Kết quả OCR/trích xuất là bản nháp — phải rà soát và xác nhận trước khi phát hành (6.4)." />
+    <x-page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả OCR/trích xuất là bản nháp — phải rà soát và xác nhận trước khi phát hành (6.4)." />
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Tệp gốc --}}
@@ -35,7 +34,7 @@
 
         {{-- Danh sách câu tách --}}
         <div class="space-y-3">
-            @foreach ($drafts as $d)
+            @forelse ($drafts as $d)
                 <div class="bg-white rounded-2xl border {{ $d['flagged'] ? 'border-amber-200' : 'border-slate-200' }} p-4">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500">Câu {{ $d['no'] }} · {{ $d['type'] }}</span>
@@ -52,7 +51,9 @@
                         <button type="button" class="text-rose-500">Xóa</button>
                     </div>
                 </div>
-            @endforeach
+            @empty
+                <x-empty-state title="Không có câu nào cần rà soát" description="Chọn một tệp đang 'Cần rà soát' từ trang Nhập đề." />
+            @endforelse
 
             <button type="button" class="w-full rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-3 hover:border-rose-300 hover:text-rose-500">
                 + Thêm câu thủ công

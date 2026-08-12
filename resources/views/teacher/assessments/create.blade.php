@@ -11,11 +11,10 @@
 @section('page-title', 'Tạo đề')
 
 @section('content')
+    {{-- Dữ liệu thật (rỗng cho tới khi có AssessmentBuilderService) do
+    App\Http\Controllers\Teacher\AssessmentController truyền vào. --}}
     @php
-        $selected = [
-            ['title' => 'Bài 12: Đệ quy cơ bản', 'type' => 'Lập trình', 'points' => 10],
-            ['title' => 'Trắc nghiệm chương 2', 'type' => 'Trắc nghiệm', 'points' => 15],
-        ];
+        $selected = $selected ?? [];
     @endphp
 
     <a href="{{ route('teacher.questions.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại</a>
@@ -35,7 +34,7 @@
                     <button type="button" class="text-sm text-rose-600 font-medium">+ Thêm câu từ kho</button>
                 </div>
                 <div class="divide-y divide-slate-100">
-                    @foreach ($selected as $i => $q)
+                    @forelse ($selected as $i => $q)
                         <div class="flex items-center justify-between py-3">
                             <div class="flex items-center gap-3">
                                 <span class="w-6 h-6 rounded-full bg-slate-100 text-xs flex items-center justify-center text-slate-500">{{ $i + 1 }}</span>
@@ -50,7 +49,9 @@
                                 <button type="button" class="text-rose-500">Xóa</button>
                             </div>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-sm text-slate-400 py-3">Chưa chọn câu nào — bấm "+ Thêm câu từ kho" để bắt đầu.</p>
+                    @endforelse
                 </div>
             </div>
         </div>

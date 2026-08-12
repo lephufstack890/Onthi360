@@ -11,14 +11,16 @@
 @section('title', 'Đánh giá')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\ReviewController truyền vào. --}}
     @php
-        $type = request('type', 'material');
-        $targetTitle = $type === 'class' ? 'Lớp 10CT-2026' : 'Sách: Ôn thi Tin học 10';
-        $distribution = [5 => 68, 4 => 22, 3 => 6, 2 => 3, 1 => 1]; // % minh họa
-        $reviews = [
-            ['author' => 'Học viên đã xác thực', 'rating' => 5, 'time' => '2 ngày trước', 'content' => 'Bài tập bám sát đề thi thật, giải thích dễ hiểu. Con nhà mình tiến bộ rõ sau 1 tháng.'],
-            ['author' => 'Phụ huynh đã xác thực', 'rating' => 4, 'time' => '1 tuần trước', 'content' => 'Giáo viên nhiệt tình, lịch học rõ ràng. Chỉ mong có thêm buổi ôn cuối tuần.'],
-        ];
+        $type = $type ?? request('type', 'material');
+        $targetId = $targetId ?? 1;
+        $targetTitle = $targetTitle ?? '';
+        $distribution = $distribution ?? [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+        $reviews = $reviews ?? [];
+        $ratingAverage = $ratingSummary->avg_rating ?? 0;
+        $ratingCount = $ratingSummary->review_count ?? 0;
+        $isRankable = $isRankable ?? false;
     @endphp
 
     <div class="max-w-4xl mx-auto px-4 py-10">
@@ -26,15 +28,17 @@
 
         <x-page-header :title="'Đánh giá — '.$targetTitle" subtitle="Rating chỉ đến từ người đã trải nghiệm thực — không đánh đồng với bảng xếp hạng học tập (9.1).">
             <x-slot:actions>
-                <a href="{{ route('reviews.form', ['type' => $type, 'id' => 1]) }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Viết đánh giá</a>
+                <a href="{{ route('reviews.form', ['type' => $type, 'id' => $targetId]) }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Viết đánh giá</a>
             </x-slot:actions>
         </x-page-header>
 
         {{-- Summary + phân phối --}}
         <div class="bg-white rounded-2xl border border-slate-200 p-6 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div class="text-center sm:border-r sm:border-slate-100">
-                <p class="text-4xl font-semibold text-slate-800">4.8</p>
-                <x-rating-summary :average="4.8" :count="126" />
+                @if ($isRankable)
+                    <p class="text-4xl font-semibold text-slate-800">{{ number_format($ratingAverage, 1) }}</p>
+                @endif
+                <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
             </div>
             <div class="space-y-1.5">
                 @foreach ($distribution as $star => $pct)

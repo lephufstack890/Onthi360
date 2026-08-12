@@ -8,8 +8,9 @@
 @section('title', 'Chưa đủ điều kiện đánh giá')
 
 @section('content')
+    {{-- $reason do App\Http\Controllers\ReviewController truyền vào. --}}
     @php
-        $reason = 'Bạn cần tham gia ít nhất 2 buổi học hoặc hoàn thành một hoạt động trong lớp trước khi đánh giá.';
+        $reason = $reason ?? 'Bạn cần tham gia ít nhất 2 buổi học hoặc hoàn thành một hoạt động trong lớp trước khi đánh giá.';
     @endphp
 
     <div class="max-w-md mx-auto px-4 py-16 text-center">

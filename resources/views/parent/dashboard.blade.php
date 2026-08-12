@@ -11,13 +11,10 @@
 @section('page-title', 'Tổng quan')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Parent\DashboardController truyền vào. --}}
     @php
-        $children = [
-            ['id' => 1, 'name' => 'Nguyễn Minh An', 'class' => '10CT-2026', 'nextSession' => 'Hôm nay 19:00', 'attendance' => '6/8 buổi', 'progress' => 62],
-        ];
-        $recentResults = [
-            ['child' => 'Nguyễn Minh An', 'title' => 'Trắc nghiệm chương 2', 'score' => '9/10', 'tone' => 'success', 'time' => '2 ngày trước'],
-        ];
+        $children = $children ?? [];
+        $recentResults = $recentResults ?? [];
     @endphp
 
     <div class="rounded-3xl bg-gradient-to-br from-violet-100 via-white to-rose-50 p-6 lg:p-8 mb-6">
@@ -55,7 +52,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 class="font-medium text-slate-700 mb-4">Kết quả mới công bố</h3>
         <ul class="space-y-3">
-            @foreach ($recentResults as $r)
+            @forelse ($recentResults as $r)
                 <li class="flex items-center justify-between text-sm">
                     <div>
                         <p class="text-slate-700">{{ $r['title'] }}</p>
@@ -63,7 +60,9 @@
                     </div>
                     <x-status-badge :tone="$r['tone']">{{ $r['score'] }}</x-status-badge>
                 </li>
-            @endforeach
+            @empty
+                <li class="text-sm text-slate-400">Chưa có kết quả nào được công bố.</li>
+            @endforelse
         </ul>
     </div>
 @endsection

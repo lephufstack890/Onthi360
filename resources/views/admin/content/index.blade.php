@@ -9,20 +9,12 @@
 @section('page-title', 'Nội dung')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ContentController truyền vào. --}}
     @php
-        $tab = request('tab', 'materials');
-        $tabs = [
-            ['label' => 'Học liệu (Sách/Chuyên đề/Đề thi)', 'href' => route('admin.content.index'), 'active' => $tab === 'materials', 'count' => 342],
-            ['label' => 'Kho câu hỏi chung', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => 1520],
-            ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => 96],
-            ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => 9],
-        ];
-
-        $rows = [
-            ['id' => 101, 'title' => 'Chuyên đề: Cấu trúc dữ liệu nâng cao', 'type' => 'Chuyên đề', 'status' => 'Phát hành', 'tone' => 'success', 'owner' => 'Kho chung'],
-            ['id' => 102, 'title' => 'Sách: Ôn thi Tin học 10', 'type' => 'Sách', 'status' => 'Nháp', 'tone' => 'neutral', 'owner' => 'Kho chung'],
-            ['id' => 103, 'title' => 'Đề thi thử HSG Tin 11', 'type' => 'Đề thi', 'status' => 'Chờ duyệt', 'tone' => 'warning', 'owner' => 'GV Nguyễn Văn A'],
-        ];
+        $tab = $tab ?? 'materials';
+        $tabs = $tabs ?? [];
+        $rows = $rows ?? [];
+        $total = $total ?? count($rows);
     @endphp
 
     <x-page-header title="Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
@@ -35,13 +27,13 @@
 
     @if ($tab === 'drafts')
         <x-empty-state
-            title="9 câu hỏi đang chờ rà soát"
+            title="{{ $total }} câu hỏi đang chờ rà soát"
             description="Kết quả OCR không tự phát hành — vào từng đề để rà soát trước khi chuyển vào kho (6.4)."
             actionLabel="Mở màn rà soát"
             :actionHref="route('teacher.assessments.reviewDraft')" />
     @else
         <x-data-table :columns="['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
-            @foreach ($rows as $r)
+            @forelse ($rows as $r)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">{{ $r['title'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
@@ -51,8 +43,10 @@
                         <a href="{{ route('admin.content.show', $r['id']) }}" class="text-rose-600 font-medium">Xem</a>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu.</td></tr>
+            @endforelse
         </x-data-table>
-        <x-pagination-note :shown="count($rows)" :total="342" />
+        <x-pagination-note :shown="count($rows)" :total="$total" />
     @endif
 @endsection

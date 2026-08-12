@@ -2,7 +2,8 @@
   Route: student.practice.index | Frame: STU-04
   Spec: 10.1 — Tabs Tự luyện · Theo lớp · Bài được giao · Đã lưu · Lịch sử.
   Bộ lọc: môn, khối, chuyên đề, độ khó, loại câu/đề, trạng thái, quyền.
-  TODO controller: truyền $items theo tab + filter thật.
+  Dữ liệu thật do App\Http\Controllers\Student\PracticeController truyền vào.
+  TODO: nối bộ lọc thật (môn/khối/chuyên đề/độ khó) — hiện các nút lọc chỉ là UI.
 --}}
 @extends('layouts.student')
 
@@ -11,20 +12,9 @@
 
 @section('content')
     @php
-        $tab = request('tab', 'self');
-        $tabs = [
-            ['label' => 'Tự luyện', 'href' => route('student.practice.index'), 'active' => $tab === 'self', 'count' => 240],
-            ['label' => 'Theo lớp', 'href' => route('student.practice.index', ['tab' => 'class']), 'active' => $tab === 'class', 'count' => 12],
-            ['label' => 'Bài được giao', 'href' => route('student.practice.index', ['tab' => 'assigned']), 'active' => $tab === 'assigned', 'count' => 3],
-            ['label' => 'Đã lưu', 'href' => route('student.practice.index', ['tab' => 'saved']), 'active' => $tab === 'saved', 'count' => 5],
-            ['label' => 'Lịch sử', 'href' => route('student.practice.index', ['tab' => 'history']), 'active' => $tab === 'history', 'count' => 58],
-        ];
-
-        $items = [
-            ['title' => 'Bài 12: Đệ quy cơ bản', 'type' => 'Lập trình', 'source' => 'Lớp 10CT-2026', 'difficulty' => 'Trung bình', 'status' => 'Chưa làm', 'tone' => 'info'],
-            ['title' => 'Trắc nghiệm chương 2', 'type' => 'Trắc nghiệm', 'source' => 'Tự luyện', 'difficulty' => 'Dễ', 'status' => 'Đang làm dở', 'tone' => 'warning'],
-            ['title' => 'Đề ôn chương 3', 'type' => 'Hỗn hợp', 'source' => 'Lớp 10CT-2026', 'difficulty' => 'Khó', 'status' => 'Đã nộp — 9/10', 'tone' => 'success'],
-        ];
+        $tab = $tab ?? 'self';
+        $tabs = $tabs ?? [];
+        $items = $items ?? [];
     @endphp
 
     <x-page-header title="Luyện tập" subtitle="Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3)." />
@@ -44,10 +34,10 @@
             <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition">
                 <x-status-badge tone="info">{{ $it['type'] }}</x-status-badge>
                 <h3 class="font-medium text-slate-800 mt-2">{{ $it['title'] }}</h3>
-                <p class="text-xs text-slate-400 mt-1">{{ $it['source'] }} · Độ khó: {{ $it['difficulty'] }}</p>
+                <p class="text-xs text-slate-400 mt-1">{{ $it['source'] }}{{ $it['difficulty'] ? ' · Độ khó: '.$it['difficulty'] : '' }}</p>
                 <div class="mt-3 flex items-center justify-between">
                     <x-status-badge :tone="$it['tone']">{{ $it['status'] }}</x-status-badge>
-                    <a href="{{ route('student.assessment.take', 1) }}" class="text-sm font-medium text-rose-600">Mở ›</a>
+                    <a href="{{ $it['takeRoute'] ?? route('student.practice.index') }}" class="text-sm font-medium text-rose-600">Mở ›</a>
                 </div>
             </div>
         @empty

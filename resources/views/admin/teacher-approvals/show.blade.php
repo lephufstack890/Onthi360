@@ -1,8 +1,9 @@
 {{--
   Route: admin.teacher-approvals.show
   Spec: 3.3 + 16 mục 4 (duyệt/từ chối phải ghi lý do + audit log).
-  TODO controller: truyền $profile thật; xử lý submit duyệt/từ chối gọi
-  service cập nhật TeacherApprovalStatus + ghi AuditLog.
+  Dữ liệu thật ($profile) do App\Http\Controllers\Admin\TeacherApprovalController
+  truyền vào. TODO: xử lý submit duyệt/từ chối gọi service cập nhật
+  TeacherApprovalStatus + ghi AuditLog; $documents chờ bảng tài liệu minh chứng.
 --}}
 @extends('layouts.admin')
 
@@ -11,33 +12,26 @@
 
 @section('content')
     @php
-        $profile = [
-            'id' => request()->route('teacherApproval', 3),
-            'name' => 'Lê Văn C',
-            'email' => 'teacher.c@onthi360.test',
-            'subject' => 'Tin học',
-            'bio' => 'TODO: bio/kinh nghiệm giáo viên tự khai khi đăng ký.',
-            'documents' => ['CMND/CCCD.pdf', 'Bằng cấp.pdf'],
-        ];
+        $documents = $documents ?? [];
     @endphp
 
     <a href="{{ route('admin.teacher-approvals.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại hàng đợi</a>
 
-    <x-page-header :title="$profile['name']" :subtitle="$profile['email'].' · '.$profile['subject']" />
+    <x-page-header :title="$profile->user->name ?? ''" :subtitle="($profile->user->email ?? '').(($profile->subjects[0] ?? null) ? ' · '.$profile->subjects[0] : '')" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
             <div>
                 <h2 class="font-medium text-slate-700 mb-2">Giới thiệu</h2>
-                <p class="text-sm text-slate-500">{{ $profile['bio'] }}</p>
+                <p class="text-sm text-slate-500">{{ $profile->bio ?: 'Chưa có thông tin giới thiệu.' }}</p>
             </div>
             <div>
                 <h2 class="font-medium text-slate-700 mb-2">Tài liệu minh chứng</h2>
-                <ul class="space-y-1">
-                    @foreach ($profile['documents'] as $doc)
-                        <li class="text-sm text-rose-600 underline">{{ $doc }}</li>
-                    @endforeach
-                </ul>
+                @forelse ($documents as $doc)
+                    <p class="text-sm text-rose-600 underline">{{ $doc }}</p>
+                @empty
+                    <p class="text-sm text-slate-400">Chưa có bảng lưu tài liệu minh chứng trong hệ thống.</p>
+                @endforelse
             </div>
         </div>
 

@@ -9,12 +9,11 @@
 @section('page-title', 'Chi tiết nội dung')
 
 @section('content')
+    {{-- $item, $publishErrors do App\Http\Controllers\Admin\ContentController truyền vào
+    (publishErrors rỗng cho tới khi có App\Services\QuestionPublishGuard thật). --}}
     @php
-        $item = ['id' => request()->route('content', 103), 'title' => 'Đề thi thử HSG Tin 11', 'status' => 'Chờ duyệt'];
-        $publishErrors = [
-            'Câu 4 (lập trình): thiếu test ẩn.',
-            'Câu 7 (trắc nghiệm): chưa xác nhận đáp án đúng.',
-        ];
+        $item = $item ?? ['id' => 0, 'title' => '', 'status' => ''];
+        $publishErrors = $publishErrors ?? [];
     @endphp
 
     <a href="{{ route('admin.content.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nội dung</a>

@@ -11,11 +11,9 @@
 @section('page-title', 'Nhập đề (Word/PDF/OCR)')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\AssessmentController truyền vào. --}}
     @php
-        $processingFiles = [
-            ['name' => 'De_on_chuong3.pdf', 'status' => 'Đang OCR...', 'tone' => 'info', 'progress' => 60],
-            ['name' => 'De_thi_thu_HSG.docx', 'status' => 'Cần rà soát', 'tone' => 'warning', 'progress' => 100],
-        ];
+        $processingFiles = $processingFiles ?? [];
     @endphp
 
     <x-page-header title="Nhập đề" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4)." />
@@ -29,7 +27,7 @@
 
     <h3 class="font-medium text-slate-700 mb-3">Đang xử lý</h3>
     <div class="space-y-3">
-        @foreach ($processingFiles as $f)
+        @forelse ($processingFiles as $f)
             <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <x-icon-tile emoji="📄" tone="sky" />
@@ -41,11 +39,13 @@
                 <div class="text-right">
                     <x-status-badge :tone="$f['tone']">{{ $f['status'] }}</x-status-badge>
                     @if ($f['status'] === 'Cần rà soát')
-                        <a href="{{ route('teacher.assessments.reviewDraft') }}" class="block mt-1 text-sm text-rose-600 font-medium">Rà soát ngay ›</a>
+                        <a href="{{ route('teacher.assessments.reviewDraft', ['document' => $f['id']]) }}" class="block mt-1 text-sm text-rose-600 font-medium">Rà soát ngay ›</a>
                     @endif
                 </div>
             </div>
-        @endforeach
+        @empty
+            <x-empty-state title="Chưa có tệp nào đang xử lý" description="Tải Word/PDF lên ở trên để bắt đầu." />
+        @endforelse
     </div>
 
     <p class="text-xs text-slate-400 mt-6">Khi OCR thất bại một phần, tệp vẫn vào trạng thái "Cần rà soát" — không âm thầm bỏ câu (6.4).</p>

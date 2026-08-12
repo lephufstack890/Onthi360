@@ -9,23 +9,12 @@
 @section('page-title', 'Người dùng')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\UserController truyền vào. --}}
     @php
-        $tab = request('tab', 'all');
-        $tabs = [
-            ['label' => 'Tất cả', 'href' => route('admin.users.index'), 'active' => $tab === 'all', 'count' => 1284],
-            ['label' => 'Học sinh', 'href' => route('admin.users.index', ['tab' => 'student']), 'active' => $tab === 'student', 'count' => 980],
-            ['label' => 'Giáo viên', 'href' => route('admin.users.index', ['tab' => 'teacher']), 'active' => $tab === 'teacher', 'count' => 214],
-            ['label' => 'Phụ huynh', 'href' => route('admin.users.index', ['tab' => 'parent']), 'active' => $tab === 'parent', 'count' => 76],
-            ['label' => 'Admin/Editor', 'href' => route('admin.users.index', ['tab' => 'staff']), 'active' => $tab === 'staff', 'count' => 14],
-        ];
-
-        $users = [
-            ['id' => 1, 'name' => 'Nguyễn Văn A', 'email' => 'teacher.a@onthi360.test', 'roles' => ['Giáo viên'], 'status' => 'Đã duyệt', 'tone' => 'success', 'created' => '02/03/2026'],
-            ['id' => 2, 'name' => 'Trần Thị B', 'email' => 'student.b@onthi360.test', 'roles' => ['Học sinh'], 'status' => 'Hoạt động', 'tone' => 'success', 'created' => '15/01/2026'],
-            ['id' => 3, 'name' => 'Lê Văn C', 'email' => 'teacher.c@onthi360.test', 'roles' => ['Giáo viên'], 'status' => 'Chờ duyệt', 'tone' => 'warning', 'created' => '10/08/2026'],
-            ['id' => 4, 'name' => 'Phạm Thị D', 'email' => 'parent.d@onthi360.test', 'roles' => ['Phụ huynh'], 'status' => 'Hoạt động', 'tone' => 'success', 'created' => '20/02/2026'],
-            ['id' => 5, 'name' => 'Hoàng Văn E', 'email' => 'editor.e@onthi360.test', 'roles' => ['Editor'], 'status' => 'Hoạt động', 'tone' => 'success', 'created' => '01/01/2026'],
-        ];
+        $tab = $tab ?? 'all';
+        $tabs = $tabs ?? [];
+        $users = $users ?? [];
+        $total = $total ?? count($users);
     @endphp
 
     <x-page-header title="Người dùng" subtitle="Quản lý người dùng, vai trò và trạng thái phê duyệt giáo viên (3.3).">
@@ -39,7 +28,7 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Tên', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', '']">
-        @foreach ($users as $u)
+        @forelse ($users as $u)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $u['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $u['email'] }}</td>
@@ -54,8 +43,10 @@
                     <a href="{{ route('admin.users.show', $u['id']) }}" class="text-rose-600 font-medium">Xem</a>
                 </td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Không có người dùng nào.</td></tr>
+        @endforelse
     </x-data-table>
 
-    <x-pagination-note :shown="5" :total="1284" />
+    <x-pagination-note :shown="count($users)" :total="$total" />
 @endsection

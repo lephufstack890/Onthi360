@@ -12,7 +12,7 @@
 
 @section('content')
     @php
-        $type = request('type', 'mcq');
+        $type = $type ?? request('type', 'mcq');
         $types = [
             ['key' => 'mcq', 'label' => 'Trắc nghiệm'],
             ['key' => 'fill', 'label' => 'Điền đáp án'],

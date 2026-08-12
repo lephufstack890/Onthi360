@@ -8,8 +8,10 @@
 @section('page-title', 'Hồ sơ')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Student\ProfileController truyền vào. --}}
     @php
-        $user = auth()->user();
+        $user = $user ?? auth()->user();
+        $parentLinks = $parentLinks ?? collect();
     @endphp
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -49,10 +51,17 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Phụ huynh liên kết</h3>
                 <p class="text-sm text-slate-400 mb-3">Phụ huynh đã liên kết sẽ xem được lịch, điểm danh, tiến độ và kết quả của bạn.</p>
-                <div class="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3 text-sm">
-                    <span class="text-slate-600">Chưa có phụ huynh liên kết</span>
-                    <button type="button" class="text-rose-600 font-medium">Tạo mã liên kết</button>
-                </div>
+                @forelse ($parentLinks as $link)
+                    <div class="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3 text-sm mb-2">
+                        <span class="text-slate-600">{{ $link->parent->name ?? 'Phụ huynh' }}</span>
+                        <x-status-badge :tone="$link->isVerified() ? 'success' : 'warning'">{{ $link->isVerified() ? 'Đã xác minh' : 'Chờ xác minh' }}</x-status-badge>
+                    </div>
+                @empty
+                    <div class="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3 text-sm">
+                        <span class="text-slate-600">Chưa có phụ huynh liên kết</span>
+                        <button type="button" class="text-rose-600 font-medium">Tạo mã liên kết</button>
+                    </div>
+                @endforelse
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">

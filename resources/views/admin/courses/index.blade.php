@@ -9,21 +9,11 @@
 @section('page-title', 'Khóa & Lớp')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\CourseController truyền vào. --}}
     @php
-        $tab = request('tab', 'courses');
-        $tabs = [
-            ['label' => 'Khóa học', 'href' => route('admin.courses.index'), 'active' => $tab === 'courses', 'count' => 28],
-            ['label' => 'Lớp học', 'href' => route('admin.courses.index', ['tab' => 'classes']), 'active' => $tab === 'classes', 'count' => 64],
-        ];
-        $rows = $tab === 'courses'
-            ? [
-                ['id' => 1, 'name' => 'Luyện thi vào 10 Chuyên Tin', 'meta' => '5 lớp đang triển khai', 'status' => 'Đang mở', 'tone' => 'success'],
-                ['id' => 2, 'name' => 'Ôn thi HSG Tin 11', 'meta' => '2 lớp đang triển khai', 'status' => 'Đang mở', 'tone' => 'success'],
-            ]
-            : [
-                ['id' => 10, 'name' => '10CT-2026 (Luyện thi vào 10 Chuyên Tin)', 'meta' => 'GV Nguyễn Văn A · 32 học sinh', 'status' => 'Đang học', 'tone' => 'success'],
-                ['id' => 11, 'name' => '11HSG-2026 (Ôn thi HSG Tin 11)', 'meta' => 'GV Lê Văn C · 18 học sinh', 'status' => 'Đang học', 'tone' => 'success'],
-            ];
+        $tab = $tab ?? 'courses';
+        $tabs = $tabs ?? [];
+        $rows = $rows ?? [];
     @endphp
 
     <x-page-header title="Khóa & Lớp" subtitle="Một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên và tiến độ (8.1).">
@@ -35,13 +25,15 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Tên', 'Thông tin', 'Trạng thái', '']">
-        @foreach ($rows as $r)
+        @forelse ($rows as $r)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $r['meta'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right"><a href="#" class="text-rose-600 font-medium">Xem</a></td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu.</td></tr>
+        @endforelse
     </x-data-table>
 @endsection

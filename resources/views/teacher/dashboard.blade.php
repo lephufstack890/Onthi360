@@ -11,20 +11,13 @@
 @section('page-title', 'Tổng quan')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\DashboardController truyền vào. --}}
     @php
-        $name = auth()->user()->name ?? 'thầy/cô';
-        $upcoming = [
-            ['time' => 'Hôm nay 19:00', 'class' => '10CT-2026', 'topic' => 'Cấu trúc dữ liệu nâng cao'],
-            ['time' => 'Thứ Sáu 19:30', 'class' => '11HSG-2026', 'topic' => 'Ôn tập đề thi thử'],
-        ];
-        $toOpen = [
-            ['title' => 'Bài 13: Đệ quy nâng cao', 'class' => '10CT-2026', 'chapter' => 'Chương 2'],
-        ];
-        $attentionStudents = [
-            ['name' => 'Trần Văn D', 'class' => '10CT-2026', 'reason' => 'Chưa nộp 2 bài liên tiếp'],
-            ['name' => 'Ngô Thị E', 'class' => '11HSG-2026', 'reason' => 'Điểm giảm 3 bài gần nhất'],
-        ];
-        $accessExpiring = ['product' => 'Chuyên đề: Cấu trúc dữ liệu nâng cao', 'daysLeft' => 12];
+        $name = $name ?? (auth()->user()->name ?? 'thầy/cô');
+        $upcoming = $upcoming ?? [];
+        $toOpen = $toOpen ?? [];
+        $attentionStudents = $attentionStudents ?? [];
+        $accessExpiring = $accessExpiring ?? null;
     @endphp
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-emerald-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
@@ -50,29 +43,33 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-4">Lịch sắp dạy</h3>
                 <ul class="space-y-3">
-                    @foreach ($upcoming as $u)
+                    @forelse ($upcoming as $u)
                         <li class="flex items-center gap-3 text-sm">
                             <div class="w-24 shrink-0 text-xs font-medium text-sky-600">{{ $u['time'] }}</div>
                             <div>
                                 <p class="text-slate-700">{{ $u['class'] }} — {{ $u['topic'] }}</p>
                             </div>
                         </li>
-                    @endforeach
+                    @empty
+                        <li class="text-sm text-slate-400">Chưa có buổi dạy nào sắp tới.</li>
+                    @endforelse
                 </ul>
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-4">Bài cần mở tiến độ</h3>
                 <ul class="divide-y divide-slate-100">
-                    @foreach ($toOpen as $t)
+                    @forelse ($toOpen as $t)
                         <li class="flex items-center justify-between py-3 text-sm">
                             <div>
                                 <p class="text-slate-700">{{ $t['title'] }}</p>
-                                <p class="text-xs text-slate-400">{{ $t['class'] }} · {{ $t['chapter'] }}</p>
+                                <p class="text-xs text-slate-400">{{ $t['class'] }}{{ $t['chapter'] ? ' · '.$t['chapter'] : '' }}</p>
                             </div>
                             <button type="button" class="text-rose-600 font-medium text-sm">Mở ngay ›</button>
                         </li>
-                    @endforeach
+                    @empty
+                        <li class="text-sm text-slate-400 py-3">Không có bài nào đang chờ mở.</li>
+                    @endforelse
                 </ul>
             </div>
         </div>
@@ -80,12 +77,14 @@
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
             <h3 class="font-medium text-slate-700 mb-4">Học sinh cần chú ý</h3>
             <ul class="space-y-3">
-                @foreach ($attentionStudents as $s)
+                @forelse ($attentionStudents as $s)
                     <li class="text-sm">
                         <p class="text-slate-700 font-medium">{{ $s['name'] }}</p>
                         <p class="text-xs text-slate-400">{{ $s['class'] }} · {{ $s['reason'] }}</p>
                     </li>
-                @endforeach
+                @empty
+                    <li class="text-sm text-slate-400">Chưa có học sinh nào cần chú ý đặc biệt.</li>
+                @endforelse
             </ul>
         </div>
     </div>

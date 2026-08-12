@@ -9,19 +9,12 @@
 @section('page-title', 'Đơn hàng')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\OrderController truyền vào. --}}
     @php
-        $tab = request('tab', 'all');
-        $tabs = [
-            ['label' => 'Tất cả', 'href' => route('admin.orders.index'), 'active' => $tab === 'all', 'count' => 412],
-            ['label' => 'Chờ duyệt', 'href' => route('admin.orders.index', ['tab' => 'pending']), 'active' => $tab === 'pending', 'count' => 7],
-            ['label' => 'Hoàn tất', 'href' => route('admin.orders.index', ['tab' => 'done']), 'active' => $tab === 'done', 'count' => 380],
-            ['label' => 'Từ chối/hủy', 'href' => route('admin.orders.index', ['tab' => 'rejected']), 'active' => $tab === 'rejected', 'count' => 25],
-        ];
-        $orders = [
-            ['id' => 1042, 'buyer' => 'Trần Thị B', 'items' => 'Sách: Ôn thi Tin học 10 (bản mềm + in)', 'total' => '249.000đ', 'status' => 'Chờ duyệt', 'tone' => 'warning'],
-            ['id' => 1041, 'buyer' => 'Nguyễn Văn A', 'items' => 'Chuyên đề: Cấu trúc dữ liệu nâng cao (dùng để dạy)', 'total' => '349.000đ', 'status' => 'Chờ duyệt', 'tone' => 'warning'],
-            ['id' => 1039, 'buyer' => 'Phạm Thị D', 'items' => 'Đề thi thử HSG Tin 11', 'total' => '99.000đ', 'status' => 'Hoàn tất', 'tone' => 'success'],
-        ];
+        $tab = $tab ?? 'all';
+        $tabs = $tabs ?? [];
+        $orders = $orders ?? [];
+        $total = $total ?? count($orders);
     @endphp
 
     <x-page-header title="Đơn hàng" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log (7.4)." />
@@ -29,7 +22,7 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Mã đơn', 'Người mua', 'Sản phẩm', 'Tổng tiền', 'Trạng thái', '']">
-        @foreach ($orders as $o)
+        @forelse ($orders as $o)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">#OD-{{ $o['id'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['buyer'] }}</td>
@@ -40,7 +33,9 @@
                     <a href="{{ route('admin.orders.show', $o['id']) }}" class="text-rose-600 font-medium">Xem</a>
                 </td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có đơn hàng nào.</td></tr>
+        @endforelse
     </x-data-table>
-    <x-pagination-note :shown="count($orders)" :total="412" />
+    <x-pagination-note :shown="count($orders)" :total="$total" />
 @endsection

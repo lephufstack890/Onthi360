@@ -3,8 +3,9 @@
   Spec: 8.3 (header + tabs: Tổng quan · Lộ trình & Bài tập · Lịch học ·
   Tài liệu · Đánh giá · Thông báo · Thành viên). Mỗi bài có nguồn, loại,
   thời điểm mở, hạn nếu có, trạng thái cá nhân, kết quả gần nhất, lý do khóa.
-  TODO controller: truyền $classRoom thật + $roadmap items với AccessDecision
-  từ App\Services\AccessGateService cho mỗi bài (7.3).
+  Dữ liệu thật do App\Http\Controllers\Student\ClassRoomController truyền vào.
+  TODO: nối App\Services\AccessGateService cho AccessDecision từng bài (7.3);
+  hiện $roadmap chỉ hiển thị theo Assignment thật, chưa có khái niệm "chương".
 --}}
 @extends('layouts.student')
 
@@ -13,33 +14,23 @@
 
 @section('content')
     @php
-        $tab = request('tab', 'overview');
-        $tabs = [
-            ['label' => 'Tổng quan', 'key' => 'overview'],
-            ['label' => 'Lộ trình & Bài tập', 'key' => 'roadmap'],
-            ['label' => 'Lịch học', 'key' => 'schedule'],
-            ['label' => 'Tài liệu', 'key' => 'materials'],
-            ['label' => 'Đánh giá', 'key' => 'reviews'],
-            ['label' => 'Thông báo', 'key' => 'notifications'],
-            ['label' => 'Thành viên', 'key' => 'members'],
-        ];
-        $tabsData = array_map(fn ($t) => [
-            'label' => $t['label'],
-            'href' => route('student.classes.show', ['class' => request()->route('class', 10), 'tab' => $t['key']]),
-            'active' => $tab === $t['key'],
-        ], $tabs);
+        $tab = $tab ?? 'overview';
+        $roadmap = $roadmap ?? [];
+        $materials = $materials ?? [];
+        $sessions = $sessions ?? [];
+        $reviews = $reviews ?? collect();
+        $teachers = $teachers ?? collect();
+        $students = $students ?? collect();
+        $overallPercent = $overallPercent ?? 0;
 
-        $roadmap = [
-            ['chapter' => 'Chương 1: Nhập môn', 'items' => [
-                ['title' => 'Bài 1: Biến và kiểu dữ liệu', 'type' => 'Lập trình', 'status' => 'Đã mở', 'tone' => 'success', 'result' => 'Accepted'],
-                ['title' => 'Bài 2: Cấu trúc điều khiển', 'type' => 'Trắc nghiệm', 'status' => 'Đã mở', 'tone' => 'success', 'result' => '9/10'],
-            ]],
-            ['chapter' => 'Chương 2: Hàm và đệ quy', 'items' => [
-                ['title' => 'Bài 3: Hàm cơ bản', 'type' => 'Lập trình', 'status' => 'Đã mở', 'tone' => 'success', 'result' => 'Chưa làm'],
-                ['title' => 'Bài 12: Đệ quy cơ bản', 'type' => 'Lập trình', 'status' => 'Vừa mở', 'tone' => 'info', 'result' => 'Chưa làm'],
-                ['title' => 'Bài 13: Đệ quy nâng cao', 'type' => 'Lập trình', 'status' => 'Giáo viên chưa mở', 'tone' => 'neutral', 'result' => null],
-            ]],
-        ];
+        $courseTitle = $classRoom->course->title ?? '';
+        $className = $classRoom->name ?? '';
+        $teacherLabel = isset($mainTeacher) && $mainTeacher ? 'GV '.$mainTeacher->name : 'Chưa phân công giáo viên';
+        $nextSessionLabel = isset($nextSession) && $nextSession
+            ? 'Buổi tới: '.$nextSession->starts_at->format('d/m H:i')
+            : 'Chưa có buổi học sắp tới';
+        $ratingAverage = $ratingSummary->avg_rating ?? 0;
+        $ratingCount = $ratingSummary->review_count ?? 0;
     @endphp
 
     <a href="{{ route('student.courses.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Khóa học của tôi</a>
@@ -48,13 +39,13 @@
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 border border-slate-200 p-6 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">Luyện thi vào 10 Chuyên Tin</p>
-                <h1 class="text-xl font-semibold text-slate-800 mt-1">10CT-2026</h1>
-                <p class="text-sm text-slate-500 mt-1">GV Nguyễn Văn A · Buổi tới: Hôm nay 19:00</p>
-                <div class="mt-2"><x-rating-summary :average="4.8" :count="21" /></div>
+                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
+                <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
+                <p class="text-sm text-slate-500 mt-1">{{ $teacherLabel }} · {{ $nextSessionLabel }}</p>
+                <div class="mt-2"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
             </div>
             <div class="w-40">
-                <x-progress-bar :percent="62" label="Tiến độ chung" tone="brand" />
+                <x-progress-bar :percent="$overallPercent" label="Tiến độ chung" tone="brand" />
             </div>
         </div>
     </div>
@@ -63,14 +54,14 @@
 
     @if ($tab === 'roadmap')
         <div class="space-y-6">
-            @foreach ($roadmap as $chap)
+            @forelse ($roadmap as $chap)
                 <div>
                     <h3 class="font-medium text-slate-700 mb-3">{{ $chap['chapter'] }}</h3>
                     <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
                         @foreach ($chap['items'] as $item)
                             <div class="flex items-center justify-between p-4">
                                 <div class="flex items-center gap-3">
-                                    <x-icon-tile emoji="{{ $item['type'] === 'Lập trình' ? '💻' : '📝' }}" tone="{{ $item['tone'] === 'neutral' ? 'amber' : 'sky' }}" />
+                                    <x-icon-tile emoji="{{ $item['type'] === 'coding' ? '💻' : '📝' }}" tone="{{ $item['tone'] === 'neutral' ? 'amber' : 'sky' }}" />
                                     <div>
                                         <p class="text-sm font-medium text-slate-700">{{ $item['title'] }}</p>
                                         <p class="text-xs text-slate-400">{{ $item['type'] }} · <x-status-badge :tone="$item['tone']">{{ $item['status'] }}</x-status-badge></p>
@@ -80,7 +71,7 @@
                                     @if ($item['status'] === 'Giáo viên chưa mở')
                                         <span class="text-xs text-slate-400">🔒 Giáo viên chưa mở nội dung này</span>
                                     @else
-                                        <a href="{{ route('student.assessment.take', 1) }}" class="text-sm font-medium text-rose-600">
+                                        <a href="{{ route('student.practice.index') }}" class="text-sm font-medium text-rose-600">
                                             {{ $item['result'] === 'Chưa làm' ? 'Làm bài ›' : 'Xem lại ›' }}
                                         </a>
                                         @if ($item['result'] && $item['result'] !== 'Chưa làm')
@@ -92,38 +83,88 @@
                         @endforeach
                     </div>
                 </div>
-            @endforeach
+            @empty
+                <x-empty-state title="Lớp chưa có bài tập nào" description="Giáo viên chưa giao bài tập cho lớp này." />
+            @endforelse
         </div>
     @elseif ($tab === 'schedule')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: lịch buổi học dạng calendar/list + trạng thái điểm danh.</p>
+        <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            @forelse ($sessions as $s)
+                <div class="flex items-center justify-between p-4 text-sm">
+                    <div>
+                        <p class="text-slate-700">{{ $s->topic ?? 'Buổi học' }}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ $s->location }}</p>
+                    </div>
+                    <div class="text-right text-slate-500">
+                        <p>{{ $s->starts_at?->format('d/m/Y H:i') }}</p>
+                        <p class="text-xs text-slate-400">{{ $s->starts_at?->isFuture() ? 'Sắp diễn ra' : 'Đã qua' }}</p>
+                    </div>
+                </div>
+            @empty
+                <div class="p-8"><x-empty-state title="Chưa có lịch học nào" /></div>
+            @endforelse
         </div>
     @elseif ($tab === 'materials')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: danh sách học liệu đã gắn lớp (sách/chuyên đề), trạng thái quyền cá nhân (7.3).</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @forelse ($materials as $cm)
+                <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                    <x-status-badge tone="success">Đang dùng</x-status-badge>
+                    <h3 class="font-medium text-slate-800 mt-2">{{ $cm->material->title ?? 'Học liệu' }}</h3>
+                </div>
+            @empty
+                <div class="col-span-full"><x-empty-state title="Lớp chưa gắn học liệu nào" /></div>
+            @endforelse
         </div>
     @elseif ($tab === 'reviews')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
             <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi tham gia 2 buổi (9.2).</p>
-            <a href="{{ route('reviews.form', ['type' => 'class', 'id' => 10]) }}" class="text-sm text-rose-600 font-medium">Viết đánh giá ›</a>
+            <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}" class="text-sm text-rose-600 font-medium mb-4 inline-block">Viết đánh giá ›</a>
+            <div class="divide-y divide-slate-100">
+                @forelse ($reviews as $r)
+                    <div class="py-3">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium text-slate-700">{{ $r->reviewer->name ?? 'Học viên' }}</p>
+                            <x-rating-summary :average="$r->overall_rating" :count="1" />
+                        </div>
+                        <p class="text-sm text-slate-500 mt-1">{{ $r->comment }}</p>
+                    </div>
+                @empty
+                    <x-empty-state title="Chưa có đánh giá nào cho lớp này" />
+                @endforelse
+            </div>
         </div>
     @elseif ($tab === 'notifications')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: thông báo riêng của lớp (bài mới mở, lịch đổi, thông báo giáo viên).</p>
+            <p class="text-sm text-slate-500">TODO: thông báo riêng của lớp (bài mới mở, lịch đổi, thông báo giáo viên) — cần bảng notifications.</p>
         </div>
     @elseif ($tab === 'members')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: danh sách thành viên — học sinh không thấy toàn bộ nếu không cần (8.3).</p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-medium text-slate-700 mb-3">Giáo viên</h3>
+                <div class="space-y-2">
+                    @foreach ($teachers as $t)
+                        <p class="text-sm text-slate-600">{{ $t->name }} <span class="text-xs text-slate-400">({{ $t->pivot->role ?? 'main' }})</span></p>
+                    @endforeach
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-medium text-slate-700 mb-3">Học sinh ({{ $students->count() }})</h3>
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    @foreach ($students as $s)
+                        <p class="text-sm text-slate-600">{{ $s->name }}</p>
+                    @endforeach
+                </div>
+            </div>
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
-                <p class="text-sm text-slate-500">Hôm nay 19:00 — Cấu trúc dữ liệu nâng cao</p>
+                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Tiến độ tổng quan</h3>
-                <x-progress-bar :percent="62" tone="brand" />
+                <x-progress-bar :percent="$overallPercent" tone="brand" />
             </div>
         </div>
     @endif

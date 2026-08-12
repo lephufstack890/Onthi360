@@ -9,11 +9,9 @@
 @section('page-title', 'Hàng đợi duyệt giáo viên')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\TeacherApprovalController truyền vào. --}}
     @php
-        $pending = [
-            ['id' => 3, 'name' => 'Lê Văn C', 'email' => 'teacher.c@onthi360.test', 'submitted' => '10/08/2026', 'subject' => 'Tin học'],
-            ['id' => 7, 'name' => 'Đỗ Thị F', 'email' => 'teacher.f@onthi360.test', 'submitted' => '09/08/2026', 'subject' => 'Toán'],
-        ];
+        $pending = $pending ?? [];
     @endphp
 
     <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Người dùng</a>

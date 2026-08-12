@@ -8,13 +8,10 @@
 @section('page-title', 'Thông báo')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Student\NotificationController truyền vào
+    (hiện luôn rỗng vì chưa có bảng notifications — xem TODO trong controller). --}}
     @php
-        $notifications = [
-            ['icon' => '🔓', 'tone' => 'emerald', 'text' => 'Giáo viên đã mở Bài 12 - Đệ quy cơ bản', 'time' => '1 giờ trước', 'read' => false],
-            ['icon' => '⏰', 'tone' => 'amber', 'text' => 'Quyền học "Chuyên đề CTDL nâng cao" sắp hết hạn (còn 5 ngày)', 'time' => '3 giờ trước', 'read' => false],
-            ['icon' => '📅', 'tone' => 'sky', 'text' => 'Lịch buổi học "10CT-2026" đổi sang 20:00 thứ Năm', 'time' => '1 ngày trước', 'read' => true],
-            ['icon' => '⭐', 'tone' => 'rose', 'text' => 'Đánh giá của bạn cho lớp 10CT-2026 đã được công bố', 'time' => '3 ngày trước', 'read' => true],
-        ];
+        $notifications = $notifications ?? [];
     @endphp
 
     <x-page-header title="Thông báo" />

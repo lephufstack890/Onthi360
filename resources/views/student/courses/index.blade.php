@@ -9,11 +9,9 @@
 @section('page-title', 'Khóa học của tôi')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Student\CourseController truyền vào. --}}
     @php
-        $classes = [
-            ['id' => 10, 'course' => 'Luyện thi vào 10 Chuyên Tin', 'class' => '10CT-2026', 'teacher' => 'GV Nguyễn Văn A', 'percent' => 62, 'nextSession' => 'Hôm nay 19:00'],
-            ['id' => 11, 'course' => 'Ôn thi HSG Tin 11', 'class' => '11HSG-2026', 'teacher' => 'GV Lê Văn C', 'percent' => 28, 'nextSession' => 'Thứ Sáu 19:30'],
-        ];
+        $classes = $classes ?? [];
     @endphp
 
     <x-page-header title="Khóa học của tôi" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">
@@ -30,7 +28,7 @@
                 <a href="{{ route('student.classes.show', $c['id']) }}" class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition block">
                     <p class="text-xs font-medium text-rose-600 uppercase tracking-wide">{{ $c['course'] }}</p>
                     <h3 class="font-semibold text-slate-800 mt-1">{{ $c['class'] }}</h3>
-                    <p class="text-sm text-slate-400 mt-1">{{ $c['teacher'] }} · Buổi tới: {{ $c['nextSession'] }}</p>
+                    <p class="text-sm text-slate-400 mt-1">{{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}</p>
                     <div class="mt-4">
                         <x-progress-bar :percent="$c['percent']" label="Tiến độ" tone="brand" />
                     </div>

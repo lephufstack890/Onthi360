@@ -9,15 +9,11 @@
 @section('page-title', 'Giáo viên tiêu biểu')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\FeaturedTeacherController truyền vào
+    ("featured" luôn false cho tới khi có cột is_featured thật trong schema). --}}
     @php
-        $tabs = [
-            ['label' => 'Cuộc thi', 'href' => route('admin.competitions.index'), 'active' => false, 'count' => 6],
-            ['label' => 'Giáo viên tiêu biểu', 'href' => route('admin.featured-teachers.index'), 'active' => true, 'count' => 14],
-        ];
-        $teachers = [
-            ['id' => 1, 'name' => 'Nguyễn Văn A', 'subject' => 'Tin học', 'featured' => true],
-            ['id' => 2, 'name' => 'Lê Văn C', 'subject' => 'Toán', 'featured' => false],
-        ];
+        $tabs = $tabs ?? [];
+        $teachers = $teachers ?? [];
     @endphp
 
     <x-page-header title="Giáo viên tiêu biểu" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
@@ -25,7 +21,7 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Giáo viên', 'Môn', 'Đang vinh danh', '']">
-        @foreach ($teachers as $t)
+        @forelse ($teachers as $t)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $t['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $t['subject'] }}</td>
@@ -36,6 +32,8 @@
                     <button type="button" class="text-rose-600 font-medium">{{ $t['featured'] ? 'Bỏ vinh danh' : 'Vinh danh' }}</button>
                 </td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có giáo viên nào được duyệt.</td></tr>
+        @endforelse
     </x-data-table>
 @endsection

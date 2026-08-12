@@ -9,17 +9,11 @@
 @section('page-title', 'Kiểm duyệt đánh giá')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ReviewController truyền vào. --}}
     @php
-        $tab = request('tab', 'pending');
-        $tabs = [
-            ['label' => 'Chờ kiểm duyệt', 'href' => route('admin.reviews.index'), 'active' => $tab === 'pending', 'count' => 12],
-            ['label' => 'Đã báo cáo', 'href' => route('admin.reviews.index', ['tab' => 'reported']), 'active' => $tab === 'reported', 'count' => 3],
-            ['label' => 'Đã công bố', 'href' => route('admin.reviews.index', ['tab' => 'published']), 'active' => $tab === 'published', 'count' => 861],
-        ];
-        $reviews = [
-            ['id' => 1, 'target' => 'Lớp 10CT-2026', 'author' => 'Học viên đã xác thực', 'rating' => 5, 'excerpt' => 'Giáo viên nhiệt tình, lịch học rõ ràng...', 'status' => 'Đang kiểm duyệt', 'tone' => 'warning'],
-            ['id' => 2, 'target' => 'Sách: Ôn thi Tin học 10', 'author' => 'Học viên đã xác thực', 'rating' => 4, 'excerpt' => 'Bài tập bám sát đề thi thật...', 'status' => 'Đang kiểm duyệt', 'tone' => 'warning'],
-        ];
+        $tab = $tab ?? 'pending';
+        $tabs = $tabs ?? [];
+        $reviews = $reviews ?? [];
     @endphp
 
     <x-page-header title="Kiểm duyệt đánh giá" subtitle="Chỉ công bố review có sao tổng; có thể ẩn nhận xét không phù hợp mà vẫn công bố sao (9.4)." />
@@ -27,7 +21,7 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Đối tượng', 'Người viết', 'Sao', 'Trích đoạn', 'Trạng thái', '']">
-        @foreach ($reviews as $r)
+        @forelse ($reviews as $r)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['target'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $r['author'] }}</td>
@@ -38,6 +32,8 @@
                     <a href="{{ route('admin.reviews.show', $r['id']) }}" class="text-rose-600 font-medium">Xem</a>
                 </td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Không có đánh giá nào ở trạng thái này.</td></tr>
+        @endforelse
     </x-data-table>
 @endsection

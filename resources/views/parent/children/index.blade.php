@@ -9,10 +9,9 @@
 @section('page-title', 'Con của tôi')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Parent\ChildController truyền vào. --}}
     @php
-        $children = [
-            ['id' => 1, 'name' => 'Nguyễn Minh An', 'class' => '10CT-2026', 'status' => 'Đã xác minh', 'tone' => 'success'],
-        ];
+        $children = $children ?? [];
     @endphp
 
     <x-page-header title="Con của tôi" subtitle="Chỉ hiển thị học sinh đã liên kết và xác minh — không thể tìm kiếm học sinh khác (10.3).">

@@ -14,16 +14,16 @@
 @section('page-title', '')
 
 @section('content')
+    {{-- $assessmentModel, $attempt, $questions do App\Http\Controllers\Student\AssessmentController
+    truyền vào. Nội dung câu hỏi hiện tại vẫn minh họa tĩnh — TODO: hiển thị đúng câu theo
+    $questions[$current]['questionId'] và loại câu (MCQ/điền đáp án/lập trình) khi có JS
+    điều hướng câu thật (6.3). --}}
     @php
-        $questions = [
+        $questions = $questions ?? [
             ['no' => 1, 'status' => 'answered'],
             ['no' => 2, 'status' => 'answered'],
             ['no' => 3, 'status' => 'current'],
             ['no' => 4, 'status' => 'flagged'],
-            ['no' => 5, 'status' => 'unanswered'],
-            ['no' => 6, 'status' => 'unanswered'],
-            ['no' => 7, 'status' => 'grading'],
-            ['no' => 8, 'status' => 'unanswered'],
         ];
         $statusStyle = [
             'answered' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -32,13 +32,17 @@
             'unanswered' => 'bg-white text-slate-500 border-slate-200',
             'grading' => 'bg-sky-100 text-sky-700 border-sky-200',
         ];
+        $assessmentTitle = $assessmentModel->title ?? 'Đề ôn chương 3 — Cấu trúc dữ liệu';
+        $resubmissionNote = isset($assessmentModel) && $assessmentModel->resubmission_policy
+            ? 'Nộp lại theo quy tắc của đề'
+            : 'Nộp lại tối đa 2 lần';
     @endphp
 
     {{-- Header sticky: tên đề, thời gian còn lại, lưu/nộp --}}
     <div class="sticky top-0 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 py-3 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between gap-4 mb-6">
         <div>
-            <h1 class="font-medium text-slate-800">Đề ôn chương 3 — Cấu trúc dữ liệu</h1>
-            <p class="text-xs text-slate-400">Lớp 10CT-2026 · Nộp lại tối đa 2 lần</p>
+            <h1 class="font-medium text-slate-800">{{ $assessmentTitle }}</h1>
+            <p class="text-xs text-slate-400">{{ $resubmissionNote }}</p>
         </div>
         <div class="flex items-center gap-3">
             <div class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-sm font-medium">⏱ 24:38</div>
@@ -51,7 +55,7 @@
         {{-- Điều hướng câu --}}
         <div class="lg:col-span-1 order-2 lg:order-1">
             <div class="bg-white rounded-2xl border border-slate-200 p-4">
-                <p class="text-xs text-slate-400 mb-3">8 câu · Hỗn hợp trắc nghiệm/điền đáp án/lập trình</p>
+                <p class="text-xs text-slate-400 mb-3">{{ count($questions) }} câu · Hỗn hợp trắc nghiệm/điền đáp án/lập trình</p>
                 <div class="grid grid-cols-5 lg:grid-cols-4 gap-2">
                     @foreach ($questions as $q)
                         <button type="button" class="w-9 h-9 rounded-lg border text-sm font-medium {{ $statusStyle[$q['status']] }}">

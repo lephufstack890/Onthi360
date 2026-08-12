@@ -13,12 +13,11 @@
 @section('page-title', '')
 
 @section('content')
+    {{-- $gates do App\Http\Controllers\Access\AccessController truyền vào
+    (hiện là placeholder "đã qua" cho tới khi có AccessGateService thật). --}}
     @php
-        $gates = [
-            ['label' => 'Thành viên/lớp', 'passed' => true, 'message' => 'Bạn đã ghi danh lớp 10CT-2026 và học liệu còn gắn lớp.'],
-            ['label' => 'Quyền học cá nhân', 'passed' => false, 'message' => 'Bạn cần quyền học liệu để mở bài này.', 'ctaLabel' => 'Mua học liệu / Nhập mã', 'ctaHref' => 'materials.show'],
-            ['label' => 'Tiến độ chung', 'passed' => true, 'message' => 'Giáo viên đã mở nội dung này cho lớp.'],
-        ];
+        $gates = $gates ?? [];
+        $materialId = $materialId ?? 1;
         $primary = collect($gates)->firstWhere('passed', false);
     @endphp
 
@@ -31,7 +30,7 @@
                 <p class="text-sm text-amber-800 font-medium mb-1">{{ $primary['label'] }}</p>
                 <p class="text-sm text-amber-700">{{ $primary['message'] }}</p>
                 @if (!empty($primary['ctaLabel']))
-                    <a href="{{ route($primary['ctaHref'], 1) }}" class="inline-block mt-3 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium">
+                    <a href="{{ route($primary['ctaHref'], $materialId) }}" class="inline-block mt-3 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium">
                         {{ $primary['ctaLabel'] }}
                     </a>
                 @endif

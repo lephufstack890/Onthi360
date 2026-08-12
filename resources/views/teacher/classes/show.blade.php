@@ -12,19 +12,17 @@
 @section('page-title', 'Chi tiết lớp')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\ClassRoomController truyền vào. --}}
     @php
-        $classId = request()->route('class', 10);
-        $tab = request('tab', 'overview');
-        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Học liệu', 'schedule' => 'Lịch/Điểm danh', 'assign' => 'Giao đề', 'results' => 'Kết quả', 'members' => 'Thành viên'];
-        $tabsData = [];
-        foreach ($tabDefs as $key => $label) {
-            $tabsData[] = ['label' => $label, 'href' => route('teacher.classes.show', ['class' => $classId, 'tab' => $key]), 'active' => $tab === $key];
-        }
-
-        $materials = [
-            ['title' => 'Sách: Ôn thi Tin học 10', 'scope' => 'Dùng được ở mọi lớp phụ trách đến 18/08/2026', 'tone' => 'warning', 'linkedStatus' => 'Đang dùng'],
-            ['title' => 'Chuyên đề: Cấu trúc dữ liệu nâng cao', 'scope' => 'Dùng được ở mọi lớp phụ trách đến 30/06/2027', 'tone' => 'success', 'linkedStatus' => 'Đang dùng'],
-        ];
+        $tab = $tab ?? 'overview';
+        $materials = $materials ?? [];
+        $members = $members ?? collect();
+        $studentsCount = $studentsCount ?? 0;
+        $courseTitle = $classRoom->course->title ?? '';
+        $className = $classRoom->name ?? '';
+        $nextSessionLabel = isset($nextSession) && $nextSession ? 'Buổi tới: '.$nextSession->starts_at->format('d/m H:i') : 'Chưa có buổi học sắp tới';
+        $ratingAverage = $ratingSummary->avg_rating ?? 0;
+        $ratingCount = $ratingSummary->review_count ?? 0;
     @endphp
 
     <a href="{{ route('teacher.classes.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Lớp học</a>
@@ -32,11 +30,11 @@
     <div class="rounded-3xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 border border-slate-200 p-6 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">Luyện thi vào 10 Chuyên Tin</p>
-                <h1 class="text-xl font-semibold text-slate-800 mt-1">10CT-2026</h1>
-                <p class="text-sm text-slate-500 mt-1">32 học sinh · Buổi tới: Hôm nay 19:00</p>
+                <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
+                <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
+                <p class="text-sm text-slate-500 mt-1">{{ $studentsCount }} học sinh · {{ $nextSessionLabel }}</p>
             </div>
-            <div class="w-40"><x-progress-bar :percent="62" label="Hoàn thành chung" tone="info" /></div>
+            <div class="w-40"><x-progress-bar :percent="0" label="Hoàn thành chung" tone="info" /></div>
         </div>
     </div>
 
@@ -51,7 +49,7 @@
         </div>
 
         <div class="space-y-3">
-            @foreach ($materials as $m)
+            @forelse ($materials as $m)
                 <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between flex-wrap gap-3">
                     <div>
                         <p class="font-medium text-slate-700">{{ $m['title'] }}</p>
@@ -64,7 +62,9 @@
                         <button type="button" class="text-rose-500">Gỡ</button>
                     </div>
                 </div>
-            @endforeach
+            @empty
+                <x-empty-state title="Lớp chưa gắn học liệu nào" />
+            @endforelse
 
             <button type="button" class="w-full rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-4 hover:border-rose-300 hover:text-rose-500">
                 + Thêm học liệu vào lớp (chỉ hiện học liệu bạn còn quyền dạy)
@@ -85,17 +85,22 @@
         </div>
     @elseif ($tab === 'members')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: danh sách 32 học sinh + trạng thái quyền cá nhân từng em.</p>
+            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh · TODO: trạng thái quyền cá nhân từng em (7.3).</p>
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+                @foreach ($members as $m)
+                    <p class="text-sm text-slate-600">{{ $m->name }}</p>
+                @endforeach
+            </div>
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Rating summary nội bộ</h3>
-                <x-rating-summary :average="4.8" :count="21" />
+                <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
-                <p class="text-sm text-slate-500">Hôm nay 19:00 — Cấu trúc dữ liệu nâng cao</p>
+                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
             </div>
         </div>
     @endif

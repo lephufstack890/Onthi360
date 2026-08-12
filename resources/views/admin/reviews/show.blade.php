@@ -1,7 +1,8 @@
 {{--
   Route: admin.reviews.show
   Spec: 9.4 (Admin xem bằng chứng entitlement/membership/hoạt động; công bố/cần chỉnh/từ chối/ẩn; phản hồi chính thức không sửa điểm sao).
-  TODO controller: truyền $review + $evidence (entitlement/membership/attendance thỏa 9.2).
+  $reviewModel (Eloquent thật) do App\Http\Controllers\Admin\ReviewController truyền vào.
+  TODO: $evidence chờ nối App\Services\ReviewEligibilityService; xử lý submit quyết định kiểm duyệt.
 --}}
 @extends('layouts.admin')
 
@@ -10,33 +11,26 @@
 
 @section('content')
     @php
-        $review = [
-            'id' => request()->route('review', 1),
-            'target' => 'Lớp 10CT-2026',
-            'author' => 'Học viên đã xác thực (Trần Thị B)',
-            'rating' => 5,
-            'content' => 'Giáo viên nhiệt tình, lịch học rõ ràng, con em tiến bộ rõ sau 2 tháng.',
-            'evidence' => ['Đã ghi danh lớp 10CT-2026 từ 01/03/2026', 'Đã điểm danh 6/8 buổi'],
-        ];
+        $evidence = $evidence ?? [];
     @endphp
 
     <a href="{{ route('admin.reviews.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Đánh giá</a>
 
-    <x-page-header :title="$review['target']" :subtitle="'Người viết: '.$review['author']" />
+    <x-page-header :title="$targetLabel" :subtitle="'Người viết: '.($reviewModel->reviewer->name ?? '')" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <p class="text-amber-500 mb-2">{{ str_repeat('★', $review['rating']) }}</p>
-                <p class="text-sm text-slate-700">{{ $review['content'] }}</p>
+                <p class="text-amber-500 mb-2">{{ str_repeat('★', (int) round($reviewModel->overall_rating)) }}</p>
+                <p class="text-sm text-slate-700">{{ $reviewModel->comment }}</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Bằng chứng đủ điều kiện trải nghiệm (9.2)</h2>
-                <ul class="list-disc list-inside text-sm text-slate-500 space-y-1">
-                    @foreach ($review['evidence'] as $e)
-                        <li>{{ $e }}</li>
-                    @endforeach
-                </ul>
+                @forelse ($evidence as $e)
+                    <p class="text-sm text-slate-500">{{ $e }}</p>
+                @empty
+                    <p class="text-sm text-slate-400">Chưa nối App\Services\ReviewEligibilityService để hiển thị bằng chứng thật.</p>
+                @endforelse
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Phản hồi chính thức (chỉ Admin)</h2>

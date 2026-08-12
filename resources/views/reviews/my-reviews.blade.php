@@ -10,11 +10,9 @@
 @section('page-title', 'Đánh giá của tôi')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\ReviewController truyền vào. --}}
     @php
-        $myReviews = [
-            ['target' => 'Lớp 10CT-2026', 'rating' => 5, 'status' => 'Đã công bố', 'tone' => 'success', 'time' => '3 ngày trước'],
-            ['target' => 'Sách: Ôn thi Tin học 10', 'rating' => 4, 'status' => 'Đang kiểm duyệt', 'tone' => 'warning', 'time' => 'Vừa gửi'],
-        ];
+        $myReviews = $myReviews ?? [];
     @endphp
 
     <x-page-header title="Đánh giá của tôi" />

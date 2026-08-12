@@ -14,14 +14,12 @@
 
 @section('content')
     @php
-        $submissions = [
-            ['time' => '2 phút trước', 'verdict' => 'Wrong Answer', 'tone' => 'danger'],
-            ['time' => '10 phút trước', 'verdict' => 'Time Limit Exceeded', 'tone' => 'warning'],
-        ];
+        $submissions = $submissions ?? [];
+        $questionTitle = $questionModel->title ?? 'Bài 12: Đệ quy cơ bản';
     @endphp
 
     <div class="flex items-center justify-between mb-4">
-        <h1 class="font-medium text-slate-800">Bài 12: Đệ quy cơ bản</h1>
+        <h1 class="font-medium text-slate-800">{{ $questionTitle }}</h1>
         <div class="flex items-center gap-2">
             <select class="text-sm rounded-lg border border-slate-200 px-3 py-2">
                 <option>C++17</option>
@@ -94,12 +92,14 @@ int main() {
             <div class="bg-white rounded-2xl border border-slate-200 p-4">
                 <h3 class="text-sm font-medium text-slate-700 mb-3">Lịch sử nộp</h3>
                 <ul class="space-y-2">
-                    @foreach ($submissions as $s)
+                    @forelse ($submissions as $s)
                         <li class="flex items-center justify-between text-sm">
                             <span class="text-slate-500">{{ $s['time'] }}</span>
                             <x-status-badge :tone="$s['tone']">{{ $s['verdict'] }}</x-status-badge>
                         </li>
-                    @endforeach
+                    @empty
+                        <li class="text-sm text-slate-400">Chưa có lượt nộp nào cho câu này.</li>
+                    @endforelse
                 </ul>
             </div>
         </div>

@@ -10,16 +10,11 @@
 @section('page-title', 'Quyền của tôi')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Access\AccessController truyền vào. --}}
     @php
-        $tab = request('tab', 'active');
-        $tabs = [
-            ['label' => 'Đang có quyền', 'href' => route('access.myAccess'), 'active' => $tab === 'active', 'count' => 2],
-            ['label' => 'Sắp hết hạn', 'href' => route('access.myAccess', ['tab' => 'expiring']), 'active' => $tab === 'expiring', 'count' => 1],
-            ['label' => 'Đã hết hạn', 'href' => route('access.myAccess', ['tab' => 'expired']), 'active' => $tab === 'expired', 'count' => 3],
-        ];
-        $rights = [
-            ['title' => 'Sách: Ôn thi Tin học 10', 'expires' => '30/06/2027', 'status' => 'Còn hiệu lực', 'tone' => 'success'],
-        ];
+        $tab = $tab ?? 'active';
+        $tabs = $tabs ?? [];
+        $rights = $rights ?? [];
     @endphp
 
     <x-page-header title="Quyền của tôi" subtitle="Hết hạn vẫn xem được lịch sử nộp, điểm và kết quả cũ — chỉ không đọc/làm/nộp mới nội dung được bảo vệ (7.3)." />
@@ -35,7 +30,7 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge>
-                    <a href="{{ route('materials.show', 1) }}" class="text-sm text-rose-600 font-medium">Gia hạn</a>
+                    <a href="{{ route('materials.show', $r['productId'] ?? 1) }}" class="text-sm text-rose-600 font-medium">Gia hạn</a>
                 </div>
             </div>
         @empty

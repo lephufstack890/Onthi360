@@ -10,18 +10,11 @@
 @section('page-title', 'Kho câu hỏi của tôi')
 
 @section('content')
+    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\QuestionController truyền vào. --}}
     @php
-        $tab = request('tab', 'all');
-        $tabs = [
-            ['label' => 'Tất cả', 'href' => route('teacher.questions.index'), 'active' => $tab === 'all', 'count' => 86],
-            ['label' => 'Đã phát hành', 'href' => route('teacher.questions.index', ['tab' => 'published']), 'active' => $tab === 'published', 'count' => 72],
-            ['label' => 'Nháp', 'href' => route('teacher.questions.index', ['tab' => 'draft']), 'active' => $tab === 'draft', 'count' => 14],
-        ];
-        $questions = [
-            ['title' => 'Bài 12: Đệ quy cơ bản', 'type' => 'Lập trình', 'status' => 'Phát hành', 'tone' => 'success'],
-            ['title' => 'Trắc nghiệm chương 2', 'type' => 'Trắc nghiệm', 'status' => 'Phát hành', 'tone' => 'success'],
-            ['title' => 'Bài 13: Đệ quy nâng cao', 'type' => 'Lập trình', 'status' => 'Nháp — thiếu test ẩn', 'tone' => 'warning'],
-        ];
+        $tab = $tab ?? 'all';
+        $tabs = $tabs ?? [];
+        $questions = $questions ?? [];
     @endphp
 
     <x-page-header title="Kho câu hỏi của tôi" subtitle="Chỉ bạn tạo/sửa/sử dụng — ranh giới rõ với kho chung của hệ thống (6.5).">
@@ -33,13 +26,15 @@
     <x-tabs :tabs="$tabs" />
 
     <x-data-table :columns="['Tên câu hỏi', 'Loại', 'Trạng thái', '']">
-        @foreach ($questions as $q)
+        @forelse ($questions as $q)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $q['title'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $q['type'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$q['tone']">{{ $q['status'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right"><a href="{{ route('teacher.questions.create') }}" class="text-rose-600 font-medium">Sửa</a></td>
             </tr>
-        @endforeach
+        @empty
+            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có câu hỏi nào trong kho của bạn.</td></tr>
+        @endforelse
     </x-data-table>
 @endsection

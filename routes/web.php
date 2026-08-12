@@ -1,21 +1,48 @@
 <?php
 
-use App\Models\Role;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
+use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
+use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
+use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
+use App\Http\Controllers\Student\ProfileController as StudentProfileController;
+use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentController;
+use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
+use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
+use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
+use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
+use App\Http\Controllers\Parent\ChildController as ParentChildController;
+use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
+use App\Http\Controllers\Access\AccessController;
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightController;
+use App\Http\Controllers\Admin\ActivationCodeController as AdminActivationCodeController;
+use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
+use App\Http\Controllers\Admin\ContentController as AdminContentController;
+use App\Http\Controllers\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\FeaturedTeacherController as AdminFeaturedTeacherController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\RankingController as AdminRankingController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\TeacherApprovalController as AdminTeacherApprovalController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Validation\ValidationException;
 
 /*
 |--------------------------------------------------------------------------
 | Khung route theo vai trò
 |--------------------------------------------------------------------------
-| public / student / teacher / parent / admin (4.2 BA spec). Toàn bộ route
-| dưới đây chỉ trả view() trực tiếp (chưa nối Controller/DB thật) — xem
-| comment TODO trong từng file resources/views/**. Khi viết Controller
-| thật, chuyển closure sang class Controller, giữ nguyên route name.
+| public / student / teacher / parent / admin (4.2 BA spec). Auth,
+| Dashboard và toàn bộ khu Học sinh đã nối Controller thật (Eloquent).
+| Các khu Giáo viên/Phụ huynh/Đánh giá/Quyền truy cập/Admin còn lại vẫn
+| trả view() trực tiếp qua closure — xem TODO trong từng file
+| resources/views/** — sẽ nối Controller thật lần lượt tiếp theo.
 */
 
 // -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
@@ -34,168 +61,105 @@ Route::get('/thong-tin', fn () => view('public.info.index'))->name('info.index')
 
 // -- Xác thực (ACC-01) -------------------------------------------------------
 Route::middleware(['guest'])->group(function () {
-    Route::get('/login', fn () => view('auth.login'))->name('login');
-
-    Route::post('/login', function (Request $request) {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
-
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages([
-                'email' => 'Email hoặc mật khẩu không đúng.',
-            ]);
-        }
-
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
-    });
-
-    Route::get('/register', fn () => view('auth.register'))->name('register');
-
-    Route::post('/register', function (Request $request) {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'confirmed', 'min:8'],
-        ]);
-
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
-
-        // TODO: gán role ban đầu theo lựa chọn thật của người dùng (3.1);
-        // mặc định tạm gán Học sinh để không tạo user không có role nào.
-        $user->assignRole(Role::STUDENT);
-
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
-    });
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
 });
 
-Route::post('/logout', function (Request $request) {
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()->route('home');
-})->name('logout')->middleware('auth');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // -- Sau đăng nhập (4.2) ------------------------------------------------------
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', function () {
-        // TODO: khi có role switcher thật (4.3), cho user tự chọn không
-        // gian nếu có nhiều role, thay vì ưu tiên cứng admin > teacher >
-        // parent > student như dưới đây.
-        $user = Auth::user();
-
-        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        if ($user->hasRole(Role::TEACHER)) {
-            return redirect()->route('teacher.dashboard');
-        }
-
-        if ($user->hasRole(Role::PARENT)) {
-            return redirect()->route('parent.dashboard');
-        }
-
-        return view('student.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // -- Học sinh (10.1) -----------------------------------------------------
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
-        Route::get('courses', fn () => view('student.courses.index'))->name('courses.index');
-        Route::get('classes/{class}', fn ($class) => view('student.classes.show'))->name('classes.show');
-        Route::get('practice', fn () => view('student.practice.index'))->name('practice.index');
-        Route::get('assessments/{assessment}/take', fn ($assessment) => view('student.assessment.take'))->name('assessment.take');
-        Route::get('assessments/{question}/oj', fn ($question) => view('student.assessment.oj'))->name('assessment.oj');
-        Route::get('attempts/{attempt}/result', fn ($attempt) => view('student.assessment.result'))->name('assessment.result');
-        Route::get('notifications', fn () => view('student.notifications'))->name('notifications');
-        Route::get('profile', fn () => view('student.profile'))->name('profile');
+        Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
+        Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
+        Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
+        Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
+        Route::get('assessments/{question}/oj', [StudentAssessmentController::class, 'oj'])->name('assessment.oj');
+        Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');
+        Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
+        Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
+        Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
     });
 
     // -- Giáo viên (10.2) -----------------------------------------------------
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
-        Route::get('/', fn () => view('teacher.dashboard'))->name('dashboard');
-        Route::get('classes', fn () => view('teacher.classes.index'))->name('classes.index');
-        Route::get('classes/{class}', fn ($class) => view('teacher.classes.show'))->name('classes.show');
-        Route::get('questions', fn () => view('teacher.questions.index'))->name('questions.index');
-        Route::get('questions/create', fn () => view('teacher.questions.create'))->name('questions.create');
-        Route::get('assessments/create', fn () => view('teacher.assessments.create'))->name('assessments.create');
-        Route::get('assessments/import', fn () => view('teacher.assessments.import'))->name('assessments.import');
-        Route::get('assessments/review-draft', fn () => view('teacher.assessments.review-draft'))->name('assessments.reviewDraft');
-        Route::get('results', fn () => view('teacher.results.index'))->name('results.index');
+        Route::get('/', [TeacherDashboardController::class, 'index'])->name('dashboard');
+        Route::get('classes', [TeacherClassRoomController::class, 'index'])->name('classes.index');
+        Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
+        Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
+        Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');
+        Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->name('assessments.create');
+        Route::get('assessments/import', [TeacherAssessmentController::class, 'import'])->name('assessments.import');
+        Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->name('assessments.reviewDraft');
+        Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
     });
 
     // -- Phụ huynh (10.3) -----------------------------------------------------
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
-        Route::get('/', fn () => view('parent.dashboard'))->name('dashboard');
-        Route::get('children', fn () => view('parent.children.index'))->name('children.index');
-        Route::get('children/{child}', fn ($child) => view('parent.children.show'))->name('children.show');
+        Route::get('/', [ParentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('children', [ParentChildController::class, 'index'])->name('children.index');
+        Route::get('children/{child}', [ParentChildController::class, 'show'])->name('children.show');
     });
 
     // -- Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung mọi vai trò --
     Route::prefix('danh-gia')->name('reviews.')->group(function () {
-        Route::get('/', fn () => view('reviews.index'))->name('index');
-        Route::get('/viet', fn () => view('reviews.form'))->name('form');
-        Route::get('/chua-du-dieu-kien', fn () => view('reviews.ineligible'))->name('ineligible');
-        Route::get('/cua-toi', fn () => view('reviews.my-reviews'))->name('myReviews');
+        Route::get('/', [ReviewController::class, 'index'])->name('index');
+        Route::get('/viet', [ReviewController::class, 'form'])->name('form');
+        Route::get('/chua-du-dieu-kien', [ReviewController::class, 'ineligible'])->name('ineligible');
+        Route::get('/cua-toi', [ReviewController::class, 'myReviews'])->name('myReviews');
     });
 
     // -- Quyền truy cập / thanh toán (mục 7) ------------------------------------
     Route::prefix('quyen')->name('access.')->group(function () {
-        Route::get('/dat-don/{product}', fn ($product) => view('access.checkout'))->name('checkout');
-        Route::get('/kich-hoat', fn () => view('access.activate'))->name('activate');
-        Route::get('/cua-toi', fn () => view('access.my-access'))->name('myAccess');
-        Route::get('/khoa/{material}', fn ($material) => view('access.blocked'))->name('blocked');
+        Route::get('/dat-don/{product}', [AccessController::class, 'checkout'])->name('checkout');
+        Route::get('/kich-hoat', [AccessController::class, 'activate'])->name('activate');
+        Route::get('/cua-toi', [AccessController::class, 'myAccess'])->name('myAccess');
+        Route::get('/khoa/{material}', [AccessController::class, 'blocked'])->name('blocked');
     });
 
     // -- Admin/Editor (4.2) -------------------------------------------------
     Route::middleware(['role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/', fn () => view('admin.dashboard'))->name('dashboard');
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         // Người dùng + phê duyệt giáo viên (ADM-02, 3.3)
-        Route::get('users', fn () => view('admin.users.index'))->name('users.index');
-        Route::get('users/{user}', fn ($user) => view('admin.users.show'))->name('users.show');
-        Route::get('teacher-approvals', fn () => view('admin.teacher-approvals.index'))->name('teacher-approvals.index');
-        Route::get('teacher-approvals/{teacherApproval}', fn ($teacherApproval) => view('admin.teacher-approvals.show'))->name('teacher-approvals.show');
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+        Route::get('teacher-approvals', [AdminTeacherApprovalController::class, 'index'])->name('teacher-approvals.index');
+        Route::get('teacher-approvals/{teacherApproval}', [AdminTeacherApprovalController::class, 'show'])->name('teacher-approvals.show');
 
         // Nội dung (ADM-03, 6.2/6.4/6.5)
-        Route::get('content', fn () => view('admin.content.index'))->name('content.index');
-        Route::get('content/{content}', fn ($content) => view('admin.content.show'))->name('content.show');
+        Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
+        Route::get('content/{content}', [AdminContentController::class, 'show'])->name('content.show');
 
         // Khóa & Lớp (8.1)
-        Route::get('courses', fn () => view('admin.courses.index'))->name('courses.index');
+        Route::get('courses', [AdminCourseController::class, 'index'])->name('courses.index');
 
         // Sản phẩm & Quyền (ADM-03, 5.1, 7.1-7.5)
-        Route::get('products', fn () => view('admin.products.index'))->name('products.index');
-        Route::get('products/{product}', fn ($product) => view('admin.products.show'))->name('products.show');
-        Route::get('access-rights', fn () => view('admin.access-rights.index'))->name('access-rights.index');
+        Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
+        Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+        Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
 
         // Đơn hàng + Mã kích hoạt (ADM-04, 7.4)
-        Route::get('orders', fn () => view('admin.orders.index'))->name('orders.index');
-        Route::get('orders/{order}', fn ($order) => view('admin.orders.show'))->name('orders.show');
-        Route::get('activation-codes', fn () => view('admin.activation-codes.index'))->name('activation-codes.index');
+        Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
 
         // Đánh giá (ADM-06, 9.4)
-        Route::get('reviews', fn () => view('admin.reviews.index'))->name('reviews.index');
-        Route::get('reviews/{review}', fn ($review) => view('admin.reviews.show'))->name('reviews.show');
+        Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
+        Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
 
         // Cuộc thi, Giáo viên tiêu biểu, Bảng xếp hạng (ADM-05, 11.1/11.2)
-        Route::get('competitions', fn () => view('admin.competitions.index'))->name('competitions.index');
-        Route::get('featured-teachers', fn () => view('admin.featured-teachers.index'))->name('featured-teachers.index');
-        Route::get('ranking', fn () => view('admin.ranking.index'))->name('ranking.index');
+        Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');
+        Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
+        Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
 
         // Báo cáo + Cấu hình
-        Route::get('reports', fn () => view('admin.reports.index'))->name('reports.index');
-        Route::get('settings', fn () => view('admin.settings.index'))->name('settings.index');
+        Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
+        Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
     });
 });
