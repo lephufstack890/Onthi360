@@ -26,6 +26,21 @@
             ['title' => 'Điều khoản sử dụng', 'desc' => 'Quy định quyền và trách nhiệm khi sử dụng Ôn Thi 360 cho từng vai trò.'],
             ['title' => 'Chính sách hoàn tiền', 'desc' => 'Điều kiện và quy trình hoàn tiền cho đơn hàng sản phẩm/khóa học (7.4).'],
         ];
+        $highlights = [
+            ['emoji' => '🤖', 'tone' => 'rose', 'title' => 'AI luyện tập thông minh', 'body' => 'Gợi ý bài phù hợp năng lực, cá nhân hóa lộ trình học.'],
+            ['emoji' => '🧑‍🤝‍🧑', 'tone' => 'sky', 'title' => 'Lớp học gọn gàng', 'body' => 'Tổ chức lớp, giao bài, theo dõi tiến độ dễ dàng.'],
+            ['emoji' => '📋', 'tone' => 'violet', 'title' => 'Khảo sát an toàn', 'body' => 'Tham gia đúng thời điểm, kiểm soát chặt với late-link.'],
+            ['emoji' => '👛', 'tone' => 'amber', 'title' => 'Ví & Token minh bạch', 'body' => 'Xem số dư, lịch sử sử dụng và quyền lợi rõ ràng.'],
+            ['emoji' => '🌍', 'tone' => 'emerald', 'title' => 'Du học & Trải nghiệm', 'body' => 'Không gian mở rộng cho định hướng và cơ hội phát triển.'],
+        ];
+        $reasons = [
+            '⏰ Luyện tập mọi lúc, mọi nơi',
+            '📈 Nâng cao hiệu quả học tập',
+            '📝 Đề thi bám sát chương trình',
+            '🛡️ Học tập an toàn, lành mạnh',
+            '📊 Phân tích điểm chi tiết',
+            '👥 Cộng đồng học tập tích cực',
+        ];
     @endphp
 
     {{-- Hero --}}
@@ -62,6 +77,29 @@
                     <div><p class="text-xl font-semibold text-rose-600">340+</p><p class="text-xs text-slate-400 mt-1">giáo viên</p></div>
                     <div><p class="text-xl font-semibold text-rose-600">98%</p><p class="text-xs text-slate-400 mt-1">hài lòng</p></div>
                     <div><p class="text-xl font-semibold text-rose-600">24/7</p><p class="text-xs text-slate-400 mt-1">luyện tập</p></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+                @foreach ($highlights as $h)
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
+                        <div class="flex justify-center">
+                            <x-icon-tile :emoji="$h['emoji']" :tone="$h['tone']" />
+                        </div>
+                        <p class="font-medium text-slate-700 text-sm mt-3">{{ $h['title'] }}</p>
+                        <p class="text-xs text-slate-400 mt-1 leading-relaxed">{{ $h['body'] }}</p>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 mt-4">
+                <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2">⭐ Vì sao nên chọn Ôn Thi 360?</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @foreach ($reasons as $r)
+                        <div class="flex items-center gap-2 text-sm text-slate-600 rounded-xl bg-slate-50 px-3 py-2.5">
+                            {{ $r }}
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </section>
@@ -112,17 +150,31 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div class="lg:col-span-1 space-y-3">
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
-                        <x-icon-tile emoji="📧" tone="sky" />
-                        <div>
-                            <p class="text-sm font-medium text-slate-700">Email hỗ trợ</p>
-                            <p class="text-sm text-slate-500">hotro@onthi360.vn</p>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
                         <x-icon-tile emoji="📞" tone="emerald" />
                         <div>
                             <p class="text-sm font-medium text-slate-700">Hotline</p>
-                            <p class="text-sm text-slate-500">1900 000 000 (8h–21h)</p>
+                            <p class="text-sm text-slate-500">0978 729 962</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+                        <x-icon-tile emoji="📧" tone="sky" />
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Email hỗ trợ</p>
+                            <p class="text-sm text-slate-500">support@onthi360.edu.vn</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+                        <x-icon-tile emoji="📘" tone="violet" />
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Facebook</p>
+                            <p class="text-sm text-slate-500">facebook.com/onthi360</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+                        <x-icon-tile emoji="💬" tone="rose" />
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Zalo</p>
+                            <p class="text-sm text-slate-500">zalo.me/onthi360</p>
                         </div>
                     </div>
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-3">

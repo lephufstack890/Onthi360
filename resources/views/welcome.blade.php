@@ -58,6 +58,7 @@
         <div class="max-w-7xl mx-auto px-4 py-16 lg:py-24 relative">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div class="text-center lg:text-left">
+                    <p class="text-rose-500 font-semibold text-sm tracking-wide mb-2">Học vui hơn · Hiểu sâu hơn · Tiến bộ mỗi ngày!</p>
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-rose-100 text-rose-600 text-xs font-medium mb-5">
                         ✦ Học sinh lớp 6–12 · Giáo viên · Phụ huynh
                     </span>
@@ -101,6 +102,82 @@
                             <p class="text-xs text-slate-400">Giữ vững lộ trình nhé!</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- 1b. Tính năng nổi bật --}}
+    <section class="max-w-7xl mx-auto px-4 py-10">
+        <div class="text-center mb-8">
+            <h2 class="text-xl lg:text-2xl font-semibold text-slate-800">Vì sao học sinh, giáo viên và phụ huynh chọn Ôn Thi 360</h2>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            @php
+                $highlights = [
+                    ['emoji' => '🤖', 'tone' => 'rose', 'title' => 'AI luyện tập thông minh', 'body' => 'Gợi ý bài phù hợp năng lực, cá nhân hóa lộ trình học.'],
+                    ['emoji' => '🧑‍🤝‍🧑', 'tone' => 'sky', 'title' => 'Lớp học gọn gàng', 'body' => 'Tổ chức lớp, giao bài, theo dõi tiến độ dễ dàng.'],
+                    ['emoji' => '📋', 'tone' => 'violet', 'title' => 'Khảo sát an toàn', 'body' => 'Tham gia đúng thời điểm, kiểm soát chặt với late-link.'],
+                    ['emoji' => '👛', 'tone' => 'amber', 'title' => 'Ví & Token minh bạch', 'body' => 'Xem số dư, lịch sử sử dụng và quyền lợi rõ ràng.'],
+                    ['emoji' => '🌍', 'tone' => 'emerald', 'title' => 'Du học & Trải nghiệm', 'body' => 'Không gian mở rộng cho định hướng và cơ hội phát triển.'],
+                ];
+            @endphp
+            @foreach ($highlights as $h)
+                <div class="rounded-2xl bg-white border border-slate-200 p-4 lg:p-5 text-center hover:shadow-md transition">
+                    <div class="flex justify-center">
+                        <x-icon-tile :emoji="$h['emoji']" :tone="$h['tone']" />
+                    </div>
+                    <p class="font-medium text-slate-700 text-sm mt-3">{{ $h['title'] }}</p>
+                    <p class="text-xs text-slate-400 mt-1 leading-relaxed">{{ $h['body'] }}</p>
+                </div>
+            @endforeach
+        </div>
+    </section>
+
+    {{-- 1c. Dành cho ai + Vì sao nên chọn --}}
+    <section class="max-w-7xl mx-auto px-4 py-10">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="rounded-3xl bg-white border border-slate-200 p-6 lg:p-8">
+                <h3 class="font-semibold text-slate-800 mb-5 flex items-center gap-2">💗 Dành cho</h3>
+                @php
+                    $audiences = [
+                        ['emoji' => '🧑‍🎓', 'tone' => 'rose', 'label' => 'Học sinh', 'body' => 'Luyện tập, làm bài và theo dõi tiến độ của chính mình.'],
+                        ['emoji' => '🍎', 'tone' => 'sky', 'label' => 'Giáo viên', 'body' => 'Tổ chức lớp, giao bài, chấm điểm và theo sát học sinh.'],
+                        ['emoji' => '👨‍👩‍👧', 'tone' => 'emerald', 'label' => 'Phụ huynh', 'body' => 'Theo dõi lịch học, điểm danh và kết quả của con.'],
+                        ['emoji' => '🏫', 'tone' => 'violet', 'label' => 'Trung tâm', 'body' => 'Quản lý nhiều lớp, nhiều giáo viên tập trung một nơi.'],
+                    ];
+                @endphp
+                <div class="grid grid-cols-2 gap-4">
+                    @foreach ($audiences as $a)
+                        <div class="flex items-start gap-3">
+                            <x-icon-tile :emoji="$a['emoji']" :tone="$a['tone']" />
+                            <div>
+                                <p class="font-medium text-slate-700 text-sm">{{ $a['label'] }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">{{ $a['body'] }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="rounded-3xl bg-white border border-slate-200 p-6 lg:p-8">
+                <h3 class="font-semibold text-slate-800 mb-5 flex items-center gap-2">⭐ Vì sao nên chọn Ôn Thi 360?</h3>
+                @php
+                    $reasons = [
+                        '⏰ Luyện tập mọi lúc, mọi nơi',
+                        '📈 Nâng cao hiệu quả học tập',
+                        '📝 Đề thi bám sát chương trình',
+                        '🛡️ Học tập an toàn, lành mạnh',
+                        '📊 Phân tích điểm chi tiết',
+                        '👥 Cộng đồng học tập tích cực',
+                    ];
+                @endphp
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    @foreach ($reasons as $r)
+                        <div class="flex items-center gap-2 text-sm text-slate-600 rounded-xl bg-slate-50 px-3 py-2.5">
+                            {{ $r }}
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -209,10 +286,10 @@
     <section class="max-w-7xl mx-auto px-4 pb-16">
         <div class="rounded-3xl bg-rose-600 px-6 py-10 lg:py-14 text-center relative overflow-hidden">
             <span class="absolute -top-8 -left-8 text-8xl opacity-10 select-none" aria-hidden="true">🚀</span>
-            <h2 class="text-2xl lg:text-3xl font-semibold text-white mb-3">Sẵn sàng bắt đầu lộ trình của bạn?</h2>
-            <p class="text-rose-100 mb-6 max-w-xl mx-auto">Đăng ký miễn phí, chọn khối/mục tiêu và bắt đầu luyện tập ngay hôm nay.</p>
+            <h2 class="text-2xl lg:text-3xl font-semibold text-white mb-3">Sẵn sàng bắt đầu?</h2>
+            <p class="text-rose-100 mb-6 max-w-xl mx-auto">Tham gia ngay không gian học tập thông minh và đáng yêu trên Ôn Thi 360 — đăng ký miễn phí, chọn khối/mục tiêu và bắt đầu luyện tập ngay hôm nay.</p>
             <div class="flex flex-wrap justify-center gap-3">
-                <a href="{{ route('register') }}" class="px-6 py-3 rounded-lg bg-white text-rose-600 text-sm font-medium hover:bg-rose-50 transition">Đăng ký miễn phí</a>
+                <a href="{{ route('register') }}" class="px-6 py-3 rounded-lg bg-white text-rose-600 text-sm font-medium hover:bg-rose-50 transition">Bắt đầu học ngay →</a>
                 <a href="{{ route('info.index') }}" class="px-6 py-3 rounded-lg border border-rose-300 text-white text-sm font-medium hover:bg-rose-700 transition">Tìm hiểu thêm</a>
             </div>
         </div>
