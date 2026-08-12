@@ -54,6 +54,17 @@ hằng số tên role + `User::hasRole()/hasAnyRole()/assignRole()`. Một user 
 nhiều role đồng thời (đúng yêu cầu role switcher — 4.3, ví dụ vừa dạy vừa là
 phụ huynh).
 
+**Permission (chi tiết theo action, gắn vào Role):** bảng `permissions` +
+`permission_role` (many-to-many) + `App\Models\Permission`. Kiểm qua
+`User::hasPermission()/hasAnyPermission()` — Super Admin luôn bypass tuyệt
+đối ở tầng code (không cần seed permission cho role này). Nối vào Gate chuẩn
+của Laravel qua `Gate::before()` ở `AppServiceProvider::boot()` nên dùng được
+`$user->can('slug')` / `@can('slug')` ở mọi nơi; middleware `permission:xxx`
+(`App\Http\Middleware\EnsureHasPermission`) dùng ở route khi cần chặn chi
+tiết hơn `role:xxx`. Danh sách permission mặc định + gán cho role nào xem
+`database/seeders/PermissionSeeder.php` — thêm permission mới chỉ cần thêm
+một dòng ở seeder, không phải sửa Controller/Middleware.
+
 **Audit log:** bảng `audit_logs` (polymorphic `auditable_type/auditable_id`) +
 trait `App\Concerns\Auditable` gắn vào model nhạy cảm (`TeacherProfile`,
 `AccessRight`, `Order`, `ActivationCode`, `ClassMaterial`, `ProgressUnlock`,
@@ -65,7 +76,7 @@ trait `App\Concerns\Auditable` gắn vào model nhạy cảm (`TeacherProfile`,
 
 | Nhu cầu phát sinh | Gợi ý | Vì sao chưa dùng ngay |
 |---|---|---|
-| Permission chi tiết theo action (không chỉ theo role) | `spatie/laravel-permission` | Ma trận quyền 3.2 hiện là theo role cố định, chưa cần permission builder động |
+| UI quản lý permission theo role kiểu kéo-thả, permission builder động | `spatie/laravel-permission` | Tầng Permission cơ bản (bảng + Gate + middleware) đã tự viết ở mục 3 trên; chỉ cần đổi khi muốn UI cấu hình permission runtime phức tạp |
 | Cần xem lịch sử audit log đẹp, filter, export | `spatie/laravel-activitylog` | Bảng `audit_logs` tự viết đã đủ dữ liệu; UI xem log có thể build sau bằng Blade/Filament |
 | Cần dựng nhanh 6 module admin (ADM-01→06) | `filament/filament` (chạy trên Livewire — hợp với hướng "Blade" đã chọn) | Cần `composer require` + `php artisan filament:install` mà chưa verify được trong lúc dựng base |
 | Cần UI tương tác (filter realtime, wizard nhiều bước) không muốn viết JS tay | `livewire/livewire` | Base hiện dùng Blade + controller thuần, đủ cho các luồng CRUD chính; thêm Livewire theo từng màn khi cần, không phải quyết định "tất cả hoặc không gì" |

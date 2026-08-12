@@ -12,6 +12,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Ôn Thi 360')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Alpine.js qua CDN: nhiều view (tab, dropdown) đã viết sẵn x-data nhưng
+         chưa có Alpine nào được nạp — thêm ở đây để toàn bộ tương tác đó chạy
+         được, không phải sửa lại từng view. --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
     <div class="flex min-h-screen">

@@ -25,4 +25,16 @@ class Role extends Model
     {
         return $this->belongsToMany(User::class);
     }
+
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class);
+    }
+
+    public function hasPermission(string $slug): bool
+    {
+        return $this->relationLoaded('permissions')
+            ? $this->permissions->contains('slug', $slug)
+            : $this->permissions()->where('slug', $slug)->exists();
+    }
 }

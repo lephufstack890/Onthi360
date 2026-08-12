@@ -18,6 +18,7 @@ use App\Http\Controllers\Parent\DashboardController as ParentDashboardController
 use App\Http\Controllers\Access\AccessController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\ActivationCodeController as AdminActivationCodeController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\ContentController as AdminContentController;
@@ -161,5 +162,10 @@ Route::middleware(['auth'])->group(function () {
         // Báo cáo + Cấu hình
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+
+        // Tài khoản admin (hồ sơ + đổi mật khẩu) — ACC-01/ACC-02 áp cho khu Admin.
+        Route::get('profile', [AdminProfileController::class, 'show'])->name('profile.show');
+        Route::put('profile', [AdminProfileController::class, 'update'])->name('profile.update');
+        Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');
     });
 });

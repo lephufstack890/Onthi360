@@ -21,6 +21,7 @@ use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\OrderRepositoryInterface;
 use App\Repositories\Contracts\ParentLinkRepositoryInterface;
+use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
@@ -49,6 +50,7 @@ use App\Repositories\Eloquent\LeaderboardEntryRepository;
 use App\Repositories\Eloquent\MaterialRepository;
 use App\Repositories\Eloquent\OrderRepository;
 use App\Repositories\Eloquent\ParentLinkRepository;
+use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\ProductRepository;
 use App\Repositories\Eloquent\QuestionRepository;
 use App\Repositories\Eloquent\RatingSummaryRepository;
@@ -85,6 +87,7 @@ class RepositoryServiceProvider extends ServiceProvider
         AttemptRepositoryInterface::class => AttemptRepository::class,
         AttemptAnswerRepositoryInterface::class => AttemptAnswerRepository::class,
         ParentLinkRepositoryInterface::class => ParentLinkRepository::class,
+        PermissionRepositoryInterface::class => PermissionRepository::class,
         TeacherProfileRepositoryInterface::class => TeacherProfileRepository::class,
         AttendanceRepositoryInterface::class => AttendanceRepository::class,
         ReviewRepositoryInterface::class => ReviewRepository::class,

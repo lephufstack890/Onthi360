@@ -3,7 +3,7 @@
     <div class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm text-slate-500">
         <div>
             <div class="font-semibold text-rose-600 mb-2">Ôn Thi 360</div>
-            <p>TODO: mô tả ngắn + cam kết chất lượng.</p>
+            <p>Học có lộ trình, luyện tập và chấm bài — đồng hành cùng học sinh, giáo viên và phụ huynh trên một nền tảng minh bạch, luôn nêu đúng lý do trước khi khóa nội dung.</p>
         </div>
         <div>
             <div class="font-medium text-slate-700 mb-2">Sản phẩm</div>

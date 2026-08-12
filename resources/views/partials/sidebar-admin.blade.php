@@ -13,6 +13,7 @@
         ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => '📊'],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => '📄'],
         ['label' => 'Cấu hình', 'route' => 'admin.settings.index', 'icon' => '⚙️'],
+        ['label' => 'Tài khoản', 'route' => 'admin.profile.show', 'icon' => '👤'],
     ];
 @endphp
 @foreach ($items as $item)

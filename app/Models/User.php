@@ -126,4 +126,40 @@ class User extends Authenticatable // implements MustVerifyEmail
         $role = Role::where('name', $roleName)->firstOrFail();
         $this->roles()->syncWithoutDetaching([$role->id]);
     }
+
+    /**
+     * Kiểm tra quyền chi tiết theo action, gắn qua role (không gắn thẳng vào user).
+     * Super Admin luôn có mọi quyền — bypass ở đây thay vì phải seed permission cho
+     * riêng role này, tránh quên seed khi thêm permission mới (đúng nguyên tắc "an
+     * toàn theo mặc định": Super Admin không bao giờ bị khoá nhầm quyền).
+     */
+    public function hasPermission(string $slug): bool
+    {
+        if ($this->hasRole(Role::SUPER_ADMIN)) {
+            return true;
+        }
+
+        $roles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->with('permissions')->get();
+
+        foreach ($roles as $role) {
+            if ($role->relationLoaded('permissions')
+                ? $role->permissions->contains('slug', $slug)
+                : $role->permissions()->where('slug', $slug)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasAnyPermission(string ...$slugs): bool
+    {
+        foreach ($slugs as $slug) {
+            if ($this->hasPermission($slug)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
