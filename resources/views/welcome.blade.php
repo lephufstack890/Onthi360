@@ -44,16 +44,9 @@
         </div>
     </section>
 
-    {{-- 2/3. Lộ trình + năng lực chấm --}}
+    {{-- 2/3. Khối carousel Lộ trình - Tài liệu - Cam kết - Tư tưởng --}}
     <section class="max-w-7xl mx-auto px-4 py-14">
-        <h2 class="text-xl font-semibold text-slate-800 mb-6 text-center">Lộ trình học tập</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center text-sm">
-            <div class="rounded-2xl bg-white border border-slate-200 p-5">Chọn khối/mục tiêu</div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-5">Vào khóa/lớp</div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-5">Luyện tập/kiểm tra</div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-5">Theo dõi tiến bộ</div>
-        </div>
-        <p class="text-center text-sm text-slate-500 mt-6">Chấm được câu lập trình (OJ), trắc nghiệm và điền đáp án — trong cùng một đề.</p>
+        <x-landing-carousel id="home-landing-carousel" />
     </section>
 
     {{-- 5. Khóa học / Tài liệu nổi bật --}}
