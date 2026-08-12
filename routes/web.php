@@ -12,22 +12,10 @@ use Illuminate\Validation\ValidationException;
 |--------------------------------------------------------------------------
 | Khung route theo vai trò
 |--------------------------------------------------------------------------
-| Đây là khung tối giản minh họa cách nhóm route theo không gian (4.2 của
-| BA spec): public / student / teacher / parent / admin. Nhóm admin đã có
-| đủ route trả view (chưa nối controller/DB thật — xem TODO trong từng
-| file resources/views/admin/**).
-|
-| Middleware 'role:...' cần đăng ký alias 1 lần trong bootstrap/app.php:
-|   use App\Http\Middleware\EnsureHasRole;
-|   ->withMiddleware(function (Middleware $middleware) {
-|       $middleware->alias(['role' => EnsureHasRole::class]);
-|   })
-|
-| Auth login/register/logout dưới đây là bản tối giản (chưa tách
-| Controller riêng) chỉ để có luồng đăng nhập thật, phục vụ xem UI các
-| khu vực sau đăng nhập. Khi viết Controller thật, chuyển các closure này
-| sang App\Http\Controllers\Auth\* theo chuẩn Laravel, giữ nguyên route
-| name để không phải sửa view.
+| public / student / teacher / parent / admin (4.2 BA spec). Toàn bộ route
+| dưới đây chỉ trả view() trực tiếp (chưa nối Controller/DB thật) — xem
+| comment TODO trong từng file resources/views/**. Khi viết Controller
+| thật, chuyển closure sang class Controller, giữ nguyên route name.
 */
 
 // -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
@@ -61,14 +49,6 @@ Route::middleware(['guest'])->group(function () {
         }
 
         $request->session()->regenerate();
-
-        $user = Auth::user();
-
-        // TODO: khi có role switcher thật (4.3), thay điều hướng cứng này
-        // bằng màn chọn không gian nếu user có nhiều role.
-        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
-            return redirect()->intended(route('admin.dashboard'));
-        }
 
         return redirect()->intended(route('dashboard'));
     });
@@ -110,20 +90,75 @@ Route::post('/logout', function (Request $request) {
 // -- Sau đăng nhập (4.2) ------------------------------------------------------
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
-        // TODO: điều hướng theo vai trò hiện tại của user (role switcher — 4.3).
-        return view('dashboard');
+        // TODO: khi có role switcher thật (4.3), cho user tự chọn không
+        // gian nếu có nhiều role, thay vì ưu tiên cứng admin > teacher >
+        // parent > student như dưới đây.
+        $user = Auth::user();
+
+        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($user->hasRole(Role::TEACHER)) {
+            return redirect()->route('teacher.dashboard');
+        }
+
+        if ($user->hasRole(Role::PARENT)) {
+            return redirect()->route('parent.dashboard');
+        }
+
+        return view('student.dashboard');
     })->name('dashboard');
 
+    // -- Học sinh (10.1) -----------------------------------------------------
+    Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
+        Route::get('courses', fn () => view('student.courses.index'))->name('courses.index');
+        Route::get('classes/{class}', fn ($class) => view('student.classes.show'))->name('classes.show');
+        Route::get('practice', fn () => view('student.practice.index'))->name('practice.index');
+        Route::get('assessments/{assessment}/take', fn ($assessment) => view('student.assessment.take'))->name('assessment.take');
+        Route::get('assessments/{question}/oj', fn ($question) => view('student.assessment.oj'))->name('assessment.oj');
+        Route::get('attempts/{attempt}/result', fn ($attempt) => view('student.assessment.result'))->name('assessment.result');
+        Route::get('notifications', fn () => view('student.notifications'))->name('notifications');
+        Route::get('profile', fn () => view('student.profile'))->name('profile');
+    });
+
+    // -- Giáo viên (10.2) -----------------------------------------------------
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
-        // Route::resource('classes', TeacherClassController::class);
-        // Route::post('classes/{classRoom}/materials/{material}', AttachMaterialController::class)
-        //     ->name('classes.materials.attach');
+        Route::get('/', fn () => view('teacher.dashboard'))->name('dashboard');
+        Route::get('classes', fn () => view('teacher.classes.index'))->name('classes.index');
+        Route::get('classes/{class}', fn ($class) => view('teacher.classes.show'))->name('classes.show');
+        Route::get('questions', fn () => view('teacher.questions.index'))->name('questions.index');
+        Route::get('questions/create', fn () => view('teacher.questions.create'))->name('questions.create');
+        Route::get('assessments/create', fn () => view('teacher.assessments.create'))->name('assessments.create');
+        Route::get('assessments/import', fn () => view('teacher.assessments.import'))->name('assessments.import');
+        Route::get('assessments/review-draft', fn () => view('teacher.assessments.review-draft'))->name('assessments.reviewDraft');
+        Route::get('results', fn () => view('teacher.results.index'))->name('results.index');
     });
 
+    // -- Phụ huynh (10.3) -----------------------------------------------------
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
-        // Route::get('children', ChildrenController::class)->name('children');
+        Route::get('/', fn () => view('parent.dashboard'))->name('dashboard');
+        Route::get('children', fn () => view('parent.children.index'))->name('children.index');
+        Route::get('children/{child}', fn ($child) => view('parent.children.show'))->name('children.show');
     });
 
+    // -- Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung mọi vai trò --
+    Route::prefix('danh-gia')->name('reviews.')->group(function () {
+        Route::get('/', fn () => view('reviews.index'))->name('index');
+        Route::get('/viet', fn () => view('reviews.form'))->name('form');
+        Route::get('/chua-du-dieu-kien', fn () => view('reviews.ineligible'))->name('ineligible');
+        Route::get('/cua-toi', fn () => view('reviews.my-reviews'))->name('myReviews');
+    });
+
+    // -- Quyền truy cập / thanh toán (mục 7) ------------------------------------
+    Route::prefix('quyen')->name('access.')->group(function () {
+        Route::get('/dat-don/{product}', fn ($product) => view('access.checkout'))->name('checkout');
+        Route::get('/kich-hoat', fn () => view('access.activate'))->name('activate');
+        Route::get('/cua-toi', fn () => view('access.my-access'))->name('myAccess');
+        Route::get('/khoa/{material}', fn ($material) => view('access.blocked'))->name('blocked');
+    });
+
+    // -- Admin/Editor (4.2) -------------------------------------------------
     Route::middleware(['role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', fn () => view('admin.dashboard'))->name('dashboard');
 

@@ -27,7 +27,7 @@
 
     <x-page-header title="Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
         <x-slot:actions>
-            <a href="{{ '#' }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Nhập đề (Word/PDF/OCR)</a>
+            <a href="{{ route('teacher.assessments.import') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Nhập đề (Word/PDF/OCR)</a>
         </x-slot:actions>
     </x-page-header>
 
@@ -38,7 +38,7 @@
             title="9 câu hỏi đang chờ rà soát"
             description="Kết quả OCR không tự phát hành — vào từng đề để rà soát trước khi chuyển vào kho (6.4)."
             actionLabel="Mở màn rà soát"
-            :actionHref="'#'" />
+            :actionHref="route('teacher.assessments.reviewDraft')" />
     @else
         <x-data-table :columns="['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @foreach ($rows as $r)
