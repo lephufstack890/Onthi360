@@ -2,15 +2,18 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\TeacherApprovalStatus;
+use App\Models\TeacherProfile;
+use App\Models\User;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 
 /**
- * Gom truy vấn cho hàng đợi duyệt giáo viên (admin.teacher-approvals.*, 3.3).
+ * Gom truy vấn + hành động cho hàng đợi duyệt giáo viên (admin.teacher-approvals.*, 3.3).
  *
- * Không có approve()/reject() ở đây: TeacherApprovalController hiện chỉ có
- * index/show, không có action nào để gắn App\Services\OrderActivationService
- * hay một service duyệt/từ chối riêng vào — việc thêm route/method đó là một
- * tính năng khác, ngoài phạm vi refactor này.
+ * State machine 3.3: Chưa đăng ký -> Chờ duyệt -> Đã được duyệt / Từ chối có lý do;
+ * Đã được duyệt -> Tạm dừng (thu hồi quyền mới, không xoá lịch sử) -> Duyệt lại.
+ * Từ chối/Tạm dừng PHẢI có lý do (16 mục 4) — App\Concerns\Auditable tự ghi audit log
+ * khi update(), lý do được đọc từ TeacherProfile::$auditReason.
  */
 class TeacherApprovalService
 {
@@ -31,15 +34,73 @@ class TeacherApprovalService
         return ['pending' => $pending];
     }
 
-    /** @return array{profile: \App\Models\TeacherProfile, documents: array} */
+    /** @return array{profile: TeacherProfile, documents: array} */
     public function showData(int $teacherProfileId): array
     {
-        $profile = $this->teacherProfiles->query()->with('user')->findOrFail($teacherProfileId);
+        $profile = $this->teacherProfiles->query()->with(['user', 'approver'])->findOrFail($teacherProfileId);
 
         return [
             'profile' => $profile,
             // TODO: chưa có bảng tài liệu minh chứng (CMND/bằng cấp) trong schema hiện tại.
             'documents' => [],
         ];
+    }
+
+    /** Chờ duyệt/Từ chối/Tạm dừng -> Đã được duyệt. Không yêu cầu lý do. */
+    public function approve(TeacherProfile $profile, User $admin): TeacherProfile
+    {
+        $profile->update([
+            'approval_status' => TeacherApprovalStatus::Approved,
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+            'rejection_reason' => null,
+        ]);
+
+        return $profile;
+    }
+
+    /** Chờ duyệt -> Từ chối có lý do (16 mục 4: phải ghi lý do). */
+    public function reject(TeacherProfile $profile, User $admin, string $reason): TeacherProfile
+    {
+        TeacherProfile::$auditReason = $reason;
+
+        $profile->update([
+            'approval_status' => TeacherApprovalStatus::Rejected,
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+            'rejection_reason' => $reason,
+            // Bị từ chối thì không thể còn hiển thị ở trang vinh danh.
+            'is_featured' => false,
+        ]);
+
+        TeacherProfile::$auditReason = null;
+
+        return $profile;
+    }
+
+    /**
+     * Đã được duyệt -> Tạm dừng (3.3: "quyền mới không được tạo; lớp/học liệu đang dùng xử
+     * lý theo chính sách admin") — CHỈ đổi trạng thái, không tự huỷ AccessRight/ClassMaterial
+     * đang có, việc đó thuộc AccessGateService/TeacherAttachMaterialAction ở tầng khác.
+     */
+    public function suspend(TeacherProfile $profile, User $admin, string $reason): TeacherProfile
+    {
+        TeacherProfile::$auditReason = $reason;
+
+        $profile->update([
+            'approval_status' => TeacherApprovalStatus::Suspended,
+            'rejection_reason' => $reason,
+            'is_featured' => false,
+        ]);
+
+        TeacherProfile::$auditReason = null;
+
+        return $profile;
+    }
+
+    /** Tạm dừng/Từ chối -> Đã được duyệt lại. */
+    public function reinstate(TeacherProfile $profile, User $admin): TeacherProfile
+    {
+        return $this->approve($profile, $admin);
     }
 }

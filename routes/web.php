@@ -132,6 +132,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::get('teacher-approvals', [AdminTeacherApprovalController::class, 'index'])->name('teacher-approvals.index');
         Route::get('teacher-approvals/{teacherApproval}', [AdminTeacherApprovalController::class, 'show'])->name('teacher-approvals.show');
+        Route::post('teacher-approvals/{teacherApproval}/approve', [AdminTeacherApprovalController::class, 'approve'])->name('teacher-approvals.approve');
+        Route::post('teacher-approvals/{teacherApproval}/reject', [AdminTeacherApprovalController::class, 'reject'])->name('teacher-approvals.reject');
+        Route::post('teacher-approvals/{teacherApproval}/suspend', [AdminTeacherApprovalController::class, 'suspend'])->name('teacher-approvals.suspend');
+        Route::post('teacher-approvals/{teacherApproval}/reinstate', [AdminTeacherApprovalController::class, 'reinstate'])->name('teacher-approvals.reinstate');
 
         // Nội dung (ADM-03, 6.2/6.4/6.5)
         Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
@@ -157,6 +161,8 @@ Route::middleware(['auth'])->group(function () {
         // Cuộc thi, Giáo viên tiêu biểu, Bảng xếp hạng (ADM-05, 11.1/11.2)
         Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
+        Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
+        Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
 
         // Báo cáo + Cấu hình

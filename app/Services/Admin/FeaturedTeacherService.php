@@ -2,14 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Models\TeacherProfile;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 
 /**
- * Gom truy vấn cho admin.featured-teachers.index — PUB-10 (trang vinh danh, 12.2).
- *
- * TODO: chưa có trường "featured" trong schema (teacher_profiles) — cần migration thêm cột
- * is_featured (hoặc bảng riêng) trước khi nút "Vinh danh/Bỏ vinh danh" có tác dụng thật.
+ * Gom truy vấn + hành động cho admin.featured-teachers.index — PUB-10 (trang vinh danh, 12.2).
+ * Chỉ giáo viên Đã được duyệt mới cho vinh danh (App\Models\TeacherProfile::isFeatured()).
  */
 class FeaturedTeacherService
 {
@@ -26,13 +25,35 @@ class FeaturedTeacherService
             ['label' => 'Giáo viên tiêu biểu', 'href' => route('admin.featured-teachers.index'), 'active' => true, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
-        $teachers = $this->teacherProfiles->approvedWithUser(50)->map(fn ($p) => [
-            'id' => $p->user_id,
+        $teachers = $this->teacherProfiles->approvedWithUser(50)->map(fn (TeacherProfile $p) => [
+            'profile_id' => $p->id,
             'name' => $p->user->name ?? '',
             'subject' => is_array($p->subjects) && count($p->subjects) > 0 ? $p->subjects[0] : '',
-            'featured' => false,
+            'featured' => $p->is_featured,
+            'achievement' => $p->achievement_note ?? '',
         ])->all();
 
         return ['tabs' => $tabs, 'teachers' => $teachers];
+    }
+
+    /** Vinh danh — cho phép kèm ghi chú thành tích hiển thị công khai (12.1 mục 8). */
+    public function feature(TeacherProfile $profile, ?string $achievementNote): TeacherProfile
+    {
+        $profile->update([
+            'is_featured' => true,
+            'achievement_note' => $achievementNote !== null && $achievementNote !== ''
+                ? $achievementNote
+                : $profile->achievement_note,
+        ]);
+
+        return $profile;
+    }
+
+    /** Bỏ vinh danh — không xoá achievement_note, chỉ ẩn khỏi trang công khai. */
+    public function unfeature(TeacherProfile $profile): TeacherProfile
+    {
+        $profile->update(['is_featured' => false]);
+
+        return $profile;
     }
 }
