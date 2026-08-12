@@ -72,7 +72,7 @@ class RepositoryServiceProvider extends ServiceProvider
     /**
      * @var array<class-string, class-string>
      */
-    private array $bindings = [
+    private array $repositoryBindings = [
         UserRepositoryInterface::class => UserRepository::class,
         RoleRepositoryInterface::class => RoleRepository::class,
         ClassRoomRepositoryInterface::class => ClassRoomRepository::class,
@@ -105,7 +105,7 @@ class RepositoryServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        foreach ($this->bindings as $interface => $implementation) {
+        foreach ($this->repositoryBindings as $interface => $implementation) {
             $this->app->bind($interface, $implementation);
         }
     }

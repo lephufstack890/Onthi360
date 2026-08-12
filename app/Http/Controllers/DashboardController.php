@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Role;
+use App\Services\DashboardRoutingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,22 +13,20 @@ use Illuminate\Support\Facades\Auth;
  */
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly DashboardRoutingService $dashboardRoutingService,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
 
-        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        if ($user->hasRole(Role::TEACHER)) {
-            return redirect()->route('teacher.dashboard');
-        }
-
-        if ($user->hasRole(Role::PARENT)) {
-            return redirect()->route('parent.dashboard');
-        }
-
-        return app(\App\Http\Controllers\Student\DashboardController::class)->index($request);
+        return match ($this->dashboardRoutingService->primaryDashboardFor($user)) {
+            DashboardRoutingService::ADMIN => redirect()->route('admin.dashboard'),
+            DashboardRoutingService::TEACHER => redirect()->route('teacher.dashboard'),
+            DashboardRoutingService::PARENT => redirect()->route('parent.dashboard'),
+            default => app(\App\Http\Controllers\Student\DashboardController::class)->index($request),
+        };
     }
 }

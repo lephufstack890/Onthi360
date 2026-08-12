@@ -2,39 +2,40 @@
 
 namespace App\Http\Controllers\Access;
 
-use App\Enums\AccessRightStatus;
 use App\Http\Controllers\Controller;
-use App\Models\Product;
+use App\Services\Access\AccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class AccessController extends Controller
 {
+    public function __construct(private AccessService $accessService) {}
+
     /** access.checkout (ACC-03) — 7.4/7.5: checkout theo scope, sách mềm bắt buộc. */
     public function checkout(Request $request, int $product): View
     {
         $user = Auth::user();
-        $productModel = Product::findOrFail($product);
 
-        // Chỉ giáo viên đã được duyệt mới thấy scope "Dùng để dạy" (7.2, 7.5).
-        $canTeach = $user->isTeacherApproved();
-
-        return view('access.checkout', [
-            'product' => $productModel,
-            'canTeach' => $canTeach,
-            'printPrice' => 50000, // TODO: giá bản in thật cần cấu hình riêng, chưa có trường trong schema.
-        ]);
+        return view('access.checkout', $this->accessService->checkoutData($user, $product));
     }
 
     /**
      * access.activate (ACC-02).
-     * TODO: xử lý submit qua App\Services\OrderActivationService::activate() khi service này
-     * được xây; hiện chỉ render form, chưa có logic kích hoạt thật.
+     *
+     * Route này chỉ có GET và form trong Blade chưa có submit thật (không có
+     * name/method) — không tự thêm route/handler POST mới ở đây (ngoài phạm
+     * vi refactor). Nếu URL có ?code=..., tra mã thật và tính sẵn
+     * AccessDecision qua App\Services\OrderActivationService::canActivate()
+     * để trang có dữ liệu thật hiển thị lý do mã dùng được/không; khi submit
+     * thật được xây, handler đó gọi tiếp OrderActivationService::activate().
      */
     public function activate(Request $request): View
     {
-        return view('access.activate');
+        $user = Auth::user();
+        $code = $request->query('code');
+
+        return view('access.activate', $this->accessService->activationLookup($user, $code));
     }
 
     /** access.myAccess (ACC-07) — 7.3: Đang có quyền / Sắp hết hạn / Đã hết hạn. */
@@ -43,59 +44,20 @@ class AccessController extends Controller
         $user = Auth::user();
         $tab = $request->query('tab', 'active');
 
-        $all = $user->accessRights()->with('product')->get();
-        $now = now();
-
-        $classify = function ($right) use ($now) {
-            if ($right->status !== AccessRightStatus::Active || $right->expires_at === null) {
-                return $right->status === AccessRightStatus::Expired ? 'expired' : 'other';
-            }
-
-            return $right->expires_at->diffInDays($now, false) >= -14 && $right->expires_at->isFuture()
-                ? 'expiring'
-                : ($right->expires_at->isPast() ? 'expired' : 'active');
-        };
-
-        $grouped = $all->groupBy($classify);
-
-        $tabs = [
-            ['label' => 'Đang có quyền', 'href' => route('access.myAccess'), 'active' => $tab === 'active', 'count' => $grouped->get('active', collect())->count()],
-            ['label' => 'Sắp hết hạn', 'href' => route('access.myAccess', ['tab' => 'expiring']), 'active' => $tab === 'expiring', 'count' => $grouped->get('expiring', collect())->count()],
-            ['label' => 'Đã hết hạn', 'href' => route('access.myAccess', ['tab' => 'expired']), 'active' => $tab === 'expired', 'count' => $grouped->get('expired', collect())->count()],
-        ];
-
-        $rights = $grouped->get($tab === 'active' ? 'active' : $tab, collect())->map(fn ($r) => [
-            'productId' => $r->product_id,
-            'title' => $r->product->title ?? 'Học liệu',
-            'expires' => $r->expires_at?->format('d/m/Y') ?? 'Không xác định',
-            'status' => match (true) {
-                $tab === 'expiring' => 'Sắp hết hạn',
-                $tab === 'expired' => 'Đã hết hạn',
-                default => 'Còn hiệu lực',
-            },
-            'tone' => match ($tab) {
-                'expiring' => 'warning',
-                'expired' => 'neutral',
-                default => 'success',
-            },
-        ])->values()->all();
-
-        return view('access.my-access', ['tab' => $tab, 'tabs' => $tabs, 'rights' => $rights]);
+        return view('access.my-access', $this->accessService->myAccessData($user, $tab));
     }
 
     /**
-     * access.blocked (ACC-08) — 7.3: 3 cửa Thành viên/lớp, Quyền cá nhân, Tiến độ chung.
-     * TODO: nối App\Services\AccessGateService thật để tính từng App\Support\AccessDecision;
-     * hiện trả về 3 cửa mặc định "đã qua" vì chưa có service, tránh hiển thị lý do sai.
+     * access.blocked (ACC-08) — 7.3: 3 cửa Thành viên/lớp, Quyền cá nhân, Tiến độ chung,
+     * tính thật qua App\Services\AccessGateService::canAccessMaterial().
+     * ?class=<id> tùy chọn: ngữ cảnh lớp khi bài bị khóa trong lộ trình lớp (route hiện
+     * không có {class}, không tự thêm param bắt buộc mới).
      */
     public function blocked(Request $request, int $material): View
     {
-        $gates = [
-            ['label' => 'Thành viên/lớp', 'passed' => true, 'message' => 'Đang chờ App\\Services\\AccessGateService.'],
-            ['label' => 'Quyền học cá nhân', 'passed' => true, 'message' => 'Đang chờ App\\Services\\AccessGateService.'],
-            ['label' => 'Tiến độ chung', 'passed' => true, 'message' => 'Đang chờ App\\Services\\AccessGateService.'],
-        ];
+        $user = Auth::user();
+        $classRoomId = $request->query('class') ? (int) $request->query('class') : null;
 
-        return view('access.blocked', ['gates' => $gates, 'materialId' => $material]);
+        return view('access.blocked', $this->accessService->blockedGates($user, $material, $classRoomId));
     }
 }

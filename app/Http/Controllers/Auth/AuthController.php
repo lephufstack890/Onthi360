@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
-use App\Models\User;
+use App\Services\Auth\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -18,6 +16,11 @@ use Illuminate\View\View;
  */
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly AuthService $authService,
+    ) {
+    }
+
     public function showLogin(): View
     {
         return view('auth.login');
@@ -30,8 +33,8 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $this->authService->attempt($credentials, $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
                 'email' => 'Email hoặc mật khẩu không đúng.',
             ]);
         }
@@ -54,17 +57,9 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
+        $user = $this->authService->registerStudent($data);
 
-        // TODO: gán role ban đầu theo lựa chọn thật của người dùng (3.1);
-        // mặc định tạm gán Học sinh để không tạo user không có role nào.
-        $user->assignRole(Role::STUDENT);
-
-        Auth::login($user);
+        $this->authService->login($user);
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));
@@ -72,7 +67,7 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::logout();
+        $this->authService->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
