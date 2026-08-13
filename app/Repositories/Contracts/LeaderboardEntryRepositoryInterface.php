@@ -12,4 +12,8 @@ interface LeaderboardEntryRepositoryInterface extends BaseRepositoryInterface
     public function distinctClassRoomIdsForScope(string $scope): array;
 
     public function countForClassRoomScope(int $classRoomId, string $scope): int;
+
+    public function entriesForCompetition(int $competitionId): Collection;
+
+    public function entriesForClassRoom(int $classRoomId): Collection;
 }

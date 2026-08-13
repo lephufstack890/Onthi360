@@ -9,7 +9,9 @@ use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
+use App\Models\RatingSummary;
 use App\Services\ReviewEligibilityService;
+use App\Services\SystemSettingService;
 use App\Support\AccessDecision;
 
 /**
@@ -25,6 +27,7 @@ class ReviewService
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ReviewRepositoryInterface $reviews,
         private ReviewEligibilityService $reviewEligibility,
+        private SystemSettingService $systemSettings,
     ) {}
 
     /** reviews.index (REV-01) — 9.5: TB, số review, phân phối 1-5 sao; <5 review thì chưa xếp hạng. */
@@ -39,7 +42,8 @@ class ReviewService
 
         $ratingSummary = $this->ratingSummaries->findForTarget($targetType, $id);
         $distribution = $ratingSummary?->distribution ?? [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
-        $isRankable = $ratingSummary?->isRankable() ?? false;
+        $minReviewsToRank = $this->systemSettings->getInt('rating.min_reviews_to_rank', RatingSummary::MIN_REVIEWS_TO_RANK);
+        $isRankable = $ratingSummary?->isRankable($minReviewsToRank) ?? false;
 
         $reviews = $this->reviews->publishedForTarget($targetType, $id, 30)
             ->map(fn ($r) => [

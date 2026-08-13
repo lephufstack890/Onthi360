@@ -234,10 +234,19 @@ Route::middleware(['auth'])->group(function () {
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
+        Route::get('ranking/{scope}/{id}', [AdminRankingController::class, 'show'])
+            ->whereIn('scope', ['competition', 'class'])
+            ->where('id', '[0-9]+')
+            ->name('ranking.show');
 
-        // Báo cáo + Cấu hình
+        // Báo cáo (2.3: P0 chỉ báo cáo vận hành cơ bản, KHÔNG gồm báo cáo thương mại sâu/chiến dịch)
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
-        Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+
+        // Cấu hình hệ thống — CHỈ Super Admin (3.1: "Cấu hình hệ thống tối cao" không thuộc Admin thường).
+        Route::middleware('role:super_admin')->group(function () {
+            Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+            Route::put('settings/rating-threshold', [AdminSettingsController::class, 'updateRatingThreshold'])->name('settings.rating-threshold.update');
+        });
 
         // Tài khoản admin (hồ sơ + đổi mật khẩu) — ACC-01/ACC-02 áp cho khu Admin.
         Route::get('profile', [AdminProfileController::class, 'show'])->name('profile.show');

@@ -1,7 +1,8 @@
 {{--
-  Route: admin.ranking.index
+  Route: admin.ranking.index / .show
   Spec: 11.2 (phạm vi rõ: cuộc thi/lớp/chuyên đề; nêu công thức điểm; Chờ công bố không lộ rank tạm).
-  TODO controller: truyền $boards theo phạm vi.
+  $boards do App\Services\Admin\RankingService::indexData() truyền vào, mỗi board có
+  type=competition|class + scopeId để dựng link Xem/Cấu hình.
 --}}
 @extends('layouts.admin')
 
@@ -22,7 +23,12 @@
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $b['scope'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $b['entries'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$b['tone']">{{ $b['status'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right"><a href="#" class="text-rose-600 font-medium">Cấu hình</a></td>
+                <td class="px-4 py-3 text-right space-x-3">
+                    <a href="{{ route('admin.ranking.show', ['scope' => $b['type'], 'id' => $b['scopeId']]) }}" class="text-slate-500 hover:text-rose-600 font-medium">Xem</a>
+                    @if ($b['type'] === 'competition')
+                        <a href="{{ route('admin.competitions.edit', $b['scopeId']) }}" class="text-rose-600 font-medium">Cấu hình</a>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có bảng xếp hạng nào.</td></tr>

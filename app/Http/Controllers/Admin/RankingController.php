@@ -16,4 +16,10 @@ class RankingController extends Controller
     {
         return view('admin.ranking.index', $this->rankingService->indexData());
     }
+
+    /** admin.ranking.show — chi tiết 1 bảng xếp hạng theo phạm vi cụ thể (11.2). */
+    public function show(string $scope, int $id): View
+    {
+        return view('admin.ranking.show', $this->rankingService->showBoard($scope, $id));
+    }
 }

@@ -20,4 +20,22 @@ class LeaderboardEntryRepository extends EloquentRepository implements Leaderboa
     {
         return $this->query()->where('scope', $scope)->where('class_room_id', $classRoomId)->count();
     }
+
+    public function entriesForCompetition(int $competitionId): Collection
+    {
+        return $this->query()->with('user')
+            ->where('scope', 'competition')
+            ->where('competition_id', $competitionId)
+            ->orderBy('rank')
+            ->get();
+    }
+
+    public function entriesForClassRoom(int $classRoomId): Collection
+    {
+        return $this->query()->with('user')
+            ->where('scope', 'class_room')
+            ->where('class_room_id', $classRoomId)
+            ->orderBy('rank')
+            ->get();
+    }
 }

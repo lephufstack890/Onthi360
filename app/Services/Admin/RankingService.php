@@ -22,6 +22,8 @@ class RankingService
     {
         $boards = $this->competitions->withLeaderboardCounts(20)->map(fn ($c) => [
             'id' => $c->id,
+            'type' => 'competition',
+            'scopeId' => $c->id,
             'scope' => 'Cuộc thi: '.$c->title,
             'entries' => $c->ranksArePublic() ? $c->leaderboard_entries_count : 0,
             'status' => $c->ranksArePublic() ? 'Đã công bố' : 'Chờ công bố',
@@ -50,6 +52,8 @@ class RankingService
 
                 $boards[] = [
                     'id' => 'class-'.$classRoomId,
+                    'type' => 'class',
+                    'scopeId' => $classRoomId,
                     'scope' => 'Lớp: '.$classRoom->name,
                     'entries' => (int) ($countsByClassRoomId[$classRoomId] ?? 0),
                     'status' => 'Đã công bố',
@@ -59,5 +63,46 @@ class RankingService
         }
 
         return ['boards' => $boards];
+    }
+
+    /**
+     * admin.ranking.show — chi tiết 1 bảng xếp hạng theo phạm vi cụ thể
+     * (11.2: không trộn phạm vi; "Chờ công bố" không lộ rank tạm nếu quy chế cấm).
+     *
+     * @return array{scopeLabel: string, ranksArePublic: bool, competitionId: ?int, entries: array}
+     */
+    public function showBoard(string $scope, int $id): array
+    {
+        if ($scope === 'competition') {
+            $competition = $this->competitions->findOrFail($id);
+
+            return [
+                'scopeLabel' => 'Cuộc thi: '.$competition->title,
+                'ranksArePublic' => $competition->ranksArePublic(),
+                'competitionId' => $competition->id,
+                'entries' => $competition->ranksArePublic()
+                    ? $this->mapEntries($this->leaderboardEntries->entriesForCompetition($id))
+                    : [],
+            ];
+        }
+
+        $classRoom = $this->classRooms->findOrFail($id);
+
+        return [
+            'scopeLabel' => 'Lớp: '.$classRoom->name,
+            'ranksArePublic' => true,
+            'competitionId' => null,
+            'entries' => $this->mapEntries($this->leaderboardEntries->entriesForClassRoom($id)),
+        ];
+    }
+
+    private function mapEntries($entries): array
+    {
+        return $entries->map(fn ($e) => [
+            'rank' => $e->rank,
+            'user' => $e->user->name ?? '—',
+            'score' => $e->score,
+            'topic' => $e->topic,
+        ])->all();
     }
 }

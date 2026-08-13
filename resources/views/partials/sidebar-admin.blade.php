@@ -12,10 +12,13 @@
         ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => '🏆', 'also' => ['admin.featured-teachers.index']],
         ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => '📊'],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => '📄'],
-        ['label' => 'Cấu hình', 'route' => 'admin.settings.index', 'icon' => '⚙️'],
+        ['label' => 'Cấu hình', 'route' => 'admin.settings.index', 'icon' => '⚙️', 'superAdminOnly' => true],
         ['label' => 'Tài khoản', 'route' => 'admin.profile.show', 'icon' => '👤'],
     ];
     $adminName = auth()->user()->name ?? 'Quản trị viên';
+    // 3.1: "Cấu hình hệ thống tối cao" chỉ dành cho Super Admin, không phải Admin thường.
+    $isSuperAdmin = auth()->user()?->hasRole(\App\Models\Role::SUPER_ADMIN) ?? false;
+    $items = array_values(array_filter($items, fn ($item) => ! ($item['superAdminOnly'] ?? false) || $isSuperAdmin));
 @endphp
 
 <div class="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-rose-50/60">

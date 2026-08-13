@@ -28,6 +28,7 @@ use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewReportRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Repositories\Contracts\SystemSettingRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -57,6 +58,7 @@ use App\Repositories\Eloquent\RatingSummaryRepository;
 use App\Repositories\Eloquent\ReviewReportRepository;
 use App\Repositories\Eloquent\ReviewRepository;
 use App\Repositories\Eloquent\RoleRepository;
+use App\Repositories\Eloquent\SystemSettingRepository;
 use App\Repositories\Eloquent\TeacherProfileRepository;
 use App\Repositories\Eloquent\UploadedDocumentRepository;
 use App\Repositories\Eloquent\UserRepository;
@@ -104,6 +106,7 @@ class RepositoryServiceProvider extends ServiceProvider
         AuditLogRepositoryInterface::class => AuditLogRepository::class,
         CourseRepositoryInterface::class => CourseRepository::class,
         MaterialRepositoryInterface::class => MaterialRepository::class,
+        SystemSettingRepositoryInterface::class => SystemSettingRepository::class,
     ];
 
     public function register(): void

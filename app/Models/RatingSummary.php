@@ -17,11 +17,15 @@ class RatingSummary extends Model
         'updated_at_summary' => 'datetime',
     ];
 
-    /** Ngưỡng tối thiểu để hiển thị xếp hạng công khai (9.5). */
+    /**
+     * Giá trị mặc định khi chưa có cấu hình hệ thống (fallback) — giá trị
+     * thật do Super Admin quản lý qua system_settings (key
+     * rating.min_reviews_to_rank), xem App\Services\SystemSettingService (18.8).
+     */
     public const MIN_REVIEWS_TO_RANK = 5;
 
-    public function isRankable(): bool
+    public function isRankable(int $threshold = self::MIN_REVIEWS_TO_RANK): bool
     {
-        return $this->review_count >= self::MIN_REVIEWS_TO_RANK;
+        return $this->review_count >= $threshold;
     }
 }
