@@ -21,7 +21,7 @@
         push(type, message) {
             const id = Date.now() + Math.random();
             this.toasts.push({ id, type, message, icon: this.icons[type] || this.icons.info });
-            setTimeout(() => this.remove(id), 5000);
+            setTimeout(() => this.remove(id), 2000);
         },
         remove(id) {
             this.toasts = this.toasts.filter((t) => t.id !== id);

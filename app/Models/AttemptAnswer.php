@@ -12,6 +12,9 @@ class AttemptAnswer extends Model
 {
     use Auditable;
 
+    /** Đọc bởi App\Concerns\Auditable nếu có set lý do trước save()/delete() (10.4, 16 mục 4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'attempt_id', 'question_id', 'answer', 'code_source', 'language',
         'verdict', 'score', 'graded_at', 'submission_count',

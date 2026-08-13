@@ -15,6 +15,9 @@ class Order extends Model
 {
     use HasFactory, Auditable;
 
+    /** Đọc bởi App\Concerns\Auditable nếu có set lý do trước save()/delete() (10.4, 16 mục 4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'order_no', 'buyer_id', 'status', 'payment_method', 'total_amount',
         'approved_by', 'approved_at', 'rejected_reason',

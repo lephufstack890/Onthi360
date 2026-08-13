@@ -18,6 +18,9 @@ class Assessment extends Model
 {
     use HasFactory, Auditable, SoftDeletes;
 
+    /** Đọc bởi App\Concerns\Auditable — lý do khi admin publish/từ chối/lưu trữ đề (10.4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'title', 'type', 'total_points', 'duration_minutes', 'resubmission_policy',
         'publish_answer_rule', 'status', 'version', 'owner_type', 'owner_id', 'created_by',

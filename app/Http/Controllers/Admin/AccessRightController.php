@@ -30,7 +30,7 @@ class AccessRightController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching'],
             'expires_at' => ['nullable', 'date', 'after:today'],

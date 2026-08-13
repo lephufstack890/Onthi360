@@ -18,6 +18,9 @@ class Question extends Model
 {
     use HasFactory, Auditable, SoftDeletes;
 
+    /** Đọc bởi App\Concerns\Auditable — lý do khi admin publish/từ chối/lưu trữ câu hỏi (6.2, 10.4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'bank_id', 'code', 'type', 'title', 'body', 'points', 'grading_config', 'metadata',
         'owner_type', 'owner_id', 'visibility', 'status', 'version', 'parent_version_id', 'created_by',

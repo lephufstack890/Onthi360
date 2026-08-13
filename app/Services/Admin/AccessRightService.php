@@ -62,6 +62,7 @@ class AccessRightService
     {
         return [
             'products' => $this->products->query()->orderBy('title')->get(['id', 'title', 'duration_months'])->all(),
+            'users' => User::query()->orderBy('name')->get(['id', 'name', 'email'])->all(),
             'scopes' => [
                 AccessScope::PersonalLearning->value => 'Học cá nhân',
                 AccessScope::TeacherTeaching->value => 'Dùng để dạy (mọi lớp phụ trách, không giới hạn)',
@@ -80,13 +81,13 @@ class AccessRightService
      */
     public function grant(User $admin, array $data, string $reason): AccessRight
     {
-        $user = User::where('email', $data['email'])->first();
+        $user = User::find($data['user_id']);
         if (! $user) {
-            throw ValidationException::withMessages(['email' => 'Không tìm thấy người dùng với email này.']);
+            throw ValidationException::withMessages(['user_id' => 'Không tìm thấy người dùng này.']);
         }
 
         if ($data['scope'] === AccessScope::TeacherTeaching->value && ! $user->isTeacherApproved()) {
-            throw ValidationException::withMessages(['email' => 'Quyền "dùng để dạy" chỉ cấp được cho giáo viên đã được Admin duyệt (3.3, 7.2).']);
+            throw ValidationException::withMessages(['user_id' => 'Quyền "dùng để dạy" chỉ cấp được cho giáo viên đã được Admin duyệt (3.3, 7.2).']);
         }
 
         $product = $this->products->findOrFail($data['product_id']);

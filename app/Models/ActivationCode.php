@@ -14,6 +14,9 @@ class ActivationCode extends Model
 {
     use HasFactory, Auditable;
 
+    /** Đọc bởi App\Concerns\Auditable nếu có set lý do trước save()/delete() (10.4, 16 mục 4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'code', 'order_item_id', 'product_id', 'scope', 'status',
         'activated_by', 'activated_at', 'validity_months',

@@ -1,17 +1,10 @@
-{{--
-  Route: admin.access-rights.create / .store
-  Spec: 7.1-7.5 (quyền học cá nhân / quyền dạy đa lớp) + 10.4 (cấp quyền phải có lý do +
-  audit log). Cấp quyền ở đây dùng source=admin_grant — một nguồn hợp lệ riêng theo schema
-  access_rights.source (order|gift|admin_grant|package), KHÔNG đi qua OrderActivationService
-  (xem App\Services\Admin\AccessRightService::grant()).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Cấp quyền truy cập')
 @section('page-title', 'Cấp quyền truy cập')
 
 @section('content')
-    @php $products = $products ?? []; $scopes = $scopes ?? []; @endphp
+    @php $products = $products ?? []; $scopes = $scopes ?? []; $users = $users ?? []; @endphp
 
     <a href="{{ route('admin.access-rights.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Quyền truy cập</a>
 
@@ -21,15 +14,18 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6 max-w-2xl">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
         <form method="POST" action="{{ route('admin.access-rights.store') }}" class="space-y-4">
             @csrf
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="email">Email người dùng</label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}" required
-                       placeholder="ví dụ: hocsinh@email.com"
-                       class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-                <p class="text-xs text-slate-400 mt-1">Nếu cấp "Dùng để dạy", email phải thuộc giáo viên đã được Admin duyệt (3.3, 7.2).</p>
+                <label class="block text-sm font-medium text-slate-600 mb-1" for="user_id">Người dùng</label>
+                <x-select id="user_id" name="user_id" required>
+                    <option value="">— Chọn người dùng —</option>
+                    @foreach ($users as $u)
+                        <option value="{{ $u->id }}" @selected((string) old('user_id') === (string) $u->id)>{{ $u->name }} ({{ $u->email }})</option>
+                    @endforeach
+                </x-select>
+                <p class="text-xs text-slate-400 mt-1">Nếu cấp "Dùng để dạy", người dùng phải là giáo viên đã được Admin duyệt (3.3, 7.2).</p>
             </div>
 
             <div>

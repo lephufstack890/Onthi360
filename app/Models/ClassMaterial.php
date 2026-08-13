@@ -11,6 +11,9 @@ class ClassMaterial extends Model
 {
     use Auditable;
 
+    /** Đọc bởi App\Concerns\Auditable nếu có set lý do trước save()/delete() (10.4, 16 mục 4). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'class_room_id', 'material_id', 'product_id', 'release_version', 'status',
         'added_by', 'added_at', 'removed_at',

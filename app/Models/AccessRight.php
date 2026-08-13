@@ -12,6 +12,9 @@ class AccessRight extends Model
 {
     use Auditable;
 
+    /** Đọc bởi Auditable::writeAuditLog() nếu có set trước save()/delete() — xem AccessRightService::grant()/revoke(). */
+    public static ?string $auditReason = null;
+
     protected $fillable = [
         'user_id', 'product_id', 'scope', 'starts_at', 'expires_at', 'status',
         'class_limit', 'source', 'source_id', 'created_by',
