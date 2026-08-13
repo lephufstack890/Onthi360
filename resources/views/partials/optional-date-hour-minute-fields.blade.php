@@ -1,30 +1,59 @@
 {{--
-  Field mốc thời gian TÙY CHỌN (opens_at/closes_at của Assignment — 8.4: giao đề) dùng
-  chung cho teacher.assessments.create + teacher.assessments.index (popover "Giao cho
-  lớp"). Khác với partials.session-datetime-fields (buổi học, luôn BẮT BUỘC nhập): ở đây
-  Ngày để trống nghĩa là "không giới hạn mốc thời gian này" — Giờ/Phút chỉ có tác dụng khi
-  Ngày đã chọn. Không gắn id/for cho input — partial này bị @include lặp lại nhiều lần
-  trong 1 trang (mỗi dòng đề trong teacher.assessments.index có form riêng), gắn id cố
-  định sẽ tạo ra id trùng lặp trên cùng 1 trang.
+  Mốc thời gian tùy chọn (Mở lúc / Đóng lúc) cho Bài tập & Đề (8.4). Để trống Ngày = không
+  giới hạn mốc thời gian đó.
 
-  Cần truyền vào: $prefix (vd 'opens'/'closes' — dùng làm tên field {$prefix}_date/
-  {$prefix}_hour/{$prefix}_minute) và $label (vd 'Mở lúc (tùy chọn)').
+  LỊCH SỬ BUG: bản đầu dùng <input type="date"> (native), thử cả có x-model lẫn không có
+  x-model — CẢ HAI đều bị trình duyệt thật của người dùng gửi lên "" (không giới hạn) dù đã
+  chọn ngày, dù test bằng Playwright .fill() lại luôn thành công (không tái hiện được lỗi
+  trong môi trường giả lập). Vì không thể xác nhận chắc chắn nguyên nhân native input, bỏ
+  hẳn <input type="date">, thay bằng 3 dropdown Ngày/Tháng/Năm — cùng kiểu <select> đã xác
+  nhận hoạt động đúng 100% qua log server ở Giờ/Phút. Dropdown không có rủi ro tương tác
+  native-widget nên đây là hướng chắc chắn nhất.
 --}}
-<div>
+<div x-data="{
+        day: '{{ old($prefix.'_day', '') }}',
+        month: '{{ old($prefix.'_month', now()->format('m')) }}',
+        year: '{{ old($prefix.'_year', now()->format('Y')) }}',
+        hour: '{{ old($prefix.'_hour', '00') }}',
+        minute: '{{ old($prefix.'_minute', '00') }}',
+    }">
     <p class="text-xs font-medium text-slate-500 mb-1">{{ $label }}</p>
-    <div class="grid grid-cols-2 gap-1.5">
-        <input type="date" name="{{ $prefix }}_date" value="{{ old($prefix.'_date') }}"
-               class="w-full rounded-lg border border-slate-200 text-xs p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-        <div class="flex items-center shrink-0 rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-300 transition">
-            <select name="{{ $prefix }}_hour" aria-label="Giờ"
+    <div class="space-y-1.5">
+        <div class="flex items-center rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-300 transition">
+            <select name="{{ $prefix }}_day" x-model="day" aria-label="Ngày"
+                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                <option value="">— Ngày —</option>
+                @for ($d = 1; $d <= 31; $d++)
+                    @php $dd = sprintf('%02d', $d); @endphp
+                    <option value="{{ $dd }}" @selected(old($prefix.'_day') === $dd)>{{ $dd }}</option>
+                @endfor
+            </select>
+            <span class="text-slate-400 shrink-0 text-xs px-0.5">/</span>
+            <select name="{{ $prefix }}_month" x-model="month" aria-label="Tháng"
+                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                @for ($m = 1; $m <= 12; $m++)
+                    @php $mm = sprintf('%02d', $m); @endphp
+                    <option value="{{ $mm }}" @selected(old($prefix.'_month', now()->format('m')) === $mm)>{{ $mm }}</option>
+                @endfor
+            </select>
+            <span class="text-slate-400 shrink-0 text-xs px-0.5">/</span>
+            <select name="{{ $prefix }}_year" x-model="year" aria-label="Năm"
+                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                @for ($y = (int) now()->format('Y'); $y <= (int) now()->format('Y') + 2; $y++)
+                    <option value="{{ $y }}" @selected((string) old($prefix.'_year', now()->format('Y')) === (string) $y)>{{ $y }}</option>
+                @endfor
+            </select>
+        </div>
+        <div class="flex items-center rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-300 transition">
+            <select name="{{ $prefix }}_hour" x-model="hour" aria-label="Giờ"
                     class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
                 @for ($h = 0; $h < 24; $h++)
                     @php $hh = sprintf('%02d', $h); @endphp
                     <option value="{{ $hh }}" @selected(old($prefix.'_hour') === $hh)>{{ $hh }}</option>
                 @endfor
             </select>
-            <span class="text-slate-400 shrink-0 text-xs">:</span>
-            <select name="{{ $prefix }}_minute" aria-label="Phút"
+            <span class="text-slate-400 shrink-0 text-xs px-0.5">:</span>
+            <select name="{{ $prefix }}_minute" x-model="minute" aria-label="Phút"
                     class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
                 @foreach (range(0, 55, 5) as $m)
                     @php $mm = sprintf('%02d', $m); @endphp
@@ -33,4 +62,8 @@
             </select>
         </div>
     </div>
+    <p class="text-[11px] mt-1" :class="day ? 'text-sky-600 font-medium' : 'text-slate-400'">
+        <span x-show="day" x-cloak>Sẽ lưu: <span x-text="day"></span>/<span x-text="month"></span>/<span x-text="year"></span> lúc <span x-text="hour"></span>:<span x-text="minute"></span></span>
+        <span x-show="!day" x-cloak>Chưa đặt — không giới hạn mốc thời gian này</span>
+    </p>
 </div>

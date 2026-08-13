@@ -41,15 +41,11 @@ class AssessmentController extends Controller
         $assessment = $this->assessmentService->store(Auth::user(), $data);
 
         if ($action === 'assign') {
-            // Ngày + Giờ/Phút (2 dropdown, xem partials.optional-date-hour-minute-fields)
-            // được validate riêng lẻ ở assignRules() rồi ghép lại thành opens_at/closes_at
-            // ở đây — AssessmentService::assignToClass() vẫn chỉ nhận opens_at/closes_at
-            // như cũ, không cần sửa Service.
-            $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
-            $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
-
             try {
-                $this->assessmentService->assignToClass(Auth::user(), $assessment, $data);
+                $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
+                $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
+
+                $assignment = $this->assessmentService->assignToClass(Auth::user(), $assessment, $data);
             } catch (ValidationException $e) {
                 return redirect()->route('teacher.assessments.index')
                     ->withErrors($e->errors())
@@ -102,11 +98,12 @@ class AssessmentController extends Controller
     {
         $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
         $data = $request->validate($this->assignRules());
-        $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
-        $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
 
         try {
-            $this->assessmentService->assignToClass(Auth::user(), $assessmentModel, $data);
+            $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
+            $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
+
+            $assignment = $this->assessmentService->assignToClass(Auth::user(), $assessmentModel, $data);
         } catch (ValidationException $e) {
             return redirect()->route('teacher.assessments.index')->withErrors($e->errors());
         }
@@ -134,15 +131,22 @@ class AssessmentController extends Controller
     {
         return [
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
-            // Ngày để trống = không giới hạn mốc thời gian đó (opens_at/closes_at nullable
-            // ở Assignment). Giờ/Phút dùng 'numeric' + 'digits_between' thay 'integer' —
-            // 2 dropdown gửi lên dạng chuỗi có số 0 đứng đầu (vd "08"), và rule 'integer'
-            // của Laravel dùng filter_var(FILTER_VALIDATE_INT) sẽ từ chối chuỗi kiểu đó
-            // (bug thực tế đã gặp ở form Lịch, xem ScheduleController::store()).
-            'opens_date' => ['nullable', 'date_format:Y-m-d'],
+            // Ngày để trống (opens_day/closes_day rổng) = không giới hạn mốc thời gian đó
+            // (opens_at/closes_at nullable ở Assignment). Toàn bộ 5 trường Ngày/Tháng/Năm/
+            // Giờ/Phút đều là <select> (không dùng <input type="date"> nữa — bản native
+            // từng bị trình duyệt thật gửi lên róng dù đã chọn, xem
+            // partials.optional-date-hour-minute-fields). Dùng 'numeric' + 'digits_between'
+            // thay 'integer' vì dropdown gửi lên dạng chuỗi có số 0 đứng đầu (vd "08"), và
+            // rule 'integer' của Laravel dùng filter_var(FILTER_VALIDATE_INT) sẽ từ chối
+            // chuỗi kiểu đó (bug thực tế đã gặp ở form Lịch, xem ScheduleController::store()).
+            'opens_day' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,31'],
+            'opens_month' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,12'],
+            'opens_year' => ['nullable', 'numeric', 'digits_between:4,4', 'between:2000,2100'],
             'opens_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
             'opens_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
-            'closes_date' => ['nullable', 'date_format:Y-m-d'],
+            'closes_day' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,31'],
+            'closes_month' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,12'],
+            'closes_year' => ['nullable', 'numeric', 'digits_between:4,4', 'between:2000,2100'],
             'closes_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
             'closes_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'due_at' => ['nullable', 'date'],
@@ -151,22 +155,33 @@ class AssessmentController extends Controller
     }
 
     /**
-     * Ghép Ngày (bắt buộc có để coi là "đã đặt mốc") + Giờ/Phút (mặc định 00:00 nếu Ngày
-     * có nhưng chưa đổi Giờ/Phút) thành 1 chuỗi datetime cho AssessmentService::
-     * assignToClass() (vẫn Carbon::parse() như cũ). Trả null nếu Ngày để trống — nghĩa là
-     * không giới hạn mốc thời gian này (opens_at/closes_at nullable).
+     * Ghép Ngày/Tháng/Năm (Ngày để trống = coi là "chưa đặt mốc", trả null) + Giờ/Phút
+     * (mặc định 00:00 nếu chưa đổi) thành 1 chuỗi datetime cho AssessmentService::
+     * assignToClass() (vẫn Carbon::parse() như cũ). Ném ValidationException nếu Ngày có
+     * nhưng Ngày/Tháng/Năm ghép lại không phải ngày thật (vd 30/02).
+     *
+     * @throws ValidationException
      */
     private function combineOptionalDateTime(array $data, string $prefix): ?string
     {
-        $date = $data[$prefix.'_date'] ?? null;
+        $day = $data[$prefix.'_day'] ?? null;
 
-        if (blank($date)) {
+        if (blank($day)) {
             return null;
         }
 
-        $hour = $data[$prefix.'_hour'] ?? '00';
-        $minute = $data[$prefix.'_minute'] ?? '00';
+        $month = (int) ($data[$prefix.'_month'] ?? now()->format('m'));
+        $year = (int) ($data[$prefix.'_year'] ?? now()->format('Y'));
+        $day = (int) $day;
+        $hour = (int) ($data[$prefix.'_hour'] ?? '00');
+        $minute = (int) ($data[$prefix.'_minute'] ?? '00');
 
-        return sprintf('%s %02d:%02d:00', $date, (int) $hour, (int) $minute);
+        if (! checkdate($month, $day, $year)) {
+            throw ValidationException::withMessages([
+                $prefix.'_day' => 'Ngày/Tháng/Năm không hợp lệ.',
+            ]);
+        }
+
+        return sprintf('%04d-%02d-%02d %02d:%02d:00', $year, $month, $day, $hour, $minute);
     }
 }
