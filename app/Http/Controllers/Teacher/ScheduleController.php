@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Services\Teacher\ScheduleService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ScheduleController extends Controller
@@ -18,18 +20,45 @@ class ScheduleController extends Controller
         return view('teacher.schedule.index', $this->scheduleService->indexData(Auth::user()));
     }
 
-    /** teacher.schedule.store — tạo buổi học mới cho một lớp đang dạy. */
+    /**
+     * teacher.schedule.store — tạo buổi học mới cho một lớp đang dạy. Ngày dùng input
+     * date thường; Giờ dùng 2 dropdown Giờ/Phút (starts_hour/starts_minute/ends_hour/
+     * ends_minute) thay vì <input type="time"> — widget giờ gốc của trình duyệt (đặc
+     * biệt Safari) khó bấm/chọn, dropdown thì bấm chọn ngay không phụ thuộc trình duyệt.
+     * Ghép lại thành Carbon ở đây trước khi giao cho Service (Service vẫn chỉ nhận
+     * starts_at/ends_at như cũ).
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'starts_date' => ['required', 'date_format:Y-m-d'],
+            'starts_hour' => ['required', 'integer', 'between:0,23'],
+            'starts_minute' => ['required', 'integer', 'between:0,59'],
+            'ends_date' => ['required', 'date_format:Y-m-d'],
+            'ends_hour' => ['required', 'integer', 'between:0,23'],
+            'ends_minute' => ['required', 'integer', 'between:0,59'],
             'topic' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $session = $this->scheduleService->store(Auth::user(), $data);
+        $startsTime = sprintf('%02d:%02d', $data['starts_hour'], $data['starts_minute']);
+        $endsTime = sprintf('%02d:%02d', $data['ends_hour'], $data['ends_minute']);
+
+        $startsAt = Carbon::createFromFormat('Y-m-d H:i', "{$data['starts_date']} {$startsTime}");
+        $endsAt = Carbon::createFromFormat('Y-m-d H:i', "{$data['ends_date']} {$endsTime}");
+
+        if ($endsAt->lte($startsAt)) {
+            throw ValidationException::withMessages(['ends_hour' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+        }
+
+        $session = $this->scheduleService->store(Auth::user(), [
+            'class_room_id' => $data['class_room_id'],
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'topic' => $data['topic'] ?? null,
+            'location' => $data['location'] ?? null,
+        ]);
 
         if ($request->filled('back_to_class')) {
             return redirect()->route('teacher.classes.show', ['class' => $session->class_room_id, 'tab' => 'schedule'])->with('status', 'session-created');

@@ -117,15 +117,25 @@
 
         <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
             <p class="text-sm font-medium text-slate-600 mb-3">+ Tạo buổi học mới</p>
-            <form method="POST" action="{{ route('teacher.schedule.store') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <form method="POST" action="{{ route('teacher.schedule.store') }}" x-data="{ startsDate: '{{ old('starts_date', '') }}', endsDate: '{{ old('ends_date', '') }}' }" class="space-y-4">
                 @csrf
                 <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
                 <input type="hidden" name="back_to_class" value="1">
-                <input type="datetime-local" name="starts_at" required class="rounded-lg border border-slate-200 text-sm p-2.5">
-                <input type="datetime-local" name="ends_at" required class="rounded-lg border border-slate-200 text-sm p-2.5">
-                <input type="text" name="topic" maxlength="255" placeholder="Chủ đề buổi học" class="rounded-lg border border-slate-200 text-sm p-2.5">
-                <input type="text" name="location" maxlength="255" placeholder="Địa điểm/link" class="rounded-lg border border-slate-200 text-sm p-2.5">
-                <div class="sm:col-span-4">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1" for="topic">Chủ đề buổi học</label>
+                        <input id="topic" type="text" name="topic" maxlength="255" value="{{ old('topic') }}" placeholder="Ví dụ: Ôn tập chương 3" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1" for="location">Địa điểm/link</label>
+                        <input id="location" type="text" name="location" maxlength="255" value="{{ old('location') }}" placeholder="Phòng học hoặc link online" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                    </div>
+                </div>
+
+                @include('partials.session-datetime-fields')
+
+                <div>
                     <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Tạo buổi học</button>
                 </div>
             </form>
@@ -148,7 +158,7 @@
         <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
             <x-icon-tile emoji="🧾" tone="violet" />
             <div>
-                <p class="text-sm text-slate-500 mb-3">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4) — không phải cách hiển thị bài thường nhật.</p>
+                <p class="text-sm text-slate-500 mb-3">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng</p>
                 <a href="{{ route('teacher.assessments.create') }}" class="text-sm text-rose-600 font-medium">+ Tạo bài giao đánh giá mới ›</a>
             </div>
         </div>
@@ -159,7 +169,7 @@
         </div>
     @elseif ($tab === 'members')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh · TODO: trạng thái quyền cá nhân từng em (7.3).</p>
+            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh</p>
             <div class="space-y-2 max-h-96 overflow-y-auto">
                 @foreach ($members as $m)
                     <div class="flex items-center gap-3 py-1.5">
