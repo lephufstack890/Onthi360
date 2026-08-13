@@ -23,8 +23,8 @@
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm</a>
 
-    @if (session('status') === 'product-updated')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi.'])
+    @if (in_array(session('status'), ['product-created', 'product-updated'], true))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'product-created' ? 'Đã tạo sản phẩm mới.' : 'Đã lưu thay đổi.'])
     @endif
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">

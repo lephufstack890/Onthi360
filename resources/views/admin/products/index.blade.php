@@ -1,15 +1,10 @@
-{{--
-  Route: admin.products.index | "Sản phẩm & Quyền" (4.2), Frame ADM-03
-  TODO controller: truyền $products (paginate) — tab "Quyền đã cấp" điều
-  hướng sang admin.access-rights.index (bảng access_rights riêng).
---}}
+
 @extends('layouts.admin')
 
 @section('title', 'Sản phẩm & Quyền')
 @section('page-title', 'Sản phẩm & Quyền')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ProductController truyền vào. --}}
     @php
         $tabs = $tabs ?? [];
         $products = $products ?? [];

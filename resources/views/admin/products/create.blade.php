@@ -10,7 +10,7 @@
 @section('page-title', 'Tạo sản phẩm')
 
 @section('content')
-    @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; @endphp
+    @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; $grades = $grades ?? []; @endphp
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm & Quyền</a>
 
@@ -22,7 +22,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
-            <form method="POST" action="{{ route('admin.products.store') }}" class="space-y-4">
+            <form method="POST" action="{{ route('admin.products.store') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -42,10 +42,10 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="cover_image_path">Ảnh bìa (đường dẫn URL, tùy chọn)</label>
-                    <input id="cover_image_path" name="cover_image_path" type="text" value="{{ old('cover_image_path') }}" maxlength="500"
-                           placeholder="https://..."
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="cover_image">Ảnh bìa (tùy chọn)</label>
+                    <input id="cover_image" name="cover_image" type="file" accept="image/*"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
+                    <p class="text-xs text-slate-400 mt-1">Ảnh JPG/PNG/WebP, tối đa 4MB.</p>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -56,9 +56,12 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <input id="grade" name="grade" type="text" value="{{ old('grade') }}" maxlength="20"
-                               placeholder="Ví dụ: Lớp 10"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                        <x-select id="grade" name="grade" icon="🎓">
+                            <option value="">— Không chỉ định —</option>
+                            @foreach ($grades ?? [] as $g)
+                                <option value="{{ $g }}" @selected(old('grade') === $g)>{{ $g }}</option>
+                            @endforeach
+                        </x-select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="topic">Chuyên đề</label>

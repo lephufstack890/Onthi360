@@ -33,6 +33,9 @@ class ProductService
                 ContentStatus::Draft->value => 'Bản nháp', ContentStatus::Published->value => 'Xuất bản',
                 ContentStatus::Archived->value => 'Lưu trữ',
             ],
+            // Danh sách khối lớp — đồng bộ với App\Services\Admin\CourseService (Khóa & Lớp)
+            // để "Khối lớp" chọn từ select thay vì gõ tay, tránh lệch dữ liệu giữa 2 module.
+            'grades' => ['Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9', 'Lớp 10', 'Lớp 11', 'Lớp 12'],
         ];
     }
 
@@ -88,11 +91,10 @@ class ProductService
 
     public function update(Product $product, array $data): Product
     {
-        return $this->products->update($product, [
+        $attributes = [
             'type' => $data['type'],
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
-            'cover_image_path' => $data['cover_image_path'] ?? null,
             'subject' => $data['subject'] ?? null,
             'grade' => $data['grade'] ?? null,
             'topic' => $data['topic'] ?? null,
@@ -101,7 +103,16 @@ class ProductService
             'duration_months' => $data['duration_months'] ?: null,
             'status' => $data['status'],
             'visibility' => $data['visibility'],
-        ]);
+        ];
+
+        // Chỉ ghi đè cover_image_path khi controller thực sự có ảnh mới upload (xem
+        // ProductController::update) — không có key này trong $data nghĩa là admin không
+        // chọn ảnh mới, PHẢI giữ nguyên ảnh cũ, không được ghi đè thành null.
+        if (array_key_exists('cover_image_path', $data)) {
+            $attributes['cover_image_path'] = $data['cover_image_path'];
+        }
+
+        return $this->products->update($product, $attributes);
     }
 
     /** admin.products.destroy — xóa mềm, PHẢI có lý do + audit log (10.4). */

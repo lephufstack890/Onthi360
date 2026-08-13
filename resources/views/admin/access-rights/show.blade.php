@@ -12,8 +12,8 @@
 @section('content')
     <a href="{{ route('admin.access-rights.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Quyền truy cập</a>
 
-    @if (session('status') === 'access-revoked')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thu hồi quyền, đã ghi lý do.'])
+    @if (in_array(session('status'), ['access-granted', 'access-revoked'], true))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'access-granted' ? 'Đã cấp quyền truy cập.' : 'Đã thu hồi quyền, đã ghi lý do.'])
     @endif
 
     <x-page-header :title="$right->user->name ?? ''" :subtitle="($right->user->email ?? '').' · '.($right->product->title ?? '')">

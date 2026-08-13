@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Services\Admin\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -36,7 +37,7 @@ class ProductController extends Controller
             'type' => ['required', 'string', 'in:book,topic,exam,course'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'cover_image_path' => ['nullable', 'string', 'max:500'],
+            'cover_image' => ['nullable', 'image', 'max:4096'],
             'subject' => ['nullable', 'string', 'max:60'],
             'grade' => ['nullable', 'string', 'max:20'],
             'topic' => ['nullable', 'string', 'max:120'],
@@ -51,6 +52,12 @@ class ProductController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->validationRules());
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
+        }
+        unset($data['cover_image']);
+
         $product = $this->productService->store($data);
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'product-created');
@@ -64,6 +71,15 @@ class ProductController extends Controller
     public function update(Request $request, Product $product): RedirectResponse
     {
         $data = $request->validate($this->validationRules());
+
+        if ($request->hasFile('cover_image')) {
+            if ($product->cover_image_path) {
+                Storage::disk('public')->delete($product->cover_image_path);
+            }
+            $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
+        }
+        unset($data['cover_image']);
+
         $this->productService->update($product, $data);
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'product-updated');

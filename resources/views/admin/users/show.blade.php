@@ -19,8 +19,16 @@
 
     <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại danh sách người dùng</a>
 
-    @if (session('status'))
-        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'roles-updated' ? 'Đã cập nhật vai trò, đã ghi audit log.' : 'Đã lưu thay đổi.'])
+    @php
+        $userStatusMessage = match (session('status')) {
+            'user-created' => 'Đã tạo tài khoản mới.',
+            'roles-updated' => 'Đã cập nhật vai trò, đã ghi audit log.',
+            'user-updated' => 'Đã lưu thay đổi.',
+            default => session('status') ? 'Đã lưu thay đổi.' : null,
+        };
+    @endphp
+    @if ($userStatusMessage)
+        @include('partials.toast-flash', ['type' => 'success', 'message' => $userStatusMessage])
     @endif
 
     @if ($errors->any())
