@@ -38,7 +38,14 @@
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $r['meta'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right"><a href="#" class="text-rose-600 font-medium">Xem</a></td>
+                <td class="px-4 py-3 text-right">
+                    @if ($tab === 'courses')
+                        <a href="{{ route('admin.courses.show', $r['id']) }}" class="text-rose-600 font-medium">Xem</a>
+                    @else
+                        {{-- TODO: chưa có trang chi tiết lớp học riêng cho Admin — chỉ mới làm chi tiết khóa học. --}}
+                        <span class="text-slate-300">—</span>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu.</td></tr>

@@ -27,6 +27,12 @@ class CourseController extends Controller
         return view('admin.courses.create', $this->courseService->createFormData());
     }
 
+    /** admin.courses.show — chi tiết khóa học + danh sách lớp thuộc khóa (8.1). */
+    public function show(int $course): View
+    {
+        return view('admin.courses.show', $this->courseService->showData($course));
+    }
+
     /** admin.courses.store — tạo khóa học mới, gắn admin đang đăng nhập làm người tạo. */
     public function store(Request $request): RedirectResponse
     {

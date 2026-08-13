@@ -65,6 +65,35 @@ class CourseService
     }
 
     /**
+     * admin.courses.show — chi tiết 1 khóa học + danh sách lớp thuộc khóa đó (8.1).
+     */
+    public function showData(int $courseId): array
+    {
+        $course = $this->courses->query()->with('creator')->findOrFail($courseId);
+
+        $classRooms = $this->classRooms->query()
+            ->where('course_id', $courseId)
+            ->with('teachers')
+            ->withCount('students')
+            ->latest()
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'name' => $c->name,
+                'teacher' => $c->teachers->first()->name ?? null,
+                'students' => $c->students_count,
+                'status' => $c->status,
+            ]);
+
+        return [
+            'course' => $course,
+            'classRooms' => $classRooms,
+            'totalStudents' => $classRooms->sum('students'),
+        ];
+    }
+
+    /**
      * admin.courses.store — tạo khóa học mới (8.1: Khóa học khác Lớp học, lớp được
      * tạo riêng sau đó và gắn về khóa này). Slug tự sinh từ tiêu đề, tự thêm số thứ
      * tự nếu trùng — không bắt admin phải tự nghĩ slug.
