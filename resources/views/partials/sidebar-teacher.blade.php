@@ -2,7 +2,7 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
         ['label' => 'Lớp học', 'route' => 'teacher.classes.index', 'icon' => '🏫'],
-        ['label' => 'Bài tập & Đề', 'route' => 'teacher.assessments.create', 'icon' => '🧾'],
+        ['label' => 'Bài tập & Đề', 'route' => 'teacher.assessments.index', 'icon' => '🧾'],
         ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => '❓'],
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => '📈'],
         ['label' => 'Lịch', 'route' => 'teacher.classes.index', 'icon' => '📅'],

@@ -50,4 +50,22 @@ class ClassRoomController extends Controller
 
         return redirect()->route('teacher.classes.show', $classRoom->id)->with('status', 'class-created');
     }
+
+    /** teacher.classes.materials.attach — "Thêm vào lớp" (8.2). */
+    public function attachMaterial(Request $request, int $class)
+    {
+        $data = $request->validate(['material_id' => ['required', 'integer', 'exists:materials,id']]);
+
+        $this->classRoomService->attachMaterial(Auth::user(), $class, (int) $data['material_id']);
+
+        return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'materials'])->with('status', 'material-attached');
+    }
+
+    /** teacher.classes.materials.detach — "Gỡ" (8.2: không xóa lịch sử). */
+    public function detachMaterial(Request $request, int $class, int $classMaterial)
+    {
+        $this->classRoomService->detachMaterial(Auth::user(), $class, $classMaterial);
+
+        return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'materials'])->with('status', 'material-detached');
+    }
 }

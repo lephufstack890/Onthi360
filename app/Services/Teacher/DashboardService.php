@@ -2,7 +2,9 @@
 
 namespace App\Services\Teacher;
 
+use App\Enums\AccessScope;
 use App\Models\User;
+use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 
@@ -12,6 +14,7 @@ class DashboardService
     public function __construct(
         private readonly ClassSessionRepositoryInterface $classSessions,
         private readonly AssignmentRepositoryInterface $assignments,
+        private readonly AccessRightRepositoryInterface $accessRights,
     ) {}
 
     public function buildFor(User $user): array
@@ -36,8 +39,19 @@ class DashboardService
         // để trong App\Services khi có, hiện trả rỗng để không hiển thị dữ liệu giả.
         $attentionStudents = [];
 
-        // TODO: nối AccessRight thật của giáo viên (scope=teacher_teaching) sắp hết hạn (7.2).
-        $accessExpiring = null;
+        // Quyền dạy (teacher_teaching) sắp hết hạn trong 30 ngày tới — cảnh báo sớm (7.2:
+        // hết hạn thì không gắn/mở mới được học liệu này ở bất kỳ lớp nào).
+        $soonestExpiring = $this->accessRights->forUserWithProduct($user->id)
+            ->filter(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching
+                && $ar->isCurrentlyActive()
+                && $ar->expires_at->lte(now()->addDays(30)))
+            ->sortBy('expires_at')
+            ->first();
+
+        $accessExpiring = $soonestExpiring ? [
+            'product' => $soonestExpiring->product->title ?? 'Học liệu',
+            'daysLeft' => (int) now()->diffInDays($soonestExpiring->expires_at),
+        ] : null;
 
         return [
             'upcoming' => $upcoming,

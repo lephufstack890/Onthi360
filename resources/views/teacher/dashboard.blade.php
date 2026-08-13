@@ -59,7 +59,7 @@
             <p class="text-sm text-amber-800 flex-1">
                 Quyền dạy "<strong>{{ $accessExpiring['product'] }}</strong>" sắp hết hạn — còn {{ $accessExpiring['daysLeft'] }} ngày. Hết hạn sẽ không gắn/mở mới được học liệu này ở bất kỳ lớp nào (7.2).
             </p>
-            <a href="{{ route('materials.show', 1) }}" class="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium shrink-0">Gia hạn ngay</a>
+            <a href="{{ route('access.myAccess') }}" class="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium shrink-0">Xem quyền của tôi</a>
         </div>
     @endif
 

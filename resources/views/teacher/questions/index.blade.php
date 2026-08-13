@@ -2,7 +2,7 @@
   Route: teacher.questions.index | Frame: TEA-03
   Spec: 6.5 (kho riêng giáo viên — chỉ giáo viên tạo/chỉnh/sử dụng trong
   lớp của mình; không mặc định thấy/sửa kho chung hoặc kho giáo viên khác).
-  TODO controller: truyền $questions = Question::where('owner_id', auth()->id())->paginate().
+  Dữ liệu thật do App\Services\Teacher\QuestionService::listForTeacher() truyền vào.
 --}}
 @extends('layouts.teacher')
 
@@ -31,6 +31,16 @@
 
     <x-tabs :tabs="$tabs" />
 
+    @if (session('status') === 'question-created')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu nháp câu hỏi.'])
+    @elseif (session('status') === 'question-updated')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi.'])
+    @elseif (session('status') === 'question-published')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã phát hành câu hỏi.'])
+    @elseif (session('status') === 'question-archived')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu trữ câu hỏi.'])
+    @endif
+
     <x-data-table :columns="['Tên câu hỏi', 'Loại', 'Trạng thái', '']">
         @forelse ($questions as $q)
             <tr class="hover:bg-slate-50">
@@ -39,7 +49,21 @@
                 </td>
                 <td class="px-4 py-3 text-slate-500">{{ $q['type'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$q['tone']">{{ $q['status'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right"><a href="{{ route('teacher.questions.create') }}" class="text-rose-600 font-medium">Sửa</a></td>
+                <td class="px-4 py-3 text-right space-x-3">
+                    <a href="{{ route('teacher.questions.edit', $q['id']) }}" class="text-rose-600 font-medium">Sửa</a>
+                    @if ($q['canPublish'])
+                        <form method="POST" action="{{ route('teacher.questions.publish', $q['id']) }}" class="inline">
+                            @csrf
+                            <button type="submit" class="text-emerald-600 font-medium">Phát hành</button>
+                        </form>
+                    @endif
+                    @if ($q['canArchive'])
+                        <form method="POST" action="{{ route('teacher.questions.archive', $q['id']) }}" class="inline">
+                            @csrf
+                            <button type="submit" class="text-slate-400 font-medium">Lưu trữ</button>
+                        </form>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có câu hỏi nào trong kho của bạn.</td></tr>

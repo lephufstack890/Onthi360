@@ -2,14 +2,18 @@
 
 namespace App\Services\Teacher;
 
+use App\Enums\AccessScope;
+use App\Enums\ClassMaterialStatus;
 use App\Enums\ContentStatus;
 use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
+use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
+use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +27,8 @@ class ClassRoomService
         private readonly ClassMaterialRepositoryInterface $classMaterials,
         private readonly RatingSummaryRepositoryInterface $ratingSummaries,
         private readonly CourseRepositoryInterface $courses,
+        private readonly AccessRightRepositoryInterface $accessRights,
+        private readonly MaterialRepositoryInterface $materials,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -79,14 +85,18 @@ class ClassRoomService
         $nextSession = $this->classSessions->nextUpcomingForClassRoom($classRoom->id);
 
         $materials = [];
+        $attachableMaterials = [];
         if ($tab === 'materials') {
             $materials = $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
                 ->map(fn ($cm) => [
+                    'id' => $cm->id,
                     'title' => $cm->material->title ?? 'Học liệu',
                     'scope' => 'Đang dùng ở lớp này',
                     'tone' => 'success',
                     'linkedStatus' => 'Đang dùng',
                 ])->all();
+
+            $attachableMaterials = $this->attachableMaterials($user, $classRoom);
         }
 
         $members = $tab === 'members' ? $classRoom->students : collect();
@@ -101,9 +111,114 @@ class ClassRoomService
             'studentsCount' => $studentsCount,
             'nextSession' => $nextSession,
             'materials' => $materials,
+            'attachableMaterials' => $attachableMaterials,
             'members' => $members,
             'ratingSummary' => $ratingSummary,
         ];
+    }
+
+    /**
+     * Học liệu giáo viên còn quyền dạy (teacher_teaching còn hạn), đã phát hành, chưa gắn vào
+     * lớp này (8.2: "Danh sách chỉ hiển thị học liệu mà giáo viên có quyền dạy còn hạn").
+     */
+    public function attachableMaterials(User $teacher, ClassRoom $classRoom): array
+    {
+        $activeTeachingByProduct = $this->accessRights->forUserWithProduct($teacher->id)
+            ->filter(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching && $ar->isCurrentlyActive())
+            ->keyBy('product_id');
+
+        if ($activeTeachingByProduct->isEmpty()) {
+            return [];
+        }
+
+        $alreadyAttachedMaterialIds = $this->classMaterials->query()
+            ->where('class_room_id', $classRoom->id)
+            ->where('status', 'active')
+            ->pluck('material_id')
+            ->all();
+
+        return $this->materials->query()
+            ->whereIn('product_id', $activeTeachingByProduct->keys())
+            ->where('status', ContentStatus::Published)
+            ->whereNull('parent_id')
+            ->whereNotIn('id', $alreadyAttachedMaterialIds)
+            ->with('product')
+            ->orderBy('order')
+            ->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'product' => $m->product->title ?? '',
+                'expiresAtLabel' => optional($activeTeachingByProduct->get($m->product_id)?->expires_at)->format('d/m/Y'),
+            ])->all();
+    }
+
+    /**
+     * teacher.classes.attachMaterial — "Thêm vào lớp" (8.2). Kiểm tra lại quyền dạy còn hạn
+     * TẠI THỜI ĐIỂM gắn, không tin danh sách đã hiển thị trước đó trên UI (16 mục 3).
+     */
+    public function attachMaterial(User $teacher, int $classId, int $materialId): void
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $material = $this->materials->findOrFail($materialId);
+
+        $stillEligible = $this->accessRights->forUserWithProduct($teacher->id)
+            ->contains(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching
+                && $ar->isCurrentlyActive()
+                && (int) $ar->product_id === (int) $material->product_id);
+
+        abort_unless($stillEligible, 403, 'Bạn không còn quyền dạy học liệu này (quyền đã hết hạn hoặc chưa từng có).');
+
+        $existing = $this->classMaterials->query()
+            ->where('class_room_id', $classRoom->id)
+            ->where('material_id', $materialId)
+            ->first();
+
+        if ($existing !== null) {
+            $this->classMaterials->update($existing, [
+                'status' => ClassMaterialStatus::Active,
+                'removed_at' => null,
+                'added_by' => $teacher->id,
+                'added_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $this->classMaterials->create([
+            'class_room_id' => $classRoom->id,
+            'material_id' => $materialId,
+            'product_id' => $material->product_id,
+            'release_version' => 1,
+            'status' => ClassMaterialStatus::Active,
+            'added_by' => $teacher->id,
+            'added_at' => now(),
+        ]);
+    }
+
+    /**
+     * teacher.classes.detachMaterial — "Gỡ" (8.2: không xóa lịch sử, chỉ chuyển trạng thái
+     * "Đã gỡ" — bài đã làm trước đó vẫn dẫn đến kết quả cũ).
+     */
+    public function detachMaterial(User $teacher, int $classId, int $classMaterialId): void
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $classMaterial = $this->classMaterials->findOrFail($classMaterialId);
+
+        abort_unless((int) $classMaterial->class_room_id === $classRoom->id, 404);
+
+        $this->classMaterials->update($classMaterial, [
+            'status' => ClassMaterialStatus::Removed,
+            'removed_at' => now(),
+        ]);
+    }
+
+    private function findTaughtClassRoom(User $teacher, int $classId): ClassRoom
+    {
+        $classRoom = $this->classRooms->findOrFail($classId);
+        $this->ensureTeaches($classRoom, $teacher);
+
+        return $classRoom;
     }
 
     /** Kiểm tra quyền: giáo viên đứng lớp (main/co_teacher) hoặc admin/super_admin (7.2). */

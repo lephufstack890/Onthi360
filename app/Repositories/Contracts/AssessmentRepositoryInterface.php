@@ -16,4 +16,6 @@ interface AssessmentRepositoryInterface extends BaseRepositoryInterface
     public function withItemsAndQuestions(int $id): ?Assessment;
 
     public function latestWithCreator(int $limit = 50): Collection;
+
+    public function byOwner(int $ownerId, int $limit = 50): Collection;
 }

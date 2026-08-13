@@ -4,23 +4,55 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Services\Teacher\AssessmentService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AssessmentController extends Controller
 {
     public function __construct(private readonly AssessmentService $assessmentService) {}
 
+    /** teacher.assessments.index (TEA-04) — đề do chính giáo viên tạo (6.3, 8.4). */
+    public function index(Request $request): View
+    {
+        return view('teacher.assessments.index', $this->assessmentService->listForTeacher(Auth::user()));
+    }
+
     /**
-     * teacher.assessments.create (TEA-04).
-     * TODO: chưa có state "đề đang soạn" (draft assessment trong session/DB) — hiện luôn
-     * bắt đầu với danh sách câu rỗng; nối App\Services\AssessmentBuilderService khi có,
-     * để hỗ trợ "+ Thêm câu từ kho" thật và lưu nháp.
+     * teacher.assessments.create (TEA-04) — chọn câu từ kho riêng của giáo viên, trộn được
+     * nhiều kiểu câu trong cùng một đề (6.3).
      */
     public function create(Request $request): View
     {
-        return view('teacher.assessments.create', ['selected' => []]);
+        return view('teacher.assessments.create', $this->assessmentService->createFormData(Auth::user()));
+    }
+
+    /**
+     * teacher.assessments.store — action=draft chỉ lưu đề; action=assign còn phát hành +
+     * giao ngay cho 1 lớp (8.4: không hỗ trợ ngoại lệ từng học sinh).
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $action = $request->input('action', 'draft');
+        $data = $request->validate($this->storeRules($action));
+
+        $assessment = $this->assessmentService->store(Auth::user(), $data);
+
+        if ($action === 'assign') {
+            try {
+                $this->assessmentService->assignToClass(Auth::user(), $assessment, $data);
+            } catch (ValidationException $e) {
+                return redirect()->route('teacher.assessments.index')
+                    ->withErrors($e->errors())
+                    ->with('status', 'assessment-created-not-assigned');
+            }
+
+            return redirect()->route('teacher.assessments.index')->with('status', 'assessment-assigned');
+        }
+
+        return redirect()->route('teacher.assessments.index')->with('status', 'assessment-created');
     }
 
     /** teacher.assessments.import (TEA-05 — tải) — trạng thái xử lý OCR thật (6.4). */
@@ -42,5 +74,61 @@ class AssessmentController extends Controller
         $documentId = $request->filled('document') ? (int) $request->query('document') : null;
 
         return view('teacher.assessments.review-draft', $this->assessmentService->reviewDraftFor($user, $documentId));
+    }
+
+    /** teacher.assessments.publish — phát hành riêng, không giao lớp ngay (6.2). */
+    public function publish(Request $request, int $assessment): RedirectResponse
+    {
+        $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
+
+        try {
+            $this->assessmentService->publish($assessmentModel);
+        } catch (ValidationException $e) {
+            return redirect()->route('teacher.assessments.index')->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.assessments.index')->with('status', 'assessment-published');
+    }
+
+    /** teacher.assessments.assign — "Giao đề" cho một đề đã có sẵn (8.4). */
+    public function assign(Request $request, int $assessment): RedirectResponse
+    {
+        $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
+        $data = $request->validate($this->assignRules());
+
+        try {
+            $this->assessmentService->assignToClass(Auth::user(), $assessmentModel, $data);
+        } catch (ValidationException $e) {
+            return redirect()->route('teacher.assessments.index')->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.assessments.index')->with('status', 'assessment-assigned');
+    }
+
+    private function storeRules(string $action): array
+    {
+        $common = [
+            'title' => ['required', 'string', 'max:255'],
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer'],
+            'points_override' => ['nullable', 'array'],
+            'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],
+            'action' => ['required', 'in:draft,assign'],
+        ];
+
+        return $action === 'assign' ? array_merge($common, $this->assignRules()) : $common;
+    }
+
+    private function assignRules(): array
+    {
+        return [
+            'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
+            'opens_at' => ['nullable', 'date'],
+            'closes_at' => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date'],
+            'instructions' => ['nullable', 'string', 'max:2000'],
+        ];
     }
 }

@@ -48,12 +48,16 @@
     <x-tabs :tabs="$tabsData" />
 
     @if ($tab === 'materials')
-        <div class="flex flex-wrap gap-2 mb-4 text-sm">
-            <button type="button" class="px-3 py-1.5 rounded-full bg-rose-50 text-rose-600 font-medium">Tất cả</button>
-            <button type="button" class="px-3 py-1.5 rounded-full border border-slate-200 text-slate-500">Có thể dùng ở mọi lớp phụ trách</button>
-            <button type="button" class="px-3 py-1.5 rounded-full border border-slate-200 text-slate-500">Sắp hết hạn</button>
-            <button type="button" class="px-3 py-1.5 rounded-full border border-slate-200 text-slate-500">Đã hết hạn</button>
-        </div>
+        @php $attachableMaterials = $attachableMaterials ?? []; @endphp
+
+        @if (session('status') === 'material-attached')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm học liệu vào lớp.'])
+        @elseif (session('status') === 'material-detached')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ học liệu — lịch sử bài làm cũ vẫn giữ nguyên (8.2).'])
+        @endif
+        @if ($errors->any())
+            @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+        @endif
 
         <div class="space-y-3">
             @forelse ($materials as $m)
@@ -67,18 +71,39 @@
                     </div>
                     <div class="flex items-center gap-2 text-sm">
                         <x-status-badge tone="success">{{ $m['linkedStatus'] }}</x-status-badge>
-                        <button type="button" class="text-slate-500">Xem trước như học sinh</button>
-                        <button type="button" class="text-slate-500">Mở theo chương/mục ▾</button>
-                        <button type="button" class="text-rose-500">Gỡ</button>
+                        <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}" class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-rose-500">Gỡ</button>
+                        </form>
                     </div>
                 </div>
             @empty
                 <x-empty-state title="Lớp chưa gắn học liệu nào" />
             @endforelse
 
-            <button type="button" class="w-full rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-4 hover:border-rose-300 hover:text-rose-500">
-                + Thêm học liệu vào lớp (chỉ hiện học liệu bạn còn quyền dạy)
-            </button>
+            @if (empty($attachableMaterials))
+                <div class="rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-4 text-center">
+                    Không có học liệu nào bạn còn quyền dạy để thêm — quyền dạy (teacher_teaching) đã hết hạn hoặc chưa được cấp (7.2).
+                </div>
+            @else
+                <div class="rounded-2xl border-2 border-dashed border-slate-200 p-4">
+                    <p class="text-sm text-slate-600 mb-3">+ Thêm học liệu vào lớp (chỉ hiện học liệu bạn còn quyền dạy còn hạn, 8.2):</p>
+                    <div class="space-y-2">
+                        @foreach ($attachableMaterials as $am)
+                            <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="flex items-center justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2">
+                                @csrf
+                                <input type="hidden" name="material_id" value="{{ $am['id'] }}">
+                                <div class="min-w-0">
+                                    <p class="text-sm text-slate-700 truncate">{{ $am['title'] }}</p>
+                                    <p class="text-xs text-slate-400">{{ $am['product'] }} · Dùng được ở mọi lớp phụ trách đến {{ $am['expiresAtLabel'] }}</p>
+                                </div>
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium shrink-0">Thêm vào lớp</button>
+                            </form>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
     @elseif ($tab === 'schedule')
         <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">

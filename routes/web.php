@@ -95,12 +95,25 @@ Route::middleware(['auth'])->group(function () {
             Route::get('classes/create', [TeacherClassRoomController::class, 'create'])->name('classes.create');
             Route::post('classes', [TeacherClassRoomController::class, 'store'])->name('classes.store');
         });
+        Route::post('classes/{class}/materials', [TeacherClassRoomController::class, 'attachMaterial'])->name('classes.materials.attach');
+        Route::delete('classes/{class}/materials/{classMaterial}', [TeacherClassRoomController::class, 'detachMaterial'])->name('classes.materials.detach');
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');
+        Route::post('questions', [TeacherQuestionController::class, 'store'])->name('questions.store');
+        Route::get('questions/{question}/edit', [TeacherQuestionController::class, 'edit'])->name('questions.edit');
+        Route::put('questions/{question}', [TeacherQuestionController::class, 'update'])->name('questions.update');
+        Route::post('questions/{question}/publish', [TeacherQuestionController::class, 'publish'])->name('questions.publish');
+        Route::post('questions/{question}/archive', [TeacherQuestionController::class, 'archive'])->name('questions.archive');
+
+        Route::get('assessments', [TeacherAssessmentController::class, 'index'])->name('assessments.index');
         Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->name('assessments.create');
+        Route::post('assessments', [TeacherAssessmentController::class, 'store'])->name('assessments.store');
         Route::get('assessments/import', [TeacherAssessmentController::class, 'import'])->name('assessments.import');
         Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->name('assessments.reviewDraft');
+        Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->name('assessments.publish');
+        Route::post('assessments/{assessment}/assign', [TeacherAssessmentController::class, 'assign'])->name('assessments.assign');
+
         Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
     });
 

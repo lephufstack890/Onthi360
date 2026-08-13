@@ -23,6 +23,7 @@ use App\Repositories\Contracts\OrderRepositoryInterface;
 use App\Repositories\Contracts\ParentLinkRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
+use App\Repositories\Contracts\QuestionBankRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewReportRepositoryInterface;
@@ -53,6 +54,7 @@ use App\Repositories\Eloquent\OrderRepository;
 use App\Repositories\Eloquent\ParentLinkRepository;
 use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\ProductRepository;
+use App\Repositories\Eloquent\QuestionBankRepository;
 use App\Repositories\Eloquent\QuestionRepository;
 use App\Repositories\Eloquent\RatingSummaryRepository;
 use App\Repositories\Eloquent\ReviewReportRepository;
@@ -86,6 +88,7 @@ class RepositoryServiceProvider extends ServiceProvider
         AssignmentRepositoryInterface::class => AssignmentRepository::class,
         AssessmentRepositoryInterface::class => AssessmentRepository::class,
         QuestionRepositoryInterface::class => QuestionRepository::class,
+        QuestionBankRepositoryInterface::class => QuestionBankRepository::class,
         AttemptRepositoryInterface::class => AttemptRepository::class,
         AttemptAnswerRepositoryInterface::class => AttemptAnswerRepository::class,
         ParentLinkRepositoryInterface::class => ParentLinkRepository::class,

@@ -35,4 +35,15 @@ class AssessmentRepository extends EloquentRepository implements AssessmentRepos
     {
         return $this->query()->with('creator')->latest()->limit($limit)->get();
     }
+
+    public function byOwner(int $ownerId, int $limit = 50): Collection
+    {
+        return $this->query()
+            ->where('owner_type', 'teacher')
+            ->where('owner_id', $ownerId)
+            ->withCount(['items', 'assignments'])
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
 }
