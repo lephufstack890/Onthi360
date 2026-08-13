@@ -7,6 +7,7 @@ use App\Enums\ReviewTargetType;
 use App\Models\ClassRoom;
 use App\Models\Material;
 use App\Models\Review;
+use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
@@ -14,6 +15,7 @@ use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ReviewReportRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Services\ReviewEligibilityService;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Gom truy vấn/nhãn cho admin.reviews.* (ADM-06, 9.4: kiểm duyệt review).
@@ -170,5 +172,67 @@ class ReviewService
                 ? 'Đủ điều kiện trải nghiệm để đánh giá (9.2).'
                 : ($decision->message ?? 'Chưa đủ điều kiện trải nghiệm.'),
         ];
+    }
+
+    /** admin.reviews.publish — 9.4: "Đã công bố" — sao/nhận xét bắt đầu hiển thị công khai. */
+    public function publish(Review $review): Review
+    {
+        $review->update([
+            'status' => ReviewStatus::Published,
+            'published_at' => now(),
+            'moderation_reason' => null,
+        ]);
+
+        return $review;
+    }
+
+    /** admin.reviews.reject — PHẢI có lý do, người viết được báo lý do (9.4, 10.4). */
+    public function reject(Review $review, string $reason): Review
+    {
+        Review::$auditReason = $reason;
+        $review->update(['status' => ReviewStatus::Rejected, 'moderation_reason' => $reason]);
+        Review::$auditReason = null;
+
+        return $review;
+    }
+
+    /** admin.reviews.request-revision — "Cần chỉnh sửa", PHẢI có lý do (9.4, 10.4). */
+    public function requestRevision(Review $review, string $reason): Review
+    {
+        Review::$auditReason = $reason;
+        $review->update(['status' => ReviewStatus::NeedsRevision, 'moderation_reason' => $reason]);
+        Review::$auditReason = null;
+
+        return $review;
+    }
+
+    /** admin.reviews.hide — "Ẩn sau khi công bố", PHẢI có lý do (9.4, 10.4). Không xóa dữ liệu. */
+    public function hide(Review $review, string $reason): Review
+    {
+        Review::$auditReason = $reason;
+        $review->update(['status' => ReviewStatus::Hidden, 'moderation_reason' => $reason]);
+        Review::$auditReason = null;
+
+        return $review;
+    }
+
+    /**
+     * admin.reviews.reply — 9.4: "chỉ Admin có thể đăng phản hồi chính thức sau khi review công
+     * bố. Phản hồi không che hoặc làm lại điểm sao" — lưu ở cột riêng (admin_reply), không đụng
+     * vào comment/overall_rating gốc của người viết.
+     */
+    public function reply(User $admin, Review $review, string $reply): Review
+    {
+        if ($review->status !== ReviewStatus::Published) {
+            throw ValidationException::withMessages(['status' => 'Chỉ đăng phản hồi được cho review đã công bố (9.4).']);
+        }
+
+        $review->update([
+            'admin_reply' => $reply,
+            'admin_reply_by' => $admin->id,
+            'admin_reply_at' => now(),
+        ]);
+
+        return $review;
     }
 }

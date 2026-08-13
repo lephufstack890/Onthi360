@@ -207,15 +207,29 @@ Route::middleware(['auth'])->group(function () {
 
         // Đơn hàng + Mã kích hoạt (ADM-04, 7.4)
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::post('orders/{order}/approve', [AdminOrderController::class, 'approve'])->name('orders.approve');
+        Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
+        Route::post('activation-codes/{activationCode}/revoke', [AdminActivationCodeController::class, 'revoke'])->name('activation-codes.revoke');
 
         // Đánh giá (ADM-06, 9.4)
         Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
+        Route::post('reviews/{review}/publish', [AdminReviewController::class, 'publish'])->name('reviews.publish');
+        Route::post('reviews/{review}/reject', [AdminReviewController::class, 'reject'])->name('reviews.reject');
+        Route::post('reviews/{review}/request-revision', [AdminReviewController::class, 'requestRevision'])->name('reviews.request-revision');
+        Route::post('reviews/{review}/hide', [AdminReviewController::class, 'hide'])->name('reviews.hide');
+        Route::post('reviews/{review}/reply', [AdminReviewController::class, 'reply'])->name('reviews.reply');
         Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
 
         // Cuộc thi, Giáo viên tiêu biểu, Bảng xếp hạng (ADM-05, 11.1/11.2)
         Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');
+        Route::get('competitions/create', [AdminCompetitionController::class, 'create'])->name('competitions.create');
+        Route::post('competitions', [AdminCompetitionController::class, 'store'])->name('competitions.store');
+        Route::get('competitions/{competition}/edit', [AdminCompetitionController::class, 'edit'])->name('competitions.edit');
+        Route::put('competitions/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
+        Route::post('competitions/{competition}/archive', [AdminCompetitionController::class, 'archive'])->name('competitions.archive');
+        Route::get('competitions/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');

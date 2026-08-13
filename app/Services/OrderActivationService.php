@@ -51,14 +51,16 @@ class OrderActivationService
         });
     }
 
-    /** Admin từ chối — PHẢI có lý do, ghi audit log (do observer/trait activitylog xử lý). */
+    /** Admin từ chối — PHẢI có lý do, ghi audit log (App\Concerns\Auditable đọc Order::$auditReason). */
     public function rejectOrder(Order $order, User $admin, string $reason): Order
     {
+        Order::$auditReason = $reason;
         $order->update([
             'status' => OrderStatus::Rejected,
             'approved_by' => $admin->id,
             'rejected_reason' => $reason,
         ]);
+        Order::$auditReason = null;
 
         return $order;
     }

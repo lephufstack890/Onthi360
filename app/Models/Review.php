@@ -21,6 +21,7 @@ class Review extends Model
         'reviewer_id', 'reviewer_role', 'target_type', 'target_id', 'target_version',
         'overall_rating', 'criteria_scores', 'comment', 'disclosure_ack', 'status',
         'moderation_reason', 'published_at', 'editable_until',
+        'admin_reply', 'admin_reply_by', 'admin_reply_at',
     ];
 
     protected $casts = [
@@ -30,11 +31,18 @@ class Review extends Model
         'disclosure_ack' => 'boolean',
         'published_at' => 'datetime',
         'editable_until' => 'datetime',
+        'admin_reply_at' => 'datetime',
     ];
 
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    /** 9.4: chỉ Admin đăng phản hồi chính thức, chỉ sau khi review đã "Đã công bố". */
+    public function adminReplier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_reply_by');
     }
 
     public function reports(): HasMany

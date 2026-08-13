@@ -13,11 +13,18 @@
     @php
         $tabs = $tabs ?? [];
         $competitions = $competitions ?? [];
+        $competitionStatusMessage = match (session('status')) {
+            'competition-archived' => 'Đã lưu trữ cuộc thi.',
+            default => null,
+        };
     @endphp
+    @if ($competitionStatusMessage)
+        @include('partials.toast-flash', ['type' => 'success', 'message' => $competitionStatusMessage])
+    @endif
 
     <x-page-header title="🏆 Cuộc thi" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện (4.3, 11.1).">
         <x-slot:actions>
-            <button type="button" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo cuộc thi</button>
+            <a href="{{ route('admin.competitions.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo cuộc thi</a>
         </x-slot:actions>
     </x-page-header>
 
@@ -30,7 +37,7 @@
                 <td class="px-4 py-3 text-slate-500">{{ $c['type'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $c['time'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$c['tone']">{{ $c['status'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right"><a href="#" class="text-rose-600 font-medium">Xem</a></td>
+                <td class="px-4 py-3 text-right"><a href="{{ route('admin.competitions.show', $c['id']) }}" class="text-rose-600 font-medium">Xem</a></td>
             </tr>
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
