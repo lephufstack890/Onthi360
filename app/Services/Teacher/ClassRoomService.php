@@ -56,9 +56,13 @@ class ClassRoomService
 
             return [
                 'id' => $classRoom->id,
+                'code' => $classRoom->code,
                 'course' => $classRoom->course->title ?? '',
                 'name' => $classRoom->name,
                 'students' => $classRoom->students_count,
+                // Ghi chú lịch học nhập lúc tạo lớp (8.1: "Lịch học (ghi chú hiển thị)") —
+                // khác với "buổi tới" (nextSession, lấy từ class_sessions cụ thể).
+                'scheduleNote' => $classRoom->schedule['note'] ?? null,
                 'nextSession' => $nextSession?->starts_at->format('d/m H:i'),
                 // TODO: % hoàn thành chung thật cần tổng hợp progress_unlocks + attempts toàn lớp.
                 'completion' => 0,

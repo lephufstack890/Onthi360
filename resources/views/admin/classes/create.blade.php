@@ -27,7 +27,7 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6 max-w-2xl">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
         <form method="POST" action="{{ route('admin.courses.classes.store', $course->id) }}" class="space-y-4">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

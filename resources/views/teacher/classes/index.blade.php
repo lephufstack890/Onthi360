@@ -48,11 +48,19 @@
                     <x-icon-tile emoji="🏫" tone="sky" />
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $c['course'] }}</p>
-                        <h3 class="font-semibold text-slate-800 mt-0.5">{{ $c['name'] }}</h3>
-                        <div class="flex items-center gap-3 text-xs text-slate-400 mt-1.5">
+                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <h3 class="font-semibold text-slate-800">{{ $c['name'] }}</h3>
+                            @if ($c['code'])
+                                <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{{ $c['code'] }}</span>
+                            @endif
+                        </div>
+                        @if ($c['scheduleNote'])
+                            <p class="text-xs text-slate-500 mt-1">📅 {{ $c['scheduleNote'] }}</p>
+                        @endif
+                        <div class="flex items-center gap-3 text-xs text-slate-400 mt-1.5 flex-wrap">
                             <span>👥 {{ $c['students'] }} học sinh</span>
                             @if ($c['nextSession'])
-                                <span>· 🗓 {{ $c['nextSession'] }}</span>
+                                <span>· 🗓 Buổi tới: {{ $c['nextSession'] }}</span>
                             @endif
                         </div>
                     </div>
