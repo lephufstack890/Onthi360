@@ -141,17 +141,18 @@
             </form>
         </div>
 
-        <x-data-table :columns="['Thời gian', 'Chủ đề', 'Địa điểm', 'Điểm danh', '']">
+        <x-data-table :columns="['Thời gian (bắt đầu - kết thúc)', 'Chủ đề', 'Địa điểm', 'Trạng thái', 'Điểm danh', '']">
             @forelse ($sessions as $s)
                 <tr class="hover:bg-slate-50">
-                    <td class="px-4 py-3 text-slate-700">{{ $s['startsAt']?->format('d/m/Y H:i') ?? '—' }}</td>
+                    <td class="px-4 py-3 text-slate-700">{{ $s['timeRangeLabel'] }}</td>
                     <td class="px-4 py-3 text-slate-600">{{ $s['topic'] ?? '—' }}</td>
                     <td class="px-4 py-3 text-slate-400">{{ $s['location'] ?? '—' }}</td>
+                    <td class="px-4 py-3"><x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge></td>
                     <td class="px-4 py-3"><x-status-badge :tone="$s['attendanceTaken'] ? 'success' : 'warning'">{{ $s['attendanceSummary'] }}</x-status-badge></td>
                     <td class="px-4 py-3 text-right"><a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="text-rose-600 font-medium">Điểm danh</a></td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Lớp chưa có buổi học nào — tạo buổi học đầu tiên ở trên.</td></tr>
+                <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Lớp chưa có buổi học nào — tạo buổi học đầu tiên ở trên.</td></tr>
             @endforelse
         </x-data-table>
     @elseif ($tab === 'assign')

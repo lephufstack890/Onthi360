@@ -58,32 +58,34 @@
     </div>
 
     <p class="text-sm font-semibold text-slate-700 mb-2">Sắp tới</p>
-    <x-data-table :columns="['Lớp', 'Thời gian', 'Chủ đề', 'Điểm danh', '']">
+    <x-data-table :columns="['Lớp', 'Thời gian (bắt đầu - kết thúc)', 'Chủ đề', 'Trạng thái', 'Điểm danh', '']">
         @forelse ($upcoming as $s)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $s['className'] }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ $s['startsAt']?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ $s['timeRangeLabel'] }}</td>
                 <td class="px-4 py-3 text-slate-400">{{ $s['topic'] ?? '—' }}</td>
+                <td class="px-4 py-3"><x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge></td>
                 <td class="px-4 py-3"><x-status-badge :tone="$s['attendanceTaken'] ? 'success' : 'neutral'">{{ $s['attendanceSummary'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right"><a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="text-rose-600 font-medium">Điểm danh</a></td>
             </tr>
         @empty
-            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có buổi học sắp tới.</td></tr>
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có buổi học sắp tới.</td></tr>
         @endforelse
     </x-data-table>
 
     <p class="text-sm font-semibold text-slate-700 mt-6 mb-2">Đã qua</p>
-    <x-data-table :columns="['Lớp', 'Thời gian', 'Chủ đề', 'Điểm danh', '']">
+    <x-data-table :columns="['Lớp', 'Thời gian (bắt đầu - kết thúc)', 'Chủ đề', 'Trạng thái', 'Điểm danh', '']">
         @forelse ($past as $s)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $s['className'] }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ $s['startsAt']?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ $s['timeRangeLabel'] }}</td>
                 <td class="px-4 py-3 text-slate-400">{{ $s['topic'] ?? '—' }}</td>
+                <td class="px-4 py-3"><x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge></td>
                 <td class="px-4 py-3"><x-status-badge :tone="$s['attendanceTaken'] ? 'success' : 'warning'">{{ $s['attendanceSummary'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right"><a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="text-rose-600 font-medium">Điểm danh</a></td>
             </tr>
         @empty
-            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có buổi học nào trong quá khứ.</td></tr>
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có buổi học nào trong quá khứ.</td></tr>
         @endforelse
     </x-data-table>
 @endsection

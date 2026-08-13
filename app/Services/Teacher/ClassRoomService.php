@@ -55,10 +55,19 @@ class ClassRoomService
             ->groupBy('class_room_id')
             ->map(fn ($sessions) => $sessions->first());
 
-        // Buổi học GẦN NHẤT đã qua của mỗi lớp — để báo "buổi vừa kết thúc, chưa điểm
-        // danh" thay vì im lặng không hiện gì khi buổi học không còn nằm trong "sắp tới".
+        // Buổi học GẦN NHẤT đã THỰC SỰ kết thúc của mỗi lớp — để báo "buổi vừa kết
+        // thúc, chưa điểm danh" thay vì im lặng không hiện gì khi buổi học không còn nằm
+        // trong "sắp tới".
         $lastSessionByClassRoomId = $this->classSessions
             ->mostRecentPastForClassRoomIds($classRoomIds, max(count($classRoomIds) * 5, 5))
+            ->groupBy('class_room_id')
+            ->map(fn ($sessions) => $sessions->first());
+
+        // Buổi học ĐANG DIỄN RA (đã bắt đầu, chưa kết thúc) — tách riêng khỏi "buổi gần
+        // nhất đã qua" để không báo nhầm một buổi vừa mới bắt đầu là "đã kết thúc" (bug đã
+        // gặp thực tế: buổi 15:10 mới bắt đầu 4 phút bị báo "đã kết thúc, chưa điểm danh").
+        $inProgressSessionByClassRoomId = $this->classSessions
+            ->currentlyInProgressForClassRoomIds($classRoomIds)
             ->groupBy('class_room_id')
             ->map(fn ($sessions) => $sessions->first());
 
@@ -71,9 +80,12 @@ class ClassRoomService
             ->groupBy('class_room_id')
             ->map(fn ($rows) => $rows->unique(fn ($r) => $r->assignment_id.'-'.$r->user_id)->count());
 
-        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $lastSessionByClassRoomId, $assignedCountByClassRoomId, $submittedPairsByClassRoomId) {
+        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $inProgressSessionByClassRoomId, $lastSessionByClassRoomId, $assignedCountByClassRoomId, $submittedPairsByClassRoomId) {
             $nextSession = $nextSessionByClassRoomId->get($classRoom->id);
-            $lastSession = $nextSession === null ? $lastSessionByClassRoomId->get($classRoom->id) : null;
+            // Ưu tiên hiển thị: buổi sắp tới > buổi đang diễn ra > buổi gần nhất đã kết
+            // thúc. Một buổi chỉ rơi vào đúng 1 trong 3 nhóm (3 truy vấn không giao nhau).
+            $inProgressSession = $nextSession === null ? $inProgressSessionByClassRoomId->get($classRoom->id) : null;
+            $lastSession = ($nextSession === null && $inProgressSession === null) ? $lastSessionByClassRoomId->get($classRoom->id) : null;
 
             $assignedCount = (int) ($assignedCountByClassRoomId->get($classRoom->id) ?? 0);
             $submittedPairs = (int) ($submittedPairsByClassRoomId->get($classRoom->id) ?? 0);
@@ -88,8 +100,14 @@ class ClassRoomService
                 // khác với "buổi tới" (nextSession, lấy từ class_sessions cụ thể).
                 'scheduleNote' => $classRoom->schedule['note'] ?? null,
                 'nextSession' => $nextSession?->starts_at->format('d/m H:i'),
-                // Chỉ có ý nghĩa khi KHÔNG còn buổi sắp tới (buổi gần nhất đã qua) — báo
-                // giáo viên biết buổi đã kết thúc và có điểm danh chưa, thay vì im lặng.
+                // Buổi ĐANG diễn ra (đã bắt đầu, chưa kết thúc) — trạng thái riêng, không
+                // gộp chung với "đã kết thúc".
+                'inProgressSessionId' => $inProgressSession?->id,
+                'inProgressSessionLabel' => $inProgressSession?->starts_at->format('H:i') . ($inProgressSession !== null ? '–' . $inProgressSession->ends_at->format('H:i') : ''),
+                'inProgressAttendanceTaken' => $inProgressSession !== null && $inProgressSession->attendances->isNotEmpty(),
+                // Chỉ có ý nghĩa khi KHÔNG còn buổi sắp tới / đang diễn ra (buổi gần nhất
+                // ĐÃ THỰC SỰ kết thúc) — báo giáo viên biết buổi đã kết thúc và có điểm danh
+                // chưa, thay vì im lặng.
                 'lastSessionId' => $lastSession?->id,
                 'lastSessionLabel' => $lastSession?->starts_at->format('d/m H:i'),
                 'lastSessionAttendanceTaken' => $lastSession !== null && $lastSession->attendances->isNotEmpty(),

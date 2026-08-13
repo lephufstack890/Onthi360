@@ -52,11 +52,20 @@ class AssignmentRepository extends EloquentRepository implements AssignmentRepos
             ->get();
     }
 
+    /**
+     * KHÔNG lọc theo cột status (status chỉ được tính 1 LẦN lúc tạo assignment —
+     * AssessmentService::computeAssignmentStatus() — và không tự cập nhật lại theo thời
+     * gian sau đó, nên 1 bài "scheduled" mà đã qua giờ mở vẫn còn nằm ở status cũ). Tính
+     * trực tiếp theo opens_at để không phụ thuộc giá trị status có thể đã lỗi thời.
+     */
     public function assignedForClassRoomIds(array $classRoomIds): Collection
     {
         return $this->query()
             ->whereIn('class_room_id', $classRoomIds)
-            ->whereIn('status', ['open', 'closed', 'archived'])
+            ->where('status', '!=', 'draft')
+            ->where(function ($q) {
+                $q->whereNull('opens_at')->orWhere('opens_at', '<=', now());
+            })
             ->get(['id', 'class_room_id']);
     }
 }

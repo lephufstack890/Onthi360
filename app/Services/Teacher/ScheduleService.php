@@ -62,6 +62,8 @@ class ScheduleService
         $taken = $attendances->count();
         $present = $attendances->where('status', AttendanceStatus::Present)->count();
 
+        [$timeStatusLabel, $timeStatusTone] = $this->timeStatus($session);
+
         return [
             'id' => $session->id,
             'classRoomId' => $session->class_room_id,
@@ -70,6 +72,10 @@ class ScheduleService
             'location' => $session->location,
             'startsAt' => $session->starts_at,
             'endsAt' => $session->ends_at,
+            // Hiển thị đủ CẢ giờ bắt đầu lẫn giờ kết thúc trong 1 cột cho gọn bảng.
+            'timeRangeLabel' => $this->timeRangeLabel($session),
+            'timeStatusLabel' => $timeStatusLabel,
+            'timeStatusTone' => $timeStatusTone,
             'attendanceTaken' => $taken > 0,
             'attendanceSummary' => match (true) {
                 $taken > 0 => "{$present}/{$total} có mặt",
@@ -77,6 +83,47 @@ class ScheduleService
                 default => 'Chưa điểm danh',
             },
         ];
+    }
+
+    /** "13/08 08:00 - 09:30" (cùng ngày) hoặc "13/08 08:00 - 14/08 01:00" (khác ngày). */
+    private function timeRangeLabel(ClassSession $session): string
+    {
+        if ($session->starts_at === null) {
+            return '—';
+        }
+
+        if ($session->ends_at === null) {
+            return $session->starts_at->format('d/m H:i');
+        }
+
+        $sameDay = $session->starts_at->isSameDay($session->ends_at);
+
+        return $sameDay
+            ? $session->starts_at->format('d/m H:i').' - '.$session->ends_at->format('H:i')
+            : $session->starts_at->format('d/m H:i').' - '.$session->ends_at->format('d/m H:i');
+    }
+
+    /**
+     * Trạng thái buổi học theo thời gian THỰC (so với now() — đã đúng múi giờ VN từ khi
+     * config/app.php được thêm lại, xem ghi chú ở đó) — không dựa vào bucket "sắp
+     * tới/đã qua" (bucket đó chỉ so theo starts_at, một buổi ĐANG diễn ra đã rơi vào
+     * "đã qua" dù chưa kết thúc — cần nhãn riêng để giáo viên phân biệt rõ).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function timeStatus(ClassSession $session): array
+    {
+        $now = now();
+
+        if ($session->starts_at !== null && $now->lt($session->starts_at)) {
+            return ['Sắp diễn ra', 'info'];
+        }
+
+        if ($session->ends_at !== null && $now->gt($session->ends_at)) {
+            return ['Đã kết thúc', 'neutral'];
+        }
+
+        return ['Đang diễn ra', 'warning'];
     }
 
     /** teacher.schedule.store — tạo buổi học mới cho một lớp đang dạy (kiểm tra lại quyền, 16 mục 3). */

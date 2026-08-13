@@ -61,6 +61,10 @@
                             <span>👥 {{ $c['students'] }} học sinh</span>
                             @if ($c['nextSession'])
                                 <span>· 🗓 Buổi tới: {{ $c['nextSession'] }}</span>
+                            @elseif ($c['inProgressSessionLabel'])
+                                {{-- Buổi ĐANG diễn ra (đã bắt đầu, chưa kết thúc) — không được gộp
+                                     chung với "đã kết thúc", tránh báo nhầm buổi vừa mới bắt đầu. --}}
+                                <span class="text-emerald-600 font-medium">· 🔴 Đang diễn ra ({{ $c['inProgressSessionLabel'] }})@if (! $c['inProgressAttendanceTaken']) — chưa điểm danh @endif</span>
                             @elseif ($c['lastSessionLabel'])
                                 @if ($c['lastSessionAttendanceTaken'])
                                     <span>· ✅ Buổi {{ $c['lastSessionLabel'] }} — đã điểm danh</span>

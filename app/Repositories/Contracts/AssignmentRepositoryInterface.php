@@ -18,9 +18,10 @@ interface AssignmentRepositoryInterface extends BaseRepositoryInterface
     public function draftOrScheduledForClassRoomIds(array $classRoomIds, int $limit = 10): Collection;
 
     /**
-     * Bài giao ĐÃ từng mở (open/closed/archived — loại trừ draft/scheduled chưa tới hạn
-     * mở) của các lớp trong $classRoomIds — mẫu số để tính "Hoàn thành chung" (không tính
-     * bài chưa từng mở, học sinh không thể "chưa hoàn thành" một bài chưa được giao thật).
+     * Bài giao ĐÃ tới giờ mở (opens_at <= now(), loại trừ draft) của các lớp trong
+     * $classRoomIds — mẫu số để tính "Hoàn thành chung". Tính theo opens_at trực tiếp
+     * thay vì cột status vì status chỉ được gán 1 lần lúc tạo, không tự cập nhật theo
+     * thời gian (xem ghi chú ở Eloquent AssignmentRepository).
      */
     public function assignedForClassRoomIds(array $classRoomIds): Collection;
 }

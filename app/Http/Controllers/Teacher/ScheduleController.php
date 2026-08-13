@@ -30,14 +30,23 @@ class ScheduleController extends Controller
      */
     public function store(Request $request)
     {
+        // Giờ/Phút do 2 dropdown <select> gửi lên dạng CHUỖI CÓ SỐ 0 ĐỨNG ĐẦU (vd "08",
+        // "05" — xem resources/views/partials/session-datetime-fields.blade.php,
+        // sprintf('%02d', ...)). Rule 'integer' của Laravel dùng
+        // filter_var($value, FILTER_VALIDATE_INT), và PHP trả về false cho chuỗi có số 0
+        // đứng đầu như "08" (nhầm là số bát phân không hợp lệ) — khiến form KHÔNG BAO GIỜ
+        // submit được mỗi khi giờ từ 0-9 hoặc phút là 00/05 (lỗi thực tế đã gặp: nhập giờ
+        // vẫn báo "validation.integer" dù đã chọn hợp lệ). Dùng 'digits_between:1,2' thay
+        // 'integer' — chỉ kiểm tra toàn số + độ dài 1-2 ký tự, không quan tâm số 0 đứng đầu;
+        // 'between' vẫn chạy đúng vì Laravel tính kích thước theo floatval() cho chuỗi số.
         $data = $request->validate([
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
             'starts_date' => ['required', 'date_format:Y-m-d'],
-            'starts_hour' => ['required', 'integer', 'between:0,23'],
-            'starts_minute' => ['required', 'integer', 'between:0,59'],
+            'starts_hour' => ['required', 'digits_between:1,2', 'between:0,23'],
+            'starts_minute' => ['required', 'digits_between:1,2', 'between:0,59'],
             'ends_date' => ['required', 'date_format:Y-m-d'],
-            'ends_hour' => ['required', 'integer', 'between:0,23'],
-            'ends_minute' => ['required', 'integer', 'between:0,59'],
+            'ends_hour' => ['required', 'digits_between:1,2', 'between:0,23'],
+            'ends_minute' => ['required', 'digits_between:1,2', 'between:0,59'],
             'topic' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
         ]);
