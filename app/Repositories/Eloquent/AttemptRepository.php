@@ -59,4 +59,13 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
             ->get()
             ->keyBy('user_id');
     }
+
+    public function submittedAssignmentPairsForClassRoomIds(array $classRoomIds): Collection
+    {
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->whereNotNull('assignment_id')
+            ->whereNotNull('submitted_at')
+            ->get(['class_room_id', 'assignment_id', 'user_id']);
+    }
 }

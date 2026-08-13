@@ -20,4 +20,12 @@ interface AttemptRepositoryInterface extends BaseRepositoryInterface
     public function withAnswersAndAssessment(int $id): ?Attempt;
 
     public function forAssignmentAndUserIds(int $assignmentId, array $userIds): Collection;
+
+    /**
+     * Các lần nộp (đã nộp) gắn với một Assignment cụ thể, thuộc các lớp trong
+     * $classRoomIds — dùng để tính "Hoàn thành chung" (% cặp học sinh-bài giao đã nộp ít
+     * nhất 1 lần). Chỉ lấy 3 cột cần thiết, gộp/đếm distinct cặp (assignment_id,user_id) ở
+     * Service (PHP) thay vì SQL thô để không phụ thuộc cú pháp riêng của từng driver DB.
+     */
+    public function submittedAssignmentPairsForClassRoomIds(array $classRoomIds): Collection;
 }

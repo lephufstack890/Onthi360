@@ -51,4 +51,12 @@ class AssignmentRepository extends EloquentRepository implements AssignmentRepos
             ->limit($limit)
             ->get();
     }
+
+    public function assignedForClassRoomIds(array $classRoomIds): Collection
+    {
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->whereIn('status', ['open', 'closed', 'archived'])
+            ->get(['id', 'class_room_id']);
+    }
 }

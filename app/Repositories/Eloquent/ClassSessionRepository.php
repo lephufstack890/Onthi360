@@ -53,4 +53,20 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
             ->orderByDesc('starts_at')
             ->get();
     }
+
+    /**
+     * teacher.classes.index — buổi học GẦN NHẤT đã qua của mỗi lớp (để báo "chưa điểm
+     * danh" khi buổi vừa kết thúc mà giáo viên chưa vào điểm danh). Lấy dư $limit dòng rồi
+     * groupBy ở Service (cùng kiểu batch-fetch với upcomingForClassRoomIds) để tránh N+1.
+     */
+    public function mostRecentPastForClassRoomIds(array $classRoomIds, int $limit = 5): Collection
+    {
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->where('starts_at', '<', now())
+            ->with(['classRoom', 'attendances'])
+            ->orderByDesc('starts_at')
+            ->limit($limit)
+            ->get();
+    }
 }

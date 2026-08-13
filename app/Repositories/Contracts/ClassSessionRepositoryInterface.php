@@ -18,4 +18,6 @@ interface ClassSessionRepositoryInterface extends BaseRepositoryInterface
     public function upcomingForClassRoomIds(array $classRoomIds, int $limit = 5): Collection;
 
     public function allForClassRoomIds(array $classRoomIds): Collection;
+
+    public function mostRecentPastForClassRoomIds(array $classRoomIds, int $limit = 5): Collection;
 }

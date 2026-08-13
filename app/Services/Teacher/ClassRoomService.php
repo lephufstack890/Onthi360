@@ -9,6 +9,8 @@ use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
+use App\Repositories\Contracts\AssignmentRepositoryInterface;
+use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
@@ -30,6 +32,8 @@ class ClassRoomService
         private readonly AccessRightRepositoryInterface $accessRights,
         private readonly MaterialRepositoryInterface $materials,
         private readonly ScheduleService $scheduleService,
+        private readonly AssignmentRepositoryInterface $assignments,
+        private readonly AttemptRepositoryInterface $attempts,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -51,8 +55,28 @@ class ClassRoomService
             ->groupBy('class_room_id')
             ->map(fn ($sessions) => $sessions->first());
 
-        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId) {
+        // Buổi học GẦN NHẤT đã qua của mỗi lớp — để báo "buổi vừa kết thúc, chưa điểm
+        // danh" thay vì im lặng không hiện gì khi buổi học không còn nằm trong "sắp tới".
+        $lastSessionByClassRoomId = $this->classSessions
+            ->mostRecentPastForClassRoomIds($classRoomIds, max(count($classRoomIds) * 5, 5))
+            ->groupBy('class_room_id')
+            ->map(fn ($sessions) => $sessions->first());
+
+        // "Hoàn thành chung" thật: % cặp (học sinh, bài giao đã mở) có ít nhất 1 lần nộp,
+        // tính theo TỪNG lớp bằng 2 truy vấn theo lô (không lặp N+1 mỗi dòng).
+        $assignedCountByClassRoomId = $this->assignments->assignedForClassRoomIds($classRoomIds)
+            ->groupBy('class_room_id')
+            ->map->count();
+        $submittedPairsByClassRoomId = $this->attempts->submittedAssignmentPairsForClassRoomIds($classRoomIds)
+            ->groupBy('class_room_id')
+            ->map(fn ($rows) => $rows->unique(fn ($r) => $r->assignment_id.'-'.$r->user_id)->count());
+
+        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $lastSessionByClassRoomId, $assignedCountByClassRoomId, $submittedPairsByClassRoomId) {
             $nextSession = $nextSessionByClassRoomId->get($classRoom->id);
+            $lastSession = $nextSession === null ? $lastSessionByClassRoomId->get($classRoom->id) : null;
+
+            $assignedCount = (int) ($assignedCountByClassRoomId->get($classRoom->id) ?? 0);
+            $submittedPairs = (int) ($submittedPairsByClassRoomId->get($classRoom->id) ?? 0);
 
             return [
                 'id' => $classRoom->id,
@@ -64,12 +88,32 @@ class ClassRoomService
                 // khác với "buổi tới" (nextSession, lấy từ class_sessions cụ thể).
                 'scheduleNote' => $classRoom->schedule['note'] ?? null,
                 'nextSession' => $nextSession?->starts_at->format('d/m H:i'),
-                // TODO: % hoàn thành chung thật cần tổng hợp progress_unlocks + attempts toàn lớp.
-                'completion' => 0,
+                // Chỉ có ý nghĩa khi KHÔNG còn buổi sắp tới (buổi gần nhất đã qua) — báo
+                // giáo viên biết buổi đã kết thúc và có điểm danh chưa, thay vì im lặng.
+                'lastSessionId' => $lastSession?->id,
+                'lastSessionLabel' => $lastSession?->starts_at->format('d/m H:i'),
+                'lastSessionAttendanceTaken' => $lastSession !== null && $lastSession->attendances->isNotEmpty(),
+                'completion' => $this->completionPercent($assignedCount, $classRoom->students_count, $submittedPairs),
             ];
         })->values()->all();
 
         return ['classes' => $classes];
+    }
+
+    /**
+     * "Hoàn thành chung" = % cặp (học sinh, bài giao đã mở) đã nộp ít nhất 1 lần, trong
+     * tổng số cặp có thể có (số học sinh × số bài đã mở). Trả 0 nếu chưa có bài nào từng
+     * mở hoặc lớp chưa có học sinh — tránh chia cho 0 và tránh hiểu nhầm "0 bài = 100%".
+     */
+    private function completionPercent(int $assignedCount, int $studentsCount, int $submittedPairs): int
+    {
+        $possiblePairs = $assignedCount * $studentsCount;
+
+        if ($possiblePairs <= 0) {
+            return 0;
+        }
+
+        return (int) round(min($submittedPairs, $possiblePairs) / $possiblePairs * 100);
     }
 
     /** teacher.classes.show — chi tiết lớp (TEA-02 chi tiết + TEA-06 học liệu, 8.2/8.3). */
@@ -88,6 +132,14 @@ class ClassRoomService
 
         $studentsCount = $classRoom->students()->count();
         $nextSession = $this->classSessions->nextUpcomingForClassRoom($classRoom->id);
+
+        // "Hoàn thành chung" thật cho hero header (cùng công thức với teacher.classes.index,
+        // chỉ khác là tính cho MỘT lớp nên không cần batch-fetch theo lô).
+        $assignedCount = $this->assignments->assignedForClassRoomIds([$classRoom->id])->count();
+        $submittedPairs = $this->attempts->submittedAssignmentPairsForClassRoomIds([$classRoom->id])
+            ->unique(fn ($r) => $r->assignment_id.'-'.$r->user_id)
+            ->count();
+        $completion = $this->completionPercent($assignedCount, $studentsCount, $submittedPairs);
 
         $materials = [];
         $attachableMaterials = [];
@@ -120,6 +172,7 @@ class ClassRoomService
             'tabsData' => $tabsData,
             'studentsCount' => $studentsCount,
             'nextSession' => $nextSession,
+            'completion' => $completion,
             'materials' => $materials,
             'attachableMaterials' => $attachableMaterials,
             'sessions' => $sessions,

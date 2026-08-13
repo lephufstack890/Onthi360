@@ -61,6 +61,12 @@
                             <span>👥 {{ $c['students'] }} học sinh</span>
                             @if ($c['nextSession'])
                                 <span>· 🗓 Buổi tới: {{ $c['nextSession'] }}</span>
+                            @elseif ($c['lastSessionLabel'])
+                                @if ($c['lastSessionAttendanceTaken'])
+                                    <span>· ✅ Buổi {{ $c['lastSessionLabel'] }} — đã điểm danh</span>
+                                @else
+                                    <span class="text-amber-600 font-medium">· ⚠️ Buổi {{ $c['lastSessionLabel'] }} đã kết thúc, chưa điểm danh</span>
+                                @endif
                             @endif
                         </div>
                     </div>

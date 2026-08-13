@@ -41,7 +41,7 @@
                     <p class="text-sm text-slate-500 mt-1">👥 {{ $studentsCount }} học sinh · 🗓 {{ $nextSessionLabel }}</p>
                 </div>
             </div>
-            <div class="w-40"><x-progress-bar :percent="0" label="Hoàn thành chung" tone="info" /></div>
+            <div class="w-40"><x-progress-bar :percent="$completion ?? 0" label="Hoàn thành chung" tone="info" /></div>
         </div>
     </div>
 
