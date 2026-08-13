@@ -68,9 +68,10 @@
                                     <option value="{{ $c->id }}">{{ $c->name }}</option>
                                 @endforeach
                             </x-select>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="datetime-local" name="opens_at" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Mở lúc">
-                                <input type="datetime-local" name="closes_at" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Đóng lúc">
+                            <div class="space-y-2">
+                                @include('partials.optional-date-hour-minute-fields', ['prefix' => 'opens', 'label' => 'Mở lúc (tùy chọn)'])
+                                @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
+                                <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
                             </div>
                             <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)..."></textarea>
                             <button type="submit" class="w-full px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Xác nhận giao đề (8.4)</button>

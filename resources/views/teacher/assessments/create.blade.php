@@ -95,9 +95,10 @@
                                 <option value="{{ $c->id }}" @selected((string) old('class_room_id') === (string) $c->id)>{{ $c->name }}</option>
                             @endforeach
                         </x-select>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="datetime-local" name="opens_at" value="{{ old('opens_at') }}" class="w-full rounded-lg border border-slate-200 text-xs p-2">
-                            <input type="datetime-local" name="closes_at" value="{{ old('closes_at') }}" class="w-full rounded-lg border border-slate-200 text-xs p-2">
+                        <div class="space-y-2">
+                            @include('partials.optional-date-hour-minute-fields', ['prefix' => 'opens', 'label' => 'Mở lúc (tùy chọn)'])
+                            @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
+                            <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
                         </div>
                         <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)...">{{ old('instructions') }}</textarea>
                         <p class="text-xs text-sky-600">Đề sẽ tự động phát hành nếu mọi câu đã đủ điều kiện (6.2), không hỗ trợ ngoại lệ từng học sinh (8.4).</p>

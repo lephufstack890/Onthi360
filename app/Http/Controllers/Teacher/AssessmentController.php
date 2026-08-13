@@ -41,6 +41,13 @@ class AssessmentController extends Controller
         $assessment = $this->assessmentService->store(Auth::user(), $data);
 
         if ($action === 'assign') {
+            // Ngày + Giờ/Phút (2 dropdown, xem partials.optional-date-hour-minute-fields)
+            // được validate riêng lẻ ở assignRules() rồi ghép lại thành opens_at/closes_at
+            // ở đây — AssessmentService::assignToClass() vẫn chỉ nhận opens_at/closes_at
+            // như cũ, không cần sửa Service.
+            $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
+            $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
+
             try {
                 $this->assessmentService->assignToClass(Auth::user(), $assessment, $data);
             } catch (ValidationException $e) {
@@ -95,6 +102,8 @@ class AssessmentController extends Controller
     {
         $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
         $data = $request->validate($this->assignRules());
+        $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
+        $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
 
         try {
             $this->assessmentService->assignToClass(Auth::user(), $assessmentModel, $data);
@@ -125,10 +134,39 @@ class AssessmentController extends Controller
     {
         return [
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
-            'opens_at' => ['nullable', 'date'],
-            'closes_at' => ['nullable', 'date'],
+            // Ngày để trống = không giới hạn mốc thời gian đó (opens_at/closes_at nullable
+            // ở Assignment). Giờ/Phút dùng 'numeric' + 'digits_between' thay 'integer' —
+            // 2 dropdown gửi lên dạng chuỗi có số 0 đứng đầu (vd "08"), và rule 'integer'
+            // của Laravel dùng filter_var(FILTER_VALIDATE_INT) sẽ từ chối chuỗi kiểu đó
+            // (bug thực tế đã gặp ở form Lịch, xem ScheduleController::store()).
+            'opens_date' => ['nullable', 'date_format:Y-m-d'],
+            'opens_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
+            'opens_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
+            'closes_date' => ['nullable', 'date_format:Y-m-d'],
+            'closes_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
+            'closes_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'due_at' => ['nullable', 'date'],
             'instructions' => ['nullable', 'string', 'max:2000'],
         ];
+    }
+
+    /**
+     * Ghép Ngày (bắt buộc có để coi là "đã đặt mốc") + Giờ/Phút (mặc định 00:00 nếu Ngày
+     * có nhưng chưa đổi Giờ/Phút) thành 1 chuỗi datetime cho AssessmentService::
+     * assignToClass() (vẫn Carbon::parse() như cũ). Trả null nếu Ngày để trống — nghĩa là
+     * không giới hạn mốc thời gian này (opens_at/closes_at nullable).
+     */
+    private function combineOptionalDateTime(array $data, string $prefix): ?string
+    {
+        $date = $data[$prefix.'_date'] ?? null;
+
+        if (blank($date)) {
+            return null;
+        }
+
+        $hour = $data[$prefix.'_hour'] ?? '00';
+        $minute = $data[$prefix.'_minute'] ?? '00';
+
+        return sprintf('%s %02d:%02d:00', $date, (int) $hour, (int) $minute);
     }
 }
