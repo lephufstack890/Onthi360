@@ -22,4 +22,6 @@ interface ClassSessionRepositoryInterface extends BaseRepositoryInterface
     public function mostRecentPastForClassRoomIds(array $classRoomIds, int $limit = 5): Collection;
 
     public function currentlyInProgressForClassRoomIds(array $classRoomIds): Collection;
+
+    public function sessionProgressCountsForClassRoomIds(array $classRoomIds): Collection;
 }

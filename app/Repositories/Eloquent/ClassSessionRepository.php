@@ -90,4 +90,20 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
             ->orderBy('starts_at')
             ->get();
     }
+
+    /**
+     * teacher.classes.index/show — "Hoàn thành chung" = % buổi học ĐÃ KẾT THÚC trên tổng
+     * số buổi đã lên lịch cho lớp (xem ghi chú tại ClassRoomService::completionPercent()
+     * về lý do đổi từ đo theo % bài tập đã nộp sang đo theo tiến độ buổi học). Gộp COUNT
+     * và SUM có điều kiện trong 1 câu query, GROUP BY class_room_id — tránh N+1 khi có
+     * nhiều lớp cùng lúc (giống cách batch-fetch của các hàm khác trong repo này).
+     */
+    public function sessionProgressCountsForClassRoomIds(array $classRoomIds): Collection
+    {
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->selectRaw('class_room_id, COUNT(*) as total, SUM(CASE WHEN ends_at < ? THEN 1 ELSE 0 END) as ended', [now()])
+            ->groupBy('class_room_id')
+            ->get();
+    }
 }

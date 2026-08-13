@@ -76,7 +76,13 @@
                     </div>
                 </div>
                 <div class="mt-4 pt-4 border-t border-slate-100">
-                    <x-progress-bar :percent="$c['completion']" label="Hoàn thành chung" tone="info" />
+                    {{-- "Hoàn thành chung" = % buổi học đã kết thúc / tổng số buổi đã lên lịch
+                         (không phải % bài tập đã nộp — tính năng học sinh nộp bài chưa có nên
+                         số đó sẽ luôn là 0%, xem ClassRoomService::completionPercent()). --}}
+                    <x-progress-bar :percent="$c['completion']" label="Hoàn thành chung (theo buổi học)" tone="info" />
+                    @if ($c['completionTotalSessions'] > 0)
+                        <p class="text-[11px] text-slate-400 mt-1">{{ $c['completionEndedSessions'] }}/{{ $c['completionTotalSessions'] }} buổi đã học</p>
+                    @endif
                 </div>
             </a>
         @empty

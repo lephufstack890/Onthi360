@@ -41,7 +41,12 @@
                     <p class="text-sm text-slate-500 mt-1">👥 {{ $studentsCount }} học sinh · 🗓 {{ $nextSessionLabel }}</p>
                 </div>
             </div>
-            <div class="w-40"><x-progress-bar :percent="$completion ?? 0" label="Hoàn thành chung" tone="info" /></div>
+            <div class="w-40">
+                <x-progress-bar :percent="$completion ?? 0" label="Hoàn thành chung (theo buổi học)" tone="info" />
+                @if (($completionTotalSessions ?? 0) > 0)
+                    <p class="text-[11px] text-slate-400 mt-1">{{ $completionEndedSessions }}/{{ $completionTotalSessions }} buổi đã học</p>
+                @endif
+            </div>
         </div>
     </div>
 

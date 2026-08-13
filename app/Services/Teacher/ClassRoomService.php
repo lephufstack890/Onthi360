@@ -9,8 +9,6 @@ use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
-use App\Repositories\Contracts\AssignmentRepositoryInterface;
-use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
@@ -32,8 +30,6 @@ class ClassRoomService
         private readonly AccessRightRepositoryInterface $accessRights,
         private readonly MaterialRepositoryInterface $materials,
         private readonly ScheduleService $scheduleService,
-        private readonly AssignmentRepositoryInterface $assignments,
-        private readonly AttemptRepositoryInterface $attempts,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -71,24 +67,22 @@ class ClassRoomService
             ->groupBy('class_room_id')
             ->map(fn ($sessions) => $sessions->first());
 
-        // "Hoàn thành chung" thật: % cặp (học sinh, bài giao đã mở) có ít nhất 1 lần nộp,
-        // tính theo TỪNG lớp bằng 2 truy vấn theo lô (không lặp N+1 mỗi dòng).
-        $assignedCountByClassRoomId = $this->assignments->assignedForClassRoomIds($classRoomIds)
-            ->groupBy('class_room_id')
-            ->map->count();
-        $submittedPairsByClassRoomId = $this->attempts->submittedAssignmentPairsForClassRoomIds($classRoomIds)
-            ->groupBy('class_room_id')
-            ->map(fn ($rows) => $rows->unique(fn ($r) => $r->assignment_id.'-'.$r->user_id)->count());
+        // "Hoàn thành chung" = % buổi học đã kết thúc / tổng số buổi đã lên lịch cho lớp
+        // (xem completionPercent() bên dưới về lý do đổi từ đo theo % bài tập đã nộp).
+        $sessionProgressByClassRoomId = $this->classSessions
+            ->sessionProgressCountsForClassRoomIds($classRoomIds)
+            ->keyBy('class_room_id');
 
-        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $inProgressSessionByClassRoomId, $lastSessionByClassRoomId, $assignedCountByClassRoomId, $submittedPairsByClassRoomId) {
+        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $inProgressSessionByClassRoomId, $lastSessionByClassRoomId, $sessionProgressByClassRoomId) {
             $nextSession = $nextSessionByClassRoomId->get($classRoom->id);
             // Ưu tiên hiển thị: buổi sắp tới > buổi đang diễn ra > buổi gần nhất đã kết
             // thúc. Một buổi chỉ rơi vào đúng 1 trong 3 nhóm (3 truy vấn không giao nhau).
             $inProgressSession = $nextSession === null ? $inProgressSessionByClassRoomId->get($classRoom->id) : null;
             $lastSession = ($nextSession === null && $inProgressSession === null) ? $lastSessionByClassRoomId->get($classRoom->id) : null;
 
-            $assignedCount = (int) ($assignedCountByClassRoomId->get($classRoom->id) ?? 0);
-            $submittedPairs = (int) ($submittedPairsByClassRoomId->get($classRoom->id) ?? 0);
+            $progress = $sessionProgressByClassRoomId->get($classRoom->id);
+            $totalSessions = (int) ($progress->total ?? 0);
+            $endedSessions = (int) ($progress->ended ?? 0);
 
             return [
                 'id' => $classRoom->id,
@@ -111,7 +105,9 @@ class ClassRoomService
                 'lastSessionId' => $lastSession?->id,
                 'lastSessionLabel' => $lastSession?->starts_at->format('d/m H:i'),
                 'lastSessionAttendanceTaken' => $lastSession !== null && $lastSession->attendances->isNotEmpty(),
-                'completion' => $this->completionPercent($assignedCount, $classRoom->students_count, $submittedPairs),
+                'completion' => $this->completionPercent($endedSessions, $totalSessions),
+                'completionEndedSessions' => $endedSessions,
+                'completionTotalSessions' => $totalSessions,
             ];
         })->values()->all();
 
@@ -119,19 +115,25 @@ class ClassRoomService
     }
 
     /**
-     * "Hoàn thành chung" = % cặp (học sinh, bài giao đã mở) đã nộp ít nhất 1 lần, trong
-     * tổng số cặp có thể có (số học sinh × số bài đã mở). Trả 0 nếu chưa có bài nào từng
-     * mở hoặc lớp chưa có học sinh — tránh chia cho 0 và tránh hiểu nhầm "0 bài = 100%".
+     * "Hoàn thành chung" = % buổi học ĐÃ KẾT THÚC trên tổng số buổi đã lên lịch cho lớp.
+     *
+     * Trước đây tính theo % cặp (học sinh, bài giao đã mở) đã nộp bài — nhưng rà soát
+     * toàn bộ codebase xác nhận KHÔNG có nơi nào tạo Attempt đã nộp (không
+     * Attempt::create/repository create, không seeder, route học sinh làm bài chỉ có
+     * GET để xem trang chứ chưa có luồng nộp bài thật — xem TODO trong
+     * AssessmentService::buildTakeData()). Vì vậy số đó LUÔN LÀ 0% bất kể dữ liệu thật,
+     * gây hiểu nhầm là lỗi hiển thị. Đổi sang đo theo tiến độ buổi học — dữ liệu này CÓ
+     * THẬT (module Lịch đã chạy đầy đủ) và phản ánh đúng "lớp đã học tới đâu", theo góp ý
+     * trực tiếp của người dùng. Trả 0 nếu lớp chưa có buổi học nào — tránh chia cho 0 và
+     * tránh hiểu nhầm "chưa có buổi nào = 100%".
      */
-    private function completionPercent(int $assignedCount, int $studentsCount, int $submittedPairs): int
+    private function completionPercent(int $endedSessions, int $totalSessions): int
     {
-        $possiblePairs = $assignedCount * $studentsCount;
-
-        if ($possiblePairs <= 0) {
+        if ($totalSessions <= 0) {
             return 0;
         }
 
-        return (int) round(min($submittedPairs, $possiblePairs) / $possiblePairs * 100);
+        return (int) round(min($endedSessions, $totalSessions) / $totalSessions * 100);
     }
 
     /** teacher.classes.show — chi tiết lớp (TEA-02 chi tiết + TEA-06 học liệu, 8.2/8.3). */
@@ -151,13 +153,14 @@ class ClassRoomService
         $studentsCount = $classRoom->students()->count();
         $nextSession = $this->classSessions->nextUpcomingForClassRoom($classRoom->id);
 
-        // "Hoàn thành chung" thật cho hero header (cùng công thức với teacher.classes.index,
+        // "Hoàn thành chung" cho hero header (cùng công thức với teacher.classes.index,
         // chỉ khác là tính cho MỘT lớp nên không cần batch-fetch theo lô).
-        $assignedCount = $this->assignments->assignedForClassRoomIds([$classRoom->id])->count();
-        $submittedPairs = $this->attempts->submittedAssignmentPairsForClassRoomIds([$classRoom->id])
-            ->unique(fn ($r) => $r->assignment_id.'-'.$r->user_id)
-            ->count();
-        $completion = $this->completionPercent($assignedCount, $studentsCount, $submittedPairs);
+        $progress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
+        $totalSessions = (int) ($progress->total ?? 0);
+        $endedSessions = (int) ($progress->ended ?? 0);
+        $completion = $this->completionPercent($endedSessions, $totalSessions);
+        $completionEndedSessions = $endedSessions;
+        $completionTotalSessions = $totalSessions;
 
         $materials = [];
         $attachableMaterials = [];
@@ -191,6 +194,8 @@ class ClassRoomService
             'studentsCount' => $studentsCount,
             'nextSession' => $nextSession,
             'completion' => $completion,
+            'completionEndedSessions' => $completionEndedSessions,
+            'completionTotalSessions' => $completionTotalSessions,
             'materials' => $materials,
             'attachableMaterials' => $attachableMaterials,
             'sessions' => $sessions,
