@@ -30,4 +30,9 @@ class AttendanceRepository extends EloquentRepository implements AttendanceRepos
             ->limit($limit)
             ->get();
     }
+
+    public function forClassSession(int $classSessionId): Collection
+    {
+        return $this->query()->where('class_session_id', $classSessionId)->get()->keyBy('student_id');
+    }
 }

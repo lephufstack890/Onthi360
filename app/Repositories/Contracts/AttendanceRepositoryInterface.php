@@ -12,4 +12,7 @@ interface AttendanceRepositoryInterface extends BaseRepositoryInterface
     public function countPresentForStudentInClassRoom(int $studentId, int $classRoomId): int;
 
     public function forStudentInClassRoom(int $studentId, int $classRoomId, int $limit = 20): Collection;
+
+    /** Keyed by student_id — điểm danh đã có của một buổi học cụ thể. */
+    public function forClassSession(int $classSessionId): Collection;
 }

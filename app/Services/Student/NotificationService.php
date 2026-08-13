@@ -3,18 +3,20 @@
 namespace App\Services\Student;
 
 use App\Models\User;
+use App\Services\NotificationService as GenericNotificationService;
 
 /**
- * STU-11 (phần thông báo).
- * TODO: chưa có bảng notifications trong schema hiện tại — cần thêm migration +
- * model Notification (hoặc dùng Laravel Notifications mặc định) trước khi hiển thị
- * dữ liệu thật. Hiện trả về danh sách rỗng để UI hiển thị đúng trạng thái "chưa có
- * thông báo" thay vì dữ liệu giả.
+ * STU-11 (phần thông báo). Uỷ quyền cho App\Services\NotificationService dùng chung mọi
+ * vai trò (kênh 'database' của Illuminate Notifications, migration
+ * 2025_01_01_000380_create_notifications_table) — hạ tầng bảng notifications đã có thật,
+ * không còn là stub trả mảng rỗng nữa.
  */
 class NotificationService
 {
+    public function __construct(private readonly GenericNotificationService $notifications) {}
+
     public function forUser(User $user): array
     {
-        return [];
+        return $this->notifications->forUser($user)['items'];
     }
 }

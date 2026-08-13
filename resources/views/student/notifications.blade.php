@@ -8,8 +8,8 @@
 @section('page-title', 'Thông báo')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Student\NotificationController truyền vào
-    (hiện luôn rỗng vì chưa có bảng notifications — xem TODO trong controller). --}}
+    {{-- Dữ liệu thật do App\Http\Controllers\Student\NotificationController truyền vào,
+    qua App\Services\NotificationService dùng chung mọi vai trò. --}}
     @php
         $notifications = $notifications ?? [];
     @endphp

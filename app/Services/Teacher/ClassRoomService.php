@@ -29,6 +29,7 @@ class ClassRoomService
         private readonly CourseRepositoryInterface $courses,
         private readonly AccessRightRepositoryInterface $accessRights,
         private readonly MaterialRepositoryInterface $materials,
+        private readonly ScheduleService $scheduleService,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -99,6 +100,11 @@ class ClassRoomService
             $attachableMaterials = $this->attachableMaterials($user, $classRoom);
         }
 
+        $sessions = [];
+        if ($tab === 'schedule') {
+            $sessions = $this->scheduleService->sessionsForClassRoom($classRoom)['sessions'];
+        }
+
         $members = $tab === 'members' ? $classRoom->students : collect();
 
         // TODO: rating_summaries theo target_type=class_room cho block "Rating nội bộ" ở tab overview.
@@ -112,6 +118,7 @@ class ClassRoomService
             'nextSession' => $nextSession,
             'materials' => $materials,
             'attachableMaterials' => $attachableMaterials,
+            'sessions' => $sessions,
             'members' => $members,
             'ratingSummary' => $ratingSummary,
         ];

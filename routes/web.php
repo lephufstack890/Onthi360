@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
@@ -13,6 +14,9 @@ use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomControll
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
+use App\Http\Controllers\Teacher\ScheduleController as TeacherScheduleController;
+use App\Http\Controllers\Teacher\NotificationController as TeacherNotificationController;
+use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
 use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Access\AccessController;
@@ -74,6 +78,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // -- Thông báo (chuông toàn cục, dùng chung mọi vai trò) --------------------
+    Route::get('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+
     // -- Học sinh (10.1) -----------------------------------------------------
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
@@ -115,6 +123,20 @@ Route::middleware(['auth'])->group(function () {
         Route::post('assessments/{assessment}/assign', [TeacherAssessmentController::class, 'assign'])->name('assessments.assign');
 
         Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
+        Route::get('results/export', [TeacherResultController::class, 'export'])->name('results.export');
+        Route::get('results/attempts/{attempt}', [TeacherResultController::class, 'attempt'])->name('results.attempt');
+
+        Route::get('schedule', [TeacherScheduleController::class, 'index'])->name('schedule.index');
+        Route::post('schedule', [TeacherScheduleController::class, 'store'])->name('schedule.store');
+        Route::get('schedule/{session}/attendance', [TeacherScheduleController::class, 'attendance'])->name('schedule.attendance');
+        Route::post('schedule/{session}/attendance', [TeacherScheduleController::class, 'saveAttendance'])->name('schedule.attendance.save');
+
+        Route::get('notifications', [TeacherNotificationController::class, 'index'])->name('notifications.index');
+
+        Route::get('profile', [TeacherProfileController::class, 'show'])->name('profile.show');
+        Route::put('profile', [TeacherProfileController::class, 'update'])->name('profile.update');
+        Route::put('profile/teacher-profile', [TeacherProfileController::class, 'updateTeacherProfile'])->name('profile.teacherProfile.update');
+        Route::put('profile/password', [TeacherProfileController::class, 'updatePassword'])->name('profile.password');
     });
 
     // -- Phụ huynh (10.3) -----------------------------------------------------

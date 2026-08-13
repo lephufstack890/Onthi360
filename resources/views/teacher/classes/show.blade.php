@@ -106,10 +106,44 @@
             @endif
         </div>
     @elseif ($tab === 'schedule')
-        <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
-            <div class="text-4xl mb-3">🗓️</div>
-            <p class="text-sm text-slate-500">TODO: lịch buổi học + bảng điểm danh từng buổi (có/vắng/xin phép).</p>
+        @php $sessions = $sessions ?? []; @endphp
+
+        @if (session('status') === 'session-created')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo buổi học mới.'])
+        @endif
+        @if ($errors->any())
+            @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+        @endif
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+            <p class="text-sm font-medium text-slate-600 mb-3">+ Tạo buổi học mới</p>
+            <form method="POST" action="{{ route('teacher.schedule.store') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                @csrf
+                <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
+                <input type="hidden" name="back_to_class" value="1">
+                <input type="datetime-local" name="starts_at" required class="rounded-lg border border-slate-200 text-sm p-2.5">
+                <input type="datetime-local" name="ends_at" required class="rounded-lg border border-slate-200 text-sm p-2.5">
+                <input type="text" name="topic" maxlength="255" placeholder="Chủ đề buổi học" class="rounded-lg border border-slate-200 text-sm p-2.5">
+                <input type="text" name="location" maxlength="255" placeholder="Địa điểm/link" class="rounded-lg border border-slate-200 text-sm p-2.5">
+                <div class="sm:col-span-4">
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Tạo buổi học</button>
+                </div>
+            </form>
         </div>
+
+        <x-data-table :columns="['Thời gian', 'Chủ đề', 'Địa điểm', 'Điểm danh', '']">
+            @forelse ($sessions as $s)
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 text-slate-700">{{ $s['startsAt']?->format('d/m/Y H:i') ?? '—' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ $s['topic'] ?? '—' }}</td>
+                    <td class="px-4 py-3 text-slate-400">{{ $s['location'] ?? '—' }}</td>
+                    <td class="px-4 py-3"><x-status-badge :tone="$s['attendanceTaken'] ? 'success' : 'warning'">{{ $s['attendanceSummary'] }}</x-status-badge></td>
+                    <td class="px-4 py-3 text-right"><a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="text-rose-600 font-medium">Điểm danh</a></td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Lớp chưa có buổi học nào — tạo buổi học đầu tiên ở trên.</td></tr>
+            @endforelse
+        </x-data-table>
     @elseif ($tab === 'assign')
         <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
             <x-icon-tile emoji="🧾" tone="violet" />

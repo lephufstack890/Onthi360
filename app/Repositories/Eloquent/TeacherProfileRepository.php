@@ -30,4 +30,9 @@ class TeacherProfileRepository extends EloquentRepository implements TeacherProf
     {
         return $this->query()->where('approval_status', 'approved')->count();
     }
+
+    public function findByUserId(int $userId): ?TeacherProfile
+    {
+        return $this->query()->where('user_id', $userId)->first();
+    }
 }

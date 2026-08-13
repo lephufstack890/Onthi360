@@ -22,7 +22,7 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
 
     public function allForClassRoom(int $classRoomId): Collection
     {
-        return $this->query()->where('class_room_id', $classRoomId)->orderBy('starts_at')->get();
+        return $this->query()->where('class_room_id', $classRoomId)->with('attendances')->orderBy('starts_at')->get();
     }
 
     public function countPastForClassRoom(int $classRoomId): int
@@ -41,6 +41,16 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
             ->with('classRoom')
             ->orderBy('starts_at')
             ->limit($limit)
+            ->get();
+    }
+
+    /** teacher.schedule.index — mọi buổi học (quá khứ + sắp tới) xuyên các lớp giáo viên phụ trách. */
+    public function allForClassRoomIds(array $classRoomIds): Collection
+    {
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->with(['classRoom', 'attendances'])
+            ->orderByDesc('starts_at')
             ->get();
     }
 }

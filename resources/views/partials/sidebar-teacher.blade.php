@@ -5,9 +5,9 @@
         ['label' => 'Bài tập & Đề', 'route' => 'teacher.assessments.index', 'icon' => '🧾'],
         ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => '❓'],
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => '📈'],
-        ['label' => 'Lịch', 'route' => 'teacher.classes.index', 'icon' => '📅'],
-        ['label' => 'Thông báo', 'route' => 'dashboard', 'icon' => '🔔'],
-        ['label' => 'Hồ sơ', 'route' => 'dashboard', 'icon' => '👤'],
+        ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => '📅'],
+        ['label' => 'Thông báo', 'route' => 'teacher.notifications.index', 'icon' => '🔔'],
+        ['label' => 'Hồ sơ', 'route' => 'teacher.profile.show', 'icon' => '👤'],
     ];
     $teacherName = auth()->user()->name ?? 'Giáo viên';
 @endphp

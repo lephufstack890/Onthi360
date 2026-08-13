@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Services\Teacher;
+
+use App\Enums\AttendanceStatus;
+use App\Models\ClassRoom;
+use App\Models\ClassSession;
+use App\Models\Role;
+use App\Models\User;
+use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use App\Repositories\Contracts\ClassRoomRepositoryInterface;
+use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
+
+/**
+ * Tổng hợp dữ liệu cho teacher.schedule.* — lịch buổi học + điểm danh xuyên các lớp giáo
+ * viên phụ trách (TEA-01/02, spec 8.2 "Lớp học: ... lịch, điểm danh, thông báo").
+ */
+class ScheduleService
+{
+    public function __construct(
+        private readonly ClassRoomRepositoryInterface $classRooms,
+        private readonly ClassSessionRepositoryInterface $classSessions,
+        private readonly AttendanceRepositoryInterface $attendances,
+    ) {}
+
+    /** teacher.schedule.index — toàn bộ buổi học của mọi lớp giáo viên phụ trách, sắp tới trước. */
+    public function indexData(User $teacher): array
+    {
+        $classRooms = $teacher->classRoomsTeaching()->withCount('students')->get();
+        $classRoomIds = $classRooms->pluck('id')->all();
+        $rosterCountByClassRoomId = $classRooms->pluck('students_count', 'id');
+
+        $sessions = $this->classSessions->allForClassRoomIds($classRoomIds);
+
+        $upcoming = $sessions->filter(fn (ClassSession $s) => $s->starts_at !== null && $s->starts_at->gte(now()))->sortBy('starts_at')->values();
+        $past = $sessions->filter(fn (ClassSession $s) => $s->starts_at === null || $s->starts_at->lt(now()))->sortByDesc('starts_at')->values();
+
+        return [
+            'classRooms' => $classRooms,
+            'upcoming' => $upcoming->map(fn ($s) => $this->mapSession($s, $rosterCountByClassRoomId))->all(),
+            'past' => $past->map(fn ($s) => $this->mapSession($s, $rosterCountByClassRoomId))->all(),
+        ];
+    }
+
+    /** Dùng cho tab "Lịch/Điểm danh" trong teacher.classes.show — chỉ buổi học của MỘT lớp. */
+    public function sessionsForClassRoom(ClassRoom $classRoom): array
+    {
+        $rosterCount = collect([$classRoom->id => $classRoom->students()->count()]);
+        $sessions = $this->classSessions->allForClassRoom($classRoom->id);
+
+        return [
+            'sessions' => $sessions->sortByDesc('starts_at')->map(fn ($s) => $this->mapSession($s, $rosterCount))->values()->all(),
+        ];
+    }
+
+    private function mapSession(ClassSession $session, Collection $rosterCountByClassRoomId): array
+    {
+        $total = (int) ($rosterCountByClassRoomId->get($session->class_room_id) ?? 0);
+        $attendances = $session->attendances ?? collect();
+        $taken = $attendances->count();
+        $present = $attendances->where('status', AttendanceStatus::Present)->count();
+
+        return [
+            'id' => $session->id,
+            'classRoomId' => $session->class_room_id,
+            'className' => $session->classRoom->name ?? '',
+            'topic' => $session->topic,
+            'location' => $session->location,
+            'startsAt' => $session->starts_at,
+            'endsAt' => $session->ends_at,
+            'attendanceTaken' => $taken > 0,
+            'attendanceSummary' => match (true) {
+                $taken > 0 => "{$present}/{$total} có mặt",
+                $total > 0 => "Chưa điểm danh ({$total} học sinh)",
+                default => 'Chưa điểm danh',
+            },
+        ];
+    }
+
+    /** teacher.schedule.store — tạo buổi học mới cho một lớp đang dạy (kiểm tra lại quyền, 16 mục 3). */
+    public function store(User $teacher, array $data): ClassSession
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, (int) $data['class_room_id']);
+
+        return $this->classSessions->create([
+            'class_room_id' => $classRoom->id,
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'topic' => $data['topic'] ?? null,
+            'location' => $data['location'] ?? null,
+        ]);
+    }
+
+    /** teacher.schedule.attendance — roster đầy đủ của lớp + trạng thái điểm danh hiện có (mặc định "present"). */
+    public function attendanceForSession(User $teacher, int $sessionId): array
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $classRoom = $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $roster = $classRoom->students;
+        $existing = $this->attendances->forClassSession($session->id);
+
+        $rows = $roster->map(fn ($student) => [
+            'studentId' => $student->id,
+            'name' => $student->name,
+            'status' => $existing->get($student->id)?->status?->value ?? 'present',
+        ])->values()->all();
+
+        return [
+            'session' => $session,
+            'classRoom' => $classRoom,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * teacher.schedule.attendance.save — lưu điểm danh. Chỉ ghi cho học sinh THỰC SỰ thuộc
+     * roster lớp này tại thời điểm lưu (không tin id gửi từ client, 16 mục 3).
+     */
+    public function saveAttendance(User $teacher, int $sessionId, array $statuses): void
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $classRoom = $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $rosterIds = $classRoom->students->pluck('id')->all();
+        $existing = $this->attendances->forClassSession($session->id);
+
+        foreach ($statuses as $studentId => $status) {
+            $studentId = (int) $studentId;
+            if (! in_array($studentId, $rosterIds, true)) {
+                continue;
+            }
+            if (! in_array($status, ['present', 'absent', 'excused', 'late'], true)) {
+                continue;
+            }
+
+            $record = $existing->get($studentId);
+            if ($record !== null) {
+                $this->attendances->update($record, ['status' => $status, 'recorded_by' => $teacher->id]);
+            } else {
+                $this->attendances->create([
+                    'class_session_id' => $session->id,
+                    'student_id' => $studentId,
+                    'status' => $status,
+                    'recorded_by' => $teacher->id,
+                ]);
+            }
+        }
+    }
+
+    private function findTaughtClassRoom(User $teacher, int $classId): ClassRoom
+    {
+        $classRoom = $this->classRooms->findOrFail($classId);
+        abort_unless($classRoom->isTaughtBy($teacher) || $teacher->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN), 403);
+
+        return $classRoom;
+    }
+}

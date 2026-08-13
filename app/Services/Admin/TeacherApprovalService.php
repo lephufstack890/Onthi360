@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Enums\TeacherApprovalStatus;
 use App\Models\TeacherProfile;
 use App\Models\User;
+use App\Notifications\TeacherApprovalStatusChanged;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 
 /**
@@ -56,6 +57,8 @@ class TeacherApprovalService
             'rejection_reason' => null,
         ]);
 
+        $profile->user?->notify(new TeacherApprovalStatusChanged(TeacherApprovalStatus::Approved));
+
         return $profile;
     }
 
@@ -74,6 +77,8 @@ class TeacherApprovalService
         ]);
 
         TeacherProfile::$auditReason = null;
+
+        $profile->user?->notify(new TeacherApprovalStatusChanged(TeacherApprovalStatus::Rejected, $reason));
 
         return $profile;
     }
@@ -94,6 +99,8 @@ class TeacherApprovalService
         ]);
 
         TeacherProfile::$auditReason = null;
+
+        $profile->user?->notify(new TeacherApprovalStatusChanged(TeacherApprovalStatus::Suspended, $reason));
 
         return $profile;
     }

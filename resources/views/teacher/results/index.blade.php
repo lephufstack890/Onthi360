@@ -3,7 +3,8 @@
   Spec: 10.2 — phễu Lớp → Đề → Học sinh → Lần nộp; lọc chưa làm/đang
   làm/đã nộp; export theo chính sách.
   Dữ liệu thật do App\Http\Controllers\Teacher\ResultController truyền vào.
-  TODO: export Excel thật; lọc theo trạng thái (hiện chỉ là UI).
+  Xuất file là CSV thật (chưa cài thư viện xlsx) — nút ghi rõ "CSV" để không
+  hứa nhầm chức năng Excel chưa có.
 --}}
 @extends('layouts.teacher')
 
@@ -16,11 +17,13 @@
         $assignments = $assignments ?? collect();
         $students = $students ?? collect();
         $stats = $stats ?? ['submitted' => 0, 'inProgress' => 0, 'notStarted' => 0];
+        $selectedStatus = $selectedStatus ?? '';
+        $exportQuery = ['class' => $selectedClassId, 'assessment' => $selectedAssignmentId, 'status' => $selectedStatus];
     @endphp
 
     <x-page-header title="Kết quả" subtitle="Phễu Lớp → Đề → Học sinh → Lần nộp (10.2).">
         <x-slot:actions>
-            <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">⇩ Xuất Excel</button>
+            <a href="{{ route('teacher.results.export', $exportQuery) }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">⇩ Xuất CSV</a>
         </x-slot:actions>
     </x-page-header>
 
@@ -40,11 +43,11 @@
                     <option>Chưa có đề nào giao cho lớp này</option>
                 @endforelse
             </x-select>
-            <x-select name="status">
-                <option>Trạng thái: Tất cả</option>
-                <option>Chưa làm</option>
-                <option>Đang làm</option>
-                <option>Đã nộp</option>
+            <x-select name="status" onchange="this.form.submit()">
+                <option value="" @selected($selectedStatus === '')>Trạng thái: Tất cả</option>
+                <option value="Chưa làm" @selected($selectedStatus === 'Chưa làm')>Chưa làm</option>
+                <option value="Đang làm" @selected($selectedStatus === 'Đang làm')>Đang làm</option>
+                <option value="Đã nộp" @selected($selectedStatus === 'Đã nộp')>Đã nộp</option>
             </x-select>
         </form>
     </div>
@@ -68,7 +71,13 @@
                 <td class="px-4 py-3"><x-status-badge :tone="$s['tone']">{{ $s['status'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-slate-600">{{ $s['score'] }}</td>
                 <td class="px-4 py-3 text-slate-400">{{ $s['time'] }}</td>
-                <td class="px-4 py-3 text-right"><a href="#" class="text-rose-600 font-medium">Xem lần nộp</a></td>
+                <td class="px-4 py-3 text-right">
+                    @if ($s['attemptId'])
+                        <a href="{{ route('teacher.results.attempt', $s['attemptId']) }}" class="text-rose-600 font-medium">Xem lần nộp</a>
+                    @else
+                        <span class="text-slate-300">—</span>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chọn lớp và đề để xem kết quả.</td></tr>
