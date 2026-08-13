@@ -45,6 +45,50 @@ class UserService
         ]);
     }
 
+    /** admin.users.create — dữ liệu tĩnh cho form (vai trò được phép gán qua đây). */
+    public function createFormData(): array
+    {
+        return ['availableRoles' => self::ROLE_LABELS];
+    }
+
+    /**
+     * admin.users.store — Admin/Super Admin tạo tài khoản trực tiếp (KHÁC với tự đăng ký ở
+     * AuthService::register(), nơi chỉ 3 vai trò công khai được chọn) — ở đây admin được chọn
+     * BẤT KỲ vai trò nào, kể cả admin/editor/super_admin, vì đây là khu quản trị đã có
+     * middleware role:admin,super_admin bảo vệ.
+     * Nếu gán vai trò "teacher", tự tạo TeacherProfile ở trạng thái "Chờ duyệt" — giống hệt
+     * luồng tự đăng ký (3.3) — để không tạo một lối tắt bỏ qua bước duyệt giáo viên; admin có
+     * thể duyệt ngay sau đó ở hàng đợi admin.teacher-approvals nếu muốn.
+     */
+    public function store(User $admin, array $data): User
+    {
+        $user = $this->users->create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => \Illuminate\Support\Facades\Hash::make($data['password']),
+            'status' => 'active',
+        ]);
+
+        $roleNames = $data['roles'] ?? [];
+        if (! empty($roleNames)) {
+            $roleIds = Role::whereIn('name', $roleNames)->pluck('id');
+            $user->roles()->sync($roleIds);
+        }
+
+        if (in_array(Role::TEACHER, $roleNames, true)) {
+            \App\Models\TeacherProfile::create([
+                'user_id' => $user->id,
+                'approval_status' => \App\Enums\TeacherApprovalStatus::Pending,
+                'subjects' => [],
+            ]);
+        }
+
+        $this->logChange($admin, $user, 'created', ['roles' => $roleNames]);
+
+        return $user;
+    }
+
     /** @return array{tab: string, tabs: array, users: array, total: int} */
     public function indexData(string $tab): array
     {

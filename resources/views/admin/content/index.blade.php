@@ -31,9 +31,7 @@
     </x-page-header>
 
     @if (session('status'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> Đã cập nhật nội dung.
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
     @endif
 
     <x-tabs :tabs="$tabs" />

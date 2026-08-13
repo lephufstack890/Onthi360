@@ -17,9 +17,7 @@
     @endphp
 
     @if (in_array(session('status'), ['course-created', 'course-deleted'], true))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> {{ session('status') === 'course-created' ? 'Đã tạo khóa học mới.' : 'Đã xóa khóa học (xóa mềm, đã ghi lý do).' }}
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'course-created' ? 'Đã tạo khóa học mới.' : 'Đã xóa khóa học (xóa mềm, đã ghi lý do).'])
     @endif
 
     <x-page-header title="🏫 Khóa & Lớp" subtitle="Một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên và tiến độ (8.1).">

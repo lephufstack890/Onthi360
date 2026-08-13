@@ -14,13 +14,9 @@
     @endphp
 
     @if (session('status') === 'profile-updated')
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> Đã lưu thông tin hồ sơ.
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thông tin hồ sơ.'])
     @elseif (session('status') === 'password-updated')
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> Đã đổi mật khẩu thành công.
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đổi mật khẩu thành công.'])
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -53,16 +49,7 @@
                 <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2"><span>🙂</span> Thông tin cá nhân</h3>
 
                 @if ($errors->hasAny(['name', 'phone']))
-                    <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-4 text-sm text-rose-700 flex items-start gap-2">
-                        <span class="shrink-0">⚠️</span>
-                        <div>
-                            @foreach ($errors->only(['name', 'phone']) as $fieldErrors)
-                                @foreach ((array) $fieldErrors as $error)
-                                    <p>{{ $error }}</p>
-                                @endforeach
-                            @endforeach
-                        </div>
-                    </div>
+                    @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', \Illuminate\Support\Arr::flatten($errors->only(['name', 'phone'])))])
                 @endif
 
                 <form method="POST" action="{{ route('admin.profile.update') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -106,16 +93,7 @@
                 <p class="text-sm text-slate-400 mb-4">Cần nhập đúng mật khẩu hiện tại trước khi đổi.</p>
 
                 @if ($errors->hasAny(['current_password', 'password']))
-                    <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-4 text-sm text-rose-700 flex items-start gap-2">
-                        <span class="shrink-0">⚠️</span>
-                        <div>
-                            @foreach ($errors->only(['current_password', 'password']) as $fieldErrors)
-                                @foreach ((array) $fieldErrors as $error)
-                                    <p>{{ $error }}</p>
-                                @endforeach
-                            @endforeach
-                        </div>
-                    </div>
+                    @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', \Illuminate\Support\Arr::flatten($errors->only(['current_password', 'password'])))])
                 @endif
 
                 <form method="POST" action="{{ route('admin.profile.password') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -26,11 +26,7 @@
     </div>
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 mb-6 text-sm text-rose-700">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </div>
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     @if (empty($courses))

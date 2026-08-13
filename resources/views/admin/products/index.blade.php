@@ -16,9 +16,7 @@
     @endphp
 
     @if (in_array(session('status'), ['product-created', 'product-deleted'], true))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> {{ session('status') === 'product-created' ? 'Đã tạo sản phẩm mới.' : 'Đã xóa sản phẩm (xóa mềm, đã ghi lý do).' }}
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'product-created' ? 'Đã tạo sản phẩm mới.' : 'Đã xóa sản phẩm (xóa mềm, đã ghi lý do).'])
     @endif
 
     <x-page-header title="🎫 Sản phẩm & Quyền" subtitle="Sản phẩm là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1).">

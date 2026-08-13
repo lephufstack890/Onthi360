@@ -29,6 +29,28 @@ class UserController extends Controller
         return view('admin.users.show', $this->userService->showData($user));
     }
 
+    /** admin.users.create — form thêm người dùng mới, chọn vai trò ngay lúc tạo. */
+    public function create(): View
+    {
+        return view('admin.users.create', $this->userService->createFormData());
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'confirmed', 'min:8'],
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['string', 'in:'.implode(',', [Role::STUDENT, Role::TEACHER, Role::PARENT, Role::EDITOR, Role::ADMIN, Role::SUPER_ADMIN])],
+        ]);
+
+        $user = $this->userService->store(Auth::user(), $data);
+
+        return redirect()->route('admin.users.show', $user->id)->with('status', 'user-created');
+    }
+
     /** admin.users.edit — form sửa thông tin cơ bản. */
     public function edit(int $user): View
     {

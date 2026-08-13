@@ -19,9 +19,7 @@
     <x-page-header title="🏆 Giáo viên tiêu biểu" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
 
     @if (session('status'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-4 text-sm text-emerald-700">
-            {{ session('status') === 'featured' ? 'Đã vinh danh giáo viên.' : 'Đã bỏ vinh danh giáo viên.' }}
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'featured' ? 'Đã vinh danh giáo viên.' : 'Đã bỏ vinh danh giáo viên.'])
     @endif
 
     <x-tabs :tabs="$tabs" />

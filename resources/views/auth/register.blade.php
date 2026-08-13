@@ -66,14 +66,7 @@
                     <p class="text-sm text-slate-500 mt-1 mb-6">Chỉ mất chưa đến 1 phút để bắt đầu.</p>
 
                     @if ($errors->any())
-                        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-4 text-sm text-rose-700 flex items-start gap-2">
-                            <span class="shrink-0">⚠️</span>
-                            <div>
-                                @foreach ($errors->all() as $error)
-                                    <p>{{ $error }}</p>
-                                @endforeach
-                            </div>
-                        </div>
+                        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
                     @endif
 
                     <form method="POST" action="{{ route('register') }}" class="space-y-4" x-data="{ showPassword: false, showPasswordConfirm: false }">

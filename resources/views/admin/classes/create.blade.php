@@ -24,14 +24,7 @@
     </div>
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 mb-6 text-sm text-rose-700 flex items-start gap-2">
-            <span class="shrink-0">⚠️</span>
-            <div>
-                @foreach ($errors->all() as $error)
-                    <p>{{ $error }}</p>
-                @endforeach
-            </div>
-        </div>
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6 max-w-2xl">

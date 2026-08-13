@@ -25,9 +25,7 @@
     @endphp
 
     @if (session('warning'))
-        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4 mb-6 text-sm text-amber-800">
-            {{ session('warning') }}
-        </div>
+        @include('partials.toast-flash', ['type' => 'warning', 'message' => session('warning')])
     @endif
 
     @unless ($isTeacherApproved)

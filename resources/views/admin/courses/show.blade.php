@@ -26,16 +26,17 @@
 
     <a href="{{ route('admin.courses.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Khóa & Lớp</a>
 
-    @if (in_array(session('status'), ['course-updated', 'class-created', 'class-updated', 'class-deleted'], true))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span>
-            @switch(session('status'))
-                @case('course-updated') Đã lưu thay đổi khóa học. @break
-                @case('class-created') Đã tạo lớp mới. @break
-                @case('class-updated') Đã lưu thay đổi lớp học. @break
-                @case('class-deleted') Đã xóa lớp học (xóa mềm, đã ghi lý do). @break
-            @endswitch
-        </div>
+    @php
+        $courseStatusMessage = match (session('status')) {
+            'course-updated' => 'Đã lưu thay đổi khóa học.',
+            'class-created' => 'Đã tạo lớp mới.',
+            'class-updated' => 'Đã lưu thay đổi lớp học.',
+            'class-deleted' => 'Đã xóa lớp học (xóa mềm, đã ghi lý do).',
+            default => null,
+        };
+    @endphp
+    @if ($courseStatusMessage)
+        @include('partials.toast-flash', ['type' => 'success', 'message' => $courseStatusMessage])
     @endif
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">

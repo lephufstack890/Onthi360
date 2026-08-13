@@ -133,6 +133,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Người dùng + phê duyệt giáo viên (ADM-02, 3.3)
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('users/create', [AdminUserController::class, 'create'])->name('users.create');
+        Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
         Route::get('users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::put('users/{user}/roles', [AdminUserController::class, 'updateRoles'])->name('users.roles.update');

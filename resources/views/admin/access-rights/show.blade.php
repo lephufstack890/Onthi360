@@ -13,9 +13,7 @@
     <a href="{{ route('admin.access-rights.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Quyền truy cập</a>
 
     @if (session('status') === 'access-revoked')
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> Đã thu hồi quyền, đã ghi lý do.
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thu hồi quyền, đã ghi lý do.'])
     @endif
 
     <x-page-header :title="$right->user->name ?? ''" :subtitle="($right->user->email ?? '').' · '.($right->product->title ?? '')">

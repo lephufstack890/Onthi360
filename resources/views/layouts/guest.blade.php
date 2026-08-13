@@ -15,6 +15,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Ôn Thi 360') — Ôn Thi 360</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Khởi tạo mảng hàng đợi toast TRƯỚC mọi script khác — xem layouts/app.blade.php và
+         partials/toast-root.blade.php. --}}
+    <script>window.__flashToasts = window.__flashToasts || [];</script>
     {{-- Alpine.js qua CDN: welcome.blade.php và register.blade.php dùng x-data
          (FAQ accordion, chọn vai trò đăng ký) — nạp ở đây để chạy trên toàn bộ
          layout công khai, giống layouts/app.blade.php. --}}
@@ -29,5 +32,8 @@
 
     @include('partials.footer')
     @include('partials.mobile-bottom-nav')
+
+    @include('partials.toast-root')
+    @stack('scripts')
 </body>
 </html>

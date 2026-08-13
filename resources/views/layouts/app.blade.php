@@ -12,6 +12,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Ôn Thi 360')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Khởi tạo mảng hàng đợi toast TRƯỚC mọi script khác trong <body> — các include
+         partials.toast-flash ở view con chạy (không defer) trước khi Alpine load xong vẫn
+         push được vào đây an toàn, xem partials/toast-root.blade.php. --}}
+    <script>window.__flashToasts = window.__flashToasts || [];</script>
     {{-- Alpine.js qua CDN: nhiều view (tab, dropdown) đã viết sẵn x-data nhưng
          chưa có Alpine nào được nạp — thêm ở đây để toàn bộ tương tác đó chạy
          được, không phải sửa lại từng view. --}}
@@ -49,5 +53,7 @@
     {{-- Chỗ các view con push script riêng (VD: CKEditor cho 1 vài ô mô tả) —
          không nạp global để tránh nặng những trang không cần. --}}
     @stack('scripts')
+
+    @include('partials.toast-root')
 </body>
 </html>

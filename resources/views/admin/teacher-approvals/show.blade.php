@@ -25,24 +25,21 @@
 
     <x-page-header :title="$profile->user->name ?? ''" :subtitle="($profile->user->email ?? '').(($profile->subjects[0] ?? null) ? ' · '.$profile->subjects[0] : '')" />
 
-    @if (session('status'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700">
-            @switch(session('status'))
-                @case('approved') Đã duyệt hồ sơ giáo viên. @break
-                @case('rejected') Đã từ chối hồ sơ, đã ghi lý do. @break
-                @case('suspended') Đã tạm dừng giáo viên, đã ghi lý do. @break
-                @case('reinstated') Đã duyệt lại giáo viên. @break
-                @default Đã cập nhật trạng thái. @break
-            @endswitch
-        </div>
+    @php
+        $statusMessage = match (session('status')) {
+            'approved' => 'Đã duyệt hồ sơ giáo viên.',
+            'rejected' => 'Đã từ chối hồ sơ, đã ghi lý do.',
+            'suspended' => 'Đã tạm dừng giáo viên, đã ghi lý do.',
+            'reinstated' => 'Đã duyệt lại giáo viên.',
+            default => session('status') ? 'Đã cập nhật trạng thái.' : null,
+        };
+    @endphp
+    @if ($statusMessage)
+        @include('partials.toast-flash', ['type' => 'success', 'message' => $statusMessage])
     @endif
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-6 text-sm text-rose-700">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </div>
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

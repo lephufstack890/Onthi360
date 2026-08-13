@@ -20,15 +20,11 @@
     <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại danh sách người dùng</a>
 
     @if (session('status'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> {{ session('status') === 'roles-updated' ? 'Đã cập nhật vai trò, đã ghi audit log.' : 'Đã lưu thay đổi.' }}
-        </div>
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'roles-updated' ? 'Đã cập nhật vai trò, đã ghi audit log.' : 'Đã lưu thay đổi.'])
     @endif
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-6 text-sm text-rose-700">
-            @foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach
-        </div>
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <div class="flex items-start justify-between gap-4 flex-wrap mb-6">

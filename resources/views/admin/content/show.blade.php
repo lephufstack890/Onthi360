@@ -46,27 +46,23 @@
 
     <a href="{{ route('admin.content.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nội dung</a>
 
-    @if (session('status'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span>
-            @switch(session('status'))
-                @case('material-created') @case('question-created') @case('assessment-created') Đã tạo nội dung mới. @break
-                @case('material-updated') @case('question-updated') @case('assessment-updated') Đã lưu thay đổi. @break
-                @case('question-versioned') Đã tạo phiên bản mới, câu gốc được giữ nguyên (6.2). @break
-                @case('material-published') @case('question-published') @case('assessment-published') Đã phát hành. @break
-                @case('material-rejected') @case('question-rejected') @case('assessment-rejected') Đã trả về nháp, đã ghi lý do. @break
-                @case('material-archived') @case('question-archived') @case('assessment-archived') Đã lưu trữ, đã ghi lý do. @break
-                @default Đã cập nhật. @break
-            @endswitch
-        </div>
+    @php
+        $contentStatusMessage = match (session('status')) {
+            'material-created', 'question-created', 'assessment-created' => 'Đã tạo nội dung mới.',
+            'material-updated', 'question-updated', 'assessment-updated' => 'Đã lưu thay đổi.',
+            'question-versioned' => 'Đã tạo phiên bản mới, câu gốc được giữ nguyên (6.2).',
+            'material-published', 'question-published', 'assessment-published' => 'Đã phát hành.',
+            'material-rejected', 'question-rejected', 'assessment-rejected' => 'Đã trả về nháp, đã ghi lý do.',
+            'material-archived', 'question-archived', 'assessment-archived' => 'Đã lưu trữ, đã ghi lý do.',
+            default => session('status') ? 'Đã cập nhật.' : null,
+        };
+    @endphp
+    @if ($contentStatusMessage)
+        @include('partials.toast-flash', ['type' => 'success', 'message' => $contentStatusMessage])
     @endif
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-6 text-sm text-rose-700">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </div>
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <x-page-header :title="$item['title']" :subtitle="$typeLabel">

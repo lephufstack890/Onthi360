@@ -17,8 +17,13 @@
         $total = $total ?? count($users);
     @endphp
 
+    @if (session('status') === 'user-created')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo tài khoản mới.'])
+    @endif
+
     <x-page-header title="👥 Người dùng" subtitle="Quản lý người dùng, vai trò và trạng thái phê duyệt giáo viên (3.3).">
         <x-slot:actions>
+            <a href="{{ route('admin.users.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Thêm người dùng</a>
             <a href="{{ route('admin.teacher-approvals.index') }}" class="px-4 py-2 rounded-lg border border-amber-300 text-amber-700 text-sm font-medium bg-amber-50">
                 Hàng đợi duyệt giáo viên
             </a>
