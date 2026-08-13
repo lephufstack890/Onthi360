@@ -161,13 +161,31 @@
             @endforelse
         </x-data-table>
     @elseif ($tab === 'assign')
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
-            <x-icon-tile emoji="🧾" tone="violet" />
-            <div>
-                <p class="text-sm text-slate-500 mb-3">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng</p>
-                <a href="{{ route('teacher.assessments.create') }}" class="text-sm text-rose-600 font-medium">+ Tạo bài giao đánh giá mới ›</a>
-            </div>
+        @php $assignments = $assignments ?? []; @endphp
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 flex items-center justify-between flex-wrap gap-3">
+            <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Cũng có thể giao đề có sẵn từ trang <a href="{{ route('teacher.assessments.index') }}" class="text-rose-600 font-medium">Bài tập & Đề</a>.</p>
+            <a href="{{ route('teacher.assessments.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0">+ Tạo bài giao đánh giá mới</a>
         </div>
+
+        <x-data-table :columns="['Tên đề', 'Mở lúc', 'Đóng lúc', 'Trạng thái', '']">
+            @forelse ($assignments as $ag)
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-700">
+                        {{ $ag['title'] }}
+                        @if ($ag['instructions'])
+                            <p class="text-xs text-slate-400 font-normal mt-0.5">{{ $ag['instructions'] }}</p>
+                        @endif
+                    </td>
+                    <td class="px-4 py-3 text-slate-500">{{ $ag['opensAtLabel'] }}</td>
+                    <td class="px-4 py-3 text-slate-500">{{ $ag['closesAtLabel'] }}</td>
+                    <td class="px-4 py-3"><x-status-badge :tone="$ag['statusTone']">{{ $ag['statusLabel'] }}</x-status-badge></td>
+                    <td class="px-4 py-3 text-right"><a href="{{ route('teacher.results.index', ['class' => $classRoom->id, 'assessment' => $ag['id']]) }}" class="text-rose-600 font-medium">Xem kết quả</a></td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Lớp chưa có đề nào được giao — bấm "+ Tạo bài giao đánh giá mới" để bắt đầu.</td></tr>
+            @endforelse
+        </x-data-table>
     @elseif ($tab === 'results')
         <div class="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4">
             <x-icon-tile emoji="📈" tone="emerald" />

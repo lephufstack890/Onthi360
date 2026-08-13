@@ -3,12 +3,15 @@
 namespace App\Services\Teacher;
 
 use App\Enums\AccessScope;
+use App\Enums\AssignmentStatus;
 use App\Enums\ClassMaterialStatus;
 use App\Enums\ContentStatus;
+use App\Models\Assignment;
 use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
+use App\Repositories\Contracts\AssignmentRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
@@ -30,6 +33,7 @@ class ClassRoomService
         private readonly AccessRightRepositoryInterface $accessRights,
         private readonly MaterialRepositoryInterface $materials,
         private readonly ScheduleService $scheduleService,
+        private readonly AssignmentRepositoryInterface $assignments,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -182,6 +186,29 @@ class ClassRoomService
             $sessions = $this->scheduleService->sessionsForClassRoom($classRoom)['sessions'];
         }
 
+        // Tab "Giao đề" (8.4) — trước đây chỉ có CTA "+ Tạo bài giao đánh giá mới" mà
+        // KHÔNG hiển thị các đề ĐÃ giao cho lớp này, khiến giáo viên giao đề xong không
+        // thấy đâu cả (đã xảy ra thực tế). forClassRoomWithAssessment() lấy MỌI assignment
+        // của lớp (không lọc theo status — status có thể lỗi thời, xem
+        // assignmentLiveStatus() bên dưới tự tính lại theo opens_at/closes_at thật).
+        $assignments = [];
+        if ($tab === 'assign') {
+            $assignments = $this->assignments->forClassRoomWithAssessment($classRoom->id)
+                ->map(function (Assignment $assignment) {
+                    [$statusLabel, $statusTone] = $this->assignmentLiveStatus($assignment);
+
+                    return [
+                        'id' => $assignment->id,
+                        'title' => $assignment->assessment->title ?? '(Đề đã bị xóa)',
+                        'opensAtLabel' => $assignment->opens_at?->format('d/m/Y H:i') ?? 'Không giới hạn',
+                        'closesAtLabel' => $assignment->closes_at?->format('d/m/Y H:i') ?? 'Không giới hạn',
+                        'statusLabel' => $statusLabel,
+                        'statusTone' => $statusTone,
+                        'instructions' => $assignment->instructions,
+                    ];
+                })->all();
+        }
+
         $members = $tab === 'members' ? $classRoom->students : collect();
 
         // TODO: rating_summaries theo target_type=class_room cho block "Rating nội bộ" ở tab overview.
@@ -199,9 +226,38 @@ class ClassRoomService
             'materials' => $materials,
             'attachableMaterials' => $attachableMaterials,
             'sessions' => $sessions,
+            'assignments' => $assignments,
             'members' => $members,
             'ratingSummary' => $ratingSummary,
         ];
+    }
+
+    /**
+     * "Giao đề" 8.4: Nháp → Đã lên lịch → Đang mở → Đã đóng → Đã lưu trữ. Nháp/Đã lưu trữ
+     * là hành động chủ động của giáo viên nên tin cột status; còn lại tính lại theo
+     * opens_at/closes_at THẬT thay vì tin cột status có thể lỗi thời (status chỉ được gán
+     * 1 lần lúc tạo, không tự cập nhật theo thời gian sau đó — xem ghi chú tại
+     * AssignmentRepository::assignedForClassRoomIds()).
+     */
+    private function assignmentLiveStatus(Assignment $assignment): array
+    {
+        if ($assignment->status === AssignmentStatus::Draft) {
+            return ['Nháp', 'neutral'];
+        }
+
+        if ($assignment->status === AssignmentStatus::Archived) {
+            return ['Đã lưu trữ', 'neutral'];
+        }
+
+        if ($assignment->opens_at !== null && $assignment->opens_at->isFuture()) {
+            return ['Đã lên lịch', 'info'];
+        }
+
+        if ($assignment->closes_at !== null && $assignment->closes_at->isPast()) {
+            return ['Đã đóng', 'neutral'];
+        }
+
+        return ['Đang mở', 'success'];
     }
 
     /**
