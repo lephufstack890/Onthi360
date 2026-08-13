@@ -36,17 +36,21 @@ class ScheduleController extends Controller
         // filter_var($value, FILTER_VALIDATE_INT), và PHP trả về false cho chuỗi có số 0
         // đứng đầu như "08" (nhầm là số bát phân không hợp lệ) — khiến form KHÔNG BAO GIỜ
         // submit được mỗi khi giờ từ 0-9 hoặc phút là 00/05 (lỗi thực tế đã gặp: nhập giờ
-        // vẫn báo "validation.integer" dù đã chọn hợp lệ). Dùng 'digits_between:1,2' thay
-        // 'integer' — chỉ kiểm tra toàn số + độ dài 1-2 ký tự, không quan tâm số 0 đứng đầu;
-        // 'between' vẫn chạy đúng vì Laravel tính kích thước theo floatval() cho chuỗi số.
+        // vẫn báo "validation.integer" dù đã chọn hợp lệ).
+        // Dùng 'numeric' + 'digits_between:1,2' thay 'integer': is_numeric("08") = true nên
+        // không bị lỗi số 0 đứng đầu như filter_var, và digits_between đảm bảo chỉ toàn chữ
+        // số (không âm/thập phân). BẮT BUỘC giữ 'numeric' đi kèm — nếu chỉ có digits_between
+        // thì Laravel không coi field là "numeric rule" nữa và rule 'between' sẽ so theo ĐỘ
+        // DÀI CHUỖI (mb_strlen) thay vì giá trị số, khiến "between:0,23" hầu như luôn đậu vì
+        // chuỗi "08"/"99" đều dài 2 ký tự — mất luôn tác dụng chặn giá trị ngoài khoảng.
         $data = $request->validate([
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
             'starts_date' => ['required', 'date_format:Y-m-d'],
-            'starts_hour' => ['required', 'digits_between:1,2', 'between:0,23'],
-            'starts_minute' => ['required', 'digits_between:1,2', 'between:0,59'],
+            'starts_hour' => ['required', 'numeric', 'digits_between:1,2', 'between:0,23'],
+            'starts_minute' => ['required', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'ends_date' => ['required', 'date_format:Y-m-d'],
-            'ends_hour' => ['required', 'digits_between:1,2', 'between:0,23'],
-            'ends_minute' => ['required', 'digits_between:1,2', 'between:0,59'],
+            'ends_hour' => ['required', 'numeric', 'digits_between:1,2', 'between:0,23'],
+            'ends_minute' => ['required', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'topic' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
         ]);
