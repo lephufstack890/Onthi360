@@ -98,7 +98,6 @@
                     </p>
 
                     <div class="mt-6 pt-6 border-t border-slate-100">
-                        <p class="text-xs text-slate-400 mb-2">Demo (chỉ môi trường local, xem docs/SETUP.md mục 5) — bấm để điền nhanh:</p>
                         <div class="flex flex-wrap gap-2">
                             <button type="button" @click="email = 'admin@onthi360.test'; password = 'password'"
                                     class="px-2.5 py-1 rounded-full border border-slate-200 text-xs text-slate-500 hover:border-rose-200 hover:text-rose-600">🛠️ Admin</button>
