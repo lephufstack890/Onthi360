@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use App\Concerns\Auditable;
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
 use App\Enums\ProductType;
@@ -15,7 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, Auditable, SoftDeletes;
+
+    /** Đọc bởi App\Concerns\Auditable — lý do xóa mềm/lưu trữ sản phẩm (10.4, 16 mục 4). */
+    public static ?string $auditReason = null;
 
     protected $fillable = [
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',

@@ -1,7 +1,10 @@
 {{--
   Route: admin.content.show
-  Spec: 6.2 (chặn phát hành khi thiếu cấu hình) — hiển thị lỗi rõ theo từng câu.
-  TODO controller: truyền $item thật + $publishErrors từ App\Services\QuestionPublishGuard.
+  Spec: 6.2 (chặn phát hành khi thiếu cấu hình) + 10.4 (từ chối/lưu trữ phải có lý do + audit
+  log) + 16 mục 4 (audit "phát hành đề").
+  Dữ liệu thật ($type, $typeLabel, $model, $item, $publishErrors, $hasBeenAttempted) do
+  ContentController::show() truyền vào qua ContentService::showData(). $type quyết định
+  route sửa/hành động nào được render (material/question/assessment dùng route riêng).
 --}}
 @extends('layouts.admin')
 
@@ -9,29 +12,163 @@
 @section('page-title', 'Chi tiết nội dung')
 
 @section('content')
-    {{-- $item, $publishErrors do App\Http\Controllers\Admin\ContentController truyền vào
-    (publishErrors rỗng cho tới khi có App\Services\QuestionPublishGuard thật). --}}
     @php
-        $item = $item ?? ['id' => 0, 'title' => '', 'status' => ''];
+        $type = $type ?? null;
         $publishErrors = $publishErrors ?? [];
+        $hasBeenAttempted = $hasBeenAttempted ?? false;
+        $statusValue = $item['statusValue'] ?? null;
+
+        $editRoute = match ($type) {
+            'material' => route('admin.content.materials.edit', $item['id']),
+            'question' => route('admin.content.questions.edit', $item['id']),
+            'assessment' => route('admin.content.assessments.edit', $item['id']),
+            default => null,
+        };
+        $publishRoute = match ($type) {
+            'material' => route('admin.content.materials.publish', $item['id']),
+            'question' => route('admin.content.questions.publish', $item['id']),
+            'assessment' => route('admin.content.assessments.publish', $item['id']),
+            default => null,
+        };
+        $rejectRoute = match ($type) {
+            'material' => route('admin.content.materials.reject', $item['id']),
+            'question' => route('admin.content.questions.reject', $item['id']),
+            'assessment' => route('admin.content.assessments.reject', $item['id']),
+            default => null,
+        };
+        $archiveRoute = match ($type) {
+            'material' => route('admin.content.materials.archive', $item['id']),
+            'question' => route('admin.content.questions.archive', $item['id']),
+            'assessment' => route('admin.content.assessments.archive', $item['id']),
+            default => null,
+        };
     @endphp
 
     <a href="{{ route('admin.content.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nội dung</a>
 
-    <x-page-header :title="$item['title']" subtitle="Trạng thái hiện tại và điều kiện phát hành." />
-
-    @if (!empty($publishErrors))
-        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6">
-            <p class="text-sm font-medium text-amber-800 mb-2">Chưa thể phát hành — còn thiếu:</p>
-            <ul class="list-disc list-inside text-sm text-amber-700 space-y-1">
-                @foreach ($publishErrors as $err)
-                    <li>{{ $err }}</li>
-                @endforeach
-            </ul>
+    @if (session('status'))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span>
+            @switch(session('status'))
+                @case('material-created') @case('question-created') @case('assessment-created') Đã tạo nội dung mới. @break
+                @case('material-updated') @case('question-updated') @case('assessment-updated') Đã lưu thay đổi. @break
+                @case('question-versioned') Đã tạo phiên bản mới, câu gốc được giữ nguyên (6.2). @break
+                @case('material-published') @case('question-published') @case('assessment-published') Đã phát hành. @break
+                @case('material-rejected') @case('question-rejected') @case('assessment-rejected') Đã trả về nháp, đã ghi lý do. @break
+                @case('material-archived') @case('question-archived') @case('assessment-archived') Đã lưu trữ, đã ghi lý do. @break
+                @default Đã cập nhật. @break
+            @endswitch
         </div>
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-        <p class="text-sm text-slate-500">TODO: preview toàn văn đề, danh sách câu, cấu hình chấm — xem trước như học sinh.</p>
+    @if ($errors->any())
+        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-6 text-sm text-rose-700">
+            @foreach ($errors->all() as $error)
+                <p>{{ $error }}</p>
+            @endforeach
+        </div>
+    @endif
+
+    <x-page-header :title="$item['title']" :subtitle="$typeLabel">
+        @if ($editRoute)
+            <x-slot:actions>
+                <a href="{{ $editRoute }}" class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">✏️ Sửa</a>
+            </x-slot:actions>
+        @endif
+    </x-page-header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-5">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-medium text-slate-700">Trạng thái hiện tại</h2>
+                    <x-status-badge :tone="$item['tone']">{{ $item['status'] }}</x-status-badge>
+                </div>
+
+                @if ($hasBeenAttempted)
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-2">Đã có học sinh làm câu này — sửa nội dung sẽ tạo phiên bản mới thay vì sửa trực tiếp (6.2).</p>
+                @endif
+
+                @if (!empty($publishErrors))
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <p class="text-sm font-medium text-amber-800 mb-2">Chưa thể phát hành — còn thiếu:</p>
+                        <ul class="list-disc list-inside text-sm text-amber-700 space-y-1">
+                            @foreach ($publishErrors as $err)
+                                <li>{{ $err }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+
+            @if ($type === 'question' && $model)
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📝</span> Nội dung đề bài</h2>
+                    <p class="text-xs text-slate-400 mb-2">Mã: {{ $model->code }} · Điểm: {{ $model->points }} · Phiên bản: v{{ $model->version }}</p>
+                    <div class="rich-content text-sm text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
+                </div>
+            @elseif ($type === 'assessment' && $model)
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                    <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
+                    <p>Thời gian làm bài: {{ $model->duration_minutes ? $model->duration_minutes.' phút' : 'Không giới hạn' }}</p>
+                    <p class="text-slate-400">TODO: danh sách câu hỏi trong đề — quản lý ở màn soạn đề của giáo viên (TEA-xx).</p>
+                </div>
+            @elseif ($type === 'material' && $model)
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                    <p>Thuộc sản phẩm: {{ $model->product->title ?? '—' }}</p>
+                    <p>Loại: {{ ['chapter' => 'Chương', 'section' => 'Bài/Mục', 'assessment_ref' => 'Tham chiếu đề/bộ bài'][$model->type] ?? $model->type }}</p>
+                </div>
+            @else
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <p class="text-sm text-slate-500">Không tìm thấy nội dung phù hợp.</p>
+                </div>
+            @endif
+        </div>
+
+        @if ($type)
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+                <h3 class="font-medium text-slate-700 mb-1">Hành động</h3>
+
+                @if ($statusValue !== 'published')
+                    <form method="POST" action="{{ $publishRoute }}">
+                        @csrf
+                        <button type="submit" @disabled(!empty($publishErrors))
+                                class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                            Phát hành
+                        </button>
+                    </form>
+                @endif
+
+                @if ($statusValue === 'published')
+                    <div x-data="{ reason: '' }" class="space-y-2 pt-1 border-t border-slate-100">
+                        <p class="text-xs text-slate-500 pt-2">Trả về nháp (bắt buộc nêu lý do, 10.4):</p>
+                        <form method="POST" action="{{ $rejectRoute }}" class="space-y-2">
+                            @csrf
+                            <textarea name="reason" x-model="reason" rows="2" required class="w-full rounded-lg border border-slate-200 text-sm p-2" placeholder="Lý do..."></textarea>
+                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-lg border border-amber-300 text-amber-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Trả về nháp</button>
+                        </form>
+                    </div>
+                @endif
+
+                @if ($statusValue !== 'archived')
+                    <div x-data="{ reason: '' }" class="space-y-2 pt-2 border-t border-slate-100">
+                        <p class="text-xs text-slate-500 pt-2">Lưu trữ (bắt buộc nêu lý do, 10.4):</p>
+                        <form method="POST" action="{{ $archiveRoute }}" class="space-y-2">
+                            @csrf
+                            <textarea name="reason" x-model="reason" rows="2" required class="w-full rounded-lg border border-slate-200 text-sm p-2" placeholder="Lý do..."></textarea>
+                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-lg border border-rose-300 text-rose-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Lưu trữ</button>
+                        </form>
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
+
+    @push('scripts')
+        <style>
+            .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+            .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+            .rich-content p { margin-bottom: 0.5rem; }
+        </style>
+    @endpush
 @endsection

@@ -16,9 +16,9 @@
         $rows = $rows ?? [];
     @endphp
 
-    @if (session('status') === 'course-created')
+    @if (in_array(session('status'), ['course-created', 'course-deleted'], true))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
-            <span>✅</span> Đã tạo khóa học mới.
+            <span>✅</span> {{ session('status') === 'course-created' ? 'Đã tạo khóa học mới.' : 'Đã xóa khóa học (xóa mềm, đã ghi lý do).' }}
         </div>
     @endif
 
@@ -42,8 +42,7 @@
                     @if ($tab === 'courses')
                         <a href="{{ route('admin.courses.show', $r['id']) }}" class="text-rose-600 font-medium">Xem</a>
                     @else
-                        {{-- TODO: chưa có trang chi tiết lớp học riêng cho Admin — chỉ mới làm chi tiết khóa học. --}}
-                        <span class="text-slate-300">—</span>
+                        <a href="{{ route('admin.classes.edit', $r['id']) }}" class="text-rose-600 font-medium">Sửa</a>
                     @endif
                 </td>
             </tr>

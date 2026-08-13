@@ -143,6 +143,32 @@ Route::middleware(['auth'])->group(function () {
 
         // Nội dung (ADM-03, 6.2/6.4/6.5)
         Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
+
+        Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');
+        Route::post('content/materials', [AdminContentController::class, 'materialsStore'])->name('content.materials.store');
+        Route::get('content/materials/{material}/edit', [AdminContentController::class, 'materialsEdit'])->name('content.materials.edit');
+        Route::put('content/materials/{material}', [AdminContentController::class, 'materialsUpdate'])->name('content.materials.update');
+        Route::post('content/materials/{material}/publish', [AdminContentController::class, 'materialsPublish'])->name('content.materials.publish');
+        Route::post('content/materials/{material}/reject', [AdminContentController::class, 'materialsReject'])->name('content.materials.reject');
+        Route::post('content/materials/{material}/archive', [AdminContentController::class, 'materialsArchive'])->name('content.materials.archive');
+
+        Route::get('content/questions/create', [AdminContentController::class, 'questionsCreate'])->name('content.questions.create');
+        Route::post('content/questions', [AdminContentController::class, 'questionsStore'])->name('content.questions.store');
+        Route::get('content/questions/{question}/edit', [AdminContentController::class, 'questionsEdit'])->name('content.questions.edit');
+        Route::put('content/questions/{question}', [AdminContentController::class, 'questionsUpdate'])->name('content.questions.update');
+        Route::post('content/questions/{question}/new-version', [AdminContentController::class, 'questionsNewVersion'])->name('content.questions.newVersion');
+        Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
+        Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
+        Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
+
+        Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
+        Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
+        Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
+        Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
+        Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
+        Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
+        Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');
+
         Route::get('content/{content}', [AdminContentController::class, 'show'])->name('content.show');
 
         // Khóa & Lớp (8.1)
@@ -150,11 +176,29 @@ Route::middleware(['auth'])->group(function () {
         Route::get('courses/create', [AdminCourseController::class, 'create'])->name('courses.create');
         Route::post('courses', [AdminCourseController::class, 'store'])->name('courses.store');
         Route::get('courses/{course}', [AdminCourseController::class, 'show'])->name('courses.show');
+        Route::get('courses/{course}/edit', [AdminCourseController::class, 'edit'])->name('courses.edit');
+        Route::put('courses/{course}', [AdminCourseController::class, 'update'])->name('courses.update');
+        Route::delete('courses/{course}', [AdminCourseController::class, 'destroy'])->name('courses.destroy');
+        Route::get('courses/{course}/classes/create', [AdminCourseController::class, 'classesCreate'])->name('courses.classes.create');
+        Route::post('courses/{course}/classes', [AdminCourseController::class, 'classesStore'])->name('courses.classes.store');
+        Route::get('classes/{classRoom}/edit', [AdminCourseController::class, 'classesEdit'])->name('classes.edit');
+        Route::put('classes/{classRoom}', [AdminCourseController::class, 'classesUpdate'])->name('classes.update');
+        Route::delete('classes/{classRoom}', [AdminCourseController::class, 'classesDestroy'])->name('classes.destroy');
 
         // Sản phẩm & Quyền (ADM-03, 5.1, 7.1-7.5)
         Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
+        Route::get('products/create', [AdminProductController::class, 'create'])->name('products.create');
+        Route::post('products', [AdminProductController::class, 'store'])->name('products.store');
+        Route::get('products/{product}/edit', [AdminProductController::class, 'edit'])->name('products.edit');
+        Route::put('products/{product}', [AdminProductController::class, 'update'])->name('products.update');
+        Route::delete('products/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+
         Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
+        Route::get('access-rights/create', [AdminAccessRightController::class, 'create'])->name('access-rights.create');
+        Route::post('access-rights', [AdminAccessRightController::class, 'store'])->name('access-rights.store');
+        Route::post('access-rights/{accessRight}/revoke', [AdminAccessRightController::class, 'revoke'])->name('access-rights.revoke');
+        Route::get('access-rights/{accessRight}', [AdminAccessRightController::class, 'show'])->name('access-rights.show');
 
         // Đơn hàng + Mã kích hoạt (ADM-04, 7.4)
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');

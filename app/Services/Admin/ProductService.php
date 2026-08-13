@@ -2,10 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\ContentStatus;
+use App\Enums\ProductType;
 use App\Enums\Visibility;
 use App\Models\Product;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
+use Illuminate\Support\Str;
 
 /**
  * Gom truy vấn/nhãn cho admin.products.* — "Sản phẩm & Quyền" (5.1).
@@ -16,6 +19,98 @@ class ProductService
         private ProductRepositoryInterface $products,
         private AccessRightRepositoryInterface $accessRights,
     ) {}
+
+    /** @return array{types: array, visibilities: array, statuses: array} */
+    private function formOptions(): array
+    {
+        return [
+            'types' => [
+                ProductType::Book->value => 'Sách', ProductType::Topic->value => 'Chuyên đề',
+                ProductType::Exam->value => 'Đề thi', ProductType::Course->value => 'Khóa học',
+            ],
+            'visibilities' => [Visibility::Public->value => 'Công khai', Visibility::Private->value => 'Riêng tư'],
+            'statuses' => [
+                ContentStatus::Draft->value => 'Bản nháp', ContentStatus::Published->value => 'Xuất bản',
+                ContentStatus::Archived->value => 'Lưu trữ',
+            ],
+        ];
+    }
+
+    /** admin.products.create — dữ liệu tĩnh cho form. */
+    public function createFormData(): array
+    {
+        return $this->formOptions();
+    }
+
+    /**
+     * admin.products.store — slug tự sinh từ tiêu đề (giống Course), tự thêm số thứ tự nếu
+     * trùng. owner_type luôn "shared" — sản phẩm tạo ở đây thuộc Admin/Editor quản lý trực
+     * tiếp (5.1), khác với sản phẩm gắn riêng cho 1 giáo viên (owner_type=teacher, nếu có,
+     * không có UI tạo ở admin này).
+     */
+    public function store(array $data): Product
+    {
+        $baseSlug = Str::slug($data['title']);
+        $slug = $baseSlug;
+        $suffix = 2;
+        while ($this->products->query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $this->products->create([
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'slug' => $slug,
+            'description' => $data['description'] ?? null,
+            'cover_image_path' => $data['cover_image_path'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'grade' => $data['grade'] ?? null,
+            'topic' => $data['topic'] ?? null,
+            'price' => $data['price'] ?? 0,
+            'has_print_option' => (bool) ($data['has_print_option'] ?? false),
+            'duration_months' => $data['duration_months'] ?: null,
+            'status' => $data['status'],
+            'visibility' => $data['visibility'],
+            'owner_type' => 'shared',
+            'owner_id' => null,
+            'created_by' => null,
+        ]);
+    }
+
+    /** admin.products.edit — sản phẩm hiện tại + option form. Slug KHÔNG cho sửa (giữ SEO/link). */
+    public function editFormData(int $productId): array
+    {
+        return array_merge($this->formOptions(), [
+            'product' => $this->products->findOrFail($productId),
+        ]);
+    }
+
+    public function update(Product $product, array $data): Product
+    {
+        return $this->products->update($product, [
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'cover_image_path' => $data['cover_image_path'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'grade' => $data['grade'] ?? null,
+            'topic' => $data['topic'] ?? null,
+            'price' => $data['price'] ?? 0,
+            'has_print_option' => (bool) ($data['has_print_option'] ?? false),
+            'duration_months' => $data['duration_months'] ?: null,
+            'status' => $data['status'],
+            'visibility' => $data['visibility'],
+        ]);
+    }
+
+    /** admin.products.destroy — xóa mềm, PHẢI có lý do + audit log (10.4). */
+    public function destroy(Product $product, string $reason): void
+    {
+        Product::$auditReason = $reason;
+        $this->products->delete($product);
+        Product::$auditReason = null;
+    }
 
     /** @return array{tabs: array, products: array} */
     public function indexData(): array

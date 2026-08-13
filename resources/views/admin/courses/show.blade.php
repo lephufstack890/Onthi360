@@ -26,6 +26,18 @@
 
     <a href="{{ route('admin.courses.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Khóa & Lớp</a>
 
+    @if (in_array(session('status'), ['course-updated', 'class-created', 'class-updated', 'class-deleted'], true))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span>
+            @switch(session('status'))
+                @case('course-updated') Đã lưu thay đổi khóa học. @break
+                @case('class-created') Đã tạo lớp mới. @break
+                @case('class-updated') Đã lưu thay đổi lớp học. @break
+                @case('class-deleted') Đã xóa lớp học (xóa mềm, đã ghi lý do). @break
+            @endswitch
+        </div>
+    @endif
+
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div class="flex items-start gap-4">
             <x-icon-tile emoji="🏫" tone="rose" />
@@ -41,10 +53,16 @@
                 </p>
             </div>
         </div>
-        <a href="{{ route('courses.show', $course->slug) }}" target="_blank" rel="noopener"
-           class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition shrink-0">
-            🔗 Xem trang công khai
-        </a>
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ route('admin.courses.edit', $course->id) }}"
+               class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">
+                ✏️ Sửa
+            </a>
+            <a href="{{ route('courses.show', $course->slug) }}" target="_blank" rel="noopener"
+               class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">
+                🔗 Xem trang công khai
+            </a>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -64,19 +82,22 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>🏫</span> Lớp thuộc khóa này</h2>
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>🏫</span> Lớp thuộc khóa này</h2>
+                    <a href="{{ route('admin.courses.classes.create', $course->id) }}" class="text-sm font-medium text-rose-600 hover:underline">+ Tạo lớp</a>
+                </div>
                 <div class="space-y-2">
                     @forelse ($classRooms as $c)
-                        <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50">
+                        <a href="{{ route('admin.classes.edit', $c['id']) }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
                             <x-icon-tile emoji="🏫" tone="sky" />
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-medium text-slate-700">{{ $c['name'] }} <span class="text-slate-400 font-normal">({{ $c['code'] }})</span></p>
                                 <p class="text-xs text-slate-400">{{ $c['teacher'] ? 'GV '.$c['teacher'] : 'Chưa phân công giáo viên' }} · {{ $c['students'] }} học sinh</p>
                             </div>
                             <x-status-badge :tone="$c['status'] === 'active' ? 'success' : 'neutral'">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</x-status-badge>
-                        </div>
+                        </a>
                     @empty
-                        <x-empty-state title="Chưa có lớp nào thuộc khóa này" description="Giáo viên đã được duyệt sẽ tạo lớp và chọn khóa học này khi bắt đầu dạy (3.3, 8.1)." />
+                        <x-empty-state title="Chưa có lớp nào thuộc khóa này" description="Bấm '+ Tạo lớp' để mở lớp đầu tiên, hoặc giáo viên đã được duyệt có thể tự tạo lớp và chọn khóa học này (3.3, 8.1)." />
                     @endforelse
                 </div>
             </div>

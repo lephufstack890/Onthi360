@@ -19,9 +19,22 @@
 
     <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
         <x-slot:actions>
-            <a href="{{ route('teacher.assessments.import') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Nhập đề (Word/PDF/OCR)</a>
+            @if ($tab === 'materials')
+                <a href="{{ route('admin.content.materials.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo học liệu</a>
+            @elseif ($tab === 'questions')
+                <a href="{{ route('admin.content.questions.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo câu hỏi</a>
+            @elseif ($tab === 'assessments')
+                <a href="{{ route('admin.content.assessments.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo đề/bộ bài</a>
+            @endif
+            <a href="{{ route('teacher.assessments.import') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Nhập đề (Word/PDF/OCR)</a>
         </x-slot:actions>
     </x-page-header>
+
+    @if (session('status'))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span> Đã cập nhật nội dung.
+        </div>
+    @endif
 
     <x-tabs :tabs="$tabs" />
 

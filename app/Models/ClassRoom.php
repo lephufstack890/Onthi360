@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use App\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,13 +13,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClassRoom extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, Auditable, SoftDeletes;
 
     protected $fillable = ['course_id', 'code', 'name', 'schedule', 'status'];
 
     protected $casts = [
         'schedule' => 'array',
     ];
+
+    /** Đọc bởi App\Concerns\Auditable — lý do xóa mềm lớp (10.4), xem CourseService::destroyClass(). */
+    public static ?string $auditReason = null;
 
     public function course(): BelongsTo
     {

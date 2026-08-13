@@ -18,7 +18,17 @@
         $rights = $rights ?? [];
     @endphp
 
-    <x-page-header title="🔐 Quyền truy cập" subtitle="Quyền dạy không cấp quyền học cá nhân cho học sinh; không giới hạn class_limit khi scope = teacher_teaching (7.2)." />
+    @if (in_array(session('status'), ['access-granted'], true))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-6 text-sm text-emerald-700 flex items-center gap-2">
+            <span>✅</span> Đã cấp quyền, đã ghi lý do.
+        </div>
+    @endif
+
+    <x-page-header title="🔐 Quyền truy cập" subtitle="Quyền dạy không cấp quyền học cá nhân cho học sinh; không giới hạn class_limit khi scope = teacher_teaching (7.2).">
+        <x-slot:actions>
+            <a href="{{ route('admin.access-rights.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Cấp quyền</a>
+        </x-slot:actions>
+    </x-page-header>
 
     <x-tabs :tabs="$tabs" />
 
@@ -30,7 +40,7 @@
                 <td class="px-4 py-3 text-slate-500">{{ $r['scope'] }}</td>
                 <td class="px-4 py-3 text-slate-400">{{ $r['expires'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right">{{-- TODO: thu hồi (revoke) có lý do + audit log --}}<a href="#" class="text-slate-400">Chi tiết</a></td>
+                <td class="px-4 py-3 text-right"><a href="{{ route('admin.access-rights.show', $r['id']) }}" class="text-rose-600 font-medium">Chi tiết</a></td>
             </tr>
         @empty
             <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có quyền truy cập nào.</td></tr>

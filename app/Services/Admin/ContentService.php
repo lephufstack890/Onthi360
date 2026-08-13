@@ -4,12 +4,20 @@ namespace App\Services\Admin;
 
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
+use App\Enums\Visibility;
+use App\Models\Assessment;
+use App\Models\Material;
+use App\Models\Product;
 use App\Models\Question;
+use App\Models\QuestionBank;
+use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
+use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Services\QuestionPublishGuard;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Gom truy vấn/nhãn cho admin.content.* (ADM-03, 6.2/6.4/6.5).
@@ -21,8 +29,27 @@ class ContentService
         private QuestionRepositoryInterface $questions,
         private AssessmentRepositoryInterface $assessments,
         private DraftQuestionRepositoryInterface $draftQuestions,
+        private ProductRepositoryInterface $products,
         private QuestionPublishGuard $publishGuard,
     ) {}
+
+    private const TYPE_LABELS = [
+        'material' => 'Học liệu',
+        'question' => 'Câu hỏi (kho chung)',
+        'assessment' => 'Đề/bộ bài',
+    ];
+
+    /**
+     * Kho câu hỏi chung dùng chung cho toàn hệ thống (6.5: "Kho chung: Editor/Admin/Super
+     * Admin quản lý"). Tự tạo nếu chưa seed sẵn (môi trường mới/production chưa chạy
+     * DemoDataSeeder) — không bắt admin phải tự quản lý khái niệm "bank" khi tạo câu hỏi.
+     */
+    private function sharedBank(): QuestionBank
+    {
+        return QuestionBank::firstOrCreate(
+            ['owner_type' => OwnerType::Shared->value, 'name' => 'Kho chung'],
+        );
+    }
 
     private function statusLabel(ContentStatus $status): array
     {
@@ -87,45 +114,383 @@ class ContentService
      * publish tương ứng nào được đặc tả cho 2 loại đó, nên $publishErrors luôn rỗng ở 2
      * nhánh đó thay vì ép một Material/Assessment qua guard nhận Question làm tham số.
      *
-     * @return array{item: array, publishErrors: array}
+     * @return array{type: string, typeLabel: string, model: mixed, item: array, publishErrors: array, hasBeenAttempted: bool}
      */
     public function showData(int $id): array
     {
         $material = $this->materials->findWithProduct($id);
         if ($material !== null) {
-            [$label] = $this->statusLabel($material->status);
+            [$label, $tone] = $this->statusLabel($material->status);
 
             return [
-                'item' => ['id' => $material->id, 'title' => $material->title, 'status' => $label],
+                'type' => 'material',
+                'typeLabel' => self::TYPE_LABELS['material'],
+                'model' => $material,
+                'item' => ['id' => $material->id, 'title' => $material->title, 'status' => $label, 'tone' => $tone, 'statusValue' => $material->status->value],
                 'publishErrors' => [],
+                'hasBeenAttempted' => false,
             ];
         }
 
         /** @var Question|null $question */
-        $question = $this->questions->find($id);
+        $question = $this->questions->query()->with('bank')->find($id);
         if ($question !== null) {
-            [$label] = $this->statusLabel($question->status);
+            [$label, $tone] = $this->statusLabel($question->status);
             $decision = $this->publishGuard->canPublish($question);
 
             return [
-                'item' => ['id' => $question->id, 'title' => $question->title, 'status' => $label],
+                'type' => 'question',
+                'typeLabel' => self::TYPE_LABELS['question'],
+                'model' => $question,
+                'item' => ['id' => $question->id, 'title' => $question->title, 'status' => $label, 'tone' => $tone, 'statusValue' => $question->status->value],
                 'publishErrors' => $decision->allowed ? [] : [$decision->message ?? 'Chưa đủ điều kiện phát hành.'],
+                'hasBeenAttempted' => $this->publishGuard->hasBeenAttempted($question),
             ];
         }
 
-        $assessment = $this->assessments->find($id);
+        $assessment = $this->assessments->query()->with('creator')->find($id);
         if ($assessment !== null) {
-            [$label] = $this->statusLabel($assessment->status);
+            [$label, $tone] = $this->statusLabel($assessment->status);
 
             return [
-                'item' => ['id' => $assessment->id, 'title' => $assessment->title, 'status' => $label],
+                'type' => 'assessment',
+                'typeLabel' => self::TYPE_LABELS['assessment'],
+                'model' => $assessment,
+                'item' => ['id' => $assessment->id, 'title' => $assessment->title, 'status' => $label, 'tone' => $tone, 'statusValue' => $assessment->status->value],
                 'publishErrors' => [],
+                'hasBeenAttempted' => false,
             ];
         }
 
         return [
-            'item' => ['id' => $id, 'title' => 'Không tìm thấy nội dung', 'status' => ''],
+            'type' => null,
+            'typeLabel' => '',
+            'model' => null,
+            'item' => ['id' => $id, 'title' => 'Không tìm thấy nội dung', 'status' => '', 'tone' => 'neutral', 'statusValue' => null],
             'publishErrors' => [],
+            'hasBeenAttempted' => false,
         ];
     }
+
+    // ================= Học liệu (Material) =================
+
+    public function materialCreateFormData(): array
+    {
+        return [
+            'products' => $this->products->query()->orderBy('title')->get(['id', 'title'])->all(),
+            'parents' => $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order')->get()
+                ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
+            'assessments' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
+            'types' => ['chapter' => 'Chương', 'section' => 'Bài/Mục', 'assessment_ref' => 'Tham chiếu đề/bộ bài'],
+            'statuses' => $this->statusOptions(),
+        ];
+    }
+
+    public function materialStore(array $data): Material
+    {
+        return $this->materials->create([
+            'product_id' => $data['product_id'],
+            'parent_id' => $data['parent_id'] ?: null,
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'order' => $data['order'] ?? 0,
+            'assessment_id' => $data['type'] === 'assessment_ref' ? ($data['assessment_id'] ?: null) : null,
+            'status' => $data['status'],
+        ]);
+    }
+
+    public function materialEditFormData(int $id): array
+    {
+        return array_merge($this->materialCreateFormData(), [
+            'material' => $this->materials->query()->findOrFail($id),
+        ]);
+    }
+
+    public function materialUpdate(Material $material, array $data): Material
+    {
+        return $this->materials->update($material, [
+            'product_id' => $data['product_id'],
+            'parent_id' => $data['parent_id'] ?: null,
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'order' => $data['order'] ?? 0,
+            'assessment_id' => $data['type'] === 'assessment_ref' ? ($data['assessment_id'] ?: null) : null,
+            'status' => $data['status'],
+        ]);
+    }
+
+    /** Không có guard đặc thù cho Material (chỉ Question mới có điều kiện phát hành, 6.2). */
+    public function materialPublish(Material $material): Material
+    {
+        return $this->materials->update($material, ['status' => ContentStatus::Published->value]);
+    }
+
+    /** Trả về nháp — PHẢI có lý do + audit log (10.4). */
+    public function materialReject(Material $material, string $reason): Material
+    {
+        Material::$auditReason = $reason;
+        $this->materials->update($material, ['status' => ContentStatus::Draft->value]);
+        Material::$auditReason = null;
+
+        return $material;
+    }
+
+    /** Lưu trữ — cách "gỡ khỏi lưu hành" cho nội dung (không có trạng thái xóa, Table 27). */
+    public function materialArchive(Material $material, string $reason): Material
+    {
+        Material::$auditReason = $reason;
+        $this->materials->update($material, ['status' => ContentStatus::Archived->value]);
+        Material::$auditReason = null;
+
+        return $material;
+    }
+
+    // ================= Câu hỏi kho chung (Question, 6.5) =================
+
+    public function questionCreateFormData(): array
+    {
+        return [
+            'types' => ['coding' => 'Lập trình (OJ)', 'mcq' => 'Trắc nghiệm', 'fill_blank' => 'Điền khuyết'],
+            'visibilities' => ['public' => 'Công khai', 'private' => 'Riêng tư (nội bộ)'],
+        ];
+    }
+
+    /**
+     * admin.content.questions.store — luôn tạo vào "Kho chung" (owner_type=shared) vì admin
+     * đang thao tác ở mục Nội dung CHUNG (6.5) — câu hỏi riêng của giáo viên được tạo ở
+     * teacher.questions.create (owner_type=teacher), không đi qua đây.
+     */
+    public function questionStore(User $admin, array $data): Question
+    {
+        if ($this->questions->query()->where('code', $data['code'])->exists()) {
+            throw ValidationException::withMessages(['code' => 'Mã câu hỏi này đã tồn tại, chọn mã khác.']);
+        }
+
+        return $this->questions->create([
+            'bank_id' => $this->sharedBank()->id,
+            'code' => $data['code'],
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'body' => $data['body'] ?? null,
+            'points' => $data['points'] ?? 0,
+            'grading_config' => $this->buildGradingConfig($data['type'], $data),
+            'owner_type' => OwnerType::Shared->value,
+            'owner_id' => null,
+            'visibility' => $data['visibility'] ?? Visibility::Public->value,
+            'status' => ContentStatus::Draft->value,
+            'version' => 1,
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function questionEditFormData(int $id): array
+    {
+        /** @var Question $question */
+        $question = $this->questions->query()->findOrFail($id);
+
+        return array_merge($this->questionCreateFormData(), [
+            'question' => $question,
+            'hasBeenAttempted' => $this->publishGuard->hasBeenAttempted($question),
+        ]);
+    }
+
+    /**
+     * admin.content.questions.update — CHẶN sửa âm thầm câu đã có người làm (6.2: "Câu hỏi
+     * đã có người làm — sửa nội dung phải tạo phiên bản mới"). Admin phải dùng
+     * questionCreateNewVersion() thay vì gọi hàm này khi $hasBeenAttempted = true.
+     */
+    public function questionUpdate(Question $question, array $data): Question
+    {
+        if ($this->publishGuard->hasBeenAttempted($question)) {
+            throw ValidationException::withMessages([
+                'code' => 'Câu hỏi này đã có học sinh làm bài — không thể sửa trực tiếp, hãy dùng "Tạo phiên bản mới" (6.2).',
+            ]);
+        }
+
+        return $this->questions->update($question, [
+            'code' => $data['code'],
+            'title' => $data['title'],
+            'body' => $data['body'] ?? null,
+            'points' => $data['points'] ?? 0,
+            'grading_config' => $this->buildGradingConfig($question->type->value, $data),
+            'visibility' => $data['visibility'] ?? Visibility::Public->value,
+        ]);
+    }
+
+    /** Tạo bản version mới thay vì sửa âm thầm (6.2) — dùng khi câu đã có người làm. */
+    public function questionCreateNewVersion(Question $question, array $data): Question
+    {
+        return $this->publishGuard->createNewVersion($question, [
+            'title' => $data['title'],
+            'body' => $data['body'] ?? null,
+            'points' => $data['points'] ?? 0,
+            'grading_config' => $this->buildGradingConfig($question->type->value, $data),
+            'visibility' => $data['visibility'] ?? Visibility::Public->value,
+        ]);
+    }
+
+    /**
+     * Dựng grading_config đúng cấu trúc tối thiểu theo từng loại câu (6.1/6.2) từ input có
+     * cấu trúc trên form — KHÔNG bắt admin tự viết JSON tay (dễ sai, khó kiểm tra lỗi rõ).
+     * Test case coding dùng định dạng đơn giản "input|||output" mỗi dòng — cố ý CHƯA làm
+     * trình tải file test/kéo-thả (phạm vi lớn hơn nhiều, để dành cho màn hình OJ chuyên biệt
+     * sau này) — vẫn đủ để QuestionPublishGuard::hasMinimumGradingConfig() nhận đúng cấu trúc.
+     */
+    private function buildGradingConfig(string $type, array $data): array
+    {
+        return match ($type) {
+            'mcq' => [
+                'options' => array_values(array_filter($data['options'] ?? [], fn ($o) => filled($o))),
+                'correct_options' => isset($data['correct_option']) && $data['correct_option'] !== ''
+                    ? [(int) $data['correct_option']]
+                    : [],
+            ],
+            'fill_blank' => [
+                'accepted_answers' => array_values(array_filter(
+                    array_map('trim', preg_split('/\r?\n|,/', (string) ($data['accepted_answers'] ?? ''))),
+                    fn ($a) => $a !== ''
+                )),
+                'case_sensitive' => (bool) ($data['case_sensitive'] ?? false),
+            ],
+            'coding' => [
+                'test_cases' => $this->parseTestCases($data['test_cases_raw'] ?? ''),
+                'time_limit_ms' => filled($data['time_limit_ms'] ?? null) ? (int) $data['time_limit_ms'] : null,
+                'memory_limit_mb' => filled($data['memory_limit_mb'] ?? null) ? (int) $data['memory_limit_mb'] : null,
+            ],
+            default => [],
+        };
+    }
+
+    /** Mỗi dòng "input|||output" -> 1 test case. Dòng không đúng định dạng bị bỏ qua. */
+    private function parseTestCases(string $raw): array
+    {
+        $cases = [];
+        foreach (preg_split('/\r?\n/', trim($raw)) as $line) {
+            if (blank($line) || ! str_contains($line, '|||')) {
+                continue;
+            }
+            [$input, $output] = explode('|||', $line, 2);
+            $cases[] = ['input' => $input, 'output' => $output];
+        }
+
+        return $cases;
+    }
+
+    /** Phát hành — PHẢI qua QuestionPublishGuard (6.2/6.4), không có ngoại lệ cho admin. */
+    public function questionPublish(Question $question): array
+    {
+        $decision = $this->publishGuard->canPublish($question);
+        if (! $decision->allowed) {
+            return ['ok' => false, 'message' => $decision->message ?? 'Chưa đủ điều kiện phát hành.'];
+        }
+
+        $this->questions->update($question, ['status' => ContentStatus::Published->value]);
+
+        return ['ok' => true, 'message' => null];
+    }
+
+    /** Trả về nháp — PHẢI có lý do + audit log (10.4). Auditable đã gắn sẵn ở Question model. */
+    public function questionReject(Question $question, string $reason): Question
+    {
+        Question::$auditReason = $reason;
+        $this->questions->update($question, ['status' => ContentStatus::Draft->value]);
+        Question::$auditReason = null;
+
+        return $question;
+    }
+
+    public function questionArchive(Question $question, string $reason): Question
+    {
+        Question::$auditReason = $reason;
+        $this->questions->update($question, ['status' => ContentStatus::Archived->value]);
+        Question::$auditReason = null;
+
+        return $question;
+    }
+
+    // ================= Đề/bộ bài (Assessment) =================
+    // Phạm vi cố ý giới hạn ở metadata (không có trình xây danh sách câu hỏi/items ở đây) —
+    // gắn/gỡ câu hỏi vào đề là luồng riêng của giáo viên khi soạn đề (TEA-xx), không lặp lại
+    // ở admin để tránh 2 nơi có thể sửa cùng 1 đề theo 2 luật khác nhau.
+
+    public function assessmentCreateFormData(): array
+    {
+        return [
+            'types' => [
+                'practice' => 'Luyện tập', 'assignment' => 'Bài giao', 'exam' => 'Đề thi', 'competition_paper' => 'Đề thi đấu',
+            ],
+            'publishAnswerRules' => [
+                'never' => 'Không bao giờ hiện đáp án', 'after_deadline' => 'Hiện sau hạn nộp', 'immediately' => 'Hiện ngay sau khi nộp',
+            ],
+        ];
+    }
+
+    public function assessmentStore(User $admin, array $data): Assessment
+    {
+        return $this->assessments->create([
+            'title' => $data['title'],
+            'type' => $data['type'],
+            'total_points' => $data['total_points'] ?? 0,
+            'duration_minutes' => $data['duration_minutes'] ?: null,
+            'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
+            'status' => ContentStatus::Draft->value,
+            'version' => 1,
+            'owner_type' => OwnerType::Shared->value,
+            'owner_id' => null,
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function assessmentEditFormData(int $id): array
+    {
+        return array_merge($this->assessmentCreateFormData(), [
+            'assessment' => $this->assessments->query()->findOrFail($id),
+        ]);
+    }
+
+    public function assessmentUpdate(Assessment $assessment, array $data): Assessment
+    {
+        return $this->assessments->update($assessment, [
+            'title' => $data['title'],
+            'type' => $data['type'],
+            'total_points' => $data['total_points'] ?? 0,
+            'duration_minutes' => $data['duration_minutes'] ?: null,
+            'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
+        ]);
+    }
+
+    public function assessmentPublish(Assessment $assessment): Assessment
+    {
+        return $this->assessments->update($assessment, ['status' => ContentStatus::Published->value]);
+    }
+
+    public function assessmentReject(Assessment $assessment, string $reason): Assessment
+    {
+        Assessment::$auditReason = $reason;
+        $this->assessments->update($assessment, ['status' => ContentStatus::Draft->value]);
+        Assessment::$auditReason = null;
+
+        return $assessment;
+    }
+
+    public function assessmentArchive(Assessment $assessment, string $reason): Assessment
+    {
+        Assessment::$auditReason = $reason;
+        $this->assessments->update($assessment, ['status' => ContentStatus::Archived->value]);
+        Assessment::$auditReason = null;
+
+        return $assessment;
+    }
+
+    /** @return array<string, string> */
+    private function statusOptions(): array
+    {
+        return [
+            ContentStatus::Draft->value => 'Nháp',
+            ContentStatus::PendingReview->value => 'Chờ duyệt',
+            ContentStatus::Published->value => 'Phát hành',
+            ContentStatus::Archived->value => 'Lưu trữ',
+        ];
+    }
+
 }
