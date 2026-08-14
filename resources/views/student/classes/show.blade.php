@@ -19,6 +19,7 @@
         $materials = $materials ?? [];
         $sessions = $sessions ?? [];
         $reviews = $reviews ?? collect();
+        $notifications = $notifications ?? [];
         $teachers = $teachers ?? collect();
         $students = $students ?? collect();
         $overallPercent = $overallPercent ?? 0;
@@ -148,8 +149,27 @@
             </div>
         </div>
     @elseif ($tab === 'notifications')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500">TODO: thông báo riêng của lớp (bài mới mở, lịch đổi, thông báo giáo viên) — cần bảng notifications.</p>
+        {{-- Trước đây là dòng chữ TODO tĩnh hiển thị thẳng cho học sinh ("cần bảng
+             notifications") — SAI, vì hạ tầng thông báo đã có thật (dùng chung với chuông
+             toàn cục + student.notifications). Giờ lọc đúng thông báo trỏ về lớp NÀY, xem
+             App\Services\Student\ClassRoomService::notificationsForClass(). --}}
+        <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            @forelse ($notifications as $n)
+                <div class="flex items-start gap-3 p-4 {{ ! $n['read'] ? 'bg-rose-50/40' : '' }}">
+                    <x-icon-tile :emoji="$n['icon']" :tone="$n['tone']" />
+                    <div class="flex-1">
+                        <p class="text-sm text-slate-700">{{ $n['text'] }}</p>
+                        <p class="text-xs text-slate-400 mt-1">{{ $n['time'] }}</p>
+                    </div>
+                    @if (! $n['read'])
+                        <span class="w-2 h-2 rounded-full bg-rose-500 mt-2"></span>
+                    @endif
+                </div>
+            @empty
+                <div class="p-8">
+                    <x-empty-state title="Chưa có thông báo nào cho lớp này" description="Thông báo về bài mới mở, lịch đổi hoặc thông báo từ giáo viên của lớp này sẽ hiện ở đây." />
+                </div>
+            @endforelse
         </div>
     @elseif ($tab === 'members')
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

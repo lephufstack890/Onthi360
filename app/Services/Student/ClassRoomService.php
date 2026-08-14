@@ -16,6 +16,7 @@ use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Services\AccessGateService;
+use App\Services\NotificationService;
 
 /** STU-03 — chi tiết lớp, 7 tab. */
 class ClassRoomService
@@ -48,6 +49,7 @@ class ClassRoomService
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ReviewRepositoryInterface $reviews,
         private AccessGateService $accessGate,
+        private NotificationService $notifications,
     ) {}
 
     public function buildShowData(User $user, int $classId, string $tab): array
@@ -111,6 +113,16 @@ class ClassRoomService
             $reviews = $this->reviews->publishedForTarget(ReviewTargetType::ClassRoom, $classRoom->id, self::REVIEWS_TAB_LIMIT);
         }
 
+        // Thông báo riêng lớp: trước đây là dòng chữ TODO tĩnh hiển thị thẳng cho học sinh
+        // ("cần bảng notifications") — SAI, vì hạ tầng thông báo (App\Services\
+        // NotificationService, kênh 'database' Illuminate Notifications) đã có thật từ
+        // trước (dùng cho chuông toàn cục + student.notifications). Lọc lại đúng thông báo
+        // trỏ về lớp NÀY qua notificationsForClass() bên dưới.
+        $notifications = [];
+        if ($tab === 'notifications') {
+            $notifications = $this->notificationsForClass($user, $classRoom);
+        }
+
         // Thành viên.
         $teachers = $tab === 'members' ? $classRoom->teachers : collect();
         $students = $tab === 'members' ? $classRoom->students : collect();
@@ -127,9 +139,32 @@ class ClassRoomService
             'materials' => $materials,
             'sessions' => $sessions,
             'reviews' => $reviews,
+            'notifications' => $notifications,
             'teachers' => $teachers,
             'students' => $students,
         ];
+    }
+
+    /**
+     * Tab "Thông báo" (8.3) — lọc thông báo THẬT của học sinh (App\Services\
+     * NotificationService::forUser(), dùng chung mọi vai trò) theo url trỏ ĐÚNG về lớp này,
+     * để không lẫn thông báo của lớp khác/vai trò khác vào đây.
+     *
+     * Lưu ý phạm vi: hiện CHƯA có nơi nào trong hệ thống thực sự TẠO thông báo khi có bài
+     * mới mở/lịch đổi/giáo viên thông báo cho lớp (chỉ mới có
+     * App\Notifications\TeacherApprovalStatusChanged cho giáo viên) — nên tab này có thể
+     * hiện rỗng cho tới khi các sự kiện đó được nối thêm; đó là một tính năng riêng, rộng
+     * hơn phạm vi sửa lần này. Khác với TODO cũ, đây là truy vấn thật trên dữ liệu thật,
+     * không phải dòng chữ placeholder tĩnh.
+     */
+    private function notificationsForClass(User $user, ClassRoom $classRoom): array
+    {
+        $classUrl = route('student.classes.show', ['class' => $classRoom->id]);
+
+        return collect($this->notifications->forUser($user)['items'])
+            ->filter(fn ($n) => $n['url'] !== null && str_starts_with($n['url'], $classUrl))
+            ->values()
+            ->all();
     }
 
     /**
