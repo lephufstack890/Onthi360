@@ -3,6 +3,10 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
+use App\Http\Controllers\Public\CourseController as PublicCourseController;
+use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
+use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
@@ -44,22 +48,24 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Khung route theo vai trò
 |--------------------------------------------------------------------------
-| public / student / teacher / parent / admin (4.2 BA spec). Auth,
-| Dashboard và toàn bộ khu Học sinh đã nối Controller thật (Eloquent).
-| Các khu Giáo viên/Phụ huynh/Đánh giá/Quyền truy cập/Admin còn lại vẫn
-| trả view() trực tiếp qua closure — xem TODO trong từng file
-| resources/views/** — sẽ nối Controller thật lần lượt tiếp theo.
+| public (mục 4.1: Khóa học, Luyện tập, Tài liệu, Cuộc thi) / student /
+| teacher / parent / admin (4.2 BA spec). Auth, Dashboard, Học sinh, Giáo
+| viên, Phụ huynh, Đánh giá, Quyền truy cập, Admin, và 4 khu công khai
+| chính (Khóa học/Luyện tập/Tài liệu/Cuộc thi) đã nối Controller thật
+| (Eloquent). Trang chủ, Bảng xếp hạng, Giáo viên tiêu biểu, Thông tin vẫn
+| trả view() qua closure tĩnh — nối Controller thật khi tới lượt (ngoài
+| phạm vi lần này).
 */
 
 // -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
 Route::get('/', fn () => view('welcome'))->name('home');
-Route::get('/khoa-hoc', fn () => view('public.courses.index'))->name('courses.index');
-Route::get('/khoa-hoc/{course}', fn ($course) => view('public.courses.show'))->name('courses.show');
-Route::get('/luyen-tap', fn () => view('public.practice.index'))->name('practice.index');
-Route::get('/tai-lieu', fn () => view('public.materials.index'))->name('materials.index');
-Route::get('/tai-lieu/{material}', fn ($material) => view('public.materials.show'))->name('materials.show');
-Route::get('/cuoc-thi', fn () => view('public.competitions.index'))->name('competitions.index');
-Route::get('/cuoc-thi/{competition}', fn ($competition) => view('public.competitions.show'))->name('competitions.show');
+Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
+Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name('courses.show');
+Route::get('/luyen-tap', [PublicPracticeController::class, 'index'])->name('practice.index');
+Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
+Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
+Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
+Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');
 Route::get('/bang-xep-hang', fn () => view('public.leaderboard.index'))->name('leaderboard.index');
 Route::get('/giao-vien-tieu-bieu', fn () => view('public.teachers.index'))->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');

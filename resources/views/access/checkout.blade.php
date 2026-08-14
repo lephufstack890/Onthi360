@@ -3,8 +3,11 @@
   Spec: 7.4/7.5 (checkout theo scope: Học cá nhân / Dùng để dạy mọi lớp
   phụ trách; sách mềm bắt buộc, checkbox mua kèm bản in không đổi quyền
   số; P0 chỉ có thanh toán ngoài hệ thống — admin duyệt).
-  TODO controller: truyền $product thật + $scopeOptions theo vai trò user
-  hiện tại (7.5 — giáo viên chưa duyệt không thấy scope "Dùng để dạy").
+  $product/$canTeach/$printPrice là dữ liệu thật do
+  App\Http\Controllers\Access\AccessController::checkout() truyền vào qua
+  App\Services\Access\AccessService::checkoutData() (7.5 — giáo viên chưa
+  duyệt không thấy scope "Dùng để dạy"). Nút "Đặt đơn" bên dưới vẫn chưa
+  submit thật (POST) — ngoài phạm vi lần nối liên kết Tài liệu → Checkout này.
 --}}
 @extends('layouts.guest')
 
@@ -18,7 +21,7 @@
     @endphp
 
     <div class="max-w-2xl mx-auto px-4 py-10">
-        <a href="{{ route('materials.show', 1) }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại</a>
+        <a href="{{ route('materials.show', $product->id) }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại</a>
 
         <div class="bg-white rounded-2xl border border-slate-200 p-6">
             <h1 class="text-lg font-semibold text-slate-800 mb-1">Đặt đơn</h1>
