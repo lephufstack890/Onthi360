@@ -132,6 +132,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('schedule', [TeacherScheduleController::class, 'store'])->name('schedule.store');
         Route::get('schedule/{session}/attendance', [TeacherScheduleController::class, 'attendance'])->name('schedule.attendance');
         Route::post('schedule/{session}/attendance', [TeacherScheduleController::class, 'saveAttendance'])->name('schedule.attendance.save');
+        Route::post('schedule/{session}/summary', [TeacherScheduleController::class, 'saveSummary'])->name('schedule.summary.save');
 
         Route::get('notifications', [TeacherNotificationController::class, 'index'])->name('notifications.index');
 

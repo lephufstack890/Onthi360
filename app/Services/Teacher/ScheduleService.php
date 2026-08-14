@@ -3,6 +3,7 @@
 namespace App\Services\Teacher;
 
 use App\Enums\AttendanceStatus;
+use App\Models\Attendance;
 use App\Models\ClassRoom;
 use App\Models\ClassSession;
 use App\Models\Role;
@@ -140,7 +141,13 @@ class ScheduleService
         ]);
     }
 
-    /** teacher.schedule.attendance — roster đầy đủ của lớp + trạng thái điểm danh hiện có (mặc định "present"). */
+    /**
+     * teacher.schedule.attendance — roster đầy đủ của lớp + trạng thái điểm danh hiện có
+     * (mặc định "present"), kèm nhận xét (mặc định 1 câu chung, note họp 13/8) + cột "Em
+     * cần học thêm" + nguồn điểm danh (manual/auto — auto là học sinh tự vào làm bài lúc
+     * buổi học đang diễn ra, xem App\Services\AttemptService::autoCheckIn()) để giáo viên
+     * chỉ cần tập trung xử lý các dòng CHƯA tự động.
+     */
     public function attendanceForSession(User $teacher, int $sessionId): array
     {
         $session = $this->classSessions->find($sessionId)
@@ -150,11 +157,18 @@ class ScheduleService
         $roster = $classRoom->students;
         $existing = $this->attendances->forClassSession($session->id);
 
-        $rows = $roster->map(fn ($student) => [
-            'studentId' => $student->id,
-            'name' => $student->name,
-            'status' => $existing->get($student->id)?->status?->value ?? 'present',
-        ])->values()->all();
+        $rows = $roster->map(function ($student) use ($existing) {
+            $record = $existing->get($student->id);
+
+            return [
+                'studentId' => $student->id,
+                'name' => $student->name,
+                'status' => $record?->status?->value ?? 'present',
+                'source' => $record?->source?->value ?? 'manual',
+                'note' => $record?->note ?? Attendance::DEFAULT_NOTE,
+                'needsMorePractice' => $record?->needs_more_practice ?? false,
+            ];
+        })->values()->all();
 
         return [
             'session' => $session,
@@ -164,10 +178,11 @@ class ScheduleService
     }
 
     /**
-     * teacher.schedule.attendance.save — lưu điểm danh. Chỉ ghi cho học sinh THỰC SỰ thuộc
-     * roster lớp này tại thời điểm lưu (không tin id gửi từ client, 16 mục 3).
+     * teacher.schedule.attendance.save — lưu điểm danh + nhận xét + "Em cần học thêm". Chỉ
+     * ghi cho học sinh THỰC SỰ thuộc roster lớp này tại thời điểm lưu (không tin id gửi từ
+     * client, 16 mục 3). $notes/$needsMorePractice keyed theo student_id giống $statuses.
      */
-    public function saveAttendance(User $teacher, int $sessionId, array $statuses): void
+    public function saveAttendance(User $teacher, int $sessionId, array $statuses, array $notes = [], array $needsMorePractice = []): void
     {
         $session = $this->classSessions->find($sessionId)
             ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
@@ -185,18 +200,36 @@ class ScheduleService
                 continue;
             }
 
+            $attrs = [
+                'status' => $status,
+                'recorded_by' => $teacher->id,
+                'note' => $notes[$studentId] ?? null,
+                'needs_more_practice' => (bool) ($needsMorePractice[$studentId] ?? false),
+            ];
+
             $record = $existing->get($studentId);
             if ($record !== null) {
-                $this->attendances->update($record, ['status' => $status, 'recorded_by' => $teacher->id]);
+                // Điểm danh tay của giáo viên "thắng" điểm danh tự động trước đó — cập
+                // nhật cả source về manual vì giáo viên đã trực tiếp xác nhận dòng này.
+                $this->attendances->update($record, $attrs + ['source' => 'manual']);
             } else {
-                $this->attendances->create([
+                $this->attendances->create($attrs + [
                     'class_session_id' => $session->id,
                     'student_id' => $studentId,
-                    'status' => $status,
-                    'recorded_by' => $teacher->id,
+                    'source' => 'manual',
                 ]);
             }
         }
+    }
+
+    /** teacher.schedule.summary.save — "tổng kết buổi học" (note họp 13/8). */
+    public function saveSummary(User $teacher, int $sessionId, ?string $summary): void
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $session->update(['summary' => $summary]);
     }
 
     private function findTaughtClassRoom(User $teacher, int $classId): ClassRoom

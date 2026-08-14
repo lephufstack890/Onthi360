@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClassSession extends Model
 {
-    protected $fillable = ['class_room_id', 'starts_at', 'ends_at', 'topic', 'location'];
+    protected $fillable = ['class_room_id', 'starts_at', 'ends_at', 'topic', 'location', 'summary'];
 
     protected $casts = [
         'starts_at' => 'datetime',

@@ -86,16 +86,40 @@ class ScheduleController extends Controller
         return view('teacher.schedule.attendance', $this->scheduleService->attendanceForSession(Auth::user(), $session));
     }
 
-    /** teacher.schedule.attendance.save — lưu điểm danh (present/absent/excused/late). */
+    /**
+     * teacher.schedule.attendance.save — lưu điểm danh (present/absent/excused/late) +
+     * nhận xét + "Em cần học thêm" (note họp 13/8).
+     */
     public function saveAttendance(Request $request, int $session)
     {
         $data = $request->validate([
             'status' => ['required', 'array'],
             'status.*' => ['required', 'string', 'in:present,absent,excused,late'],
+            'note' => ['nullable', 'array'],
+            'note.*' => ['nullable', 'string', 'max:1000'],
+            'needs_more_practice' => ['nullable', 'array'],
         ]);
 
-        $this->scheduleService->saveAttendance(Auth::user(), $session, $data['status']);
+        $this->scheduleService->saveAttendance(
+            Auth::user(),
+            $session,
+            $data['status'],
+            $data['note'] ?? [],
+            $data['needs_more_practice'] ?? []
+        );
 
         return redirect()->route('teacher.schedule.attendance', $session)->with('status', 'attendance-saved');
+    }
+
+    /** teacher.schedule.summary.save — "tổng kết buổi học" (note họp 13/8). */
+    public function saveSummary(Request $request, int $session)
+    {
+        $data = $request->validate([
+            'summary' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $this->scheduleService->saveSummary(Auth::user(), $session, $data['summary'] ?? null);
+
+        return redirect()->route('teacher.schedule.attendance', $session)->with('status', 'summary-saved');
     }
 }
