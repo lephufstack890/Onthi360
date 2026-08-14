@@ -2,7 +2,9 @@
   Route: parent.children.show | Frame: PAR-02
   Spec: 10.3 — lịch, điểm danh, tiến độ, kết quả, review lớp (phụ huynh
   đủ điều kiện sau 2 buổi/hoạt động của con — 9.2).
-  TODO controller: truyền $child thật + $attendance/$results/$schedule.
+  Dữ liệu thật ($child, $classRoom, $tabsData, $results, $attendance, $nextSession) do
+  App\Http\Controllers\Parent\ChildController truyền vào qua App\Services\Parent\
+  ChildService::showForParent().
 --}}
 @extends('layouts.parent')
 
@@ -10,7 +12,6 @@
 @section('page-title', 'Chi tiết con')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Parent\ChildController truyền vào. --}}
     @php
         $tab = $tab ?? 'overview';
         $results = $results ?? [];
@@ -67,8 +68,12 @@
         </div>
     @elseif ($tab === 'review')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi con tham gia ít nhất 2 buổi (9.2). Không đánh giá thay chuyên môn của con.</p>
-            <a href="{{ route('reviews.form', ['type' => 'class', 'id' => 10]) }}" class="text-sm text-rose-600 font-medium">Viết đánh giá lớp ›</a>
+            @if ($classRoom)
+                <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi con tham gia ít nhất 2 buổi (9.2). Không đánh giá thay chuyên môn của con.</p>
+                <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}" class="text-sm text-rose-600 font-medium">Viết đánh giá lớp ›</a>
+            @else
+                <p class="text-sm text-slate-400">Con chưa có lớp đang học để đánh giá.</p>
+            @endif
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

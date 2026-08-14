@@ -2,11 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\ParentLinkStatus;
 use App\Models\AuditLog;
 use App\Models\ClassEnrollment;
 use App\Models\ParentLink;
 use App\Models\Role;
 use App\Repositories\Contracts\AuditLogRepositoryInterface;
+use App\Repositories\Contracts\ParentLinkRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +34,7 @@ class UserService
     public function __construct(
         private UserRepositoryInterface $users,
         private AuditLogRepositoryInterface $auditLogs,
+        private ParentLinkRepositoryInterface $parentLinks,
     ) {}
 
     private function logChange(User $admin, User $target, string $action, array $changes, ?string $reason = null): void
@@ -245,6 +248,38 @@ class UserService
     {
         $this->users->update($user, ['password' => Hash::make($newPassword)]);
         $this->logChange($admin, $user, 'password_reset', []);
+    }
+
+    /**
+     * admin.parent-links.approve — Chờ xác minh -> Đã xác minh (10.3: "xác minh phụ huynh
+     * chặt chẽ"). Không yêu cầu lý do, giống TeacherApprovalService::approve(). ParentLink
+     * dùng trait Auditable nên tự ghi audit log khi update() — không cần logChange() thủ công
+     * ở đây (khác User, xem ghi chú đầu file về lý do User không gắn Auditable).
+     */
+    public function approveParentLink(ParentLink $link, User $admin): ParentLink
+    {
+        $this->parentLinks->update($link, [
+            'status' => ParentLinkStatus::Verified->value,
+            'verification_method' => 'admin_manual',
+            'verified_at' => now(),
+        ]);
+
+        return $link;
+    }
+
+    /**
+     * admin.parent-links.reject — Chờ xác minh -> Đã hủy (thu hồi), PHẢI có lý do (16 mục 4,
+     * giống tinh thần TeacherApprovalService::reject()).
+     */
+    public function rejectParentLink(ParentLink $link, User $admin, string $reason): ParentLink
+    {
+        ParentLink::$auditReason = $reason;
+
+        $this->parentLinks->update($link, ['status' => ParentLinkStatus::Revoked->value]);
+
+        ParentLink::$auditReason = null;
+
+        return $link;
     }
 
     private function presentUser(User $u): array

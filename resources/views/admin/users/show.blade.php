@@ -25,6 +25,8 @@
             'roles-updated' => 'Đã cập nhật vai trò, đã ghi audit log.',
             'user-updated' => 'Đã lưu thay đổi.',
             'password-updated' => 'Đã đổi mật khẩu cho người dùng này.',
+            'parent-link-approved' => 'Đã xác minh liên kết phụ huynh — con.',
+            'parent-link-rejected' => 'Đã từ chối/thu hồi liên kết, đã ghi lý do.',
             default => session('status') ? 'Đã lưu thay đổi.' : null,
         };
     @endphp
@@ -131,9 +133,14 @@
                     <p class="text-xs text-slate-400 mb-2">Phụ huynh liên kết</p>
                     <div class="space-y-2">
                         @forelse ($linkedParents as $link)
-                            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 text-sm">
-                                <span class="text-slate-700">{{ $link->parent->name ?? '—' }}</span>
-                                <x-status-badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-status-badge>
+                            <div class="rounded-lg bg-slate-50 text-sm p-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-700">{{ $link->parent->name ?? '—' }}</span>
+                                    <x-status-badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-status-badge>
+                                </div>
+                                @if ($link->status->value === 'pending')
+                                    @include('admin.users._parent-link-actions', ['link' => $link])
+                                @endif
                             </div>
                         @empty
                             <p class="text-sm text-slate-400">Chưa có phụ huynh liên kết.</p>
@@ -148,9 +155,14 @@
                     <p class="text-xs text-slate-400 mb-2">Con đã liên kết</p>
                     <div class="space-y-2">
                         @forelse ($linkedChildren as $link)
-                            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 text-sm">
-                                <a href="{{ route('admin.users.show', $link->student_user_id) }}" class="text-slate-700 hover:text-rose-600">{{ $link->student->name ?? '—' }}</a>
-                                <x-status-badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-status-badge>
+                            <div class="rounded-lg bg-slate-50 text-sm p-3">
+                                <div class="flex items-center justify-between">
+                                    <a href="{{ route('admin.users.show', $link->student_user_id) }}" class="text-slate-700 hover:text-rose-600">{{ $link->student->name ?? '—' }}</a>
+                                    <x-status-badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-status-badge>
+                                </div>
+                                @if ($link->status->value === 'pending')
+                                    @include('admin.users._parent-link-actions', ['link' => $link])
+                                @endif
                             </div>
                         @empty
                             <p class="text-sm text-slate-400">Chưa liên kết con nào.</p>

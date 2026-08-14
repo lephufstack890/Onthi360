@@ -24,6 +24,10 @@ use App\Http\Controllers\Teacher\NotificationController as TeacherNotificationCo
 use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
 use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
+use App\Http\Controllers\Parent\NotificationController as ParentNotificationController;
+use App\Http\Controllers\Parent\ProfileController as ParentProfileController;
+use App\Http\Controllers\Parent\ResultController as ParentResultController;
+use App\Http\Controllers\Parent\ScheduleController as ParentScheduleController;
 use App\Http\Controllers\Access\AccessController;
 use App\Http\Controllers\Access\WalletController;
 use App\Http\Controllers\ReviewController;
@@ -156,7 +160,13 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
         Route::get('/', [ParentDashboardController::class, 'index'])->name('dashboard');
         Route::get('children', [ParentChildController::class, 'index'])->name('children.index');
+        Route::post('children/link-requests', [ParentChildController::class, 'storeLinkRequest'])->name('children.linkRequest');
         Route::get('children/{child}', [ParentChildController::class, 'show'])->name('children.show');
+        Route::get('schedule', [ParentScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('results', [ParentResultController::class, 'index'])->name('results.index');
+        Route::get('notifications', [ParentNotificationController::class, 'index'])->name('notifications.index');
+        Route::get('profile', [ParentProfileController::class, 'show'])->name('profile');
+        Route::put('profile', [ParentProfileController::class, 'update'])->name('profile.update');
     });
 
     // -- Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung mọi vai trò --
@@ -195,6 +205,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('users/{user}/roles', [AdminUserController::class, 'updateRoles'])->name('users.roles.update');
         Route::put('users/{user}/password', [AdminUserController::class, 'resetPassword'])->name('users.password.update');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+        Route::post('parent-links/{parentLink}/approve', [AdminUserController::class, 'approveParentLink'])->name('parent-links.approve');
+        Route::post('parent-links/{parentLink}/reject', [AdminUserController::class, 'rejectParentLink'])->name('parent-links.reject');
         Route::get('teacher-approvals', [AdminTeacherApprovalController::class, 'index'])->name('teacher-approvals.index');
         Route::get('teacher-approvals/{teacherApproval}', [AdminTeacherApprovalController::class, 'show'])->name('teacher-approvals.show');
         Route::post('teacher-approvals/{teacherApproval}/approve', [AdminTeacherApprovalController::class, 'approve'])->name('teacher-approvals.approve');

@@ -2,10 +2,10 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
         ['label' => 'Con của tôi', 'route' => 'parent.children.index', 'icon' => '🧒'],
-        ['label' => 'Lịch & Điểm danh', 'route' => 'parent.children.index', 'icon' => '📅'],
-        ['label' => 'Kết quả & Tiến độ', 'route' => 'parent.children.index', 'icon' => '📈'],
-        ['label' => 'Thông báo', 'route' => 'dashboard', 'icon' => '🔔'],
-        ['label' => 'Hồ sơ', 'route' => 'dashboard', 'icon' => '👤'],
+        ['label' => 'Lịch & Điểm danh', 'route' => 'parent.schedule.index', 'icon' => '📅'],
+        ['label' => 'Kết quả & Tiến độ', 'route' => 'parent.results.index', 'icon' => '📈'],
+        ['label' => 'Thông báo', 'route' => 'parent.notifications.index', 'icon' => '🔔'],
+        ['label' => 'Hồ sơ', 'route' => 'parent.profile', 'icon' => '👤'],
     ];
 @endphp
 @foreach ($items as $item)

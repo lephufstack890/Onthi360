@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ParentLink;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Admin\UserService;
@@ -111,5 +112,23 @@ class UserController extends Controller
         $this->userService->resetPassword(Auth::user(), $user, $data['password']);
 
         return redirect()->route('admin.users.show', $user->id)->with('status', 'password-updated');
+    }
+
+    /** admin.parent-links.approve — 10.3: "xác minh phụ huynh chặt chẽ". Không yêu cầu lý do. */
+    public function approveParentLink(Request $request, ParentLink $parentLink): RedirectResponse
+    {
+        $this->userService->approveParentLink($parentLink, Auth::user());
+
+        return redirect()->route('admin.users.show', $parentLink->student_user_id)->with('status', 'parent-link-approved');
+    }
+
+    /** admin.parent-links.reject — thu hồi/từ chối liên kết, PHẢI ghi lý do (16 mục 4). */
+    public function rejectParentLink(Request $request, ParentLink $parentLink): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+
+        $this->userService->rejectParentLink($parentLink, Auth::user(), $data['reason']);
+
+        return redirect()->route('admin.users.show', $parentLink->student_user_id)->with('status', 'parent-link-rejected');
     }
 }
