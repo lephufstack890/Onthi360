@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
 use App\Http\Controllers\Public\CourseController as PublicCourseController;
+use App\Http\Controllers\Public\LeaderboardController as PublicLeaderboardController;
 use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
 use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
@@ -51,10 +52,10 @@ use Illuminate\Support\Facades\Route;
 | public (mục 4.1: Khóa học, Luyện tập, Tài liệu, Cuộc thi) / student /
 | teacher / parent / admin (4.2 BA spec). Auth, Dashboard, Học sinh, Giáo
 | viên, Phụ huynh, Đánh giá, Quyền truy cập, Admin, và 4 khu công khai
-| chính (Khóa học/Luyện tập/Tài liệu/Cuộc thi) đã nối Controller thật
-| (Eloquent). Trang chủ, Bảng xếp hạng, Giáo viên tiêu biểu, Thông tin vẫn
-| trả view() qua closure tĩnh — nối Controller thật khi tới lượt (ngoài
-| phạm vi lần này).
+| chính (Khóa học/Luyện tập/Tài liệu/Cuộc thi) và Bảng xếp hạng (11.2) đã
+| nối Controller thật (Eloquent). Trang chủ, Giáo viên tiêu biểu, Thông
+| tin vẫn trả view() qua closure tĩnh — nối Controller thật khi tới lượt
+| (ngoài phạm vi lần này).
 */
 
 // -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
@@ -66,7 +67,7 @@ Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('mater
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
 Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');
-Route::get('/bang-xep-hang', fn () => view('public.leaderboard.index'))->name('leaderboard.index');
+Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('/giao-vien-tieu-bieu', fn () => view('public.teachers.index'))->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
 Route::get('/thong-tin', fn () => view('public.info.index'))->name('info.index');

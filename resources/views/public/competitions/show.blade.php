@@ -113,7 +113,7 @@
                         {{ auth()->check() ? 'Về trang của tôi' : 'Đăng nhập để tham gia' }}
                     </a>
                 @endif
-                <a href="{{ route('leaderboard.index') }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">
+                <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">
                     Xem bảng xếp hạng
                 </a>
             </div>
