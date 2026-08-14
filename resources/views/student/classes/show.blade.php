@@ -94,16 +94,24 @@
             @endforelse
         </div>
     @elseif ($tab === 'schedule')
+        {{-- Mỗi buổi có ĐỦ 2 trạng thái độc lập: thời gian (Sắp diễn ra/Đang diễn ra/Đã
+             kết thúc — trước đây chỉ có 2 mức nên buổi ĐANG diễn ra bị hiện nhầm "Đã qua")
+             và điểm danh CỦA CHÍNH học sinh này (Có mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm
+             danh — trước đây không hiển thị). Xem App\Services\Student\ClassRoomService
+             ::buildScheduleTab(). --}}
         <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
             @forelse ($sessions as $s)
                 <div class="flex items-center justify-between p-4 text-sm">
                     <div>
-                        <p class="text-slate-700">{{ $s->topic ?? 'Buổi học' }}</p>
-                        <p class="text-xs text-slate-400 mt-0.5">{{ $s->location }}</p>
+                        <p class="text-slate-700">{{ $s['topic'] ?? 'Buổi học' }}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ $s['location'] }}</p>
                     </div>
-                    <div class="text-right text-slate-500">
-                        <p>{{ $s->starts_at?->format('d/m/Y H:i') }}</p>
-                        <p class="text-xs text-slate-400">{{ $s->starts_at?->isFuture() ? 'Sắp diễn ra' : 'Đã qua' }}</p>
+                    <div class="text-right">
+                        <p class="text-slate-500">{{ $s['startsAt']?->format('d/m/Y H:i') }}</p>
+                        <div class="flex items-center justify-end gap-1.5 mt-1">
+                            <x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge>
+                            <x-status-badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-status-badge>
+                        </div>
                     </div>
                 </div>
             @empty

@@ -4,9 +4,11 @@ namespace App\Services\Student;
 
 use App\Enums\ReviewTargetType;
 use App\Models\ClassRoom;
+use App\Models\ClassSession;
 use App\Models\User;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
+use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
@@ -24,6 +26,17 @@ class ClassRoomService
      */
     private const REVIEWS_TAB_LIMIT = 500;
 
+    /** Cùng lý do như REVIEWS_TAB_LIMIT — đủ rộng để lấy điểm danh của TẤT CẢ buổi học đã qua. */
+    private const SCHEDULE_ATTENDANCE_LIMIT = 500;
+
+    /** Nhãn điểm danh hiển thị cho học sinh (Enums\AttendanceStatus) — khớp nhãn dùng ở teacher.schedule.attendance. */
+    private const ATTENDANCE_LABELS = [
+        'present' => ['Có mặt', 'success'],
+        'absent' => ['Vắng', 'danger'],
+        'excused' => ['Vắng có phép', 'warning'],
+        'late' => ['Đi trễ', 'warning'],
+    ];
+
     public function __construct(
         private ClassRoomRepositoryInterface $classRooms,
         private ClassEnrollmentRepositoryInterface $classEnrollments,
@@ -31,6 +44,7 @@ class ClassRoomService
         private ClassMaterialRepositoryInterface $classMaterials,
         private AssignmentRepositoryInterface $assignments,
         private AttemptRepositoryInterface $attempts,
+        private AttendanceRepositoryInterface $attendance,
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ReviewRepositoryInterface $reviews,
         private AccessGateService $accessGate,
@@ -82,10 +96,13 @@ class ClassRoomService
             $materials = $this->classMaterials->activeForClassRoom($classRoom->id);
         }
 
-        // Lịch học: các buổi sắp tới + đã qua gần nhất.
+        // Lịch học: các buổi sắp tới + đã qua gần nhất, kèm trạng thái THỜI GIAN đúng 3 mức
+        // (Sắp diễn ra/Đang diễn ra/Đã kết thúc — trước đây chỉ có 2 mức nên một buổi ĐANG
+        // diễn ra bị hiện nhầm thành "Đã qua") và trạng thái ĐIỂM DANH thật của chính học
+        // sinh này cho từng buổi (trước đây hoàn toàn không hiển thị).
         $sessions = [];
         if ($tab === 'schedule') {
-            $sessions = $this->classSessions->allForClassRoom($classRoom->id);
+            $sessions = $this->buildScheduleTab($classRoom, $user);
         }
 
         // Đánh giá lớp: review đã publish.
@@ -113,6 +130,64 @@ class ClassRoomService
             'teachers' => $teachers,
             'students' => $students,
         ];
+    }
+
+    /**
+     * Tab "Lịch học" (STU-03) — mỗi buổi có ĐỦ 2 trạng thái độc lập: thời gian (Sắp diễn
+     * ra/Đang diễn ra/Đã kết thúc, tính theo giờ máy chủ — không tin client, 16 mục 3) và
+     * điểm danh CỦA CHÍNH học sinh này (Có mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm danh) —
+     * trước đây tab này chỉ có 1 điều kiện nhị phân (isFuture()) nên buổi đang diễn ra bị
+     * hiện sai thành "Đã qua", và hoàn toàn không có thông tin điểm danh.
+     */
+    private function buildScheduleTab(ClassRoom $classRoom, User $user): array
+    {
+        $sessions = $this->classSessions->allForClassRoom($classRoom->id);
+
+        $attendanceBySessionId = $this->attendance
+            ->forStudentInClassRoom($user->id, $classRoom->id, self::SCHEDULE_ATTENDANCE_LIMIT)
+            ->keyBy('class_session_id');
+
+        return $sessions->map(function (ClassSession $s) use ($attendanceBySessionId) {
+            [$timeStatusLabel, $timeStatusTone] = $this->timeStatus($s);
+
+            $record = $attendanceBySessionId->get($s->id);
+            [$attendanceLabel, $attendanceTone] = $record !== null
+                ? (self::ATTENDANCE_LABELS[$record->status->value] ?? [$record->status->value, 'neutral'])
+                : ['Chưa điểm danh', 'neutral'];
+
+            return [
+                'id' => $s->id,
+                'topic' => $s->topic,
+                'location' => $s->location,
+                'startsAt' => $s->starts_at,
+                'timeStatusLabel' => $timeStatusLabel,
+                'timeStatusTone' => $timeStatusTone,
+                'attendanceLabel' => $attendanceLabel,
+                'attendanceTone' => $attendanceTone,
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Cùng logic với App\Services\Teacher\ScheduleService::timeStatus() (giữ nhất quán 1
+     * cách tính trạng thái buổi học trong toàn hệ thống): so theo giờ THỰC hiện tại, không
+     * chỉ dựa vào bucket "sắp tới/đã qua" của starts_at.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function timeStatus(ClassSession $session): array
+    {
+        $now = now();
+
+        if ($session->starts_at !== null && $now->lt($session->starts_at)) {
+            return ['Sắp diễn ra', 'info'];
+        }
+
+        if ($session->ends_at !== null && $now->gt($session->ends_at)) {
+            return ['Đã kết thúc', 'neutral'];
+        }
+
+        return ['Đang diễn ra', 'warning'];
     }
 
     /**
