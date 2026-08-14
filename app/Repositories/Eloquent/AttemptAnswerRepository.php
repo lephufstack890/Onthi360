@@ -25,4 +25,17 @@ class AttemptAnswerRepository extends EloquentRepository implements AttemptAnswe
     {
         return $this->query()->where('attempt_id', $attemptId)->pluck('question_id')->all();
     }
+
+    public function forAttempt(int $attemptId): Collection
+    {
+        return $this->query()->where('attempt_id', $attemptId)->get()->keyBy('question_id');
+    }
+
+    public function upsertAnswer(int $attemptId, int $questionId, array $attributes): AttemptAnswer
+    {
+        return $this->query()->updateOrCreate(
+            ['attempt_id' => $attemptId, 'question_id' => $questionId],
+            $attributes
+        );
+    }
 }

@@ -37,6 +37,15 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
             ->first();
     }
 
+    public function countSubmittedForUserAndAssessment(int $userId, int $assessmentId): int
+    {
+        return $this->query()
+            ->where('user_id', $userId)
+            ->where('assessment_id', $assessmentId)
+            ->whereNotNull('submitted_at')
+            ->count();
+    }
+
     public function latestForAssignmentAndUser(int $assignmentId, int $userId): ?Attempt
     {
         return $this->query()

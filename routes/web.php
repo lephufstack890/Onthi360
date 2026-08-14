@@ -90,6 +90,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{question}/oj', [StudentAssessmentController::class, 'oj'])->name('assessment.oj');
         Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');
+        Route::post('attempts/{attempt}/answers', [StudentAssessmentController::class, 'saveAnswers'])->name('assessment.take.save');
+        Route::post('attempts/{attempt}/submit', [StudentAssessmentController::class, 'submit'])->name('assessment.take.submit');
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');

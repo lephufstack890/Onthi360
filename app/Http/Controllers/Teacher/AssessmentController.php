@@ -131,14 +131,6 @@ class AssessmentController extends Controller
     {
         return [
             'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
-            // Ngày để trống (opens_day/closes_day rổng) = không giới hạn mốc thời gian đó
-            // (opens_at/closes_at nullable ở Assignment). Toàn bộ 5 trường Ngày/Tháng/Năm/
-            // Giờ/Phút đều là <select> (không dùng <input type="date"> nữa — bản native
-            // từng bị trình duyệt thật gửi lên róng dù đã chọn, xem
-            // partials.optional-date-hour-minute-fields). Dùng 'numeric' + 'digits_between'
-            // thay 'integer' vì dropdown gửi lên dạng chuỗi có số 0 đứng đầu (vd "08"), và
-            // rule 'integer' của Laravel dùng filter_var(FILTER_VALIDATE_INT) sẽ từ chối
-            // chuỗi kiểu đó (bug thực tế đã gặp ở form Lịch, xem ScheduleController::store()).
             'opens_day' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,31'],
             'opens_month' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,12'],
             'opens_year' => ['nullable', 'numeric', 'digits_between:4,4', 'between:2000,2100'],

@@ -47,7 +47,7 @@ class PracticeService
                     'difficulty' => '',
                     'status' => $a->isOpenNow() ? 'Đã mở' : 'Đã đóng',
                     'tone' => $a->isOpenNow() ? 'success' : 'neutral',
-                    'takeRoute' => route('student.assessment.take', $a->assessment_id),
+                    'takeRoute' => route('student.assessment.take', ['assessment' => $a->assessment_id, 'assignment' => $a->id]),
                 ])->all(),
             'assigned' => $this->assignedTabItems($classRoomIds),
             'saved' => [], // TODO: chưa có bảng "đã lưu/bookmark".
@@ -97,7 +97,7 @@ class PracticeService
                 'difficulty' => '',
                 'status' => $a->due_at ? 'Hạn: '.$a->due_at->format('d/m H:i') : 'Đang mở',
                 'tone' => 'warning',
-                'takeRoute' => route('student.assessment.take', $a->assessment_id),
+                'takeRoute' => route('student.assessment.take', ['assessment' => $a->assessment_id, 'assignment' => $a->id]),
             ])->all();
     }
 }

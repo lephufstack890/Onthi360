@@ -15,6 +15,10 @@ interface AttemptRepositoryInterface extends BaseRepositoryInterface
 
     public function inProgressForUserAndAssessment(int $userId, int $assessmentId): ?Attempt;
 
+    /** Số lượt ĐÃ NỘP (submitted_at khác null) của 1 user cho 1 đề — dùng để so với
+     * resubmission_policy['max_attempts'] khi mở lượt làm bài mới (6.3). */
+    public function countSubmittedForUserAndAssessment(int $userId, int $assessmentId): int;
+
     public function latestForAssignmentAndUser(int $assignmentId, int $userId): ?Attempt;
 
     public function withAnswersAndAssessment(int $id): ?Attempt;
