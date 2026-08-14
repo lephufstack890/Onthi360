@@ -134,19 +134,19 @@
                 @csrf
                 <div>
                     <label class="text-xs text-slate-500">Loại tài nguyên</label>
-                    <select name="type" x-model="type" class="mt-1 w-full sm:w-64 rounded-lg border border-slate-200 text-sm p-2">
+                    <x-select name="type" x-model="type" class="mt-1 w-full sm:w-64">
                         <option value="material">Tài liệu (đã gắn lớp)</option>
                         <option value="question">Câu hỏi (của tôi)</option>
                         <option value="assessment">Đề thi / bài tập (của tôi)</option>
                         <option value="video">Video</option>
                         <option value="link">Link</option>
                         <option value="note">Ghi chú</option>
-                    </select>
+                    </x-select>
                 </div>
 
                 <div x-show="type === 'material'">
                     <label class="text-xs text-slate-500">Chọn tài liệu</label>
-                    <select name="material_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    <x-select name="material_id" class="mt-1 w-full">
                         @if (empty($materialOptions))
                             <option value="">— Lớp chưa gắn tài liệu nào (xem tab Học liệu) —</option>
                         @else
@@ -154,12 +154,12 @@
                                 <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
                             @endforeach
                         @endif
-                    </select>
+                    </x-select>
                 </div>
 
                 <div x-show="type === 'question'">
                     <label class="text-xs text-slate-500">Chọn câu hỏi</label>
-                    <select name="question_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    <x-select name="question_id" class="mt-1 w-full">
                         @if (empty($questionOptions))
                             <option value="">— Bạn chưa có câu hỏi đã phát hành nào (xem Kho câu hỏi) —</option>
                         @else
@@ -167,12 +167,12 @@
                                 <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
                             @endforeach
                         @endif
-                    </select>
+                    </x-select>
                 </div>
 
                 <div x-show="type === 'assessment'">
                     <label class="text-xs text-slate-500">Chọn đề thi / bài tập</label>
-                    <select name="assessment_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    <x-select name="assessment_id" class="mt-1 w-full">
                         @if (empty($assessmentOptions))
                             <option value="">— Bạn chưa tạo đề thi/bài tập nào —</option>
                         @else
@@ -180,7 +180,7 @@
                                 <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
                             @endforeach
                         @endif
-                    </select>
+                    </x-select>
                 </div>
 
                 <div x-show="type === 'video' || type === 'link' || type === 'note'" class="space-y-2">

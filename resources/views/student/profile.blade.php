@@ -57,21 +57,21 @@
                     </div>
                     <div>
                         <label class="block text-sm text-slate-600 mb-1" for="province">Tỉnh/thành</label>
-                        <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <x-select id="province" name="province">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($provinceOptions as $p)
                                 <option value="{{ $p }}" @selected(old('province', $user->province ?? '') === $p)>{{ $p }}</option>
                             @endforeach
-                        </select>
+                        </x-select>
                     </div>
                     <div>
                         <label class="block text-sm text-slate-600 mb-1" for="region">Khu vực</label>
-                        <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <x-select id="region" name="region">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($regionOptions as $value => $label)
                                 <option value="{{ $value }}" @selected(old('region', $user->region ?? '') === $value)>{{ $label }}</option>
                             @endforeach
-                        </select>
+                        </x-select>
                     </div>
                     <div class="sm:col-span-2">
                         <button type="submit" class="mt-2 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu thay đổi</button>

@@ -22,7 +22,7 @@
             <div class="flex items-center shrink-0 rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-emerald-100 focus-within:border-emerald-400 transition">
                 <label class="sr-only" for="starts_hour">Giờ bắt đầu</label>
                 <select id="starts_hour" name="starts_hour" required
-                        class="border-0 bg-transparent text-sm py-2.5 pl-2.5 pr-0.5 text-right focus:outline-none focus:ring-0">
+                        class="border-0 bg-transparent text-sm py-2.5 pl-2.5 pr-0.5 text-right appearance-none cursor-pointer focus:outline-none focus:ring-0">
                     @for ($h = 0; $h < 24; $h++)
                         @php $hh = sprintf('%02d', $h); @endphp
                         <option value="{{ $hh }}" @selected(old('starts_hour') === $hh)>{{ $hh }}</option>
@@ -31,7 +31,7 @@
                 <span class="text-slate-400">:</span>
                 <label class="sr-only" for="starts_minute">Phút bắt đầu</label>
                 <select id="starts_minute" name="starts_minute" required
-                        class="border-0 bg-transparent text-sm py-2.5 pl-0.5 pr-2.5 focus:outline-none focus:ring-0">
+                        class="border-0 bg-transparent text-sm py-2.5 pl-0.5 pr-2.5 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                     @foreach (range(0, 55, 5) as $m)
                         @php $mm = sprintf('%02d', $m); @endphp
                         <option value="{{ $mm }}" @selected(old('starts_minute') === $mm)>{{ $mm }}</option>
@@ -52,7 +52,7 @@
             <div class="flex items-center shrink-0 rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-400 transition">
                 <label class="sr-only" for="ends_hour">Giờ kết thúc</label>
                 <select id="ends_hour" name="ends_hour" required
-                        class="border-0 bg-transparent text-sm py-2.5 pl-2.5 pr-0.5 text-right focus:outline-none focus:ring-0">
+                        class="border-0 bg-transparent text-sm py-2.5 pl-2.5 pr-0.5 text-right appearance-none cursor-pointer focus:outline-none focus:ring-0">
                     @for ($h = 0; $h < 24; $h++)
                         @php $hh = sprintf('%02d', $h); @endphp
                         <option value="{{ $hh }}" @selected(old('ends_hour') === $hh)>{{ $hh }}</option>
@@ -61,7 +61,7 @@
                 <span class="text-slate-400">:</span>
                 <label class="sr-only" for="ends_minute">Phút kết thúc</label>
                 <select id="ends_minute" name="ends_minute" required
-                        class="border-0 bg-transparent text-sm py-2.5 pl-0.5 pr-2.5 focus:outline-none focus:ring-0">
+                        class="border-0 bg-transparent text-sm py-2.5 pl-0.5 pr-2.5 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                     @foreach (range(0, 55, 5) as $m)
                         @php $mm = sprintf('%02d', $m); @endphp
                         <option value="{{ $mm }}" @selected(old('ends_minute') === $mm)>{{ $mm }}</option>

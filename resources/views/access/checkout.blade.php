@@ -74,10 +74,10 @@
 
             <div class="mb-6">
                 <label class="block text-sm font-medium text-slate-600 mb-2">Phương thức thanh toán</label>
-                <select class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                <x-select>
                     <option>Thanh toán ngoài hệ thống — admin duyệt</option>
                     <option disabled>VNPAY (sắp mở)</option>
-                </select>
+                </x-select>
             </div>
 
             <div class="flex items-center justify-between border-t border-slate-100 pt-4 mb-6">

@@ -53,21 +53,21 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="province">Tỉnh/thành (tùy chọn)</label>
-                        <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <x-select id="province" name="province">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($provinceOptions as $p)
                                 <option value="{{ $p }}" @selected(old('province') === $p)>{{ $p }}</option>
                             @endforeach
-                        </select>
+                        </x-select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="region">Khu vực (tùy chọn)</label>
-                        <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <x-select id="region" name="region">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($regionOptions as $value => $label)
                                 <option value="{{ $value }}" @selected(old('region') === $value)>{{ $label }}</option>
                             @endforeach
-                        </select>
+                        </x-select>
                     </div>
                 </div>
 

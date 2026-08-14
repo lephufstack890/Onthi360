@@ -21,7 +21,7 @@
     <div class="space-y-1.5">
         <div class="flex items-center rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-300 transition">
             <select name="{{ $prefix }}_day" x-model="day" aria-label="Ngày"
-                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                    class="w-full border-0 bg-transparent text-xs p-2 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                 <option value="">— Ngày —</option>
                 @for ($d = 1; $d <= 31; $d++)
                     @php $dd = sprintf('%02d', $d); @endphp
@@ -30,7 +30,7 @@
             </select>
             <span class="text-slate-400 shrink-0 text-xs px-0.5">/</span>
             <select name="{{ $prefix }}_month" x-model="month" aria-label="Tháng"
-                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                    class="w-full border-0 bg-transparent text-xs p-2 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                 @for ($m = 1; $m <= 12; $m++)
                     @php $mm = sprintf('%02d', $m); @endphp
                     <option value="{{ $mm }}" @selected(old($prefix.'_month', now()->format('m')) === $mm)>{{ $mm }}</option>
@@ -38,7 +38,7 @@
             </select>
             <span class="text-slate-400 shrink-0 text-xs px-0.5">/</span>
             <select name="{{ $prefix }}_year" x-model="year" aria-label="Năm"
-                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                    class="w-full border-0 bg-transparent text-xs p-2 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                 @for ($y = (int) now()->format('Y'); $y <= (int) now()->format('Y') + 2; $y++)
                     <option value="{{ $y }}" @selected((string) old($prefix.'_year', now()->format('Y')) === (string) $y)>{{ $y }}</option>
                 @endfor
@@ -46,7 +46,7 @@
         </div>
         <div class="flex items-center rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-rose-100 focus-within:border-rose-300 transition">
             <select name="{{ $prefix }}_hour" x-model="hour" aria-label="Giờ"
-                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                    class="w-full border-0 bg-transparent text-xs p-2 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                 @for ($h = 0; $h < 24; $h++)
                     @php $hh = sprintf('%02d', $h); @endphp
                     <option value="{{ $hh }}" @selected(old($prefix.'_hour') === $hh)>{{ $hh }}</option>
@@ -54,7 +54,7 @@
             </select>
             <span class="text-slate-400 shrink-0 text-xs px-0.5">:</span>
             <select name="{{ $prefix }}_minute" x-model="minute" aria-label="Phút"
-                    class="w-full border-0 bg-transparent text-xs p-2 focus:outline-none focus:ring-0">
+                    class="w-full border-0 bg-transparent text-xs p-2 appearance-none cursor-pointer focus:outline-none focus:ring-0">
                 @foreach (range(0, 55, 5) as $m)
                     @php $mm = sprintf('%02d', $m); @endphp
                     <option value="{{ $mm }}" @selected(old($prefix.'_minute') === $mm)>{{ $mm }}</option>
