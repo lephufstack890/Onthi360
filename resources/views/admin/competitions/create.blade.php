@@ -1,9 +1,12 @@
 {{--
   Route: admin.competitions.create / .store
   Spec: 11.1 (Đề thi không nằm trong menu Cuộc thi — nó là Tài liệu, cuộc thi chỉ THAM CHIẾU
-  đề/bộ bài để tổ chức sự kiện) + 11.2 (bảng xếp hạng: công thức điểm, penalty, đồng điểm).
-  Dữ liệu thật ($types, $statuses, $assessmentOptions) do CompetitionController::create()
-  truyền vào qua App\Services\Admin\CompetitionService::createFormData().
+  đề/bộ bài để tổ chức sự kiện) + 11.2 (bảng xếp hạng: công thức điểm, penalty, đồng điểm) +
+  note họp 13/8 mục 1 ("cuộc thi ngoài đơn vị tổ chức thì cần có chuyên gia cố vấn giáo viên
+  đồng hành để tăng uy tín").
+  Dữ liệu thật ($types, $statuses, $assessmentOptions, $organizerTypes, $teacherOptions) do
+  CompetitionController::create() truyền vào qua App\Services\Admin\CompetitionService::
+  createFormData().
 --}}
 @extends('layouts.admin')
 
@@ -11,7 +14,10 @@
 @section('page-title', 'Tạo cuộc thi')
 
 @section('content')
-    @php $types = $types ?? []; $statuses = $statuses ?? []; $assessmentOptions = $assessmentOptions ?? []; @endphp
+    @php
+        $types = $types ?? []; $statuses = $statuses ?? []; $assessmentOptions = $assessmentOptions ?? [];
+        $organizerTypes = $organizerTypes ?? []; $teacherOptions = $teacherOptions ?? [];
+    @endphp
 
     <a href="{{ route('admin.competitions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Cuộc thi</a>
 
@@ -22,7 +28,7 @@
     @endif
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
-        <form method="POST" action="{{ route('admin.competitions.store') }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.competitions.store') }}" class="space-y-4" x-data="{ organizerType: '{{ old('organizer_type', 'internal') }}' }">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -39,6 +45,36 @@
                         @endforeach
                     </x-select>
                     <p class="text-xs text-slate-400 mt-1">Khảo sát = loại sự kiện không thi đua (11.1).</p>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-3">
+                <p class="text-sm font-medium text-amber-700">Đơn vị tổ chức (note họp 13/8, mục 1)</p>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1" for="organizer_type">Cuộc thi do ai tổ chức?</label>
+                    <x-select id="organizer_type" name="organizer_type" x-model="organizerType" required>
+                        @foreach ($organizerTypes as $value => $label)
+                            <option value="{{ $value }}" @selected(old('organizer_type', 'internal') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </x-select>
+                </div>
+                <div x-show="organizerType === 'external'" x-cloak>
+                    <label class="block text-xs text-slate-500 mb-1" for="organizer_name">Tên đơn vị tổ chức</label>
+                    <input id="organizer_name" name="organizer_name" type="text" value="{{ old('organizer_name') }}" maxlength="255"
+                           placeholder="Ví dụ: Hội Tin học TP..."
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+
+                    <label class="block text-xs text-slate-500 mb-1 mt-3">Giáo viên cố vấn/đồng hành (bắt buộc ≥1 — tăng uy tín cho cuộc thi bên ngoài)</label>
+                    <div class="max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 space-y-1">
+                        @forelse ($teacherOptions as $t)
+                            <label class="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-amber-50 cursor-pointer">
+                                <input type="checkbox" name="advisor_teacher_ids[]" value="{{ $t['id'] }}" @checked(in_array($t['id'], old('advisor_teacher_ids', [])))>
+                                {{ $t['name'] }}
+                            </label>
+                        @empty
+                            <p class="text-xs text-slate-400 px-2 py-1">Chưa có giáo viên nào được duyệt để chọn làm cố vấn.</p>
+                        @endforelse
+                    </div>
                 </div>
             </div>
 

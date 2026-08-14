@@ -6,12 +6,14 @@ use App\Enums\ReviewStatus;
 use App\Enums\ReviewTargetType;
 use App\Models\ClassRoom;
 use App\Models\Material;
+use App\Models\RatingSummary;
 use App\Models\Review;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
+use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewReportRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Services\ReviewEligibilityService;
@@ -30,6 +32,7 @@ class ReviewService
         private AccessRightRepositoryInterface $accessRights,
         private AttendanceRepositoryInterface $attendance,
         private ReviewEligibilityService $eligibilityService,
+        private RatingSummaryRepositoryInterface $ratingSummaries,
     ) {}
 
     /** @return array{tab: string, tabs: array, reviews: array} */
@@ -59,21 +62,25 @@ class ReviewService
 
         $reviewModels = $query->latest()->limit(50)->get();
 
-        // Batch tra cứu target theo loại, thay cho ClassRoom::find()/Material::find() theo
-        // từng dòng trong ->map() — tránh N+1: chỉ 2 câu whereIn thay vì tối đa 50 câu.
+        // Batch tra cứu target theo loại, thay cho lookup theo từng dòng trong ->map() — tránh
+        // N+1: 1 câu whereIn cho mỗi loại đối tượng thay vì tối đa 50 câu.
         $materialIds = $reviewModels->where('target_type', ReviewTargetType::Material)->pluck('target_id')->unique()->all();
         $classRoomIds = $reviewModels->where('target_type', ReviewTargetType::ClassRoom)->pluck('target_id')->unique()->all();
+        $teacherIds = $reviewModels->where('target_type', ReviewTargetType::Teacher)->pluck('target_id')->unique()->all();
+        $competitionIds = $reviewModels->where('target_type', ReviewTargetType::Competition)->pluck('target_id')->unique()->all();
 
         $materialsById = $materialIds === [] ? collect() : $this->materials->query()->whereIn('id', $materialIds)->get()->keyBy('id');
         $classRoomsById = $classRoomIds === [] ? collect() : $this->classRooms->query()->whereIn('id', $classRoomIds)->get()->keyBy('id');
+        $teachersById = $teacherIds === [] ? collect() : User::whereIn('id', $teacherIds)->get()->keyBy('id');
+        $competitionsById = $competitionIds === [] ? collect() : \App\Models\Competition::whereIn('id', $competitionIds)->get()->keyBy('id');
 
-        $reviews = $reviewModels->map(function (Review $r) use ($materialsById, $classRoomsById) {
-            $target = $r->target_type === ReviewTargetType::ClassRoom
-                ? $classRoomsById->get($r->target_id)
-                : $materialsById->get($r->target_id);
-            $targetLabel = $r->target_type === ReviewTargetType::ClassRoom
-                ? ('Lớp '.($target->name ?? ''))
-                : ($target->title ?? '');
+        $reviews = $reviewModels->map(function (Review $r) use ($materialsById, $classRoomsById, $teachersById, $competitionsById) {
+            $targetLabel = match ($r->target_type) {
+                ReviewTargetType::ClassRoom => 'Lớp '.($classRoomsById->get($r->target_id)->name ?? ''),
+                ReviewTargetType::Teacher => 'Giáo viên '.($teachersById->get($r->target_id)->name ?? ''),
+                ReviewTargetType::Competition => 'Cuộc thi '.($competitionsById->get($r->target_id)->title ?? ''),
+                default => $materialsById->get($r->target_id)->title ?? '',
+            };
 
             return [
                 'id' => $r->id,
@@ -114,6 +121,14 @@ class ReviewService
             $classRoom = $this->classRooms->find($reviewModel->target_id);
             $targetLabel = 'Lớp '.($classRoom->name ?? '');
             $evidence = $this->classRoomEvidence($reviewModel, $classRoom);
+        } elseif ($reviewModel->target_type === ReviewTargetType::Teacher) {
+            $teacher = User::find($reviewModel->target_id);
+            $targetLabel = 'Giáo viên '.($teacher->name ?? '');
+            $evidence = $this->teacherEvidence($reviewModel, $teacher);
+        } elseif ($reviewModel->target_type === ReviewTargetType::Competition) {
+            $competition = \App\Models\Competition::find($reviewModel->target_id);
+            $targetLabel = 'Cuộc thi '.($competition->title ?? '');
+            $evidence = $this->competitionEvidence($reviewModel, $competition);
         } else {
             $material = $this->materials->findWithProduct($reviewModel->target_id);
             $targetLabel = $material->title ?? '';
@@ -174,6 +189,40 @@ class ReviewService
         ];
     }
 
+    /** Bằng chứng đủ điều kiện cho review GIÁO VIÊN (note họp 13/8, mục 2). */
+    private function teacherEvidence(Review $review, ?User $teacher): array
+    {
+        $reviewer = $review->reviewer;
+        if ($reviewer === null || $teacher === null) {
+            return [];
+        }
+
+        $decision = $this->eligibilityService->eligibleForTeacherReview($reviewer, $teacher);
+
+        return [
+            $decision->allowed
+                ? 'Đủ điều kiện trải nghiệm để đánh giá (9.2).'
+                : ($decision->message ?? 'Chưa đủ điều kiện trải nghiệm.'),
+        ];
+    }
+
+    /** Bằng chứng đủ điều kiện cho review CUỘC THI (note họp 13/8, mục 2). */
+    private function competitionEvidence(Review $review, ?\App\Models\Competition $competition): array
+    {
+        $reviewer = $review->reviewer;
+        if ($reviewer === null || $competition === null) {
+            return [];
+        }
+
+        $decision = $this->eligibilityService->eligibleForCompetitionReview($reviewer, $competition);
+
+        return [
+            $decision->allowed
+                ? 'Đã tham gia cuộc thi này (9.2).'
+                : ($decision->message ?? 'Chưa từng tham gia cuộc thi này.'),
+        ];
+    }
+
     /** admin.reviews.publish — 9.4: "Đã công bố" — sao/nhận xét bắt đầu hiển thị công khai. */
     public function publish(Review $review): Review
     {
@@ -182,6 +231,8 @@ class ReviewService
             'published_at' => now(),
             'moderation_reason' => null,
         ]);
+
+        $this->recomputeRatingSummary($review->target_type, $review->target_id);
 
         return $review;
     }
@@ -206,12 +257,17 @@ class ReviewService
         return $review;
     }
 
-    /** admin.reviews.hide — "Ẩn sau khi công bố", PHẢI có lý do (9.4, 10.4). Không xóa dữ liệu. */
+    /**
+     * admin.reviews.hide — "Ẩn sau khi công bố", PHẢI có lý do (9.4, 10.4). Không xóa dữ
+     * liệu — nhưng review ẩn không còn tính vào rating công khai, nên tính lại summary.
+     */
     public function hide(Review $review, string $reason): Review
     {
         Review::$auditReason = $reason;
         $review->update(['status' => ReviewStatus::Hidden, 'moderation_reason' => $reason]);
         Review::$auditReason = null;
+
+        $this->recomputeRatingSummary($review->target_type, $review->target_id);
 
         return $review;
     }
@@ -234,5 +290,44 @@ class ReviewService
         ]);
 
         return $review;
+    }
+
+    /**
+     * Tính lại avg_rating/review_count/distribution cho 1 đối tượng dựa trên TOÀN BỘ review
+     * đang "Đã công bố" của đối tượng đó (9.5) — gọi lại mỗi khi 1 review được công bố hoặc bị
+     * ẩn (2 hành động duy nhất làm thay đổi tập hợp review công khai).
+     */
+    private function recomputeRatingSummary(ReviewTargetType $targetType, int $targetId): void
+    {
+        $published = $this->reviews->query()
+            ->where('target_type', $targetType->value)
+            ->where('target_id', $targetId)
+            ->where('status', ReviewStatus::Published->value)
+            ->get(['overall_rating']);
+
+        $count = $published->count();
+        $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+
+        foreach ($published as $r) {
+            $bucket = max(1, min(5, (int) round($r->overall_rating)));
+            $distribution[$bucket]++;
+        }
+
+        $attributes = [
+            'target_type' => $targetType->value,
+            'target_id' => $targetId,
+            'avg_rating' => $count > 0 ? round($published->avg('overall_rating'), 2) : 0,
+            'review_count' => $count,
+            'distribution' => $distribution,
+            'updated_at_summary' => now(),
+        ];
+
+        $existing = $this->ratingSummaries->findForTarget($targetType, $targetId);
+
+        if ($existing !== null) {
+            $this->ratingSummaries->update($existing, $attributes);
+        } else {
+            $this->ratingSummaries->create($attributes);
+        }
     }
 }

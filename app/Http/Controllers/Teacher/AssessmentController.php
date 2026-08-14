@@ -143,6 +143,8 @@ class AssessmentController extends Controller
             'closes_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'due_at' => ['nullable', 'date'],
             'instructions' => ['nullable', 'string', 'max:2000'],
+            // Chia ca thi chống nghẽn khi đông thí sinh (note họp 13/8, mục 7).
+            'shift_count' => ['nullable', 'integer', 'min:1', 'max:20'],
         ];
     }
 

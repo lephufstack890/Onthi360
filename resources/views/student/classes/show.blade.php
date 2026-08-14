@@ -68,6 +68,9 @@
                                     <div>
                                         <p class="text-sm font-medium text-slate-700">{{ $item['title'] }}</p>
                                         <p class="text-xs text-slate-400">{{ $item['type'] }} · <x-status-badge :tone="$item['tone']">{{ $item['status'] }}</x-status-badge></p>
+                                        @if (! empty($item['shiftLabel']))
+                                            <p class="text-xs text-amber-600 mt-0.5">🕐 {{ $item['shiftLabel'] }} (chia ca thi chống nghẽn)</p>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="text-right">

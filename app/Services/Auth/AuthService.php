@@ -8,6 +8,7 @@ use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
 
@@ -79,5 +80,31 @@ class AuthService
     public function logout(): void
     {
         Auth::logout();
+    }
+
+    /**
+     * "Mỗi học sinh chỉ được đăng nhập trên 1 máy" (note họp 13/8, mục 7 — yêu cầu bảo mật).
+     * Dùng SESSION_DRIVER=database (bảng "sessions" có cột user_id, xem migration
+     * 0001_01_01_000000_create_users_table.php) — đăng nhập ở máy mới xoá luôn mọi session
+     * khác của CÙNG user_id đó, khiến các máy cũ tự động bị đăng xuất ở request kế tiếp
+     * (payload session không còn tồn tại). Chỉ áp cho vai trò Học sinh theo đúng phạm vi
+     * note yêu cầu — Giáo viên/Phụ huynh/Admin vẫn đăng nhập nhiều thiết bị bình thường.
+     *
+     * Lưu ý phạm vi: không xử lý cookie "remember me" của máy cũ (recaller token) — nếu
+     * học sinh có bật "Ghi nhớ đăng nhập" ở máy cũ, máy đó có thể tự đăng nhập lại bằng
+     * cookie đó. Việc rotate remember_token ở đây bị bỏ qua có chủ đích vì nó cũng sẽ vô
+     * hiệu hoá luôn cookie remember vừa được cấp cho chính lượt đăng nhập hiện tại (thứ tự
+     * Auth::attempt() → session()->regenerate() → hàm này chạy sau khi cookie đã gửi đi).
+     */
+    public function enforceSingleDeviceForStudents(User $user, string $currentSessionId): void
+    {
+        if (! $user->hasRole(Role::STUDENT)) {
+            return;
+        }
+
+        DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $currentSessionId)
+            ->delete();
     }
 }

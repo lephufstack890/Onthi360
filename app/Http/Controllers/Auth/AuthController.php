@@ -42,6 +42,10 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
+        // "Mỗi học sinh chỉ được đăng nhập trên 1 máy" (note họp 13/8, mục 7) — đăng xuất
+        // mọi thiết bị khác của CÙNG học sinh này ngay khi đăng nhập thành công ở đây.
+        $this->authService->enforceSingleDeviceForStudents($request->user(), $request->session()->getId());
+
         return redirect()->intended(route('dashboard'));
     }
 
@@ -68,6 +72,7 @@ class AuthController extends Controller
 
         $this->authService->login($user);
         $request->session()->regenerate();
+        $this->authService->enforceSingleDeviceForStudents($user, $request->session()->getId());
 
         return redirect()->intended(route('dashboard'));
     }

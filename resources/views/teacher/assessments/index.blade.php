@@ -73,6 +73,12 @@
                                 @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
                                 <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
                             </div>
+                            <div>
+                                <label class="block text-[11px] text-slate-500 mb-1">Chia ca thi (tùy chọn — chống nghẽn khi đông)</label>
+                                <input name="shift_count" type="number" min="1" max="20" placeholder="VD: 3"
+                                       class="w-full rounded-lg border border-slate-200 text-xs p-1.5">
+                                <p class="text-[10px] text-slate-400 mt-0.5">Cần đủ cả Mở lúc + Đóng lúc. Để trống = không chia ca.</p>
+                            </div>
                             <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)..."></textarea>
                             <button type="submit" class="w-full px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Xác nhận giao đề (8.4)</button>
                         </form>

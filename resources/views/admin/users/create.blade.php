@@ -2,7 +2,8 @@
   Route: admin.users.create / admin.users.store
   Spec: ADM-02 + 4.3 (đa vai trò — chọn nhiều vai trò ngay lúc tạo). Chọn vai trò "teacher"
   vẫn tạo hồ sơ giáo viên ở trạng thái "Chờ duyệt" (3.3, xem UserService::store()) — không có
-  lối tắt bỏ qua bước duyệt chỉ vì tài khoản do admin tạo trực tiếp.
+  lối tắt bỏ qua bước duyệt chỉ vì tài khoản do admin tạo trực tiếp. Tỉnh thành/khu vực (note
+  họp 13/8, mục 2: "để quảng cáo cho giáo viên") tùy chọn, có thể bổ sung sau ở trang Sửa.
   Dữ liệu thật ($availableRoles) do UserController::create() truyền vào qua
   UserService::createFormData().
 --}}
@@ -12,7 +13,11 @@
 @section('page-title', 'Thêm người dùng')
 
 @section('content')
-    @php $availableRoles = $availableRoles ?? []; @endphp
+    @php
+        $availableRoles = $availableRoles ?? [];
+        $regionOptions = \App\Support\VietnamProvinces::regionOptions();
+        $provinceOptions = \App\Support\VietnamProvinces::options();
+    @endphp
 
     <a href="{{ route('admin.users.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại danh sách người dùng</a>
 
@@ -43,6 +48,27 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="phone">Số điện thoại (tùy chọn)</label>
                     <input id="phone" name="phone" type="text" value="{{ old('phone') }}" maxlength="30"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="province">Tỉnh/thành (tùy chọn)</label>
+                        <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($provinceOptions as $p)
+                                <option value="{{ $p }}" @selected(old('province') === $p)>{{ $p }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="region">Khu vực (tùy chọn)</label>
+                        <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($regionOptions as $value => $label)
+                                <option value="{{ $value }}" @selected(old('region') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -3,7 +3,8 @@
   Dữ liệu thật do App\Http\Controllers\Teacher\ProfileController truyền vào qua
   App\Services\Teacher\ProfileService. approval_status/is_featured/achievement_note CHỈ
   Admin đổi được (TeacherApprovalService/FeaturedTeacherService) — trang này chỉ hiển thị,
-  không có form sửa các trường đó.
+  không có form sửa các trường đó. Tỉnh thành/khu vực (note họp 13/8, mục 2: "để quảng cáo
+  cho giáo viên") lưu chung với thông tin tài khoản cơ bản qua ProfileController::update().
 --}}
 @extends('layouts.teacher')
 
@@ -20,6 +21,8 @@
             'suspended' => 'warning',
             default => 'neutral',
         };
+        $regionOptions = \App\Support\VietnamProvinces::regionOptions();
+        $provinceOptions = \App\Support\VietnamProvinces::options();
     @endphp
 
     @if (session('status') === 'profile-updated')
@@ -70,8 +73,8 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2"><span>🙂</span> Thông tin cá nhân</h3>
 
-                @if ($errors->hasAny(['name', 'phone']))
-                    @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', \Illuminate\Support\Arr::flatten($errors->only(['name', 'phone'])))])
+                @if ($errors->hasAny(['name', 'phone', 'province', 'region']))
+                    @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', \Illuminate\Support\Arr::flatten($errors->only(['name', 'phone', 'province', 'region'])))])
                 @endif
 
                 <form method="POST" action="{{ route('teacher.profile.update') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -91,6 +94,24 @@
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="phone">Số điện thoại</label>
                         <input id="phone" name="phone" type="text" value="{{ old('phone', $user->phone ?? '') }}"
                                placeholder="Chưa cập nhật" class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="province">Tỉnh/thành (để quảng cáo tới học sinh gần bạn)</label>
+                        <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($provinceOptions as $p)
+                                <option value="{{ $p }}" @selected(old('province', $user->province ?? '') === $p)>{{ $p }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="region">Khu vực</label>
+                        <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($regionOptions as $value => $label)
+                                <option value="{{ $value }}" @selected(old('region', $user->region ?? '') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="sm:col-span-2">
                         <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Lưu thay đổi</button>

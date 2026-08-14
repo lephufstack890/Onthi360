@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\CompetitionOrganizerType;
 use App\Enums\CompetitionStatus;
 use App\Enums\CompetitionType;
 use App\Models\Competition;
@@ -9,6 +10,7 @@ use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Gom truy vấn/nhãn cho admin.competitions.* (ADM-05, 11.1: vòng đời cuộc thi).
@@ -21,7 +23,7 @@ class CompetitionService
         private AssessmentRepositoryInterface $assessments,
     ) {}
 
-    /** @return array{types: array, statuses: array, assessmentOptions: array} */
+    /** @return array{types: array, statuses: array, assessmentOptions: array, organizerTypes: array, teacherOptions: array} */
     private function formOptions(): array
     {
         return [
@@ -35,6 +37,14 @@ class CompetitionService
             ],
             // Đề thi luôn thuộc Tài liệu (11.1) — cuộc thi chỉ THAM CHIẾU, không tạo đề riêng.
             'assessmentOptions' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
+            'organizerTypes' => [
+                CompetitionOrganizerType::Internal->value => 'Nội bộ (nền tảng tự tổ chức)',
+                CompetitionOrganizerType::External->value => 'Bên ngoài tổ chức',
+            ],
+            // Cố vấn/đồng hành (note họp 13/8, mục 1) chỉ chọn từ giáo viên đã được duyệt (3.3).
+            'teacherOptions' => $this->teacherProfiles->approvedWithUser(200)
+                ->map(fn ($tp) => ['id' => $tp->user->id, 'name' => $tp->user->name])
+                ->values()->all(),
         ];
     }
 
@@ -75,9 +85,37 @@ class CompetitionService
         return $this->formOptions();
     }
 
+    /**
+     * Note họp 13/8, mục 1: cuộc thi tổ chức BỞI BÊN NGOÀI bắt buộc phải nêu rõ đơn vị tổ
+     * chức + có ít nhất 1 giáo viên cố vấn/đồng hành để tăng uy tín — kiểm tra ở tầng
+     * Service (không chỉ ở form) để không ai lách qua request thẳng (16 mục 3).
+     *
+     * @throws ValidationException
+     */
+    private function assertOrganizerDataValid(array $data): void
+    {
+        if (($data['organizer_type'] ?? CompetitionOrganizerType::Internal->value) !== CompetitionOrganizerType::External->value) {
+            return;
+        }
+
+        if (trim($data['organizer_name'] ?? '') === '') {
+            throw ValidationException::withMessages([
+                'organizer_name' => 'Cuộc thi do bên ngoài tổ chức phải nêu rõ tên đơn vị tổ chức.',
+            ]);
+        }
+
+        if (empty($data['advisor_teacher_ids'])) {
+            throw ValidationException::withMessages([
+                'advisor_teacher_ids' => 'Cuộc thi do bên ngoài tổ chức phải có ít nhất 1 giáo viên cố vấn/đồng hành để tăng uy tín.',
+            ]);
+        }
+    }
+
     /** admin.competitions.store — slug tự sinh từ tiêu đề (giống Course/Product). */
     public function store(array $data): Competition
     {
+        $this->assertOrganizerDataValid($data);
+
         $baseSlug = Str::slug($data['title']);
         $slug = $baseSlug;
         $suffix = 2;
@@ -86,10 +124,12 @@ class CompetitionService
             $suffix++;
         }
 
-        return $this->competitions->create([
+        $competition = $this->competitions->create([
             'title' => $data['title'],
             'slug' => $slug,
             'type' => $data['type'],
+            'organizer_type' => $data['organizer_type'] ?? CompetitionOrganizerType::Internal->value,
+            'organizer_name' => $data['organizer_type'] === CompetitionOrganizerType::External->value ? trim($data['organizer_name']) : null,
             'assessment_id' => $data['assessment_id'] ?: null,
             'rules' => $data['rules'] ?? null,
             'starts_at' => $data['starts_at'] ?: null,
@@ -98,21 +138,32 @@ class CompetitionService
             'status' => $data['status'],
             'ranking_rule' => $this->buildRankingRule($data),
         ]);
+
+        $competition->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
+
+        return $competition;
     }
 
     /** admin.competitions.edit — cuộc thi hiện tại + option form. Slug KHÔNG cho sửa (giữ link). */
     public function editFormData(int $competitionId): array
     {
+        $competition = $this->competitions->query()->with('advisors')->findOrFail($competitionId);
+
         return array_merge($this->formOptions(), [
-            'competition' => $this->competitions->findOrFail($competitionId),
+            'competition' => $competition,
+            'selectedAdvisorIds' => $competition->advisors->pluck('id')->all(),
         ]);
     }
 
     public function update(Competition $competition, array $data): Competition
     {
-        return $this->competitions->update($competition, [
+        $this->assertOrganizerDataValid($data);
+
+        $updated = $this->competitions->update($competition, [
             'title' => $data['title'],
             'type' => $data['type'],
+            'organizer_type' => $data['organizer_type'] ?? CompetitionOrganizerType::Internal->value,
+            'organizer_name' => $data['organizer_type'] === CompetitionOrganizerType::External->value ? trim($data['organizer_name']) : null,
             'assessment_id' => $data['assessment_id'] ?: null,
             'rules' => $data['rules'] ?? null,
             'starts_at' => $data['starts_at'] ?: null,
@@ -121,6 +172,10 @@ class CompetitionService
             'status' => $data['status'],
             'ranking_rule' => $this->buildRankingRule($data),
         ]);
+
+        $updated->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
+
+        return $updated;
     }
 
     /**
@@ -136,7 +191,10 @@ class CompetitionService
     /** @return array{competition: Competition} */
     public function showData(int $competitionId): array
     {
-        $competition = $this->competitions->query()->withCount('leaderboardEntries')->with('assessment')->findOrFail($competitionId);
+        $competition = $this->competitions->query()
+            ->withCount('leaderboardEntries')
+            ->with(['assessment', 'advisors'])
+            ->findOrFail($competitionId);
 
         return ['competition' => $competition];
     }

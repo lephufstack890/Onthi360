@@ -4,7 +4,12 @@ namespace App\Services;
 
 use App\Enums\AccessScope;
 use App\Enums\ReviewTargetType;
+use App\Models\Attendance;
+use App\Models\Attempt;
 use App\Models\ClassRoom;
+use App\Models\ClassSession;
+use App\Models\Competition;
+use App\Models\LeaderboardEntry;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\AccessDecision;
@@ -83,9 +88,65 @@ class ReviewEligibilityService
             : AccessDecision::deny('threshold_not_met', 'Bạn cần tham gia ít nhất 2 buổi hoặc hoàn thành một hoạt động.');
     }
 
+    /**
+     * Đánh giá GIÁO VIÊN (note họp 13/8, mục 2) — cùng ngưỡng trải nghiệm như đánh giá lớp
+     * (tham gia ≥2 buổi có mặt HOẶC hoàn thành 1 hoạt động), nhưng gộp trên MỌI lớp giáo
+     * viên này từng phụ trách thay vì chỉ 1 lớp cụ thể — học sinh/phụ huynh không cần nhớ
+     * đúng lớp nào để đánh giá đúng giáo viên đã dạy mình.
+     */
+    public function eligibleForTeacherReview(User $user, User $teacher): AccessDecision
+    {
+        if ($user->id === $teacher->id) {
+            return AccessDecision::deny('cannot_review_self', 'Không thể tự đánh giá chính mình.');
+        }
+
+        if (! $teacher->isTeacherApproved()) {
+            return AccessDecision::deny('target_not_found', 'Không tìm thấy giáo viên để đánh giá.');
+        }
+
+        $taughtClassRoomIds = $teacher->classRoomsTeaching()->pluck('class_rooms.id');
+
+        if ($taughtClassRoomIds->isEmpty()) {
+            return AccessDecision::deny('teacher_has_no_class', 'Giáo viên này chưa từng phụ trách lớp nào.');
+        }
+
+        $isParent = $user->childLinks()->where('status', 'verified')->exists();
+
+        if ($isParent) {
+            $childIds = $user->childLinks()->where('status', 'verified')->pluck('student_user_id');
+            $anyChildEligible = $childIds->contains(
+                fn ($childId) => $this->studentMeetsTeacherThreshold($taughtClassRoomIds, $childId)
+            );
+
+            return $anyChildEligible
+                ? AccessDecision::allow()
+                : AccessDecision::deny('child_not_eligible_yet', 'Con của bạn chưa đủ điều kiện trải nghiệm với giáo viên này.');
+        }
+
+        return $this->studentMeetsTeacherThreshold($taughtClassRoomIds, $user->id)
+            ? AccessDecision::allow()
+            : AccessDecision::deny('threshold_not_met', 'Bạn cần tham gia ít nhất 2 buổi học hoặc hoàn thành một hoạt động với giáo viên này.');
+    }
+
+    /**
+     * Đánh giá CUỘC THI (note họp 13/8, mục 2) — điều kiện tối thiểu là đã THỰC SỰ tham gia
+     * (có mặt trên bảng xếp hạng của đúng cuộc thi này), không cho đánh giá "hộ" khi chưa
+     * từng thi.
+     */
+    public function eligibleForCompetitionReview(User $user, Competition $competition): AccessDecision
+    {
+        $participated = LeaderboardEntry::where('competition_id', $competition->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        return $participated
+            ? AccessDecision::allow()
+            : AccessDecision::deny('not_participated', 'Bạn cần tham gia cuộc thi này trước khi đánh giá.');
+    }
+
     private function studentMeetsClassThreshold(ClassRoom $classRoom, int $studentId): bool
     {
-        $attendanceCount = \App\Models\Attendance::where('student_id', $studentId)
+        $attendanceCount = Attendance::where('student_id', $studentId)
             ->where('status', 'present')
             ->whereIn('class_session_id', $classRoom->sessions()->pluck('id'))
             ->count();
@@ -94,8 +155,28 @@ class ReviewEligibilityService
             return true;
         }
 
-        return \App\Models\Attempt::where('user_id', $studentId)
+        return Attempt::where('user_id', $studentId)
             ->where('class_room_id', $classRoom->id)
+            ->where('status', 'graded')
+            ->exists();
+    }
+
+    /** @param  \Illuminate\Support\Collection<int, int>  $classRoomIds */
+    private function studentMeetsTeacherThreshold($classRoomIds, int $studentId): bool
+    {
+        $sessionIds = ClassSession::whereIn('class_room_id', $classRoomIds)->pluck('id');
+
+        $attendanceCount = Attendance::where('student_id', $studentId)
+            ->where('status', 'present')
+            ->whereIn('class_session_id', $sessionIds)
+            ->count();
+
+        if ($attendanceCount >= 2) {
+            return true;
+        }
+
+        return Attempt::where('user_id', $studentId)
+            ->whereIn('class_room_id', $classRoomIds)
             ->where('status', 'graded')
             ->exists();
     }

@@ -2,16 +2,23 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\AccessRightStatus;
+use App\Enums\AccessScope;
 use App\Enums\ContentStatus;
 use App\Enums\ProductType;
 use App\Enums\Visibility;
+use App\Models\AccessRight;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Support\Str;
 
 /**
- * Gom truy vấn/nhãn cho admin.products.* — "Sản phẩm & Quyền" (5.1).
+ * Gom truy vấn/nhãn cho admin.products.* — "Sản phẩm & Quyền" (5.1). Trang chi tiết sản
+ * phẩm PHẢI làm rõ (note họp 13/8, mục 2): sản phẩm dùng để làm gì + tạo từ khi nào (đã có
+ * sẵn ở phần "Thông tin sản phẩm"), danh sách các quyền đã cấp cho sản phẩm này, và với
+ * quyền cấp từ đơn hàng thì xem được đã thanh toán/duyệt lúc nào (7.4).
  */
 class ProductService
 {
@@ -143,9 +150,68 @@ class ProductService
         return ['tabs' => $tabs, 'products' => $products];
     }
 
-    /** @return array{product: Product} */
+    /**
+     * admin.products.show — làm rõ sản phẩm để làm gì/tạo từ khi nào (đã có ở phần thông
+     * tin) VÀ danh sách quyền đã cấp cho sản phẩm này, kèm — với quyền đến từ đơn hàng —
+     * thời điểm đơn được duyệt/thanh toán (note họp 13/8, mục 2).
+     *
+     * @return array{product: Product, accessRightRows: array, accessRightCount: int}
+     */
     public function showData(int $productId): array
     {
-        return ['product' => $this->products->findOrFail($productId)];
+        $product = $this->products->findOrFail($productId);
+
+        $recentRights = $this->accessRights->query()
+            ->where('product_id', $productId)
+            ->with('user')
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        // AccessRight cấp từ đơn hàng lưu source_id = order_item_id (xem
+        // App\Services\OrderActivationService::activate()) — tra ngược để lấy order_no +
+        // approved_at (đúng thời điểm đơn được duyệt/thanh toán, khác thời điểm kích hoạt).
+        $orderItemIds = $recentRights->where('source', 'order')->pluck('source_id')->filter()->unique()->all();
+        $orderItemsById = OrderItem::whereIn('id', $orderItemIds)->with('order')->get()->keyBy('id');
+
+        $sourceLabels = [
+            'order' => 'Mua hàng', 'gift' => 'Tặng', 'admin_grant' => 'Admin cấp', 'package' => 'Gói',
+        ];
+
+        $accessRightRows = $recentRights->map(function (AccessRight $r) use ($orderItemsById, $sourceLabels) {
+            [$statusLabel, $tone] = $this->expiryStatus($r);
+            $order = $r->source === 'order' ? ($orderItemsById->get($r->source_id)?->order) : null;
+
+            return [
+                'id' => $r->id,
+                'userName' => $r->user->name ?? '—',
+                'scopeLabel' => $r->scope === AccessScope::TeacherTeaching ? 'Dùng để dạy' : 'Học cá nhân',
+                'statusLabel' => $statusLabel,
+                'tone' => $tone,
+                'startsAt' => $r->starts_at,
+                'expiresAt' => $r->expires_at,
+                'sourceLabel' => $sourceLabels[$r->source] ?? $r->source,
+                'orderNo' => $order?->order_no,
+                'paidAt' => $order?->approved_at,
+            ];
+        })->values()->all();
+
+        return [
+            'product' => $product,
+            'accessRightRows' => $accessRightRows,
+            'accessRightCount' => $this->accessRights->query()->where('product_id', $productId)->count(),
+        ];
+    }
+
+    /** Phân loại cửa sổ hết hạn cho 1 AccessRight — trả về [nhãn, tone] (giống AccessRightService). */
+    private function expiryStatus(AccessRight $r): array
+    {
+        return match (true) {
+            $r->status === AccessRightStatus::Active && $r->expires_at?->isFuture() && $r->expires_at->diffInDays(now()) <= 14 => ['Sắp hết hạn', 'warning'],
+            $r->status === AccessRightStatus::Active => ['Hiệu lực', 'success'],
+            $r->status === AccessRightStatus::Expired => ['Hết hạn', 'danger'],
+            $r->status === AccessRightStatus::Revoked => ['Đã thu hồi', 'neutral'],
+            default => [(string) $r->status->value, 'neutral'],
+        };
     }
 }

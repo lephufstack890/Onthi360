@@ -29,8 +29,10 @@ use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewReportRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Repositories\Contracts\SessionResourceRepositoryInterface;
 use App\Repositories\Contracts\SystemSettingRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
+use App\Repositories\Contracts\TokenTopupRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Eloquent\AccessRightRepository;
@@ -60,8 +62,10 @@ use App\Repositories\Eloquent\RatingSummaryRepository;
 use App\Repositories\Eloquent\ReviewReportRepository;
 use App\Repositories\Eloquent\ReviewRepository;
 use App\Repositories\Eloquent\RoleRepository;
+use App\Repositories\Eloquent\SessionResourceRepository;
 use App\Repositories\Eloquent\SystemSettingRepository;
 use App\Repositories\Eloquent\TeacherProfileRepository;
+use App\Repositories\Eloquent\TokenTopupRepository;
 use App\Repositories\Eloquent\UploadedDocumentRepository;
 use App\Repositories\Eloquent\UserRepository;
 use Illuminate\Support\ServiceProvider;
@@ -110,6 +114,8 @@ class RepositoryServiceProvider extends ServiceProvider
         CourseRepositoryInterface::class => CourseRepository::class,
         MaterialRepositoryInterface::class => MaterialRepository::class,
         SystemSettingRepositoryInterface::class => SystemSettingRepository::class,
+        SessionResourceRepositoryInterface::class => SessionResourceRepository::class,
+        TokenTopupRepositoryInterface::class => TokenTopupRepository::class,
     ];
 
     public function register(): void

@@ -18,6 +18,8 @@ class DashboardRoutingService
 {
     public const string ADMIN = 'admin';
 
+    public const string EDITOR = 'editor';
+
     public const string TEACHER = 'teacher';
 
     public const string PARENT = 'parent';
@@ -28,6 +30,12 @@ class DashboardRoutingService
     {
         if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
             return self::ADMIN;
+        }
+
+        // Editor (note họp 13/8, mục 5) không có quyền vào admin.dashboard — chỉ vào
+        // được khu Nội dung, nên không thể dùng chung nhánh ADMIN ở trên.
+        if ($user->hasRole(Role::EDITOR)) {
+            return self::EDITOR;
         }
 
         if ($user->hasRole(Role::TEACHER)) {

@@ -119,6 +119,11 @@ class ClassRoomService
      * Danh sách bài tập của lớp + trạng thái/kết quả theo học sinh hiện tại.
      * Lấy attempt mới nhất cho MỌI assignment trong một truy vấn (nhóm theo assignment_id)
      * thay vì một truy vấn riêng cho từng assignment (tránh N+1).
+     *
+     * status/mở-đóng dùng isOpenNowFor($user->id) thay vì isOpenNow() để đúng với ca thi
+     * riêng của học sinh này nếu Assignment có chia ca (note họp 13/8, mục 7) — hiển thị
+     * thêm "shiftLabel" để học sinh biết trước ca của mình là khung giờ nào, không phải
+     * chỉ biết khi bị chặn lúc bấm vào làm bài.
      */
     private function buildRoadmap(ClassRoom $classRoom, User $user): array
     {
@@ -139,13 +144,13 @@ class ClassRoomService
             ->get()
             ->groupBy('assignment_id');
 
-        $items = $assignments->map(function ($a) use ($latestAttemptsByAssignment) {
+        $items = $assignments->map(function ($a) use ($latestAttemptsByAssignment, $user) {
             $attempt = ($latestAttemptsByAssignment[$a->id] ?? collect())->first();
 
             $status = match (true) {
                 $a->status->value === 'draft' || $a->status->value === 'scheduled' => 'Giáo viên chưa mở',
                 $attempt !== null => 'Đã làm',
-                $a->isOpenNow() => 'Đã mở',
+                $a->isOpenNowFor($user->id) => 'Đã mở',
                 default => 'Đã đóng',
             };
             $tone = match ($status) {
@@ -155,12 +160,25 @@ class ClassRoomService
                 default => 'neutral',
             };
 
+            $shiftLabel = null;
+            if ($a->hasShifts()) {
+                $window = $a->shiftWindowFor($user->id);
+                $shiftLabel = sprintf(
+                    'Ca %d/%d: %s – %s',
+                    $window['index'] + 1,
+                    $window['count'],
+                    $window['opens_at']?->format('H:i d/m') ?? '—',
+                    $window['closes_at']?->format('H:i d/m') ?? '—',
+                );
+            }
+
             return [
                 'title' => $a->assessment->title ?? 'Bài tập',
                 'type' => $a->assessment?->type?->value ?? '',
                 'status' => $status,
                 'tone' => $tone,
                 'result' => $attempt?->total_score !== null ? (string) $attempt->total_score : 'Chưa làm',
+                'shiftLabel' => $shiftLabel,
             ];
         })->values()->all();
 

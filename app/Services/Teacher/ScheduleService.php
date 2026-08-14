@@ -3,16 +3,24 @@
 namespace App\Services\Teacher;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\SessionResourceType;
 use App\Models\Attendance;
 use App\Models\ClassRoom;
 use App\Models\ClassSession;
 use App\Models\Role;
+use App\Models\SessionResource;
 use App\Models\User;
+use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Repositories\Contracts\SessionResourceRepositoryInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Tổng hợp dữ liệu cho teacher.schedule.* — lịch buổi học + điểm danh xuyên các lớp giáo
@@ -24,6 +32,10 @@ class ScheduleService
         private readonly ClassRoomRepositoryInterface $classRooms,
         private readonly ClassSessionRepositoryInterface $classSessions,
         private readonly AttendanceRepositoryInterface $attendances,
+        private readonly SessionResourceRepositoryInterface $sessionResources,
+        private readonly ClassMaterialRepositoryInterface $classMaterials,
+        private readonly QuestionRepositoryInterface $questions,
+        private readonly AssessmentRepositoryInterface $assessments,
     ) {}
 
     /** teacher.schedule.index — toàn bộ buổi học của mọi lớp giáo viên phụ trách, sắp tới trước. */
@@ -146,7 +158,9 @@ class ScheduleService
      * (mặc định "present"), kèm nhận xét (mặc định 1 câu chung, note họp 13/8) + cột "Em
      * cần học thêm" + nguồn điểm danh (manual/auto — auto là học sinh tự vào làm bài lúc
      * buổi học đang diễn ra, xem App\Services\AttemptService::autoCheckIn()) để giáo viên
-     * chỉ cần tập trung xử lý các dòng CHƯA tự động.
+     * chỉ cần tập trung xử lý các dòng CHƯA tự động. Kèm luôn danh sách tài nguyên đã gắn
+     * buổi này + tùy chọn để thêm mới (note họp 13/8, mục 3: "Gắn tài liệu, câu hỏi, đề
+     * thi, video, link, … vào 1 buổi học cụ thể").
      */
     public function attendanceForSession(User $teacher, int $sessionId): array
     {
@@ -174,7 +188,140 @@ class ScheduleService
             'session' => $session,
             'classRoom' => $classRoom,
             'rows' => $rows,
+        ] + $this->resourcePickerData($teacher, $session);
+    }
+
+    /**
+     * Danh sách tài nguyên đã gắn buổi học này + các lựa chọn có thể thêm (chỉ tài liệu đã
+     * gắn lớp / câu hỏi & đề thi của chính giáo viên — không cho chọn bản ghi không thuộc
+     * quyền quản lý của giáo viên).
+     */
+    private function resourcePickerData(User $teacher, ClassSession $session): array
+    {
+        $resources = $this->sessionResources->forClassSession($session->id)
+            ->map(fn (SessionResource $r) => [
+                'id' => $r->id,
+                'type' => $r->type->value,
+                'typeLabel' => $r->type->label(),
+                'title' => $r->displayTitle(),
+                'url' => $r->url,
+                'note' => $r->note,
+            ])->values()->all();
+
+        $materialOptions = $this->classMaterials->activeForClassRoom($session->class_room_id)
+            ->map(fn ($cm) => ['id' => $cm->material_id, 'title' => $cm->material->title ?? '(học liệu)'])
+            ->values()->all();
+
+        $questionOptions = $this->questions->byOwner($teacher->id, 'published', 200)
+            ->map(fn ($q) => ['id' => $q->id, 'title' => Str::limit($q->title ?? '', 60)])
+            ->values()->all();
+
+        $assessmentOptions = $this->assessments->byOwner($teacher->id, 200)
+            ->map(fn ($a) => ['id' => $a->id, 'title' => $a->title])
+            ->values()->all();
+
+        return [
+            'sessionResources' => $resources,
+            'materialOptions' => $materialOptions,
+            'questionOptions' => $questionOptions,
+            'assessmentOptions' => $assessmentOptions,
         ];
+    }
+
+    /**
+     * teacher.schedule.resources.save — gắn 1 tài nguyên (tài liệu/câu hỏi/đề thi/video/
+     * link/ghi chú) vào buổi học này (note họp 13/8, mục 3). Với tài liệu/câu hỏi/đề thi,
+     * kiểm tra lại quyền sở hữu/gắn lớp NGAY TẠI THỜI ĐIỂM lưu — không tin id gửi từ danh
+     * sách đã hiển thị trước đó trên UI (16 mục 3).
+     */
+    public function addResource(User $teacher, int $sessionId, array $data): void
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $classRoom = $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $type = SessionResourceType::tryFrom($data['type'] ?? '');
+
+        if ($type === null) {
+            throw ValidationException::withMessages(['type' => 'Loại tài nguyên không hợp lệ.']);
+        }
+
+        $attrs = [
+            'class_session_id' => $session->id,
+            'type' => $type->value,
+            'added_by' => $teacher->id,
+        ];
+
+        switch ($type) {
+            case SessionResourceType::Material:
+                $materialId = (int) ($data['material_id'] ?? 0);
+                $stillAttached = $this->classMaterials->query()
+                    ->where('class_room_id', $classRoom->id)
+                    ->where('status', 'active')
+                    ->where('material_id', $materialId)
+                    ->exists();
+
+                if (! $stillAttached) {
+                    throw ValidationException::withMessages(['material_id' => 'Tài liệu này không (còn) gắn với lớp.']);
+                }
+
+                $attrs['material_id'] = $materialId;
+                break;
+
+            case SessionResourceType::Question:
+                $questionId = (int) ($data['question_id'] ?? 0);
+                $owned = $this->questions->query()
+                    ->where('id', $questionId)
+                    ->where('owner_id', $teacher->id)
+                    ->exists();
+
+                if (! $owned) {
+                    throw ValidationException::withMessages(['question_id' => 'Câu hỏi không hợp lệ.']);
+                }
+
+                $attrs['question_id'] = $questionId;
+                break;
+
+            case SessionResourceType::Assessment:
+                $assessmentId = (int) ($data['assessment_id'] ?? 0);
+                $owned = $this->assessments->query()
+                    ->where('id', $assessmentId)
+                    ->where('owner_type', 'teacher')
+                    ->where('owner_id', $teacher->id)
+                    ->exists();
+
+                if (! $owned) {
+                    throw ValidationException::withMessages(['assessment_id' => 'Đề thi/bài tập không hợp lệ.']);
+                }
+
+                $attrs['assessment_id'] = $assessmentId;
+                break;
+
+            default: // video / link / note — nhập tay
+                if (blank($data['title'] ?? null)) {
+                    throw ValidationException::withMessages(['title' => 'Cần nhập tiêu đề.']);
+                }
+
+                $attrs['title'] = $data['title'];
+                $attrs['url'] = $data['url'] ?? null;
+                $attrs['note'] = $data['note'] ?? null;
+                break;
+        }
+
+        $this->sessionResources->create($attrs);
+    }
+
+    /** teacher.schedule.resources.delete — gỡ 1 tài nguyên khỏi buổi học. */
+    public function removeResource(User $teacher, int $sessionId, int $resourceId): void
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $resource = $this->sessionResources->findOrFail($resourceId);
+        abort_unless((int) $resource->class_session_id === $session->id, 404);
+
+        $this->sessionResources->delete($resource);
     }
 
     /**

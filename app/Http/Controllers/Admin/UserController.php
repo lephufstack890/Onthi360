@@ -41,6 +41,8 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
             'password' => ['required', 'confirmed', 'min:8'],
             'roles' => ['nullable', 'array'],
             'roles.*' => ['string', 'in:'.implode(',', [Role::STUDENT, Role::TEACHER, Role::PARENT, Role::EDITOR, Role::ADMIN, Role::SUPER_ADMIN])],
@@ -67,6 +69,8 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'phone' => ['nullable', 'string', 'max:30'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
             'status' => ['required', 'string', 'in:active,suspended'],
             'reason' => [$request->input('status') === 'suspended' ? 'required' : 'nullable', 'string', 'max:1000'],
         ]);
@@ -91,5 +95,21 @@ class UserController extends Controller
         $this->userService->updateRoles(Auth::user(), $user, $data['roles'] ?? []);
 
         return redirect()->route('admin.users.show', $user->id)->with('status', 'roles-updated');
+    }
+
+    /**
+     * admin.users.password.update — Admin đổi mật khẩu trực tiếp cho người dùng (note họp
+     * 13/8, mục 2: "Cần có đổi mật khẩu... cho người dùng") — dùng khi người dùng không tự
+     * đổi được (quên mật khẩu, mất quyền truy cập email, …).
+     */
+    public function resetPassword(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        $this->userService->resetPassword(Auth::user(), $user, $data['password']);
+
+        return redirect()->route('admin.users.show', $user->id)->with('status', 'password-updated');
     }
 }

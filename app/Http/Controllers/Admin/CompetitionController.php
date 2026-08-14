@@ -7,6 +7,7 @@ use App\Models\Competition;
 use App\Services\Admin\CompetitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CompetitionController extends Controller
@@ -33,6 +34,13 @@ class CompetitionController extends Controller
             'scoring_note' => ['nullable', 'string', 'max:500'],
             'penalty_note' => ['nullable', 'string', 'max:500'],
             'tie_break_note' => ['nullable', 'string', 'max:500'],
+            // Đơn vị tổ chức + cố vấn (note họp 13/8, mục 1) — ràng buộc "bên ngoài phải có
+            // cố vấn" được kiểm tra thật ở tầng Service (App\Services\Admin\CompetitionService
+            // ::assertOrganizerDataValid), ở đây chỉ validate kiểu dữ liệu cơ bản.
+            'organizer_type' => ['required', 'string', 'in:internal,external'],
+            'organizer_name' => ['nullable', 'string', 'max:255'],
+            'advisor_teacher_ids' => ['nullable', 'array'],
+            'advisor_teacher_ids.*' => ['integer', 'exists:users,id'],
         ];
     }
 
@@ -44,7 +52,12 @@ class CompetitionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->validationRules());
-        $competition = $this->competitionService->store($data);
+
+        try {
+            $competition = $this->competitionService->store($data);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.competitions.create')->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-created');
     }
@@ -57,7 +70,12 @@ class CompetitionController extends Controller
     public function update(Request $request, Competition $competition): RedirectResponse
     {
         $data = $request->validate($this->validationRules());
-        $this->competitionService->update($competition, $data);
+
+        try {
+            $this->competitionService->update($competition, $data);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.competitions.edit', $competition->id)->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-updated');
     }

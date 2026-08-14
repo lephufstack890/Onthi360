@@ -259,7 +259,13 @@ class AssessmentService
      * quy tắc công bố. KHÔNG hỗ trợ ngoại lệ từng học sinh (8.4). Đề phải Published trước
      * khi giao — tự động phát hành nếu đủ điều kiện, ném lỗi cụ thể nếu chưa.
      *
-     * @throws ValidationException nếu đề chưa đủ điều kiện phát hành hoặc lớp không hợp lệ.
+     * shift_count (tùy chọn, > 1) — "chia ca thi" (note họp 13/8, mục 7: "Các kỳ thi nếu
+     * đông quá thì mình chia thành các ca thi để chống tấn công ddos"): bắt buộc phải có
+     * đủ cả opens_at và closes_at thì mới chia ca được (không có 2 mốc thì không biết chia
+     * khung giờ nào) — xem App\Models\Assignment::shiftWindowFor().
+     *
+     * @throws ValidationException nếu đề chưa đủ điều kiện phát hành, lớp không hợp lệ,
+     *                              hoặc yêu cầu chia ca nhưng thiếu mốc mở/đóng.
      */
     public function assignToClass(User $teacher, Assessment $assessment, array $data): Assignment
     {
@@ -277,12 +283,20 @@ class AssessmentService
         $closesAt = filled($data['closes_at'] ?? null) ? Carbon::parse($data['closes_at']) : null;
         $dueAt = filled($data['due_at'] ?? null) ? Carbon::parse($data['due_at']) : $closesAt;
 
+        $shiftCount = filled($data['shift_count'] ?? null) ? (int) $data['shift_count'] : null;
+        if ($shiftCount !== null && $shiftCount > 1 && ($opensAt === null || $closesAt === null)) {
+            throw ValidationException::withMessages([
+                'shift_count' => 'Cần đặt đủ cả mốc Mở lúc và Đóng lúc thì mới chia ca thi được.',
+            ]);
+        }
+
         return $this->assignments->create([
             'class_room_id' => $classRoom->id,
             'assessment_id' => $assessment->id,
             'opens_at' => $opensAt,
             'closes_at' => $closesAt,
             'due_at' => $dueAt,
+            'shift_count' => $shiftCount,
             'rules' => ['publish_answer_rule' => $assessment->publish_answer_rule->value],
             'instructions' => $data['instructions'] ?? null,
             'status' => $this->computeAssignmentStatus($opensAt, $closesAt)->value,

@@ -1,9 +1,12 @@
 {{--
-  Route: teacher.schedule.attendance / .attendance.save / .schedule.summary.save
+  Route: teacher.schedule.attendance / .attendance.save / .schedule.summary.save /
+  .schedule.resources.save / .schedule.resources.delete
   Frame: TEA-01/02
   Spec: 8.2 — điểm danh từng buổi (có mặt/vắng/vắng có phép/đi trễ) + nhận xét đánh giá
-  (mặc định 1 câu, sửa được) + "Em cần học thêm" + tổng kết buổi học. Dữ liệu thật do
-  App\Http\Controllers\Teacher\ScheduleController truyền vào qua ScheduleService.
+  (mặc định 1 câu, sửa được) + "Em cần học thêm" + tổng kết buổi học + tài nguyên buổi học
+  (note họp 13/8, mục 3: "Gắn tài liệu, câu hỏi, đề thi, video, link, … vào 1 buổi học cụ
+  thể"). Dữ liệu thật do App\Http\Controllers\Teacher\ScheduleController truyền vào qua
+  ScheduleService.
   Dòng "Tự động" (source=auto) là học sinh tự vào làm bài lúc buổi học đang diễn ra,
   App\Services\AttemptService::autoCheckIn() đã điểm danh sẵn — giáo viên chỉ cần rà lại
   nhận xét, không bắt buộc phải sửa trạng thái Có mặt/Vắng của các dòng này.
@@ -14,7 +17,13 @@
 @section('page-title', 'Điểm danh')
 
 @section('content')
-    @php $rows = $rows ?? []; @endphp
+    @php
+        $rows = $rows ?? [];
+        $sessionResources = $sessionResources ?? [];
+        $materialOptions = $materialOptions ?? [];
+        $questionOptions = $questionOptions ?? [];
+        $assessmentOptions = $assessmentOptions ?? [];
+    @endphp
 
     <a href="{{ route('teacher.schedule.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Lịch</a>
 
@@ -22,9 +31,12 @@
 
     @if (session('status') === 'attendance-saved')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu điểm danh.'])
-    @endif
-    @if (session('status') === 'summary-saved')
+    @elseif (session('status') === 'summary-saved')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu tổng kết buổi học.'])
+    @elseif (session('status') === 'resource-added')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gắn tài nguyên vào buổi học.'])
+    @elseif (session('status') === 'resource-removed')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ tài nguyên khỏi buổi học.'])
     @endif
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -80,5 +92,117 @@
                       class="w-full rounded-lg border border-slate-200 text-sm p-3 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">{{ $session->summary }}</textarea>
             <button type="submit" class="mt-3 px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-300 transition">Lưu tổng kết</button>
         </form>
+    </div>
+
+    {{-- Tài nguyên buổi học — note họp 13/8 mục 3: gắn tài liệu/câu hỏi/đề thi/video/link
+         riêng cho đúng buổi này, khác với "học liệu gắn cả lớp" ở tab Học liệu. --}}
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 mt-6">
+        <h3 class="font-medium text-slate-700 mb-1">Tài nguyên buổi học</h3>
+        <p class="text-xs text-slate-400 mb-3">Tài liệu, câu hỏi, đề thi, video, link… chuẩn bị riêng cho buổi này.</p>
+
+        <div class="space-y-2 mb-4">
+            @forelse ($sessionResources as $res)
+                <div class="flex items-center justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2">
+                    <div class="min-w-0 flex items-center gap-2">
+                        <x-status-badge tone="info">{{ $res['typeLabel'] }}</x-status-badge>
+                        <div class="min-w-0">
+                            @if ($res['url'])
+                                <a href="{{ $res['url'] }}" target="_blank" rel="noopener" class="text-sm text-rose-600 truncate hover:underline">{{ $res['title'] }}</a>
+                            @else
+                                <p class="text-sm text-slate-700 truncate">{{ $res['title'] }}</p>
+                            @endif
+                            @if ($res['note'])
+                                <p class="text-xs text-slate-400 truncate">{{ $res['note'] }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ route('teacher.schedule.resources.delete', ['session' => $session->id, 'resource' => $res['id']]) }}" class="inline shrink-0">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-rose-500 text-xs">Gỡ</button>
+                    </form>
+                </div>
+            @empty
+                <div class="rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-4 text-center">
+                    Buổi học này chưa gắn tài nguyên nào.
+                </div>
+            @endforelse
+        </div>
+
+        <div x-data="{ type: 'material' }" class="rounded-2xl border-2 border-dashed border-slate-200 p-4">
+            <form method="POST" action="{{ route('teacher.schedule.resources.save', $session->id) }}" class="space-y-3">
+                @csrf
+                <div>
+                    <label class="text-xs text-slate-500">Loại tài nguyên</label>
+                    <select name="type" x-model="type" class="mt-1 w-full sm:w-64 rounded-lg border border-slate-200 text-sm p-2">
+                        <option value="material">Tài liệu (đã gắn lớp)</option>
+                        <option value="question">Câu hỏi (của tôi)</option>
+                        <option value="assessment">Đề thi / bài tập (của tôi)</option>
+                        <option value="video">Video</option>
+                        <option value="link">Link</option>
+                        <option value="note">Ghi chú</option>
+                    </select>
+                </div>
+
+                <div x-show="type === 'material'">
+                    <label class="text-xs text-slate-500">Chọn tài liệu</label>
+                    <select name="material_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                        @if (empty($materialOptions))
+                            <option value="">— Lớp chưa gắn tài liệu nào (xem tab Học liệu) —</option>
+                        @else
+                            @foreach ($materialOptions as $opt)
+                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <div x-show="type === 'question'">
+                    <label class="text-xs text-slate-500">Chọn câu hỏi</label>
+                    <select name="question_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                        @if (empty($questionOptions))
+                            <option value="">— Bạn chưa có câu hỏi đã phát hành nào (xem Kho câu hỏi) —</option>
+                        @else
+                            @foreach ($questionOptions as $opt)
+                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <div x-show="type === 'assessment'">
+                    <label class="text-xs text-slate-500">Chọn đề thi / bài tập</label>
+                    <select name="assessment_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                        @if (empty($assessmentOptions))
+                            <option value="">— Bạn chưa tạo đề thi/bài tập nào —</option>
+                        @else
+                            @foreach ($assessmentOptions as $opt)
+                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <div x-show="type === 'video' || type === 'link' || type === 'note'" class="space-y-2">
+                    <div>
+                        <label class="text-xs text-slate-500">Tiêu đề</label>
+                        <input type="text" name="title" maxlength="255" placeholder="VD: Video ôn tập chương 2"
+                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    </div>
+                    <div x-show="type === 'video' || type === 'link'">
+                        <label class="text-xs text-slate-500">Link</label>
+                        <input type="url" name="url" maxlength="2048" placeholder="https://..."
+                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Ghi chú (tuỳ chọn)</label>
+                        <input type="text" name="note" maxlength="1000"
+                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    </div>
+                </div>
+
+                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-medium">Gắn vào buổi học</button>
+            </form>
+        </div>
     </div>
 @endsection

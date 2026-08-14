@@ -20,4 +20,11 @@ class SystemSettingService
 
         return $setting?->intValue($default) ?? $default;
     }
+
+    public function getString(string $key, string $default): string
+    {
+        $setting = $this->settings->findByKey($key);
+
+        return $setting?->stringValue($default) ?? $default;
+    }
 }

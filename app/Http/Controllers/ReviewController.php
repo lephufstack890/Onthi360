@@ -6,11 +6,13 @@ use App\Services\Review\ReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
  * Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung cho mọi vai trò,
- * áp dụng cho 2 loại đối tượng: material (tài liệu) và class (lớp học).
+ * áp dụng cho 4 loại đối tượng: material (tài liệu), class (lớp học), teacher (giáo viên)
+ * và competition (cuộc thi) — note họp 13/8, mục 2.
  */
 class ReviewController extends Controller
 {
@@ -38,6 +40,34 @@ class ReviewController extends Controller
         }
 
         return view('reviews.form', ['type' => $type, 'targetId' => $id]);
+    }
+
+    /**
+     * reviews.store — gửi đánh giá. Kiểm tra lại điều kiện + tất cả input NGAY TẠI ĐÂY (16
+     * mục 3) — form trước đó chỉ là gợi ý UI, không phải nguồn tin cậy.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', 'string', 'in:material,class,teacher,competition'],
+            'target_id' => ['required', 'integer', 'min:1'],
+            'overall_rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'criteria_scores' => ['nullable', 'array'],
+            'criteria_scores.*' => ['nullable', 'integer', 'min:0', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:1000'],
+            'disclosure_ack' => ['accepted'],
+        ]);
+
+        try {
+            $this->reviewService->store(Auth::user(), $data['type'], (int) $data['target_id'], $data);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('reviews.form', ['type' => $data['type'], 'id' => $data['target_id']])
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        return redirect()->route('reviews.myReviews')->with('status', 'review-submitted');
     }
 
     /** reviews.ineligible (REV-03) — 9.2: nêu rõ lý do còn thiếu (do reviews.form điều hướng sang kèm lý do thật). */

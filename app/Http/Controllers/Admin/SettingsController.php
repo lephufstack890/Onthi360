@@ -33,4 +33,23 @@ class SettingsController extends Controller
 
         return redirect()->route('admin.settings.index')->with('status', 'settings-rating-threshold-updated');
     }
+
+    /**
+     * admin.settings.wallet-bank.update — "Tích hợp thanh toán": thông tin ngân hàng nhận
+     * chuyển khoản nạp token (note họp 13/8, mục 7-8), đọc bởi App\Services\WalletService
+     * để hiện QR + số tài khoản cho học sinh ở access.wallet.
+     */
+    public function updateWalletBankInfo(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'bank_name' => ['required', 'string', 'max:150'],
+            'bank_account_no' => ['required', 'string', 'max:50'],
+            'bank_account_name' => ['required', 'string', 'max:150'],
+            'bank_bin' => ['required', 'string', 'max:10'],
+        ]);
+
+        $this->settingsService->updateWalletBankInfo($request->user(), $data);
+
+        return redirect()->route('admin.settings.index')->with('status', 'settings-wallet-bank-updated');
+    }
 }

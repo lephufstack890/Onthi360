@@ -1,10 +1,10 @@
 {{--
   Route: admin.users.show | tham chiếu ADM-02
-  Spec: 3.1/3.2/4.3 (đa vai trò) + 10.4/16 mục 4 (audit log cho thay đổi vai trò/trạng thái).
-  Dữ liệu thật ($userModel, $availableRoles, $roleNames, $auditLogs, $studentEnrollments,
-  $linkedParents, $linkedChildren) do UserController::show() truyền vào qua
-  UserService::showData() — hồ sơ theo vai trò chỉ hiện khối tương ứng nếu user có vai trò đó
-  (1 user có thể có NHIỀU vai trò cùng lúc, 4.3).
+  Spec: 3.1/3.2/4.3 (đa vai trò) + 10.4/16 mục 4 (audit log cho thay đổi vai trò/trạng thái/
+  mật khẩu). Dữ liệu thật ($userModel, $availableRoles, $roleNames, $auditLogs,
+  $studentEnrollments, $linkedParents, $linkedChildren) do UserController::show() truyền vào
+  qua UserService::showData() — hồ sơ theo vai trò chỉ hiện khối tương ứng nếu user có vai
+  trò đó (1 user có thể có NHIỀU vai trò cùng lúc, 4.3).
 --}}
 @extends('layouts.admin')
 
@@ -24,6 +24,7 @@
             'user-created' => 'Đã tạo tài khoản mới.',
             'roles-updated' => 'Đã cập nhật vai trò, đã ghi audit log.',
             'user-updated' => 'Đã lưu thay đổi.',
+            'password-updated' => 'Đã đổi mật khẩu cho người dùng này.',
             default => session('status') ? 'Đã lưu thay đổi.' : null,
         };
     @endphp
@@ -75,6 +76,28 @@
                         <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu vai trò</button>
                     </form>
                 @endif
+            </div>
+
+            {{-- Note họp 13/8 mục 2: "Cần có đổi mật khẩu... cho người dùng" — dùng khi
+                 người dùng quên mật khẩu/mất quyền truy cập email và không tự đổi được. --}}
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h2 class="font-medium text-slate-700 mb-1">Đổi mật khẩu</h2>
+                <p class="text-xs text-slate-400 mb-4">Đặt mật khẩu mới trực tiếp cho người dùng này (dùng khi họ không tự đổi được).</p>
+                <form method="POST" action="{{ route('admin.users.password.update', $userModel->id) }}" class="space-y-3 max-w-sm">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <label class="text-xs text-slate-500">Mật khẩu mới</label>
+                        <input type="password" name="password" minlength="8" required
+                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Xác nhận mật khẩu mới</label>
+                        <input type="password" name="password_confirmation" minlength="8" required
+                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                    </div>
+                    <button type="submit" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-300 transition">Đổi mật khẩu</button>
+                </form>
             </div>
 
             @if ($userModel->teacherProfile)

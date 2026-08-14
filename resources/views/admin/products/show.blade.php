@@ -1,8 +1,10 @@
 {{--
   Route: admin.products.show
-  Dữ liệu thật ($product) do ProductController::show() truyền vào qua
-  App\Services\Admin\ProductService::showData(). $product->description là HTML do CKEditor
-  sinh ra (xem admin.products.create/edit) — hiển thị bằng {!! !!}, không escape.
+  Dữ liệu thật ($product, $accessRightRows, $accessRightCount) do ProductController::show()
+  truyền vào qua App\Services\Admin\ProductService::showData(). $product->description là
+  HTML do CKEditor sinh ra (xem admin.products.create/edit) — hiển thị bằng {!! !!}, không
+  escape. $accessRightRows: danh sách quyền đã cấp cho sản phẩm này + (nếu cấp từ đơn hàng)
+  thời điểm đơn được duyệt/thanh toán (note họp 13/8, mục 2: "Sản phẩm và quyền cần làm rõ").
 --}}
 @extends('layouts.admin')
 
@@ -19,6 +21,8 @@
             'archived' => ['label' => 'Lưu trữ', 'tone' => 'neutral'],
         ];
         $meta = $statusMeta[$product->status->value] ?? ['label' => $product->status->value, 'tone' => 'neutral'];
+        $accessRightRows = $accessRightRows ?? [];
+        $accessRightCount = $accessRightCount ?? 0;
     @endphp
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm</a>
@@ -72,6 +76,48 @@
                         <x-empty-state title="Chưa có học liệu nào" description="Tạo học liệu (chương/bài/mục) ở mục Nội dung và gắn vào sản phẩm này (6.5)." :actionLabel="'+ Tạo học liệu'" :actionHref="route('admin.content.materials.create')" />
                     @endforelse
                 </div>
+            </div>
+
+            {{-- Note họp 13/8 mục 2: "Có danh sách các quyền được cấp, cần danh sách phê
+                 duyệt hoặc là xem đã thanh toán lúc nào khi người ta mua sản phẩm". --}}
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>🔑</span> Quyền đã cấp cho sản phẩm này</h2>
+                    <span class="text-xs text-slate-400">{{ $accessRightCount }} quyền</span>
+                </div>
+
+                @if (empty($accessRightRows))
+                    <x-empty-state title="Chưa cấp quyền nào cho sản phẩm này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
+                @else
+                    <div class="overflow-x-auto">
+                        <x-data-table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Hiệu lực', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
+                            @foreach ($accessRightRows as $row)
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-4 py-3 text-sm text-slate-700">{{ $row['userName'] }}</td>
+                                    <td class="px-4 py-3 text-sm text-slate-600">{{ $row['scopeLabel'] }}</td>
+                                    <td class="px-4 py-3"><x-status-badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-status-badge></td>
+                                    <td class="px-4 py-3 text-xs text-slate-500">
+                                        {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-500">{{ $row['sourceLabel'] }}</td>
+                                    <td class="px-4 py-3 text-xs text-slate-500">
+                                        @if ($row['orderNo'])
+                                            #{{ $row['orderNo'] }}
+                                            @if ($row['paidAt'])
+                                                <span class="block text-slate-400">Duyệt/thanh toán: {{ $row['paidAt']->format('d/m/Y H:i') }}</span>
+                                            @endif
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">
+                                        <a href="{{ route('admin.access-rights.show', $row['id']) }}" class="text-rose-600 font-medium">Xem</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </x-data-table>
+                    </div>
+                @endif
             </div>
         </div>
 

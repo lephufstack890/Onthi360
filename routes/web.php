@@ -20,6 +20,7 @@ use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
 use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Access\AccessController;
+use App\Http\Controllers\Access\WalletController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
@@ -133,6 +134,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('schedule/{session}/attendance', [TeacherScheduleController::class, 'attendance'])->name('schedule.attendance');
         Route::post('schedule/{session}/attendance', [TeacherScheduleController::class, 'saveAttendance'])->name('schedule.attendance.save');
         Route::post('schedule/{session}/summary', [TeacherScheduleController::class, 'saveSummary'])->name('schedule.summary.save');
+        Route::post('schedule/{session}/resources', [TeacherScheduleController::class, 'addResource'])->name('schedule.resources.save');
+        Route::delete('schedule/{session}/resources/{resource}', [TeacherScheduleController::class, 'removeResource'])->name('schedule.resources.delete');
 
         Route::get('notifications', [TeacherNotificationController::class, 'index'])->name('notifications.index');
 
@@ -153,6 +156,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('danh-gia')->name('reviews.')->group(function () {
         Route::get('/', [ReviewController::class, 'index'])->name('index');
         Route::get('/viet', [ReviewController::class, 'form'])->name('form');
+        Route::post('/viet', [ReviewController::class, 'store'])->name('store');
         Route::get('/chua-du-dieu-kien', [ReviewController::class, 'ineligible'])->name('ineligible');
         Route::get('/cua-toi', [ReviewController::class, 'myReviews'])->name('myReviews');
     });
@@ -163,6 +167,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/kich-hoat', [AccessController::class, 'activate'])->name('activate');
         Route::get('/cua-toi', [AccessController::class, 'myAccess'])->name('myAccess');
         Route::get('/khoa/{material}', [AccessController::class, 'blocked'])->name('blocked');
+    });
+
+    // -- Ví token: "Nộp tiền thành token" + QR ngân hàng (note họp 13/8, mục 7-8) --------
+    Route::prefix('vi')->name('wallet.')->group(function () {
+        Route::get('/', [WalletController::class, 'index'])->name('index');
+        Route::post('/nap', [WalletController::class, 'requestTopup'])->name('request');
     });
 
     // -- Admin/Editor (4.2) -------------------------------------------------
@@ -176,6 +186,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::put('users/{user}/roles', [AdminUserController::class, 'updateRoles'])->name('users.roles.update');
+        Route::put('users/{user}/password', [AdminUserController::class, 'resetPassword'])->name('users.password.update');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::get('teacher-approvals', [AdminTeacherApprovalController::class, 'index'])->name('teacher-approvals.index');
         Route::get('teacher-approvals/{teacherApproval}', [AdminTeacherApprovalController::class, 'show'])->name('teacher-approvals.show');
@@ -183,36 +194,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('teacher-approvals/{teacherApproval}/reject', [AdminTeacherApprovalController::class, 'reject'])->name('teacher-approvals.reject');
         Route::post('teacher-approvals/{teacherApproval}/suspend', [AdminTeacherApprovalController::class, 'suspend'])->name('teacher-approvals.suspend');
         Route::post('teacher-approvals/{teacherApproval}/reinstate', [AdminTeacherApprovalController::class, 'reinstate'])->name('teacher-approvals.reinstate');
-
-        // Nội dung (ADM-03, 6.2/6.4/6.5)
-        Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
-
-        Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');
-        Route::post('content/materials', [AdminContentController::class, 'materialsStore'])->name('content.materials.store');
-        Route::get('content/materials/{material}/edit', [AdminContentController::class, 'materialsEdit'])->name('content.materials.edit');
-        Route::put('content/materials/{material}', [AdminContentController::class, 'materialsUpdate'])->name('content.materials.update');
-        Route::post('content/materials/{material}/publish', [AdminContentController::class, 'materialsPublish'])->name('content.materials.publish');
-        Route::post('content/materials/{material}/reject', [AdminContentController::class, 'materialsReject'])->name('content.materials.reject');
-        Route::post('content/materials/{material}/archive', [AdminContentController::class, 'materialsArchive'])->name('content.materials.archive');
-
-        Route::get('content/questions/create', [AdminContentController::class, 'questionsCreate'])->name('content.questions.create');
-        Route::post('content/questions', [AdminContentController::class, 'questionsStore'])->name('content.questions.store');
-        Route::get('content/questions/{question}/edit', [AdminContentController::class, 'questionsEdit'])->name('content.questions.edit');
-        Route::put('content/questions/{question}', [AdminContentController::class, 'questionsUpdate'])->name('content.questions.update');
-        Route::post('content/questions/{question}/new-version', [AdminContentController::class, 'questionsNewVersion'])->name('content.questions.newVersion');
-        Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
-        Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
-        Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
-
-        Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
-        Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
-        Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
-        Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
-        Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
-        Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
-        Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');
-
-        Route::get('content/{content}', [AdminContentController::class, 'show'])->name('content.show');
 
         // Khóa & Lớp (8.1)
         Route::get('courses', [AdminCourseController::class, 'index'])->name('courses.index');
@@ -251,6 +232,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
         Route::post('activation-codes/{activationCode}/revoke', [AdminActivationCodeController::class, 'revoke'])->name('activation-codes.revoke');
 
+        // Yêu cầu nạp token (note họp 13/8, mục 7-8) — gộp chung trang Đơn hàng (7.4), không thêm mục điều hướng riêng.
+        Route::post('orders/token-topups/{tokenTopup}/approve', [AdminOrderController::class, 'approveTopup'])->name('orders.token-topups.approve');
+        Route::post('orders/token-topups/{tokenTopup}/reject', [AdminOrderController::class, 'rejectTopup'])->name('orders.token-topups.reject');
+
         // Đánh giá (ADM-06, 9.4)
         Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
         Route::post('reviews/{review}/publish', [AdminReviewController::class, 'publish'])->name('reviews.publish');
@@ -284,9 +269,43 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('role:super_admin')->group(function () {
             Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
             Route::put('settings/rating-threshold', [AdminSettingsController::class, 'updateRatingThreshold'])->name('settings.rating-threshold.update');
+            Route::put('settings/wallet-bank', [AdminSettingsController::class, 'updateWalletBankInfo'])->name('settings.wallet-bank.update');
         });
+    });
 
-        // Tài khoản admin (hồ sơ + đổi mật khẩu) — ACC-01/ACC-02 áp cho khu Admin.
+    // -- Admin/Editor: Nội dung + Tài khoản (note họp 13/8, mục 5 — Editor "nghề up câu hỏi") --
+    Route::middleware(['role:admin,super_admin,editor'])->prefix('admin')->name('admin.')->group(function () {
+        // Nội dung (ADM-03, 6.2/6.4/6.5)
+        Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
+
+        Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');
+        Route::post('content/materials', [AdminContentController::class, 'materialsStore'])->name('content.materials.store');
+        Route::get('content/materials/{material}/edit', [AdminContentController::class, 'materialsEdit'])->name('content.materials.edit');
+        Route::put('content/materials/{material}', [AdminContentController::class, 'materialsUpdate'])->name('content.materials.update');
+        Route::post('content/materials/{material}/publish', [AdminContentController::class, 'materialsPublish'])->name('content.materials.publish');
+        Route::post('content/materials/{material}/reject', [AdminContentController::class, 'materialsReject'])->name('content.materials.reject');
+        Route::post('content/materials/{material}/archive', [AdminContentController::class, 'materialsArchive'])->name('content.materials.archive');
+
+        Route::get('content/questions/create', [AdminContentController::class, 'questionsCreate'])->name('content.questions.create');
+        Route::post('content/questions', [AdminContentController::class, 'questionsStore'])->name('content.questions.store');
+        Route::get('content/questions/{question}/edit', [AdminContentController::class, 'questionsEdit'])->name('content.questions.edit');
+        Route::put('content/questions/{question}', [AdminContentController::class, 'questionsUpdate'])->name('content.questions.update');
+        Route::post('content/questions/{question}/new-version', [AdminContentController::class, 'questionsNewVersion'])->name('content.questions.newVersion');
+        Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
+        Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
+        Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
+
+        Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
+        Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
+        Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
+        Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
+        Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
+        Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
+        Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');
+
+        Route::get('content/{content}', [AdminContentController::class, 'show'])->name('content.show');
+
+        // Tài khoản (hồ sơ + đổi mật khẩu) — ACC-01/ACC-02, dùng chung Admin/Editor.
         Route::get('profile', [AdminProfileController::class, 'show'])->name('profile.show');
         Route::put('profile', [AdminProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');

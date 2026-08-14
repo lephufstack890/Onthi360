@@ -24,4 +24,9 @@ class SystemSetting extends Model
     {
         return $this->value !== null && $this->value !== '' ? (int) $this->value : $default;
     }
+
+    public function stringValue(?string $default = null): ?string
+    {
+        return $this->value !== null && $this->value !== '' ? (string) $this->value : $default;
+    }
 }

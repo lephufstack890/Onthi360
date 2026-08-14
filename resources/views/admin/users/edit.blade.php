@@ -1,6 +1,7 @@
 {{--
   Route: admin.users.edit / admin.users.update
-  Spec: ADM-02 + 10.4 (chuyển sang "suspended" phải có lý do + audit log).
+  Spec: ADM-02 + 10.4 (chuyển sang "suspended" phải có lý do + audit log). Tỉnh thành/khu
+  vực (note họp 13/8, mục 2: "để quảng cáo cho giáo viên") tùy chọn.
   Dữ liệu thật ($userModel) do UserController::edit() truyền vào qua UserService::editFormData().
 --}}
 @extends('layouts.admin')
@@ -9,6 +10,11 @@
 @section('page-title', 'Sửa người dùng')
 
 @section('content')
+    @php
+        $regionOptions = \App\Support\VietnamProvinces::regionOptions();
+        $provinceOptions = \App\Support\VietnamProvinces::options();
+    @endphp
+
     <a href="{{ route('admin.users.show', $userModel->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
 
     <x-page-header title="✏️ Sửa người dùng" :subtitle="$userModel->name" />
@@ -37,6 +43,27 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="phone">Số điện thoại</label>
                     <input id="phone" name="phone" type="text" value="{{ old('phone', $userModel->phone) }}" maxlength="30"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="province">Tỉnh/thành</label>
+                    <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <option value="">— Chưa chọn —</option>
+                        @foreach ($provinceOptions as $p)
+                            <option value="{{ $p }}" @selected(old('province', $userModel->province) === $p)>{{ $p }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="region">Khu vực</label>
+                    <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <option value="">— Chưa chọn —</option>
+                        @foreach ($regionOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(old('region', $userModel->region) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
 

@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Repositories\Contracts\AuditLogRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -66,7 +67,9 @@ class UserService
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
-            'password' => \Illuminate\Support\Facades\Hash::make($data['password']),
+            'province' => $data['province'] ?? null,
+            'region' => $data['region'] ?? null,
+            'password' => Hash::make($data['password']),
             'status' => 'active',
         ]);
 
@@ -186,6 +189,8 @@ class UserService
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'province' => $data['province'] ?? null,
+            'region' => $data['region'] ?? null,
             'status' => $data['status'],
         ]);
 
@@ -227,6 +232,19 @@ class UserService
         }
 
         return $user->fresh(['roles']);
+    }
+
+    /**
+     * admin.users.password.update — Admin đổi mật khẩu trực tiếp cho người dùng (note họp
+     * 13/8, mục 2: "Cần có đổi mật khẩu... cho người dùng") — dùng khi người dùng quên mật
+     * khẩu/mất quyền truy cập email và không tự đổi được qua "Quên mật khẩu". KHÔNG log giá
+     * trị mật khẩu mới vào audit log (chỉ log hành động đã xảy ra), đúng tinh thần ghi chú ở
+     * đầu file về việc không để lộ field nhạy cảm.
+     */
+    public function resetPassword(User $admin, User $user, string $newPassword): void
+    {
+        $this->users->update($user, ['password' => Hash::make($newPassword)]);
+        $this->logChange($admin, $user, 'password_reset', []);
     }
 
     private function presentUser(User $u): array

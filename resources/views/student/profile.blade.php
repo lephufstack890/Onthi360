@@ -1,6 +1,9 @@
 {{--
-  Route: student.profile | Frame: STU-11 (phần hồ sơ + liên kết phụ huynh)
-  TODO controller: truyền $user thật + danh sách liên kết phụ huynh (ParentLink).
+  Route: student.profile / student.profile.update | Frame: STU-11 (phần hồ sơ + liên kết phụ huynh)
+  Dữ liệu thật ($user, $parentLinks) do App\Http\Controllers\Student\ProfileController
+  truyền vào. Form "Thông tin cá nhân" lưu qua App\Services\Student\ProfileService::
+  updateProfile() (tên/SĐT/tỉnh thành/khu vực — note họp 13/8, mục 2: "để quảng cáo cho giáo
+  viên"). Trường "Trường/lớp hiện tại" chưa có cột lưu trữ tương ứng — để trống, không submit.
 --}}
 @extends('layouts.student')
 
@@ -8,11 +11,19 @@
 @section('page-title', 'Hồ sơ')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Student\ProfileController truyền vào. --}}
     @php
         $user = $user ?? auth()->user();
         $parentLinks = $parentLinks ?? collect();
+        $regionOptions = \App\Support\VietnamProvinces::regionOptions();
+        $provinceOptions = \App\Support\VietnamProvinces::options();
     @endphp
+
+    @if (session('status') === 'profile-updated')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thông tin hồ sơ.'])
+    @endif
+    @if ($errors->any())
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+    @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center">
@@ -27,25 +38,45 @@
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-medium text-slate-700 mb-4">Thông tin cá nhân</h3>
-                <form class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form method="POST" action="{{ route('student.profile.update') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    @csrf
+                    @method('PUT')
                     <div>
-                        <label class="block text-sm text-slate-600 mb-1">Họ tên</label>
-                        <input type="text" value="{{ $user->name ?? '' }}" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                        <label class="block text-sm text-slate-600 mb-1" for="name">Họ tên</label>
+                        <input id="name" name="name" type="text" value="{{ old('name', $user->name ?? '') }}" required maxlength="255"
+                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-600 mb-1">Email</label>
-                        <input type="email" value="{{ $user->email ?? '' }}" class="w-full rounded-lg border border-slate-200 text-sm p-2.5" disabled>
+                        <label class="block text-sm text-slate-600 mb-1" for="email">Email</label>
+                        <input id="email" type="email" value="{{ $user->email ?? '' }}" class="w-full rounded-lg border border-slate-200 text-sm p-2.5" disabled>
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-600 mb-1">Số điện thoại</label>
-                        <input type="text" class="w-full rounded-lg border border-slate-200 text-sm p-2.5" placeholder="Chưa cập nhật">
+                        <label class="block text-sm text-slate-600 mb-1" for="phone">Số điện thoại</label>
+                        <input id="phone" name="phone" type="text" value="{{ old('phone', $user->phone ?? '') }}"
+                               placeholder="Chưa cập nhật" class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-600 mb-1">Trường/lớp hiện tại</label>
-                        <input type="text" class="w-full rounded-lg border border-slate-200 text-sm p-2.5" placeholder="Chưa cập nhật">
+                        <label class="block text-sm text-slate-600 mb-1" for="province">Tỉnh/thành</label>
+                        <select id="province" name="province" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($provinceOptions as $p)
+                                <option value="{{ $p }}" @selected(old('province', $user->province ?? '') === $p)>{{ $p }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-600 mb-1" for="region">Khu vực</label>
+                        <select id="region" name="region" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <option value="">— Chưa chọn —</option>
+                            @foreach ($regionOptions as $value => $label)
+                                <option value="{{ $value }}" @selected(old('region', $user->region ?? '') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit" class="mt-2 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu thay đổi</button>
                     </div>
                 </form>
-                <button type="button" class="mt-4 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu thay đổi</button>
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">

@@ -22,13 +22,18 @@ class ProfileController extends Controller
         return view('student.profile', ['user' => $user, 'parentLinks' => $parentLinks]);
     }
 
-    /** Lưu thông tin hồ sơ cơ bản (tên, số điện thoại). Email không cho tự đổi ở đây. */
+    /**
+     * Lưu thông tin hồ sơ cơ bản (tên, số điện thoại, tỉnh thành/khu vực — note họp 13/8,
+     * mục 2). Email không cho tự đổi ở đây.
+     */
     public function update(Request $request)
     {
         $user = $request->user();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:32'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
         ]);
         $this->profileService->updateProfile($user, $data);
 

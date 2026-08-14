@@ -6,6 +6,7 @@
         ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => '📖'],
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => '🏆'],
         ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => '📊'],
+        ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => '💳'],
         ['label' => 'Thông báo', 'route' => 'student.notifications', 'icon' => '🔔'],
         ['label' => 'Hồ sơ', 'route' => 'student.profile', 'icon' => '👤'],
     ];

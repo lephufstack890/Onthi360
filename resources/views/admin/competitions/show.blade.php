@@ -1,7 +1,8 @@
 {{--
   Route: admin.competitions.show
-  Spec: 11.1 (vòng đời cuộc thi) + 11.2 (bảng xếp hạng — phạm vi rõ, không trộn số liệu khác phạm vi).
-  $competition (Eloquent thật, withCount('leaderboardEntries'), with('assessment')) do
+  Spec: 11.1 (vòng đời cuộc thi) + 11.2 (bảng xếp hạng — phạm vi rõ, không trộn số liệu khác phạm vi)
+  + note họp 13/8, mục 1 (đơn vị tổ chức + cố vấn/đồng hành cho cuộc thi bên ngoài).
+  $competition (Eloquent thật, withCount('leaderboardEntries'), with(['assessment', 'advisors'])) do
   CompetitionController::show() truyền vào qua CompetitionService::showData().
 --}}
 @extends('layouts.admin')
@@ -41,6 +42,9 @@
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->title }}</h1>
                     <x-status-badge :tone="$meta['tone']">{{ $meta['label'] }}</x-status-badge>
+                    @if ($competition->isExternallyOrganized())
+                        <x-status-badge tone="warning">Bên ngoài tổ chức</x-status-badge>
+                    @endif
                 </div>
                 <p class="text-sm text-slate-500">{{ $competition->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát' }}</p>
             </div>
@@ -58,6 +62,25 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Đề/bộ bài tham chiếu (11.1)</h2>
                 <p class="text-sm text-slate-600">{{ $competition->assessment->title ?? '— Không gắn đề —' }}</p>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h2 class="font-medium text-slate-700 mb-2">Đơn vị tổ chức (note họp 13/8, mục 1)</h2>
+                @if ($competition->isExternallyOrganized())
+                    <p class="text-sm text-slate-600 mb-3"><span class="text-slate-400">Tổ chức bởi:</span> {{ $competition->organizer_name ?: '— Chưa nêu —' }}</p>
+                    <p class="text-xs text-slate-400 mb-1">Giáo viên cố vấn/đồng hành (tăng uy tín):</p>
+                    @if ($competition->advisors->isNotEmpty())
+                        <ul class="flex flex-wrap gap-2">
+                            @foreach ($competition->advisors as $advisor)
+                                <li class="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-xs text-amber-700">{{ $advisor->name }}</li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-sm text-slate-400">— Chưa có giáo viên cố vấn —</p>
+                    @endif
+                @else
+                    <p class="text-sm text-slate-600">Nội bộ (nền tảng tự tổ chức) — không bắt buộc cố vấn.</p>
+                @endif
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">

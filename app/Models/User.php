@@ -16,7 +16,7 @@ class User extends Authenticatable // implements MustVerifyEmail
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'password', 'locale', 'avatar_path', 'status',
+        'name', 'email', 'phone', 'province', 'region', 'token_balance', 'password', 'locale', 'avatar_path', 'status',
     ];
 
     protected $hidden = [
@@ -28,6 +28,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'token_balance' => 'integer',
         ];
     }
 
@@ -73,6 +74,12 @@ class User extends Authenticatable // implements MustVerifyEmail
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'buyer_id');
+    }
+
+    /** Yêu cầu nạp token của user này (App\Services\WalletService — note họp 13/8, mục 7-8). */
+    public function tokenTopups(): HasMany
+    {
+        return $this->hasMany(TokenTopup::class);
     }
 
     // -- Làm bài / đánh giá -----------------------------------------------------

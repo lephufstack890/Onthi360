@@ -24,4 +24,10 @@ class ClassSession extends Model
     {
         return $this->hasMany(Attendance::class);
     }
+
+    /** Tài liệu/câu hỏi/đề thi/video/link gắn riêng cho buổi học này (note họp 13/8, mục 3). */
+    public function sessionResources(): HasMany
+    {
+        return $this->hasMany(SessionResource::class);
+    }
 }

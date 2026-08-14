@@ -2,21 +2,27 @@
 
 namespace App\Services\Review;
 
+use App\Enums\ReviewerRole;
 use App\Enums\ReviewStatus;
 use App\Enums\ReviewTargetType;
+use App\Models\Review;
 use App\Models\User;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
+use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Models\RatingSummary;
 use App\Services\ReviewEligibilityService;
 use App\Services\SystemSettingService;
 use App\Support\AccessDecision;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung cho material và
- * class_room. Tách khỏi ReviewController để controller chỉ resolve
+ * Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung cho material, class_room,
+ * teacher và competition (note họp 13/8, mục 2: "Giáo viên, tài liệu, cuộc thi cần có đánh
+ * giá sao của người dùng"). Tách khỏi ReviewController để controller chỉ resolve
  * request/user và render view (giữ đúng biến/route hiện có).
  */
 class ReviewService
@@ -24,21 +30,65 @@ class ReviewService
     public function __construct(
         private ClassRoomRepositoryInterface $classRooms,
         private MaterialRepositoryInterface $materials,
+        private UserRepositoryInterface $users,
+        private CompetitionRepositoryInterface $competitions,
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ReviewRepositoryInterface $reviews,
         private ReviewEligibilityService $reviewEligibility,
         private SystemSettingService $systemSettings,
     ) {}
 
+    /** "material"/"class"/"teacher"/"competition" (query string) -> Enum lưu trong DB. */
+    private function targetTypeFor(string $type): ReviewTargetType
+    {
+        return match ($type) {
+            'class' => ReviewTargetType::ClassRoom,
+            'teacher' => ReviewTargetType::Teacher,
+            'competition' => ReviewTargetType::Competition,
+            default => ReviewTargetType::Material,
+        };
+    }
+
+    /** Vai trò người viết SUY RA từ quan hệ thật với đối tượng — không tin type truyền lên. */
+    private function resolveReviewerRole(User $user): ReviewerRole
+    {
+        if ($user->isTeacherApproved()) {
+            return ReviewerRole::Teacher;
+        }
+
+        if ($user->childLinks()->where('status', 'verified')->exists()) {
+            return ReviewerRole::Parent;
+        }
+
+        return ReviewerRole::Student;
+    }
+
+    private function findTarget(string $type, int $id): mixed
+    {
+        return match ($type) {
+            'class' => $this->classRooms->find($id),
+            'teacher' => $this->users->find($id),
+            'competition' => $this->competitions->find($id),
+            default => $this->materials->find($id),
+        };
+    }
+
+    private function targetTitle(string $type, mixed $target): string
+    {
+        return match ($type) {
+            'class' => $target->name ?? 'Lớp học',
+            'teacher' => $target->name ?? 'Giáo viên',
+            'competition' => $target->title ?? 'Cuộc thi',
+            default => $target->title ?? 'Tài liệu',
+        };
+    }
+
     /** reviews.index (REV-01) — 9.5: TB, số review, phân phối 1-5 sao; <5 review thì chưa xếp hạng. */
     public function buildIndex(string $type, int $id): array
     {
-        $targetType = $type === 'class' ? ReviewTargetType::ClassRoom : ReviewTargetType::Material;
-
-        $target = $type === 'class' ? $this->classRooms->find($id) : $this->materials->find($id);
-        $targetTitle = $type === 'class'
-            ? ($target->name ?? 'Lớp học')
-            : ($target->title ?? 'Tài liệu');
+        $targetType = $this->targetTypeFor($type);
+        $target = $this->findTarget($type, $id);
+        $targetTitle = $this->targetTitle($type, $target);
 
         $ratingSummary = $this->ratingSummaries->findForTarget($targetType, $id);
         $distribution = $ratingSummary?->distribution ?? [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
@@ -84,6 +134,26 @@ class ReviewService
             return $this->reviewEligibility->eligibleForClassReview($user, $classRoom);
         }
 
+        if ($type === 'teacher') {
+            $teacher = $this->users->find($id);
+
+            if (! $teacher) {
+                return AccessDecision::deny('target_not_found', 'Không tìm thấy giáo viên để đánh giá.');
+            }
+
+            return $this->reviewEligibility->eligibleForTeacherReview($user, $teacher);
+        }
+
+        if ($type === 'competition') {
+            $competition = $this->competitions->find($id);
+
+            if (! $competition) {
+                return AccessDecision::deny('target_not_found', 'Không tìm thấy cuộc thi để đánh giá.');
+            }
+
+            return $this->reviewEligibility->eligibleForCompetitionReview($user, $competition);
+        }
+
         $material = $this->materials->findWithProduct($id);
 
         if (! $material || ! $material->product) {
@@ -94,11 +164,66 @@ class ReviewService
     }
 
     /**
+     * reviews.store (REV-02, gửi form) — kiểm tra lại điều kiện NGAY TẠI THỜI ĐIỂM lưu, không
+     * tin form đã hiển thị lúc trước (16 mục 3). Review mới luôn ở trạng thái "Đã gửi" — chỉ
+     * Admin chuyển sang "Đã công bố" mới bắt đầu tính vào rating công khai (9.4, xem
+     * App\Services\Admin\ReviewService::publish()). Trong 7 ngày kể từ lần gửi gần nhất, gửi
+     * lại cho đúng đối tượng sẽ SỬA đè lên review cũ (không tạo bản trùng — ràng buộc unique
+     * DB theo reviewer+target+version, 9.2).
+     *
+     * @throws ValidationException nếu không đủ điều kiện, thiếu xác nhận công khai, hoặc đã
+     *                              quá hạn sửa review cũ cho đúng đối tượng này.
+     */
+    public function store(User $user, string $type, int $id, array $data): Review
+    {
+        $decision = $this->checkEligibility($user, $type, $id);
+
+        if (! $decision->allowed) {
+            throw ValidationException::withMessages(['eligibility' => $decision->message ?? 'Bạn chưa đủ điều kiện đánh giá đối tượng này.']);
+        }
+
+        $targetType = $this->targetTypeFor($type);
+        $reviewerRole = $this->resolveReviewerRole($user);
+
+        $existing = $this->reviews->query()
+            ->where('reviewer_id', $user->id)
+            ->where('target_type', $targetType->value)
+            ->where('target_id', $id)
+            ->where('target_version', 1)
+            ->first();
+
+        if ($existing !== null && ! $existing->isEditable() && $existing->status !== ReviewStatus::Draft) {
+            throw ValidationException::withMessages(['eligibility' => 'Bạn đã đánh giá đối tượng này và đã quá 7 ngày để sửa lại.']);
+        }
+
+        $attributes = [
+            'reviewer_id' => $user->id,
+            'reviewer_role' => $reviewerRole->value,
+            'target_type' => $targetType->value,
+            'target_id' => $id,
+            'target_version' => 1,
+            'overall_rating' => (int) $data['overall_rating'],
+            'criteria_scores' => array_filter($data['criteria_scores'] ?? [], fn ($v) => $v !== null && (int) $v > 0),
+            'comment' => $data['comment'] ?? null,
+            'disclosure_ack' => true,
+            'status' => ReviewStatus::Submitted->value,
+            'moderation_reason' => null,
+            'published_at' => null,
+            'editable_until' => now()->addDays(7),
+        ];
+
+        if ($existing !== null) {
+            return $this->reviews->update($existing, $attributes);
+        }
+
+        return $this->reviews->create($attributes);
+    }
+
+    /**
      * reviews.myReviews (REV-04) — 9.4: trạng thái review theo vòng đời.
      *
-     * Gộp lookup đối tượng polymorphic thành 2 truy vấn whereIn (1 cho
-     * class_room, 1 cho material) thay cho 1 query lookup cho mỗi review
-     * (N+1 trong bản cũ).
+     * Gộp lookup đối tượng polymorphic thành các truy vấn whereIn theo từng loại (thay cho 1
+     * query lookup cho mỗi review — N+1 trong bản cũ).
      */
     public function buildMyReviews(User $user): array
     {
@@ -106,17 +231,21 @@ class ReviewService
 
         $classRoomIds = $myReviews->where('target_type', ReviewTargetType::ClassRoom)->pluck('target_id')->unique()->values()->all();
         $materialIds = $myReviews->where('target_type', ReviewTargetType::Material)->pluck('target_id')->unique()->values()->all();
+        $teacherIds = $myReviews->where('target_type', ReviewTargetType::Teacher)->pluck('target_id')->unique()->values()->all();
+        $competitionIds = $myReviews->where('target_type', ReviewTargetType::Competition)->pluck('target_id')->unique()->values()->all();
 
         $classRoomsById = $classRoomIds ? $this->classRooms->query()->whereIn('id', $classRoomIds)->get()->keyBy('id') : collect();
         $materialsById = $materialIds ? $this->materials->query()->whereIn('id', $materialIds)->get()->keyBy('id') : collect();
+        $teachersById = $teacherIds ? $this->users->query()->whereIn('id', $teacherIds)->get()->keyBy('id') : collect();
+        $competitionsById = $competitionIds ? $this->competitions->query()->whereIn('id', $competitionIds)->get()->keyBy('id') : collect();
 
-        $result = $myReviews->map(function ($r) use ($classRoomsById, $materialsById) {
-            $target = $r->target_type === ReviewTargetType::ClassRoom
-                ? $classRoomsById->get($r->target_id)
-                : $materialsById->get($r->target_id);
-            $targetLabel = $r->target_type === ReviewTargetType::ClassRoom
-                ? ('Lớp '.($target->name ?? ''))
-                : ($target->title ?? 'Tài liệu');
+        $result = $myReviews->map(function ($r) use ($classRoomsById, $materialsById, $teachersById, $competitionsById) {
+            $targetLabel = match ($r->target_type) {
+                ReviewTargetType::ClassRoom => 'Lớp '.($classRoomsById->get($r->target_id)->name ?? ''),
+                ReviewTargetType::Teacher => 'Giáo viên '.($teachersById->get($r->target_id)->name ?? ''),
+                ReviewTargetType::Competition => 'Cuộc thi '.($competitionsById->get($r->target_id)->title ?? ''),
+                default => $materialsById->get($r->target_id)->title ?? 'Tài liệu',
+            };
 
             $statusLabel = match ($r->status) {
                 ReviewStatus::Draft => 'Bản nháp',
