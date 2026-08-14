@@ -5,6 +5,7 @@ namespace App\Services\Student;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
+use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 
 /**
  * STU-01 — tổng hợp dữ liệu cho trang dashboard học sinh (xem docblock cũ ở
@@ -15,6 +16,7 @@ class DashboardService
 {
     public function __construct(
         private ClassEnrollmentRepositoryInterface $classEnrollments,
+        private ClassSessionRepositoryInterface $classSessions,
         private AttemptRepositoryInterface $attempts,
     ) {}
 
@@ -24,13 +26,22 @@ class DashboardService
 
         $hasAnyClass = $enrollments->isNotEmpty();
 
-        $classProgress = $enrollments->map(function ($enrollment) {
+        $classRoomIds = $enrollments->map(fn ($e) => $e->classRoom?->id)->filter()->unique()->values()->all();
+        $sessionProgressByClassRoom = empty($classRoomIds)
+            ? collect()
+            : $this->classSessions->sessionProgressCountsForClassRoomIds($classRoomIds)->keyBy('class_room_id');
+
+        $classProgress = $enrollments->map(function ($enrollment) use ($sessionProgressByClassRoom) {
             $classRoom = $enrollment->classRoom;
+            $progress = $classRoom ? $sessionProgressByClassRoom->get($classRoom->id) : null;
 
             return [
                 'name' => trim(($classRoom->course->title ?? '').' · '.($classRoom->name ?? '')),
-                // TODO: tính % thật theo progress_unlocks đã hoàn thành / tổng mã bài đã mở.
-                'percent' => 50,
+                // "% tiến độ lớp" — % buổi học đã kết thúc / tổng số buổi đã lên lịch, CÙNG
+                // công thức đã dùng thật ở
+                // App\Services\Teacher\ClassRoomService::completionPercent() (xem giải thích
+                // đầy đủ ở đó). Trước đây hardcode cứng 50 bất kể lớp nào — không phải % thật.
+                'percent' => $this->completionPercent((int) ($progress->ended ?? 0), (int) ($progress->total ?? 0)),
             ];
         })->values()->all();
 
@@ -53,5 +64,15 @@ class DashboardService
             'recentResults' => $recentResults,
             'notifications' => [],
         ];
+    }
+
+    /** Xem giải thích đầy đủ ở App\Services\Teacher\ClassRoomService::completionPercent(). */
+    private function completionPercent(int $endedSessions, int $totalSessions): int
+    {
+        if ($totalSessions <= 0) {
+            return 0;
+        }
+
+        return (int) round(min($endedSessions, $totalSessions) / $totalSessions * 100);
     }
 }

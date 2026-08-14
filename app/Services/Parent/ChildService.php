@@ -190,6 +190,19 @@ class ChildService
 
         $nextSession = $classRoom ? $this->classSessions->nextUpcomingForClassRoom($classRoom->id) : null;
 
+        // "Tiến độ lớp" (thanh progress ở header) — % buổi học đã kết thúc / tổng số buổi
+        // đã lên lịch cho lớp con đang học, CÙNG công thức đã dùng thật ở
+        // App\Services\Teacher\ClassRoomService::completionPercent() (xem giải thích đầy đủ
+        // ở đó). Trước đây blade hardcode :percent="0" nên phụ huynh thấy thanh đứng yên
+        // dù lớp đã học được bao nhiêu buổi — không phải lỗi hiển thị, mà là chưa nối dữ
+        // liệu thật (không dùng % attempts đã nộp vì hệ thống chưa có luồng nộp bài nào tạo
+        // ra Attempt thật, nên số đó sẽ luôn là 0%).
+        $overallPercent = 0;
+        if ($classRoom) {
+            $progress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
+            $overallPercent = $this->completionPercent((int) ($progress->ended ?? 0), (int) ($progress->total ?? 0));
+        }
+
         return [
             'child' => $childUser,
             'classRoom' => $classRoom,
@@ -198,7 +211,18 @@ class ChildService
             'results' => $results,
             'attendance' => $attendance,
             'nextSession' => $nextSession,
+            'overallPercent' => $overallPercent,
         ];
+    }
+
+    /** Xem giải thích đầy đủ ở App\Services\Teacher\ClassRoomService::completionPercent(). */
+    private function completionPercent(int $endedSessions, int $totalSessions): int
+    {
+        if ($totalSessions <= 0) {
+            return 0;
+        }
+
+        return (int) round(min($endedSessions, $totalSessions) / $totalSessions * 100);
     }
 
     /** @return \Illuminate\Support\Collection<int, \App\Models\ClassEnrollment> keyBy student_id */

@@ -2,9 +2,9 @@
   Route: parent.children.show | Frame: PAR-02
   Spec: 10.3 — lịch, điểm danh, tiến độ, kết quả, review lớp (phụ huynh
   đủ điều kiện sau 2 buổi/hoạt động của con — 9.2).
-  Dữ liệu thật ($child, $classRoom, $tabsData, $results, $attendance, $nextSession) do
-  App\Http\Controllers\Parent\ChildController truyền vào qua App\Services\Parent\
-  ChildService::showForParent().
+  Dữ liệu thật ($child, $classRoom, $tabsData, $results, $attendance, $nextSession,
+  $overallPercent) do App\Http\Controllers\Parent\ChildController truyền vào qua
+  App\Services\Parent\ChildService::showForParent().
 --}}
 @extends('layouts.parent')
 
@@ -31,7 +31,7 @@
                 <p class="text-sm text-slate-500">Lớp {{ $className }}{{ $courseTitle ? ' · '.$courseTitle : '' }}</p>
             </div>
         </div>
-        <div class="w-40"><x-progress-bar :percent="0" label="Tiến độ lớp" tone="brand" /></div>
+        <div class="w-40"><x-progress-bar :percent="$overallPercent ?? 0" label="Tiến độ lớp" tone="brand" /></div>
     </div>
 
     <x-tabs :tabs="$tabsData" />

@@ -79,10 +79,19 @@ class ClassRoomService
 
         $nextSession = $this->classSessions->nextUpcomingForClassRoom($classRoom->id);
 
-        // Dùng để tính % tiến độ thật khi có công thức (xem TODO $overallPercent dưới đây).
         $enrollment = $this->classEnrollments->findActiveForUserAndClassRoom($user->id, $classRoom->id);
-        // TODO: % tiến độ thật cần công thức tổng hợp progress_unlocks + attempts của riêng học sinh này.
-        $overallPercent = 0;
+
+        // "Tiến độ lớp" — % buổi học ĐÃ KẾT THÚC / tổng số buổi đã lên lịch cho lớp, CÙNG
+        // công thức đã dùng thật ở App\Services\Teacher\ClassRoomService::completionPercent()
+        // (xem giải thích đầy đủ ở đó): trước đây con số này hardcode 0 kèm TODO tính theo
+        // progress_unlocks + attempts, nhưng rà soát toàn bộ codebase xác nhận KHÔNG có luồng
+        // nào tạo Attempt đã nộp thật nên công thức đó sẽ luôn là 0% dù đổi cách tính. Module
+        // Lịch học đã chạy đầy đủ nên dùng tiến độ buổi học làm thước đo thật.
+        $sessionProgress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
+        $overallPercent = $this->completionPercent(
+            (int) ($sessionProgress->ended ?? 0),
+            (int) ($sessionProgress->total ?? 0),
+        );
 
         $ratingSummary = $this->ratingSummaries->findForTarget(ReviewTargetType::ClassRoom, $classRoom->id);
 
@@ -297,5 +306,15 @@ class ClassRoomService
         }
 
         return [['chapter' => 'Bài tập của lớp', 'items' => $items]];
+    }
+
+    /** Xem giải thích đầy đủ ở App\Services\Teacher\ClassRoomService::completionPercent(). */
+    private function completionPercent(int $endedSessions, int $totalSessions): int
+    {
+        if ($totalSessions <= 0) {
+            return 0;
+        }
+
+        return (int) round(min($endedSessions, $totalSessions) / $totalSessions * 100);
     }
 }
