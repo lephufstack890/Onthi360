@@ -70,8 +70,12 @@ class HomeService
      *   RatingSummary (mọi loại đối tượng: material/class_room/teacher/competition), cùng
      *   công thức aggregate() đã dùng ở CourseService — chỉ khác là tính cho CẢ nền tảng
      *   thay vì 1 khóa/lớp cụ thể.
+     *
+     * Để PUBLIC (không private) vì App\Services\Public\InfoService (trang Thông tin) dùng
+     * lại ĐÚNG 4 số liệu này ở mục "Giới thiệu" — 1 nguồn tính duy nhất, tránh 2 trang hiện
+     * 2 con số lệch nhau cho cùng một nền tảng.
      */
-    private function buildStats(): array
+    public function buildStats(): array
     {
         $activeStudents = $this->classEnrollments->query()
             ->where('status', 'active')

@@ -6,6 +6,8 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
 use App\Http\Controllers\Public\CourseController as PublicCourseController;
 use App\Http\Controllers\Public\HomeController as PublicHomeController;
+use App\Http\Controllers\Public\InfoController as PublicInfoController;
+use App\Http\Controllers\Public\ContactController as PublicContactController;
 use App\Http\Controllers\Public\LeaderboardController as PublicLeaderboardController;
 use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
 use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
@@ -38,6 +40,7 @@ use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightControll
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\ActivationCodeController as AdminActivationCodeController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
+use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\ContentController as AdminContentController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -60,9 +63,9 @@ use Illuminate\Support\Facades\Route;
 | teacher / parent / admin (4.2 BA spec). Auth, Dashboard, Học sinh, Giáo
 | viên, Phụ huynh, Đánh giá, Quyền truy cập, Admin, 4 khu công khai chính
 | (Khóa học/Luyện tập/Tài liệu/Cuộc thi), Bảng xếp hạng (11.2), Trang chủ
-| và Giáo viên tiêu biểu đã nối Controller thật (Eloquent). Thông tin
-| (info.index) vẫn trả view() qua closure tĩnh — nối Controller thật khi
-| tới lượt (ngoài phạm vi lần này).
+| Giáo viên tiêu biểu và Thông tin đã nối Controller thật (Eloquent). Toàn
+| bộ 4 khu công khai + Trang chủ + Giáo viên tiêu biểu + Thông tin đều đã
+| có Controller/Service thật đứng sau, không còn closure tĩnh.
 */
 
 // -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
@@ -77,7 +80,12 @@ Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show
 Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('/giao-vien-tieu-bieu', [PublicTeacherController::class, 'index'])->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
-Route::get('/thong-tin', fn () => view('public.info.index'))->name('info.index');
+Route::get('/thong-tin', [PublicInfoController::class, 'index'])->name('info.index');
+// Form Liên hệ (4.1 mục Liên hệ) — khách chưa đăng nhập vẫn gửi được, không có middleware auth.
+Route::post('/thong-tin/lien-he', [PublicContactController::class, 'store'])->name('info.contact.store');
+Route::get('/thong-tin/chinh-sach/{slug}', [PublicInfoController::class, 'policy'])
+    ->whereIn('slug', ['bao-mat', 'dieu-khoan', 'hoan-tien'])
+    ->name('info.policies.show');
 
 // -- Xác thực (ACC-01) -------------------------------------------------------
 Route::middleware(['guest'])->group(function () {
@@ -274,6 +282,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('reviews/{review}/hide', [AdminReviewController::class, 'hide'])->name('reviews.hide');
         Route::post('reviews/{review}/reply', [AdminReviewController::class, 'reply'])->name('reviews.reply');
         Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
+
+        // Tin nhắn liên hệ (PUB-11, 4.1) — gộp chung nhóm điều hướng với Đánh giá (không thêm mục nav riêng).
+        Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
+        Route::post('contact-messages/{contactMessage}/resolve', [AdminContactMessageController::class, 'resolve'])->name('contact-messages.resolve');
 
         // Cuộc thi, Giáo viên tiêu biểu, Bảng xếp hạng (ADM-05, 11.1/11.2)
         Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');

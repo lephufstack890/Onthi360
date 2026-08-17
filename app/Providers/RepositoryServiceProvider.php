@@ -15,6 +15,7 @@ use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
+use App\Repositories\Contracts\ContactMessageRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
@@ -48,6 +49,7 @@ use App\Repositories\Eloquent\ClassMaterialRepository;
 use App\Repositories\Eloquent\ClassRoomRepository;
 use App\Repositories\Eloquent\ClassSessionRepository;
 use App\Repositories\Eloquent\CompetitionRepository;
+use App\Repositories\Eloquent\ContactMessageRepository;
 use App\Repositories\Eloquent\CourseRepository;
 use App\Repositories\Eloquent\DraftQuestionRepository;
 use App\Repositories\Eloquent\LeaderboardEntryRepository;
@@ -109,6 +111,7 @@ class RepositoryServiceProvider extends ServiceProvider
         OrderRepositoryInterface::class => OrderRepository::class,
         ActivationCodeRepositoryInterface::class => ActivationCodeRepository::class,
         CompetitionRepositoryInterface::class => CompetitionRepository::class,
+        ContactMessageRepositoryInterface::class => ContactMessageRepository::class,
         LeaderboardEntryRepositoryInterface::class => LeaderboardEntryRepository::class,
         AuditLogRepositoryInterface::class => AuditLogRepository::class,
         CourseRepositoryInterface::class => CourseRepository::class,

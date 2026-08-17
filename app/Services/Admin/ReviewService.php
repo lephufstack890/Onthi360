@@ -11,6 +11,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use App\Repositories\Contracts\ContactMessageRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
@@ -31,6 +32,7 @@ class ReviewService
         private ClassRoomRepositoryInterface $classRooms,
         private AccessRightRepositoryInterface $accessRights,
         private AttendanceRepositoryInterface $attendance,
+        private ContactMessageRepositoryInterface $contactMessages,
         private ReviewEligibilityService $eligibilityService,
         private RatingSummaryRepositoryInterface $ratingSummaries,
     ) {}
@@ -49,6 +51,7 @@ class ReviewService
             ['label' => 'Chờ kiểm duyệt', 'href' => route('admin.reviews.index'), 'active' => $tab === 'pending', 'count' => $counts['pending']],
             ['label' => 'Đã báo cáo', 'href' => route('admin.reviews.index', ['tab' => 'reported']), 'active' => $tab === 'reported', 'count' => $counts['reported']],
             ['label' => 'Đã công bố', 'href' => route('admin.reviews.index', ['tab' => 'published']), 'active' => $tab === 'published', 'count' => $counts['published']],
+            ['label' => 'Tin nhắn liên hệ', 'href' => route('admin.contact-messages.index'), 'active' => false, 'count' => $this->contactMessages->countNew()],
         ];
 
         $query = $this->reviews->query()->with('reviewer');

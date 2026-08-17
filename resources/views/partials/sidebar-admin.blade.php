@@ -14,7 +14,7 @@
         ['label' => 'Sản phẩm & Quyền', 'route' => 'admin.products.index', 'icon' => '🎫', 'also' => ['admin.products.show', 'admin.access-rights.index']],
         ['label' => 'Đơn hàng', 'route' => 'admin.orders.index', 'icon' => '🧾', 'also' => ['admin.orders.show']],
         ['label' => 'Mã kích hoạt', 'route' => 'admin.activation-codes.index', 'icon' => '🔑'],
-        ['label' => 'Đánh giá', 'route' => 'admin.reviews.index', 'icon' => '⭐', 'also' => ['admin.reviews.show']],
+        ['label' => 'Đánh giá', 'route' => 'admin.reviews.index', 'icon' => '⭐', 'also' => ['admin.reviews.show', 'admin.contact-messages.index']],
         ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => '🏆', 'also' => ['admin.featured-teachers.index']],
         ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => '📊'],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => '📄'],
