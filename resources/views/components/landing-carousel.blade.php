@@ -12,6 +12,14 @@
   ngoài) — kéo tay/vuốt mobile hoạt động sẵn nhờ scroll-snap, nút mũi tên
   chỉ gọi scrollBy(). @once đảm bảo script chỉ in ra 1 lần dù component
   được dùng nhiều nơi.
+
+  Lưu ý sửa lỗi (đã gặp thực tế: "slider mục này không slide được" trên màn
+  hình lớn): trước đây mỗi thẻ ở màn lg rộng đúng calc(25% - 12px), tức 4
+  thẻ * 25% = 100% container — KHÍT VỪA ĐỦ 4 thẻ, không hề dư ra để cuộn,
+  nên nút mũi tên bấm không có tác dụng gì (scrollBy() nhưng chẳng có gì để
+  scroll) và vuốt/kéo cũng không di chuyển được. Đổi sang 30% (4 × 30% =
+  120% > 100%) để LUÔN dư ra ở mọi kích thước màn hình lớn, đảm bảo carousel
+  luôn thật sự cuộn được thay vì chỉ là 4 ô tĩnh xếp cạnh nhau.
 --}}
 @props(['id' => 'landing-carousel'])
 
@@ -70,7 +78,7 @@
     <div id="{{ $id }}" class="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar"
          style="scrollbar-width: none;">
         @foreach ($slides as $s)
-            <div class="snap-start shrink-0 w-[85%] sm:w-[60%] lg:w-[calc(25%-12px)]">
+            <div class="snap-start shrink-0 w-[85%] sm:w-[60%] lg:w-[calc(30%-12px)]">
                 <div class="h-full rounded-3xl bg-gradient-to-br {{ $s['from'] }} {{ $s['to'] }} border border-white p-6 relative overflow-hidden">
                     <span class="absolute -top-3 -right-3 text-3xl opacity-40 select-none" aria-hidden="true">✦</span>
                     <div class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-2xl shadow-sm mb-4">
