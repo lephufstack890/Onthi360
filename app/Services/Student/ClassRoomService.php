@@ -62,9 +62,9 @@ class ClassRoomService
 
         $tabsMeta = [
             ['label' => 'Tổng quan', 'key' => 'overview'],
-            ['label' => 'Lộ trình & Bài tập', 'key' => 'roadmap'],
+            // ['label' => 'Lộ trình & Bài tập', 'key' => 'roadmap'],
             ['label' => 'Lịch học', 'key' => 'schedule'],
-            ['label' => 'Tài liệu', 'key' => 'materials'],
+            // ['label' => 'Tài liệu', 'key' => 'materials'],
             ['label' => 'Đánh giá', 'key' => 'reviews'],
             ['label' => 'Thông báo', 'key' => 'notifications'],
             ['label' => 'Thành viên', 'key' => 'members'],

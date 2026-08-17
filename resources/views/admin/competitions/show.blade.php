@@ -65,7 +65,7 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 class="font-medium text-slate-700 mb-2">Đơn vị tổ chức (note họp 13/8, mục 1)</h2>
+                <h2 class="font-medium text-slate-700 mb-2">Đơn vị tổ chức</h2>
                 @if ($competition->isExternallyOrganized())
                     <p class="text-sm text-slate-600 mb-3"><span class="text-slate-400">Tổ chức bởi:</span> {{ $competition->organizer_name ?: '— Chưa nêu —' }}</p>
                     <p class="text-xs text-slate-400 mb-1">Giáo viên cố vấn/đồng hành (tăng uy tín):</p>

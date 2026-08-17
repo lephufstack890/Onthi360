@@ -133,6 +133,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('assessments', [TeacherAssessmentController::class, 'store'])->name('assessments.store');
         Route::get('assessments/import', [TeacherAssessmentController::class, 'import'])->name('assessments.import');
         Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->name('assessments.reviewDraft');
+        Route::post('assessments/import', [TeacherAssessmentController::class, 'importStore'])->name('assessments.import.store');
+        Route::get('assessments/documents/{document}/file', [TeacherAssessmentController::class, 'downloadDocument'])->name('assessments.documents.download');
+        Route::post('assessments/documents/{document}/promote', [TeacherAssessmentController::class, 'promote'])->name('assessments.documents.promote');
+        Route::post('assessments/documents/{document}/drafts', [TeacherAssessmentController::class, 'draftStore'])->name('assessments.drafts.store');
+        Route::post('assessments/drafts/{draft}', [TeacherAssessmentController::class, 'draftUpdate'])->name('assessments.drafts.update');
+        Route::post('assessments/drafts/{draft}/merge', [TeacherAssessmentController::class, 'draftMerge'])->name('assessments.drafts.merge');
+        Route::post('assessments/drafts/{draft}/discard', [TeacherAssessmentController::class, 'draftDiscard'])->name('assessments.drafts.discard');
         Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->name('assessments.publish');
         Route::post('assessments/{assessment}/assign', [TeacherAssessmentController::class, 'assign'])->name('assessments.assign');
 

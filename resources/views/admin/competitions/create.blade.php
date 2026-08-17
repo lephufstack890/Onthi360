@@ -49,7 +49,7 @@
             </div>
 
             <div class="rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-3">
-                <p class="text-sm font-medium text-amber-700">Đơn vị tổ chức (note họp 13/8, mục 1)</p>
+                <p class="text-sm font-medium text-amber-700">Đơn vị tổ chức</p>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1" for="organizer_type">Cuộc thi do ai tổ chức?</label>
                     <x-select id="organizer_type" name="organizer_type" x-model="organizerType" required>
