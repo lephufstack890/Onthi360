@@ -18,7 +18,8 @@ class ClassRoomController extends Controller
     {
         $user = $request->user();
         $tab = $request->query('tab', 'overview');
+        $weekOffset = (int) $request->query('week', 0);
 
-        return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab));
+        return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset));
     }
 }

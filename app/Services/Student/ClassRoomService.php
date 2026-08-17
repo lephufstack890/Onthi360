@@ -17,6 +17,8 @@ use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Services\AccessGateService;
 use App\Services\NotificationService;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /** STU-03 — chi tiết lớp, 7 tab. */
 class ClassRoomService
@@ -27,9 +29,6 @@ class ClassRoomService
      */
     private const REVIEWS_TAB_LIMIT = 500;
 
-    /** Cùng lý do như REVIEWS_TAB_LIMIT — đủ rộng để lấy điểm danh của TẤT CẢ buổi học đã qua. */
-    private const SCHEDULE_ATTENDANCE_LIMIT = 500;
-
     /** Nhãn điểm danh hiển thị cho học sinh (Enums\AttendanceStatus) — khớp nhãn dùng ở teacher.schedule.attendance. */
     private const ATTENDANCE_LABELS = [
         'present' => ['Có mặt', 'success'],
@@ -37,6 +36,12 @@ class ClassRoomService
         'excused' => ['Vắng có phép', 'warning'],
         'late' => ['Đi trễ', 'warning'],
     ];
+
+    /** Tab "Lịch học" — nhãn thứ trong tuần cho bảng lịch (khớp App\Services\Student\ScheduleService). */
+    private const WEEKDAY_LABELS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
+
+    /** Chặn cuộn quá xa 2 hướng cho gọn giao diện (không phải giới hạn bảo mật) — ~1 năm. */
+    private const MAX_WEEK_OFFSET = 52;
 
     public function __construct(
         private ClassRoomRepositoryInterface $classRooms,
@@ -52,7 +57,7 @@ class ClassRoomService
         private NotificationService $notifications,
     ) {}
 
-    public function buildShowData(User $user, int $classId, string $tab): array
+    public function buildShowData(User $user, int $classId, string $tab, int $weekOffset = 0): array
     {
         $classRoom = $this->classRooms->findWithCourseAndTeachers($classId);
         abort_if($classRoom === null, 404);
@@ -101,13 +106,14 @@ class ClassRoomService
             $materials = $this->classMaterials->activeForClassRoom($classRoom->id);
         }
 
-        // Lịch học: các buổi sắp tới + đã qua gần nhất, kèm trạng thái THỜI GIAN đúng 3 mức
-        // (Sắp diễn ra/Đang diễn ra/Đã kết thúc — trước đây chỉ có 2 mức nên một buổi ĐANG
-        // diễn ra bị hiện nhầm thành "Đã qua") và trạng thái ĐIỂM DANH thật của chính học
-        // sinh này cho từng buổi (trước đây hoàn toàn không hiển thị).
-        $sessions = [];
+        // Lịch học: DẠNG BẢNG theo tuần (Thứ Hai → Chủ Nhật, có ngày cụ thể) — cùng cách trình
+        // bày với student.schedule.index (App\Services\Student\ScheduleService::buildWeekData()),
+        // chỉ khác là CHỈ lọc buổi học của lớp NÀY thay vì gộp mọi lớp. Mỗi buổi có ĐỦ 2 trạng
+        // thái độc lập: thời gian (Sắp diễn ra/Đang diễn ra/Đã kết thúc) và điểm danh CỦA
+        // CHÍNH học sinh này (Có mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm danh).
+        $scheduleWeek = ['weekOffset' => 0, 'weekStart' => now()->startOfWeek(Carbon::MONDAY), 'weekEnd' => now()->endOfWeek(Carbon::SUNDAY), 'days' => []];
         if ($tab === 'schedule') {
-            $sessions = $this->buildScheduleTab($classRoom, $user);
+            $scheduleWeek = $this->buildScheduleTab($classRoom, $user, $weekOffset);
         }
 
         // Đánh giá lớp: review đã publish.
@@ -140,7 +146,10 @@ class ClassRoomService
             'ratingSummary' => $ratingSummary,
             'roadmap' => $roadmap,
             'materials' => $materials,
-            'sessions' => $sessions,
+            'weekOffset' => $scheduleWeek['weekOffset'],
+            'weekStart' => $scheduleWeek['weekStart'],
+            'weekEnd' => $scheduleWeek['weekEnd'],
+            'days' => $scheduleWeek['days'],
             'reviews' => $reviews,
             'notifications' => $notifications,
             'teachers' => $teachers,
@@ -171,39 +180,87 @@ class ClassRoomService
     }
 
     /**
-     * Tab "Lịch học" (STU-03) — mỗi buổi có ĐỦ 2 trạng thái độc lập: thời gian (Sắp diễn
-     * ra/Đang diễn ra/Đã kết thúc, tính theo giờ máy chủ — không tin client, 16 mục 3) và
-     * điểm danh CỦA CHÍNH học sinh này (Có mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm danh) —
-     * trước đây tab này chỉ có 1 điều kiện nhị phân (isFuture()) nên buổi đang diễn ra bị
-     * hiện sai thành "Đã qua", và hoàn toàn không có thông tin điểm danh.
+     * Tab "Lịch học" (STU-03) — DẠNG BẢNG theo tuần, giống hệt cách trình bày của
+     * student.schedule.index (App\Services\Student\ScheduleService::buildWeekData()) nhưng
+     * lọc CHỈ buổi học của lớp NÀY (không gộp lớp khác). Mỗi buổi có ĐỦ 2 trạng thái độc
+     * lập: thời gian (Sắp diễn ra/Đang diễn ra/Đã kết thúc, tính theo giờ máy chủ — không
+     * tin client, 16 mục 3) và điểm danh CỦA CHÍNH học sinh này (Có mặt/Vắng/Vắng có
+     * phép/Đi trễ/Chưa điểm danh).
+     *
+     * @return array{weekOffset:int, weekStart:Carbon, weekEnd:Carbon, days:array}
      */
-    private function buildScheduleTab(ClassRoom $classRoom, User $user): array
+    private function buildScheduleTab(ClassRoom $classRoom, User $user, int $weekOffset): array
     {
-        $sessions = $this->classSessions->allForClassRoom($classRoom->id);
+        $weekOffset = max(-self::MAX_WEEK_OFFSET, min(self::MAX_WEEK_OFFSET, $weekOffset));
 
-        $attendanceBySessionId = $this->attendance
-            ->forStudentInClassRoom($user->id, $classRoom->id, self::SCHEDULE_ATTENDANCE_LIMIT)
-            ->keyBy('class_session_id');
+        $weekStart = now()->startOfWeek(Carbon::MONDAY)->addWeeks($weekOffset)->startOfDay();
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
 
-        return $sessions->map(function (ClassSession $s) use ($attendanceBySessionId) {
-            [$timeStatusLabel, $timeStatusTone] = $this->timeStatus($s);
+        $sessions = $this->classSessions->forClassRoomIdsBetween([$classRoom->id], $weekStart, $weekEnd);
 
-            $record = $attendanceBySessionId->get($s->id);
-            [$attendanceLabel, $attendanceTone] = $record !== null
-                ? (self::ATTENDANCE_LABELS[$record->status->value] ?? [$record->status->value, 'neutral'])
-                : ['Chưa điểm danh', 'neutral'];
+        $attendanceBySessionId = $this->attendance->forStudentInSessionIds($user->id, $sessions->pluck('id')->all());
+
+        $days = collect(range(0, 6))->map(function (int $i) use ($weekStart, $sessions, $attendanceBySessionId) {
+            $date = $weekStart->copy()->addDays($i);
+
+            $sessionsForDay = $sessions
+                ->filter(fn (ClassSession $s) => $s->starts_at !== null && $s->starts_at->isSameDay($date))
+                ->sortBy('starts_at')
+                ->map(fn (ClassSession $s) => $this->mapScheduleSession($s, $attendanceBySessionId))
+                ->values()
+                ->all();
 
             return [
-                'id' => $s->id,
-                'topic' => $s->topic,
-                'location' => $s->location,
-                'startsAt' => $s->starts_at,
-                'timeStatusLabel' => $timeStatusLabel,
-                'timeStatusTone' => $timeStatusTone,
-                'attendanceLabel' => $attendanceLabel,
-                'attendanceTone' => $attendanceTone,
+                'label' => self::WEEKDAY_LABELS[$i],
+                'date' => $date,
+                'isToday' => $date->isToday(),
+                'sessions' => $sessionsForDay,
             ];
-        })->values()->all();
+        })->all();
+
+        return [
+            'weekOffset' => $weekOffset,
+            'weekStart' => $weekStart,
+            'weekEnd' => $weekEnd,
+            'days' => $days,
+        ];
+    }
+
+    private function mapScheduleSession(ClassSession $session, Collection $attendanceBySessionId): array
+    {
+        [$timeStatusLabel, $timeStatusTone] = $this->timeStatus($session);
+
+        $record = $attendanceBySessionId->get($session->id);
+        [$attendanceLabel, $attendanceTone] = $record !== null
+            ? (self::ATTENDANCE_LABELS[$record->status->value] ?? [$record->status->value, 'neutral'])
+            : ['Chưa điểm danh', 'neutral'];
+
+        return [
+            'id' => $session->id,
+            'topic' => $session->topic,
+            'location' => $session->location,
+            'startsAt' => $session->starts_at,
+            'endsAt' => $session->ends_at,
+            'timeRangeLabel' => $this->timeRangeLabel($session),
+            'timeStatusLabel' => $timeStatusLabel,
+            'timeStatusTone' => $timeStatusTone,
+            'attendanceLabel' => $attendanceLabel,
+            'attendanceTone' => $attendanceTone,
+        ];
+    }
+
+    /** "08:00 - 09:30" — chỉ giờ:phút vì ngày đã thể hiện qua cột của bảng lịch. */
+    private function timeRangeLabel(ClassSession $session): string
+    {
+        if ($session->starts_at === null) {
+            return '—';
+        }
+
+        if ($session->ends_at === null) {
+            return $session->starts_at->format('H:i');
+        }
+
+        return $session->starts_at->format('H:i').' - '.$session->ends_at->format('H:i');
     }
 
     /**
