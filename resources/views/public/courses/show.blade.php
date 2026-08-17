@@ -10,6 +10,11 @@
   nút đó khi thật sự đã tham gia (ClassEnrollment active) ≥ 1 lớp thuộc khóa này; ngược lại
   thấy CTA "Nhập mã lớp để tham gia" — join-by-code thật (App\Http\Controllers\Student\
   ClassRoomController::join(), route student.classes.join).
+
+  Lưu ý: $course->description là HTML do CKEditor sinh ra (xem admin.courses.create) — PHẢI
+  hiển thị bằng {!! !!} + class "rich-content", không escape bằng {{ }} (trước đây escape nên
+  hiện nguyên thẻ "<p>...</p>" dạng chữ thay vì render — cùng cách xử lý đã đúng ở
+  admin.courses.show).
 --}}
 @extends('layouts.guest')
 
@@ -41,7 +46,7 @@
                     </div>
                     <h1 class="text-2xl lg:text-3xl font-semibold text-slate-800">{{ $course->title }}</h1>
                     <div class="mt-3"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
-                    <p class="text-slate-500 mt-4 max-w-xl leading-relaxed">{{ $course->description ?: 'Chưa có mô tả chi tiết.' }}</p>
+                    <div class="rich-content text-slate-500 mt-4 max-w-xl leading-relaxed">{!! $course->description ?: 'Chưa có mô tả chi tiết.' !!}</div>
 
                     @if (! auth()->check())
                         <a href="{{ route('login') }}" class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">Đăng nhập để đăng ký / mua quyền</a>
@@ -116,3 +121,12 @@
         @endif
     </div>
 @endsection
+
+@push('scripts')
+    <style>
+        .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content p { margin-bottom: 0.5rem; }
+        .rich-content a { color: #e11d48; text-decoration: underline; }
+    </style>
+@endpush
