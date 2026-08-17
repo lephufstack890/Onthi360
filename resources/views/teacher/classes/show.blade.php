@@ -192,6 +192,15 @@
             <a href="{{ route('teacher.results.index') }}" class="text-sm text-rose-600 font-medium self-center">Xem kết quả chi tiết theo lớp này ›</a>
         </div>
     @elseif ($tab === 'members')
+        {{-- Mã lớp (ClassRoom::code) — học sinh tự tham gia bằng mã này (student.classes.join),
+             chia sẻ ngoài hệ thống (Zalo/nhóm lớp...) như đã mô tả ở hướng dẫn sử dụng công khai. --}}
+        <div class="rounded-2xl bg-rose-50/60 border border-rose-100 p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-sm font-medium text-slate-700">Mã lớp để học sinh tự tham gia</p>
+                <p class="text-xs text-slate-400 mt-0.5">Chia sẻ mã này cho học sinh — các em tự nhập ở trang Khóa học của tôi để vào lớp.</p>
+            </div>
+            <span class="text-base font-mono font-semibold px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-600 shrink-0">{{ $classRoom->code }}</span>
+        </div>
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
             <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh</p>
             <div class="space-y-2 max-h-96 overflow-y-auto">

@@ -21,6 +21,6 @@ class CourseController extends Controller
     /** courses.show — chi tiết khóa + các lớp đang triển khai (8.1/8.3). */
     public function show(Request $request, int $course): View
     {
-        return view('public.courses.show', $this->courseService->showData($course));
+        return view('public.courses.show', $this->courseService->showData($course, $request->user()));
     }
 }

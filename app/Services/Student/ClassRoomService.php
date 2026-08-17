@@ -19,6 +19,7 @@ use App\Services\AccessGateService;
 use App\Services\NotificationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /** STU-03 — chi tiết lớp, 7 tab. */
 class ClassRoomService
@@ -367,5 +368,52 @@ class ClassRoomService
         }
 
         return (int) round(min($endedSessions, $totalSessions) / $totalSessions * 100);
+    }
+
+    /**
+     * student.classes.join — "Vào lớp bằng mã giáo viên cung cấp" (đã hứa sẵn ở empty-state
+     * của student.courses.index và ở hướng dẫn sử dụng trang Thông tin, nhưng trước đây
+     * KHÔNG có route/logic nào thực hiện việc này — bảng class_enrollments chưa từng được
+     * ghi bởi bất kỳ luồng ứng dụng nào, chỉ có dữ liệu do seed/thao tác tay).
+     *
+     * Mã lớp (ClassRoom::code) là duy nhất toàn hệ thống (unique ở DB) nên không cần biết
+     * trước khóa/lớp nào — chỉ cần đúng mã là vào đúng lớp, giống cách giáo viên chia sẻ mã
+     * ngoài hệ thống (Zalo/nhóm lớp...).
+     */
+    public function joinByCode(User $user, string $code): ClassRoom
+    {
+        $classRoom = $this->classRooms->query()
+            ->where('code', $code)
+            ->where('status', 'active')
+            ->first();
+
+        if ($classRoom === null) {
+            throw ValidationException::withMessages(['code' => 'Mã lớp không đúng hoặc lớp đã ngừng hoạt động.']);
+        }
+
+        $existing = $this->classEnrollments->findAnyForUserAndClassRoom($user->id, $classRoom->id);
+
+        if ($existing !== null && $existing->status === 'active') {
+            throw ValidationException::withMessages(['code' => 'Bạn đã tham gia lớp này rồi.']);
+        }
+
+        if ($existing !== null) {
+            // Từng tham gia rồi rời lớp — unique(class_room_id, student_id) không cho tạo
+            // dòng mới, phải kích hoạt lại đúng dòng cũ.
+            $this->classEnrollments->update($existing, [
+                'status' => 'active',
+                'enrolled_at' => now(),
+                'left_at' => null,
+            ]);
+        } else {
+            $this->classEnrollments->create([
+                'class_room_id' => $classRoom->id,
+                'student_id' => $user->id,
+                'status' => 'active',
+                'enrolled_at' => now(),
+            ]);
+        }
+
+        return $classRoom;
     }
 }

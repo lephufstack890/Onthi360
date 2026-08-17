@@ -46,4 +46,12 @@ class ClassEnrollmentRepository extends EloquentRepository implements ClassEnrol
             ->where('status', 'active')
             ->exists();
     }
+
+    public function findAnyForUserAndClassRoom(int $userId, int $classRoomId): ?ClassEnrollment
+    {
+        return $this->query()
+            ->where('student_id', $userId)
+            ->where('class_room_id', $classRoomId)
+            ->first();
+    }
 }

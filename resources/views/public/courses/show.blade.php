@@ -4,6 +4,12 @@
   Dữ liệu thật do App\Http\Controllers\Public\CourseController truyền vào qua
   App\Services\Public\CourseService::showData() — ảnh bìa dùng picsum.photos tạm
   (chưa có cover_image_path thật được upload).
+
+  CTA trước đây chỉ kiểm tra auth()->check() — bất kỳ ai ĐÃ đăng nhập, kể cả học sinh chưa
+  từng tham gia lớp nào của khóa này, đều thấy "Xem lớp học của tôi". Giờ học sinh chỉ thấy
+  nút đó khi thật sự đã tham gia (ClassEnrollment active) ≥ 1 lớp thuộc khóa này; ngược lại
+  thấy CTA "Nhập mã lớp để tham gia" — join-by-code thật (App\Http\Controllers\Student\
+  ClassRoomController::join(), route student.classes.join).
 --}}
 @extends('layouts.guest')
 
@@ -14,6 +20,9 @@
         $classes = $classes ?? [];
         $ratingAverage = $ratingAverage ?? null;
         $ratingCount = $ratingCount ?? 0;
+        $isStudent = $isStudent ?? false;
+        $myClassRoomIdsInThisCourse = $myClassRoomIdsInThisCourse ?? [];
+        $isEnrolledInThisCourse = count($myClassRoomIdsInThisCourse) > 0;
     @endphp
 
     <div class="bg-gradient-to-br from-sky-50 via-white to-rose-50">
@@ -33,9 +42,18 @@
                     <h1 class="text-2xl lg:text-3xl font-semibold text-slate-800">{{ $course->title }}</h1>
                     <div class="mt-3"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
                     <p class="text-slate-500 mt-4 max-w-xl leading-relaxed">{{ $course->description ?: 'Chưa có mô tả chi tiết.' }}</p>
-                    <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">
-                        {{ auth()->check() ? 'Xem lớp học của tôi' : 'Đăng nhập để đăng ký / mua quyền' }}
-                    </a>
+
+                    @if (! auth()->check())
+                        <a href="{{ route('login') }}" class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">Đăng nhập để đăng ký / mua quyền</a>
+                    @elseif ($isStudent && $isEnrolledInThisCourse)
+                        <a href="{{ count($myClassRoomIdsInThisCourse) === 1 ? route('student.classes.show', $myClassRoomIdsInThisCourse[0]) : route('student.courses.index') }}"
+                           class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">Xem lớp học của tôi ›</a>
+                    @elseif ($isStudent)
+                        <a href="#tham-gia-lop" class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">Nhập mã lớp để tham gia ↓</a>
+                    @else
+                        {{-- Vai trò khác (giáo viên/phụ huynh/admin) — giữ nguyên hành vi cũ, ngoài phạm vi bug được báo cáo. --}}
+                        <a href="{{ route('dashboard') }}" class="inline-block mt-5 px-6 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium">Xem lớp học của tôi</a>
+                    @endif
                 </div>
                 <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($course->title) }}/480/360" alt=""
                      class="w-full lg:w-80 rounded-3xl shadow-lg object-cover aspect-[4/3]">
@@ -66,7 +84,11 @@
                                 <span class="text-sm text-slate-400">GV {{ $cl['teacher'] }}</span>
                             </div>
                         </div>
-                        <x-status-badge tone="success">Đang mở</x-status-badge>
+                        @if ($cl['isMember'] ?? false)
+                            <x-status-badge tone="success">Đã tham gia ✓</x-status-badge>
+                        @else
+                            <x-status-badge tone="success">Đang mở</x-status-badge>
+                        @endif
                     </div>
                     <p class="text-sm text-slate-500 mt-4">👥 {{ $cl['studentsCount'] }} học sinh đã tham gia</p>
                 </div>
@@ -76,5 +98,21 @@
                 </div>
             @endforelse
         </div>
+
+        @if ($isStudent)
+            <div id="tham-gia-lop" class="scroll-mt-20 mt-10 rounded-2xl bg-white border border-slate-200 p-6">
+                <h2 class="font-medium text-slate-700 mb-2 flex items-center gap-2"><span>🔑</span> Có mã lớp?</h2>
+                <p class="text-sm text-slate-500 mb-4">Giáo viên cung cấp mã lớp riêng cho từng lớp — nhập đúng mã để tham gia ngay.</p>
+                <form method="POST" action="{{ route('student.classes.join') }}" class="flex flex-col sm:flex-row gap-3 max-w-md">
+                    @csrf
+                    <input type="text" name="code" placeholder="Ví dụ: 10CT-2026"
+                           class="flex-1 rounded-lg border {{ $errors->has('code') ? 'border-rose-300' : 'border-slate-200' }} text-sm p-2.5">
+                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors shrink-0">Tham gia lớp</button>
+                </form>
+                @error('code')
+                    <p class="text-xs text-rose-500 mt-2">{{ $message }}</p>
+                @enderror
+            </div>
+        @endif
     </div>
 @endsection

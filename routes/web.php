@@ -108,6 +108,7 @@ Route::middleware(['auth'])->group(function () {
     // -- Học sinh (10.1) -----------------------------------------------------
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
+        Route::post('classes/join', [StudentClassRoomController::class, 'join'])->name('classes.join');
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');

@@ -4,6 +4,9 @@ namespace App\Services\Public;
 
 use App\Enums\ReviewTargetType;
 use App\Models\Course;
+use App\Models\Role;
+use App\Models\User;
+use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Illuminate\Support\Collection;
@@ -13,12 +16,22 @@ use Illuminate\Support\Collection;
  * "Tách rõ khóa và lớp"). Chỉ hiển thị khóa đã phát hành (status=published); rating hiển
  * thị là TỔNG HỢP rating các lớp thuộc khóa — Course không có review target riêng (9.1 chỉ
  * định nghĩa 4 loại: material/class_room/teacher/competition, không có "course").
+ *
+ * courses.show trước đây có bug thật: nút CTA chỉ kiểm tra auth()->check() — bất kỳ ai ĐÃ
+ * đăng nhập (kể cả học sinh CHƯA từng tham gia lớp nào của khóa này) đều thấy "Xem lớp học
+ * của tôi" trỏ thẳng vào /dashboard, không hề kiểm tra học sinh đó có thực sự đã ở trong 1
+ * lớp thuộc khóa này hay chưa. Sửa lại: học sinh CHỈ thấy "Xem lớp học của tôi" khi có ít
+ * nhất 1 ClassEnrollment còn active ở 1 lớp thuộc khóa này; ngược lại thấy CTA "Nhập mã lớp
+ * để tham gia" (join-by-code — xem App\Services\Student\ClassRoomService::joinByCode()).
+ * Vai trò khác (giáo viên/phụ huynh/admin) giữ nguyên hành vi cũ (trỏ /dashboard) — ngoài
+ * phạm vi bug được báo cáo.
  */
 class CourseService
 {
     public function __construct(
         private CourseRepositoryInterface $courses,
         private RatingSummaryRepositoryInterface $ratingSummaries,
+        private ClassEnrollmentRepositoryInterface $classEnrollments,
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
@@ -54,8 +67,11 @@ class CourseService
         ];
     }
 
-    /** courses.show — chi tiết 1 khóa học + các lớp đang triển khai (8.1: khóa ≠ lớp). */
-    public function showData(int $courseId): array
+    /**
+     * courses.show — chi tiết 1 khóa học + các lớp đang triển khai (8.1: khóa ≠ lớp).
+     * $user null nếu khách chưa đăng nhập (trang này công khai, ai cũng xem được).
+     */
+    public function showData(int $courseId, ?User $user): array
     {
         $course = $this->courses->query()
             ->where('status', 'published')
@@ -66,11 +82,21 @@ class CourseService
         $ratingsByClassRoomId = $this->ratingSummariesByClassRoomId($classRoomIds);
         [$average, $count] = $this->aggregate($classRoomIds, $ratingsByClassRoomId);
 
+        // Chỉ tính "đã tham gia lớp nào của khóa này chưa" cho ĐÚNG vai trò học sinh — quan hệ
+        // ClassEnrollment (bảng class_enrollments) chỉ có ý nghĩa với student_id, không áp
+        // dụng cho giáo viên/phụ huynh/admin xem trang này.
+        $isStudent = $user !== null && $user->hasRole(Role::STUDENT);
+        $myEnrolledClassRoomIds = $isStudent
+            ? $this->classEnrollments->activeClassRoomIdsForUser($user->id)
+            : [];
+        $myClassRoomIdsInThisCourse = array_values(array_intersect($classRoomIds, $myEnrolledClassRoomIds));
+
         $classes = $course->classRooms->map(fn ($classRoom) => [
             'id' => $classRoom->id,
             'name' => $classRoom->name,
             'teacher' => $classRoom->teachers->first()->name ?? 'Chưa phân công',
             'studentsCount' => $classRoom->students_count,
+            'isMember' => in_array($classRoom->id, $myEnrolledClassRoomIds, true),
         ])->values()->all();
 
         return [
@@ -78,6 +104,8 @@ class CourseService
             'classes' => $classes,
             'ratingAverage' => $average,
             'ratingCount' => $count,
+            'isStudent' => $isStudent,
+            'myClassRoomIdsInThisCourse' => $myClassRoomIdsInThisCourse,
         ];
     }
 
