@@ -81,6 +81,24 @@ class MaterialService
         ];
     }
 
+    /**
+     * Trang chủ (PUB-01/02, 12.1) — "Tài liệu nổi bật": MỚI PHÁT HÀNH NHẤT gộp chung CẢ 3
+     * loại (Sách/Chuyên đề/Đề thi), khác với materials.index vốn luôn lọc riêng theo TỪNG
+     * tab. Tái dùng đúng baseQuery()/mapCard() để không lặp lại luật lọc (chỉ
+     * published+public, không lộ loại "course") ở một chỗ thứ hai.
+     */
+    public function featuredData(int $limit = 4): array
+    {
+        $products = $this->baseQuery()->latest()->limit($limit)->get();
+
+        $representativeIdByProductId = $this->representativeMaterialIds($products->pluck('id')->all());
+        $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());
+
+        return $products->map(
+            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId)
+        )->all();
+    }
+
     /** Chỉ đã phát hành + công khai — Product riêng tư (visibility=private) không lộ ra catalog công khai; loại "course" thuộc Khóa học, không thuộc Tài liệu (4.3). */
     private function baseQuery()
     {

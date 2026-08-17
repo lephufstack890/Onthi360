@@ -2,6 +2,7 @@
 
 namespace App\Services\Public;
 
+use App\Enums\CompetitionStatus;
 use App\Models\Competition;
 use App\Models\Role;
 use App\Models\User;
@@ -62,6 +63,23 @@ class CompetitionService
                 && $competition->assessment_id !== null
                 && $competition->status->value === 'ongoing',
         ];
+    }
+
+    /**
+     * Trang chủ (PUB-01/02, 12.1) — "Cuộc thi sắp tới": CHỈ status=upcoming, xếp gần nhất
+     * trước (starts_at TĂNG dần) — khác competitions.index vốn liệt kê MỌI trạng thái, mới
+     * TẠO trước (starts_at GIẢM dần qua withLeaderboardCounts()). Không dùng
+     * withLeaderboardCounts() ở đây vì cuộc thi sắp diễn ra chưa có lượt tham gia nào để đếm.
+     */
+    public function upcomingData(int $limit = 4): array
+    {
+        $competitions = $this->competitions->query()
+            ->where('status', CompetitionStatus::Upcoming->value)
+            ->orderBy('starts_at')
+            ->limit($limit)
+            ->get();
+
+        return $competitions->map(fn (Competition $c) => $this->mapCard($c))->all();
     }
 
     private function mapCard(Competition $c): array
