@@ -148,7 +148,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->name('assessments.reviewDraft');
         Route::post('assessments/import', [TeacherAssessmentController::class, 'importStore'])->name('assessments.import.store');
         Route::get('assessments/documents/{document}/file', [TeacherAssessmentController::class, 'downloadDocument'])->name('assessments.documents.download');
-        Route::post('assessments/documents/{document}/promote', [TeacherAssessmentController::class, 'promote'])->name('assessments.documents.promote');
         Route::post('assessments/documents/{document}/drafts', [TeacherAssessmentController::class, 'draftStore'])->name('assessments.drafts.store');
         Route::post('assessments/drafts/{draft}', [TeacherAssessmentController::class, 'draftUpdate'])->name('assessments.drafts.update');
         Route::post('assessments/drafts/{draft}/merge', [TeacherAssessmentController::class, 'draftMerge'])->name('assessments.drafts.merge');
@@ -344,7 +343,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/import', [AdminContentController::class, 'questionsImportStore'])->name('content.questions.import.store');
         Route::get('content/questions/review-draft', [AdminContentController::class, 'questionsReviewDraft'])->name('content.questions.reviewDraft');
         Route::get('content/documents/{document}/file', [AdminContentController::class, 'downloadDocument'])->name('content.documents.download');
-        Route::post('content/documents/{document}/promote', [AdminContentController::class, 'promote'])->name('content.documents.promote');
         Route::post('content/documents/{document}/drafts', [AdminContentController::class, 'draftStore'])->name('content.drafts.store');
         Route::post('content/drafts/{draft}', [AdminContentController::class, 'draftUpdate'])->name('content.drafts.update');
         Route::post('content/drafts/{draft}/merge', [AdminContentController::class, 'draftMerge'])->name('content.drafts.merge');

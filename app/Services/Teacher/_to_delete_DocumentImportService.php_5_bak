@@ -184,46 +184,18 @@ class DocumentImportService
         ]);
     }
 
-    /**
-     * teacher.assessments.drafts.update ("Lưu câu này") — lưu nội dung rồi NGAY LẬP TỨC
-     * chuyển vào kho câu hỏi riêng (dạng Nháp) nếu đã đủ điều kiện (6.4: người dùng bấm
-     * Lưu tức là đã tự xác nhận nội dung — không cần thêm 1 bước "Chuyển vào kho" tách
-     * rời gây hiểu lầm là chưa lưu xong). Nếu còn thiếu (vd chưa chọn đáp án đúng), vẫn
-     * lưu bản nháp bình thường (không chặn), chỉ báo rõ lý do chưa vào kho được.
-     * Sửa lại 1 câu ĐÃ ở trong kho (đã có promoted_question_id) thì đồng bộ luôn nội
-     * dung mới vào đúng Question đó, không tạo bản ghi trùng.
-     *
-     * @return array{promoted: bool, reason: ?string}
-     */
-    public function reviewSave(User $teacher, DraftQuestion $draft, string $type, array $data): array
+    public function updateDraft(DraftQuestion $draft, string $type, array $data): DraftQuestion
     {
         $draft->update([
             'type_guess' => $type,
             'structured_draft' => $this->buildStructured($type, $data),
             'review_status' => 'reviewed',
         ]);
-        $draft->refresh();
 
-        [$ready, $reason] = $this->draftReadiness($draft);
-
-        if (! $ready) {
-            $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-
-            return ['promoted' => false, 'reason' => $reason];
-        }
-
-        if ($draft->promoted_question_id !== null) {
-            $this->syncLinkedQuestion($draft);
-        } else {
-            $this->promoteSingle($teacher, $draft);
-        }
-
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-
-        return ['promoted' => true, 'reason' => null];
+        return $draft;
     }
 
-    /** @throws ValidationException nếu 2 câu không cùng 1 tệp, gộp với chính nó, hoặc 1 trong 2 câu đã ở trong kho. */
+    /** @throws ValidationException nếu 2 câu không cùng 1 tệp hoặc gộp với chính nó. */
     public function mergeDrafts(User $teacher, DraftQuestion $draft, int $mergeWithId): void
     {
         $other = $this->findOwnedDraft($teacher, $mergeWithId);
@@ -234,10 +206,6 @@ class DocumentImportService
 
         if ($other->uploaded_document_id !== $draft->uploaded_document_id) {
             throw ValidationException::withMessages(['merge_with_id' => 'Chỉ gộp được các câu trong cùng 1 tệp đã tải lên.']);
-        }
-
-        if ($draft->promoted_question_id !== null || $other->promoted_question_id !== null) {
-            throw ValidationException::withMessages(['merge_with_id' => 'Câu đã ở trong kho câu hỏi — vào Kho câu hỏi để sửa/gộp nội dung, không gộp được từ màn rà soát nữa.']);
         }
 
         $combinedRaw = trim($draft->raw_text."\n".$other->raw_text);
@@ -255,90 +223,77 @@ class DocumentImportService
         ]);
 
         $other->update(['review_status' => 'discarded']);
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
     }
 
-    /** @throws ValidationException nếu câu đã ở trong kho câu hỏi (đã promoted). */
     public function discardDraft(DraftQuestion $draft): void
     {
-        if ($draft->promoted_question_id !== null) {
-            throw ValidationException::withMessages(['discard' => 'Câu đã ở trong kho câu hỏi — vào Kho câu hỏi để lưu trữ/xóa, không xóa được từ màn rà soát nữa.']);
-        }
-
         $draft->update(['review_status' => 'discarded']);
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-    }
-
-    /** Tạo 1 Question thật (Nháp) trong kho riêng của giáo viên từ 1 draft đã đủ điều kiện. */
-    private function promoteSingle(User $teacher, DraftQuestion $draft): void
-    {
-        $bank = $this->questionService->findOrCreatePersonalBank($teacher);
-        $structured = $draft->structured_draft ?? [];
-        $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
-
-        DB::transaction(function () use ($draft, $teacher, $bank, $structured, $type) {
-            $question = $this->questions->create([
-                'bank_id' => $bank->id,
-                'code' => 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999),
-                'type' => QuestionType::from($type),
-                'title' => $structured['title'] ?? '',
-                'body' => $structured['body'] ?? '',
-                'points' => (int) ($structured['points'] ?? 1),
-                'grading_config' => $this->gradingConfigFromStructured($type, $structured),
-                'owner_type' => OwnerType::Teacher,
-                'owner_id' => $teacher->id,
-                'visibility' => Visibility::Private,
-                'status' => ContentStatus::Draft,
-                'version' => 1,
-                'created_by' => $teacher->id,
-            ]);
-
-            $draft->update(['review_status' => 'merged', 'promoted_question_id' => $question->id]);
-        });
-    }
-
-    /** Câu đã ở trong kho (đang sửa lại) — cập nhật đúng Question đã tạo, không tạo bản ghi trùng. */
-    private function syncLinkedQuestion(DraftQuestion $draft): void
-    {
-        $question = $this->questions->query()->find($draft->promoted_question_id);
-
-        if ($question === null) {
-            // Question gốc đã bị xóa ở đâu đó khác — tạo lại thay vì mất nội dung.
-            $draft->update(['promoted_question_id' => null]);
-            $this->promoteSingle($draft->uploadedDocument->uploader, $draft);
-
-            return;
-        }
-
-        $structured = $draft->structured_draft ?? [];
-        $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
-
-        $this->questions->update($question, [
-            'title' => $structured['title'] ?? '',
-            'body' => $structured['body'] ?? '',
-            'points' => (int) ($structured['points'] ?? 1),
-            'grading_config' => $this->gradingConfigFromStructured($type, $structured),
-        ]);
     }
 
     /**
-     * Cập nhật trạng thái tài liệu theo tiến độ rà soát: mọi câu (chưa bị xóa) đã vào
-     * kho -> Promoted (biến mất khỏi danh sách "Cần rà soát"); còn câu nào đó quay lại
-     * chưa vào kho (vd vừa gộp lại) -> lùi về NeedsReview để còn hiện lại trong danh sách.
+     * teacher.assessments.documents.promote — chuyển các câu đã rà soát vào kho
+     * câu hỏi riêng của giáo viên, luôn tạo ở trạng thái Nháp (6.4: "OCR không tự
+     * phát hành"). Chặn toàn bộ nếu còn câu chưa đủ điều kiện, liệt kê rõ câu nào.
+     *
+     * @throws ValidationException
      */
-    private function maybeSyncDocumentStatus(UploadedDocument $document): void
+    public function promote(User $teacher, UploadedDocument $document): int
     {
-        $activeCount = $document->draftQuestions()->where('review_status', '!=', 'discarded')->count();
-        $pendingCount = $document->draftQuestions()
+        $activeDrafts = $document->draftQuestions()
             ->where('review_status', '!=', 'discarded')
             ->whereNull('promoted_question_id')
-            ->count();
+            ->get();
 
-        if ($activeCount > 0 && $pendingCount === 0 && $document->status !== UploadedDocumentStatus::Promoted) {
-            $document->update(['status' => UploadedDocumentStatus::Promoted]);
-        } elseif ($pendingCount > 0 && $document->status === UploadedDocumentStatus::Promoted) {
-            $document->update(['status' => UploadedDocumentStatus::NeedsReview]);
+        if ($activeDrafts->isEmpty()) {
+            throw ValidationException::withMessages(['promote' => 'Không còn câu nào để chuyển vào kho — mọi câu đã được chuyển hoặc đã bị xóa.']);
         }
+
+        $notReady = [];
+        foreach ($activeDrafts as $draft) {
+            [$ready, $reason] = $this->draftReadiness($draft);
+            if (! $ready) {
+                $notReady[] = 'Câu '.($draft->order + 1).': '.$reason;
+            }
+        }
+
+        if ($notReady !== []) {
+            throw ValidationException::withMessages([
+                'promote' => 'Chưa thể chuyển vào kho — '.implode('; ', $notReady).'.',
+            ]);
+        }
+
+        $bank = $this->questionService->findOrCreatePersonalBank($teacher);
+        $count = 0;
+
+        DB::transaction(function () use ($activeDrafts, $teacher, $bank, &$count) {
+            foreach ($activeDrafts as $draft) {
+                $structured = $draft->structured_draft ?? [];
+                $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
+
+                $question = $this->questions->create([
+                    'bank_id' => $bank->id,
+                    'code' => 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999),
+                    'type' => QuestionType::from($type),
+                    'title' => $structured['title'] ?? '',
+                    'body' => $structured['body'] ?? '',
+                    'points' => (int) ($structured['points'] ?? 1),
+                    'grading_config' => $this->gradingConfigFromStructured($type, $structured),
+                    'owner_type' => OwnerType::Teacher,
+                    'owner_id' => $teacher->id,
+                    'visibility' => Visibility::Private,
+                    'status' => ContentStatus::Draft,
+                    'version' => 1,
+                    'created_by' => $teacher->id,
+                ]);
+
+                $draft->update(['review_status' => 'merged', 'promoted_question_id' => $question->id]);
+                $count++;
+            }
+        });
+
+        $document->update(['status' => UploadedDocumentStatus::Promoted]);
+
+        return $count;
     }
 
     /** @return array{0: bool, 1: ?string} */

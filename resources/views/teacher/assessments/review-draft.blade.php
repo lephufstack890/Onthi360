@@ -28,8 +28,11 @@
     @if (session('status') === 'draft-added')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm câu thủ công — điền nội dung bên dưới.'])
     @endif
-    @if (session('status') === 'draft-saved')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu câu.'])
+    @if (session('status') === 'draft-promoted-one')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu và chuyển câu này vào kho câu hỏi (dạng Nháp) — vào Kho câu hỏi để phát hành.'])
+    @endif
+    @if (session('status') === 'draft-saved-pending')
+        @include('partials.toast-flash', ['type' => 'warning', 'message' => 'Đã lưu nội dung — chưa chuyển vào kho câu hỏi: '.session('draftPendingReason', 'còn thiếu thông tin.')])
     @endif
     @if (session('status') === 'draft-merged')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gộp 2 câu — kiểm tra lại nội dung trước khi lưu.'])
@@ -37,10 +40,7 @@
     @if (session('status') === 'draft-discarded')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã bỏ câu này.'])
     @endif
-    @if (session('status') === 'draft-promoted')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã chuyển '.session('promotedCount', 0).' câu vào Kho câu hỏi (dạng Nháp) — vào Kho câu hỏi để phát hành từng câu.'])
-    @endif
-    @if ($errors->any() && !$errors->has('promote'))
+    @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
@@ -74,7 +74,12 @@
                      x-data="{ type: '{{ old('type_guess', $d['type'] ?? 'mcq') }}' }">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500">Câu {{ $d['no'] }}</span>
-                        <x-status-badge :tone="$d['tone']">Độ tin cậy: {{ $d['confidence'] }}</x-status-badge>
+                        <div class="flex items-center gap-2">
+                            @if ($d['promoted'])
+                                <x-status-badge tone="success">✓ Đã vào kho câu hỏi</x-status-badge>
+                            @endif
+                            <x-status-badge :tone="$d['tone']">Độ tin cậy: {{ $d['confidence'] }}</x-status-badge>
+                        </div>
                     </div>
 
                     @if ($d['flagged'])
@@ -155,27 +160,36 @@
                                    class="w-32 rounded-lg border border-slate-200 text-sm p-2">
                         </div>
 
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu câu này</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">
+                            {{ $d['promoted'] ? 'Cập nhật câu trong kho' : 'Lưu câu này' }}
+                        </button>
+                        @if (! $d['promoted'])
+                            <p class="text-xs text-slate-400 mt-1">Đủ điều kiện sẽ tự chuyển vào kho câu hỏi ngay khi lưu.</p>
+                        @endif
                     </form>
 
-                    <div class="flex items-center gap-3 text-sm mt-3 pt-3 border-t border-slate-100">
-                        @if (count($d['otherDrafts']) > 0)
-                            <form method="POST" action="{{ route('teacher.assessments.drafts.merge', $d['id']) }}" class="flex items-center gap-2">
+                    @if (! $d['promoted'])
+                        <div class="flex items-center gap-3 text-sm mt-3 pt-3 border-t border-slate-100">
+                            @if (count($d['otherDrafts']) > 0)
+                                <form method="POST" action="{{ route('teacher.assessments.drafts.merge', $d['id']) }}" class="flex items-center gap-2">
+                                    @csrf
+                                    <select name="merge_with_id" class="rounded-lg border border-slate-200 text-xs p-1.5">
+                                        @foreach ($d['otherDrafts'] as $other)
+                                            <option value="{{ $other['id'] }}">Gộp với {{ $other['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="submit" class="text-slate-600 text-sm">Gộp</button>
+                                </form>
+                            @endif
+                            <form method="POST" action="{{ route('teacher.assessments.drafts.discard', $d['id']) }}"
+                                  onsubmit="return confirm('Bỏ câu này khỏi danh sách rà soát?');">
                                 @csrf
-                                <select name="merge_with_id" class="rounded-lg border border-slate-200 text-xs p-1.5">
-                                    @foreach ($d['otherDrafts'] as $other)
-                                        <option value="{{ $other['id'] }}">Gộp với {{ $other['label'] }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="submit" class="text-slate-600 text-sm">Gộp</button>
+                                <button type="submit" class="text-rose-500 text-sm">Xóa</button>
                             </form>
-                        @endif
-                        <form method="POST" action="{{ route('teacher.assessments.drafts.discard', $d['id']) }}"
-                              onsubmit="return confirm('Bỏ câu này khỏi danh sách rà soát?');">
-                            @csrf
-                            <button type="submit" class="text-rose-500 text-sm">Xóa</button>
-                        </form>
-                    </div>
+                        </div>
+                    @else
+                        <p class="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">Câu đã ở trong kho câu hỏi — vào "Kho câu hỏi" để gộp/xóa/phát hành.</p>
+                    @endif
                 </div>
             @empty
                 <x-empty-state title="Không có câu nào cần rà soát" description="Chọn một tệp đang 'Cần rà soát' từ trang Nhập đề." />
@@ -193,19 +207,10 @@
     </div>
 
     @if ($document)
-        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4 mt-6 flex items-center justify-between flex-wrap gap-3">
-            <p class="text-sm text-amber-800 flex items-center gap-2">
-                <span>⚠️</span>
-                @if ($errors->has('promote'))
-                    {{ $errors->first('promote') }}
-                @else
-                    Mỗi câu tự lưu riêng khi bấm "Lưu câu này" — khi tất cả câu đã đủ điều kiện, bấm "Chuyển vào kho câu hỏi".
-                @endif
+        <div class="rounded-2xl bg-slate-50 border border-slate-100 p-4 mt-6">
+            <p class="text-sm text-slate-500 flex items-center gap-2">
+                <span>ℹ️</span> Mỗi câu tự chuyển vào kho câu hỏi (dạng Nháp) ngay khi bấm "Lưu câu này" và đủ điều kiện — không cần bước gộp riêng.
             </p>
-            <form method="POST" action="{{ route('teacher.assessments.documents.promote', $document->id) }}">
-                @csrf
-                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Chuyển vào kho câu hỏi</button>
-            </form>
         </div>
     @endif
 @endsection

@@ -271,25 +271,17 @@ class ContentController extends Controller
             ->with('status', 'draft-added');
     }
 
-    /**
-     * admin.content.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). Nếu câu
-     * đủ điều kiện, lưu là chuyển thẳng vào Kho chung (dạng Nháp) luôn — không cần bước
-     * "Chuyển vào Kho chung" riêng nữa. Sửa lại 1 câu đã ở trong Kho chung sẽ cập nhật
-     * đúng câu đó, không tạo bản sao.
-     */
+    /** admin.content.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). */
     public function draftUpdate(Request $request, int $draft): RedirectResponse
     {
         $draftModel = $this->documentImportService->findDraft($draft);
         $type = $request->input('type_guess', 'mcq');
         $data = $request->validate($this->draftValidationRules($type));
 
-        $result = $this->documentImportService->reviewSave(Auth::user(), $draftModel, $type, $data);
+        $this->documentImportService->updateDraft($draftModel, $type, $data);
 
-        $redirect = redirect()->route('admin.content.questions.reviewDraft', ['document' => $draftModel->uploaded_document_id]);
-
-        return $result['promoted']
-            ? $redirect->with('status', 'draft-promoted-one')
-            : $redirect->with('status', 'draft-saved-pending')->with('draftPendingReason', $result['reason']);
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $draftModel->uploaded_document_id])
+            ->with('status', 'draft-saved');
     }
 
     /** admin.content.drafts.merge — gộp 2 câu bị OCR/tách sai thành 1 (6.4). */
@@ -317,6 +309,26 @@ class ContentController extends Controller
         $this->documentImportService->discardDraft($draftModel);
 
         return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentId])->with('status', 'draft-discarded');
+    }
+
+    /**
+     * admin.content.documents.promote — chuyển toàn bộ câu đã rà soát vào Kho chung
+     * (luôn ở dạng Nháp — 6.4: "OCR không tự phát hành"). Chặn nếu còn câu chưa đủ
+     * điều kiện, liệt kê rõ câu nào để admin/editor quay lại sửa.
+     */
+    public function promote(Request $request, int $document): RedirectResponse
+    {
+        $documentModel = $this->documentImportService->findDocument($document);
+
+        try {
+            $count = $this->documentImportService->promote(Auth::user(), $documentModel);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentModel->id])->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.content.index', ['tab' => 'questions'])
+            ->with('status', 'draft-promoted')
+            ->with('promotedCount', $count);
     }
 
     private function draftValidationRules(string $type): array

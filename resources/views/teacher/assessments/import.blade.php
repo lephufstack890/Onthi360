@@ -24,7 +24,7 @@
     @if (session('status') === 'import-failed')
         @include('partials.toast-flash', ['type' => 'error', 'message' => 'Xử lý tệp thất bại: '.session('importError', 'Lỗi không rõ.')])
     @endif
-    @if (session('status') === 'draft-added' || session('status') === 'draft-saved' || session('status') === 'draft-merged' || session('status') === 'draft-discarded')
+    @if (session('status') === 'draft-added' || session('status') === 'draft-promoted-one' || session('status') === 'draft-saved-pending' || session('status') === 'draft-merged' || session('status') === 'draft-discarded')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi.'])
     @endif
 

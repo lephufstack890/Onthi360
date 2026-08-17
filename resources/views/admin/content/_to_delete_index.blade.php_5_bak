@@ -33,7 +33,9 @@
         </x-slot:actions>
     </x-page-header>
 
-    @if (session('status'))
+    @if (session('status') === 'draft-promoted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã chuyển '.session('promotedCount', 0).' câu vào Kho chung (dạng Nháp) — vào tab "Kho câu hỏi chung" để phát hành từng câu.'])
+    @elseif (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
     @endif
 

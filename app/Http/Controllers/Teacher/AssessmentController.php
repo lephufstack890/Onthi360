@@ -131,17 +131,25 @@ class AssessmentController extends Controller
             ->with('status', 'draft-added');
     }
 
-    /** teacher.assessments.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). */
+    /**
+     * teacher.assessments.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). Nếu
+     * câu đủ điều kiện, lưu là chuyển thẳng vào kho câu hỏi riêng (dạng Nháp) luôn — không
+     * cần bước "Chuyển vào kho câu hỏi" riêng nữa. Sửa lại 1 câu đã ở trong kho sẽ cập nhật
+     * đúng câu đó, không tạo bản sao.
+     */
     public function draftUpdate(Request $request, int $draft): RedirectResponse
     {
         $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
         $type = $request->input('type_guess', 'mcq');
         $data = $request->validate($this->draftValidationRules($type));
 
-        $this->documentImportService->updateDraft($draftModel, $type, $data);
+        $result = $this->documentImportService->reviewSave(Auth::user(), $draftModel, $type, $data);
 
-        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $draftModel->uploaded_document_id])
-            ->with('status', 'draft-saved');
+        $redirect = redirect()->route('teacher.assessments.reviewDraft', ['document' => $draftModel->uploaded_document_id]);
+
+        return $result['promoted']
+            ? $redirect->with('status', 'draft-promoted-one')
+            : $redirect->with('status', 'draft-saved-pending')->with('draftPendingReason', $result['reason']);
     }
 
     /** teacher.assessments.drafts.merge — gộp 2 câu bị OCR/tách sai thành 1 (6.4). */
@@ -169,26 +177,6 @@ class AssessmentController extends Controller
         $this->documentImportService->discardDraft($draftModel);
 
         return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->with('status', 'draft-discarded');
-    }
-
-    /**
-     * teacher.assessments.documents.promote — chuyển toàn bộ câu đã rà soát vào kho câu
-     * hỏi riêng (luôn ở dạng Nháp — 6.4: "OCR không tự phát hành"). Chặn nếu còn câu chưa
-     * đủ điều kiện, liệt kê rõ câu nào để giáo viên quay lại sửa.
-     */
-    public function promote(Request $request, int $document): RedirectResponse
-    {
-        $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
-
-        try {
-            $count = $this->documentImportService->promote(Auth::user(), $documentModel);
-        } catch (ValidationException $e) {
-            return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentModel->id])->withErrors($e->errors());
-        }
-
-        return redirect()->route('teacher.questions.index')
-            ->with('status', 'draft-promoted')
-            ->with('promotedCount', $count);
     }
 
     /** teacher.assessments.publish — phát hành riêng, không giao lớp ngay (6.2). */

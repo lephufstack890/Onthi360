@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Teacher;
+namespace App\Services\Admin;
 
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
@@ -8,6 +8,7 @@ use App\Enums\QuestionType;
 use App\Enums\UploadedDocumentStatus;
 use App\Enums\Visibility;
 use App\Models\DraftQuestion;
+use App\Models\QuestionBank;
 use App\Models\UploadedDocument;
 use App\Models\User;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
@@ -21,10 +22,22 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Luồng "Nhập đề" (TEA-05, 6.4): tải Word/PDF/OCR -> trích xuất -> phân rã
- * bản nháp -> rà soát (sửa/gộp/xóa/thêm tay) -> chuyển vào kho câu hỏi riêng
- * của giáo viên (LUÔN ở dạng "Nháp" — OCR không tự phát hành, giáo viên vẫn
- * phải tự bấm "Phát hành" cho từng câu như quy trình nhập tay bình thường).
+ * Luồng "Nhập đề" phía Admin/Editor (ADM-03, 6.4, 6.5): tải Word/PDF/OCR ->
+ * trích xuất -> phân rã bản nháp -> rà soát -> chuyển vào "Kho chung" (LUÔN ở
+ * dạng Nháp — OCR không tự phát hành, vẫn phải tự bấm "Phát hành" từng câu ở
+ * admin.content.questions.publish như quy trình tạo câu hỏi tay bình thường).
+ *
+ * Cố ý KHÔNG dùng chung App\Services\Teacher\DocumentImportService: pipeline
+ * trích xuất/tách câu là logic thuần (App\Support\DocumentTextExtractor,
+ * App\Support\ExamTextSplitter) nên tái dùng thẳng, nhưng đích đến của
+ * promote() khác hẳn (Kho chung — owner_type=shared, không phải kho riêng
+ * của 1 giáo viên) nên tách riêng để không phải chèn nhánh rẽ theo vai trò
+ * vào 1 service dùng chung, dễ rối khi đọc lại sau này.
+ *
+ * Khác với phía Teacher: tài liệu/câu nháp ở đây thuộc "Kho chung" — bất kỳ
+ * Admin/Editor nào (cùng nhóm quyền role:admin,super_admin,editor) cũng rà
+ * soát/sửa/xóa/gộp/chuyển vào kho được, không giới hạn theo đúng người đã tải
+ * lên (khác Teacher — nơi tài liệu là sở hữu riêng của từng giáo viên).
  */
 class DocumentImportService
 {
@@ -34,7 +47,6 @@ class DocumentImportService
         private readonly UploadedDocumentRepositoryInterface $documents,
         private readonly DraftQuestionRepositoryInterface $drafts,
         private readonly QuestionRepositoryInterface $questions,
-        private readonly QuestionService $questionService,
         private readonly DocumentTextExtractor $extractor,
         private readonly ExamTextSplitter $splitter,
     ) {}
@@ -44,13 +56,25 @@ class DocumentImportService
         return self::MAX_FILE_KB;
     }
 
-    /** teacher.assessments.import.store — tải tệp lên và xử lý ngay trong request (6.4). */
-    public function import(User $teacher, UploadedFile $file): UploadedDocument
+    /**
+     * Kho câu hỏi chung dùng chung toàn hệ thống — CÙNG một bản ghi với
+     * App\Services\Admin\ContentService::sharedBank() (tra theo đúng
+     * owner_type+name nên firstOrCreate() luôn trả về đúng 1 hàng).
+     */
+    private function sharedBank(): QuestionBank
     {
-        $path = $file->store('assessment-imports/'.$teacher->id, 'local');
+        return QuestionBank::firstOrCreate(
+            ['owner_type' => OwnerType::Shared->value, 'name' => 'Kho chung'],
+        );
+    }
+
+    /** admin.content.questions.import.store — tải tệp lên và xử lý ngay trong request (6.4). */
+    public function import(User $admin, UploadedFile $file): UploadedDocument
+    {
+        $path = $file->store('content-imports/'.$admin->id, 'local');
 
         $document = $this->documents->create([
-            'uploader_id' => $teacher->id,
+            'uploader_id' => $admin->id,
             'original_filename' => $file->getClientOriginalName(),
             'storage_path' => $path,
             'mime_type' => $file->getClientMimeType(),
@@ -65,12 +89,9 @@ class DocumentImportService
     }
 
     /**
-     * Xử lý đồng bộ ngay trong request (không qua queue) để không phụ thuộc việc
-     * có worker nền (`php artisan queue:work`) đang chạy hay không — mọi trạng
-     * thái trung gian (Scanning/Processing) vẫn được ghi để màn "Nhập đề" hiển
-     * thị đúng. Nếu sau này khối lượng tệp lớn/nhiều trang scan khiến việc này
-     * chậm, có thể chuyển gọi hàm này vào 1 Job và dispatch() thay vì gọi trực
-     * tiếp — không cần đổi phần còn lại.
+     * Xử lý đồng bộ ngay trong request (không qua queue) — giống hệt lý do ở
+     * App\Services\Teacher\DocumentImportService::process(): không phụ thuộc
+     * việc có worker nền đang chạy hay không.
      */
     public function process(UploadedDocument $document): void
     {
@@ -151,20 +172,21 @@ class DocumentImportService
         $document->update(['status' => UploadedDocumentStatus::NeedsReview]);
     }
 
-    public function findOwnedDocument(User $teacher, int $id): UploadedDocument
+    /** Không giới hạn theo người tải lên — tài liệu thuộc "Kho chung", cả nhóm Admin/Editor cùng rà soát được. */
+    public function findDocument(int $id): UploadedDocument
     {
-        $document = $this->documents->findForUploader($teacher->id, $id);
+        $document = $this->documents->query()->find($id);
 
         abort_if($document === null, 404);
 
         return $document;
     }
 
-    public function findOwnedDraft(User $teacher, int $id): DraftQuestion
+    public function findDraft(int $id): DraftQuestion
     {
         $draft = $this->drafts->query()->with('uploadedDocument')->find($id);
 
-        abort_if($draft === null || (int) $draft->uploadedDocument->uploader_id !== $teacher->id, 404);
+        abort_if($draft === null, 404);
 
         return $draft;
     }
@@ -184,49 +206,21 @@ class DocumentImportService
         ]);
     }
 
-    /**
-     * teacher.assessments.drafts.update ("Lưu câu này") — lưu nội dung rồi NGAY LẬP TỨC
-     * chuyển vào kho câu hỏi riêng (dạng Nháp) nếu đã đủ điều kiện (6.4: người dùng bấm
-     * Lưu tức là đã tự xác nhận nội dung — không cần thêm 1 bước "Chuyển vào kho" tách
-     * rời gây hiểu lầm là chưa lưu xong). Nếu còn thiếu (vd chưa chọn đáp án đúng), vẫn
-     * lưu bản nháp bình thường (không chặn), chỉ báo rõ lý do chưa vào kho được.
-     * Sửa lại 1 câu ĐÃ ở trong kho (đã có promoted_question_id) thì đồng bộ luôn nội
-     * dung mới vào đúng Question đó, không tạo bản ghi trùng.
-     *
-     * @return array{promoted: bool, reason: ?string}
-     */
-    public function reviewSave(User $teacher, DraftQuestion $draft, string $type, array $data): array
+    public function updateDraft(DraftQuestion $draft, string $type, array $data): DraftQuestion
     {
         $draft->update([
             'type_guess' => $type,
             'structured_draft' => $this->buildStructured($type, $data),
             'review_status' => 'reviewed',
         ]);
-        $draft->refresh();
 
-        [$ready, $reason] = $this->draftReadiness($draft);
-
-        if (! $ready) {
-            $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-
-            return ['promoted' => false, 'reason' => $reason];
-        }
-
-        if ($draft->promoted_question_id !== null) {
-            $this->syncLinkedQuestion($draft);
-        } else {
-            $this->promoteSingle($teacher, $draft);
-        }
-
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-
-        return ['promoted' => true, 'reason' => null];
+        return $draft;
     }
 
-    /** @throws ValidationException nếu 2 câu không cùng 1 tệp, gộp với chính nó, hoặc 1 trong 2 câu đã ở trong kho. */
-    public function mergeDrafts(User $teacher, DraftQuestion $draft, int $mergeWithId): void
+    /** @throws ValidationException nếu 2 câu không cùng 1 tệp hoặc gộp với chính nó. */
+    public function mergeDrafts(DraftQuestion $draft, int $mergeWithId): void
     {
-        $other = $this->findOwnedDraft($teacher, $mergeWithId);
+        $other = $this->findDraft($mergeWithId);
 
         if ($other->id === $draft->id) {
             throw ValidationException::withMessages(['merge_with_id' => 'Không thể gộp câu với chính nó.']);
@@ -236,10 +230,6 @@ class DocumentImportService
             throw ValidationException::withMessages(['merge_with_id' => 'Chỉ gộp được các câu trong cùng 1 tệp đã tải lên.']);
         }
 
-        if ($draft->promoted_question_id !== null || $other->promoted_question_id !== null) {
-            throw ValidationException::withMessages(['merge_with_id' => 'Câu đã ở trong kho câu hỏi — vào Kho câu hỏi để sửa/gộp nội dung, không gộp được từ màn rà soát nữa.']);
-        }
-
         $combinedRaw = trim($draft->raw_text."\n".$other->raw_text);
         $s1 = $draft->structured_draft ?? [];
         $s2 = $other->structured_draft ?? [];
@@ -247,7 +237,6 @@ class DocumentImportService
 
         $draft->update([
             'raw_text' => $combinedRaw,
-            // Gộp tay luôn cần rà soát lại nội dung/đáp án, không giữ nguyên type_guess cũ.
             'type_guess' => null,
             'structured_draft' => array_merge($s1, ['body' => $mergedBody]),
             'confidence' => 'low',
@@ -255,90 +244,87 @@ class DocumentImportService
         ]);
 
         $other->update(['review_status' => 'discarded']);
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
     }
 
-    /** @throws ValidationException nếu câu đã ở trong kho câu hỏi (đã promoted). */
     public function discardDraft(DraftQuestion $draft): void
     {
-        if ($draft->promoted_question_id !== null) {
-            throw ValidationException::withMessages(['discard' => 'Câu đã ở trong kho câu hỏi — vào Kho câu hỏi để lưu trữ/xóa, không xóa được từ màn rà soát nữa.']);
-        }
-
         $draft->update(['review_status' => 'discarded']);
-        $this->maybeSyncDocumentStatus($draft->uploadedDocument);
-    }
-
-    /** Tạo 1 Question thật (Nháp) trong kho riêng của giáo viên từ 1 draft đã đủ điều kiện. */
-    private function promoteSingle(User $teacher, DraftQuestion $draft): void
-    {
-        $bank = $this->questionService->findOrCreatePersonalBank($teacher);
-        $structured = $draft->structured_draft ?? [];
-        $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
-
-        DB::transaction(function () use ($draft, $teacher, $bank, $structured, $type) {
-            $question = $this->questions->create([
-                'bank_id' => $bank->id,
-                'code' => 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999),
-                'type' => QuestionType::from($type),
-                'title' => $structured['title'] ?? '',
-                'body' => $structured['body'] ?? '',
-                'points' => (int) ($structured['points'] ?? 1),
-                'grading_config' => $this->gradingConfigFromStructured($type, $structured),
-                'owner_type' => OwnerType::Teacher,
-                'owner_id' => $teacher->id,
-                'visibility' => Visibility::Private,
-                'status' => ContentStatus::Draft,
-                'version' => 1,
-                'created_by' => $teacher->id,
-            ]);
-
-            $draft->update(['review_status' => 'merged', 'promoted_question_id' => $question->id]);
-        });
-    }
-
-    /** Câu đã ở trong kho (đang sửa lại) — cập nhật đúng Question đã tạo, không tạo bản ghi trùng. */
-    private function syncLinkedQuestion(DraftQuestion $draft): void
-    {
-        $question = $this->questions->query()->find($draft->promoted_question_id);
-
-        if ($question === null) {
-            // Question gốc đã bị xóa ở đâu đó khác — tạo lại thay vì mất nội dung.
-            $draft->update(['promoted_question_id' => null]);
-            $this->promoteSingle($draft->uploadedDocument->uploader, $draft);
-
-            return;
-        }
-
-        $structured = $draft->structured_draft ?? [];
-        $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
-
-        $this->questions->update($question, [
-            'title' => $structured['title'] ?? '',
-            'body' => $structured['body'] ?? '',
-            'points' => (int) ($structured['points'] ?? 1),
-            'grading_config' => $this->gradingConfigFromStructured($type, $structured),
-        ]);
     }
 
     /**
-     * Cập nhật trạng thái tài liệu theo tiến độ rà soát: mọi câu (chưa bị xóa) đã vào
-     * kho -> Promoted (biến mất khỏi danh sách "Cần rà soát"); còn câu nào đó quay lại
-     * chưa vào kho (vd vừa gộp lại) -> lùi về NeedsReview để còn hiện lại trong danh sách.
+     * admin.content.documents.promote — chuyển các câu đã rà soát vào "Kho
+     * chung", luôn tạo ở trạng thái Nháp (6.4: "OCR không tự phát hành").
+     * Chặn toàn bộ nếu còn câu chưa đủ điều kiện, liệt kê rõ câu nào.
+     *
+     * @throws ValidationException
      */
-    private function maybeSyncDocumentStatus(UploadedDocument $document): void
+    public function promote(User $admin, UploadedDocument $document): int
     {
-        $activeCount = $document->draftQuestions()->where('review_status', '!=', 'discarded')->count();
-        $pendingCount = $document->draftQuestions()
+        $activeDrafts = $document->draftQuestions()
             ->where('review_status', '!=', 'discarded')
             ->whereNull('promoted_question_id')
-            ->count();
+            ->get();
 
-        if ($activeCount > 0 && $pendingCount === 0 && $document->status !== UploadedDocumentStatus::Promoted) {
-            $document->update(['status' => UploadedDocumentStatus::Promoted]);
-        } elseif ($pendingCount > 0 && $document->status === UploadedDocumentStatus::Promoted) {
-            $document->update(['status' => UploadedDocumentStatus::NeedsReview]);
+        if ($activeDrafts->isEmpty()) {
+            throw ValidationException::withMessages(['promote' => 'Không còn câu nào để chuyển vào kho — mọi câu đã được chuyển hoặc đã bị xóa.']);
         }
+
+        $notReady = [];
+        foreach ($activeDrafts as $draft) {
+            [$ready, $reason] = $this->draftReadiness($draft);
+            if (! $ready) {
+                $notReady[] = 'Câu '.($draft->order + 1).': '.$reason;
+            }
+        }
+
+        if ($notReady !== []) {
+            throw ValidationException::withMessages([
+                'promote' => 'Chưa thể chuyển vào kho — '.implode('; ', $notReady).'.',
+            ]);
+        }
+
+        $bank = $this->sharedBank();
+        $count = 0;
+
+        DB::transaction(function () use ($activeDrafts, $admin, $bank, &$count) {
+            foreach ($activeDrafts as $draft) {
+                $structured = $draft->structured_draft ?? [];
+                $type = $draft->type_guess instanceof QuestionType ? $draft->type_guess->value : $draft->type_guess;
+
+                $question = $this->questions->create([
+                    'bank_id' => $bank->id,
+                    'code' => $this->generateUniqueCode(),
+                    'type' => QuestionType::from($type),
+                    'title' => $structured['title'] ?? '',
+                    'body' => $structured['body'] ?? '',
+                    'points' => (int) ($structured['points'] ?? 1),
+                    'grading_config' => $this->gradingConfigFromStructured($type, $structured),
+                    'owner_type' => OwnerType::Shared,
+                    'owner_id' => null,
+                    'visibility' => Visibility::Public,
+                    'status' => ContentStatus::Draft,
+                    'version' => 1,
+                    'created_by' => $admin->id,
+                ]);
+
+                $draft->update(['review_status' => 'merged', 'promoted_question_id' => $question->id]);
+                $count++;
+            }
+        });
+
+        $document->update(['status' => UploadedDocumentStatus::Promoted]);
+
+        return $count;
+    }
+
+    /** Tránh trùng cột `code` (unique) — App\Services\Admin\ContentService::questionStore() chặn tay khi admin tự gõ mã. */
+    private function generateUniqueCode(): string
+    {
+        do {
+            $code = 'Q-ADM-'.now()->format('ymd').'-'.random_int(1000, 9999);
+        } while ($this->questions->query()->where('code', $code)->exists());
+
+        return $code;
     }
 
     /** @return array{0: bool, 1: ?string} */
@@ -398,15 +384,14 @@ class DocumentImportService
         };
     }
 
-    /** Cùng cấu trúc grading_config như App\Services\Teacher\QuestionService (không tách 2 luật). */
+    /** Giống hệt App\Services\Teacher\DocumentImportService::gradingConfigFromStructured() — giữ đồng bộ nếu sửa. */
     private function gradingConfigFromStructured(string $type, array $s): array
     {
         return match ($type) {
             'mcq' => [
                 'options' => array_values(array_filter($s['options'] ?? [], fn ($o) => filled($o))),
-                // QUAN TRỌNG: App\Services\AttemptService::gradeMcq() so khớp correct_options
-                // bằng (int) — phải lưu CHỈ SỐ 0-3, không phải chữ cái A-D (form rà soát vẫn
-                // hiển thị/nhận chữ cái A-D cho giáo viên, chỉ đổi sang chỉ số lúc ghi xuống).
+                // App\Services\AttemptService::gradeMcq() so khớp bằng (int) -> phải lưu
+                // CHỈ SỐ 0-3, không phải chữ cái A-D (form rà soát vẫn dùng chữ cái A-D).
                 'correct_options' => array_values(array_filter(
                     [$this->letterToIndex($s['correct_option'] ?? null)],
                     fn ($v) => $v !== null
@@ -428,7 +413,19 @@ class DocumentImportService
         };
     }
 
-    /** Giống hệt App\Http\Controllers\Teacher\QuestionController::parseTestCases() — giữ đồng bộ nếu sửa. */
+    /** 'A'/'B'/'C'/'D' (không phân biệt hoa/thường) -> 0/1/2/3; giá trị khác -> null (bỏ qua). */
+    private function letterToIndex(?string $letter): ?int
+    {
+        return match (strtoupper((string) $letter)) {
+            'A' => 0,
+            'B' => 1,
+            'C' => 2,
+            'D' => 3,
+            default => null,
+        };
+    }
+
+    /** Giống hệt App\Services\Teacher\DocumentImportService::parseTestCases() — giữ đồng bộ nếu sửa. */
     private function parseTestCases(string $raw): array
     {
         $cases = [];
@@ -442,18 +439,6 @@ class DocumentImportService
         }
 
         return $cases;
-    }
-
-    /** 'A'/'B'/'C'/'D' (không phân biệt hoa/thường) -> 0/1/2/3; giá trị khác -> null (bỏ qua). */
-    private function letterToIndex(?string $letter): ?int
-    {
-        return match (strtoupper((string) $letter)) {
-            'A' => 0,
-            'B' => 1,
-            'C' => 2,
-            'D' => 3,
-            default => null,
-        };
     }
 
     private function signatureMatchesExtension(string $absolutePath, string $originalFilename): bool

@@ -218,7 +218,7 @@ class ContentService
                     'testCases' => $s['test_cases'] ?? '',
                     'timeLimitMs' => $s['time_limit_ms'] ?? 1000,
                     'memoryLimitMb' => $s['memory_limit_mb'] ?? 256,
-                    'otherDrafts' => $allDrafts->reject(fn ($other) => $other->id === $d->id || $other->promoted_question_id !== null)
+                    'otherDrafts' => $allDrafts->reject(fn ($other) => $other->id === $d->id)
                         ->map(fn ($other) => ['id' => $other->id, 'label' => 'Câu '.($other->order + 1)])
                         ->values()->all(),
                 ];
