@@ -13,7 +13,6 @@ class ResultController extends Controller
 {
     public function __construct(private readonly ResultService $resultService) {}
 
-    /** teacher.results.index (TEA-08) — phễu Lớp → Đề → Học sinh → Lần nộp (10.2). */
     public function index(Request $request): View
     {
         $user = Auth::user();
@@ -24,7 +23,6 @@ class ResultController extends Controller
         return view('teacher.results.index', $this->resultService->funnelFor($user, $requestedClassId, $requestedAssignmentId, $requestedStatus));
     }
 
-    /** teacher.results.attempt — xem chi tiết một lần nộp cụ thể (10.2, TEA-08). */
     public function attempt(int $attempt): View
     {
         $user = Auth::user();
@@ -32,7 +30,6 @@ class ResultController extends Controller
         return view('teacher.results.attempt', $this->resultService->attemptDetailFor($user, $attempt));
     }
 
-    /** teacher.results.export — xuất CSV kết quả theo bộ lọc hiện tại (10.2). */
     public function export(Request $request): Response
     {
         $user = Auth::user();

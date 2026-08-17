@@ -12,11 +12,6 @@ class SettingsController extends Controller
 {
     public function __construct(private SettingsService $settingsService) {}
 
-    /**
-     * admin.settings.index — 3.1: Super Admin cấu hình role, chính sách, tích hợp.
-     * Route bị chặn bởi middleware role:super_admin (routes/web.php) — Admin
-     * thường không có "Cấu hình hệ thống tối cao" theo BA.
-     */
     public function index(Request $request): View
     {
         return view('admin.settings.index', $this->settingsService->indexData());
@@ -34,11 +29,6 @@ class SettingsController extends Controller
         return redirect()->route('admin.settings.index')->with('status', 'settings-rating-threshold-updated');
     }
 
-    /**
-     * admin.settings.wallet-bank.update — "Tích hợp thanh toán": thông tin ngân hàng nhận
-     * chuyển khoản nạp token (note họp 13/8, mục 7-8), đọc bởi App\Services\WalletService
-     * để hiện QR + số tài khoản cho học sinh ở access.wallet.
-     */
     public function updateWalletBankInfo(Request $request): RedirectResponse
     {
         $data = $request->validate([

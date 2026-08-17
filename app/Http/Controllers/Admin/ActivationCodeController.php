@@ -13,13 +13,11 @@ class ActivationCodeController extends Controller
 {
     public function __construct(private ActivationCodeService $activationCodeService) {}
 
-    /** admin.activation-codes.index — 7.4: mã sai scope không tự chuyển đổi. */
     public function index(Request $request): View
     {
         return view('admin.activation-codes.index', $this->activationCodeService->indexData());
     }
 
-    /** admin.activation-codes.revoke — PHẢI có lý do + audit log (10.4). */
     public function revoke(Request $request, ActivationCode $activationCode): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);

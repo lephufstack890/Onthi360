@@ -14,7 +14,6 @@ class QuestionController extends Controller
 {
     public function __construct(private readonly QuestionService $questionService) {}
 
-    /** teacher.questions.index (TEA-03) — kho riêng của giáo viên (6.5). */
     public function index(Request $request): View
     {
         $user = Auth::user();
@@ -23,7 +22,6 @@ class QuestionController extends Controller
         return view('teacher.questions.index', $this->questionService->listForTeacher($user, $tab));
     }
 
-    /** teacher.questions.create (TEA-04) — tạo câu hỏi mới theo loại (MCQ/điền đáp án/lập trình). */
     public function create(Request $request): View
     {
         $type = $request->query('type', 'mcq');
@@ -31,7 +29,6 @@ class QuestionController extends Controller
         return view('teacher.questions.create', ['type' => $type, 'question' => null]);
     }
 
-    /** teacher.questions.store — lưu nháp luôn được phép; "Phát hành" phải qua QuestionPublishGuard (6.2). */
     public function store(Request $request): RedirectResponse
     {
         $type = $request->input('type', 'mcq');
@@ -43,7 +40,6 @@ class QuestionController extends Controller
         return $this->finishSubmit($question, $data['action'], 'question-created');
     }
 
-    /** teacher.questions.edit — chỉ chủ sở hữu (6.5). */
     public function edit(Request $request, int $question): View
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
@@ -51,10 +47,6 @@ class QuestionController extends Controller
         return view('teacher.questions.create', ['type' => $questionModel->type->value, 'question' => $questionModel]);
     }
 
-    /**
-     * teacher.questions.update — câu đã có người làm thì tự động tạo phiên bản mới thay vì
-     * sửa âm thầm (6.2), xem App\Services\Teacher\QuestionService::update().
-     */
     public function update(Request $request, int $question): RedirectResponse
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
@@ -67,7 +59,6 @@ class QuestionController extends Controller
         return $this->finishSubmit($updated, $data['action'], 'question-updated');
     }
 
-    /** teacher.questions.publish (6.2) — phát hành trực tiếp từ danh sách (câu đã đủ điều kiện). */
     public function publish(Request $request, int $question): RedirectResponse
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
@@ -81,7 +72,6 @@ class QuestionController extends Controller
         return redirect()->route('teacher.questions.index')->with('status', 'question-published');
     }
 
-    /** teacher.questions.archive — gỡ khỏi lưu hành, không xóa (Table 27). */
     public function archive(Request $request, int $question): RedirectResponse
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
@@ -90,7 +80,6 @@ class QuestionController extends Controller
         return redirect()->route('teacher.questions.index')->with('status', 'question-archived');
     }
 
-    /** Sau khi lưu (tạo/sửa): nếu bấm "Phát hành" mà chưa đủ điều kiện, quay lại form với lỗi cụ thể (6.4). */
     private function finishSubmit($question, string $action, string $createdStatus): RedirectResponse
     {
         if ($action === 'publish') {

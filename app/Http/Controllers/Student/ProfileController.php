@@ -22,10 +22,6 @@ class ProfileController extends Controller
         return view('student.profile', ['user' => $user, 'parentLinks' => $parentLinks]);
     }
 
-    /**
-     * Lưu thông tin hồ sơ cơ bản (tên, số điện thoại, tỉnh thành/khu vực — note họp 13/8,
-     * mục 2). Email không cho tự đổi ở đây.
-     */
     public function update(Request $request)
     {
         $user = $request->user();

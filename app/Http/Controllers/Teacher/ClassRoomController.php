@@ -12,7 +12,6 @@ class ClassRoomController extends Controller
 {
     public function __construct(private readonly ClassRoomService $classRoomService) {}
 
-    /** teacher.classes.index (TEA-02) — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
     public function index(Request $request): View
     {
         $user = Auth::user();
@@ -20,7 +19,6 @@ class ClassRoomController extends Controller
         return view('teacher.classes.index', $this->classRoomService->listForTeacher($user));
     }
 
-    /** teacher.classes.show (TEA-02 chi tiết + TEA-06 học liệu, 8.2/8.3). */
     public function show(Request $request, int $class): View
     {
         $user = Auth::user();
@@ -29,13 +27,11 @@ class ClassRoomController extends Controller
         return view('teacher.classes.show', $this->classRoomService->showForTeacher($user, $class, $tab));
     }
 
-    /** teacher.classes.create — form tạo lớp mới (8.1). */
     public function create(Request $request): View
     {
         return view('teacher.classes.create', $this->classRoomService->createFormData());
     }
 
-    /** teacher.classes.store — tạo lớp mới, tự gắn giáo viên hiện tại làm giáo viên chính. */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -51,7 +47,6 @@ class ClassRoomController extends Controller
         return redirect()->route('teacher.classes.show', $classRoom->id)->with('status', 'class-created');
     }
 
-    /** teacher.classes.materials.attach — "Thêm vào lớp" (8.2). */
     public function attachMaterial(Request $request, int $class)
     {
         $data = $request->validate(['material_id' => ['required', 'integer', 'exists:materials,id']]);
@@ -61,7 +56,6 @@ class ClassRoomController extends Controller
         return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'materials'])->with('status', 'material-attached');
     }
 
-    /** teacher.classes.materials.detach — "Gỡ" (8.2: không xóa lịch sử). */
     public function detachMaterial(Request $request, int $class, int $classMaterial)
     {
         $this->classRoomService->detachMaterial(Auth::user(), $class, $classMaterial);

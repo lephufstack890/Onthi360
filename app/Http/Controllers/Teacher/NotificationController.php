@@ -11,7 +11,6 @@ class NotificationController extends Controller
 {
     public function __construct(private readonly NotificationService $notificationService) {}
 
-    /** teacher.notifications.index — danh sách thông báo (App\Services\NotificationService dùng chung mọi vai trò). */
     public function index(): View
     {
         return view('teacher.notifications.index', $this->notificationService->forUser(Auth::user()));

@@ -11,16 +11,11 @@ class ProfileController extends Controller
 {
     public function __construct(private readonly ProfileService $profileService) {}
 
-    /** teacher.profile.show — hồ sơ tài khoản + hồ sơ chuyên môn giáo viên (3.3). */
     public function show(Request $request): View
     {
         return view('teacher.profile.show', $this->profileService->showData($request->user()));
     }
 
-    /**
-     * Lưu thông tin tài khoản cơ bản (tên, số điện thoại, tỉnh thành/khu vực — note họp
-     * 13/8, mục 2: "để quảng cáo cho giáo viên").
-     */
     public function update(Request $request)
     {
         $data = $request->validate([
@@ -35,7 +30,6 @@ class ProfileController extends Controller
         return back()->with('status', 'profile-updated');
     }
 
-    /** Lưu hồ sơ chuyên môn (bio, môn dạy) — không đụng tới approval_status/is_featured. */
     public function updateTeacherProfile(Request $request)
     {
         $data = $request->validate([
@@ -48,7 +42,6 @@ class ProfileController extends Controller
         return back()->with('status', 'teacher-profile-updated');
     }
 
-    /** Đổi mật khẩu — yêu cầu xác nhận mật khẩu hiện tại. */
     public function updatePassword(Request $request)
     {
         $data = $request->validate([

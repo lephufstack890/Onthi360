@@ -21,25 +21,16 @@ class AssessmentController extends Controller
         private readonly DocumentImportService $documentImportService,
     ) {}
 
-    /** teacher.assessments.index (TEA-04) — đề do chính giáo viên tạo (6.3, 8.4). */
     public function index(Request $request): View
     {
         return view('teacher.assessments.index', $this->assessmentService->listForTeacher(Auth::user()));
     }
 
-    /**
-     * teacher.assessments.create (TEA-04) — chọn câu từ kho riêng của giáo viên, trộn được
-     * nhiều kiểu câu trong cùng một đề (6.3).
-     */
     public function create(Request $request): View
     {
         return view('teacher.assessments.create', $this->assessmentService->createFormData(Auth::user()));
     }
 
-    /**
-     * teacher.assessments.store — action=draft chỉ lưu đề; action=assign còn phát hành +
-     * giao ngay cho 1 lớp (8.4: không hỗ trợ ngoại lệ từng học sinh).
-     */
     public function store(Request $request): RedirectResponse
     {
         $action = $request->input('action', 'draft');
@@ -75,11 +66,6 @@ class AssessmentController extends Controller
         ]);
     }
 
-    /**
-     * teacher.assessments.import.store — tải Word/PDF lên và xử lý ngay (6.4): quét chữ
-     * ký định dạng, trích xuất văn bản (OCR nếu là PDF scan/ảnh), phân rã thành câu nháp.
-     * Có thể mất vài chục giây với tệp scan nhiều trang nên nới thời gian chạy tối đa.
-     */
     public function importStore(Request $request): RedirectResponse
     {
         $request->validate([
@@ -100,7 +86,6 @@ class AssessmentController extends Controller
             ->with('status', 'import-parsed');
     }
 
-    /** teacher.assessments.documents.download — tải lại đúng tệp gốc đã upload (chỉ chủ sở hữu). */
     public function downloadDocument(Request $request, int $document): StreamedResponse
     {
         $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
@@ -108,11 +93,6 @@ class AssessmentController extends Controller
         return Storage::disk('local')->download($documentModel->storage_path, $documentModel->original_filename);
     }
 
-    /**
-     * teacher.assessments.reviewDraft (TEA-05 — rà soát), truyền $document + $drafts thật
-     * từ App\Models\DraftQuestion (6.4). Nhận ?document=<id>; nếu không có, lấy tài liệu
-     * "cần rà soát" gần nhất của giáo viên.
-     */
     public function reviewDraft(Request $request): View
     {
         $user = Auth::user();
@@ -121,7 +101,6 @@ class AssessmentController extends Controller
         return view('teacher.assessments.review-draft', $this->assessmentService->reviewDraftFor($user, $documentId));
     }
 
-    /** teacher.assessments.drafts.store — "+ Thêm câu thủ công" ở màn rà soát (6.4). */
     public function draftStore(Request $request, int $document): RedirectResponse
     {
         $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
@@ -131,12 +110,6 @@ class AssessmentController extends Controller
             ->with('status', 'draft-added');
     }
 
-    /**
-     * teacher.assessments.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). Nếu
-     * câu đủ điều kiện, lưu là chuyển thẳng vào kho câu hỏi riêng (dạng Nháp) luôn — không
-     * cần bước "Chuyển vào kho câu hỏi" riêng nữa. Sửa lại 1 câu đã ở trong kho sẽ cập nhật
-     * đúng câu đó, không tạo bản sao.
-     */
     public function draftUpdate(Request $request, int $draft): RedirectResponse
     {
         $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
@@ -152,7 +125,6 @@ class AssessmentController extends Controller
             : $redirect->with('status', 'draft-saved-pending')->with('draftPendingReason', $result['reason']);
     }
 
-    /** teacher.assessments.drafts.merge — gộp 2 câu bị OCR/tách sai thành 1 (6.4). */
     public function draftMerge(Request $request, int $draft): RedirectResponse
     {
         $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
@@ -168,7 +140,6 @@ class AssessmentController extends Controller
         return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->with('status', 'draft-merged');
     }
 
-    /** teacher.assessments.drafts.discard — bỏ 1 câu nháp (không xóa cứng, giữ lịch sử — 6.4). */
     public function draftDiscard(Request $request, int $draft): RedirectResponse
     {
         $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
@@ -179,7 +150,6 @@ class AssessmentController extends Controller
         return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->with('status', 'draft-discarded');
     }
 
-    /** teacher.assessments.publish — phát hành riêng, không giao lớp ngay (6.2). */
     public function publish(Request $request, int $assessment): RedirectResponse
     {
         $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
@@ -193,7 +163,6 @@ class AssessmentController extends Controller
         return redirect()->route('teacher.assessments.index')->with('status', 'assessment-published');
     }
 
-    /** teacher.assessments.assign — "Giao đề" cho một đề đã có sẵn (8.4). */
     public function assign(Request $request, int $assessment): RedirectResponse
     {
         $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
@@ -243,7 +212,6 @@ class AssessmentController extends Controller
             'closes_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
             'due_at' => ['nullable', 'date'],
             'instructions' => ['nullable', 'string', 'max:2000'],
-            // Chia ca thi chống nghẽn khi đông thí sinh (note họp 13/8, mục 7).
             'shift_count' => ['nullable', 'integer', 'min:1', 'max:20'],
         ];
     }

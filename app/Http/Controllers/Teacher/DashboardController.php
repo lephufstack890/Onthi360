@@ -12,7 +12,6 @@ class DashboardController extends Controller
 {
     public function __construct(private readonly DashboardService $dashboardService) {}
 
-    /** teacher.dashboard (TEA-01). */
     public function index(Request $request): View
     {
         $user = Auth::user();

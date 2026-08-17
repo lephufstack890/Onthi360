@@ -12,7 +12,6 @@ class DashboardController extends Controller
 {
     public function __construct(private DashboardService $dashboardService) {}
 
-    /** parent.dashboard (PAR-01) — chỉ hiển thị con đã liên kết + xác minh (10.3). */
     public function index(Request $request): View
     {
         $user = Auth::user();

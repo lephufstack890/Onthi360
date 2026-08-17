@@ -15,10 +15,6 @@ class AssessmentController extends Controller
         private AssessmentService $assessmentService,
     ) {}
 
-    /**
-     * student.assessment.take (STU-05) — không gian làm bài hỗn hợp. ?assignment=<id> (tuỳ
-     * chọn) cho biết vào từ "Bài được giao" của lớp nào (kích hoạt điểm danh tự động, 8.2).
-     */
     public function take(Request $request, int $assessment): View
     {
         $user = $request->user();

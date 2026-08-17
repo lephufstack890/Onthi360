@@ -13,7 +13,6 @@ class ProfileController extends Controller
         private ProfileService $profileService,
     ) {}
 
-    /** parent.profile — hồ sơ + danh sách con đã liên kết. */
     public function show(Request $request): View
     {
         $user = $request->user();
@@ -22,7 +21,6 @@ class ProfileController extends Controller
         return view('parent.profile', ['user' => $user, 'children' => $children]);
     }
 
-    /** Lưu thông tin hồ sơ cơ bản (tên, số điện thoại, tỉnh thành/khu vực). */
     public function update(Request $request)
     {
         $user = $request->user();

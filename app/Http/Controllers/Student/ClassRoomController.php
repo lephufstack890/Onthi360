@@ -14,7 +14,6 @@ class ClassRoomController extends Controller
         private ClassRoomService $classRoomService,
     ) {}
 
-    /** student.classes.show (STU-03) — chi tiết lớp, 7 tab. */
     public function show(Request $request, int $class): View
     {
         $user = $request->user();
@@ -24,10 +23,7 @@ class ClassRoomController extends Controller
         return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset));
     }
 
-    /**
-     * student.classes.join — "Nhập mã lớp để tham gia" (đã hứa sẵn ở empty-state của
-     * student.courses.index nhưng trước đây chưa có luồng thật nào thực hiện việc này).
-     */
+
     public function join(Request $request): RedirectResponse
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:40']]);

@@ -34,9 +34,6 @@ class CompetitionController extends Controller
             'scoring_note' => ['nullable', 'string', 'max:500'],
             'penalty_note' => ['nullable', 'string', 'max:500'],
             'tie_break_note' => ['nullable', 'string', 'max:500'],
-            // Đơn vị tổ chức + cố vấn (note họp 13/8, mục 1) — ràng buộc "bên ngoài phải có
-            // cố vấn" được kiểm tra thật ở tầng Service (App\Services\Admin\CompetitionService
-            // ::assertOrganizerDataValid), ở đây chỉ validate kiểu dữ liệu cơ bản.
             'organizer_type' => ['required', 'string', 'in:internal,external'],
             'organizer_name' => ['nullable', 'string', 'max:255'],
             'advisor_teacher_ids' => ['nullable', 'array'],

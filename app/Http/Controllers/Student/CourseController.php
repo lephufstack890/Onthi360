@@ -13,7 +13,6 @@ class CourseController extends Controller
         private CourseService $courseService,
     ) {}
 
-    /** student.courses.index (STU-02) — danh sách lớp học sinh đang tham gia. */
     public function index(Request $request): View
     {
         $user = $request->user();

@@ -9,16 +9,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/**
- * Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung cho mọi vai trò,
- * áp dụng cho 4 loại đối tượng: material (tài liệu), class (lớp học), teacher (giáo viên)
- * và competition (cuộc thi) — note họp 13/8, mục 2.
- */
 class ReviewController extends Controller
 {
     public function __construct(private ReviewService $reviewService) {}
 
-    /** reviews.index (REV-01) — 9.5: TB, số review, phân phối 1-5 sao; <5 review thì chưa xếp hạng. */
     public function index(Request $request): View
     {
         $type = $request->query('type', 'material');
@@ -27,7 +21,6 @@ class ReviewController extends Controller
         return view('reviews.index', $this->reviewService->buildIndex($type, $id));
     }
 
-    /** reviews.form (REV-02) — 9.2: chỉ vào form khi đủ điều kiện, nếu không điều hướng sang reviews.ineligible với lý do thật. */
     public function form(Request $request): View|RedirectResponse
     {
         $type = $request->query('type', 'material');
@@ -42,10 +35,6 @@ class ReviewController extends Controller
         return view('reviews.form', ['type' => $type, 'targetId' => $id]);
     }
 
-    /**
-     * reviews.store — gửi đánh giá. Kiểm tra lại điều kiện + tất cả input NGAY TẠI ĐÂY (16
-     * mục 3) — form trước đó chỉ là gợi ý UI, không phải nguồn tin cậy.
-     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -70,7 +59,6 @@ class ReviewController extends Controller
         return redirect()->route('reviews.myReviews')->with('status', 'review-submitted');
     }
 
-    /** reviews.ineligible (REV-03) — 9.2: nêu rõ lý do còn thiếu (do reviews.form điều hướng sang kèm lý do thật). */
     public function ineligible(Request $request): View
     {
         $reason = $request->query('reason', 'Bạn cần tham gia ít nhất 2 buổi học hoặc hoàn thành một hoạt động trong lớp trước khi đánh giá.');
@@ -78,7 +66,6 @@ class ReviewController extends Controller
         return view('reviews.ineligible', ['reason' => $reason]);
     }
 
-    /** reviews.myReviews (REV-04) — 9.4: trạng thái review theo vòng đời. */
     public function myReviews(Request $request): View
     {
         $user = Auth::user();

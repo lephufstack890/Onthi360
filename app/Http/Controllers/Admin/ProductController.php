@@ -14,13 +14,11 @@ class ProductController extends Controller
 {
     public function __construct(private ProductService $productService) {}
 
-    /** admin.products.index — "Sản phẩm & Quyền" (5.1). */
     public function index(Request $request): View
     {
         return view('admin.products.index', $this->productService->indexData());
     }
 
-    /** admin.products.show. */
     public function show(Request $request, int $product): View
     {
         return view('admin.products.show', $this->productService->showData($product));
@@ -85,7 +83,6 @@ class ProductController extends Controller
         return redirect()->route('admin.products.show', $product->id)->with('status', 'product-updated');
     }
 
-    /** admin.products.destroy — xóa mềm, PHẢI có lý do (10.4). */
     public function destroy(Request $request, Product $product): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);

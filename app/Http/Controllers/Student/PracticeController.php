@@ -13,7 +13,6 @@ class PracticeController extends Controller
         private PracticeService $practiceService,
     ) {}
 
-    /** student.practice.index (STU-04) — tabs Tự luyện · Theo lớp · Bài được giao · Đã lưu · Lịch sử. */
     public function index(Request $request): View
     {
         $user = $request->user();

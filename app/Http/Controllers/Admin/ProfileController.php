@@ -13,13 +13,11 @@ class ProfileController extends Controller
         private ProfileService $profileService,
     ) {}
 
-    /** admin.profile.show — hồ sơ + đổi mật khẩu cho tài khoản Admin. */
     public function show(Request $request): View
     {
         return view('admin.profile.show', ['user' => $request->user()]);
     }
 
-    /** Lưu thông tin hồ sơ cơ bản (tên, số điện thoại). */
     public function update(Request $request)
     {
         $data = $request->validate([
@@ -32,7 +30,6 @@ class ProfileController extends Controller
         return back()->with('status', 'profile-updated');
     }
 
-    /** Đổi mật khẩu — yêu cầu xác nhận mật khẩu hiện tại. */
     public function updatePassword(Request $request)
     {
         $data = $request->validate([
