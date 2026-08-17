@@ -7,6 +7,7 @@ use App\Enums\AssignmentStatus;
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
 use App\Enums\PublishAnswerRule;
+use App\Enums\QuestionType;
 use App\Enums\UploadedDocumentStatus;
 use App\Models\Assessment;
 use App\Models\Assignment;
@@ -29,7 +30,7 @@ class AssessmentService
         private readonly AssignmentRepositoryInterface $assignments,
     ) {}
 
-    /** teacher.assessments.import — trạng thái xử lý OCR thật (6.4). */
+    /** teacher.assessments.import — trạng thái xử lý thật, kể cả tệp lỗi (6.4). */
     public function importStatusFor(User $user): array
     {
         $statuses = [
@@ -45,9 +46,9 @@ class AssessmentService
             ->map(function (UploadedDocument $doc) {
                 [$label, $tone, $progress] = match ($doc->status) {
                     UploadedDocumentStatus::Uploaded => ['Đã tải lên — đang chờ quét', 'info', 10],
-                    UploadedDocumentStatus::Scanning => ['Đang quét virus...', 'info', 25],
+                    UploadedDocumentStatus::Scanning => ['Đang quét định dạng...', 'info', 25],
                     UploadedDocumentStatus::QueuedOcr => ['Trong hàng chờ OCR...', 'info', 40],
-                    UploadedDocumentStatus::Processing => ['Đang OCR...', 'info', 70],
+                    UploadedDocumentStatus::Processing => ['Đang trích xuất/OCR...', 'info', 70],
                     UploadedDocumentStatus::NeedsReview => ['Cần rà soát', 'warning', 100],
                     UploadedDocumentStatus::Failed => ['Xử lý lỗi', 'danger', 100],
                     default => ['Không rõ', 'neutral', 0],
@@ -59,6 +60,7 @@ class AssessmentService
                     'status' => $label,
                     'tone' => $tone,
                     'progress' => $progress,
+                    'errorLog' => $doc->status === UploadedDocumentStatus::Failed ? $doc->error_log : null,
                 ];
             })->all();
 
@@ -67,7 +69,8 @@ class AssessmentService
 
     /**
      * teacher.assessments.reviewDraft — rà soát; nhận ?document=<id>, nếu không có thì lấy
-     * tài liệu "cần rà soát" gần nhất của giáo viên (6.4).
+     * tài liệu "cần rà soát" gần nhất của giáo viên (6.4). Trả đủ dữ liệu để màn rà soát
+     * sửa/gộp/xóa/thêm tay và chuyển vào kho — không chỉ hiển thị đọc.
      */
     public function reviewDraftFor(User $user, ?int $documentId): array
     {
@@ -79,12 +82,14 @@ class AssessmentService
 
         $drafts = [];
         if ($document) {
-            $drafts = $document->draftQuestions->values()->map(function ($d, $idx) {
+            $allDrafts = $document->draftQuestions()->where('review_status', '!=', 'discarded')->orderBy('order')->get();
+
+            $drafts = $allDrafts->values()->map(function ($d) use ($allDrafts) {
                 $confidenceLabel = match ($d->confidence) {
                     'high' => 'Cao',
                     'medium' => 'Trung bình',
-                    'low' => 'Thấp — có công thức/ảnh',
-                    default => (string) $d->confidence,
+                    'low' => 'Thấp — cần kiểm tra kỹ',
+                    default => 'Chưa rõ',
                 };
                 $tone = match ($d->confidence) {
                     'high' => 'success',
@@ -93,13 +98,30 @@ class AssessmentService
                     default => 'neutral',
                 };
 
+                $s = $d->structured_draft ?? [];
+                $type = $d->type_guess instanceof QuestionType ? $d->type_guess->value : $d->type_guess;
+
                 return [
-                    'no' => $idx + 1,
-                    'type' => $d->type_guess?->value ?? '',
+                    'id' => $d->id,
+                    'no' => $d->order + 1,
+                    'type' => $type,
                     'confidence' => $confidenceLabel,
                     'tone' => $tone,
                     'flagged' => $d->needsManualReview(),
-                    'title' => $d->raw_text ? mb_substr($d->raw_text, 0, 160) : '(chưa có nội dung)',
+                    'promoted' => $d->promoted_question_id !== null,
+                    'title' => $s['title'] ?? ($d->raw_text ? mb_substr($d->raw_text, 0, 160) : '(chưa có nội dung)'),
+                    'body' => $s['body'] ?? $d->raw_text ?? '',
+                    'points' => $s['points'] ?? 1,
+                    'options' => $s['options'] ?? ['', '', '', ''],
+                    'correctOption' => $s['correct_option'] ?? null,
+                    'acceptedAnswers' => $s['accepted_answers'] ?? '',
+                    'caseSensitive' => $s['case_sensitive'] ?? false,
+                    'testCases' => $s['test_cases'] ?? '',
+                    'timeLimitMs' => $s['time_limit_ms'] ?? 1000,
+                    'memoryLimitMb' => $s['memory_limit_mb'] ?? 256,
+                    'otherDrafts' => $allDrafts->reject(fn ($other) => $other->id === $d->id)
+                        ->map(fn ($other) => ['id' => $other->id, 'label' => 'Câu '.($other->order + 1)])
+                        ->values()->all(),
                 ];
             })->all();
         }

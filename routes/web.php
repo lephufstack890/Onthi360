@@ -305,7 +305,7 @@ Route::middleware(['auth'])->group(function () {
             ->where('id', '[0-9]+')
             ->name('ranking.show');
 
-        // Báo cáo (2.3: P0 chỉ báo cáo vận hành cơ bản, KHÔNG gồm báo cáo thương mại sâu/chiến dịch)
+        // Báo cáo (2.3: P0 chỉ báo cáo vận hành cơ kản, KHÔNG gồm báo cáo thương mại sâu/chiến dịch)
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
 
         // Cấu hình hệ thống — CHỈ Super Admin (3.1: "Cấu hình hệ thống tối cao" không thuộc Admin thường).
@@ -337,6 +337,18 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
         Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
         Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
+
+        // Nhập đề Word/PDF/OCR -> Kho chung (6.4) — tương đương teacher.assessments.import
+        // nhưng đích đến là Kho chung (owner_type=shared) thay vì kho riêng giáo viên.
+        Route::get('content/questions/import', [AdminContentController::class, 'questionsImport'])->name('content.questions.import');
+        Route::post('content/questions/import', [AdminContentController::class, 'questionsImportStore'])->name('content.questions.import.store');
+        Route::get('content/questions/review-draft', [AdminContentController::class, 'questionsReviewDraft'])->name('content.questions.reviewDraft');
+        Route::get('content/documents/{document}/file', [AdminContentController::class, 'downloadDocument'])->name('content.documents.download');
+        Route::post('content/documents/{document}/promote', [AdminContentController::class, 'promote'])->name('content.documents.promote');
+        Route::post('content/documents/{document}/drafts', [AdminContentController::class, 'draftStore'])->name('content.drafts.store');
+        Route::post('content/drafts/{draft}', [AdminContentController::class, 'draftUpdate'])->name('content.drafts.update');
+        Route::post('content/drafts/{draft}/merge', [AdminContentController::class, 'draftMerge'])->name('content.drafts.merge');
+        Route::post('content/drafts/{draft}/discard', [AdminContentController::class, 'draftDiscard'])->name('content.drafts.discard');
 
         Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');

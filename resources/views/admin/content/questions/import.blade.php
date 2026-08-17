@@ -1,25 +1,28 @@
 {{--
-  Route: teacher.assessments.import / .import.store | Frame: TEA-05 (tải)
+  Route: admin.content.questions.import / .import.store | Frame: ADM-03 (tải)
   Spec: 6.4 (Tải Word/PDF/PDF scan → OCR/trích xuất → phân rã bản nháp →
-  rà soát → phát hành). OCR không tự phát hành (6.4, 17).
-  Dữ liệu thật do App\Http\Controllers\Teacher\AssessmentController truyền vào
-  qua App\Services\Teacher\AssessmentService::importStatusFor(); xử lý tải lên
-  thật do App\Services\Teacher\DocumentImportService thực hiện (docx: đọc
-  trực tiếp; pdf có lớp văn bản: pdftotext; pdf scan/ảnh: pdftoppm + tesseract
-  OCR tiếng Việt — máy chủ cần cài các công cụ này, xem lỗi bên dưới nếu thiếu).
+  rà soát → phát hành), 6.5 (đích đến là Kho chung, không phải kho riêng
+  giáo viên). OCR không tự phát hành (6.4, 17).
+  Dữ liệu thật do App\Http\Controllers\Admin\ContentController truyền vào qua
+  App\Services\Admin\ContentService::indexData('drafts'); xử lý tải lên thật
+  do App\Services\Admin\DocumentImportService thực hiện (docx: đọc trực tiếp;
+  pdf có lớp văn bản: pdftotext; pdf scan/ảnh: pdftoppm + tesseract OCR tiếng
+  Việt — máy chủ cần cài các công cụ này, xem lỗi bên dưới nếu thiếu).
 --}}
-@extends('layouts.teacher')
+@extends('layouts.admin')
 
 @section('title', 'Nhập đề')
-@section('page-title', 'Nhập đề (Word/PDF/OCR)')
+@section('page-title', 'Nhập đề (Word/PDF/OCR) — Kho chung')
 
 @section('content')
     @php
-        $processingFiles = $processingFiles ?? [];
+        $documents = $documents ?? [];
         $maxFileMb = (int) round(($maxFileKb ?? 20480) / 1024);
     @endphp
 
-    <x-page-header title="Nhập đề" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4)." />
+    <a href="{{ route('admin.content.index', ['tab' => 'drafts']) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nội dung</a>
+
+    <x-page-header title="Nhập đề — Kho chung" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4). Câu tách ra sẽ vào Kho chung (6.5), không phải kho riêng của giáo viên." />
 
     @if (session('status') === 'import-failed')
         @include('partials.toast-flash', ['type' => 'error', 'message' => 'Xử lý tệp thất bại: '.session('importError', 'Lỗi không rõ.')])
@@ -28,7 +31,7 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi.'])
     @endif
 
-    <form method="POST" action="{{ route('teacher.assessments.import.store') }}" enctype="multipart/form-data"
+    <form method="POST" action="{{ route('admin.content.questions.import.store') }}" enctype="multipart/form-data"
           x-data="{ fileName: null, submitting: false }"
           @submit="submitting = true">
         @csrf
@@ -51,27 +54,28 @@
         </button>
     </form>
 
-    <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>⏳</span> Đã tải lên gần đây</h3>
+    <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>⏳</span> Đã tải lên gần đây (toàn Kho chung)</h3>
     <div class="space-y-3">
-        @forelse ($processingFiles as $f)
+        @forelse ($documents as $d)
             <div class="bg-white rounded-2xl border border-slate-200 p-4">
                 <div class="flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
                         <x-icon-tile emoji="📄" tone="sky" />
                         <div>
-                            <p class="text-sm font-medium text-slate-700">{{ $f['name'] }}</p>
-                            <div class="w-48 mt-1"><x-progress-bar :percent="$f['progress']" tone="{{ $f['tone'] === 'warning' ? 'warning' : ($f['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
+                            <p class="text-sm font-medium text-slate-700">{{ $d['name'] }}</p>
+                            <p class="text-xs text-slate-400">Người tải lên: {{ $d['uploader'] }}</p>
+                            <div class="w-48 mt-1"><x-progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
                         </div>
                     </div>
                     <div class="text-right">
-                        <x-status-badge :tone="$f['tone']">{{ $f['status'] }}</x-status-badge>
-                        @if ($f['status'] === 'Cần rà soát')
-                            <a href="{{ route('teacher.assessments.reviewDraft', ['document' => $f['id']]) }}" class="block mt-1 text-sm text-rose-600 font-medium">Rà soát ngay ›</a>
+                        <x-status-badge :tone="$d['tone']">{{ $d['status'] }}</x-status-badge>
+                        @if ($d['reviewable'])
+                            <a href="{{ route('admin.content.questions.reviewDraft', ['document' => $d['id']]) }}" class="block mt-1 text-sm text-rose-600 font-medium">Rà soát ngay ›</a>
                         @endif
                     </div>
                 </div>
-                @if ($f['errorLog'])
-                    <p class="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 mt-3">⚠ {{ $f['errorLog'] }}</p>
+                @if ($d['errorLog'])
+                    <p class="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 mt-3">⚠ {{ $d['errorLog'] }}</p>
                 @endif
             </div>
         @empty
@@ -79,5 +83,5 @@
         @endforelse
     </div>
 
-    <p class="text-xs text-slate-400 mt-6 flex items-center gap-1.5"><span>ℹ️</span> Khi OCR thất bại một phần, tệp vẫn vào trạng thái "Cần rà soát" — không âm thầm bỏ câu (6.4). Kết quả nhập luôn ở dạng Nháp trong Kho câu hỏi, giáo viên vẫn phải tự bấm "Phát hành" từng câu.</p>
+    <p class="text-xs text-slate-400 mt-6 flex items-center gap-1.5"><span>ℹ️</span> Khi OCR thất bại một phần, tệp vẫn vào trạng thái "Cần rà soát" — không âm thầm bỏ câu (6.4). Kết quả nhập luôn ở dạng Nháp trong Kho chung, vẫn phải tự bấm "Phát hành" từng câu.</p>
 @endsection

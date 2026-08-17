@@ -4,18 +4,21 @@ namespace App\Services\Admin;
 
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
+use App\Enums\UploadedDocumentStatus;
 use App\Enums\Visibility;
 use App\Models\Assessment;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\UploadedDocument;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Services\QuestionPublishGuard;
 use Illuminate\Validation\ValidationException;
 
@@ -31,6 +34,7 @@ class ContentService
         private DraftQuestionRepositoryInterface $draftQuestions,
         private ProductRepositoryInterface $products,
         private QuestionPublishGuard $publishGuard,
+        private UploadedDocumentRepositoryInterface $uploadedDocuments,
     ) {}
 
     private const TYPE_LABELS = [
@@ -61,7 +65,54 @@ class ContentService
         };
     }
 
-    /** @return array{tab: string, tabs: array, rows: array, total: int} */
+    /**
+     * Tài liệu OCR đang chờ rà soát/xử lý — hiển thị ở tab "Câu hỏi chờ rà soát (OCR)"
+     * (6.4). KHÔNG lọc theo người tải lên: tài liệu thuộc "Kho chung", cả nhóm
+     * Admin/Editor cùng thấy và rà soát được (khác Teacher — nơi mỗi giáo viên chỉ
+     * thấy tài liệu của chính mình).
+     */
+    private function pendingDocuments(): array
+    {
+        $statuses = [
+            UploadedDocumentStatus::Uploaded,
+            UploadedDocumentStatus::Scanning,
+            UploadedDocumentStatus::QueuedOcr,
+            UploadedDocumentStatus::Processing,
+            UploadedDocumentStatus::NeedsReview,
+            UploadedDocumentStatus::Failed,
+        ];
+
+        return $this->uploadedDocuments->query()
+            ->whereIn('status', $statuses)
+            ->with('uploader')
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(function (UploadedDocument $doc) {
+                [$label, $tone, $progress] = match ($doc->status) {
+                    UploadedDocumentStatus::Uploaded => ['Đã tải lên — đang chờ quét', 'info', 10],
+                    UploadedDocumentStatus::Scanning => ['Đang quét định dạng...', 'info', 25],
+                    UploadedDocumentStatus::QueuedOcr => ['Trong hàng chờ OCR...', 'info', 40],
+                    UploadedDocumentStatus::Processing => ['Đang trích xuất/OCR...', 'info', 70],
+                    UploadedDocumentStatus::NeedsReview => ['Cần rà soát', 'warning', 100],
+                    UploadedDocumentStatus::Failed => ['Xử lý lỗi', 'danger', 100],
+                    default => ['Không rõ', 'neutral', 0],
+                };
+
+                return [
+                    'id' => $doc->id,
+                    'name' => $doc->original_filename,
+                    'uploader' => $doc->uploader->name ?? '?',
+                    'status' => $label,
+                    'tone' => $tone,
+                    'progress' => $progress,
+                    'reviewable' => $doc->status === UploadedDocumentStatus::NeedsReview,
+                    'errorLog' => $doc->status === UploadedDocumentStatus::Failed ? $doc->error_log : null,
+                ];
+            })->all();
+    }
+
+    /** @return array{tab: string, tabs: array, rows: array, total: int, documents: array} */
     public function indexData(string $tab): array
     {
         $counts = [
@@ -78,6 +129,7 @@ class ContentService
             ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
         ];
 
+        $documents = [];
         $rows = [];
         if ($tab === 'questions') {
             $rows = $this->questions->sharedLatestWithOwner(50)->map(function ($q) {
@@ -91,7 +143,9 @@ class ContentService
 
                 return ['id' => $a->id, 'title' => $a->title, 'type' => $a->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $a->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($a->creator->name ?? ''))];
             })->all();
-        } elseif ($tab !== 'drafts') {
+        } elseif ($tab === 'drafts') {
+            $documents = $this->pendingDocuments();
+        } else {
             $rows = $this->materials->latestWithProduct(50)->map(function ($m) {
                 [$label, $tone] = $this->statusLabel($m->status);
 
@@ -99,7 +153,79 @@ class ContentService
             })->all();
         }
 
-        return ['tab' => $tab, 'tabs' => $tabs, 'rows' => $rows, 'total' => $counts[$tab] ?? count($rows)];
+        return [
+            'tab' => $tab,
+            'tabs' => $tabs,
+            'rows' => $rows,
+            'documents' => $documents,
+            'total' => $tab === 'drafts' ? count($documents) : ($counts[$tab] ?? count($rows)),
+        ];
+    }
+
+    /**
+     * admin.content.questions.reviewDraft — nhận ?document=<id>; nếu không có thì lấy
+     * tài liệu "cần rà soát" gần nhất TRÊN TOÀN "Kho chung" (không giới hạn theo người
+     * tải lên — khác Teacher). Trả đủ dữ liệu để màn rà soát sửa/gộp/xóa/thêm tay và
+     * chuyển vào Kho chung.
+     */
+    public function reviewDraftFor(?int $documentId): array
+    {
+        $document = null;
+        if ($documentId !== null) {
+            $document = $this->uploadedDocuments->query()->find($documentId);
+        }
+        $document ??= $this->uploadedDocuments->query()
+            ->where('status', UploadedDocumentStatus::NeedsReview)
+            ->latest()
+            ->first();
+
+        $drafts = [];
+        if ($document) {
+            $allDrafts = $document->draftQuestions()->where('review_status', '!=', 'discarded')->orderBy('order')->get();
+
+            $drafts = $allDrafts->values()->map(function ($d) use ($allDrafts) {
+                $confidenceLabel = match ($d->confidence) {
+                    'high' => 'Cao',
+                    'medium' => 'Trung bình',
+                    'low' => 'Thấp — cần kiểm tra kỹ',
+                    default => 'Chưa rõ',
+                };
+                $tone = match ($d->confidence) {
+                    'high' => 'success',
+                    'medium' => 'warning',
+                    'low' => 'danger',
+                    default => 'neutral',
+                };
+
+                $s = $d->structured_draft ?? [];
+                $type = $d->type_guess instanceof \App\Enums\QuestionType ? $d->type_guess->value : $d->type_guess;
+
+                return [
+                    'id' => $d->id,
+                    'no' => $d->order + 1,
+                    'type' => $type,
+                    'confidence' => $confidenceLabel,
+                    'tone' => $tone,
+                    'flagged' => $d->needsManualReview(),
+                    'promoted' => $d->promoted_question_id !== null,
+                    'title' => $s['title'] ?? ($d->raw_text ? mb_substr($d->raw_text, 0, 160) : '(chưa có nội dung)'),
+                    'body' => $s['body'] ?? $d->raw_text ?? '',
+                    'points' => $s['points'] ?? 1,
+                    'options' => $s['options'] ?? ['', '', '', ''],
+                    'correctOption' => $s['correct_option'] ?? null,
+                    'acceptedAnswers' => $s['accepted_answers'] ?? '',
+                    'caseSensitive' => $s['case_sensitive'] ?? false,
+                    'testCases' => $s['test_cases'] ?? '',
+                    'timeLimitMs' => $s['time_limit_ms'] ?? 1000,
+                    'memoryLimitMb' => $s['memory_limit_mb'] ?? 256,
+                    'otherDrafts' => $allDrafts->reject(fn ($other) => $other->id === $d->id)
+                        ->map(fn ($other) => ['id' => $other->id, 'label' => 'Câu '.($other->order + 1)])
+                        ->values()->all(),
+                ];
+            })->all();
+        }
+
+        return ['document' => $document, 'drafts' => $drafts];
     }
 
     /**
@@ -111,7 +237,7 @@ class ContentService
      *
      * QuestionPublishGuard::canPublish() chỉ áp dụng cho Question (6.2/6.4 quy định điều kiện
      * phát hành CÂU HỎI). Material và Assessment không đi qua guard này — không có quy tắc
-     * publish tương ứng nào được đặc tả cho 2 loại đó, nên $publishErrors luôn rỗng ở 2
+     * publish tương ứng nào được đặc tả cho 2 loại đó, nên $publishErrors luôn ræủ ġ{ 2
      * nhánh đó thay vì ép một Material/Assessment qua guard nhận Question làm tham số.
      *
      * @return array{type: string, typeLabel: string, model: mixed, item: array, publishErrors: array, hasBeenAttempted: bool}
@@ -361,7 +487,7 @@ class ContentService
         };
     }
 
-    /** Mỗi dòng "input|||output" -> 1 test case. Dòng không đúng định dạng bị bỏ qua. */
+    /** Mỗi dòng "input|||output" -> 1 test case. Dòng không đúng định dạng bị b�o qua. */
     private function parseTestCases(string $raw): array
     {
         $cases = [];

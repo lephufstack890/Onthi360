@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Enums\UploadedDocumentStatus;
 use App\Http\Controllers\Controller;
 use App\Services\Teacher\AssessmentService;
+use App\Services\Teacher\DocumentImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentController extends Controller
 {
-    public function __construct(private readonly AssessmentService $assessmentService) {}
+    public function __construct(
+        private readonly AssessmentService $assessmentService,
+        private readonly DocumentImportService $documentImportService,
+    ) {}
 
     /** teacher.assessments.index (TEA-04) — đề do chính giáo viên tạo (6.3, 8.4). */
     public function index(Request $request): View
@@ -63,7 +70,42 @@ class AssessmentController extends Controller
     {
         $user = Auth::user();
 
-        return view('teacher.assessments.import', $this->assessmentService->importStatusFor($user));
+        return view('teacher.assessments.import', $this->assessmentService->importStatusFor($user) + [
+            'maxFileKb' => DocumentImportService::maxFileKb(),
+        ]);
+    }
+
+    /**
+     * teacher.assessments.import.store — tải Word/PDF lên và xử lý ngay (6.4): quét chữ
+     * ký định dạng, trích xuất văn bản (OCR nếu là PDF scan/ảnh), phân rã thành câu nháp.
+     * Có thể mất vài chục giây với tệp scan nhiều trang nên nới thời gian chạy tối đa.
+     */
+    public function importStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:docx,pdf', 'max:'.DocumentImportService::maxFileKb()],
+        ], [], ['file' => 'Tệp']);
+
+        set_time_limit(300);
+
+        $document = $this->documentImportService->import(Auth::user(), $request->file('file'));
+
+        if ($document->status === UploadedDocumentStatus::Failed) {
+            return redirect()->route('teacher.assessments.import')
+                ->with('status', 'import-failed')
+                ->with('importError', $document->error_log);
+        }
+
+        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $document->id])
+            ->with('status', 'import-parsed');
+    }
+
+    /** teacher.assessments.documents.download — tải lại đúng tệp gốc đã upload (chỉ chủ sở hữu). */
+    public function downloadDocument(Request $request, int $document): StreamedResponse
+    {
+        $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
+
+        return Storage::disk('local')->download($documentModel->storage_path, $documentModel->original_filename);
     }
 
     /**
@@ -77,6 +119,76 @@ class AssessmentController extends Controller
         $documentId = $request->filled('document') ? (int) $request->query('document') : null;
 
         return view('teacher.assessments.review-draft', $this->assessmentService->reviewDraftFor($user, $documentId));
+    }
+
+    /** teacher.assessments.drafts.store — "+ Thêm câu thủ công" ở màn rà soát (6.4). */
+    public function draftStore(Request $request, int $document): RedirectResponse
+    {
+        $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
+        $this->documentImportService->addManualDraft($documentModel);
+
+        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentModel->id])
+            ->with('status', 'draft-added');
+    }
+
+    /** teacher.assessments.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). */
+    public function draftUpdate(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
+        $type = $request->input('type_guess', 'mcq');
+        $data = $request->validate($this->draftValidationRules($type));
+
+        $this->documentImportService->updateDraft($draftModel, $type, $data);
+
+        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $draftModel->uploaded_document_id])
+            ->with('status', 'draft-saved');
+    }
+
+    /** teacher.assessments.drafts.merge — gộp 2 câu bị OCR/tách sai thành 1 (6.4). */
+    public function draftMerge(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
+        $documentId = $draftModel->uploaded_document_id;
+        $data = $request->validate(['merge_with_id' => ['required', 'integer']]);
+
+        try {
+            $this->documentImportService->mergeDrafts(Auth::user(), $draftModel, (int) $data['merge_with_id']);
+        } catch (ValidationException $e) {
+            return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->with('status', 'draft-merged');
+    }
+
+    /** teacher.assessments.drafts.discard — bỏ 1 câu nháp (không xóa cứng, giữ lịch sử — 6.4). */
+    public function draftDiscard(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findOwnedDraft(Auth::user(), $draft);
+        $documentId = $draftModel->uploaded_document_id;
+
+        $this->documentImportService->discardDraft($draftModel);
+
+        return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentId])->with('status', 'draft-discarded');
+    }
+
+    /**
+     * teacher.assessments.documents.promote — chuyển toàn bộ câu đã rà soát vào kho câu
+     * hỏi riêng (luôn ở dạng Nháp — 6.4: "OCR không tự phát hành"). Chặn nếu còn câu chưa
+     * đủ điều kiện, liệt kê rõ câu nào để giáo viên quay lại sửa.
+     */
+    public function promote(Request $request, int $document): RedirectResponse
+    {
+        $documentModel = $this->documentImportService->findOwnedDocument(Auth::user(), $document);
+
+        try {
+            $count = $this->documentImportService->promote(Auth::user(), $documentModel);
+        } catch (ValidationException $e) {
+            return redirect()->route('teacher.assessments.reviewDraft', ['document' => $documentModel->id])->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.questions.index')
+            ->with('status', 'draft-promoted')
+            ->with('promotedCount', $count);
     }
 
     /** teacher.assessments.publish — phát hành riêng, không giao lớp ngay (6.2). */
@@ -146,6 +258,34 @@ class AssessmentController extends Controller
             // Chia ca thi chống nghẽn khi đông thí sinh (note họp 13/8, mục 7).
             'shift_count' => ['nullable', 'integer', 'min:1', 'max:20'],
         ];
+    }
+
+    private function draftValidationRules(string $type): array
+    {
+        $common = [
+            'type_guess' => ['required', 'in:mcq,fill_blank,coding'],
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
+            'points' => ['required', 'integer', 'min:1', 'max:100'],
+        ];
+
+        return match ($type) {
+            'mcq' => $common + [
+                'options' => ['nullable', 'array'],
+                'options.*' => ['nullable', 'string', 'max:500'],
+                'correct_option' => ['nullable', 'string', 'max:10'],
+            ],
+            'fill_blank' => $common + [
+                'accepted_answers' => ['nullable', 'string', 'max:1000'],
+                'case_sensitive' => ['nullable', 'boolean'],
+            ],
+            'coding' => $common + [
+                'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
+                'memory_limit_mb' => ['nullable', 'integer', 'min:16', 'max:2048'],
+                'test_cases' => ['nullable', 'string', 'max:20000'],
+            ],
+            default => $common,
+        };
     }
 
     /**

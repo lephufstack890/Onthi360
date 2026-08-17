@@ -2,19 +2,27 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\UploadedDocumentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\Material;
 use App\Models\Question;
 use App\Services\Admin\ContentService;
+use App\Services\Admin\DocumentImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ContentController extends Controller
 {
-    public function __construct(private ContentService $contentService) {}
+    public function __construct(
+        private ContentService $contentService,
+        private DocumentImportService $documentImportService,
+    ) {}
 
     /** admin.content.index (ADM-03) — 6.2/6.4/6.5. */
     public function index(Request $request): View
@@ -196,6 +204,159 @@ class ContentController extends Controller
         $this->contentService->questionArchive($question, $data['reason']);
 
         return redirect()->route('admin.content.show', $question->id)->with('status', 'question-archived');
+    }
+
+    // ================= Nhập đề Word/PDF/OCR -> Kho chung (6.4) =================
+
+    /** admin.content.questions.import (ADM-03, TEA-05 tương đương phía admin) — trạng thái xử lý OCR thật. */
+    public function questionsImport(Request $request): View
+    {
+        return view('admin.content.questions.import', [
+            'documents' => $this->contentService->indexData('drafts')['documents'],
+            'maxFileKb' => DocumentImportService::maxFileKb(),
+        ]);
+    }
+
+    /**
+     * admin.content.questions.import.store — tải Word/PDF lên và xử lý ngay (6.4): quét
+     * chữ ký định dạng, trích xuất văn bản (OCR nếu là PDF scan/ảnh), phân rã thành câu
+     * nháp vào "Kho chung". Có thể mất vài chục giây với tệp scan nhiều trang.
+     */
+    public function questionsImportStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:docx,pdf', 'max:'.DocumentImportService::maxFileKb()],
+        ], [], ['file' => 'Tệp']);
+
+        set_time_limit(300);
+
+        $document = $this->documentImportService->import(Auth::user(), $request->file('file'));
+
+        if ($document->status === UploadedDocumentStatus::Failed) {
+            return redirect()->route('admin.content.questions.import')
+                ->with('status', 'import-failed')
+                ->with('importError', $document->error_log);
+        }
+
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $document->id])
+            ->with('status', 'import-parsed');
+    }
+
+    /** admin.content.documents.download — tải lại đúng tệp gốc đã upload để đối chiếu. */
+    public function downloadDocument(Request $request, int $document): StreamedResponse
+    {
+        $documentModel = $this->documentImportService->findDocument($document);
+
+        return Storage::disk('local')->download($documentModel->storage_path, $documentModel->original_filename);
+    }
+
+    /**
+     * admin.content.questions.reviewDraft — truyền $document + $drafts thật (6.4). Nhận
+     * ?document=<id>; nếu không có, lấy tài liệu "cần rà soát" gần nhất trên toàn Kho chung.
+     */
+    public function questionsReviewDraft(Request $request): View
+    {
+        $documentId = $request->filled('document') ? (int) $request->query('document') : null;
+
+        return view('admin.content.questions.review-draft', $this->contentService->reviewDraftFor($documentId));
+    }
+
+    /** admin.content.drafts.store — "+ Thêm câu thủ công" ở màn rà soát (6.4). */
+    public function draftStore(Request $request, int $document): RedirectResponse
+    {
+        $documentModel = $this->documentImportService->findDocument($document);
+        $this->documentImportService->addManualDraft($documentModel);
+
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentModel->id])
+            ->with('status', 'draft-added');
+    }
+
+    /** admin.content.drafts.update — sửa nội dung/đáp án/loại của 1 câu nháp (6.4). */
+    public function draftUpdate(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findDraft($draft);
+        $type = $request->input('type_guess', 'mcq');
+        $data = $request->validate($this->draftValidationRules($type));
+
+        $this->documentImportService->updateDraft($draftModel, $type, $data);
+
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $draftModel->uploaded_document_id])
+            ->with('status', 'draft-saved');
+    }
+
+    /** admin.content.drafts.merge — gộp 2 câu bị OCR/tách sai thành 1 (6.4). */
+    public function draftMerge(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findDraft($draft);
+        $documentId = $draftModel->uploaded_document_id;
+        $data = $request->validate(['merge_with_id' => ['required', 'integer']]);
+
+        try {
+            $this->documentImportService->mergeDrafts($draftModel, (int) $data['merge_with_id']);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentId])->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentId])->with('status', 'draft-merged');
+    }
+
+    /** admin.content.drafts.discard — bỏ 1 câu nháp (không xóa cứng, giữ lịch sử — 6.4). */
+    public function draftDiscard(Request $request, int $draft): RedirectResponse
+    {
+        $draftModel = $this->documentImportService->findDraft($draft);
+        $documentId = $draftModel->uploaded_document_id;
+
+        $this->documentImportService->discardDraft($draftModel);
+
+        return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentId])->with('status', 'draft-discarded');
+    }
+
+    /**
+     * admin.content.documents.promote — chuyển toàn bộ câu đã rà soát vào Kho chung
+     * (luôn ở dạng Nháp — 6.4: "OCR không tự phát hành"). Chặn nếu còn câu chưa đủ
+     * điều kiện, liệt kê rõ câu nào để admin/editor quay lại sửa.
+     */
+    public function promote(Request $request, int $document): RedirectResponse
+    {
+        $documentModel = $this->documentImportService->findDocument($document);
+
+        try {
+            $count = $this->documentImportService->promote(Auth::user(), $documentModel);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.content.questions.reviewDraft', ['document' => $documentModel->id])->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.content.index', ['tab' => 'questions'])
+            ->with('status', 'draft-promoted')
+            ->with('promotedCount', $count);
+    }
+
+    private function draftValidationRules(string $type): array
+    {
+        $common = [
+            'type_guess' => ['required', 'in:mcq,fill_blank,coding'],
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
+            'points' => ['required', 'integer', 'min:1', 'max:100'],
+        ];
+
+        return match ($type) {
+            'mcq' => $common + [
+                'options' => ['nullable', 'array'],
+                'options.*' => ['nullable', 'string', 'max:500'],
+                'correct_option' => ['nullable', 'string', 'max:10'],
+            ],
+            'fill_blank' => $common + [
+                'accepted_answers' => ['nullable', 'string', 'max:1000'],
+                'case_sensitive' => ['nullable', 'boolean'],
+            ],
+            'coding' => $common + [
+                'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
+                'memory_limit_mb' => ['nullable', 'integer', 'min:16', 'max:2048'],
+                'test_cases' => ['nullable', 'string', 'max:20000'],
+            ],
+            default => $common,
+        };
     }
 
     // ================= Đề/bộ bài (Assessment) =================

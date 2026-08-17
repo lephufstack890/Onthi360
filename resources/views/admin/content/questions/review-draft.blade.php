@@ -1,17 +1,19 @@
 {{--
-  Route: teacher.assessments.reviewDraft | Frame: TEA-05 (rà soát)
+  Route: admin.content.questions.reviewDraft | Frame: ADM-03 (rà soát)
   Spec: 6.4 — xem song song tệp gốc/câu tách, gắn cờ vùng nhận dạng kém,
   thêm-xóa-gộp-tách-đổi thứ tự câu, sửa nội dung/đáp án/điểm, chọn dạng,
   thêm metadata/cấu hình OJ. Không cho xuất bản khi còn thiếu điều kiện.
-  Dữ liệu thật ($document, $drafts) do App\Http\Controllers\Teacher\
-  AssessmentController truyền vào qua App\Services\Teacher\AssessmentService::
-  reviewDraftFor(). Mỗi câu có form riêng lưu ngay khi bấm "Lưu câu này" (POST
-  teacher.assessments.drafts.update) — không có nút "lưu tất cả" gộp chung.
+  Khác Teacher: tài liệu/câu nháp thuộc "Kho chung" (6.5) — bất kỳ Admin/
+  Editor nào cũng rà soát/sửa/gộp/xóa/chuyển vào kho được, không giới hạn
+  theo đúng người đã tải lên. Dữ liệu thật ($document, $drafts) do
+  App\Http\Controllers\Admin\ContentController truyền vào qua
+  App\Services\Admin\ContentService::reviewDraftFor(). Mỗi câu có form riêng
+  lưu ngay khi bấm "Lưu câu này" (POST admin.content.drafts.update).
 --}}
-@extends('layouts.teacher')
+@extends('layouts.admin')
 
 @section('title', 'Rà soát đề nhập')
-@section('page-title', 'Rà soát đề nhập')
+@section('page-title', 'Rà soát đề nhập — Kho chung')
 
 @section('content')
     @php
@@ -21,9 +23,9 @@
         $isPdf = $document && str_ends_with(strtolower($document->original_filename), '.pdf');
     @endphp
 
-    <a href="{{ route('teacher.assessments.import') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nhập đề</a>
+    <a href="{{ route('admin.content.questions.import') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nhập đề</a>
 
-    <x-page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả trích xuất/OCR là bản nháp — phải rà soát và xác nhận trước khi chuyển vào kho (6.4)." />
+    <x-page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả trích xuất/OCR là bản nháp — phải rà soát và xác nhận trước khi chuyển vào Kho chung (6.4, 6.5)." />
 
     @if (session('status') === 'draft-added')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm câu thủ công — điền nội dung bên dưới.'])
@@ -37,9 +39,6 @@
     @if (session('status') === 'draft-discarded')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã bỏ câu này.'])
     @endif
-    @if (session('status') === 'draft-promoted')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã chuyển '.session('promotedCount', 0).' câu vào Kho câu hỏi (dạng Nháp) — vào Kho câu hỏi để phát hành từng câu.'])
-    @endif
     @if ($errors->any() && !$errors->has('promote'))
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
@@ -50,7 +49,7 @@
             <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📄</span> Tệp gốc</h3>
             @if ($document)
                 @if ($isPdf)
-                    <iframe src="{{ route('teacher.assessments.documents.download', $document->id) }}"
+                    <iframe src="{{ route('admin.content.documents.download', $document->id) }}"
                             class="w-full aspect-[3/4] rounded-xl border border-slate-100"></iframe>
                 @else
                     <div class="aspect-[3/4] bg-slate-50 rounded-xl flex flex-col items-center justify-center text-slate-400 text-sm gap-3">
@@ -58,7 +57,7 @@
                         <p>Không xem trước được file Word trực tiếp trên trình duyệt.</p>
                     </div>
                 @endif
-                <a href="{{ route('teacher.assessments.documents.download', $document->id) }}"
+                <a href="{{ route('admin.content.documents.download', $document->id) }}"
                    class="mt-3 inline-flex items-center gap-1.5 text-sm text-rose-600 font-medium">⬇ Tải xuống tệp gốc để đối chiếu</a>
             @else
                 <div class="aspect-[3/4] bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 text-sm">
@@ -83,7 +82,7 @@
                         </p>
                     @endif
 
-                    <form method="POST" action="{{ route('teacher.assessments.drafts.update', $d['id']) }}" class="space-y-3">
+                    <form method="POST" action="{{ route('admin.content.drafts.update', $d['id']) }}" class="space-y-3">
                         @csrf
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1">Dạng câu hỏi</label>
@@ -160,7 +159,7 @@
 
                     <div class="flex items-center gap-3 text-sm mt-3 pt-3 border-t border-slate-100">
                         @if (count($d['otherDrafts']) > 0)
-                            <form method="POST" action="{{ route('teacher.assessments.drafts.merge', $d['id']) }}" class="flex items-center gap-2">
+                            <form method="POST" action="{{ route('admin.content.drafts.merge', $d['id']) }}" class="flex items-center gap-2">
                                 @csrf
                                 <select name="merge_with_id" class="rounded-lg border border-slate-200 text-xs p-1.5">
                                     @foreach ($d['otherDrafts'] as $other)
@@ -170,7 +169,7 @@
                                 <button type="submit" class="text-slate-600 text-sm">Gộp</button>
                             </form>
                         @endif
-                        <form method="POST" action="{{ route('teacher.assessments.drafts.discard', $d['id']) }}"
+                        <form method="POST" action="{{ route('admin.content.drafts.discard', $d['id']) }}"
                               onsubmit="return confirm('Bỏ câu này khỏi danh sách rà soát?');">
                             @csrf
                             <button type="submit" class="text-rose-500 text-sm">Xóa</button>
@@ -182,7 +181,7 @@
             @endforelse
 
             @if ($document)
-                <form method="POST" action="{{ route('teacher.assessments.drafts.store', $document->id) }}">
+                <form method="POST" action="{{ route('admin.content.drafts.store', $document->id) }}">
                     @csrf
                     <button type="submit" class="w-full rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-3 hover:border-rose-300 hover:text-rose-500">
                         + Thêm câu thủ công
@@ -199,12 +198,12 @@
                 @if ($errors->has('promote'))
                     {{ $errors->first('promote') }}
                 @else
-                    Mỗi câu tự lưu riêng khi bấm "Lưu câu này" — khi tất cả câu đã đủ điều kiện, bấm "Chuyển vào kho câu hỏi".
+                    Mỗi câu tự lưu riêng khi bấm "Lưu câu này" — khi tất cả câu đã đủ điều kiện, bấm "Chuyển vào Kho chung".
                 @endif
             </p>
-            <form method="POST" action="{{ route('teacher.assessments.documents.promote', $document->id) }}">
+            <form method="POST" action="{{ route('admin.content.documents.promote', $document->id) }}">
                 @csrf
-                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Chuyển vào kho câu hỏi</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Chuyển vào Kho chung</button>
             </form>
         </div>
     @endif
