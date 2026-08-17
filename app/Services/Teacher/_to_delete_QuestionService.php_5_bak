@@ -19,9 +19,6 @@ use App\Services\QuestionPublishGuard;
  */
 class QuestionService
 {
-    /** Giới hạn hiển thị/trang — đủ lớn để "Tất cả" thực sự hiện hết trong đa số trường hợp thực tế. */
-    private const LIST_LIMIT = 200;
-
     public function __construct(
         private readonly QuestionRepositoryInterface $questions,
         private readonly QuestionBankRepositoryInterface $questionBanks,
@@ -48,13 +45,7 @@ class QuestionService
             default => null,
         };
 
-        $total = match ($tab) {
-            'published' => $counts['published'],
-            'draft' => $counts['draft'],
-            default => $counts['all'],
-        };
-
-        $questions = $this->questions->byOwner($user->id, $statusFilter, self::LIST_LIMIT)
+        $questions = $this->questions->byOwner($user->id, $statusFilter, 50)
             ->map(fn (Question $q) => [
                 'id' => $q->id,
                 'title' => $q->title,
@@ -65,7 +56,7 @@ class QuestionService
                 'canArchive' => $q->status !== ContentStatus::Archived,
             ])->all();
 
-        return ['tab' => $tab, 'tabs' => $tabs, 'questions' => $questions, 'total' => $total];
+        return ['tab' => $tab, 'tabs' => $tabs, 'questions' => $questions];
     }
 
     /**
@@ -97,6 +88,7 @@ class QuestionService
         return $question;
     }
 
+    /** Kho riêng của giáo viên (6.5) — tự tạo nếu chưa có, mỗi giáo viên đúng 1 kho riêng. */
     public function findOrCreatePersonalBank(User $teacher): QuestionBank
     {
         $bank = $this->questionBanks->findPersonalBank($teacher->id);

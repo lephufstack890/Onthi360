@@ -42,4 +42,10 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     {
         return $this->query()->where('owner_type', 'shared')->count();
     }
+
+    /** Admin xem được toàn bộ câu hỏi (Kho chung + kho riêng từng giáo viên) — không lọc owner_type. */
+    public function allLatestWithOwner(int $limit = 50): Collection
+    {
+        return $this->query()->with('owner')->latest()->limit($limit)->get();
+    }
 }

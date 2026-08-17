@@ -117,14 +117,14 @@ class ContentService
     {
         $counts = [
             'materials' => $this->materials->count(),
-            'questions' => $this->questions->countShared(),
+            'questions' => $this->questions->count(),
             'assessments' => $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
         ];
 
         $tabs = [
             ['label' => 'Học liệu (Sách/Chuyên đề/Đề thi)', 'href' => route('admin.content.index'), 'active' => $tab === 'materials', 'count' => $counts['materials']],
-            ['label' => 'Kho câu hỏi chung', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
+            ['label' => 'Câu hỏi (Kho chung + Giáo viên)', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
             ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
         ];
@@ -132,10 +132,13 @@ class ContentService
         $documents = [];
         $rows = [];
         if ($tab === 'questions') {
-            $rows = $this->questions->sharedLatestWithOwner(50)->map(function ($q) {
+            // Admin xem được toàn bộ câu hỏi — cả Kho chung lẫn kho riêng từng giáo viên
+            // (chỉ xem để nắm tình hình; ranh giới sở hữu/sửa vẫn theo 6.5, giống cách
+            // tab "Đề/bộ bài" đã hiển thị cả đề của giáo viên bên dưới).
+            $rows = $this->questions->allLatestWithOwner(50)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
-                return ['id' => $q->id, 'title' => $q->title, 'type' => $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => 'Kho chung'];
+                return ['id' => $q->id, 'title' => $q->title, 'type' => $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
             })->all();
         } elseif ($tab === 'assessments') {
             $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {

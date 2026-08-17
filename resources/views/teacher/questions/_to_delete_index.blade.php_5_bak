@@ -3,8 +3,6 @@
   Spec: 6.5 (kho riêng giáo viên — chỉ giáo viên tạo/chỉnh/sử dụng trong
   lớp của mình; không mặc định thấy/sửa kho chung hoặc kho giáo viên khác).
   Dữ liệu thật do App\Services\Teacher\QuestionService::listForTeacher() truyền vào.
-  "+ Nhập đề (Word/PDF/OCR)" trỏ sang teacher.assessments.import (6.4) — câu tách ra
-  từ OCR/trích xuất, khi lưu và đủ điều kiện, sẽ tự vào đúng kho này.
 --}}
 @extends('layouts.teacher')
 
@@ -17,7 +15,6 @@
         $tab = $tab ?? 'all';
         $tabs = $tabs ?? [];
         $questions = $questions ?? [];
-        $total = $total ?? count($questions);
         $typeIcons = ['Trắc nghiệm' => '🔤', 'Điền đáp án' => '✏️', 'Lập trình' => '💻'];
     @endphp
 
@@ -29,10 +26,7 @@
                 <p class="text-sm text-slate-500 mt-1">Chỉ bạn tạo/sửa/sử dụng — ranh giới rõ với kho chung của hệ thống (6.5).</p>
             </div>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
-            <a href="{{ route('teacher.assessments.import') }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Nhập đề (Word/PDF/OCR)</a>
-            <a href="{{ route('teacher.questions.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm">+ Tạo câu hỏi</a>
-        </div>
+        <a href="{{ route('teacher.questions.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm shrink-0">+ Tạo câu hỏi</a>
     </div>
 
     <x-tabs :tabs="$tabs" />
@@ -75,5 +69,4 @@
             <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có câu hỏi nào trong kho của bạn.</td></tr>
         @endforelse
     </x-data-table>
-    <x-pagination-note :shown="count($questions)" :total="$total" />
 @endsection

@@ -16,4 +16,6 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
     public function sharedLatestWithOwner(int $limit = 50): Collection;
 
     public function countShared(): int;
+
+    public function allLatestWithOwner(int $limit = 50): Collection;
 }
