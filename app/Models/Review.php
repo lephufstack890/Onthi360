@@ -27,6 +27,7 @@ class Review extends Model
     protected $casts = [
         'reviewer_role' => ReviewerRole::class,
         'target_type' => ReviewTargetType::class,
+        'status' => ReviewStatus::class,
         'criteria_scores' => 'array',
         'disclosure_ack' => 'boolean',
         'published_at' => 'datetime',

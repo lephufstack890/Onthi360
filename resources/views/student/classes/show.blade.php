@@ -132,7 +132,7 @@
         </div>
     @elseif ($tab === 'reviews')
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi tham gia 2 buổi (9.2).</p>
+            <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi tham gia 2 buổi.</p>
             <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}" class="text-sm text-rose-600 font-medium mb-4 inline-block">Viết đánh giá ›</a>
             <div class="divide-y divide-slate-100">
                 @forelse ($reviews as $r)

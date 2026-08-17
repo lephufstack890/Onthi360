@@ -81,12 +81,6 @@ class ClassRoomService
 
         $enrollment = $this->classEnrollments->findActiveForUserAndClassRoom($user->id, $classRoom->id);
 
-        // "Tiến độ lớp" — % buổi học ĐÃ KẾT THÚC / tổng số buổi đã lên lịch cho lớp, CÙNG
-        // công thức đã dùng thật ở App\Services\Teacher\ClassRoomService::completionPercent()
-        // (xem giải thích đầy đủ ở đó): trước đây con số này hardcode 0 kèm TODO tính theo
-        // progress_unlocks + attempts, nhưng rà soát toàn bộ codebase xác nhận KHÔNG có luồng
-        // nào tạo Attempt đã nộp thật nên công thức đó sẽ luôn là 0% dù đổi cách tính. Module
-        // Lịch học đã chạy đầy đủ nên dùng tiến độ buổi học làm thước đo thật.
         $sessionProgress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
         $overallPercent = $this->completionPercent(
             (int) ($sessionProgress->ended ?? 0),

@@ -85,7 +85,7 @@
                 <div class="flex gap-3">
                     <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Gửi đánh giá</button>
                 </div>
-                <p class="text-xs text-slate-400">Bạn có thể sửa đánh giá trong 7 ngày sau khi gửi (9.2).</p>
+                <p class="text-xs text-slate-400">Bạn có thể sửa đánh giá trong 7 ngày sau khi gửi.</p>
             </form>
         </div>
     </div>

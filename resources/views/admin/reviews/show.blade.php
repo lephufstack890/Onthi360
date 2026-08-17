@@ -39,7 +39,7 @@
                 <p class="text-sm text-slate-700">{{ $reviewModel->comment }}</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 class="font-medium text-slate-700 mb-2">Bằng chứng đủ điều kiện trải nghiệm (9.2)</h2>
+                <h2 class="font-medium text-slate-700 mb-2">Bằng chứng đủ điều kiện trải nghiệm</h2>
                 @forelse ($evidence as $e)
                     <p class="text-sm text-slate-500">{{ $e }}</p>
                 @empty
