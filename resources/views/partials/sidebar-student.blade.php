@@ -2,6 +2,7 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
         ['label' => 'Khóa học', 'route' => 'student.courses.index', 'icon' => '📚'],
+        ['label' => 'Thời khoá biểu', 'route' => 'student.schedule.index', 'icon' => '🗓️'],
         ['label' => 'Luyện tập', 'route' => 'student.practice.index', 'icon' => '📝'],
         ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => '📖'],
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => '🏆'],

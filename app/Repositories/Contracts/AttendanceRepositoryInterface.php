@@ -15,4 +15,7 @@ interface AttendanceRepositoryInterface extends BaseRepositoryInterface
 
     /** Keyed by student_id — điểm danh đã có của một buổi học cụ thể. */
     public function forClassSession(int $classSessionId): Collection;
+
+    /** Keyed by class_session_id — điểm danh của MỘT học sinh xuyên nhiều buổi học (student.schedule.index). */
+    public function forStudentInSessionIds(int $studentId, array $sessionIds): Collection;
 }

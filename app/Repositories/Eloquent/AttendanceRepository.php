@@ -35,4 +35,22 @@ class AttendanceRepository extends EloquentRepository implements AttendanceRepos
     {
         return $this->query()->where('class_session_id', $classSessionId)->get()->keyBy('student_id');
     }
+
+    /**
+     * student.schedule.index — điểm danh của 1 học sinh cho đúng tập buổi học đang hiển thị
+     * trong tuần (1 câu whereIn thay vì gọi forStudentInClassRoom() riêng cho từng lớp —
+     * tránh N+1 khi học sinh tham gia nhiều lớp cùng lúc).
+     */
+    public function forStudentInSessionIds(int $studentId, array $sessionIds): Collection
+    {
+        if ($sessionIds === []) {
+            return new Collection();
+        }
+
+        return $this->query()
+            ->where('student_id', $studentId)
+            ->whereIn('class_session_id', $sessionIds)
+            ->get()
+            ->keyBy('class_session_id');
+    }
 }

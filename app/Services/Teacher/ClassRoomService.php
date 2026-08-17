@@ -148,7 +148,7 @@ class ClassRoomService
 
         $this->ensureTeaches($classRoom, $user);
 
-        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Học liệu', 'schedule' => 'Lịch/Điểm danh', 'assign' => 'Giao đề', 'results' => 'Kết quả', 'members' => 'Thành viên'];
+        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Học liệu', 'schedule' => 'Buổi học', 'assign' => 'Giao đề', 'results' => 'Kết quả', 'members' => 'Thành viên'];
         $tabsData = [];
         foreach ($tabDefs as $key => $label) {
             $tabsData[] = ['label' => $label, 'href' => route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => $key]), 'active' => $tab === $key];

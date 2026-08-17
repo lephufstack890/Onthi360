@@ -24,4 +24,7 @@ interface ClassSessionRepositoryInterface extends BaseRepositoryInterface
     public function currentlyInProgressForClassRoomIds(array $classRoomIds): Collection;
 
     public function sessionProgressCountsForClassRoomIds(array $classRoomIds): Collection;
+
+    /** student.schedule.index — buổi học của nhiều lớp, giới hạn trong 1 khoảng ngày (1 tuần). */
+    public function forClassRoomIdsBetween(array $classRoomIds, \DateTimeInterface $start, \DateTimeInterface $end): Collection;
 }

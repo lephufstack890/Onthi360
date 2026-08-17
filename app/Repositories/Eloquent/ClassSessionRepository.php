@@ -106,4 +106,25 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
             ->groupBy('class_room_id')
             ->get();
     }
+
+    /**
+     * student.schedule.index (STU — thời khoá biểu dạng lưới tuần, gộp mọi lớp học sinh
+     * tham gia) — lọc theo starts_at nằm trong [$start, $end] (thường là đầu/cuối 1 tuần).
+     * Lọc theo starts_at (không phải ends_at) vì thời khoá biểu xếp buổi học vào Ô NGÀY nó
+     * BẮT ĐẦU — khớp cách hiển thị "Thứ X, ngày Y" mà học sinh mong đợi, kể cả với buổi học
+     * kết thúc sau nửa đêm (hiếm nhưng có thể xảy ra với ca thi chia nhỏ).
+     */
+    public function forClassRoomIdsBetween(array $classRoomIds, \DateTimeInterface $start, \DateTimeInterface $end): Collection
+    {
+        if ($classRoomIds === []) {
+            return new Collection();
+        }
+
+        return $this->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->whereBetween('starts_at', [$start, $end])
+            ->with('classRoom')
+            ->orderBy('starts_at')
+            ->get();
+    }
 }

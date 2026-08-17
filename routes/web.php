@@ -14,6 +14,7 @@ use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
 use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
+use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentController;
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
@@ -98,6 +99,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
+        Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{question}/oj', [StudentAssessmentController::class, 'oj'])->name('assessment.oj');
