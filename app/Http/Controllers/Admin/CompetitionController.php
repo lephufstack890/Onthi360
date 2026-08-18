@@ -43,31 +43,37 @@ class CompetitionController extends Controller
     }
 
     /**
-     * Form dùng input Ngày ("{field}_date") + 2 dropdown Giờ/Phút ("{field}_hour"/
-     * "{field}_minute") tách riêng thay cho <input type="datetime-local"|"time"> native (bị
-     * phản ánh không bấm chọn được giờ trên máy một số người dùng — xem
+     * Form dùng 5 dropdown Ngày/Tháng/Năm/Giờ/Phút ("{field}_day/_month/_year/_hour/
+     * _minute") thay HOÀN TOÀN cho <input type="datetime-local"|"date"|"time"> native (bị
+     * phản ánh không bấm chọn được trên máy một số người dùng — xem
      * resources/views/components/date-time-fields.blade.php). Ghép lại thành 1 field gốc
      * "{field}" chuẩn "Y-m-d\TH:i" NGAY TRƯỚC KHI validate(), để validationRules()/
      * examValidationRules() và toàn bộ Service layer phía sau không phải đổi gì (vẫn nhận
-     * đúng 1 field 'date' như cũ).
+     * đúng 1 field 'date' như cũ). Thiếu bất kỳ 1 trong 3 phần Ngày/Tháng/Năm → cả mốc
+     * thời gian này thành null (giờ/phút luôn có mặc định 00:00 nếu bỏ trống).
      */
     private function combineDateTimeInputs(Request $request, array $fields): void
     {
         foreach ($fields as $field) {
-            $date = trim((string) $request->input($field.'_date'));
+            $day = trim((string) $request->input($field.'_day'));
+            $month = trim((string) $request->input($field.'_month'));
+            $year = trim((string) $request->input($field.'_year'));
 
-            if ($date === '') {
+            if ($day === '' || $month === '' || $year === '') {
                 $request->merge([$field => null]);
 
                 continue;
             }
+
+            $day = str_pad($day, 2, '0', STR_PAD_LEFT);
+            $month = str_pad($month, 2, '0', STR_PAD_LEFT);
 
             $hour = trim((string) $request->input($field.'_hour'));
             $minute = trim((string) $request->input($field.'_minute'));
             $hour = $hour !== '' ? str_pad($hour, 2, '0', STR_PAD_LEFT) : '00';
             $minute = $minute !== '' ? str_pad($minute, 2, '0', STR_PAD_LEFT) : '00';
 
-            $request->merge([$field => $date.'T'.$hour.':'.$minute]);
+            $request->merge([$field => "{$year}-{$month}-{$day}T{$hour}:{$minute}"]);
         }
     }
 

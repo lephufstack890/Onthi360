@@ -97,15 +97,21 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                         :dateValue="old('starts_at_date', $competition->starts_at?->format('Y-m-d'))"
+                                         :dayValue="old('starts_at_day', $competition->starts_at?->format('d'))"
+                                         :monthValue="old('starts_at_month', $competition->starts_at?->format('m'))"
+                                         :yearValue="old('starts_at_year', $competition->starts_at?->format('Y'))"
                                          :hourValue="old('starts_at_hour', $competition->starts_at?->format('H'))"
                                          :minuteValue="old('starts_at_minute', $competition->starts_at?->format('i'))" />
                     <x-date-time-fields name="ends_at" label="Kết thúc"
-                                         :dateValue="old('ends_at_date', $competition->ends_at?->format('Y-m-d'))"
+                                         :dayValue="old('ends_at_day', $competition->ends_at?->format('d'))"
+                                         :monthValue="old('ends_at_month', $competition->ends_at?->format('m'))"
+                                         :yearValue="old('ends_at_year', $competition->ends_at?->format('Y'))"
                                          :hourValue="old('ends_at_hour', $competition->ends_at?->format('H'))"
                                          :minuteValue="old('ends_at_minute', $competition->ends_at?->format('i'))" />
                     <x-date-time-fields name="publish_result_at" label="Công bố kết quả"
-                                         :dateValue="old('publish_result_at_date', $competition->publish_result_at?->format('Y-m-d'))"
+                                         :dayValue="old('publish_result_at_day', $competition->publish_result_at?->format('d'))"
+                                         :monthValue="old('publish_result_at_month', $competition->publish_result_at?->format('m'))"
+                                         :yearValue="old('publish_result_at_year', $competition->publish_result_at?->format('Y'))"
                                          :hourValue="old('publish_result_at_hour', $competition->publish_result_at?->format('H'))"
                                          :minuteValue="old('publish_result_at_minute', $competition->publish_result_at?->format('i'))"
                                          hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />

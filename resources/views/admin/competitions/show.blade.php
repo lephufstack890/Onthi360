@@ -119,11 +119,15 @@
                                         </x-select>
                                     </div>
                                     <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                                         :dateValue="$exam['startsAt']?->format('Y-m-d')"
+                                                         :dayValue="$exam['startsAt']?->format('d')"
+                                                         :monthValue="$exam['startsAt']?->format('m')"
+                                                         :yearValue="$exam['startsAt']?->format('Y')"
                                                          :hourValue="$exam['startsAt']?->format('H')"
                                                          :minuteValue="$exam['startsAt']?->format('i')" />
                                     <x-date-time-fields name="ends_at" label="Kết thúc"
-                                                         :dateValue="$exam['endsAt']?->format('Y-m-d')"
+                                                         :dayValue="$exam['endsAt']?->format('d')"
+                                                         :monthValue="$exam['endsAt']?->format('m')"
+                                                         :yearValue="$exam['endsAt']?->format('Y')"
                                                          :hourValue="$exam['endsAt']?->format('H')"
                                                          :minuteValue="$exam['endsAt']?->format('i')" />
                                     <div class="sm:col-span-2 flex items-center gap-2">

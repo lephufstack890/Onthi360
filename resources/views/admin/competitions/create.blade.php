@@ -100,11 +100,14 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                     :dateValue="old('starts_at_date')" :hourValue="old('starts_at_hour')" :minuteValue="old('starts_at_minute')" />
+                                     :dayValue="old('starts_at_day')" :monthValue="old('starts_at_month')" :yearValue="old('starts_at_year')"
+                                     :hourValue="old('starts_at_hour')" :minuteValue="old('starts_at_minute')" />
                 <x-date-time-fields name="ends_at" label="Kết thúc"
-                                     :dateValue="old('ends_at_date')" :hourValue="old('ends_at_hour')" :minuteValue="old('ends_at_minute')" />
+                                     :dayValue="old('ends_at_day')" :monthValue="old('ends_at_month')" :yearValue="old('ends_at_year')"
+                                     :hourValue="old('ends_at_hour')" :minuteValue="old('ends_at_minute')" />
                 <x-date-time-fields name="publish_result_at" label="Công bố kết quả"
-                                     :dateValue="old('publish_result_at_date')" :hourValue="old('publish_result_at_hour')" :minuteValue="old('publish_result_at_minute')"
+                                     :dayValue="old('publish_result_at_day')" :monthValue="old('publish_result_at_month')" :yearValue="old('publish_result_at_year')"
+                                     :hourValue="old('publish_result_at_hour')" :minuteValue="old('publish_result_at_minute')"
                                      hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />
             </div>
 
