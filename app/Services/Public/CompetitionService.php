@@ -84,10 +84,13 @@ class CompetitionService
                 && $this->isWithinWindow($competition),
             /*
              * examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm NHIỀU kỳ thi
-             * (vd Vòng 1/Vòng 2), mỗi kỳ tham chiếu 1 đề riêng + có CTA/bảng xếp hạng riêng.
-             * Cuộc thi cũ (tạo trước tính năng này) đã được backfill 1 kỳ thi tương ứng với
-             * assessment_id cũ (xem migration create_competition_exams_table) nên luôn có ít
-             * nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback UI riêng ở view.
+             * (vd Vòng 1/Vòng 2), mỗi kỳ tham chiếu 1 đề riêng + có CTA/bảng xếp hạng riêng,
+             * VÀ MỖI KỲ TỰ CÓ khung giờ starts_at/ends_at RIÊNG (App\Models\CompetitionExam::
+             * computedStatus() — độc lập hoàn toàn, không phụ thuộc $competition->starts_at/
+             * ends_at ở trên). Cuộc thi cũ (tạo trước tính năng này) đã được backfill 1 kỳ thi
+             * tương ứng với assessment_id cũ (xem migration create_competition_exams_table)
+             * nên luôn có ít nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback
+             * UI riêng ở view.
              */
             'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer, $computedStatusValue) {
                 $examStatusValue = $exam->computedStatus();
@@ -103,10 +106,27 @@ class CompetitionService
                     'hasEnded' => $examStatusValue === 'ended',
                     'statusLabel' => $examMeta['label'],
                     'statusTone' => $examMeta['tone'],
+                    /*
+                     * BUG SỬA 18/8: trước đây bắt buộc $computedStatusValue === 'ongoing' —
+                     * tức trạng thái vòng đời của CẢ CUỘC THI (tính từ $competition->starts_at/
+                     * ends_at riêng) cũng phải "Đang diễn ra" thì nút "Vào thi" mới hiện, dù kỳ
+                     * thi (exam sitting) này có khung giờ HOÀN TOÀN RIÊNG. Cuộc thi tạo theo
+                     * kiểu nhiều vòng thường KHÔNG điền starts_at/ends_at ở cấp cuộc thi (chỉ
+                     * điền cho từng kỳ thi con) — khi đó $competition->starts_at = null nên
+                     * computedStatus() luôn trả "Upcoming" (Competition::computeStatusFor():
+                     * starts_at null → Upcoming), NGHĨA LÀ $computedStatusValue KHÔNG BAO GIỜ
+                     * bằng 'ongoing' — nút "Vào thi" bị ẩn vĩnh viễn dù kỳ thi con đang thật sự
+                     * diễn ra (badge vẫn hiện đúng "Đang diễn ra" vì lấy từ $examStatusValue
+                     * riêng, chỉ có CTA bên dưới bị sai) — học sinh bấm vào chỉ thấy "Về trang
+                     * của tôi". Chỉ còn chặn theo cờ "Lưu trữ" cấp cuộc thi (admin chủ động lưu
+                     * trữ thì không cho vào thi nữa dù kỳ thi con tính ra vẫn "ongoing"), KHÔNG
+                     * chặn thêm theo cả vòng đời Upcoming/PendingPublish/Published của cuộc thi
+                     * (không liên quan tới việc kỳ thi con này có đang mở hay không).
+                     */
                     'canJoinDirectly' => $viewer !== null
                         && $viewer->hasRole(Role::STUDENT)
                         && $exam->assessment_id !== null
-                        && $computedStatusValue === 'ongoing'
+                        && $computedStatusValue !== CompetitionStatus::Archived->value
                         && $examStatusValue === 'ongoing',
                 ];
             })->all(),
@@ -137,7 +157,7 @@ class CompetitionService
         return $competitions->map(fn (Competition $c) => $this->mapCard($c))->all();
     }
 
-    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì bỏ qua điều kiện đó (không chặn thêm khi chưa đặt lịch cụ thể). */
+    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì b�o qua điều kiện đó (không chặn thêm khi chưa đặt lịch cụ thể). */
     private function isWithinWindow(Competition $competition): bool
     {
         if ($competition->starts_at !== null && now()->lt($competition->starts_at)) {

@@ -25,7 +25,15 @@ class AssessmentController extends Controller
         try {
             $data = $this->assessmentService->buildTakeData($user, $assessment, $assignmentId);
         } catch (ValidationException $e) {
-            abort(422, implode(' ', $e->errors()['attempt'] ?? ['Không thể mở lượt làm bài.']));
+            // SỬA 18/8: trước đây abort(422, ...) — bay thẳng ra trang lỗi kỹ thuật của
+            // Laravel (raw exception page, có stack trace nếu APP_DEBUG=true), dù lý do chặn
+            // (hết lượt làm lại theo resubmission_policy, bài giao chưa mở, chưa đủ quyền học
+            // liệu...) là thông báo NGHIỆP VỤ bình thường học sinh cần đọc được, không phải
+            // lỗi hệ thống. Hiện view riêng (không đụng route/layout khác) — dùng đúng layout
+            // học sinh quen thuộc, kèm 2 lối ra rõ ràng.
+            return view('student.assessment.blocked', [
+                'message' => $e->errors()['attempt'][0] ?? 'Không thể mở lượt làm bài.',
+            ]);
         }
 
         // buildTakeData() tự nộp attempt nếu vừa phát hiện đã hết giờ (AttemptService::
@@ -79,7 +87,7 @@ class AssessmentController extends Controller
         return redirect()->route('student.assessment.take', $params)->with('status', 'draft-saved');
     }
 
-    /** student.assessment.take.submit — nộp bài, khoá lượt làm bài rồi sang trang kết quả. */
+    /** student.assessment.take.submit — nộp bài, khoá lượt làm bài riổi sang trang kết quả. */
     public function submit(Request $request, int $attempt): RedirectResponse
     {
         $user = $request->user();
@@ -88,13 +96,13 @@ class AssessmentController extends Controller
         try {
             $attemptModel = $this->assessmentService->submitAttempt($user, $attempt, $answers);
         } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->errors());
+            return redirect()->back(fallback: route('dashboard'))->withErrors($e->errors());
         }
 
         return redirect()->route('student.assessment.result', $attemptModel->id);
     }
 
-    /** student.assessment.oj (STU-06/07) — làm câu lập trình đơn lẻ. */
+    /** student.assessment.oj (STU-06/07) — làm câu lập trình đ�n lẻ. */
     public function oj(Request $request, int $question): View
     {
         $user = $request->user();
