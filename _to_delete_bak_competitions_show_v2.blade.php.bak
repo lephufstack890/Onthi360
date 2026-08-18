@@ -30,17 +30,18 @@
         $endedExamsCount = collect($examSittings)->where('hasEnded', true)->count();
     @endphp
 
-    <div class="max-w-5xl mx-auto px-4 pt-6">
-        <a href="{{ route('competitions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Cuộc thi</a>
+    {{-- Hero: banner ảnh + gradient tối giúp badge/tiêu đề nổi trên mọi ảnh nền --}}
+    <div class="relative">
+        <div class="h-56 lg:h-72 w-full overflow-hidden">
+            <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($competition->title) }}/1600/640" alt="" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/40 to-slate-900/10"></div>
+        </div>
 
-        {{-- Hero: ảnh + gradient tối + nội dung đều nằm TRONG cùng 1 khối rounded/overflow-hidden
-             cố định chiều cao — tránh dùng margin âm kéo nội dung ra ngoài khối ảnh (từng gây
-             lỗi phần nền/gradient bị "dính" chồng lên layout bên dưới khi tiêu đề dài 2 dòng). --}}
-        <div class="rounded-3xl overflow-hidden relative mt-3 mb-8 shadow-sm">
-            <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($competition->title) }}/1200/480" alt="" class="w-full h-56 lg:h-72 object-cover">
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/35 to-transparent"></div>
-            <div class="absolute inset-x-0 bottom-0 p-6 lg:p-8 text-white">
-                <div class="flex flex-wrap items-center gap-2">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="-mt-40 lg:-mt-48 relative text-white pb-6">
+                <a href="{{ route('competitions.index') }}" class="text-sm text-slate-200 mb-4 inline-flex items-center gap-1 hover:text-white">‹ Quay lại Cuộc thi</a>
+
+                <div class="flex flex-wrap items-center gap-2 mt-4">
                     <x-status-badge :tone="$statusTone">{{ $statusLabel }}</x-status-badge>
                     <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 text-white text-xs font-medium">{{ $competition->type->value === 'contest' ? '🏆 Cuộc thi' : '📊 Khảo sát' }}</span>
                     @if ($competition->isExternallyOrganized())
@@ -48,9 +49,9 @@
                     @endif
                 </div>
 
-                <h1 class="text-2xl lg:text-3xl font-semibold mt-2 leading-tight">{{ $competition->title }}</h1>
+                <h1 class="text-2xl lg:text-4xl font-semibold mt-3 leading-tight">{{ $competition->title }}</h1>
 
-                <p class="text-slate-200 mt-1.5 inline-flex items-center gap-1.5 text-sm">
+                <p class="text-slate-200 mt-3 inline-flex items-center gap-1.5 text-sm">
                     <span>🗓</span>
                     @if ($competition->starts_at && $competition->ends_at)
                         {{ $competition->starts_at->format('d/m/Y H:i') }} – {{ $competition->ends_at->format('d/m/Y H:i') }}

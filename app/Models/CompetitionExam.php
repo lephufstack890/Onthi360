@@ -38,22 +38,33 @@ class CompetitionExam extends Model
         return $this->hasMany(LeaderboardEntry::class);
     }
 
-    /**
-     * now() có nằm trong [starts_at, ends_at] không — cột nào null thì bỏ qua điều kiện đó
-     * (giống App\Services\Public\CompetitionService's private isWithinWindow(), áp cho từng
-     * kỳ thi thay vì cả cuộc thi).
-     */
+    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì bỏ qua điều kiện đó. */
     public function isOngoing(): bool
     {
-        if ($this->starts_at !== null && now()->lt($this->starts_at)) {
-            return false;
+        return $this->computedStatus() === 'ongoing';
+    }
+
+    /**
+     * Trạng thái kỳ thi TÍNH THEO GIỜ HIỆN TẠI — dùng để hiển thị rõ ràng cho học sinh (trang
+     * chi tiết cuộc thi công khai): 'upcoming' (chưa tới giờ bắt đầu) | 'ended' (đã qua giờ
+     * kết thúc) | 'ongoing' (đang trong khung giờ thi, hoặc chưa đặt đủ starts_at/ends_at nên
+     * không có gì để chặn — giữ đúng hành vi cũ của isOngoing() khi kỳ thi "chưa đặt lịch cụ
+     * thể"). Cột nào null thì bỏ qua điều kiện đó (giống App\Services\Public\
+     * CompetitionService's private isWithinWindow(), áp cho từng kỳ thi thay vì cả cuộc thi).
+     */
+    public function computedStatus(): string
+    {
+        $now = now();
+
+        if ($this->starts_at !== null && $now->lt($this->starts_at)) {
+            return 'upcoming';
         }
 
-        if ($this->ends_at !== null && now()->gt($this->ends_at)) {
-            return false;
+        if ($this->ends_at !== null && $now->gt($this->ends_at)) {
+            return 'ended';
         }
 
-        return true;
+        return 'ongoing';
     }
 
     /** title rỗng (đa số kỳ thi backfill từ cuộc thi cũ) thì hiển thị tên đề tham chiếu. */

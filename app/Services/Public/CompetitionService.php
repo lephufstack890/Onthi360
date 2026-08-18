@@ -24,6 +24,13 @@ class CompetitionService
         'archived' => ['label' => 'Lưu trữ', 'tone' => 'neutral'],
     ];
 
+    /** Nhãn trạng thái RIÊNG cho từng kỳ thi (App\Models\CompetitionExam::computedStatus()) — 3 trạng thái đơn giản hơn cấp cuộc thi (không có "chờ/đã công bố" ở cấp kỳ thi). */
+    private const EXAM_STATUS_META = [
+        'upcoming' => ['label' => 'Sắp diễn ra', 'tone' => 'info'],
+        'ongoing' => ['label' => 'Đang diễn ra', 'tone' => 'success'],
+        'ended' => ['label' => 'Đã kết thúc', 'tone' => 'neutral'],
+    ];
+
     public function __construct(private CompetitionRepositoryInterface $competitions) {}
 
     /** competitions.index — danh sách cuộc thi/khảo sát công khai. */
@@ -82,19 +89,27 @@ class CompetitionService
              * assessment_id cũ (xem migration create_competition_exams_table) nên luôn có ít
              * nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback UI riêng ở view.
              */
-            'examSittings' => $competition->examSittings->map(fn (CompetitionExam $exam) => [
-                'id' => $exam->id,
-                'title' => $exam->displayTitle(),
-                'assessmentId' => $exam->assessment_id,
-                'startsAt' => $exam->starts_at,
-                'endsAt' => $exam->ends_at,
-                'ongoing' => $exam->isOngoing(),
-                'canJoinDirectly' => $viewer !== null
-                    && $viewer->hasRole(Role::STUDENT)
-                    && $exam->assessment_id !== null
-                    && $computedStatusValue === 'ongoing'
-                    && $exam->isOngoing(),
-            ])->all(),
+            'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer, $computedStatusValue) {
+                $examStatusValue = $exam->computedStatus();
+                $examMeta = self::EXAM_STATUS_META[$examStatusValue] ?? ['label' => $examStatusValue, 'tone' => 'neutral'];
+
+                return [
+                    'id' => $exam->id,
+                    'title' => $exam->displayTitle(),
+                    'assessmentId' => $exam->assessment_id,
+                    'startsAt' => $exam->starts_at,
+                    'endsAt' => $exam->ends_at,
+                    'ongoing' => $examStatusValue === 'ongoing',
+                    'hasEnded' => $examStatusValue === 'ended',
+                    'statusLabel' => $examMeta['label'],
+                    'statusTone' => $examMeta['tone'],
+                    'canJoinDirectly' => $viewer !== null
+                        && $viewer->hasRole(Role::STUDENT)
+                        && $exam->assessment_id !== null
+                        && $computedStatusValue === 'ongoing'
+                        && $examStatusValue === 'ongoing',
+                ];
+            })->all(),
         ];
     }
 
