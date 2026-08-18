@@ -30,18 +30,17 @@
 
     <x-tabs :tabs="$tabs" />
 
-    <x-data-table :columns="['Tên', 'Loại', 'Bắt đầu', 'Kết thúc', 'Trạng thái', '']">
+    <x-data-table :columns="['Tên', 'Loại', 'Thời gian', 'Trạng thái', '']">
         @forelse ($competitions as $c)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $c['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $c['type'] }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ $c['startsAtLabel'] }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ $c['endsAtLabel'] }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ $c['time'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$c['tone']">{{ $c['status'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right"><a href="{{ route('admin.competitions.show', $c['id']) }}" class="text-rose-600 font-medium">Xem</a></td>
             </tr>
         @empty
-            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
         @endforelse
     </x-data-table>
 @endsection

@@ -14,15 +14,10 @@
 
 @section('content')
     @php
-        $types = $types ?? []; $assessmentOptions = $assessmentOptions ?? [];
+        $types = $types ?? []; $statuses = $statuses ?? []; $assessmentOptions = $assessmentOptions ?? [];
         $organizerTypes = $organizerTypes ?? []; $teacherOptions = $teacherOptions ?? [];
         $selectedAdvisorIds = $selectedAdvisorIds ?? [];
         $rankingRule = $competition->ranking_rule ?? [];
-        $statusLabels = [
-            'upcoming' => 'Sắp diễn ra', 'ongoing' => 'Đang diễn ra', 'pending_publish' => 'Chờ công bố',
-            'published' => 'Đã công bố', 'archived' => 'Lưu trữ',
-        ];
-        $computedStatusValue = $competition->computedStatus()->value;
     @endphp
 
     <a href="{{ route('admin.competitions.show', $competition->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
@@ -123,9 +118,12 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Trạng thái</label>
-                    <p class="text-sm text-slate-700">{{ $statusLabels[$computedStatusValue] ?? $computedStatusValue }}</p>
-                    <p class="text-xs text-slate-400 mt-1">🔄 Tự tính theo lịch Bắt đầu/Kết thúc/Công bố kết quả — không chọn tay. Muốn "Lưu trữ" thì dùng nút riêng ở trang chi tiết.</p>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
+                    <x-select id="status" name="status" required>
+                        @foreach ($statuses as $value => $label)
+                            <option value="{{ $value }}" @selected(old('status', $competition->status->value) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </x-select>
                 </div>
 
                 <div class="rounded-lg bg-sky-50 border border-sky-100 p-4 space-y-3">

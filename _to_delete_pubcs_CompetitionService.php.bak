@@ -8,7 +8,6 @@ use App\Models\CompetitionExam;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
-use Illuminate\Support\Carbon;
 
 /**
  * Cuộc thi công khai (PUB-08, 11.1 "Menu Cuộc thi": lịch, thể lệ, đề/bộ bài, quy tắc công
@@ -45,17 +44,14 @@ class CompetitionService
             ->withCount('leaderboardEntries')
             ->findOrFail($competitionId);
 
-        // Dùng computedStatus() (tự tính theo giờ hiện tại) thay vì cột status lưu sẵn — luôn
-        // đúng dù cuộc thi lâu chưa ai vào admin sửa để cột được ghi lại (11.1).
-        $computedStatusValue = $competition->computedStatus()->value;
-        $meta = self::STATUS_META[$computedStatusValue] ?? ['label' => $computedStatusValue, 'tone' => 'neutral'];
+        $meta = self::STATUS_META[$competition->status->value] ?? ['label' => $competition->status->value, 'tone' => 'neutral'];
 
         return [
             'competition' => $competition,
             'statusLabel' => $meta['label'],
             'statusTone' => $meta['tone'],
             'rankingRule' => $competition->ranking_rule ?? [],
-            'startCountdown' => $this->startCountdown($competition->starts_at),
+            'daysUntilStart' => $competition->starts_at !== null ? now()->diffInDays($competition->starts_at, false) : null,
             /*
              * "Vào thi" ở đây = làm đề tham chiếu thật (11.1: "cuộc thi chỉ tham chiếu đề để
              * tổ chức sự kiện") qua hạ tầng student.assessment.take sẵn có. Việc TỰ ĐỘNG ghi
@@ -73,7 +69,7 @@ class CompetitionService
             'canJoinDirectly' => $viewer !== null
                 && $viewer->hasRole(Role::STUDENT)
                 && $competition->assessment_id !== null
-                && $computedStatusValue === 'ongoing'
+                && $competition->status->value === 'ongoing'
                 && $this->isWithinWindow($competition),
             /*
              * examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm NHIỀU kỳ thi
@@ -92,29 +88,22 @@ class CompetitionService
                 'canJoinDirectly' => $viewer !== null
                     && $viewer->hasRole(Role::STUDENT)
                     && $exam->assessment_id !== null
-                    && $computedStatusValue === 'ongoing'
+                    && $competition->status->value === 'ongoing'
                     && $exam->isOngoing(),
             ])->all(),
         ];
     }
 
     /**
-     * Trang chủ (PUB-01/02, 12.1) — "Cuộc thi sắp tới": CHỈ cuộc thi thật sự CHƯA bắt đầu,
-     * xếp gần nhất trước (starts_at TĂNG dần) — khác competitions.index vốn liệt kê MỌI
-     * trạng thái, mới TẠO trước (starts_at GIẢM dần qua withLeaderboardCounts()). Không dùng
+     * Trang chủ (PUB-01/02, 12.1) — "Cuộc thi sắp tới": CHỈ status=upcoming, xếp gần nhất
+     * trước (starts_at TĂNG dần) — khác competitions.index vốn liệt kê MỌI trạng thái, mới
+     * TẠO trước (starts_at GIẢM dần qua withLeaderboardCounts()). Không dùng
      * withLeaderboardCounts() ở đây vì cuộc thi sắp diễn ra chưa có lượt tham gia nào để đếm.
-     *
-     * Lọc thẳng theo starts_at (chưa null và > now()) thay vì cột status='upcoming' lưu sẵn —
-     * cột đó chỉ được ghi lại mỗi lần admin lưu cuộc thi (xem CompetitionService::store()/
-     * update() ở tầng Admin), nên có thể "trễ" (còn ghi 'upcoming' dù giờ đã qua) nếu lâu
-     * không ai vào sửa. Lọc theo ngày giờ thật thì luôn đúng ngay tại thời điểm truy vấn.
      */
     public function upcomingData(int $limit = 4): array
     {
         $competitions = $this->competitions->query()
-            ->where('status', '!=', CompetitionStatus::Archived->value)
-            ->whereNotNull('starts_at')
-            ->where('starts_at', '>', now())
+            ->where('status', CompetitionStatus::Upcoming->value)
             ->orderBy('starts_at')
             ->limit($limit)
             ->get();
@@ -136,51 +125,9 @@ class CompetitionService
         return true;
     }
 
-    /**
-     * "Còn bao lâu nữa bắt đầu" hiển thị cho người xem — trả về NULL nghĩa là ẨN HẲN phần
-     * đếm ngược (đã tới/qua giờ bắt đầu rồi, hoặc chưa đặt lịch cụ thể thì không có gì để
-     * đếm) — không hiện "0 ngày" gây hiểu lầm là sắp có gì đó xảy ra "trong 0 ngày nữa".
-     * Còn >= 1 ngày trọn thì trả về {days}; dưới 1 ngày thì trả về {hours, minutes} (cả giờ
-     * lẫn phút) để vẫn chính xác thay vì làm tròn thô về 1 đơn vị. Carbon 3 (Laravel 13) trả
-     * diffInMinutes() dạng số thực (vd 123.9xxx) — ép (int) trước khi chia để lấy số nguyên
-     * giờ/phút, tránh PHP deprecation "implicit conversion from float to int loses precision".
-     *
-     * @return array{unit: 'days', days: int}|array{unit: 'hm', hours: int, minutes: int}|null
-     */
-    private function startCountdown(?Carbon $startsAt): ?array
-    {
-        if ($startsAt === null) {
-            return null;
-        }
-
-        $totalMinutes = (int) now()->diffInMinutes($startsAt, false);
-
-        if ($totalMinutes <= 0) {
-            // Đã tới/qua giờ bắt đầu — ẩn đếm ngược, không hiện "0 ngày".
-            return null;
-        }
-
-        $days = intdiv($totalMinutes, 1440);
-
-        if ($days >= 1) {
-            return ['unit' => 'days', 'days' => $days];
-        }
-
-        $hours = intdiv($totalMinutes, 60);
-        $minutes = $totalMinutes % 60;
-
-        // Tối thiểu 1 phút để không hiện "0 giờ 0 phút" khi thật ra vẫn còn vài giây.
-        if ($hours === 0 && $minutes === 0) {
-            $minutes = 1;
-        }
-
-        return ['unit' => 'hm', 'hours' => $hours, 'minutes' => $minutes];
-    }
-
     private function mapCard(Competition $c): array
     {
-        $statusValue = $c->computedStatus()->value;
-        $meta = self::STATUS_META[$statusValue] ?? ['label' => $statusValue, 'tone' => 'neutral'];
+        $meta = self::STATUS_META[$c->status->value] ?? ['label' => $c->status->value, 'tone' => 'neutral'];
 
         return [
             'id' => $c->id,
@@ -190,7 +137,6 @@ class CompetitionService
             'statusTone' => $meta['tone'],
             'startsAt' => $c->starts_at,
             'endsAt' => $c->ends_at,
-            'startCountdown' => $this->startCountdown($c->starts_at),
             'participants' => $c->leaderboard_entries_count,
         ];
     }

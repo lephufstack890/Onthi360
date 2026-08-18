@@ -17,12 +17,7 @@
 @section('content')
     @php
         $rankingRule = $rankingRule ?? [];
-        $startCountdown = $startCountdown ?? null;
-        $countdownText = match ($startCountdown['unit'] ?? null) {
-            'days' => $startCountdown['days'].' ngày',
-            'hm' => $startCountdown['hours'].' giờ '.$startCountdown['minutes'].' phút',
-            default => null,
-        };
+        $daysUntilStart = $daysUntilStart ?? null;
         $canJoinDirectly = $canJoinDirectly ?? false;
         $examSittings = $examSittings ?? [];
     @endphp
@@ -53,13 +48,11 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 {{ $countdownText ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }} gap-4 mb-8">
-            @if ($countdownText)
-                <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center">
-                    <p class="text-2xl font-semibold text-rose-600">{{ $countdownText }}</p>
-                    <p class="text-xs text-slate-400 mt-1">nữa bắt đầu</p>
-                </div>
-            @endif
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center">
+                <p class="text-2xl font-semibold text-rose-600">{{ $daysUntilStart !== null && $daysUntilStart > 0 ? $daysUntilStart : 0 }}</p>
+                <p class="text-xs text-slate-400 mt-1">ngày nữa bắt đầu</p>
+            </div>
             <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center">
                 <p class="text-2xl font-semibold text-slate-800">{{ number_format($competition->leaderboard_entries_count) }}</p>
                 <p class="text-xs text-slate-400 mt-1">đã có trên bảng xếp hạng</p>

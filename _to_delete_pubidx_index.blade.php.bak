@@ -47,14 +47,8 @@
                         </p>
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
                             <span>👥 {{ number_format($c['participants']) }} người tham gia</span>
-                            @if ($c['statusLabel'] === 'Sắp diễn ra' && $c['startCountdown'])
-                                <span class="text-rose-600 font-medium">Còn
-                                    @if ($c['startCountdown']['unit'] === 'days')
-                                        {{ $c['startCountdown']['days'] }} ngày
-                                    @else
-                                        {{ $c['startCountdown']['hours'] }} giờ {{ $c['startCountdown']['minutes'] }} phút
-                                    @endif
-                                </span>
+                            @if ($c['statusLabel'] === 'Sắp diễn ra' && $c['startsAt'])
+                                <span class="text-rose-600 font-medium">Còn {{ max(0, now()->diffInDays($c['startsAt'])) }} ngày</span>
                             @elseif ($c['statusLabel'] === 'Đang diễn ra')
                                 <span class="text-emerald-600 font-medium">Đang mở</span>
                             @endif

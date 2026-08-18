@@ -17,7 +17,7 @@
 
 @section('content')
     @php
-        $types = $types ?? []; $assessmentOptions = $assessmentOptions ?? [];
+        $types = $types ?? []; $statuses = $statuses ?? []; $assessmentOptions = $assessmentOptions ?? [];
         $organizerTypes = $organizerTypes ?? []; $teacherOptions = $teacherOptions ?? [];
     @endphp
 
@@ -111,9 +111,14 @@
                                      hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />
             </div>
 
-            <p class="text-xs text-slate-400 -mt-2">
-                🔄 Trạng thái (Sắp diễn ra/Đang diễn ra/Chờ công bố/Đã công bố) tự tính theo lịch Bắt đầu/Kết thúc/Công bố kết quả ở trên — không cần chọn tay. Chỉ "Lưu trữ" là admin tự bấm sau khi tạo (ở trang chi tiết cuộc thi).
-            </p>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
+                <x-select id="status" name="status" required>
+                    @foreach ($statuses as $value => $label)
+                        <option value="{{ $value }}" @selected(old('status', 'upcoming') === $value)>{{ $label }}</option>
+                    @endforeach
+                </x-select>
+            </div>
 
             <div class="rounded-lg bg-sky-50 border border-sky-100 p-4 space-y-3">
                 <p class="text-sm font-medium text-sky-700">Quy tắc bảng xếp hạng (11.2)</p>

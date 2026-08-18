@@ -30,31 +30,18 @@ class CompetitionService
         private LeaderboardEntryRepositoryInterface $leaderboardEntries,
     ) {}
 
-    /**
-     * Nhãn hiển thị cho từng trạng thái (11.1) — dùng chung cho indexData()/showData() thay
-     * vì lặp lại match() ở nhiều nơi. KHÔNG còn dùng để dựng dropdown "Trạng thái" trong form
-     * thêm/sửa nữa — trạng thái giờ TỰ TÍNH theo giờ hiện tại (xem Competition::computedStatus()),
-     * chỉ còn "Lưu trữ" là admin tự bấm (nút riêng, xem archive()).
-     */
-    private const STATUS_LABELS = [
-        'upcoming' => 'Sắp diễn ra',
-        'ongoing' => 'Đang diễn ra',
-        'pending_publish' => 'Chờ công bố',
-        'published' => 'Đã công bố',
-        'archived' => 'Lưu trữ',
-    ];
-
-    private const STATUS_TONES = [
-        'upcoming' => 'info',
-        'ongoing' => 'warning',
-        'published' => 'success',
-    ];
-
-    /** @return array{types: array, assessmentOptions: array, organizerTypes: array, teacherOptions: array} */
+    /** @return array{types: array, statuses: array, assessmentOptions: array, organizerTypes: array, teacherOptions: array} */
     private function formOptions(): array
     {
         return [
             'types' => [CompetitionType::Contest->value => 'Cuộc thi', CompetitionType::Survey->value => 'Khảo sát'],
+            'statuses' => [
+                CompetitionStatus::Upcoming->value => 'Sắp diễn ra',
+                CompetitionStatus::Ongoing->value => 'Đang diễn ra',
+                CompetitionStatus::PendingPublish->value => 'Chờ công bố',
+                CompetitionStatus::Published->value => 'Đã công bố',
+                CompetitionStatus::Archived->value => 'Lưu trữ',
+            ],
             // Đề thi luôn thuộc Tài liệu (11.1) — cuộc thi chỉ THAM CHIẾU, không tạo đề riêng.
             'assessmentOptions' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
             'organizerTypes' => [
@@ -76,21 +63,25 @@ class CompetitionService
             ['label' => 'Giáo viên tiêu biểu', 'href' => route('admin.featured-teachers.index'), 'active' => false, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
-        $competitions = $this->competitions->latest(50)->map(function ($c) {
-            $statusValue = $c->computedStatus()->value;
-
-            return [
-                'id' => $c->id,
-                'name' => $c->title,
-                'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
-                // Hiện rõ Bắt đầu/Kết thúc riêng (ngày + giờ) thay vì gộp mập mờ kiểu "18/08 -
-                // 19/08/2026" — nhìn 1 cái là biết chính xác mốc nào, không phải đoán.
-                'startsAtLabel' => $c->starts_at?->format('d/m/Y H:i') ?? '— Chưa đặt —',
-                'endsAtLabel' => $c->ends_at?->format('d/m/Y H:i') ?? '— Chưa đặt —',
-                'status' => self::STATUS_LABELS[$statusValue] ?? $statusValue,
-                'tone' => self::STATUS_TONES[$statusValue] ?? 'neutral',
-            ];
-        })->all();
+        $competitions = $this->competitions->latest(50)->map(fn ($c) => [
+            'id' => $c->id,
+            'name' => $c->title,
+            'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
+            'time' => ($c->starts_at?->format('d/m') ?? '').' - '.($c->ends_at?->format('d/m/Y') ?? ''),
+            'status' => match ($c->status) {
+                CompetitionStatus::Upcoming => 'Sắp diễn ra',
+                CompetitionStatus::Ongoing => 'Đang diễn ra',
+                CompetitionStatus::PendingPublish => 'Chờ công bố',
+                CompetitionStatus::Published => 'Đã công bố',
+                CompetitionStatus::Archived => 'Lưu trữ',
+            },
+            'tone' => match ($c->status) {
+                CompetitionStatus::Upcoming => 'info',
+                CompetitionStatus::Ongoing => 'warning',
+                CompetitionStatus::Published => 'success',
+                default => 'neutral',
+            },
+        ])->all();
 
         return ['tabs' => $tabs, 'competitions' => $competitions];
     }
@@ -168,11 +159,6 @@ class CompetitionService
             $suffix++;
         }
 
-        // Trạng thái TỰ TÍNH theo giờ hiện tại (không còn nhận từ dropdown do admin tự chọn) —
-        // cuộc thi mới tạo chưa thể "Lưu trữ" nên archived luôn false ở đây (xem
-        // Competition::computeStatusFor()).
-        $status = Competition::computeStatusFor($data['starts_at'] ?? null, $data['ends_at'] ?? null, $data['publish_result_at'] ?? null);
-
         $competition = $this->competitions->create([
             'title' => $data['title'],
             'slug' => $slug,
@@ -184,7 +170,7 @@ class CompetitionService
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,
             'publish_result_at' => $data['publish_result_at'] ?: null,
-            'status' => $status->value,
+            'status' => $data['status'],
             'ranking_rule' => $this->buildRankingRule($data),
         ]);
 
@@ -209,16 +195,6 @@ class CompetitionService
         $this->assertOrganizerDataValid($data);
         $this->assertDatesValid($data);
 
-        // Trạng thái TỰ TÍNH lại theo lịch mới nhập — trừ khi cuộc thi ĐANG "Lưu trữ" thì giữ
-        // nguyên (Lưu trữ là hành động thủ công riêng của admin qua archive(), sửa ngày giờ
-        // không được phép tự "mở lại" 1 cuộc thi đã lưu trữ).
-        $status = Competition::computeStatusFor(
-            $data['starts_at'] ?? null,
-            $data['ends_at'] ?? null,
-            $data['publish_result_at'] ?? null,
-            $competition->status === CompetitionStatus::Archived,
-        );
-
         $updated = $this->competitions->update($competition, [
             'title' => $data['title'],
             'type' => $data['type'],
@@ -229,7 +205,7 @@ class CompetitionService
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,
             'publish_result_at' => $data['publish_result_at'] ?: null,
-            'status' => $status->value,
+            'status' => $data['status'],
             'ranking_rule' => $this->buildRankingRule($data),
         ]);
 

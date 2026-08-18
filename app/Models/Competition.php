@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Competition extends Model
 {
@@ -62,9 +63,74 @@ class Competition extends Model
         return $this->organizer_type === CompetitionOrganizerType::External;
     }
 
-    /** "Chờ công bố" không lộ rank tạm thời nếu quy chế cấm (11.2). */
+    /**
+     * "Chờ công bố" không lộ rank tạm thời nếu quy chế cấm (11.2) — dùng computedStatus()
+     * (tự tính theo giờ hiện tại) thay vì cột status lưu sẵn, để không bị "trễ" khi qua mốc
+     * giờ mà chưa có ai vào sửa cuộc thi để cột status được ghi lại (xem computedStatus()).
+     */
     public function ranksArePublic(): bool
     {
-        return $this->status === CompetitionStatus::Published;
+        return $this->computedStatus() === CompetitionStatus::Published;
+    }
+
+    /**
+     * Trạng thái vòng đời TÍNH THEO GIỜ HIỆN TẠI (11.1: Sắp diễn ra→Đang diễn ra→Chờ công
+     * bố→Đã công bố→Lưu trữ) thay vì để Admin tự chọn tay lúc thêm/sửa (dễ chọn sai/quên đổi
+     * đúng lúc) — CHỈ "Lưu trữ" là hành động thủ công có chủ đích (nút riêng
+     * admin.competitions.archive, xem CompetitionService::archive()), còn lại 4 trạng thái
+     * kia đều suy ra thẳng từ starts_at/ends_at/publish_result_at. Dùng ở CẢ 2 nơi: lúc lưu
+     * (CompetitionService::store()/update() gọi computeStatusFor() để ghi lại cột status cho
+     * các truy vấn lọc theo cột, vd trang chủ "sắp tới") LẪN lúc hiển thị (gọi computedStatus()
+     * ở đây để không bao giờ hiện sai/trễ dù cột status trong DB có cũ do lâu chưa ai sửa).
+     */
+    public function computedStatus(): CompetitionStatus
+    {
+        return self::computeStatusFor(
+            $this->starts_at,
+            $this->ends_at,
+            $this->publish_result_at,
+            $this->status === CompetitionStatus::Archived,
+        );
+    }
+
+    /**
+     * Phần lõi tính trạng thái — tách thành static để CompetitionService::store()/update() gọi
+     * được TRƯỚC KHI bản ghi tồn tại (từ dữ liệu form vừa nhập, chưa có Model), dùng chung 1
+     * chỗ duy nhất với computedStatus() ở trên (tránh 2 nơi tính khác nhau bị lệch).
+     */
+    public static function computeStatusFor(
+        Carbon|string|null $startsAt,
+        Carbon|string|null $endsAt,
+        Carbon|string|null $publishResultAt,
+        bool $archived = false,
+    ): CompetitionStatus {
+        if ($archived) {
+            return CompetitionStatus::Archived;
+        }
+
+        $startsAt = $startsAt !== null ? Carbon::parse($startsAt) : null;
+        $endsAt = $endsAt !== null ? Carbon::parse($endsAt) : null;
+        $publishResultAt = $publishResultAt !== null ? Carbon::parse($publishResultAt) : null;
+
+        $now = now();
+
+        // Chưa đặt lịch (starts_at null) hoặc chưa tới giờ bắt đầu → Sắp diễn ra.
+        if ($startsAt === null || $now->lt($startsAt)) {
+            return CompetitionStatus::Upcoming;
+        }
+
+        // Đã tới/qua giờ bắt đầu — chưa đặt giờ kết thúc (mở vô thời hạn) HOẶC chưa qua giờ
+        // kết thúc → Đang diễn ra.
+        if ($endsAt === null || $now->lte($endsAt)) {
+            return CompetitionStatus::Ongoing;
+        }
+
+        // Đã qua giờ kết thúc — còn mốc công bố kết quả ở tương lai thì Chờ công bố, không thì
+        // coi như đã công bố ngay khi hết giờ thi (không đặt publish_result_at = không cần chờ).
+        if ($publishResultAt !== null && $now->lt($publishResultAt)) {
+            return CompetitionStatus::PendingPublish;
+        }
+
+        return CompetitionStatus::Published;
     }
 }

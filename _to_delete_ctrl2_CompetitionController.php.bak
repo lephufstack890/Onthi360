@@ -31,9 +31,7 @@ class CompetitionController extends Controller
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date'],
             'publish_result_at' => ['nullable', 'date'],
-            // 'status' KHÔNG còn nhận từ form nữa — CompetitionService::store()/update() tự
-            // tính theo giờ hiện tại (xem Competition::computeStatusFor()), chỉ "Lưu trữ" là
-            // admin tự bấm qua route admin.competitions.archive riêng.
+            'status' => ['required', 'string', 'in:upcoming,ongoing,pending_publish,published,archived'],
             'scoring_note' => ['nullable', 'string', 'max:500'],
             'penalty_note' => ['nullable', 'string', 'max:500'],
             'tie_break_note' => ['nullable', 'string', 'max:500'],

@@ -8,9 +8,6 @@
   Mỗi kỳ thi có bảng xếp hạng riêng (scope=competition_exam); nút "Tính tổng từ các kỳ thi"
   cộng điểm mọi kỳ thi theo user_id thành bảng TỔNG (scope=competition) — xem
   CompetitionService::recomputeAggregateFromExams().
-  Trạng thái ở đây dùng $competition->computedStatus() (tự tính theo giờ hiện tại từ
-  starts_at/ends_at/publish_result_at) thay vì cột status lưu sẵn — luôn đúng dù lâu chưa ai
-  sửa cuộc thi để cột được ghi lại (xem App\Models\Competition::computedStatus()).
 --}}
 @extends('layouts.admin')
 
@@ -26,7 +23,7 @@
             'published' => ['label' => 'Đã công bố', 'tone' => 'success'],
             'archived' => ['label' => 'Lưu trữ', 'tone' => 'neutral'],
         ];
-        $statusValue = $competition->computedStatus()->value;
+        $statusValue = $competition->status->value;
         $meta = $statusMeta[$statusValue] ?? ['label' => $statusValue, 'tone' => 'neutral'];
         $rankingRule = $competition->ranking_rule ?? [];
         $exams = $exams ?? [];
