@@ -13,6 +13,13 @@
     (Tự luyện/Theo lớp/Được giao) thực sự có ít nhất 1 đề gắn chuyên đề nào đó.
   "Độ khó" CHƯA lọc được thật vì Question không có cột difficulty — cố tình để dạng vô hiệu
   hoá (không phải nút chết do quên nối, mà là chưa có dữ liệu để lọc).
+
+  SỬA 18/8 (2): làm lại giao diện cho đẹp/hấp dẫn hơn — khách báo "UI xấu quá". KHÔNG đổi
+  logic lọc/dữ liệu ở trên, chỉ đổi cách trình bày: hero pastel giống dashboard (component
+  x-icon-tile/gradient đã dùng sẵn ở student/dashboard.blade.php, giữ nhất quán design
+  system), bộ lọc dạng pill bo tròn dễ bấm hơn, card luyện tập bấm được toàn bộ (trước đây
+  chỉ chữ "Làm bài ›" nhỏ mới bấm được), có dải màu top-bar + icon tile theo loại đề để dễ
+  phân biệt Tự luyện/Bài giao/Đề thi/Đề thi đấu bằng mắt.
 --}}
 @extends('layouts.student')
 
@@ -32,61 +39,120 @@
         $baseParams = array_filter(['tab' => $tab !== 'self' ? $tab : null]);
         $typeHref = fn (?string $val) => route('student.practice.index', array_filter($baseParams + ['type' => $val, 'topic' => $topic]));
         $topicHref = fn (?string $val) => route('student.practice.index', array_filter($baseParams + ['type' => $type, 'topic' => $val]));
+
         $chipClass = fn (bool $active) => $active
-            ? 'px-3 py-1.5 rounded-full bg-rose-50 text-rose-600 font-medium'
-            : 'px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-rose-200';
+            ? 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium bg-rose-600 text-white shadow-sm shadow-rose-200 transition'
+            : 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium bg-slate-50 text-slate-600 border border-slate-200 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50 transition';
         $topicChipClass = fn (bool $active) => $active
-            ? 'px-2.5 py-1 rounded-full bg-slate-800 text-white'
-            : 'px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:border-slate-300';
+            ? 'px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-white transition'
+            : 'px-3 py-1.5 rounded-full text-xs font-medium bg-white text-slate-500 border border-slate-200 hover:border-slate-400 hover:text-slate-700 transition';
+
+        $typeFilters = [
+            ['value' => null, 'label' => 'Tất cả', 'icon' => '🌈'],
+            ['value' => 'coding', 'label' => 'Lập trình', 'icon' => '💻'],
+            ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => '🔤'],
+            ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => '✏️'],
+        ];
+
+        // Bảng màu theo LOẠI ĐỀ (App\Enums\AssessmentType) để mắt phân biệt nhanh Tự luyện/
+        // Bài giao/Đề thi/Đề thi đấu trên card — dùng tone có sẵn của <x-icon-tile> (rose/sky/
+        // violet/amber/emerald) + class Tailwind ghi trực tiếp dạng chữ (không ghép chuỗi động)
+        // để Tailwind quét/build CSS được bình thường.
+        $cardAccent = fn (?string $assessmentType) => match ($assessmentType) {
+            'assignment' => ['tone' => 'sky', 'bar' => 'from-sky-400 to-sky-300', 'hover' => 'hover:border-sky-200'],
+            'exam' => ['tone' => 'amber', 'bar' => 'from-amber-400 to-amber-300', 'hover' => 'hover:border-amber-200'],
+            'competition_paper' => ['tone' => 'violet', 'bar' => 'from-violet-400 to-violet-300', 'hover' => 'hover:border-violet-200'],
+            default => ['tone' => 'rose', 'bar' => 'from-rose-400 to-rose-300', 'hover' => 'hover:border-rose-200'],
+        };
     @endphp
 
-    <x-page-header title="📝 Luyện tập" subtitle="Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3)." />
+    <div class="rounded-3xl bg-gradient-to-br from-rose-100 via-pink-50 to-amber-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm text-rose-600 font-medium">📝 Luyện tập</p>
+            <h2 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">Luyện đủ dạng, tự tin đi thi</h2>
+            <p class="text-sm text-slate-500 mt-1 max-w-lg">Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3).</p>
+        </div>
+        <div class="text-5xl">🎯</div>
+    </div>
 
     <x-tabs :tabs="$tabs" />
 
     @if ($filtersApply)
-        <div class="flex flex-wrap gap-2 mb-4 text-sm">
-            <a href="{{ $typeHref(null) }}" class="{{ $chipClass($type === null) }}">Tất cả</a>
-            <a href="{{ $typeHref('coding') }}" class="{{ $chipClass($type === 'coding') }}">💻 Lập trình</a>
-            <a href="{{ $typeHref('mcq') }}" class="{{ $chipClass($type === 'mcq') }}">🔤 Trắc nghiệm</a>
-            <a href="{{ $typeHref('fill_blank') }}" class="{{ $chipClass($type === 'fill_blank') }}">✏️ Điền đáp án</a>
-            <span class="px-3 py-1.5 rounded-full border border-dashed border-slate-200 text-slate-300 cursor-not-allowed" title="Chưa có dữ liệu độ khó cho câu hỏi để lọc">Độ khó (sắp có)</span>
-        </div>
-
-        @if (count($availableTopics) > 0)
-            <div class="flex flex-wrap items-center gap-2 mb-6 text-xs">
-                <span class="text-slate-400">Chuyên đề:</span>
-                <a href="{{ $topicHref(null) }}" class="{{ $topicChipClass($topic === null) }}">Tất cả</a>
-                @foreach ($availableTopics as $t)
-                    <a href="{{ $topicHref($t) }}" class="{{ $topicChipClass($topic === $t) }}">{{ $t }}</a>
-                @endforeach
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 lg:p-5 mb-6 space-y-4">
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Loại câu hỏi</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($typeFilters as $tf)
+                        <a href="{{ $typeHref($tf['value']) }}" class="{{ $chipClass($type === $tf['value']) }}">
+                            <span>{{ $tf['icon'] }}</span> {{ $tf['label'] }}
+                        </a>
+                    @endforeach
+                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm border border-dashed border-slate-200 text-slate-300 bg-slate-50 cursor-not-allowed"
+                          title="Chưa có dữ liệu độ khó cho câu hỏi để lọc">
+                        <span>🔒</span> Độ khó
+                    </span>
+                </div>
             </div>
-        @endif
+
+            @if (count($availableTopics) > 0)
+                <div class="pt-3 border-t border-slate-100">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Chuyên đề</p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ $topicHref(null) }}" class="{{ $topicChipClass($topic === null) }}">Tất cả</a>
+                        @foreach ($availableTopics as $t)
+                            <a href="{{ $topicHref($t) }}" class="{{ $topicChipClass($topic === $t) }}">{{ $t }}</a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
     @endif
+
+    <div class="flex items-center justify-between mb-3">
+        <p class="text-sm text-slate-400">{{ count($items) }} bài phù hợp</p>
+    </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         @forelse ($items as $it)
-            <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md hover:border-rose-200 transition">
-                <div class="flex items-start justify-between gap-2 mb-2">
-                    {{-- typeLabel/typeIcon (App\Enums\AssessmentType::label()/icon()) — trước đây
-                         2 dòng này lookup icon theo nhãn CÂU HỎI ('Lập trình'/'Trắc nghiệm'...)
-                         trong khi $it['type'] lại là loại ĐỀ (practice/assignment/exam...), 2
-                         enum khác nhau nên icon luôn rơi về mặc định và badge hiện thẳng string
-                         thô ("practice") thay vì tiếng Việt. --}}
-                    <span class="text-lg">{{ $it['typeIcon'] ?? '📝' }}</span>
+            @php $accent = $cardAccent($it['type'] ?? null); @endphp
+            <a href="{{ $it['takeRoute'] ?? route('student.practice.index') }}"
+               class="group relative flex flex-col h-full rounded-2xl bg-white border border-slate-200 p-5 pt-6 overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 {{ $accent['hover'] }}">
+                <span class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r {{ $accent['bar'] }}"></span>
+
+                <div class="flex items-start justify-between gap-2 mb-3">
+                    <x-icon-tile :emoji="$it['typeIcon'] ?? '📝'" :tone="$accent['tone']" />
+                    <x-status-badge :tone="$it['tone']">{{ $it['status'] }}</x-status-badge>
+                </div>
+
+                <div class="mb-2">
+                    {{-- typeLabel/typeIcon (App\Enums\AssessmentType::label()/icon()) truyền từ
+                         PracticeService — badge hiện nhãn tiếng Việt theo LOẠI ĐỀ. --}}
                     <x-status-badge tone="info">{{ $it['typeLabel'] ?? $it['type'] }}</x-status-badge>
                 </div>
-                <h3 class="font-medium text-slate-800">{{ $it['title'] }}</h3>
-                <p class="text-xs text-slate-400 mt-1">{{ $it['source'] }}{{ $it['difficulty'] ? ' · Độ khó: '.$it['difficulty'] : '' }}</p>
+
+                <h3 class="font-semibold text-slate-800 leading-snug line-clamp-2">{{ $it['title'] }}</h3>
+                <p class="text-xs text-slate-400 mt-1.5">
+                    {{ $it['source'] }}{{ $it['difficulty'] ? ' · Độ khó: '.$it['difficulty'] : '' }}
+                </p>
+
                 @if (! empty($it['topics'] ?? []))
-                    <p class="text-xs text-slate-400 mt-0.5">📚 {{ implode(', ', $it['topics']) }}</p>
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        @foreach ($it['topics'] as $t)
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">📚 {{ $t }}</span>
+                        @endforeach
+                    </div>
                 @endif
-                <div class="mt-3 flex items-center justify-between">
-                    <x-status-badge :tone="$it['tone']">{{ $it['status'] }}</x-status-badge>
-                    {{-- Tab "Lịch sử" trỏ sang trang KẾT QUẢ (đã nộp), không phải vào làm bài mới — nhãn nút phải phản ánh đúng hành động, không dùng chung "Làm bài" cho cả 2 trường hợp. --}}
-                    <a href="{{ $it['takeRoute'] ?? route('student.practice.index') }}" class="text-sm font-medium text-rose-600">{{ $tab === 'history' ? 'Xem kết quả ›' : 'Làm bài ›' }}</a>
+
+                {{-- Tab "Lịch sử" trỏ sang trang KẾT QUẢ (đã nộp), không phải vào làm bài mới —
+                     nhãn phải phản ánh đúng hành động, không dùng chung "Làm bài" cho cả 2
+                     trường hợp. Cả card giờ bấm được (trước đây chỉ dòng chữ nhỏ mới bấm được). --}}
+                <div class="mt-auto pt-4 flex items-center justify-end">
+                    <span class="inline-flex items-center gap-1 text-sm font-medium text-rose-600 group-hover:gap-2 transition-all">
+                        {{ $tab === 'history' ? 'Xem kết quả' : 'Làm bài' }}
+                        <span aria-hidden="true">→</span>
+                    </span>
                 </div>
-            </div>
+            </a>
         @empty
             <div class="col-span-full">
                 <x-empty-state title="Chưa có bài phù hợp bộ lọc" description="Thử bỏ bộ lọc hoặc khám phá thêm bài luyện tập công khai." actionLabel="Khám phá Luyện tập công khai" :actionHref="route('practice.index')" />
