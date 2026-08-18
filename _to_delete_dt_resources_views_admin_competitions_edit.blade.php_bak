@@ -4,8 +4,6 @@
   $teacherOptions, $selectedAdvisorIds) do CompetitionController::edit() truyền vào qua
   CompetitionService::editFormData(). Slug KHÔNG cho sửa (giữ SEO/link công khai, giống
   Course/Product). Đơn vị tổ chức + cố vấn: note họp 13/8, mục 1.
-  Bắt đầu/Kết thúc/Công bố kết quả dùng x-date-time-fields (Ngày + Giờ tách riêng) thay cho
-  <input type="datetime-local"> gộp — xem resources/views/components/date-time-fields.blade.php.
 --}}
 @extends('layouts.admin')
 
@@ -18,6 +16,7 @@
         $organizerTypes = $organizerTypes ?? []; $teacherOptions = $teacherOptions ?? [];
         $selectedAdvisorIds = $selectedAdvisorIds ?? [];
         $rankingRule = $competition->ranking_rule ?? [];
+        $fmt = fn ($d) => $d ? $d->format('Y-m-d\TH:i') : '';
     @endphp
 
     <a href="{{ route('admin.competitions.show', $competition->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
@@ -96,19 +95,21 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                         :dateValue="old('starts_at_date', $competition->starts_at?->format('Y-m-d'))"
-                                         :hourValue="old('starts_at_hour', $competition->starts_at?->format('H'))"
-                                         :minuteValue="old('starts_at_minute', $competition->starts_at?->format('i'))" />
-                    <x-date-time-fields name="ends_at" label="Kết thúc"
-                                         :dateValue="old('ends_at_date', $competition->ends_at?->format('Y-m-d'))"
-                                         :hourValue="old('ends_at_hour', $competition->ends_at?->format('H'))"
-                                         :minuteValue="old('ends_at_minute', $competition->ends_at?->format('i'))" />
-                    <x-date-time-fields name="publish_result_at" label="Công bố kết quả"
-                                         :dateValue="old('publish_result_at_date', $competition->publish_result_at?->format('Y-m-d'))"
-                                         :hourValue="old('publish_result_at_hour', $competition->publish_result_at?->format('H'))"
-                                         :minuteValue="old('publish_result_at_minute', $competition->publish_result_at?->format('i'))"
-                                         hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="starts_at">Bắt đầu</label>
+                        <input id="starts_at" name="starts_at" type="datetime-local" value="{{ old('starts_at', $fmt($competition->starts_at)) }}"
+                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="ends_at">Kết thúc</label>
+                        <input id="ends_at" name="ends_at" type="datetime-local" value="{{ old('ends_at', $fmt($competition->ends_at)) }}"
+                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="publish_result_at">Công bố kết quả</label>
+                        <input id="publish_result_at" name="publish_result_at" type="datetime-local" value="{{ old('publish_result_at', $fmt($competition->publish_result_at)) }}"
+                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    </div>
                 </div>
 
                 <div>

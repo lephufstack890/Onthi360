@@ -42,35 +42,6 @@ class CompetitionController extends Controller
         ];
     }
 
-    /**
-     * Form dùng input Ngày ("{field}_date") + 2 dropdown Giờ/Phút ("{field}_hour"/
-     * "{field}_minute") tách riêng thay cho <input type="datetime-local"|"time"> native (bị
-     * phản ánh không bấm chọn được giờ trên máy một số người dùng — xem
-     * resources/views/components/date-time-fields.blade.php). Ghép lại thành 1 field gốc
-     * "{field}" chuẩn "Y-m-d\TH:i" NGAY TRƯỚC KHI validate(), để validationRules()/
-     * examValidationRules() và toàn bộ Service layer phía sau không phải đổi gì (vẫn nhận
-     * đúng 1 field 'date' như cũ).
-     */
-    private function combineDateTimeInputs(Request $request, array $fields): void
-    {
-        foreach ($fields as $field) {
-            $date = trim((string) $request->input($field.'_date'));
-
-            if ($date === '') {
-                $request->merge([$field => null]);
-
-                continue;
-            }
-
-            $hour = trim((string) $request->input($field.'_hour'));
-            $minute = trim((string) $request->input($field.'_minute'));
-            $hour = $hour !== '' ? str_pad($hour, 2, '0', STR_PAD_LEFT) : '00';
-            $minute = $minute !== '' ? str_pad($minute, 2, '0', STR_PAD_LEFT) : '00';
-
-            $request->merge([$field => $date.'T'.$hour.':'.$minute]);
-        }
-    }
-
     public function create(): View
     {
         return view('admin.competitions.create', $this->competitionService->createFormData());
@@ -78,7 +49,6 @@ class CompetitionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->combineDateTimeInputs($request, ['starts_at', 'ends_at', 'publish_result_at']);
         $data = $request->validate($this->validationRules());
 
         try {
@@ -97,7 +67,6 @@ class CompetitionController extends Controller
 
     public function update(Request $request, Competition $competition): RedirectResponse
     {
-        $this->combineDateTimeInputs($request, ['starts_at', 'ends_at', 'publish_result_at']);
         $data = $request->validate($this->validationRules());
 
         try {
@@ -125,14 +94,9 @@ class CompetitionController extends Controller
     /** admin.competitions.exams.store — thêm 1 kỳ thi (vòng) mới vào cuộc thi. */
     public function examStore(Request $request, Competition $competition): RedirectResponse
     {
-        $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);
         $data = $request->validate($this->competitionService->examValidationRules());
 
-        try {
-            $this->competitionService->storeExam($competition, $data);
-        } catch (ValidationException $e) {
-            return redirect()->route('admin.competitions.show', $competition->id)->withErrors($e->errors())->withInput();
-        }
+        $this->competitionService->storeExam($competition, $data);
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'exam-added');
     }
@@ -140,18 +104,11 @@ class CompetitionController extends Controller
     /** admin.competitions.exams.update. */
     public function examUpdate(Request $request, CompetitionExam $competitionExam): RedirectResponse
     {
-        $competitionId = $competitionExam->competition_id;
-
-        $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);
         $data = $request->validate($this->competitionService->examValidationRules());
 
-        try {
-            $this->competitionService->updateExam($competitionExam, $data);
-        } catch (ValidationException $e) {
-            return redirect()->route('admin.competitions.show', $competitionId)->withErrors($e->errors())->withInput();
-        }
+        $this->competitionService->updateExam($competitionExam, $data);
 
-        return redirect()->route('admin.competitions.show', $competitionId)->with('status', 'exam-updated');
+        return redirect()->route('admin.competitions.show', $competitionExam->competition_id)->with('status', 'exam-updated');
     }
 
     /** admin.competitions.exams.destroy — chặn xoá nếu kỳ thi đã có lượt xếp hạng riêng. */

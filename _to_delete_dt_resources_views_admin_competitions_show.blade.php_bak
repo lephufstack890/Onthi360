@@ -118,14 +118,16 @@
                                             @endforeach
                                         </x-select>
                                     </div>
-                                    <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                                         :dateValue="$exam['startsAt']?->format('Y-m-d')"
-                                                         :hourValue="$exam['startsAt']?->format('H')"
-                                                         :minuteValue="$exam['startsAt']?->format('i')" />
-                                    <x-date-time-fields name="ends_at" label="Kết thúc"
-                                                         :dateValue="$exam['endsAt']?->format('Y-m-d')"
-                                                         :hourValue="$exam['endsAt']?->format('H')"
-                                                         :minuteValue="$exam['endsAt']?->format('i')" />
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Bắt đầu</label>
+                                        <input type="datetime-local" name="starts_at" value="{{ $exam['startsAt']?->format('Y-m-d\TH:i') }}"
+                                               class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Kết thúc</label>
+                                        <input type="datetime-local" name="ends_at" value="{{ $exam['endsAt']?->format('Y-m-d\TH:i') }}"
+                                               class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                                    </div>
                                     <div class="sm:col-span-2 flex items-center gap-2">
                                         <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Lưu</button>
                                         <a href="{{ route('admin.ranking.show', ['scope' => 'exam', 'id' => $exam['id']]) }}" class="text-xs text-slate-500 hover:text-rose-600">Xem bảng xếp hạng riêng ›</a>
@@ -166,8 +168,14 @@
                                 @endforeach
                             </x-select>
                         </div>
-                        <x-date-time-fields name="starts_at" label="Bắt đầu" />
-                        <x-date-time-fields name="ends_at" label="Kết thúc" />
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Bắt đầu</label>
+                            <input type="datetime-local" name="starts_at" class="w-full rounded-lg border border-slate-200 text-sm p-2 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Kết thúc</label>
+                            <input type="datetime-local" name="ends_at" class="w-full rounded-lg border border-slate-200 text-sm p-2 bg-white">
+                        </div>
                     </div>
                     <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">+ Thêm kỳ thi</button>
                 </form>

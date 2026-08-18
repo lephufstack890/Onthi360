@@ -1,0 +1,30 @@
+{{--
+  x-date-time-fields | Component: cặp input Ngày ("date") + Giờ ("time") tách riêng thay
+  cho <input type="datetime-local"> gộp — nhiều trình duyệt/OS bấm chọn đúng vùng giờ trong
+  ô gộp rất khó/không ăn. Value submit qua 2 field "{name}_date" + "{name}_time" — được
+  App\Http\Controllers\Admin\CompetitionController::combineDateTimeInputs() ghép lại thành
+  1 field "{name}" chuẩn "Y-m-d\TH:i" NGAY TRƯỚC KHI validate(), nên phía validate()/Service
+  không cần đổi gì (vẫn nhận đúng 1 field 'date' như cũ).
+
+  Props:
+  - name: tên field gốc (vd "starts_at") — dùng làm tiền tố cho 2 input con.
+  - dateValue/timeValue: giá trị hiện tại đã tách sẵn ("Y-m-d" / "H:i"), thường truyền qua
+    old('{name}_date', $model->{name}?->format('Y-m-d')) ở view gọi component này.
+  - required: bắt buộc chọn ngày (giờ luôn tùy chọn, bỏ trống = 00:00).
+  - hint: ghi chú nhỏ dưới 2 input (tùy chọn).
+--}}
+@props(['name', 'label' => null, 'dateValue' => null, 'timeValue' => null, 'required' => false, 'hint' => null])
+<div>
+    @if ($label)
+        <label class="block text-sm font-medium text-slate-600 mb-1">{{ $label }}</label>
+    @endif
+    <div class="grid grid-cols-2 gap-2">
+        <input type="date" name="{{ $name }}_date" value="{{ $dateValue }}" @required($required)
+               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+        <input type="time" name="{{ $name }}_time" value="{{ $timeValue }}" step="60"
+               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+    </div>
+    @if ($hint)
+        <p class="text-xs text-slate-400 mt-1">{{ $hint }}</p>
+    @endif
+</div>

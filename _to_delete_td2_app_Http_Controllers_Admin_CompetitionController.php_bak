@@ -43,9 +43,8 @@ class CompetitionController extends Controller
     }
 
     /**
-     * Form dùng input Ngày ("{field}_date") + 2 dropdown Giờ/Phút ("{field}_hour"/
-     * "{field}_minute") tách riêng thay cho <input type="datetime-local"|"time"> native (bị
-     * phản ánh không bấm chọn được giờ trên máy một số người dùng — xem
+     * Form dùng cặp input Ngày ("{field}_date") + Giờ ("{field}_time") tách riêng thay cho
+     * <input type="datetime-local"> gộp (khó bấm chọn giờ trên nhiều trình duyệt/OS — xem
      * resources/views/components/date-time-fields.blade.php). Ghép lại thành 1 field gốc
      * "{field}" chuẩn "Y-m-d\TH:i" NGAY TRƯỚC KHI validate(), để validationRules()/
      * examValidationRules() và toàn bộ Service layer phía sau không phải đổi gì (vẫn nhận
@@ -62,12 +61,8 @@ class CompetitionController extends Controller
                 continue;
             }
 
-            $hour = trim((string) $request->input($field.'_hour'));
-            $minute = trim((string) $request->input($field.'_minute'));
-            $hour = $hour !== '' ? str_pad($hour, 2, '0', STR_PAD_LEFT) : '00';
-            $minute = $minute !== '' ? str_pad($minute, 2, '0', STR_PAD_LEFT) : '00';
-
-            $request->merge([$field => $date.'T'.$hour.':'.$minute]);
+            $time = trim((string) $request->input($field.'_time')) ?: '00:00';
+            $request->merge([$field => $date.'T'.$time]);
         }
     }
 

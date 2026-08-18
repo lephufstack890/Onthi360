@@ -7,8 +7,6 @@
   Dữ liệu thật ($types, $statuses, $assessmentOptions, $organizerTypes, $teacherOptions) do
   CompetitionController::create() truyền vào qua App\Services\Admin\CompetitionService::
   createFormData().
-  Bắt đầu/Kết thúc/Công bố kết quả dùng x-date-time-fields (Ngày + Giờ tách riêng) thay cho
-  <input type="datetime-local"> gộp — xem resources/views/components/date-time-fields.blade.php.
 --}}
 @extends('layouts.admin')
 
@@ -99,13 +97,22 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <x-date-time-fields name="starts_at" label="Bắt đầu"
-                                     :dateValue="old('starts_at_date')" :hourValue="old('starts_at_hour')" :minuteValue="old('starts_at_minute')" />
-                <x-date-time-fields name="ends_at" label="Kết thúc"
-                                     :dateValue="old('ends_at_date')" :hourValue="old('ends_at_hour')" :minuteValue="old('ends_at_minute')" />
-                <x-date-time-fields name="publish_result_at" label="Công bố kết quả"
-                                     :dateValue="old('publish_result_at_date')" :hourValue="old('publish_result_at_hour')" :minuteValue="old('publish_result_at_minute')"
-                                     hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="starts_at">Bắt đầu</label>
+                    <input id="starts_at" name="starts_at" type="datetime-local" value="{{ old('starts_at') }}"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="ends_at">Kết thúc</label>
+                    <input id="ends_at" name="ends_at" type="datetime-local" value="{{ old('ends_at') }}"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="publish_result_at">Công bố kết quả</label>
+                    <input id="publish_result_at" name="publish_result_at" type="datetime-local" value="{{ old('publish_result_at') }}"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    <p class="text-xs text-slate-400 mt-1">"Chờ công bố" không lộ rank tạm thời nếu quy chế cấm (11.2).</p>
+                </div>
             </div>
 
             <div>

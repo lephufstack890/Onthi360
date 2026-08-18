@@ -120,12 +120,10 @@
                                     </div>
                                     <x-date-time-fields name="starts_at" label="Bắt đầu"
                                                          :dateValue="$exam['startsAt']?->format('Y-m-d')"
-                                                         :hourValue="$exam['startsAt']?->format('H')"
-                                                         :minuteValue="$exam['startsAt']?->format('i')" />
+                                                         :timeValue="$exam['startsAt']?->format('H:i')" />
                                     <x-date-time-fields name="ends_at" label="Kết thúc"
                                                          :dateValue="$exam['endsAt']?->format('Y-m-d')"
-                                                         :hourValue="$exam['endsAt']?->format('H')"
-                                                         :minuteValue="$exam['endsAt']?->format('i')" />
+                                                         :timeValue="$exam['endsAt']?->format('H:i')" />
                                     <div class="sm:col-span-2 flex items-center gap-2">
                                         <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Lưu</button>
                                         <a href="{{ route('admin.ranking.show', ['scope' => 'exam', 'id' => $exam['id']]) }}" class="text-xs text-slate-500 hover:text-rose-600">Xem bảng xếp hạng riêng ›</a>
