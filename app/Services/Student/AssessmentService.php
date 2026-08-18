@@ -46,6 +46,13 @@ class AssessmentService
 
         $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
 
+        // Hết giờ trong lúc học sinh không mở trang (đóng tab, mất mạng, rớt wifi giữa
+        // chừng...) — tự nộp NGAY khi họ quay lại thay vì hiện lại y hệt trang làm bài như
+        // chưa có gì xảy ra (App\Http\Controllers\Student\AssessmentController::take() kiểm
+        // tra lại $attempt->status sau lời gọi này để điều hướng sang trang kết quả nếu vừa
+        // được tự nộp ở đây).
+        $attempt = $this->attemptService->finalizeIfExpired($attempt);
+
         $existingAnswers = $this->attemptAnswers->forAttempt($attempt->id);
 
         $questions = $assessmentModel->items->values()->map(function ($item, $idx) use ($existingAnswers) {
@@ -72,6 +79,12 @@ class AssessmentService
             'assessmentModel' => $assessmentModel,
             'attempt' => $attempt,
             'questions' => $questions,
+            // Đồng hồ đếm ngược ở client tính từ 2 mốc giờ MÁY CHỦ này (không dùng giờ máy của
+            // học sinh) — null nếu đề không giới hạn thời gian (không có duration_minutes lẫn
+            // không giao qua assignment có khung giờ). Việc CHẶN THẬT khi hết giờ luôn nằm ở
+            // server (AttemptService::isExpired()/saveAnswer()) — đồng hồ này chỉ để hiển thị.
+            'deadlineAt' => $this->attemptService->deadlineFor($attempt)?->toIso8601String(),
+            'serverNow' => now()->toIso8601String(),
         ];
     }
 
@@ -181,7 +194,7 @@ class AssessmentService
             ];
         })->all();
 
-        $eligibleForReview = $this->eligibleForReview($user, $attemptModel);
+        $reviewCta = $this->reviewCtaTarget($user, $attemptModel);
 
         return [
             'attemptModel' => $attemptModel,
@@ -189,33 +202,44 @@ class AssessmentService
             'score' => $score,
             'total' => $total,
             'breakdown' => $breakdown,
-            'eligibleForReview' => $eligibleForReview,
+            'eligibleForReview' => $reviewCta !== null,
+            // type/targetId đúng đối tượng CỦA CHÍNH lượt làm bài này (lớp hoặc học liệu) —
+            // trước đây view hardcode thẳng route('reviews.form', ['type'=>'material','id'=>1])
+            // nên nút "Đánh giá" luôn trỏ nhầm sang học liệu #1 bất kể học sinh vừa làm đề gì.
+            'reviewType' => $reviewCta['type'] ?? null,
+            'reviewTargetId' => $reviewCta['targetId'] ?? null,
         ];
     }
 
     /**
      * 9.x: CTA đánh giá cuối trang kết quả — attempt gắn với lớp (class_room_id) thì xét
      * điều kiện đánh giá LỚP; ngược lại (tự luyện/đề độc lập) xét điều kiện đánh giá HỌC LIỆU
-     * qua sản phẩm chứa đề (Assessment -> Material -> Product).
+     * qua sản phẩm chứa đề (Assessment -> Material -> Product). Trả về type/targetId ĐÚNG như
+     * App\Services\Review\ReviewService mong đợi (type=class -> id=ClassRoom.id, type=material
+     * -> id=Material.id, KHÔNG phải Product.id) để nút đánh giá ở trang kết quả trỏ đúng đối
+     * tượng học sinh vừa học/làm, thay vì hardcode.
+     *
+     * @return array{type: string, targetId: int}|null null nếu chưa đủ điều kiện đánh giá.
      */
-    private function eligibleForReview(User $user, Attempt $attemptModel): bool
+    private function reviewCtaTarget(User $user, Attempt $attemptModel): ?array
     {
         if ($attemptModel->class_room_id !== null) {
             $classRoom = $this->classRooms->find($attemptModel->class_room_id);
 
-            if ($classRoom === null) {
-                return false;
+            if ($classRoom === null || ! $this->reviewEligibility->eligibleForClassReview($user, $classRoom)->allowed) {
+                return null;
             }
 
-            return $this->reviewEligibility->eligibleForClassReview($user, $classRoom)->allowed;
+            return ['type' => 'class', 'targetId' => $classRoom->id];
         }
 
-        $product = $attemptModel->assessment?->materials?->first()?->product;
+        $material = $attemptModel->assessment?->materials?->first();
+        $product = $material?->product;
 
-        if ($product === null) {
-            return false;
+        if ($material === null || $product === null || ! $this->reviewEligibility->eligibleForMaterialReview($user, $product)->allowed) {
+            return null;
         }
 
-        return $this->reviewEligibility->eligibleForMaterialReview($user, $product)->allowed;
+        return ['type' => 'material', 'targetId' => $material->id];
     }
 }

@@ -10,6 +10,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Dùng cho các lời gọi fetch() JSON tự viết tay trong view con (VD: autosave làm bài ở
+         resources/views/student/assessment/take.blade.php) — Laravel không tự đọc CSRF token
+         qua cookie cho request JSON thường như nó làm cho Blade <form>, cần gửi kèm header
+         X-CSRF-TOKEN đọc từ đây. Đặt ở layout gốc (không phải riêng 1 view) để mọi trang sau
+         đăng nhập đều dùng lại được, không phải thêm lại mỗi khi có tính năng AJAX mới. --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Ôn Thi 360')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     {{-- Khởi tạo mảng hàng đợi toast TRƯỚC mọi script khác trong <body> — các include

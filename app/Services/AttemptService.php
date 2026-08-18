@@ -19,6 +19,7 @@ use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -186,15 +187,76 @@ class AttemptService
     }
 
     /**
+     * Hạn nộp thật của 1 lượt làm bài — theo giờ MÁY CHỦ, không tin đồng hồ client (16 mục 3).
+     * Là mốc SỚM NHẤT trong 2 nguồn (có cái nào tính cái đó, không có cái nào thì không giới
+     * hạn — giữ đúng hành vi cũ cho đề không đặt duration_minutes/không giao qua lớp):
+     *  (1) started_at + assessment.duration_minutes — thời lượng làm bài của riêng lượt này;
+     *  (2) khung giờ ca thi của assignment (Assignment::shiftWindowFor(), có thể sớm hơn nếu
+     *      học sinh bắt đầu làm bài gần sát giờ đóng bài giao).
+     * Dùng CHUNG cho cả (a) đồng hồ đếm ngược hiển thị ở client (chỉ để NHÌN, không phải nơi
+     * chặn) và (b) chặn thật ở server trong saveAnswer()/isExpired() bên dưới.
+     */
+    public function deadlineFor(Attempt $attempt): ?Carbon
+    {
+        $deadline = null;
+
+        $durationMinutes = $attempt->assessment?->duration_minutes;
+        if ($durationMinutes !== null && $attempt->started_at !== null) {
+            $deadline = $attempt->started_at->copy()->addMinutes((int) $durationMinutes);
+        }
+
+        if ($attempt->assignment_id !== null && $attempt->assignment !== null) {
+            $closesAt = $attempt->assignment->shiftWindowFor($attempt->user_id)['closes_at'] ?? null;
+
+            if ($closesAt !== null) {
+                $deadline = $deadline === null ? $closesAt : $deadline->min($closesAt);
+            }
+        }
+
+        return $deadline;
+    }
+
+    /** true nếu lượt làm bài này đã quá hạn nộp thật (deadlineFor()) tại thời điểm gọi. */
+    public function isExpired(Attempt $attempt): bool
+    {
+        $deadline = $this->deadlineFor($attempt);
+
+        return $deadline !== null && now()->gt($deadline);
+    }
+
+    /**
+     * Nếu lượt làm bài đang dở đã quá hạn nộp thật, TỰ ĐỘNG nộp luôn (dùng đúng những câu đã
+     * lưu tới thời điểm hết giờ) thay vì để học sinh tiếp tục sửa câu trả lời sau khi hết giờ
+     * — gọi ở đầu mỗi lần mở lại trang làm bài (App\Services\Student\AssessmentService::
+     * buildTakeData()) để bắt cả trường hợp học sinh đóng tab lúc hết giờ rồi quay lại sau.
+     */
+    public function finalizeIfExpired(Attempt $attempt): Attempt
+    {
+        if ($attempt->status === AttemptStatus::InProgress && $this->isExpired($attempt)) {
+            return $this->submit($attempt);
+        }
+
+        return $attempt;
+    }
+
+    /**
      * Lưu (hoặc cập nhật) câu trả lời cho 1 câu trong lượt làm bài. MCQ/điền đáp án được
      * chấm ngay tại đây; câu lập trình chỉ lưu code_source/language, verdict=Queued.
      *
-     * @throws ValidationException nếu lượt làm bài đã nộp/kết thúc.
+     * @throws ValidationException nếu lượt làm bài đã nộp/kết thúc, hoặc vừa hết giờ (trong
+     *                              trường hợp này lượt làm bài được TỰ ĐỘNG nộp trước khi ném
+     *                              lỗi, để client biết sang thẳng trang kết quả).
      */
     public function saveAnswer(Attempt $attempt, Question $question, array $rawInput): AttemptAnswer
     {
         if ($attempt->status !== AttemptStatus::InProgress) {
             throw ValidationException::withMessages(['attempt' => 'Lượt làm bài này đã kết thúc, không thể sửa câu trả lời.']);
+        }
+
+        if ($this->isExpired($attempt)) {
+            $this->submit($attempt);
+
+            throw ValidationException::withMessages(['attempt' => 'Đã hết thời gian làm bài — bài của bạn đã được tự động nộp.']);
         }
 
         $codeSource = null;
