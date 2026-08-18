@@ -8,7 +8,6 @@ use App\Models\CompetitionExam;
 use App\Services\Admin\CompetitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -59,17 +58,6 @@ class CompetitionController extends Controller
             $day = trim((string) $request->input($field.'_day'));
             $month = trim((string) $request->input($field.'_month'));
             $year = trim((string) $request->input($field.'_year'));
-            $hourRaw = trim((string) $request->input($field.'_hour'));
-            $minuteRaw = trim((string) $request->input($field.'_minute'));
-
-            // TODO DEBUG (tạm thời — gỡ sau khi tìm ra nguyên nhân "không lưu được ngày giờ"):
-            // ghi lại NGUYÊN VĂN các field con nhận được từ form để đối chiếu với những gì
-            // người dùng thực sự đã chọn trên trình duyệt.
-            Log::info('[date-debug] combineDateTimeInputs raw', [
-                'field' => $field,
-                'day' => $day, 'month' => $month, 'year' => $year,
-                'hour' => $hourRaw, 'minute' => $minuteRaw,
-            ]);
 
             if ($day === '' || $month === '' || $year === '') {
                 $request->merge([$field => null]);
@@ -80,13 +68,12 @@ class CompetitionController extends Controller
             $day = str_pad($day, 2, '0', STR_PAD_LEFT);
             $month = str_pad($month, 2, '0', STR_PAD_LEFT);
 
-            $hour = $hourRaw !== '' ? str_pad($hourRaw, 2, '0', STR_PAD_LEFT) : '00';
-            $minute = $minuteRaw !== '' ? str_pad($minuteRaw, 2, '0', STR_PAD_LEFT) : '00';
+            $hour = trim((string) $request->input($field.'_hour'));
+            $minute = trim((string) $request->input($field.'_minute'));
+            $hour = $hour !== '' ? str_pad($hour, 2, '0', STR_PAD_LEFT) : '00';
+            $minute = $minute !== '' ? str_pad($minute, 2, '0', STR_PAD_LEFT) : '00';
 
-            $combined = "{$year}-{$month}-{$day}T{$hour}:{$minute}";
-            $request->merge([$field => $combined]);
-
-            Log::info('[date-debug] combineDateTimeInputs combined', ['field' => $field, 'combined' => $combined]);
+            $request->merge([$field => "{$year}-{$month}-{$day}T{$hour}:{$minute}"]);
         }
     }
 
@@ -100,22 +87,11 @@ class CompetitionController extends Controller
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at', 'publish_result_at']);
         $data = $request->validate($this->validationRules());
 
-        Log::info('[date-debug] store validated dates', array_intersect_key($data, array_flip(['starts_at', 'ends_at', 'publish_result_at'])));
-
         try {
             $competition = $this->competitionService->store($data);
         } catch (ValidationException $e) {
-            Log::info('[date-debug] store ValidationException', ['errors' => $e->errors()]);
-
             return redirect()->route('admin.competitions.create')->withErrors($e->errors())->withInput();
         }
-
-        Log::info('[date-debug] store saved competition dates', [
-            'id' => $competition->id,
-            'starts_at' => $competition->starts_at?->toDateTimeString(),
-            'ends_at' => $competition->ends_at?->toDateTimeString(),
-            'publish_result_at' => $competition->publish_result_at?->toDateTimeString(),
-        ]);
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-created');
     }
@@ -130,22 +106,11 @@ class CompetitionController extends Controller
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at', 'publish_result_at']);
         $data = $request->validate($this->validationRules());
 
-        Log::info('[date-debug] update validated dates', array_intersect_key($data, array_flip(['starts_at', 'ends_at', 'publish_result_at'])));
-
         try {
-            $updated = $this->competitionService->update($competition, $data);
+            $this->competitionService->update($competition, $data);
         } catch (ValidationException $e) {
-            Log::info('[date-debug] update ValidationException', ['errors' => $e->errors()]);
-
             return redirect()->route('admin.competitions.edit', $competition->id)->withErrors($e->errors())->withInput();
         }
-
-        Log::info('[date-debug] update saved competition dates', [
-            'id' => $updated->id,
-            'starts_at' => $updated->starts_at?->toDateTimeString(),
-            'ends_at' => $updated->ends_at?->toDateTimeString(),
-            'publish_result_at' => $updated->publish_result_at?->toDateTimeString(),
-        ]);
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-updated');
     }
@@ -169,21 +134,11 @@ class CompetitionController extends Controller
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);
         $data = $request->validate($this->competitionService->examValidationRules());
 
-        Log::info('[date-debug] examStore validated dates', array_intersect_key($data, array_flip(['starts_at', 'ends_at'])));
-
         try {
-            $exam = $this->competitionService->storeExam($competition, $data);
+            $this->competitionService->storeExam($competition, $data);
         } catch (ValidationException $e) {
-            Log::info('[date-debug] examStore ValidationException', ['errors' => $e->errors()]);
-
             return redirect()->route('admin.competitions.show', $competition->id)->withErrors($e->errors())->withInput();
         }
-
-        Log::info('[date-debug] examStore saved exam dates', [
-            'id' => $exam->id,
-            'starts_at' => $exam->starts_at?->toDateTimeString(),
-            'ends_at' => $exam->ends_at?->toDateTimeString(),
-        ]);
 
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'exam-added');
     }
@@ -196,21 +151,11 @@ class CompetitionController extends Controller
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);
         $data = $request->validate($this->competitionService->examValidationRules());
 
-        Log::info('[date-debug] examUpdate validated dates', array_intersect_key($data, array_flip(['starts_at', 'ends_at'])));
-
         try {
-            $updated = $this->competitionService->updateExam($competitionExam, $data);
+            $this->competitionService->updateExam($competitionExam, $data);
         } catch (ValidationException $e) {
-            Log::info('[date-debug] examUpdate ValidationException', ['errors' => $e->errors()]);
-
             return redirect()->route('admin.competitions.show', $competitionId)->withErrors($e->errors())->withInput();
         }
-
-        Log::info('[date-debug] examUpdate saved exam dates', [
-            'id' => $updated->id,
-            'starts_at' => $updated->starts_at?->toDateTimeString(),
-            'ends_at' => $updated->ends_at?->toDateTimeString(),
-        ]);
 
         return redirect()->route('admin.competitions.show', $competitionId)->with('status', 'exam-updated');
     }
