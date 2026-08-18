@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class LeaderboardEntry extends Model
 {
     protected $fillable = [
-        'scope', 'competition_id', 'competition_exam_id', 'class_room_id', 'topic', 'user_id',
+        'scope', 'competition_id', 'class_room_id', 'topic', 'user_id',
         'score', 'rank', 'tie_break', 'computed_at',
     ];
 
@@ -20,12 +20,6 @@ class LeaderboardEntry extends Model
     public function competition(): BelongsTo
     {
         return $this->belongsTo(Competition::class);
-    }
-
-    /** scope='competition_exam' — bảng xếp hạng riêng của 1 kỳ thi, xem App\Models\CompetitionExam. */
-    public function competitionExam(): BelongsTo
-    {
-        return $this->belongsTo(CompetitionExam::class);
     }
 
     public function classRoom(): BelongsTo

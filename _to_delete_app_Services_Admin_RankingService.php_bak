@@ -3,7 +3,6 @@
 namespace App\Services\Admin;
 
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
-use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 
@@ -16,7 +15,6 @@ class RankingService
         private CompetitionRepositoryInterface $competitions,
         private LeaderboardEntryRepositoryInterface $leaderboardEntries,
         private ClassRoomRepositoryInterface $classRooms,
-        private CompetitionExamRepositoryInterface $competitionExams,
     ) {}
 
     /** @return array{boards: array} */
@@ -64,27 +62,6 @@ class RankingService
             }
         }
 
-        // Bổ sung bảng xếp hạng riêng theo TỪNG KỲ THI (scope=competition_exam) — 11.1/11.2:
-        // 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi kỳ thi có bảng riêng ngoài bảng tổng ở trên.
-        // withCount qua allWithCounts() tránh N+1 (1 câu cho toàn bộ kỳ thi thay vì mỗi kỳ 1 câu đếm).
-        foreach ($this->competitionExams->allWithCounts() as $exam) {
-            if ($exam->leaderboard_entries_count <= 0) {
-                continue;
-            }
-
-            $ranksArePublic = $exam->competition?->ranksArePublic() ?? false;
-
-            $boards[] = [
-                'id' => 'exam-'.$exam->id,
-                'type' => 'exam',
-                'scopeId' => $exam->id,
-                'scope' => 'Kỳ thi: '.$exam->displayTitle().' ('.($exam->competition->title ?? '—').')',
-                'entries' => $ranksArePublic ? $exam->leaderboard_entries_count : 0,
-                'status' => $ranksArePublic ? 'Đã công bố' : 'Chờ công bố',
-                'tone' => $ranksArePublic ? 'success' : 'neutral',
-            ];
-        }
-
         return ['boards' => $boards];
     }
 
@@ -105,20 +82,6 @@ class RankingService
                 'competitionId' => $competition->id,
                 'entries' => $competition->ranksArePublic()
                     ? $this->mapEntries($this->leaderboardEntries->entriesForCompetition($id))
-                    : [],
-            ];
-        }
-
-        if ($scope === 'exam') {
-            $exam = $this->competitionExams->query()->with(['competition', 'assessment'])->findOrFail($id);
-            $ranksArePublic = $exam->competition?->ranksArePublic() ?? false;
-
-            return [
-                'scopeLabel' => 'Kỳ thi: '.$exam->displayTitle(),
-                'ranksArePublic' => $ranksArePublic,
-                'competitionId' => $exam->competition_id,
-                'entries' => $ranksArePublic
-                    ? $this->mapEntries($this->leaderboardEntries->entriesForCompetitionExam($id))
                     : [],
             ];
         }

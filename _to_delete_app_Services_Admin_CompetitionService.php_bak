@@ -6,14 +6,9 @@ use App\Enums\CompetitionOrganizerType;
 use App\Enums\CompetitionStatus;
 use App\Enums\CompetitionType;
 use App\Models\Competition;
-use App\Models\CompetitionExam;
-use App\Models\LeaderboardEntry;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
-use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
-use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -26,8 +21,6 @@ class CompetitionService
         private CompetitionRepositoryInterface $competitions,
         private TeacherProfileRepositoryInterface $teacherProfiles,
         private AssessmentRepositoryInterface $assessments,
-        private CompetitionExamRepositoryInterface $competitionExams,
-        private LeaderboardEntryRepositoryInterface $leaderboardEntries,
     ) {}
 
     /** @return array{types: array, statuses: array, assessmentOptions: array, organizerTypes: array, teacherOptions: array} */
@@ -195,7 +188,7 @@ class CompetitionService
         return $this->competitions->update($competition, ['status' => CompetitionStatus::Archived->value]);
     }
 
-    /** @return array{competition: Competition, exams: array, assessmentOptions: array} */
+    /** @return array{competition: Competition} */
     public function showData(int $competitionId): array
     {
         $competition = $this->competitions->query()
@@ -203,142 +196,7 @@ class CompetitionService
             ->with(['assessment', 'advisors'])
             ->findOrFail($competitionId);
 
-        return array_merge(['competition' => $competition], $this->examSittingsData($competition));
-    }
-
-    /** @return array{exams: array, assessmentOptions: array} */
-    public function examSittingsData(Competition $competition): array
-    {
-        $exams = $this->competitionExams->forCompetition($competition->id)->map(fn (CompetitionExam $e) => [
-            'id' => $e->id,
-            'title' => $e->displayTitle(),
-            'hasCustomTitle' => $e->title !== null,
-            'assessmentId' => $e->assessment_id,
-            'assessmentTitle' => $e->assessment->title ?? '— Không gắn đề —',
-            'startsAt' => $e->starts_at,
-            'endsAt' => $e->ends_at,
-            'entriesCount' => $e->leaderboardEntries()->count(),
-        ])->all();
-
-        return [
-            'exams' => $exams,
-            'assessmentOptions' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
-        ];
-    }
-
-    /** @return array<string, array> */
-    public function examValidationRules(): array
-    {
-        return [
-            'assessment_id' => ['required', 'integer', 'exists:assessments,id'],
-            'title' => ['nullable', 'string', 'max:255'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date'],
-        ];
-    }
-
-    /** admin.competitions.exams.store — thêm 1 kỳ thi mới, order tự tăng sau kỳ thi cuối cùng. */
-    public function storeExam(Competition $competition, array $data): CompetitionExam
-    {
-        $nextOrder = ((int) $this->competitionExams->query()->where('competition_id', $competition->id)->max('order')) + 1;
-
-        return $this->competitionExams->create([
-            'competition_id' => $competition->id,
-            'assessment_id' => $data['assessment_id'],
-            'title' => trim($data['title'] ?? '') ?: null,
-            'order' => $nextOrder,
-            'starts_at' => $data['starts_at'] ?: null,
-            'ends_at' => $data['ends_at'] ?: null,
-        ]);
-    }
-
-    public function updateExam(CompetitionExam $exam, array $data): CompetitionExam
-    {
-        return $this->competitionExams->update($exam, [
-            'assessment_id' => $data['assessment_id'],
-            'title' => trim($data['title'] ?? '') ?: null,
-            'starts_at' => $data['starts_at'] ?: null,
-            'ends_at' => $data['ends_at'] ?: null,
-        ]);
-    }
-
-    /**
-     * admin.competitions.exams.destroy — kỳ thi đã có lượt xếp hạng riêng (scope=
-     * competition_exam) thì KHÔNG cho xoá trực tiếp (mất dữ liệu đã tính mà không cảnh
-     * báo) — admin cần biết trước khi xoá, giống cách Material/Assessment chặn xoá khi
-     * đang có phụ thuộc.
-     *
-     * @throws ValidationException
-     */
-    public function deleteExam(CompetitionExam $exam): void
-    {
-        if ($exam->leaderboardEntries()->exists()) {
-            throw ValidationException::withMessages([
-                'exam' => 'Kỳ thi này đã có dữ liệu xếp hạng — không thể xoá trực tiếp.',
-            ]);
-        }
-
-        $this->competitionExams->delete($exam);
-    }
-
-    /**
-     * admin.competitions.recompute-aggregate — "Tính tổng từ các kỳ thi": cộng điểm mọi kỳ
-     * thi (scope=competition_exam) theo user_id thành bảng TỔNG của cuộc thi (scope=
-     * competition), thay cho việc tự bịa 1 công thức tính điểm "sống" chạy ngầm trong
-     * pipeline chấm bài (Attempt/grading) — vốn nằm ngoài phạm vi lần dựng luồng khách vãng
-     * lai này và rủi ro hơn nhiều. Thao tác này MINH BẠCH (admin bấm mới chạy, không tự
-     * động), có thể chạy lại bất cứ lúc nào sau khi có kỳ thi mới hoặc điểm mới.
-     *
-     * @throws ValidationException nếu cuộc thi chưa có kỳ thi nào
-     */
-    public function recomputeAggregateFromExams(Competition $competition): int
-    {
-        $examIds = $this->competitionExams->forCompetition($competition->id)->pluck('id');
-
-        if ($examIds->isEmpty()) {
-            throw ValidationException::withMessages([
-                'exams' => 'Cuộc thi chưa có kỳ thi nào để tính tổng.',
-            ]);
-        }
-
-        $totals = $this->leaderboardEntries->query()
-            ->where('scope', 'competition_exam')
-            ->whereIn('competition_exam_id', $examIds)
-            ->selectRaw('user_id, sum(score) as total_score')
-            ->groupBy('user_id')
-            ->orderByDesc('total_score')
-            ->get();
-
-        $now = now();
-        $rows = $totals->values()->map(fn ($row, int $i) => [
-            'scope' => 'competition',
-            'competition_id' => $competition->id,
-            'competition_exam_id' => null,
-            'class_room_id' => null,
-            'topic' => null,
-            'user_id' => $row->user_id,
-            'score' => $row->total_score,
-            'rank' => $i + 1,
-            'tie_break' => null,
-            'computed_at' => $now,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ])->all();
-
-        // Xoá bảng tổng cũ rồi ghi lại trong 1 transaction — 11.2: bảng tổng luôn phản ánh
-        // đúng dữ liệu kỳ thi con hiện có tại thời điểm bấm, không cộng dồn lịch sử cũ.
-        DB::transaction(function () use ($competition, $rows) {
-            $this->leaderboardEntries->query()
-                ->where('scope', 'competition')
-                ->where('competition_id', $competition->id)
-                ->delete();
-
-            if ($rows !== []) {
-                LeaderboardEntry::query()->insert($rows);
-            }
-        });
-
-        return count($rows);
+        return ['competition' => $competition];
     }
 
     /**

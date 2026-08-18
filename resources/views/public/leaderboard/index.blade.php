@@ -11,6 +11,10 @@
   để lọc theo. Thay bằng bộ chọn CUỘC THI thật (đúng khái niệm "phạm vi" của 11.2). Không
   còn mũi tên tăng/giảm hạng giả — leaderboard_entries chỉ lưu rank hiện tại, không có
   rank kỳ trước để so sánh thật.
+
+  $examTabs/$selectedExamId (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ
+  thi, mỗi kỳ có bảng xếp hạng RIÊNG ngoài bảng TỔNG (mặc định) — hàng tab thứ 2 chỉ hiện
+  khi cuộc thi đang chọn có kỳ thi.
 --}}
 @extends('layouts.guest')
 
@@ -23,6 +27,8 @@
         $yourEntry = $yourEntry ?? null;
         $rankingRule = $rankingRule ?? [];
         $totalEntries = $totalEntries ?? 0;
+        $examTabs = $examTabs ?? [];
+        $selectedExamId = $selectedExamId ?? null;
         $medals = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
         $top3 = array_slice($entries, 0, 3);
         $rest = array_slice($entries, 3);
@@ -52,11 +58,27 @@
     <div class="max-w-5xl mx-auto px-4 py-10 lg:py-14">
         {{-- Bộ chọn cuộc thi — phạm vi thật (11.2), thay cho bộ lọc thời gian giả trước đây --}}
         @if (count($boards) > 1)
-            <div class="flex flex-wrap justify-center gap-2 mb-10 text-sm">
+            <div class="flex flex-wrap justify-center gap-2 mb-4 text-sm">
                 @foreach ($boards as $b)
                     <a href="{{ route('leaderboard.index', ['competition' => $b['id']]) }}"
                        class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selected && $selected->id === $b['id'] ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
                         {{ $b['title'] }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        {{-- Bộ chọn kỳ thi (Tổng cuộc thi / từng kỳ thi) — chỉ hiện khi cuộc thi đang chọn có kỳ thi. --}}
+        @if ($selected && count($examTabs) > 0)
+            <div class="flex flex-wrap justify-center gap-2 mb-10 text-sm">
+                <a href="{{ route('leaderboard.index', ['competition' => $selected->id]) }}"
+                   class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selectedExamId === null ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
+                    Tổng cuộc thi
+                </a>
+                @foreach ($examTabs as $tab)
+                    <a href="{{ route('leaderboard.index', ['competition' => $selected->id, 'exam' => $tab['id']]) }}"
+                       class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selectedExamId === $tab['id'] ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
+                        {{ $tab['title'] }}
                     </a>
                 @endforeach
             </div>

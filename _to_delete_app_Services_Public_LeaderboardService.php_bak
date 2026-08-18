@@ -4,7 +4,6 @@ namespace App\Services\Public;
 
 use App\Models\Competition;
 use App\Models\User;
-use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 
@@ -16,16 +15,9 @@ use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
  * (computed_at) thay vì bộ lọc thời gian giả (tuần này/tháng này — không có trong BA và
  * không có nguồn dữ liệu thật để lọc theo).
  *
- * $examTabs (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi kỳ có
- * bảng xếp hạng RIÊNG (scope=competition_exam) ngoài bảng TỔNG (scope=competition, xem
- * App\Services\Admin\CompetitionService::recomputeAggregateFromExams()). Việc gate theo
- * "cuộc thi đã công bố" vẫn áp dụng ở cấp Cuộc thi như cũ — không thêm gate riêng theo
- * từng kỳ thi vì $publicCompetitions bên dưới đã lọc status=published từ đầu.
- *
- * Chỉ xử lý scope=competition(_exam). scope=class_room đã có ở App\Services\Admin\
- * RankingService nhưng dùng nội bộ cho giáo viên/admin quản lý lớp — hiển thị công khai
- * bảng xếp hạng theo lớp cho người ngoài lớp không phù hợp về quyền riêng tư nên chưa đưa
- * vào đây.
+ * Chỉ xử lý scope=competition. scope=class_room đã có ở App\Services\Admin\RankingService
+ * nhưng dùng nội bộ cho giáo viên/admin quản lý lớp — hiển thị công khai bảng xếp hạng theo
+ * lớp cho người ngoài lớp không phù hợp về quyền riêng tư nên chưa đưa vào đây.
  */
 class LeaderboardService
 {
@@ -37,15 +29,12 @@ class LeaderboardService
     public function __construct(
         private CompetitionRepositoryInterface $competitions,
         private LeaderboardEntryRepositoryInterface $leaderboardEntries,
-        private CompetitionExamRepositoryInterface $competitionExams,
     ) {}
 
     /**
      * @return array{
      *     boards: array,
      *     selected: ?Competition,
-     *     examTabs: array,
-     *     selectedExamId: ?int,
      *     rankingRule: array,
      *     updatedAt: mixed,
      *     entries: array,
@@ -53,7 +42,7 @@ class LeaderboardService
      *     yourEntry: ?array,
      * }
      */
-    public function indexData(?int $competitionId, ?int $examId, ?User $viewer): array
+    public function indexData(?int $competitionId, ?User $viewer): array
     {
         $publicCompetitions = $this->competitions->query()
             ->where('status', 'published')
@@ -76,8 +65,6 @@ class LeaderboardService
             return [
                 'boards' => $boards,
                 'selected' => null,
-                'examTabs' => [],
-                'selectedExamId' => null,
                 'rankingRule' => [],
                 'updatedAt' => null,
                 'entries' => [],
@@ -86,18 +73,7 @@ class LeaderboardService
             ];
         }
 
-        $exams = $this->competitionExams->forCompetition($selected->id);
-
-        $examTabs = $exams->map(fn ($e) => [
-            'id' => $e->id,
-            'title' => $e->displayTitle(),
-        ])->all();
-
-        $selectedExam = $examId !== null ? $exams->firstWhere('id', $examId) : null;
-
-        $rawEntries = $selectedExam !== null
-            ? $this->leaderboardEntries->entriesForCompetitionExam($selectedExam->id)
-            : $this->leaderboardEntries->entriesForCompetition($selected->id);
+        $rawEntries = $this->leaderboardEntries->entriesForCompetition($selected->id);
 
         $entries = $rawEntries->take(self::DISPLAY_LIMIT)->map(fn ($e) => [
             'rank' => $e->rank,
@@ -117,8 +93,6 @@ class LeaderboardService
         return [
             'boards' => $boards,
             'selected' => $selected,
-            'examTabs' => $examTabs,
-            'selectedExamId' => $selectedExam?->id,
             'rankingRule' => $selected->ranking_rule ?? [],
             'updatedAt' => $rawEntries->max('computed_at'),
             'entries' => $entries,

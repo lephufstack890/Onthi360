@@ -38,16 +38,6 @@ class Competition extends Model
     }
 
     /**
-     * Các kỳ thi (vòng) bên trong cuộc thi này — xem App\Models\CompetitionExam. Mỗi
-     * Competition có thể có 0 (chưa thêm kỳ thi nào), 1 (backfill từ assessment_id cũ) hoặc
-     * nhiều kỳ thi.
-     */
-    public function examSittings(): HasMany
-    {
-        return $this->hasMany(CompetitionExam::class)->orderBy('order');
-    }
-
-    /**
      * Giáo viên cố vấn/đồng hành — bắt buộc có ít nhất 1 người khi organizer_type=external
      * (note họp 13/8, mục 1: "cuộc thi ngoài đơn vị tổ chức thì cần có chuyên gia cố vấn
      * giáo viên đồng hành để tăng uy tín"), xem App\Services\Admin\CompetitionService.

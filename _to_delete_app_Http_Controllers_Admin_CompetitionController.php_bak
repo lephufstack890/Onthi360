@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
-use App\Models\CompetitionExam;
 use App\Services\Admin\CompetitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,51 +88,5 @@ class CompetitionController extends Controller
     public function show(Request $request, int $competition): View
     {
         return view('admin.competitions.show', $this->competitionService->showData($competition));
-    }
-
-    /** admin.competitions.exams.store — thêm 1 kỳ thi (vòng) mới vào cuộc thi. */
-    public function examStore(Request $request, Competition $competition): RedirectResponse
-    {
-        $data = $request->validate($this->competitionService->examValidationRules());
-
-        $this->competitionService->storeExam($competition, $data);
-
-        return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'exam-added');
-    }
-
-    /** admin.competitions.exams.update. */
-    public function examUpdate(Request $request, CompetitionExam $competitionExam): RedirectResponse
-    {
-        $data = $request->validate($this->competitionService->examValidationRules());
-
-        $this->competitionService->updateExam($competitionExam, $data);
-
-        return redirect()->route('admin.competitions.show', $competitionExam->competition_id)->with('status', 'exam-updated');
-    }
-
-    /** admin.competitions.exams.destroy — chặn xoá nếu kỳ thi đã có lượt xếp hạng riêng. */
-    public function examDestroy(Request $request, CompetitionExam $competitionExam): RedirectResponse
-    {
-        $competitionId = $competitionExam->competition_id;
-
-        try {
-            $this->competitionService->deleteExam($competitionExam);
-        } catch (ValidationException $e) {
-            return redirect()->route('admin.competitions.show', $competitionId)->withErrors($e->errors());
-        }
-
-        return redirect()->route('admin.competitions.show', $competitionId)->with('status', 'exam-deleted');
-    }
-
-    /** admin.competitions.recompute-aggregate — "Tính tổng từ các kỳ thi" (dual leaderboard). */
-    public function recomputeAggregate(Request $request, Competition $competition): RedirectResponse
-    {
-        try {
-            $this->competitionService->recomputeAggregateFromExams($competition);
-        } catch (ValidationException $e) {
-            return redirect()->route('admin.competitions.show', $competition->id)->withErrors($e->errors());
-        }
-
-        return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'aggregate-recomputed');
     }
 }

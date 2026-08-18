@@ -14,11 +14,10 @@ class LeaderboardController extends Controller
     public function index(Request $request): View
     {
         $competitionId = $request->query('competition') !== null ? (int) $request->query('competition') : null;
-        $examId = $request->query('exam') !== null ? (int) $request->query('exam') : null;
 
         return view(
             'public.leaderboard.index',
-            $this->leaderboardService->indexData($competitionId, $examId, $request->user()),
+            $this->leaderboardService->indexData($competitionId, $request->user()),
         );
     }
 }

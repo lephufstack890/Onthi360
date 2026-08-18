@@ -5,6 +5,10 @@
   Dữ liệu thật do App\Http\Controllers\Public\CompetitionController truyền vào qua
   App\Services\Public\CompetitionService::showData() — countdown tính bằng Carbon từ thời
   điểm request (không cần JS), ảnh bìa dùng picsum.photos tạm.
+  $examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi kỳ
+  có CTA riêng; cuộc thi cũ (trước tính năng này) đã được backfill 1 kỳ thi từ
+  assessment_id cũ nên hầu như luôn có ít nhất 1 phần tử — trường hợp rỗng (cuộc thi mới
+  tạo, chưa thêm kỳ thi nào) vẫn giữ CTA đơn cũ để không có khoảng trống.
 --}}
 @extends('layouts.guest')
 
@@ -15,6 +19,7 @@
         $rankingRule = $rankingRule ?? [];
         $daysUntilStart = $daysUntilStart ?? null;
         $canJoinDirectly = $canJoinDirectly ?? false;
+        $examSittings = $examSittings ?? [];
     @endphp
 
     <div class="max-w-5xl mx-auto px-4 py-10">
@@ -102,7 +107,34 @@
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5 h-fit sticky top-6">
                 <h2 class="font-medium text-slate-700 mb-2">Sẵn sàng tham gia?</h2>
-                @if ($canJoinDirectly)
+
+                @if (count($examSittings) > 0)
+                    <p class="text-sm text-slate-500 mb-4">Cuộc thi này gồm {{ count($examSittings) }} kỳ thi — chọn kỳ thi để vào làm hoặc xem bảng xếp hạng riêng.</p>
+                    <div class="space-y-3 mb-2">
+                        @foreach ($examSittings as $exam)
+                            <div class="rounded-xl border border-slate-200 p-3">
+                                <div class="flex items-center justify-between gap-2 mb-1">
+                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $exam['title'] }}</p>
+                                    @if ($exam['ongoing'])
+                                        <x-status-badge tone="success">Đang diễn ra</x-status-badge>
+                                    @endif
+                                </div>
+                                @if ($exam['startsAt'] || $exam['endsAt'])
+                                    <p class="text-xs text-slate-400 mb-2">
+                                        {{ $exam['startsAt']?->format('d/m/Y H:i') ?? '…' }} – {{ $exam['endsAt']?->format('d/m/Y H:i') ?? '…' }}
+                                    </p>
+                                @endif
+                                @if ($exam['canJoinDirectly'])
+                                    <a href="{{ route('student.assessment.take', $exam['assessmentId']) }}" class="block text-center px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Vào thi</a>
+                                @else
+                                    <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="block text-center px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">
+                                        {{ auth()->check() ? 'Về trang của tôi' : 'Đăng nhập để tham gia' }}
+                                    </a>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @elseif ($canJoinDirectly)
                     <p class="text-sm text-slate-500 mb-4">Vào làm đề tham chiếu của cuộc thi — kết quả sẽ được ghi nhận vào hồ sơ của bạn.</p>
                     <a href="{{ route('student.assessment.take', $competition->assessment_id) }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">
                         Vào thi ngay
@@ -113,6 +145,7 @@
                         {{ auth()->check() ? 'Về trang của tôi' : 'Đăng nhập để tham gia' }}
                     </a>
                 @endif
+
                 <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">
                     Xem bảng xếp hạng
                 </a>

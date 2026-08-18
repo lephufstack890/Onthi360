@@ -15,7 +15,5 @@ interface LeaderboardEntryRepositoryInterface extends BaseRepositoryInterface
 
     public function entriesForCompetition(int $competitionId): Collection;
 
-    public function entriesForCompetitionExam(int $competitionExamId): Collection;
-
     public function entriesForClassRoom(int $classRoomId): Collection;
 }

@@ -298,19 +298,12 @@ Route::middleware(['auth'])->group(function () {
         Route::put('competitions/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
         Route::post('competitions/{competition}/archive', [AdminCompetitionController::class, 'archive'])->name('competitions.archive');
         Route::get('competitions/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
-        // Kỳ thi (vòng) bên trong 1 cuộc thi — 1 Competition có thể gồm nhiều kỳ thi, mỗi
-        // kỳ thi có bảng xếp hạng riêng ngoài bảng tổng (xem CompetitionExam, note dual
-        // leaderboard trong CompetitionService::recomputeAggregateFromExams()).
-        Route::post('competitions/{competition}/exams', [AdminCompetitionController::class, 'examStore'])->name('competitions.exams.store');
-        Route::put('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
-        Route::delete('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
-        Route::post('competitions/{competition}/recompute-aggregate', [AdminCompetitionController::class, 'recomputeAggregate'])->name('competitions.recompute-aggregate');
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
         Route::get('ranking/{scope}/{id}', [AdminRankingController::class, 'show'])
-            ->whereIn('scope', ['competition', 'class', 'exam'])
+            ->whereIn('scope', ['competition', 'class'])
             ->where('id', '[0-9]+')
             ->name('ranking.show');
 

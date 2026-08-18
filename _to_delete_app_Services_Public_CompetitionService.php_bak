@@ -4,7 +4,6 @@ namespace App\Services\Public;
 
 use App\Enums\CompetitionStatus;
 use App\Models\Competition;
-use App\Models\CompetitionExam;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
@@ -40,7 +39,7 @@ class CompetitionService
     public function showData(int $competitionId, ?User $viewer): array
     {
         $competition = $this->competitions->query()
-            ->with(['assessment', 'advisors', 'examSittings.assessment'])
+            ->with(['assessment', 'advisors'])
             ->withCount('leaderboardEntries')
             ->findOrFail($competitionId);
 
@@ -71,26 +70,6 @@ class CompetitionService
                 && $competition->assessment_id !== null
                 && $competition->status->value === 'ongoing'
                 && $this->isWithinWindow($competition),
-            /*
-             * examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm NHIỀU kỳ thi
-             * (vd Vòng 1/Vòng 2), mỗi kỳ tham chiếu 1 đề riêng + có CTA/bảng xếp hạng riêng.
-             * Cuộc thi cũ (tạo trước tính năng này) đã được backfill 1 kỳ thi tương ứng với
-             * assessment_id cũ (xem migration create_competition_exams_table) nên luôn có ít
-             * nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback UI riêng ở view.
-             */
-            'examSittings' => $competition->examSittings->map(fn (CompetitionExam $exam) => [
-                'id' => $exam->id,
-                'title' => $exam->displayTitle(),
-                'assessmentId' => $exam->assessment_id,
-                'startsAt' => $exam->starts_at,
-                'endsAt' => $exam->ends_at,
-                'ongoing' => $exam->isOngoing(),
-                'canJoinDirectly' => $viewer !== null
-                    && $viewer->hasRole(Role::STUDENT)
-                    && $exam->assessment_id !== null
-                    && $competition->status->value === 'ongoing'
-                    && $exam->isOngoing(),
-            ])->all(),
         ];
     }
 
