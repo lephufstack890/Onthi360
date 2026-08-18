@@ -81,8 +81,11 @@ Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->nam
 Route::get('/giao-vien-tieu-bieu', [PublicTeacherController::class, 'index'])->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
 Route::get('/thong-tin', [PublicInfoController::class, 'index'])->name('info.index');
-// Form Liên hệ (4.1 mục Liên hệ) — khách chưa đăng nhập vẫn gửi được, không có middleware auth.
-Route::post('/thong-tin/lien-he', [PublicContactController::class, 'store'])->name('info.contact.store');
+// Form Liên hệ (4.1 mục Liên hệ) — khách chưa đăng nhập vẫn gửi được, không có middleware
+// auth, nhưng có throttle theo IP (5 lần/phút) để chặn spam tự động (trước đây chưa có).
+Route::post('/thong-tin/lien-he', [PublicContactController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('info.contact.store');
 Route::get('/thong-tin/chinh-sach/{slug}', [PublicInfoController::class, 'policy'])
     ->whereIn('slug', ['bao-mat', 'dieu-khoan', 'hoan-tien'])
     ->name('info.policies.show');

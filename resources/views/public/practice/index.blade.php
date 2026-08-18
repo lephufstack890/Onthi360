@@ -4,6 +4,8 @@
   Dữ liệu thật do App\Http\Controllers\Public\PracticeController truyền vào qua
   App\Services\Public\PracticeService::indexData() — cùng nguồn với tab "Tự luyện" của
   App\Services\Student\PracticeService để không lệch danh sách giữa 2 nơi.
+  $it['hasCoding'] (4.1: môn Tin có 2 lối chấm — trắc nghiệm/điền đáp án tự động, code qua
+  bộ test riêng) — hiện nhãn "Có lập trình" để học sinh biết trước khi bấm vào làm.
 --}}
 @extends('layouts.guest')
 
@@ -33,7 +35,12 @@
                 <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-2xl">📝</span>
-                        <x-status-badge tone="info">{{ $it['itemsCount'] }} câu</x-status-badge>
+                        <div class="flex items-center gap-1.5">
+                            @if ($it['hasCoding'] ?? false)
+                                <x-status-badge tone="warning">💻 Có lập trình</x-status-badge>
+                            @endif
+                            <x-status-badge tone="info">{{ $it['itemsCount'] }} câu</x-status-badge>
+                        </div>
                     </div>
                     <h3 class="font-medium text-slate-800">{{ $it['title'] }}</h3>
                     <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">

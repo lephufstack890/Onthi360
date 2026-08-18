@@ -105,12 +105,14 @@ class HomeService
     /**
      * "12.000+" khi >= 1.000 (làm tròn xuống hàng trăm gần nhất — không cam kết đúng
      * TỪNG NGƯỜI mỗi lần tải lại trang, chỉ là một mốc tăng trưởng); số nhỏ hơn hiện
-     * nguyên kèm dấu "+", 0 thì hiện "0" (không thêm dấu "+" gây hiểu lầm là "trên 0").
+     * nguyên kèm dấu "+". Hệ thống mới/số liệu = 0 hiện "—" thay vì "0" — tránh trang chủ
+     * trông như lỗi/trống dữ liệu khi thực chất chỉ là chưa có ai (nhất quán với cách
+     * "Đánh giá trung bình" đã xử lý ngay bên dưới).
      */
     private function countLabel(int $count): string
     {
         if ($count <= 0) {
-            return '0';
+            return '—';
         }
 
         if ($count >= 1000) {

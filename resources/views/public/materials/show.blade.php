@@ -6,6 +6,9 @@
   có cover_image_path thật được upload cho phần lớn tài liệu). Lựa chọn quyền theo vai trò
   (học cá nhân / dùng để dạy) do chính access.checkout xử lý (App\Services\Access\
   AccessService::checkoutData() đã tính $canTeach) — trang này chỉ cần 1 CTA "Đặt đơn".
+  $owned (4.1, "Tic xanh") — người đang xem đã có quyền học cá nhân còn hiệu lực cho tài
+  liệu này: hiện Tic xanh ở ảnh bìa + thay CTA mua bằng thông báo đã sở hữu (mua lại không
+  có ý nghĩa). Khách chưa đăng nhập luôn có $owned = false.
 --}}
 @extends('layouts.guest')
 
@@ -16,6 +19,7 @@
         $toc = $toc ?? [];
         $ratingAverage = $ratingAverage ?? null;
         $ratingCount = $ratingCount ?? 0;
+        $owned = $owned ?? false;
         $badge = $material->price > 0 ? ['Cần kích hoạt', 'warning'] : ['Công khai', 'info'];
     @endphp
 
@@ -25,10 +29,20 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex flex-col sm:flex-row gap-5">
-                    <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($material->title) }}/320/420" alt=""
-                         class="w-40 sm:w-48 rounded-2xl shadow-md object-cover aspect-[3/4] mx-auto sm:mx-0">
+                    <div class="relative w-40 sm:w-48 mx-auto sm:mx-0 shrink-0">
+                        <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($material->title) }}/320/420" alt=""
+                             class="w-full rounded-2xl shadow-md object-cover aspect-[3/4]">
+                        @if ($owned)
+                            <span title="Bạn đã sở hữu" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow text-base font-semibold">✓</span>
+                        @endif
+                    </div>
                     <div class="flex-1">
-                        <x-status-badge :tone="$badge[1]">{{ $badge[0] }}</x-status-badge>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <x-status-badge :tone="$badge[1]">{{ $badge[0] }}</x-status-badge>
+                            @if ($owned)
+                                <x-status-badge tone="success">✓ Đã sở hữu</x-status-badge>
+                            @endif
+                        </div>
                         <h1 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-2">{{ $material->title }}</h1>
                         <div class="mt-2"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
                         <p class="text-sm text-slate-500 mt-3 leading-relaxed">{{ $material->description ?: 'Chưa có mô tả chi tiết.' }}</p>
@@ -58,7 +72,9 @@
                     <p class="flex items-center gap-2 text-sm text-slate-600 mb-4 px-3 py-2.5 rounded-lg border border-slate-200">📦 Có tùy chọn mua kèm bản in</p>
                 @endif
 
-                @auth
+                @if ($owned)
+                    <p class="flex items-center justify-center gap-2 text-center px-4 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium">✓ Bạn đã sở hữu tài liệu này</p>
+                @elseif (auth()->check())
                     <a href="{{ route('access.checkout', $material->id) }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">
                         Đặt đơn / Mua quyền
                     </a>
@@ -66,7 +82,7 @@
                     <a href="{{ route('login') }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">
                         Đăng nhập để mua quyền
                     </a>
-                @endauth
+                @endif
 
                 <div class="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-400">
                     <p class="flex items-center gap-2">🔒 Thanh toán an toàn qua VNPAY hoặc chuyển khoản</p>

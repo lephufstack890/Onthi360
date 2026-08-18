@@ -15,11 +15,11 @@ class MaterialController extends Controller
     {
         $tab = $request->query('tab', 'sach');
 
-        return view('public.materials.index', $this->materialService->indexData($tab));
+        return view('public.materials.index', $this->materialService->indexData($tab, $request->user()));
     }
 
     public function show(Request $request, int $material): View
     {
-        return view('public.materials.show', $this->materialService->showData($material));
+        return view('public.materials.show', $this->materialService->showData($material, $request->user()));
     }
 }

@@ -57,11 +57,19 @@ class CompetitionService
              * nhận lượt làm bài này vào leaderboard_entries chưa được nối (cần sửa
              * AttemptService để biết attempt thuộc cuộc thi nào) — đây là phạm vi riêng, rộng
              * hơn việc dựng trang khám phá/chi tiết cuộc thi lần này nên chưa làm ở đây.
+             *
+             * status=ongoing hiện do Admin tự tay chuyển (không có job/scheduler tự đồng bộ
+             * theo starts_at/ends_at) — thêm $isWithinWindow() làm lớp phòng vệ thứ 2: nếu
+             * Admin quên chuyển trạng thái đúng lúc (quên mở, hoặc quên đóng sau khi hết
+             * giờ), nút "Vào thi" vẫn không hiện sai ngoài khung thời gian thật. Cuộc thi
+             * chưa đặt starts_at/ends_at (null) thì không bị chặn thêm — giữ đúng hành vi cũ
+             * (chỉ dựa vào status) để không phá cuộc thi đã tạo trước khi có luật này.
              */
             'canJoinDirectly' => $viewer !== null
                 && $viewer->hasRole(Role::STUDENT)
                 && $competition->assessment_id !== null
-                && $competition->status->value === 'ongoing',
+                && $competition->status->value === 'ongoing'
+                && $this->isWithinWindow($competition),
         ];
     }
 
@@ -80,6 +88,20 @@ class CompetitionService
             ->get();
 
         return $competitions->map(fn (Competition $c) => $this->mapCard($c))->all();
+    }
+
+    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì bỏ qua điều kiện đó (không chặn thêm khi chưa đặt lịch cụ thể). */
+    private function isWithinWindow(Competition $competition): bool
+    {
+        if ($competition->starts_at !== null && now()->lt($competition->starts_at)) {
+            return false;
+        }
+
+        if ($competition->ends_at !== null && now()->gt($competition->ends_at)) {
+            return false;
+        }
+
+        return true;
     }
 
     private function mapCard(Competition $c): array

@@ -5,11 +5,16 @@
   truyền vào — không còn mảng dữ liệu hardcode ngay trong view. 4 số liệu ở "Giới thiệu" dùng lại
   ĐÚNG kết quả HomeService::buildStats() (trang chủ) để không lệch số giữa 2 trang.
   Form "Liên hệ" gửi thật tới info.contact.store (App\Http\Controllers\Public\ContactController),
-  lưu vào bảng contact_messages, admin xem/xử lý ở admin.contact-messages.index.
+  lưu vào bảng contact_messages, admin xem/xử lý ở admin.contact-messages.index. Route này có
+  throttle:5,1 (routes/web.php) — khi bị chặn quá tần suất, bootstrap/app.php bắt
+  ThrottleRequestsException và quay lại đây kèm session('status') === 'contact-throttled'.
   TODO: tách route riêng cho từng mục nếu nội dung dài (info.about/info.faq/info.contact...);
   hiện gộp 1 trang, điều hướng bằng anchor link nội trang (#gioi-thieu, #huong-dan, ...).
-  5 thẻ "Vì sao chọn" bấm được, trỏ đúng trang tính năng thật (App\Services\Public\InfoService::
-  highlights()). "Xem chi tiết" ở Chính sách trỏ tới info.policies.show (trang chi tiết thật).
+  5 thẻ "Vì sao chọn" (mục $highlights) bấm được, trỏ đúng trang tính năng thật
+  (App\Services\Public\InfoService::highlights()) — KHÁC với khối "Lợi ích" ($reasons) ngay bên
+  dưới, vốn chỉ là danh sách tĩnh không bấm được; 2 khối cố tình đặt tiêu đề khác hẳn nhau để
+  không ai nhầm khối tĩnh là thẻ bấm được. "Xem chi tiết" ở Chính sách trỏ tới
+  info.policies.show (trang chi tiết thật).
 --}}
 @extends('layouts.guest')
 
@@ -96,7 +101,7 @@
 
             @if (count($reasons) > 0)
                 <div class="bg-white rounded-2xl border border-slate-200 p-6 mt-4">
-                    <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2">⭐ Vì sao nên chọn Ôn Thi 360?</h3>
+                    <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2">✨ Lợi ích khi đồng hành cùng Ôn Thi 360</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         @foreach ($reasons as $r)
                             <div class="flex items-center gap-2 text-sm text-slate-600 rounded-xl bg-slate-50 px-3 py-2.5">
@@ -157,6 +162,8 @@
 
             @if (session('status') === 'contact-sent')
                 @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi liên hệ! Chúng tôi sẽ phản hồi sớm nhất có thể.'])
+            @elseif (session('status') === 'contact-throttled')
+                @include('partials.toast-flash', ['type' => 'error', 'message' => 'Bạn vừa gửi liên hệ quá nhiều lần liên tiếp — vui lòng thử lại sau ít phút.'])
             @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
