@@ -26,7 +26,6 @@
             default => null,
         };
         $canJoinDirectly = $canJoinDirectly ?? false;
-        $alreadyAttempted = $alreadyAttempted ?? false;
         $examSittings = $examSittings ?? [];
         $endedExamsCount = collect($examSittings)->where('hasEnded', true)->count();
     @endphp
@@ -152,11 +151,6 @@
                                     <a href="{{ route('leaderboard.index', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-100">
                                         Xem kết quả ›
                                     </a>
-                                @elseif ($exam['alreadyAttempted'])
-                                    {{-- SỬA 18/8: mỗi học sinh chỉ được làm 1 kỳ thi con này 1 lần — đã nộp bài rồi (dù kỳ thi vẫn đang "Đang diễn ra" cho người khác) thì hiện "Đã làm" thay vì "Vào thi" nữa, vẫn cho xem bảng xếp hạng riêng của kỳ thi này. --}}
-                                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium hover:bg-emerald-100">
-                                        ✓ Đã làm — Xem xếp hạng
-                                    </a>
                                 @elseif ($exam['canJoinDirectly'])
                                     <a href="{{ route('student.assessment.take', $exam['assessmentId']) }}" class="block text-center px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
                                         Vào thi
@@ -185,13 +179,6 @@
                     </a>
                     <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
                         Xem bảng xếp hạng
-                    </a>
-                @elseif ($alreadyAttempted)
-                    {{-- SỬA 18/8: mỗi học sinh chỉ được làm cuộc thi này 1 lần — đã nộp bài rồi thì hiện "Đã làm" thay vì "Vào thi ngay" nữa. --}}
-                    <h2 class="font-medium text-slate-700 mb-2">Bạn đã hoàn thành!</h2>
-                    <p class="text-sm text-slate-500 mb-4">Bạn đã nộp bài cho cuộc thi này rồi — mỗi học sinh chỉ được làm 1 lần. Xem kết quả và bảng xếp hạng bên dưới.</p>
-                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
-                        ✓ Đã làm — Xem bảng xếp hạng
                     </a>
                 @else
                     <h2 class="font-medium text-slate-700 mb-2">Sẵn sàng tham gia?</h2>

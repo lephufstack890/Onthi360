@@ -7,7 +7,6 @@ use App\Models\Competition;
 use App\Models\CompetitionExam;
 use App\Models\Role;
 use App\Models\User;
-use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use Illuminate\Support\Carbon;
 
@@ -32,10 +31,7 @@ class CompetitionService
         'ended' => ['label' => 'Đã kết thúc', 'tone' => 'neutral'],
     ];
 
-    public function __construct(
-        private CompetitionRepositoryInterface $competitions,
-        private AttemptRepositoryInterface $attempts,
-    ) {}
+    public function __construct(private CompetitionRepositoryInterface $competitions) {}
 
     /** competitions.index — danh sách cuộc thi/khảo sát công khai. */
     public function indexData(): array
@@ -61,14 +57,6 @@ class CompetitionService
         $computedStatusValue = $competition->computedStatus()->value;
         $meta = self::STATUS_META[$computedStatusValue] ?? ['label' => $computedStatusValue, 'tone' => 'neutral'];
 
-        // SỬA 18/8 (yêu cầu "mỗi học sinh chỉ được làm 1 lần"): đã nộp ít nhất 1 lần cho đúng
-        // đề của cuộc thi (đường tham chiếu đơn, không kỳ thi con) thì không cho vào làm lại
-        // nữa — nút chuyển thành "Đã làm" thay vì "Vào thi ngay". Dùng thẳng
-        // countSubmittedForUserAndAssessment() có sẵn (đúng cái AttemptService::startOrResume()
-        // dùng để chặn resubmission_policy) nên luôn khớp với điều mà server sẽ chặn thật khi
-        // học sinh bấm vào — không tự bịa 1 luật đếm khác ở đây.
-        $alreadyAttemptedSingle = $this->hasSubmittedAttempt($viewer, $competition->assessment_id);
-
         return [
             'competition' => $competition,
             'statusLabel' => $meta['label'],
@@ -93,9 +81,7 @@ class CompetitionService
                 && $viewer->hasRole(Role::STUDENT)
                 && $competition->assessment_id !== null
                 && $computedStatusValue === 'ongoing'
-                && $this->isWithinWindow($competition)
-                && ! $alreadyAttemptedSingle,
-            'alreadyAttempted' => $alreadyAttemptedSingle,
+                && $this->isWithinWindow($competition),
             /*
              * examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm NHIỀU kỳ thi
              * (vd Vòng 1/Vòng 2), mỗi kỳ tham chiếu 1 đề riêng + có CTA/bảng xếp hạng riêng,
@@ -110,10 +96,6 @@ class CompetitionService
                 $examStatusValue = $exam->computedStatus();
                 $examMeta = self::EXAM_STATUS_META[$examStatusValue] ?? ['label' => $examStatusValue, 'tone' => 'neutral'];
 
-                // SỬA 18/8 (2): xem giải thích ở $alreadyAttemptedSingle phía trên — áp dụng y
-                // hệt cho từng kỳ thi con (mỗi kỳ tham chiếu 1 đề riêng qua $exam->assessment_id).
-                $examAlreadyAttempted = $this->hasSubmittedAttempt($viewer, $exam->assessment_id);
-
                 return [
                     'id' => $exam->id,
                     'title' => $exam->displayTitle(),
@@ -124,7 +106,6 @@ class CompetitionService
                     'hasEnded' => $examStatusValue === 'ended',
                     'statusLabel' => $examMeta['label'],
                     'statusTone' => $examMeta['tone'],
-                    'alreadyAttempted' => $examAlreadyAttempted,
                     /*
                      * BUG SỬA 18/8: trước đây bắt buộc $computedStatusValue === 'ongoing' —
                      * tức trạng thái vòng đời của CẢ CUỘC THI (tính từ $competition->starts_at/
@@ -141,17 +122,12 @@ class CompetitionService
                      * trữ thì không cho vào thi nữa dù kỳ thi con tính ra vẫn "ongoing"), KHÔNG
                      * chặn thêm theo cả vòng đời Upcoming/PendingPublish/Published của cuộc thi
                      * (không liên quan tới việc kỳ thi con này có đang mở hay không).
-                     *
-                     * SỬA 18/8 (2): thêm !$examAlreadyAttempted — mỗi học sinh chỉ được làm 1
-                     * kỳ thi con này 1 lần, đã nộp rồi thì không hiện "Vào thi" nữa (view sẽ tự
-                     * chuyển sang nhánh "Đã làm").
                      */
                     'canJoinDirectly' => $viewer !== null
                         && $viewer->hasRole(Role::STUDENT)
                         && $exam->assessment_id !== null
                         && $computedStatusValue !== CompetitionStatus::Archived->value
-                        && $examStatusValue === 'ongoing'
-                        && ! $examAlreadyAttempted,
+                        && $examStatusValue === 'ongoing',
                 ];
             })->all(),
         ];
@@ -181,7 +157,7 @@ class CompetitionService
         return $competitions->map(fn (Competition $c) => $this->mapCard($c))->all();
     }
 
-    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì bỏ qua điều kiện đó (không chặn thêm khi chưa đặt lịch cụ thể). */
+    /** now() có nằm trong [starts_at, ends_at] không — cột nào null thì b�o qua điều kiện đó (không chặn thêm khi chưa đặt lịch cụ thể). */
     private function isWithinWindow(Competition $competition): bool
     {
         if ($competition->starts_at !== null && now()->lt($competition->starts_at)) {
@@ -193,21 +169,6 @@ class CompetitionService
         }
 
         return true;
-    }
-
-    /**
-     * Học sinh này đã nộp ít nhất 1 lần cho đề $assessmentId chưa (dùng để hiện "Đã làm" thay
-     * vì "Vào thi") — dùng đúng phép đếm countSubmittedForUserAndAssessment() mà
-     * AttemptService::startOrResume() dùng để chặn resubmission_policy, nên luôn khớp với
-     * hành vi chặn thật của server (không tự đặt ra 1 luật đếm khác ở tầng hiển thị này).
-     */
-    private function hasSubmittedAttempt(?User $viewer, ?int $assessmentId): bool
-    {
-        if ($viewer === null || $assessmentId === null) {
-            return false;
-        }
-
-        return $this->attempts->countSubmittedForUserAndAssessment($viewer->id, $assessmentId) > 0;
     }
 
     /**
