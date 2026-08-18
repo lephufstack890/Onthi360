@@ -43,6 +43,8 @@ class PracticeService
                 ->map(fn ($a) => [
                     'title' => $a->assessment->title ?? 'Bài tập',
                     'type' => $a->assessment?->type?->value ?? '',
+                    'typeLabel' => $a->assessment?->type?->label() ?? '',
+                    'typeIcon' => $a->assessment?->type?->icon() ?? '📝',
                     'source' => 'Lớp '.($a->classRoom->name ?? ''),
                     'difficulty' => '',
                     'status' => $a->isOpenNow() ? 'Đã mở' : 'Đã đóng',
@@ -55,6 +57,8 @@ class PracticeService
                 ->map(fn ($attempt) => [
                     'title' => $attempt->assessment->title ?? 'Bài đã nộp',
                     'type' => $attempt->assessment?->type?->value ?? '',
+                    'typeLabel' => $attempt->assessment?->type?->label() ?? '',
+                    'typeIcon' => $attempt->assessment?->type?->icon() ?? '📝',
                     'source' => ucfirst($attempt->source?->value ?? ''),
                     'difficulty' => '',
                     'status' => $attempt->total_score !== null ? 'Đã nộp — '.$attempt->total_score : 'Đang chấm',
@@ -65,6 +69,8 @@ class PracticeService
                 ->map(fn ($a) => [
                     'title' => $a->title,
                     'type' => $a->type->value,
+                    'typeLabel' => $a->type->label(),
+                    'typeIcon' => $a->type->icon(),
                     'source' => 'Tự luyện',
                     'difficulty' => '',
                     'status' => 'Chưa làm',
@@ -93,6 +99,8 @@ class PracticeService
             ->map(fn ($a) => [
                 'title' => $a->assessment->title ?? 'Bài tập',
                 'type' => $a->assessment?->type?->value ?? '',
+                'typeLabel' => $a->assessment?->type?->label() ?? '',
+                'typeIcon' => $a->assessment?->type?->icon() ?? '📝',
                 'source' => 'Lớp '.($a->classRoom->name ?? ''),
                 'difficulty' => '',
                 'status' => $a->due_at ? 'Hạn: '.$a->due_at->format('d/m H:i') : 'Đang mở',

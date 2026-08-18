@@ -29,21 +29,24 @@
         <button type="button" class="px-3 py-1.5 rounded-full border border-slate-200 text-slate-500">Độ khó</button>
     </div>
 
-    @php
-        $practiceTypeIcons = ['Lập trình' => '💻', 'Trắc nghiệm' => '🔤', 'Điền đáp án' => '✏️'];
-    @endphp
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         @forelse ($items as $it)
             <div class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md hover:border-rose-200 transition">
                 <div class="flex items-start justify-between gap-2 mb-2">
-                    <span class="text-lg">{{ $practiceTypeIcons[$it['type']] ?? '📝' }}</span>
-                    <x-status-badge tone="info">{{ $it['type'] }}</x-status-badge>
+                    {{-- typeLabel/typeIcon (App\Enums\AssessmentType::label()/icon()) — trước đây
+                         2 dòng này lookup icon theo nhãn CÂU HỎI ('Lập trình'/'Trắc nghiệm'...)
+                         trong khi $it['type'] lại là loại ĐỀ (practice/assignment/exam...), 2
+                         enum khác nhau nên icon luôn rơi về mặc định và badge hiện thẳng string
+                         thô ("practice") thay vì tiếng Việt. --}}
+                    <span class="text-lg">{{ $it['typeIcon'] ?? '📝' }}</span>
+                    <x-status-badge tone="info">{{ $it['typeLabel'] ?? $it['type'] }}</x-status-badge>
                 </div>
                 <h3 class="font-medium text-slate-800">{{ $it['title'] }}</h3>
                 <p class="text-xs text-slate-400 mt-1">{{ $it['source'] }}{{ $it['difficulty'] ? ' · Độ khó: '.$it['difficulty'] : '' }}</p>
                 <div class="mt-3 flex items-center justify-between">
                     <x-status-badge :tone="$it['tone']">{{ $it['status'] }}</x-status-badge>
-                    <a href="{{ $it['takeRoute'] ?? route('student.practice.index') }}" class="text-sm font-medium text-rose-600">Mở ›</a>
+                    {{-- Tab "Lịch sử" trỏ sang trang KẾT QUẢ (đã nộp), không phải vào làm bài mới — nhãn nút phải phản ánh đúng hành động, không dùng chung "Làm bài" cho cả 2 trường hợp. --}}
+                    <a href="{{ $it['takeRoute'] ?? route('student.practice.index') }}" class="text-sm font-medium text-rose-600">{{ $tab === 'history' ? 'Xem kết quả ›' : 'Làm bài ›' }}</a>
                 </div>
             </div>
         @empty

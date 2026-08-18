@@ -23,16 +23,36 @@ class ReviewController extends Controller
 
     public function form(Request $request): View|RedirectResponse
     {
+        $user = Auth::user();
         $type = $request->query('type', 'material');
         $id = (int) $request->query('id', 0);
 
-        $decision = $this->reviewService->checkEligibility(Auth::user(), $type, $id);
+        // Giữ ĐÚNG thứ tự kiểm tra của reviews.store (ReviewService::store() luôn gọi
+        // checkEligibility() trước, kể cả khi đang SỬA review cũ) — nếu form() bỏ qua bước này
+        // cho trường hợp sửa, học sinh có thể điền lại cả form rồi mới bị chặn ở bước gửi.
+        $decision = $this->reviewService->checkEligibility($user, $type, $id);
 
         if (! $decision->allowed) {
             return redirect()->route('reviews.ineligible', ['reason' => $decision->message]);
         }
 
-        return view('reviews.form', ['type' => $type, 'targetId' => $id]);
+        // Đã từng đánh giá đối tượng này rồi — nếu quá 7 ngày sửa (9.2) thì chặn NGAY từ lúc mở
+        // form thay vì để học sinh điền lại từ đầu rồi mới nhận lỗi ở bước gửi (reviews.store).
+        $existing = $this->reviewService->findExistingReview($user, $type, $id);
+
+        if ($existing !== null) {
+            if (! $existing->isEditable()) {
+                return redirect()->route('reviews.ineligible', [
+                    'reason' => 'Bạn đã đánh giá đối tượng này và đã quá 7 ngày để sửa lại.',
+                ]);
+            }
+
+            // Dùng lại đúng luật ReviewPolicy::update() (chủ review + còn hạn 7 ngày) thay vì
+            // lặp lại điều kiện đó một lần nữa ở đây — trước đây Policy này chưa nơi nào gọi tới.
+            $this->authorize('update', $existing);
+        }
+
+        return view('reviews.form', ['type' => $type, 'targetId' => $id, 'existing' => $existing]);
     }
 
     public function store(Request $request): RedirectResponse

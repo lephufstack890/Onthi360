@@ -49,6 +49,17 @@ class ReviewService
         };
     }
 
+    /** Chiều ngược lại của targetTypeFor() — dùng khi build link reviews.form?type=...&id=... từ 1 Review đã có (buildMyReviews()). */
+    private function queryTypeFor(ReviewTargetType $targetType): string
+    {
+        return match ($targetType) {
+            ReviewTargetType::ClassRoom => 'class',
+            ReviewTargetType::Teacher => 'teacher',
+            ReviewTargetType::Competition => 'competition',
+            ReviewTargetType::Material => 'material',
+        };
+    }
+
     /** Vai trò người viết SUY RA từ quan hệ thật với đối tượng — không tin type truyền lên. */
     private function resolveReviewerRole(User $user): ReviewerRole
     {
@@ -164,6 +175,25 @@ class ReviewService
     }
 
     /**
+     * Review CỦA CHÍNH $user cho đúng đối tượng $type/$id (target_version=1), nếu có — dùng
+     * cả ở reviews.form (GET, để hiển thị "Sửa đánh giá" + điền sẵn dữ liệu cũ thay vì form
+     * trắng) lẫn reviews.store (POST, để quyết định update-đè hay tạo mới). Trước đây logic
+     * này chỉ tồn tại RIÊNG trong store() — form() không biết review cũ đã tồn tại nên học
+     * sinh mở lại form để "sửa" chỉ thấy 1 form trắng, mất hết đánh giá/nhận xét đã viết.
+     */
+    public function findExistingReview(User $user, string $type, int $id): ?Review
+    {
+        $targetType = $this->targetTypeFor($type);
+
+        return $this->reviews->query()
+            ->where('reviewer_id', $user->id)
+            ->where('target_type', $targetType->value)
+            ->where('target_id', $id)
+            ->where('target_version', 1)
+            ->first();
+    }
+
+    /**
      * reviews.store (REV-02, gửi form) — kiểm tra lại điều kiện NGAY TẠI THỜI ĐIỂM lưu, không
      * tin form đã hiển thị lúc trước (16 mục 3). Review mới luôn ở trạng thái "Đã gửi" — chỉ
      * Admin chuyển sang "Đã công bố" mới bắt đầu tính vào rating công khai (9.4, xem
@@ -185,12 +215,7 @@ class ReviewService
         $targetType = $this->targetTypeFor($type);
         $reviewerRole = $this->resolveReviewerRole($user);
 
-        $existing = $this->reviews->query()
-            ->where('reviewer_id', $user->id)
-            ->where('target_type', $targetType->value)
-            ->where('target_id', $id)
-            ->where('target_version', 1)
-            ->first();
+        $existing = $this->findExistingReview($user, $type, $id);
 
         if ($existing !== null && ! $existing->isEditable() && $existing->status !== ReviewStatus::Draft) {
             throw ValidationException::withMessages(['eligibility' => 'Bạn đã đánh giá đối tượng này và đã quá 7 ngày để sửa lại.']);
@@ -264,11 +289,16 @@ class ReviewService
             };
 
             return [
+                'type' => $this->queryTypeFor($r->target_type),
+                'targetId' => $r->target_id,
                 'target' => $targetLabel,
                 'rating' => (int) round($r->overall_rating),
                 'status' => $statusLabel,
                 'tone' => $tone,
                 'time' => $r->created_at?->diffForHumans(),
+                // Sửa được trong 7 ngày đầu (9.2) — dùng để hiện/ẩn nút "Sửa" ở reviews.myReviews
+                // (trước đây trang này không có cách nào để quay lại form sửa 1 review đã gửi).
+                'isEditable' => $r->isEditable(),
             ];
         })->all();
 

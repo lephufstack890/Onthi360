@@ -19,6 +19,7 @@ use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -238,21 +239,34 @@ class AttemptService
      */
     public function submit(Attempt $attempt): Attempt
     {
-        if ($attempt->status !== AttemptStatus::InProgress) {
-            throw ValidationException::withMessages(['attempt' => 'Lượt làm bài này đã được nộp trước đó.']);
-        }
+        // Trước đây đọc $attempt->status rồi mới ghi (check-then-write) KHÔNG có transaction/
+        // khoá dòng — 2 request nộp bài đồng thời cho CÙNG 1 lượt làm (double-click, hoặc
+        // client tự động retry khi mất mạng giữa chừng) có thể cùng đọc thấy 'in_progress'
+        // trước khi request nào kịp ghi 'graded', khiến cả 2 cùng vượt qua guard phía trên và
+        // cùng ghi đè total_score/submitted_at — vi phạm đúng yêu cầu "không thể nộp lại 2 lần
+        // cho cùng 1 lượt làm" ở mức DB (guard cũ chỉ đúng ở mức ứng dụng, không đúng khi có
+        // 2 request chạy song song thật). Khoá dòng (lockForUpdate) bên trong transaction để
+        // request thứ 2 phải đợi request thứ 1 commit xong, rồi tự thấy status đã đổi và bị
+        // chặn đúng như luồng bình thường.
+        return DB::transaction(function () use ($attempt) {
+            $locked = $this->attempts->query()->whereKey($attempt->id)->lockForUpdate()->first();
 
-        $attempt->load('answers');
+            if ($locked === null || $locked->status !== AttemptStatus::InProgress) {
+                throw ValidationException::withMessages(['attempt' => 'Lượt làm bài này đã được nộp trước đó.']);
+            }
 
-        $totalScore = (int) $attempt->answers->whereNotNull('score')->sum('score');
+            $locked->load('answers');
 
-        $attempt->recalculateProvisionalFlag();
-        $attempt->total_score = $totalScore;
-        $attempt->submitted_at = now();
-        $attempt->status = ($attempt->is_provisional ? AttemptStatus::Grading : AttemptStatus::Graded)->value;
-        $attempt->save();
+            $totalScore = (int) $locked->answers->whereNotNull('score')->sum('score');
 
-        return $attempt;
+            $locked->recalculateProvisionalFlag();
+            $locked->total_score = $totalScore;
+            $locked->submitted_at = now();
+            $locked->status = ($locked->is_provisional ? AttemptStatus::Grading : AttemptStatus::Graded)->value;
+            $locked->save();
+
+            return $locked;
+        });
     }
 
     /** @return array{0: ?int, 1: VerdictStatus} */

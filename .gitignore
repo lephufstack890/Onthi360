@@ -25,3 +25,11 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# File backup tạm thời tự đặt tên "_to_delete_..." trong lúc làm việc (bằng tay hoặc qua
+# công cụ hỗ trợ) — lỡ git add nhầm nhiều lần trước đây (app/Services/Admin,
+# app/Services/Teacher, resources/views/admin/content) nên chặn hẳn ở đây để không lặp lại.
+_to_delete_*
+*_5_bak
+*_5_bak[0-9]
+*.bak
