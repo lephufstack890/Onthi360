@@ -24,6 +24,7 @@ class ContentController extends Controller
         private DocumentImportService $documentImportService,
     ) {}
 
+    /** admin.content.index (ADM-03) — 6.2/6.4/6.5. */
     public function index(Request $request): View
     {
         $tab = $request->query('tab', 'materials');
@@ -31,6 +32,7 @@ class ContentController extends Controller
         return view('admin.content.index', $this->contentService->indexData($tab));
     }
 
+    /** admin.content.show — 6.2 (chặn phát hành khi thiếu cấu hình). */
     public function show(Request $request, int $content): View
     {
         return view('admin.content.show', $this->contentService->showData($content));
@@ -370,6 +372,33 @@ class ContentController extends Controller
     public function assessmentsEdit(int $assessment): View
     {
         return view('admin.content.assessments.edit', $this->contentService->assessmentEditFormData($assessment));
+    }
+
+    /**
+     * SỬA 18/8: trước đây trang chi tiết đề (admin.content.show) chỉ để lại 1 dòng TODO
+     * "danh sách câu hỏi trong đề — quản lý ở màn soạn đề của giáo viên" — nhưng đề do ADMIN
+     * tạo (owner_type=shared, vd "Đề thi quốc gia") thì KHÔNG giáo viên nào sở hữu để vào màn
+     * soạn đề (teacher.assessments.create chỉ cho giáo viên soạn đề CỦA CHÍNH HỌ, không có màn
+     * sửa đề đã tạo), nên các đề admin tự tạo không cách nào gắn câu hỏi được — đúng lỗi anh
+     * gặp ("chọn đề đâu???" ở màn Sửa đề/bộ bài). Thêm 2 route/2 hàm này để admin tự chọn câu
+     * hỏi (từ toàn bộ Kho chung + kho riêng từng giáo viên — admin xem được hết) ngay tại đây.
+     */
+    public function assessmentsItemsEdit(Assessment $assessment): View
+    {
+        return view('admin.content.assessments.items', $this->contentService->assessmentItemsFormData($assessment));
+    }
+
+    public function assessmentsItemsUpdate(Request $request, Assessment $assessment): RedirectResponse
+    {
+        $data = $request->validate([
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer', 'exists:questions,id'],
+            'points_override' => ['nullable', 'array'],
+        ], [], ['question_ids' => 'Câu hỏi']);
+
+        $this->contentService->assessmentItemsUpdate($assessment, $data);
+
+        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-updated');
     }
 
     public function assessmentsUpdate(Request $request, Assessment $assessment): RedirectResponse

@@ -11,19 +11,34 @@ class AssessmentRepository extends EloquentRepository implements AssessmentRepos
 {
     protected string $modelClass = Assessment::class;
 
-    public function publishedPractice(int $limit = 30): Collection
+    /**
+     * SỬA 18/8 (luồng Luyện tập, tab "Tự luyện"): thêm lọc theo $questionType/$bankName +
+     * eager-load items.question.bank — trước đây chỉ lọc type=practice/status=published,
+     * không cách nào biết đề có câu hỏi dạng gì (Lập trình/Trắc nghiệm/Điền đáp án) hay
+     * thuộc "chuyên đề" nào (tạm dùng App\Models\QuestionBank::name vì chưa có bảng Tag
+     * riêng — xem PracticeService) mà không load thêm items.question.bank ở đây.
+     */
+    public function publishedPractice(int $limit = 30, ?string $questionType = null, ?string $bankName = null): Collection
     {
         return $this->query()
             ->where('type', 'practice')
             ->where('status', 'published')
+            ->when($questionType, fn (Builder $q) => $q->whereHas('items.question', fn (Builder $qq) => $qq->where('type', $questionType)))
+            ->when($bankName, fn (Builder $q) => $q->whereHas('items.question.bank', fn (Builder $qq) => $qq->where('name', $bankName)))
+            ->with('items.question.bank')
             ->latest()
             ->limit($limit)
             ->get();
     }
 
-    public function countPublishedPractice(): int
+    public function countPublishedPractice(?string $questionType = null, ?string $bankName = null): int
     {
-        return $this->query()->where('type', 'practice')->where('status', 'published')->count();
+        return $this->query()
+            ->where('type', 'practice')
+            ->where('status', 'published')
+            ->when($questionType, fn (Builder $q) => $q->whereHas('items.question', fn (Builder $qq) => $qq->where('type', $questionType)))
+            ->when($bankName, fn (Builder $q) => $q->whereHas('items.question.bank', fn (Builder $qq) => $qq->where('name', $bankName)))
+            ->count();
     }
 
     public function withItemsAndQuestions(int $id): ?Assessment

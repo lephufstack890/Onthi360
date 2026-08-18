@@ -17,7 +17,11 @@ class PracticeController extends Controller
     {
         $user = $request->user();
         $tab = $request->query('tab', 'self');
+        // SỬA 18/8: 2 tham số lọc thật (App\Enums\QuestionType + tên QuestionBank làm "chuyên
+        // đề" tạm — xem docblock PracticeService::buildIndexData()), null nếu không lọc.
+        $type = $request->query('type');
+        $topic = $request->query('topic');
 
-        return view('student.practice.index', $this->practiceService->buildIndexData($user, $tab));
+        return view('student.practice.index', $this->practiceService->buildIndexData($user, $tab, $type, $topic));
     }
 }

@@ -104,10 +104,36 @@
                     <div class="rich-content text-sm text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
                 </div>
             @elseif ($type === 'assessment' && $model)
+                @php $assessmentTypeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻']; @endphp
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
                     <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
                     <p>Thời gian làm bài: {{ $model->duration_minutes ? $model->duration_minutes.' phút' : 'Không giới hạn' }}</p>
-                    <p class="text-slate-400">TODO: danh sách câu hỏi trong đề — quản lý ở màn soạn đề của giáo viên (TEA-xx).</p>
+                </div>
+
+                {{-- SỬA 18/8: trước đây chỗ này chỉ có 1 dòng TODO, click "Xem" không thấy câu hỏi
+                     nào trong đề — nay hiện đúng danh sách câu hỏi thật ($model->items, đã eager-load
+                     items.question ở ContentService::showData()) + nút sang màn "Chọn câu hỏi". --}}
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📋</span> Câu hỏi trong đề ({{ $model->items->count() }})</h2>
+                        <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="text-sm text-rose-600 font-medium">Quản lý câu hỏi ›</a>
+                    </div>
+
+                    @if ($model->items->isEmpty())
+                        <x-empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
+                    @else
+                        <div class="divide-y divide-slate-100">
+                            @foreach ($model->items as $it)
+                                <div class="flex items-center justify-between py-2.5 gap-3">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="text-base shrink-0">{{ $assessmentTypeIcons[$it->question?->type?->value] ?? '❓' }}</span>
+                                        <p class="text-sm text-slate-700 truncate">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
+                                    </div>
+                                    <span class="text-xs text-slate-400 shrink-0">{{ $it->effectivePoints() }} điểm</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             @elseif ($type === 'material' && $model)
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">

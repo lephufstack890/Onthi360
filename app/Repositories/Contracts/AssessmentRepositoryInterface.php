@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Collection;
 interface AssessmentRepositoryInterface extends BaseRepositoryInterface
 {
 
-    public function publishedPractice(int $limit = 30): Collection;
+    /**
+     * SỬA 18/8 (luồng Luyện tập — bộ lọc thật): $questionType (App\Enums\QuestionType, vd
+     * 'mcq'/'fill_blank'/'coding') và $bankName (App\Models\QuestionBank::name — dùng tạm
+     * làm "chuyên đề" vì hệ thống CHƯA có bảng Tag/Chuyên đề riêng) đều optional, null = không
+     * lọc thêm (giữ đúng hành vi cũ cho mọi lời gọi hiện có không truyền 2 tham số này).
+     */
+    public function publishedPractice(int $limit = 30, ?string $questionType = null, ?string $bankName = null): Collection;
 
-    public function countPublishedPractice(): int;
+    public function countPublishedPractice(?string $questionType = null, ?string $bankName = null): int;
 
     public function withItemsAndQuestions(int $id): ?Assessment;
 

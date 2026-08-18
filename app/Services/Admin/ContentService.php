@@ -277,7 +277,9 @@ class ContentService
             ];
         }
 
-        $assessment = $this->assessments->query()->with('creator')->find($id);
+        // SỬA 18/8: thêm eager-load items.question — trước đây chỉ load 'creator', nên màn
+        // show.blade.php không có gì để hiện danh sách câu hỏi trong đề (chỉ hiện được TODO).
+        $assessment = $this->assessments->query()->with(['creator', 'items.question'])->find($id);
         if ($assessment !== null) {
             [$label, $tone] = $this->statusLabel($assessment->status);
 
@@ -538,9 +540,15 @@ class ContentService
     }
 
     // ================= Đề/bộ bài (Assessment) =================
-    // Phạm vi cố ý giới hạn ở metadata (không có trình xây danh sách câu hỏi/items ở đây) —
-    // gắn/gỡ câu hỏi vào đề là luồng riêng của giáo viên khi soạn đề (TEA-xx), không lặp lại
-    // ở admin để tránh 2 nơi có thể sửa cùng 1 đề theo 2 luật khác nhau.
+    // SỬA 18/8: trước đây phạm vi cố ý chỉ giới hạn ở metadata, với giả định "gắn/gỡ câu hỏi
+    // vào đề là luồng riêng của giáo viên khi soạn đề (TEA-xx)" — nhưng giả định đó SAI với
+    // đề do chính ADMIN tạo (owner_type=shared, vd "Đề thi quốc gia", "Đề thi cuộc thi"):
+    // không giáo viên nào sở hữu đề này để vào teacher.assessments.create sửa cả (màn đó chỉ
+    // cho giáo viên soạn đề CỦA CHÍNH HỌ, không có màn sửa lại đề đã tạo), nên loại đề admin tự
+    // tạo trước giờ không cách nào gắn câu hỏi được (để lại đúng 1 dòng TODO chết ở
+    // admin.content.show). Thêm assessmentItemsFormData()/assessmentItemsUpdate() bên dưới để
+    // bù đúng khoảng trống đó — CHỈ áp dụng cho đề admin tự quản (không đụng vào luồng soạn đề
+    // riêng của giáo viên, vẫn giữ nguyên như cũ).
 
     public function assessmentCreateFormData(): array
     {
@@ -575,6 +583,69 @@ class ContentService
         return array_merge($this->assessmentCreateFormData(), [
             'assessment' => $this->assessments->query()->findOrFail($id),
         ]);
+    }
+
+    /**
+     * admin.content.assessments.items.edit — dữ liệu cho màn chọn câu hỏi. Admin xem/chọn
+     * được TOÀN BỘ câu hỏi (Kho chung + kho riêng từng giáo viên — allLatestWithOwner() đã
+     * có sẵn, dùng lại đúng chỗ tab "Câu hỏi" ở admin.content.index đang dùng, xem
+     * indexData()), không giới hạn theo 1 giáo viên như teacher.assessments.create.
+     */
+    public function assessmentItemsFormData(Assessment $assessment): array
+    {
+        $assessment->load('items.question');
+        $existingItems = $assessment->items->keyBy('question_id');
+
+        return [
+            'assessment' => $assessment,
+            'questions' => $this->questions->allLatestWithOwner(200)->map(fn (Question $q) => [
+                'id' => $q->id,
+                'title' => $q->title,
+                'type' => $q->type->value,
+                'points' => $q->points,
+                'status' => $q->status->value,
+                'ownerLabel' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
+            ])->all(),
+            'selectedIds' => $existingItems->keys()->all(),
+            'pointsOverrides' => $existingItems->map(fn ($item) => $item->points_override)->filter()->all(),
+        ];
+    }
+
+    /**
+     * admin.content.assessments.items.update — thay TOÀN BỘ danh sách câu hỏi trong đề bằng
+     * danh sách mới chọn (xoá hết item cũ rồi tạo lại theo đúng thứ tự tick trên form — đơn
+     * giản, đủ dùng cho phạm vi này, giống cách teacher.assessments.store xử lý lúc tạo mới).
+     * Tự tính lại total_points = tổng điểm từng câu (ưu tiên points_override nếu có nhập).
+     */
+    public function assessmentItemsUpdate(Assessment $assessment, array $data): Assessment
+    {
+        $questionIds = $data['question_ids'];
+        $pointsOverride = $data['points_override'] ?? [];
+
+        $validQuestions = $this->questions->query()->whereIn('id', $questionIds)->get()->keyBy('id');
+
+        $assessment->items()->delete();
+
+        $totalPoints = 0;
+        foreach (array_values($questionIds) as $order => $questionId) {
+            $question = $validQuestions->get($questionId);
+            if ($question === null) {
+                continue;
+            }
+
+            $override = $pointsOverride[$questionId] ?? null;
+            $points = filled($override) ? (int) $override : $question->points;
+
+            $assessment->items()->create([
+                'question_id' => $question->id,
+                'order' => $order,
+                'points_override' => filled($override) ? $points : null,
+            ]);
+
+            $totalPoints += $points;
+        }
+
+        return $this->assessments->update($assessment, ['total_points' => $totalPoints]);
     }
 
     public function assessmentUpdate(Assessment $assessment, array $data): Assessment

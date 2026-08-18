@@ -362,6 +362,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
         Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
         Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
+        // SỬA 18/8: trước đây đề admin tự tạo (owner_type=shared) không có màn nào gắn câu
+        // hỏi — xem ghi chú ở App\Services\Admin\ContentService (khu "Đề/bộ bài").
+        Route::get('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsEdit'])->name('content.assessments.items.edit');
+        Route::put('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsUpdate'])->name('content.assessments.items.update');
         Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
         Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
         Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');

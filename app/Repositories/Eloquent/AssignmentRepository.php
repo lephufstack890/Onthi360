@@ -19,7 +19,11 @@ class AssignmentRepository extends EloquentRepository implements AssignmentRepos
             $query->where('status', $status);
         }
 
-        return $query->with(['assessment', 'classRoom.course'])->latest('opens_at')->limit($limit)->get();
+        // SỬA 18/8 (luồng Luyện tập, tab "Theo lớp"): thêm assessment.items.question.bank vào
+        // eager-load sẵn có (assessment, classRoom.course) — để PracticeService biết đề của
+        // bài giao này có câu hỏi dạng gì / thuộc "chuyên đề" nào (bank name) mà lọc, không cần
+        // thêm truy vấn N+1 riêng cho từng bài giao.
+        return $query->with(['assessment.items.question.bank', 'classRoom.course'])->latest('opens_at')->limit($limit)->get();
     }
 
     public function countForClassRoomIds(array $classRoomIds, ?string $status = null): int
