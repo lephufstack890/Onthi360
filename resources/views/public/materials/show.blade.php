@@ -2,10 +2,17 @@
   Route: materials.show | Frame: PUB-06
   Spec: 7.5 (màn mua theo vai trò), 9 (rating/review).
   Dữ liệu thật do App\Http\Controllers\Public\MaterialController truyền vào qua
-  App\Services\Public\MaterialService::showData() — ảnh bìa dùng picsum.photos tạm (chưa
-  có cover_image_path thật được upload cho phần lớn tài liệu). Lựa chọn quyền theo vai trò
-  (học cá nhân / dùng để dạy) do chính access.checkout xử lý (App\Services\Access\
-  AccessService::checkoutData() đã tính $canTeach) — trang này chỉ cần 1 CTA "Đặt đơn".
+  App\Services\Public\MaterialService::showData() — ảnh bìa: Material chưa có cột lưu ảnh bìa
+  thật nào (không có cover_image_path/thumbnail — đã kiểm tra migrations + $fillable), nên
+  KHÔNG dùng ảnh ngẫu nhiên (picsum.photos cũ trông rẻ tiền/không liên quan nội dung) mà thay
+  bằng 1 "bìa" thiết kế sẵn: gradient thương hiệu (chọn theo hash tiêu đề để các tài liệu khác
+  nhau có màu khác nhau, không đơn điệu) + icon tài liệu + tên tài liệu hiển thị luôn trên bìa
+  — giống cách các nền tảng ebook vẫn làm khi chưa có ảnh bìa thật upload. Nếu sau này có cột
+  ảnh bìa thật thì chỉ cần thêm 1 @if($material->cover_image_path) ... @else (khối bên dưới)
+  @endif bọc quanh, không cần đổi gì khác.
+  Lựa chọn quyền theo vai trò (học cá nhân / dùng để dạy) do chính access.checkout xử lý
+  (App\Services\Access\AccessService::checkoutData() đã tính $canTeach) — trang này chỉ cần 1
+  CTA "Đặt đơn".
   $owned (4.1, "Tic xanh") — người đang xem đã có quyền học cá nhân còn hiệu lực cho tài
   liệu này: hiện Tic xanh ở ảnh bìa + thay CTA mua bằng thông báo đã sở hữu (mua lại không
   có ý nghĩa). Khách chưa đăng nhập luôn có $owned = false.
@@ -21,6 +28,18 @@
         $ratingCount = $ratingCount ?? 0;
         $owned = $owned ?? false;
         $badge = $material->price > 0 ? ['Cần kích hoạt', 'warning'] : ['Công khai', 'info'];
+
+        // Bìa placeholder theo thương hiệu: chọn 1 trong vài cặp gradient cố định dựa trên
+        // hash tiêu đề, để mỗi tài liệu có 1 màu ổn định (không đổi mỗi lần load) nhưng danh
+        // sách nhiều tài liệu vẫn có màu sắc đa dạng, không lặp 1 màu nhàm chán.
+        $coverPalettes = [
+            ['from-rose-500', 'to-rose-700'],
+            ['from-amber-500', 'to-orange-600'],
+            ['from-sky-500', 'to-blue-700'],
+            ['from-emerald-500', 'to-teal-700'],
+            ['from-violet-500', 'to-purple-700'],
+        ];
+        $coverPalette = $coverPalettes[crc32($material->title) % count($coverPalettes)];
     @endphp
 
     <div class="max-w-6xl mx-auto px-4 py-10">
@@ -30,10 +49,12 @@
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex flex-col sm:flex-row gap-5">
                     <div class="relative w-40 sm:w-48 mx-auto sm:mx-0 shrink-0">
-                        <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($material->title) }}/320/420" alt=""
-                             class="w-full rounded-2xl shadow-md object-cover aspect-[3/4]">
+                        <div class="w-full aspect-[3/4] rounded-2xl shadow-md bg-gradient-to-br {{ $coverPalette[0] }} {{ $coverPalette[1] }} flex flex-col items-center justify-center p-4 text-center overflow-hidden">
+                            <span class="text-4xl mb-3 opacity-90" aria-hidden="true">📘</span>
+                            <p class="text-white text-sm font-semibold leading-snug line-clamp-4">{{ $material->title }}</p>
+                        </div>
                         @if ($owned)
-                            <span title="Bạn đã sở hữu" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow text-base font-semibold">✓</span>
+                            <span title="Bạn đã sở hữu" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow text-base font-semibold ring-2 ring-white">✓</span>
                         @endif
                     </div>
                     <div class="flex-1">
