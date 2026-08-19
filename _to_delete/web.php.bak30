@@ -403,10 +403,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
         Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
         Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');
-        // SỬA 19/8 (Giai đoạn 4 — "Admin duyệt đưa đề GV ra kho chung"): bấm thẳng từ bảng
-        // danh sách tab "Đề/bộ bài" (admin.content.index?tab=assessments), xem
-        // ContentController::assessmentsPromoteToShared().
-        Route::post('content/assessments/{assessment}/promote-shared', [AdminContentController::class, 'assessmentsPromoteToShared'])->name('content.assessments.promoteShared');
 
         // SỬA 18/8 (đề PDF + phiếu đáp án, 16/8 mục 1.2/5/6) — chỉ áp dụng cho đề
         // content_mode=pdf_answer_sheet (mọi loại trừ Luyện tập theo câu).

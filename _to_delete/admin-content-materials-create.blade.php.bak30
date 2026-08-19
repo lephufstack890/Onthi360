@@ -3,12 +3,6 @@
   Spec: 6.5 (học liệu thuộc sản phẩm — sách/chuyên đề/đề thi) + Table 27 (trạng thái nội dung).
   Dữ liệu thật ($products, $parents, $assessments, $types, $statuses) do
   ContentController::materialsCreate() truyền vào qua ContentService::materialCreateFormData().
-
-  SỬA 19/8 (Giai đoạn 4 — "Gắn vào học liệu để bán"): hỗ trợ tiền điền qua query string
-  ?assessment_id=<id> (link tắt từ admin/content/assessments/pdf.blade.php, xem nút "Gắn vào
-  học liệu để bán" ở đó) — tự chọn sẵn loại "Tham chiếu đề/bộ bài" + đúng đề đó, KHÔNG bắt
-  buộc phải tự tay chọn lại 2 lần. Không có gì mới ở backend (materialCreateFormData()/
-  materialStore() giữ NGUYÊN — màn này vốn đã liệt kê MỌI đề, kể cả đề của giáo viên).
 --}}
 @extends('layouts.admin')
 
@@ -19,10 +13,6 @@
     @php
         $products = $products ?? []; $parents = $parents ?? []; $assessments = $assessments ?? [];
         $types = $types ?? []; $statuses = $statuses ?? [];
-        // Query string chỉ dùng để tiền điền LẦN ĐẦU vào form — nếu request cũ (old()) đã có
-        // giá trị (vd validate lỗi, quay lại điền tiếp) thì ưu tiên old() như bình thường.
-        $defaultType = old('type', request()->filled('assessment_id') ? 'assessment_ref' : 'chapter');
-        $defaultAssessmentId = old('assessment_id', request('assessment_id'));
     @endphp
 
     <a href="{{ route('admin.content.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nội dung</a>
@@ -33,7 +23,7 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ type: '{{ $defaultType }}' }">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ type: '{{ old('type', 'chapter') }}' }">
         <form method="POST" action="{{ route('admin.content.materials.store') }}" class="space-y-4">
             @csrf
             <div>
@@ -51,7 +41,7 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại</label>
                     <x-select id="type" name="type" x-model="type" required>
                         @foreach ($types as $value => $label)
-                            <option value="{{ $value }}" @selected($defaultType === $value)>{{ $label }}</option>
+                            <option value="{{ $value }}" @selected(old('type', 'chapter') === $value)>{{ $label }}</option>
                         @endforeach
                     </x-select>
                 </div>
@@ -84,7 +74,7 @@
                 <x-select id="assessment_id" name="assessment_id">
                     <option value="">— Chọn đề/bộ bài —</option>
                     @foreach ($assessments as $a)
-                        <option value="{{ $a->id }}" @selected((string) $defaultAssessmentId === (string) $a->id)>{{ $a->title }}</option>
+                        <option value="{{ $a->id }}" @selected((string) old('assessment_id') === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
                 </x-select>
             </div>

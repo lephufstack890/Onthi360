@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\AssessmentType;
 use App\Enums\AttemptSource;
 use App\Enums\AttemptStatus;
 use App\Enums\AttendanceSource;
@@ -13,8 +12,6 @@ use App\Models\Assessment;
 use App\Models\Assignment;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
-use App\Models\Competition;
-use App\Models\CompetitionExam;
 use App\Models\Question;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptAnswerRepositoryInterface;
@@ -153,51 +150,14 @@ class AttemptService
      * Material::assessment_id — xem Assessment::materials()), phải qua đúng
      * AccessGateService::canAccessMaterial() trước khi cho mở lượt làm bài — cùng một cửa
      * duy nhất mà trang đọc học liệu dùng (7.1/7.3), không kiểm tra quyền rời rạc ở đây.
-     *
-     * SỬA 19/8 (Giai đoạn 4 — vá lỗ hổng "đoán URL vào làm bài miễn phí"): trước đây đề
-     * KHÔNG gắn Material nào thì hàm này bỏ qua luôn (return sớm) — đúng cho đề Tự luyện
-     * (AssessmentType::Practice, vốn được thiết kế mở tự do, xem PracticeService) VÀ đúng cho
-     * đề đấu của Cuộc thi công khai (AssessmentType::CompetitionPaper được Competition/
-     * CompetitionExam tham chiếu tới — 11.1 "cuộc thi chỉ tham chiếu đề để tổ chức sự kiện",
-     * cố ý mở công khai, KHÔNG qua Assignment/Material/Product — xem Public\CompetitionService),
-     * NHƯNG với đề PDF loại Bài giao/Đề thi (Giai đoạn 1-3, đa số đề PDF hiện KHÔNG gắn
-     * Material vì Bộ đề chỉ tạo Assessment trơn — xem PdfBulkImportService, cố ý chưa bắt buộc
-     * gắn Product/Material ngay lúc tạo) thì việc bỏ qua này lại thành lỗ hổng: học sinh chỉ
-     * cần biết/đoán đúng assessment_id là vào làm bài được, KHÔNG qua Assignment (route
-     * student.assessment.take không bắt buộc truyền assignment). Vì vậy, thứ tự kiểm tra:
-     * (1) Practice luôn cho qua; (2) CompetitionPaper ĐANG được 1 Competition/CompetitionExam
-     * tham chiếu tới thì cho qua (đúng thiết kế mở công khai của Cuộc thi — CompetitionPaper
-     * KHÔNG được tạo ra ngoài luồng Cuộc thi nên nếu chưa có Competition/CompetitionExam nào
-     * trỏ tới thì vẫn chặn ở bước (4), tránh lộ đề đấu trước khi cuộc thi thật sự gắn đề); (3)
-     * có Assignment hợp lệ thì coi như đã qua đủ cửa ở assertAssignmentAccessible() phía trên
-     * rồi, cho qua tiếp (giáo viên giao bài cho lớp là đủ căn cứ, không bắt buộc phải có
-     * Material/Product song song); (4) có Material gắn thì đi đúng AccessGateService như cũ;
-     * (5) không khớp trường hợp nào ở trên (không Assignment, không Material, không phải
-     * Practice/đề đấu Cuộc thi hợp lệ) thì đây là đề PDF đứng một mình chưa gắn vào đâu cả —
-     * chặn hẳn, không cho vào làm bài "chùa". Đề muốn cho học sinh làm mà không giao qua lớp
-     * thì phải gắn Product (màn "Gắn vào học liệu để bán" ở Admin, dùng lại
-     * Admin\ContentService::materialStore()).
+     * Đề không gắn Material nào (vd đề luyện tập rời) thì bỏ qua bước này.
      */
     private function assertMaterialAccessible(User $user, Assessment $assessment, ?Assignment $assignment): void
     {
-        if ($assessment->type === AssessmentType::Practice) {
-            return;
-        }
-
-        if ($assessment->type === AssessmentType::CompetitionPaper && $this->isReferencedByCompetition($assessment)) {
-            return;
-        }
-
-        if ($assignment !== null) {
-            return;
-        }
-
         $material = $assessment->materials()->first();
 
         if ($material === null) {
-            throw ValidationException::withMessages([
-                'attempt' => 'Đề này chưa được giao qua lớp và chưa gắn vào học liệu để mở bán/kích hoạt — bạn chưa có quyền làm đề này.',
-            ]);
+            return;
         }
 
         $decision = $this->accessGate->canAccessMaterial($user, $material, $assignment?->classRoom);
@@ -205,18 +165,6 @@ class AttemptService
         if (! $decision->allowed) {
             throw ValidationException::withMessages(['attempt' => $decision->message]);
         }
-    }
-
-    /**
-     * true nếu đề đấu này đang được 1 Competition (đường tham chiếu đơn cũ, Competition::
-     * assessment_id) hoặc 1 CompetitionExam (đường tham chiếu nhiều kỳ thi, xem
-     * CompetitionExam::assessment_id) trỏ tới — tức đây thật sự là đề của 1 cuộc thi công
-     * khai, không phải đề đấu tạo ra rồi bỏ đó chưa gắn cuộc thi nào (không nên lộ trước).
-     */
-    private function isReferencedByCompetition(Assessment $assessment): bool
-    {
-        return Competition::where('assessment_id', $assessment->id)->exists()
-            || CompetitionExam::where('assessment_id', $assessment->id)->exists();
     }
 
     /**

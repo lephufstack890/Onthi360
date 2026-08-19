@@ -444,19 +444,6 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-archived');
     }
 
-    /**
-     * SỬA 19/8 (Giai đoạn 4) — nút "Duyệt đưa vào kho chung" ở ngay bảng danh sách tab
-     * "Đề/bộ bài" (admin.content.index?tab=assessments), KHÁC assessmentsPublish/Reject/
-     * Archive ở trên vốn redirect về trang chi tiết 1 đề (admin.content.show) — hành động
-     * này bấm thẳng từ bảng danh sách nên quay lại đúng bảng đó, không cần vào chi tiết.
-     */
-    public function assessmentsPromoteToShared(Assessment $assessment): RedirectResponse
-    {
-        $this->contentService->assessmentPromoteToShared($assessment);
-
-        return redirect()->route('admin.content.index', ['tab' => 'assessments'])->with('status', 'assessment-promoted-shared');
-    }
-
     // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
     // Khác assessmentsCreate/Store ở trên (tạo TỪNG đề PDF trống 1 lần) — bulk tạo NHIỀU đề
     // cùng lúc, theo 2 cách: tách từ 1 file PDF lớn theo khoảng trang, hoặc tải nhiều file PDF

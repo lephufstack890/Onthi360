@@ -40,20 +40,7 @@
 
     <a href="{{ route('admin.content.show', $assessment->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
 
-    <x-page-header title="📄 Quản lý đề PDF" :subtitle="$assessment->title">
-        <x-slot:actions>
-            {{-- SỬA 19/8 (Giai đoạn 4 — "Gắn vào học liệu để bán"): đề tạo từ Giai đoạn 1-3
-                 (đề lẻ + Bộ đề) mặc định KHÔNG gắn Product/Material nào — chưa gắn thì chưa
-                 bán/kích hoạt được (vẫn tạo/xem trước bình thường, xem note ở
-                 AttemptService::assertMaterialAccessible()). Link tắt sang màn "Tạo học liệu"
-                 sẵn có (KHÔNG phải màn mới) — tự tiền điền loại "Tham chiếu đề/bộ bài" +
-                 đúng đề này qua query string, xem admin/content/materials/create.blade.php. --}}
-            <a href="{{ route('admin.content.materials.create', ['assessment_id' => $assessment->id]) }}"
-               class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">
-                🔗 Gắn vào học liệu để bán
-            </a>
-        </x-slot:actions>
-    </x-page-header>
+    <x-page-header title="📄 Quản lý đề PDF" :subtitle="$assessment->title" />
 
     @if ($pdfStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $pdfStatusMessage])

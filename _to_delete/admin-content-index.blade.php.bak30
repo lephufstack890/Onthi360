@@ -38,13 +38,8 @@
 
     @if (session('status') === 'assessments-bulk-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo '.session('bulkCreatedCount').' đề PDF — vào từng đề để nhập đáp án.'])
-    @elseif (session('status') === 'assessment-promoted-shared')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đưa đề vào Kho chung.'])
     @elseif (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
-    @endif
-    @if ($errors->any())
-        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <x-tabs :tabs="$tabs" />
@@ -89,16 +84,8 @@
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
                     <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>
-                    <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
+                    <td class="px-4 py-3 text-right">
                         <a href="{{ route('admin.content.show', $r['id']) }}" class="text-rose-600 font-medium">Xem</a>
-                        {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
-                             này — xem ContentService::indexData()/assessmentPromoteToShared(). --}}
-                        @if ($r['canPromoteToShared'] ?? false)
-                            <form method="POST" action="{{ route('admin.content.assessments.promoteShared', $r['id']) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="text-emerald-600 font-medium">Duyệt vào kho chung</button>
-                            </form>
-                        @endif
                     </td>
                 </tr>
             @empty

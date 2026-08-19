@@ -169,17 +169,8 @@ class ContentService
         } elseif ($tab === 'assessments') {
             $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {
                 [$label, $tone] = $this->statusLabel($a->status);
-                $isTeacherOwned = $a->owner_type !== OwnerType::Shared;
 
-                return [
-                    'id' => $a->id, 'title' => $a->title, 'type' => $a->type->value, 'status' => $label, 'tone' => $tone,
-                    'owner' => $isTeacherOwned ? 'GV '.($a->creator->name ?? '') : 'Kho chung',
-                    // SỬA 19/8 (Giai đoạn 4 — "Admin duyệt đưa đề GV ra kho chung"): chỉ đề
-                    // của giáo viên mới cần nút duyệt — đề đã ở Kho chung thì không có gì để
-                    // duyệt thêm (xem assessmentPromoteToShared() bên dưới + nút bấm ở
-                    // admin/content/index.blade.php).
-                    'canPromoteToShared' => $isTeacherOwned,
-                ];
+                return ['id' => $a->id, 'title' => $a->title, 'type' => $a->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $a->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($a->creator->name ?? ''))];
             })->all();
         } elseif ($tab === 'drafts') {
             $documents = $this->pendingDocuments();
@@ -757,32 +748,6 @@ class ContentService
         Assessment::$auditReason = null;
 
         return $assessment;
-    }
-
-    /**
-     * SỬA 19/8 (Giai đoạn 4 — "Admin duyệt đưa đề giáo viên tạo ra kho chung"): trước đây
-     * KHÔNG có cơ chế nào để chuyển 1 đề do giáo viên tạo (owner_type=teacher) sang Kho chung
-     * (owner_type=shared, owner_id=null) — mọi đề GV tạo mãi mãi thuộc riêng GV đó, kể cả khi
-     * chất lượng tốt và Admin muốn dùng chung cho toàn hệ thống. Đây là hành động ĐƠN GIẢN,
-     * chỉ đổi quyền sở hữu — KHÔNG đụng tới questions/materials/product đã gắn kèm (nếu có),
-     * KHÔNG đổi status/version, và KHÔNG xoá created_by (giữ lại để vẫn biết đề này gốc do ai
-     * tạo, hiển thị được ở nơi khác nếu cần — chỉ owner_type/owner_id đổi để đề hiện đúng
-     * "Kho chung" ở tab Đề/bộ bài và các màn chọn đề dùng chung khác).
-     *
-     * Đề đã ở Kho chung rồi (owner_type=shared) thì không có gì để duyệt thêm — chặn sớm bằng
-     * ValidationException thay vì âm thầm no-op, để controller trả lỗi rõ ràng nếu có ai bấm
-     * nhầm/gọi thẳng route (vd 2 tab admin cùng mở, 1 tab đã duyệt xong trước).
-     */
-    public function assessmentPromoteToShared(Assessment $assessment): Assessment
-    {
-        if ($assessment->owner_type === OwnerType::Shared) {
-            throw ValidationException::withMessages(['assessment' => 'Đề này đã ở Kho chung rồi, không cần duyệt thêm.']);
-        }
-
-        return $this->assessments->update($assessment, [
-            'owner_type' => OwnerType::Shared->value,
-            'owner_id' => null,
-        ]);
     }
 
     // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
