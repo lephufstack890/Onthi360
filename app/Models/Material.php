@@ -15,8 +15,8 @@ class Material extends Model
     use HasFactory, Auditable;
 
     /**
-     * Đọc bởi App\Concerns\Auditable — lý do khi admin từ chối/lưu trữ học liệu (10.4,
-     * 16 mục 4). Material KHÔNG có cột deleted_at (không xóa mềm) — "gỡ" một Material khỏi
+     * Đọc bởi App\Concerns\Auditable — lý do khi admin từ chối/lưu trữ học liệu (10.4, 16 mục
+     * 4). Material KHÔNG có cột deleted_at (không xóa mềm) — "gỡ" một Material khỏi
      * lưu hành dùng status=archived, không xóa bản ghi (Table 27 chỉ định nghĩa 4 trạng thái
      * nội dung: nháp/chờ duyệt/phát hành/lưu trữ, không có trạng thái "đã xóa").
      */
@@ -24,6 +24,9 @@ class Material extends Model
 
     protected $fillable = [
         'product_id', 'parent_id', 'type', 'title', 'order', 'assessment_id', 'status',
+        // SỬA 18/8 (Bộ đề, 16/8 mục 5) — chỉ có giá trị khi Material này được hệ thống TỰ
+        // SINH ra từ việc cắt 1 PDF tổng của Bộ đề, xem migration add_page_range_to_materials.
+        'page_from', 'page_to',
     ];
 
     protected $casts = [

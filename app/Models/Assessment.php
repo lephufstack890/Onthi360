@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use App\Concerns\Auditable;
+use App\Enums\AssessmentContentMode;
 use App\Enums\AssessmentType;
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
@@ -24,6 +25,9 @@ class Assessment extends Model
     protected $fillable = [
         'title', 'type', 'total_points', 'duration_minutes', 'resubmission_policy',
         'publish_answer_rule', 'status', 'version', 'owner_type', 'owner_id', 'created_by',
+        // SỬA 18/8 (đề PDF + phiếu đáp án) — xem App\Enums\AssessmentContentMode.
+        'content_mode', 'exam_code', 'pdf_path', 'pdf_original_name', 'solution_pdf_path',
+        'preview_page_from', 'preview_page_to',
     ];
 
     protected $casts = [
@@ -32,6 +36,7 @@ class Assessment extends Model
         'owner_type' => OwnerType::class,
         'publish_answer_rule' => PublishAnswerRule::class,
         'resubmission_policy' => 'array',
+        'content_mode' => AssessmentContentMode::class,
     ];
 
     public function items(): HasMany
@@ -63,5 +68,28 @@ class Assessment extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * SỬA 18/8 — đáp án đúng từng câu của đề PDF (content_mode = pdf_answer_sheet), đánh số
+     * theo đúng thứ tự in trên đề. Rỗng nếu đề dùng content_mode = structured.
+     */
+    public function answerKeys(): HasMany
+    {
+        return $this->hasMany(AssessmentAnswerKey::class)->orderBy('question_no');
+    }
+
+    /**
+     * SỬA 18/8 — các bài lập trình con trong đề PDF (nếu có). Một đề PDF có thể vừa có
+     * answerKeys() (trắc nghiệm/đúng-sai/trả lời ngắn) vừa có codingItems() cùng lúc.
+     */
+    public function codingItems(): HasMany
+    {
+        return $this->hasMany(AssessmentCodingItem::class);
+    }
+
+    public function isPdfMode(): bool
+    {
+        return $this->content_mode === AssessmentContentMode::PdfAnswerSheet;
     }
 }
