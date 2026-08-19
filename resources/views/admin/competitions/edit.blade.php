@@ -155,12 +155,25 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-rose-200 p-6 space-y-3">
-            <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>🗄️</span> Lưu trữ cuộc thi</h3>
-            <p class="text-sm text-slate-500">Không xóa dữ liệu — chỉ chuyển trạng thái "Lưu trữ" (11.1), khớp bước cuối vòng đời cuộc thi.</p>
-            <form method="POST" action="{{ route('admin.competitions.archive', $competition->id) }}" onsubmit="return confirm('Xác nhận lưu trữ cuộc thi này?');">
-                @csrf
-                <button type="submit" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu trữ cuộc thi</button>
-            </form>
+            @if ($competition->status->value === 'archived')
+                {{-- SỬA 19/8: "Lưu trữ" trước đây là hành động MỘT CHIỀU tuyệt đối — bấm nhầm là
+                     kẹt cứng, sửa lại Bắt đầu/Kết thúc phía trên cũng KHÔNG có tác dụng đổi
+                     trạng thái nữa (xem docblock CompetitionService::unarchive()). Giờ thêm nút
+                     này để tự mở lại được, không cần sửa DB tay. --}}
+                <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>🗄️</span> Đã lưu trữ</h3>
+                <p class="text-sm text-slate-500">Cuộc thi đang ở trạng thái "Lưu trữ" — sửa Bắt đầu/Kết thúc ở form bên trên sẽ KHÔNG tự đổi trạng thái, phải bấm "Bỏ lưu trữ" trước.</p>
+                <form method="POST" action="{{ route('admin.competitions.unarchive', $competition->id) }}">
+                    @csrf
+                    <button type="submit" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium">Bỏ lưu trữ (tính lại trạng thái theo giờ)</button>
+                </form>
+            @else
+                <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>🗄️</span> Lưu trữ cuộc thi</h3>
+                <p class="text-sm text-slate-500">Không xóa dữ liệu — chỉ chuyển trạng thái "Lưu trữ" (11.1), khớp bước cuối vòng đời cuộc thi. Sau khi lưu trữ, sửa lại ngày giờ sẽ KHÔNG tự mở lại — phải bấm "Bỏ lưu trữ".</p>
+                <form method="POST" action="{{ route('admin.competitions.archive', $competition->id) }}" onsubmit="return confirm('Xác nhận lưu trữ cuộc thi này?');">
+                    @csrf
+                    <button type="submit" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu trữ cuộc thi</button>
+                </form>
+            @endif
         </div>
     </div>
 @endsection

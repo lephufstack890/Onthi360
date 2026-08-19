@@ -35,6 +35,7 @@
             'competition-created' => 'Đã tạo cuộc thi mới.',
             'competition-updated' => 'Đã lưu thay đổi.',
             'competition-archived' => 'Đã lưu trữ cuộc thi.',
+            'competition-unarchived' => 'Đã bỏ lưu trữ — trạng thái tính lại theo giờ hiện tại.',
             'exam-added' => 'Đã thêm kỳ thi.',
             'exam-updated' => 'Đã cập nhật kỳ thi.',
             'exam-deleted' => 'Đã xoá kỳ thi.',

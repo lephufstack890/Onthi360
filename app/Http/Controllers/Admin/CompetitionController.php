@@ -125,6 +125,14 @@ class CompetitionController extends Controller
         return redirect()->route('admin.competitions.index')->with('status', 'competition-archived');
     }
 
+    /** admin.competitions.unarchive — đảo ngược archive(), xem docblock CompetitionService::unarchive(). */
+    public function unarchive(Request $request, Competition $competition): RedirectResponse
+    {
+        $this->competitionService->unarchive($competition);
+
+        return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-unarchived');
+    }
+
     public function show(Request $request, int $competition): View
     {
         return view('admin.competitions.show', $this->competitionService->showData($competition));

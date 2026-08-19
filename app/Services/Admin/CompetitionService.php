@@ -248,6 +248,33 @@ class CompetitionService
         return $this->competitions->update($competition, ['status' => CompetitionStatus::Archived->value]);
     }
 
+    /**
+     * SỬA 19/8 — admin.competitions.unarchive: đảo ngược archive(). Trước đây "Lưu trữ" là
+     * hành động MỘT CHIỀU tuyệt đối theo đúng chủ đích ban đầu (đã ghi rõ ở archive() — chỉ
+     * "Lưu trữ" mới được phép chọn tay, còn lại đều tự tính theo giờ) — nhưng thực tế phát
+     * sinh: Admin bấm nhầm nút "Lưu trữ cuộc thi" (hoặc lưu trữ để test rồi muốn mở lại) thì
+     * KHÔNG CÓ đường lui nào, cuộc thi kẹt ở "Lưu trữ" vĩnh viễn dù sửa lại starts_at/ends_at
+     * thế nào cũng vô ích (xem update(): $archived truyền vào computeStatusFor() lấy từ
+     * $competition->status CŨ, nên 1 khi đã archived thì mọi lần update() sau đều tiếp tục ép
+     * về archived, không tự "sống lại" theo giờ mới nhập — đây là nguồn gốc thắc mắc "sửa ngày
+     * mà trạng thái không đổi").
+     * KHÔNG có 1 "trạng thái trước khi lưu trữ" nào được lưu riêng để khôi phục — Competition
+     * chỉ có 1 cột status, ghi đè archived là mất trạng thái cũ. Cách đúng để "mở lại" là TÍNH
+     * LẠI trạng thái từ chính starts_at/ends_at/publish_result_at đang có, y hệt lúc save bình
+     * thường (archived=false) — quay lại đúng vòng đời 11.1 tự nhiên từ đây trở đi.
+     */
+    public function unarchive(Competition $competition): Competition
+    {
+        $status = Competition::computeStatusFor(
+            $competition->starts_at,
+            $competition->ends_at,
+            $competition->publish_result_at,
+            false,
+        );
+
+        return $this->competitions->update($competition, ['status' => $status->value]);
+    }
+
     /** @return array{competition: Competition, exams: array, assessmentOptions: array} */
     public function showData(int $competitionId): array
     {

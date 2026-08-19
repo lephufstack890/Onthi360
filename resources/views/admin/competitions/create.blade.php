@@ -107,8 +107,7 @@
                                      :hourValue="old('ends_at_hour')" :minuteValue="old('ends_at_minute')" />
                 <x-date-time-fields name="publish_result_at" label="Công bố kết quả"
                                      :dayValue="old('publish_result_at_day')" :monthValue="old('publish_result_at_month')" :yearValue="old('publish_result_at_year')"
-                                     :hourValue="old('publish_result_at_hour')" :minuteValue="old('publish_result_at_minute')"
-                                     hint="&quot;Chờ công bố&quot; không lộ rank tạm thời nếu quy chế cấm (11.2)." />
+                                     :hourValue="old('publish_result_at_hour')" :minuteValue="old('publish_result_at_minute')" />
             </div>
 
             <p class="text-xs text-slate-400 -mt-2">

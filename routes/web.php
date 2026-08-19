@@ -336,6 +336,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('competitions/{competition}/edit', [AdminCompetitionController::class, 'edit'])->name('competitions.edit');
         Route::put('competitions/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
         Route::post('competitions/{competition}/archive', [AdminCompetitionController::class, 'archive'])->name('competitions.archive');
+        // SỬA 19/8 — đảo ngược archive(), xem docblock CompetitionService::unarchive().
+        Route::post('competitions/{competition}/unarchive', [AdminCompetitionController::class, 'unarchive'])->name('competitions.unarchive');
         Route::get('competitions/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
         // Kỳ thi (vòng) bên trong 1 cuộc thi — 1 Competition có thể gồm nhiều kỳ thi, mỗi
         // kỳ thi có bảng xếp hạng riêng ngoài bảng tổng (xem CompetitionExam, note dual
