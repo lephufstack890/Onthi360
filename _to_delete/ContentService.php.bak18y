@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\AnswerSheetQuestionType;
 use App\Enums\AssessmentContentMode;
 use App\Enums\AssessmentType;
 use App\Enums\ContentStatus;
@@ -10,6 +11,7 @@ use App\Enums\UploadedDocumentStatus;
 use App\Enums\Visibility;
 use App\Models\Assessment;
 use App\Models\AssessmentCodingItem;
+use App\Models\AssessmentCodingTestCase;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
@@ -22,11 +24,12 @@ use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
-use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
 use App\Services\QuestionPublishGuard;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use ZipArchive;
 
 /**
  * Gom truy vấn/nhãn cho admin.content.* (ADM-03, 6.2/6.4/6.5).
@@ -42,15 +45,19 @@ class ContentService
         private QuestionPublishGuard $publishGuard,
         private UploadedDocumentRepositoryInterface $uploadedDocuments,
         private PdfAssessmentPublishGuard $pdfAssessmentGuard,
-        // SỬA 18/8 (2): logic soạn đề PDF (file/đáp án/bài lập trình con) chuyển hết sang
-        // App\Services\PdfAssessmentEditingService — dùng CHUNG với Teacher\AssessmentService
-        // (Giáo viên cũng tải đề PDF riêng, 16/8 mục 1.2) thay vì lặp lại ở 2 nơi.
-        private PdfAssessmentEditingService $pdfEditing,
     ) {}
+
+    // Đề PDF lưu ở disk 'local' (private, giống UploadedDocument — Storage::disk('local'),
+    // xem app/Services/Admin/DocumentImportService.php) — KHÔNG public, phải qua route có
+    // kiểm tra quyền mới tải/xem được (Giai đoạn 4 sẽ gắn kiểm tra AccessRight thật; hiện tại
+    // đã yêu cầu đăng nhập + đúng vai trò qua middleware route như mọi route admin khác).
+    private const PDF_DISK = 'local';
+
+    private const MAX_PDF_KB = 51200; // 50MB — đề scan nhiều trang thường nặng hơn Word/PDF nhập câu hỏi (20MB)
 
     public static function maxPdfKb(): int
     {
-        return PdfAssessmentEditingService::maxPdfKb();
+        return self::MAX_PDF_KB;
     }
 
     private const TYPE_LABELS = [
@@ -745,17 +752,34 @@ class ContentService
     // trên (đó là cho content_mode=structured — gắn Question thật vào assessment_items).
     // Đề PDF không có Question nào cả — chỉ có 1 file PDF + đáp án đúng từng câu
     // (AssessmentAnswerKey) và/hoặc bài lập trình con (AssessmentCodingItem).
-    // SỬA 18/8 (2): toàn bộ xử lý thật đã chuyển sang App\Services\PdfAssessmentEditingService
-    // (dùng chung với Teacher\AssessmentService) — các hàm dưới đây chỉ là lớp mỏng giữ
-    // nguyên tên/route cũ cho AdminContentController, không đổi hành vi.
 
     /** admin.content.assessments.pdf.edit — dữ liệu màn cấu hình đề PDF. */
     public function assessmentPdfFormData(Assessment $assessment): array
     {
-        return $this->pdfEditing->formData($assessment);
+        $assessment->load(['answerKeys', 'codingItems.testCases']);
+
+        return [
+            'assessment' => $assessment,
+            'answerKeys' => $assessment->answerKeys,
+            'codingItems' => $assessment->codingItems,
+            'answerSheetTypes' => [
+                AnswerSheetQuestionType::SingleChoice->value => AnswerSheetQuestionType::SingleChoice->label(),
+                AnswerSheetQuestionType::TrueFalseGroup->value => AnswerSheetQuestionType::TrueFalseGroup->label(),
+                AnswerSheetQuestionType::ShortAnswer->value => AnswerSheetQuestionType::ShortAnswer->label(),
+            ],
+            'publishDecision' => $this->pdfAssessmentGuard->canPublish($assessment),
+        ];
     }
 
-    /** admin.content.assessments.pdf.update. @param  array  $answerKeyRows */
+    /**
+     * admin.content.assessments.pdf.update — lưu file PDF/lời giải (nếu có tải mới), mã đề,
+     * phạm vi xem thử, và THAY TOÀN BỘ đáp án đúng từng câu (xoá hết rồi tạo lại theo đúng
+     * form — cùng cách assessmentItemsUpdate() đang làm cho content_mode=structured, để nhất
+     * quán 1 kiểu xử lý "sync toàn bộ danh sách con" trong cùng service). Không nhận đáp án
+     * qua Excel/CSV — khách đã chốt (16/8 mục 1.2) "đáp án nhập trực tiếp trên form".
+     *
+     * @param  array<int, array{question_no:int, question_type:string, correct_answer:mixed, points:int}>  $answerKeyRows
+     */
     public function assessmentPdfUpdate(
         Assessment $assessment,
         array $data,
@@ -763,29 +787,179 @@ class ContentService
         ?UploadedFile $pdf,
         ?UploadedFile $solutionPdf,
     ): Assessment {
-        return $this->pdfEditing->update($assessment, $data, $answerKeyRows, $pdf, $solutionPdf);
+        $update = [
+            'exam_code' => $data['exam_code'] ?: null,
+            'preview_page_from' => $data['preview_page_from'] ?: null,
+            'preview_page_to' => $data['preview_page_to'] ?: null,
+        ];
+
+        if ($pdf !== null) {
+            $this->deleteStoredFile($assessment->pdf_path);
+            $update['pdf_path'] = $pdf->store('assessments/'.$assessment->id, self::PDF_DISK);
+            $update['pdf_original_name'] = $pdf->getClientOriginalName();
+        }
+
+        if ($solutionPdf !== null) {
+            $this->deleteStoredFile($assessment->solution_pdf_path);
+            $update['solution_pdf_path'] = $solutionPdf->store('assessments/'.$assessment->id, self::PDF_DISK);
+        }
+
+        $assessment->answerKeys()->delete();
+        $answerPoints = 0;
+        foreach ($answerKeyRows as $row) {
+            $points = (int) ($row['points'] ?? 0);
+            $assessment->answerKeys()->create([
+                'question_no' => (int) $row['question_no'],
+                'question_type' => $row['question_type'],
+                'correct_answer' => $row['correct_answer'],
+                'points' => $points,
+            ]);
+            $answerPoints += $points;
+        }
+
+        $codingPoints = (int) $assessment->codingItems()->sum('points');
+        $update['total_points'] = $answerPoints + $codingPoints;
+
+        return $this->assessments->update($assessment, $update);
+    }
+
+    private function deleteStoredFile(?string $path): void
+    {
+        if (filled($path) && Storage::disk(self::PDF_DISK)->exists($path)) {
+            Storage::disk(self::PDF_DISK)->delete($path);
+        }
     }
 
     /** admin.content.assessments.coding-items.store — thêm 1 bài lập trình con vào đề PDF. */
     public function codingItemStore(Assessment $assessment, array $data): AssessmentCodingItem
     {
-        return $this->pdfEditing->codingItemStore($assessment, $data);
+        $item = $assessment->codingItems()->create([
+            'code' => $data['code'],
+            'title' => $data['title'],
+            'pdf_page' => $data['pdf_page'] ?: null,
+            'allowed_languages' => $data['allowed_languages'] ?? ['cpp', 'python'],
+            'time_limit_ms' => $data['time_limit_ms'] ?? 1000,
+            'memory_limit_kb' => $data['memory_limit_kb'] ?? 262144,
+            'points' => $data['points'] ?? 0,
+        ]);
+
+        $this->recomputeCodingTotalPoints($assessment);
+
+        return $item;
     }
 
     public function codingItemUpdate(AssessmentCodingItem $item, array $data): AssessmentCodingItem
     {
-        return $this->pdfEditing->codingItemUpdate($item, $data);
+        $item->update([
+            'code' => $data['code'],
+            'title' => $data['title'],
+            'pdf_page' => $data['pdf_page'] ?: null,
+            'allowed_languages' => $data['allowed_languages'] ?? ['cpp', 'python'],
+            'time_limit_ms' => $data['time_limit_ms'] ?? 1000,
+            'memory_limit_kb' => $data['memory_limit_kb'] ?? 262144,
+            'points' => $data['points'] ?? 0,
+        ]);
+
+        $this->recomputeCodingTotalPoints($item->assessment);
+
+        return $item;
     }
 
     public function codingItemDestroy(AssessmentCodingItem $item): void
     {
-        $this->pdfEditing->codingItemDestroy($item);
+        $assessment = $item->assessment;
+        foreach ($item->testCases as $testCase) {
+            $this->deleteStoredFile($testCase->input_path);
+            $this->deleteStoredFile($testCase->expected_output_path);
+        }
+        $item->delete();
+
+        $this->recomputeCodingTotalPoints($assessment);
     }
 
-    /** admin.content.assessments.coding-items.test-cases.import — tải 1 gói ZIP input/output. */
+    private function recomputeCodingTotalPoints(Assessment $assessment): void
+    {
+        $answerPoints = (int) $assessment->answerKeys()->sum('points');
+        $codingPoints = (int) $assessment->codingItems()->sum('points');
+        $this->assessments->update($assessment, ['total_points' => $answerPoints + $codingPoints]);
+    }
+
+    /**
+     * admin.content.assessments.coding-items.test-cases.import — tải 1 gói ZIP chứa nhiều
+     * cặp file input/output (16/8 mục 1.2: "Test case/tệp kèm theo có thể tải bằng gói ZIP;
+     * đây không phải nhập đáp án bằng Excel/CSV"). Quy ước đặt tên trong ZIP: mỗi cặp cùng
+     * tên, khác đuôi input (.in/.inp/.txt đứng trước theo thứ tự bảng chữ) và output (.out/
+     * .ans) — ghép cặp theo tên gốc (bỏ đuôi) giống nhau. File không ghép được cặp thì bỏ
+     * qua, không chặn cả gói (admin xem lại số cặp đã tạo được sau khi tải xong).
+     */
     public function codingItemImportTestCasesZip(AssessmentCodingItem $item, UploadedFile $zip): int
     {
-        return $this->pdfEditing->codingItemImportTestCasesZip($item, $zip);
+        $zipArchive = new ZipArchive();
+        if ($zipArchive->open($zip->getRealPath()) !== true) {
+            throw ValidationException::withMessages(['test_cases_zip' => 'Không mở được gói ZIP, kiểm tra lại tệp.']);
+        }
+
+        $inputExtensions = ['in', 'inp', 'txt'];
+        $outputExtensions = ['out', 'ans', 'expected'];
+        $entriesByBaseName = [];
+
+        for ($i = 0; $i < $zipArchive->numFiles; $i++) {
+            $name = $zipArchive->getNameIndex($i);
+            if ($name === false || str_ends_with($name, '/')) {
+                continue; // thư mục con trong zip, bỏ qua
+            }
+
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            $base = pathinfo($name, PATHINFO_FILENAME);
+
+            if (in_array($ext, $inputExtensions, true)) {
+                $entriesByBaseName[$base]['input'] = $name;
+            } elseif (in_array($ext, $outputExtensions, true)) {
+                $entriesByBaseName[$base]['output'] = $name;
+            }
+        }
+
+        $order = (int) $item->testCases()->max('order');
+        $created = 0;
+
+        foreach ($entriesByBaseName as $base => $pair) {
+            if (! isset($pair['input'], $pair['output'])) {
+                continue; // thiếu 1 trong 2 vế của cặp — không đoán bừa, bỏ qua cặp này
+            }
+
+            $order++;
+            $storedDir = "assessments/coding-items/{$item->id}/test-case-{$order}";
+
+            $inputContent = $zipArchive->getFromName($pair['input']);
+            $outputContent = $zipArchive->getFromName($pair['output']);
+            if ($inputContent === false || $outputContent === false) {
+                continue;
+            }
+
+            $inputPath = Storage::disk(self::PDF_DISK)->path("{$storedDir}/input.txt");
+            $outputPath = Storage::disk(self::PDF_DISK)->path("{$storedDir}/output.txt");
+            Storage::disk(self::PDF_DISK)->put("{$storedDir}/input.txt", $inputContent);
+            Storage::disk(self::PDF_DISK)->put("{$storedDir}/output.txt", $outputContent);
+
+            AssessmentCodingTestCase::create([
+                'coding_item_id' => $item->id,
+                'order' => $order,
+                'input_path' => "{$storedDir}/input.txt",
+                'expected_output_path' => "{$storedDir}/output.txt",
+                'is_sample' => $created === 0, // cặp đầu tiên trong gói mặc định làm test mẫu
+            ]);
+            $created++;
+        }
+
+        $zipArchive->close();
+
+        if ($created === 0) {
+            throw ValidationException::withMessages([
+                'test_cases_zip' => 'Không tìm thấy cặp input/output hợp lệ trong gói ZIP (đặt tên input/output cùng tên gốc, khác đuôi .in/.out).',
+            ]);
+        }
+
+        return $created;
     }
 
     /** @return array<string, string> */

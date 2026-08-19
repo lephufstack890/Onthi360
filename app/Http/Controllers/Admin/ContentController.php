@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UploadedDocumentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\AssessmentCodingItem;
 use App\Models\Material;
 use App\Models\Question;
 use App\Services\Admin\ContentService;
@@ -418,7 +419,11 @@ class ContentController extends Controller
 
     public function assessmentsPublish(Assessment $assessment): RedirectResponse
     {
-        $this->contentService->assessmentPublish($assessment);
+        $result = $this->contentService->assessmentPublish($assessment);
+
+        if (! $result['ok']) {
+            return redirect()->route('admin.content.show', $assessment->id)->withErrors(['publish' => $result['message']]);
+        }
 
         return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-published');
     }
@@ -437,5 +442,135 @@ class ContentController extends Controller
         $this->contentService->assessmentArchive($assessment, $data['reason']);
 
         return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-archived');
+    }
+
+    // ================= Đề PDF + phiếu đáp án (18/8, 16/8 mục 1.2/5/6) =================
+    // Chỉ áp dụng cho Assessment content_mode=pdf_answer_sheet (mọi type trừ Practice — xem
+    // App\Services\Admin\ContentService::contentModeForType()). Không dùng chung route/hàm
+    // với assessmentsItemsEdit/Update ở trên — đó là cho content_mode=structured (gắn Question
+    // rời), đề PDF không có Question nào cả.
+
+    /** admin.content.assessments.pdf.edit — màn cấu hình PDF + đáp án + bài lập trình con. */
+    public function assessmentsPdfEdit(Assessment $assessment): View
+    {
+        return view('admin.content.assessments.pdf', $this->contentService->assessmentPdfFormData($assessment));
+    }
+
+    /**
+     * admin.content.assessments.pdf.update — lưu mã đề/phạm vi xem thử, thay file PDF/lời
+     * giải nếu có tải mới, và THAY TOÀN BỘ đáp án đúng từng câu (khách chốt 16/8 mục 1.2:
+     * "đáp án nhập trực tiếp trên form", KHÔNG làm nhập bằng Excel/CSV).
+     */
+    public function assessmentsPdfUpdate(Request $request, Assessment $assessment): RedirectResponse
+    {
+        $data = $request->validate([
+            'exam_code' => ['nullable', 'string', 'max:60', 'unique:assessments,exam_code,'.$assessment->id],
+            'preview_page_from' => ['nullable', 'integer', 'min:1'],
+            'preview_page_to' => ['nullable', 'integer', 'min:1', 'gte:preview_page_from'],
+            'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+            'solution_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+            'answer_keys' => ['nullable', 'array'],
+            'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
+            'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false_group,short_answer'],
+            'answer_keys.*.correct_answer' => ['required_with:answer_keys'],
+            'answer_keys.*.points' => ['nullable', 'integer', 'min:0'],
+        ], [], [
+            'exam_code' => 'Mã đề',
+            'pdf' => 'Tệp PDF đề',
+            'solution_pdf' => 'Tệp PDF lời giải',
+        ]);
+
+        $answerKeyRows = array_map(
+            fn (array $row) => $row + ['correct_answer' => $this->normalizeAnswerSheetValue($row['question_type'], $row['correct_answer'])],
+            $data['answer_keys'] ?? [],
+        );
+
+        $this->contentService->assessmentPdfUpdate(
+            $assessment,
+            $data,
+            $answerKeyRows,
+            $request->file('pdf'),
+            $request->file('solution_pdf'),
+        );
+
+        return redirect()->route('admin.content.assessments.pdf.edit', $assessment->id)->with('status', 'assessment-pdf-updated');
+    }
+
+    /**
+     * Chuẩn hoá $correct_answer thô từ form (mọi giá trị đều là string/array of string, HTML
+     * form không tự biết kiểu) về đúng hình dạng App\Models\AssessmentAnswerKey::isCorrect()
+     * mong đợi theo từng question_type — quan trọng nhất là true_false_group: input đến từ
+     * checkbox qua field ẩn ("1"/"0" dạng chuỗi) phải đổi thành bool thật, nếu không phép so
+     * sánh !== trong trueFalseGroupMatches() sẽ luôn sai kiểu dù đúng giá trị.
+     */
+    private function normalizeAnswerSheetValue(string $questionType, mixed $raw): mixed
+    {
+        return match ($questionType) {
+            'single_choice' => strtoupper(trim((string) $raw)),
+            'short_answer' => trim((string) $raw),
+            'true_false_group' => collect((array) $raw)->mapWithKeys(
+                fn ($v, $k) => [$k => (bool) ((int) $v)]
+            )->all(),
+            default => $raw,
+        };
+    }
+
+    /** admin.content.assessments.coding-items.store — thêm 1 bài lập trình con vào đề PDF. */
+    public function assessmentsCodingItemsStore(Request $request, Assessment $assessment): RedirectResponse
+    {
+        $data = $request->validate($this->codingItemRules(), [], ['code' => 'Mã bài']);
+
+        $this->contentService->codingItemStore($assessment, $data);
+
+        return redirect()->route('admin.content.assessments.pdf.edit', $assessment->id)->with('status', 'coding-item-created');
+    }
+
+    public function assessmentsCodingItemsUpdate(Request $request, AssessmentCodingItem $codingItem): RedirectResponse
+    {
+        $data = $request->validate($this->codingItemRules(), [], ['code' => 'Mã bài']);
+
+        $this->contentService->codingItemUpdate($codingItem, $data);
+
+        return redirect()->route('admin.content.assessments.pdf.edit', $codingItem->assessment_id)->with('status', 'coding-item-updated');
+    }
+
+    public function assessmentsCodingItemsDestroy(AssessmentCodingItem $codingItem): RedirectResponse
+    {
+        $assessmentId = $codingItem->assessment_id;
+        $this->contentService->codingItemDestroy($codingItem);
+
+        return redirect()->route('admin.content.assessments.pdf.edit', $assessmentId)->with('status', 'coding-item-deleted');
+    }
+
+    private function codingItemRules(): array
+    {
+        return [
+            'code' => ['required', 'string', 'max:40'],
+            'title' => ['required', 'string', 'max:255'],
+            'pdf_page' => ['nullable', 'integer', 'min:1'],
+            'allowed_languages' => ['nullable', 'array'],
+            'allowed_languages.*' => ['string', 'in:cpp,python'],
+            'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
+            'memory_limit_kb' => ['nullable', 'integer', 'min:16384', 'max:1048576'],
+            'points' => ['nullable', 'integer', 'min:0'],
+        ];
+    }
+
+    /**
+     * admin.content.assessments.coding-items.test-cases.import — tải gói ZIP chứa nhiều cặp
+     * file input/output cho 1 bài lập trình con (16/8 mục 1.2 — không phải nhập đáp án bằng
+     * Excel/CSV, chỉ là tệp kèm theo cho việc chấm code).
+     */
+    public function assessmentsCodingItemsTestCasesImport(Request $request, AssessmentCodingItem $codingItem): RedirectResponse
+    {
+        $request->validate([
+            'test_cases_zip' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxPdfKb()],
+        ], [], ['test_cases_zip' => 'Gói ZIP test case']);
+
+        $created = $this->contentService->codingItemImportTestCasesZip($codingItem, $request->file('test_cases_zip'));
+
+        return redirect()->route('admin.content.assessments.pdf.edit', $codingItem->assessment_id)
+            ->with('status', 'test-cases-imported')
+            ->with('testCasesImportedCount', $created);
     }
 }

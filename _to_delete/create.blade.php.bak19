@@ -2,12 +2,6 @@
   Route: admin.content.assessments.create / .store
   Spec: 6.1/6.3 (đề/bộ bài). Phạm vi cố ý chỉ gồm metadata — gắn câu hỏi vào đề là luồng
   riêng của giáo viên khi soạn đề, không lặp lại ở đây (xem ContentService).
-  SỬA 19/8 (đề PDF, 16/8 mục 1.2): content_mode do "Loại" quyết định TỰ ĐỘNG, không có ô
-  chọn riêng — chỉ "Luyện tập" giữ mô hình câu hỏi rời cũ, còn lại (Bài giao/Đề thi/Đề thi
-  đấu) đều chuyển sang PDF + phiếu đáp án (App\Services\Admin\ContentService::
-  contentModeForType()). Thêm ghi chú rõ ràng ở đây vì trước đó "Loại" mặc định là
-  "Luyện tập" — nếu admin không đổi dễ tạo nhầm đề Structured rồi thắc mắc "không thấy chỗ
-  tải PDF" (đúng lỗi đã gặp 19/8) trong khi thực ra PDF nằm ở MÀN SAU, không phải ở đây.
 --}}
 @extends('layouts.admin')
 
@@ -19,17 +13,11 @@
 
     <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nội dung</a>
 
-    <x-page-header title="📄 Tạo đề/bộ bài" subtitle="Chỉ tạo thông tin chung của đề — nội dung (câu hỏi rời hoặc PDF + đáp án) hoàn thiện ở màn sau khi lưu." />
+    <x-page-header title="📄 Tạo đề/bộ bài" subtitle="Chỉ tạo thông tin chung của đề — gắn danh sách câu hỏi vào đề thực hiện ở màn soạn đề của giáo viên." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
-
-    <div class="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 mb-4">
-        <strong>Lưu ý chọn đúng "Loại":</strong> chỉ <strong>Luyện tập</strong> dùng câu hỏi rời từ Kho câu hỏi (màn "Quản lý câu hỏi" sau khi tạo).
-        Còn lại — <strong>Bài giao, Đề thi, Đề thi đấu</strong> — đều chuyển sang chế độ <strong>tải file PDF + nhập đáp án</strong> (màn "Quản lý đề PDF" sau khi tạo, không phải ở đây).
-        Chọn nhầm "Loại" thì phải sửa lại đúng Loại rồi lưu lại mới đổi chế độ.
-    </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
         <form method="POST" action="{{ route('admin.content.assessments.store') }}" class="space-y-4">
@@ -49,7 +37,6 @@
                             <option value="{{ $value }}" @selected(old('type', 'practice') === $value)>{{ $label }}</option>
                         @endforeach
                     </x-select>
-                    <p class="text-[11px] text-slate-400 mt-1">"Luyện tập" = câu hỏi rời · Còn lại = PDF + đáp án.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>
@@ -76,7 +63,7 @@
             </div>
 
             <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
-                Đề luôn tạo ở trạng thái <span class="font-medium">Nháp</span> — sau khi lưu sẽ vào trang chi tiết, kéo xuống để thấy đúng màn hoàn thiện nội dung (câu hỏi hoặc PDF) rồi mới Phát hành.
+                Đề luôn tạo ở trạng thái <span class="font-medium">Nháp</span> — vào trang chi tiết để phát hành sau.
             </div>
 
             <div class="flex gap-3 pt-2">

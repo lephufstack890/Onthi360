@@ -103,6 +103,45 @@
                     <p class="text-xs text-slate-400 mb-2">Mã: {{ $model->code }} · Điểm: {{ $model->points }} · Phiên bản: v{{ $model->version }}</p>
                     <div class="rich-content text-sm text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
                 </div>
+            @elseif ($type === 'assessment' && $model && $model->isPdfMode())
+                {{-- SỬA 18/8 (đề PDF + phiếu đáp án, 16/8 mục 1.2): content_mode=pdf_answer_sheet
+                     không có Question nào để liệt kê — thay bằng tóm tắt PDF/mã đề/đáp án/bài
+                     lập trình + nút sang màn cấu hình riêng (admin.content.assessments.pdf.edit). --}}
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                    <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
+                    <p>Thời gian làm bài: {{ $model->duration_minutes ? $model->duration_minutes.' phút' : 'Không giới hạn' }}</p>
+                    <p>Mã đề: {{ $model->exam_code ?: '— chưa đặt' }}</p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📄</span> Đề PDF + phiếu đáp án</h2>
+                        <a href="{{ route('admin.content.assessments.pdf.edit', $model->id) }}" class="text-sm text-rose-600 font-medium">Quản lý đề PDF ›</a>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <p class="text-xs text-slate-400">File PDF đề</p>
+                            <p class="text-sm font-medium {{ $model->pdf_path ? 'text-emerald-600' : 'text-amber-600' }}">{{ $model->pdf_path ? 'Đã tải' : 'Chưa tải' }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <p class="text-xs text-slate-400">PDF lời giải</p>
+                            <p class="text-sm font-medium {{ $model->solution_pdf_path ? 'text-emerald-600' : 'text-slate-400' }}">{{ $model->solution_pdf_path ? 'Đã tải' : 'Chưa có' }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <p class="text-xs text-slate-400">Câu đáp án</p>
+                            <p class="text-sm font-medium text-slate-700">{{ $model->answerKeys->count() }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <p class="text-xs text-slate-400">Bài lập trình</p>
+                            <p class="text-sm font-medium text-slate-700">{{ $model->codingItems->count() }}</p>
+                        </div>
+                    </div>
+
+                    @if ($model->pdf_path && (!is_null($model->preview_page_from) || !is_null($model->preview_page_to)))
+                        <p class="text-xs text-slate-400 mt-3">Xem thử: trang {{ $model->preview_page_from ?? 1 }} – {{ $model->preview_page_to ?? '?' }}</p>
+                    @endif
+                </div>
             @elseif ($type === 'assessment' && $model)
                 @php $assessmentTypeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻']; @endphp
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
