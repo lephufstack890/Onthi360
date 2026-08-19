@@ -1,16 +1,9 @@
-{{--
-  Route: admin.ranking.index / .show
-  Spec: 11.2 (phạm vi rõ: cuộc thi/lớp/chuyên đề; nêu công thức điểm; Chờ công bố không lộ rank tạm).
-  $boards do App\Services\Admin\RankingService::indexData() truyền vào, mỗi board có
-  type=competition|class + scopeId để dựng link Xem/Cấu hình.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Bảng xếp hạng')
 @section('page-title', 'Bảng xếp hạng')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\RankingController truyền vào. --}}
     @php
         $boards = $boards ?? [];
     @endphp

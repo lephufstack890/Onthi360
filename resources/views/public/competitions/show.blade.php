@@ -1,17 +1,3 @@
-{{--
-  Route: competitions.show | Frame: PUB-08
-  Spec: 11.1 (banner, thời gian, đối tượng, thể lệ, cấu trúc đề, countdown,
-  CTA theo trạng thái, kết quả) + note họp 13/8 mục 1 (đơn vị tổ chức/cố vấn).
-  Dữ liệu thật do App\Http\Controllers\Public\CompetitionController truyền vào qua
-  App\Services\Public\CompetitionService::showData() — countdown tính bằng Carbon từ thời
-  điểm request (không cần JS), ảnh bìa dùng picsum.photos tạm.
-  $examSittings (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi kỳ
-  có trạng thái RIÊNG tự tính theo giờ hiện tại (upcoming/ongoing/ended — xem
-  CompetitionExam::computedStatus()) + CTA riêng theo trạng thái đó; cuộc thi cũ (trước tính
-  năng này) đã được backfill 1 kỳ thi từ assessment_id cũ nên hầu như luôn có ít nhất 1 phần
-  tử — trường hợp rỗng (cuộc thi mới tạo, chưa thêm kỳ thi nào) vẫn giữ CTA đơn cũ để không
-  có khoảng trống.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Chi tiết cuộc thi')

@@ -1,9 +1,3 @@
-{{--
-  Route: teacher.schedule.index | Frame: TEA-01/02
-  Spec: 8.2 "Lớp học: ... lịch, điểm danh, thông báo" — lịch buổi học xuyên TẤT CẢ các lớp
-  giáo viên phụ trách, sắp tới trước. Dữ liệu thật do
-  App\Http\Controllers\Teacher\ScheduleController truyền vào qua ScheduleService.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Lịch')

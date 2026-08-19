@@ -1,14 +1,3 @@
-{{--
-  Route: register (GET) / POST register.
-  Frame: ACC-01. Vai trò ban đầu do người dùng chọn (3.1) — chỉ Học sinh/
-  Phụ huynh/Giáo viên được tự đăng ký; Admin/Editor/Super Admin KHÔNG có ở
-  đây, chỉ tạo được qua khu quản trị (App\Services\Admin\UserService), xem
-  App\Services\Auth\AuthService::SELF_REGISTERABLE_ROLES. Chọn Giáo viên sẽ
-  tạo hồ sơ ở trạng thái "Chờ duyệt" (3.3) — vào thẳng hàng đợi
-  admin.teacher-approvals, chưa mua/dạy được gì cho tới khi Admin duyệt.
-  UI: 2 cột trên desktop (panel giới thiệu đổi theo vai trò đang chọn +
-  form), chỉ hiện form trên mobile. Không đổi tên field/route.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Đăng ký')
@@ -17,7 +6,6 @@
 <div class="bg-gradient-to-br from-rose-50 via-white to-sky-50 min-h-[calc(100vh-4rem)]" x-data="{ role: '{{ old('role', 'student') }}' }">
     <div class="max-w-6xl mx-auto px-4 py-12 lg:py-20">
         <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            {{-- Panel giới thiệu — nội dung đổi theo vai trò đang chọn bên form --}}
             <div class="hidden lg:block">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-rose-600 text-xs font-medium shadow-sm">✨ Tham gia Ôn Thi 360</span>
 

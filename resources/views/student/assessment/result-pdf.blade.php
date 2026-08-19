@@ -1,17 +1,3 @@
-{{--
-  Route: student.assessment.result | Frame: STU-08/09 (Giai đoạn 2 — đề PDF, 16/8 mục 1.2/6)
-  Nhánh riêng của result.blade.php cho đề content_mode=pdf_answer_sheet — chọn view này thay
-  vì result.blade.php ở App\Http\Controllers\Student\AssessmentController::result() dựa vào
-  $isPdfMode do App\Services\Student\AssessmentService::buildPdfResultData() trả về. Giữ đúng
-  bố cục/giọng điệu "thân thiện" của result.blade.php (khối điểm to + lời động viên theo mức
-  điểm + CTA đánh giá cuối trang) — chỉ tách riêng 2 bảng chi tiết (trắc nghiệm/đúng-sai/trả
-  lời ngắn VÀ bài lập trình) vì 2 luồng dữ liệu khác nhau (answerBreakdown/codingBreakdown),
-  và thêm link xem lại đề/lời giải PDF.
-
-  $attemptModel, $isFinal, $score, $total, $answerBreakdown, $codingBreakdown, $examUrl,
-  $solutionUrl, $eligibleForReview, $reviewType, $reviewTargetId do App\Http\Controllers\
-  Student\AssessmentController truyền vào.
---}}
 @extends('layouts.student')
 
 @section('title', 'Kết quả')

@@ -1,17 +1,3 @@
-{{--
-  Route: admin.competitions.show
-  Spec: 11.1 (vòng đời cuộc thi) + 11.2 (bảng xếp hạng — phạm vi rõ, không trộn số liệu khác phạm vi)
-  + note họp 13/8, mục 1 (đơn vị tổ chức + cố vấn/đồng hành cho cuộc thi bên ngoài).
-  $competition (Eloquent thật, withCount('leaderboardEntries'), with(['assessment', 'advisors'])) +
-  $exams/$assessmentOptions (kỳ thi bên trong cuộc thi — App\Models\CompetitionExam) do
-  CompetitionController::show() truyền vào qua CompetitionService::showData()/examSittingsData().
-  Mỗi kỳ thi có bảng xếp hạng riêng (scope=competition_exam); nút "Tính tổng từ các kỳ thi"
-  cộng điểm mọi kỳ thi theo user_id thành bảng TỔNG (scope=competition) — xem
-  CompetitionService::recomputeAggregateFromExams().
-  Trạng thái ở đây dùng $competition->computedStatus() (tự tính theo giờ hiện tại từ
-  starts_at/ends_at/publish_result_at) thay vì cột status lưu sẵn — luôn đúng dù lâu chưa ai
-  sửa cuộc thi để cột được ghi lại (xem App\Models\Competition::computedStatus()).
---}}
 @extends('layouts.admin')
 
 @section('title', $competition->title)

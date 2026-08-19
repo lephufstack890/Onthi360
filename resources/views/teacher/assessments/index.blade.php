@@ -1,9 +1,3 @@
-{{--
-  Route: teacher.assessments.index | Frame: TEA-04
-  Spec: 6.3 (đề trộn nhiều kiểu câu) + 8.4 (Giao đề: state Nháp → Đã lên lịch →
-  Đang mở → Đã đóng → Đã lưu trữ, ở cấp Assignment sau khi giao cho lớp).
-  Dữ liệu thật do App\Services\Teacher\AssessmentService::listForTeacher() truyền vào.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Bài tập & Đề')

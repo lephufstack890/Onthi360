@@ -1,11 +1,3 @@
-{{--
-  Route: materials.index | Frame: PUB-05
-  Spec: 4.1/4.3 (Tài liệu = tabs Sách/Chuyên đề/Đề thi; Đề thi không là menu riêng).
-  Dữ liệu thật do App\Http\Controllers\Public\MaterialController truyền vào qua
-  App\Services\Public\MaterialService::indexData() — ảnh bìa dùng picsum.photos tạm (x-card-item).
-  "Tic xanh" (4.1) trên thẻ = $m['owned'] (đã sở hữu quyền học cá nhân còn hiệu lực cho tài
-  liệu này) — luôn false với khách chưa đăng nhập.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Tài liệu')

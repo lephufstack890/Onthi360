@@ -1,13 +1,3 @@
-{{--
-  Route: teacher.assessments.reviewDraft | Frame: TEA-05 (rà soát)
-  Spec: 6.4 — xem song song tệp gốc/câu tách, gắn cờ vùng nhận dạng kém,
-  thêm-xóa-gộp-tách-đổi thứ tự câu, sửa nội dung/đáp án/điểm, chọn dạng,
-  thêm metadata/cấu hình OJ. Không cho xuất bản khi còn thiếu điều kiện.
-  Dữ liệu thật ($document, $drafts) do App\Http\Controllers\Teacher\
-  AssessmentController truyền vào qua App\Services\Teacher\AssessmentService::
-  reviewDraftFor(). Mỗi câu có form riêng lưu ngay khi bấm "Lưu câu này" (POST
-  teacher.assessments.drafts.update) — không có nút "lưu tất cả" gộp chung.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Rà soát đề nhập')

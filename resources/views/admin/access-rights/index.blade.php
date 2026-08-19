@@ -1,18 +1,9 @@
-{{--
-  Route: admin.access-rights.index
-  Spec: 7.1–7.5 (quyền học cá nhân / quyền dạy đa lớp).
-  Bất biến (docs/ARCHITECTURE.md mục 4): AccessRight chỉ tạo ở
-  OrderActivationService::activate(); class_limit của teacher_teaching
-  luôn null.
-  TODO controller: truyền $rights (paginate) với filter scope/status.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Quyền truy cập')
 @section('page-title', 'Quyền truy cập đã cấp')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\AccessRightController truyền vào. --}}
     @php
         $tabs = $tabs ?? [];
         $rights = $rights ?? [];

@@ -1,21 +1,3 @@
-{{--
-  Route: leaderboard.index | Frame: PUB-09
-  Spec: 11.2 (phạm vi rõ — không trộn cuộc thi khác nhau trên cùng bảng; "Chờ công bố"
-  không lộ rank tạm; ẩn danh tên/ảnh mặc định để bảo vệ dữ liệu trẻ em; nêu công thức
-  điểm/penalty/đồng điểm/thời điểm cập nhật). Dữ liệu thật do
-  App\Http\Controllers\Public\LeaderboardController truyền vào qua
-  App\Services\Public\LeaderboardService — dựa trên bảng leaderboard_entries đã có sẵn
-  (App\Services\Admin\RankingService dùng cùng nguồn cho trang quản trị).
-
-  Không còn bộ lọc "Tuần này/Tháng này" giả — BA không yêu cầu và không có dữ liệu lịch sử
-  để lọc theo. Thay bằng bộ chọn CUỘC THI thật (đúng khái niệm "phạm vi" của 11.2). Không
-  còn mũi tên tăng/giảm hạng giả — leaderboard_entries chỉ lưu rank hiện tại, không có
-  rank kỳ trước để so sánh thật.
-
-  $examTabs/$selectedExamId (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ
-  thi, mỗi kỳ có bảng xếp hạng RIÊNG ngoài bảng TỔNG (mặc định) — hàng tab thứ 2 chỉ hiện
-  khi cuộc thi đang chọn có kỳ thi.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Bảng xếp hạng')

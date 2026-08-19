@@ -1,12 +1,3 @@
-{{--
-  Route: admin.competitions.edit / .update / .archive
-  Dữ liệu thật ($competition, $types, $statuses, $assessmentOptions, $organizerTypes,
-  $teacherOptions, $selectedAdvisorIds) do CompetitionController::edit() truyền vào qua
-  CompetitionService::editFormData(). Slug KHÔNG cho sửa (giữ SEO/link công khai, giống
-  Course/Product). Đơn vị tổ chức + cố vấn: note họp 13/8, mục 1.
-  Bắt đầu/Kết thúc/Công bố kết quả dùng x-date-time-fields (Ngày + Giờ tách riêng) thay cho
-  <input type="datetime-local"> gộp — xem resources/views/components/date-time-fields.blade.php.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa cuộc thi')

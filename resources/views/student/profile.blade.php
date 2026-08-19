@@ -1,10 +1,3 @@
-{{--
-  Route: student.profile / student.profile.update | Frame: STU-11 (phần hồ sơ + liên kết phụ huynh)
-  Dữ liệu thật ($user, $parentLinks) do App\Http\Controllers\Student\ProfileController
-  truyền vào. Form "Thông tin cá nhân" lưu qua App\Services\Student\ProfileService::
-  updateProfile() (tên/SĐT/tỉnh thành/khu vực — note họp 13/8, mục 2: "để quảng cáo cho giáo
-  viên"). Trường "Trường/lớp hiện tại" chưa có cột lưu trữ tương ứng — để trống, không submit.
---}}
 @extends('layouts.student')
 
 @section('title', 'Hồ sơ')

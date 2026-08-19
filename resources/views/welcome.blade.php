@@ -1,21 +1,3 @@
-{{--
-  Route: home | Frame: PUB-01/02
-  Spec: 12.1 (cấu trúc trang chủ: hero → lộ trình → năng lực chấm →
-  khóa/tài liệu nổi bật → cuộc thi → giáo viên tiêu biểu → cam kết/FAQ).
-
-  Dữ liệu $stats/$featuredCourses/$featuredMaterials/$upcomingCompetitions/
-  $featuredTeachers/$faqs do App\Http\Controllers\Public\HomeController
-  truyền vào (App\Services\Public\HomeService) — trước đây view này TỰ khai
-  báo mảng dữ liệu minh họa cứng, không có Controller/Service thật nào đứng
-  sau route 'home'. "Nổi bật" = TOP N thật của chính danh mục công khai
-  (khóa học/tài liệu/cuộc thi/giáo viên vinh danh), có thể RỖNG với một hệ
-  thống mới triển khai — mỗi khối tự ẩn khi chưa có dữ liệu thay vì hiện
-  khung trống xấu trên 1 trang bán hàng công khai.
-
-  Ảnh minh họa (hero, x-card-item) vẫn là ẢNH DEMO TẠM (picsum.photos /
-  ui-avatars.com, seed cố định theo tên nên không đổi mỗi lần tải lại) —
-  thay bằng ảnh thật khi có nội dung/CDN riêng.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Trang chủ')

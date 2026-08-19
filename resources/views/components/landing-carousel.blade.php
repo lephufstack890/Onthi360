@@ -1,26 +1,3 @@
-{{--
-  Khối carousel giới thiệu ý tưởng sản phẩm cho khách hàng ngay từ trang
-  chủ — 4 slide: Lộ trình · Tài liệu · Cam kết · Tư tưởng.
-  Nội dung bám đúng BA spec (không dùng nội dung mẫu chung như AI
-  chatbot/Ví & Token — những thứ đó ngoài phạm vi P0, xem spec mục 1.4):
-    - Lộ trình: 12.1 mục 3 (chọn khối/mục tiêu → khóa/lớp → luyện tập → tiến bộ)
-    - Tài liệu: 5.1 + 7.1 (Sách/Chuyên đề/Đề thi, quyền học có thời hạn rõ ràng)
-    - Cam kết: 2.2 nguyên tắc thiết kế (nêu đúng lý do, không hứa năng lực chưa có, bảo vệ dữ liệu trẻ em)
-    - Tư tưởng: 1.2 giá trị cốt lõi ("Học rõ hơn — Tiến bộ nhanh hơn")
-
-  Carousel dùng CSS scroll-snap thuần + vanilla JS (không thêm thư viện
-  ngoài) — kéo tay/vuốt mobile hoạt động sẵn nhờ scroll-snap, nút mũi tên
-  chỉ gọi scrollBy(). @once đảm bảo script chỉ in ra 1 lần dù component
-  được dùng nhiều nơi.
-
-  Lưu ý sửa lỗi (đã gặp thực tế: "slider mục này không slide được" trên màn
-  hình lớn): trước đây mỗi thẻ ở màn lg rộng đúng calc(25% - 12px), tức 4
-  thẻ * 25% = 100% container — KHÍT VỪA ĐỦ 4 thẻ, không hề dư ra để cuộn,
-  nên nút mũi tên bấm không có tác dụng gì (scrollBy() nhưng chẳng có gì để
-  scroll) và vuốt/kéo cũng không di chuyển được. Đổi sang 30% (4 × 30% =
-  120% > 100%) để LUÔN dư ra ở mọi kích thước màn hình lớn, đảm bảo carousel
-  luôn thật sự cuộn được thay vì chỉ là 4 ô tĩnh xếp cạnh nhau.
---}}
 @props(['id' => 'landing-carousel'])
 
 @php
@@ -92,7 +69,6 @@
         @endforeach
     </div>
 
-    {{-- Chấm điều hướng — chỉ mang tính minh họa vị trí, không bind JS phức tạp để giữ nhẹ --}}
     <div class="flex justify-center gap-1.5 mt-4">
         @foreach ($slides as $s)
             <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>

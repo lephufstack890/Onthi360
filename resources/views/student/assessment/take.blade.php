@@ -1,26 +1,3 @@
-{{--
-  Route: student.assessment.take | Frame: STU-05
-  Spec: 6.3 (đề hỗn hợp) + 10.1 (không gian làm bài) + yêu cầu ngày 18/8: xây lại cho đẹp/thân
-  thiện, có đồng hồ đếm ngược CHẠY THẬT như thi thật, hết giờ thì tự khoá + tự nộp.
-  $assessmentModel, $attempt, $questions, $deadlineAt, $serverNow do App\Services\Student\
-  AssessmentService::buildTakeData() truyền vào.
-
-  Trước đây trang này KHÔNG có đồng hồ đếm ngược nào (chỉ hiện tĩnh "⏱ 60 phút" không chạy),
-  và câu trả lời chỉ lưu khi bấm tay nút "Lưu nháp" (không có auto-save thời gian thực dù
-  spec ghi rõ "câu trả lời được lưu ngay khi trả lời"). Giờ:
-  - Đồng hồ đếm ngược CHẠY THẬT, tính từ 2 mốc giờ MÁY CHỦ ($deadlineAt/$serverNow, KHÔNG
-    dùng đồng hồ máy học sinh — 16 mục 3) — ẩn hẳn nếu đề không giới hạn thời gian.
-  - Mỗi câu trả lời tự lưu qua fetch() JSON (debounce cho ô nhập chữ, tức thì cho trắc
-    nghiệm) tới ĐÚNG route cũ student.assessment.take.save — route/logic lưu nháp giữ
-    nguyên, chỉ thêm nhánh trả JSON khi request Accept: application/json (xem
-    App\Http\Controllers\Student\AssessmentController::saveAnswers()).
-  - Hết giờ (đếm ngược về 0 HOẶC server báo "expired" khi tự lưu) → khoá toàn bộ input, hiện
-    lớp phủ "Hết giờ, đang nộp bài..." rồi tự nộp qua chính <form> POST thật (KHÔNG phải chỉ
-    hiệu ứng phía client — server luôn tự chấm dứt lượt làm bài quá hạn dù JS có chạy hay
-    không, xem App\Services\AttemptService::isExpired()/finalizeIfExpired()).
-  - Không hiện đúng/sai ngay lúc tự lưu (dù MCQ/điền đáp án được CHẤM NGAY ở server) — giữ
-    đúng cảm giác "thi thật", điểm/kết quả chỉ công bố sau khi nộp ở trang kết quả.
---}}
 @extends('layouts.student')
 
 @section('title', 'Làm bài')

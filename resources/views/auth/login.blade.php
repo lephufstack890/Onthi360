@@ -1,9 +1,3 @@
-{{--
-  Route: login (GET hiển thị form) / POST login (xử lý đăng nhập).
-  Frame: ACC-01. TODO: thêm SSO/số điện thoại khi 18 mục 1 được chốt.
-  UI: 2 cột trên desktop (panel giới thiệu + form), chỉ hiện form trên
-  mobile. Không đổi tên field/route — chỉ chỉnh UI theo yêu cầu người dùng.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Đăng nhập')
@@ -12,7 +6,6 @@
 <div class="bg-gradient-to-br from-sky-50 via-white to-rose-50 min-h-[calc(100vh-4rem)]">
     <div class="max-w-6xl mx-auto px-4 py-12 lg:py-20">
         <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            {{-- Panel giới thiệu — chỉ desktop, giữ mobile gọn để vào form ngay --}}
             <div class="hidden lg:block">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-rose-600 text-xs font-medium shadow-sm">👋 Chào mừng trở lại</span>
                 <h1 class="text-3xl font-semibold text-slate-800 mt-5 leading-snug">

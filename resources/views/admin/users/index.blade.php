@@ -1,15 +1,9 @@
-{{--
-  Route: admin.users.index | Frame: ADM-02
-  Spec: 10.4 + 3.1/3.2 (vai trò & ma trận quyền).
-  TODO controller: truyền $users (paginate) đã eager-load roles; $tab hiện tại.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Người dùng')
 @section('page-title', 'Người dùng')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\UserController truyền vào. --}}
     @php
         $tab = $tab ?? 'all';
         $tabs = $tabs ?? [];

@@ -1,12 +1,3 @@
-{{--
-  Route: admin.users.create / admin.users.store
-  Spec: ADM-02 + 4.3 (đa vai trò — chọn nhiều vai trò ngay lúc tạo). Chọn vai trò "teacher"
-  vẫn tạo hồ sơ giáo viên ở trạng thái "Chờ duyệt" (3.3, xem UserService::store()) — không có
-  lối tắt bỏ qua bước duyệt chỉ vì tài khoản do admin tạo trực tiếp. Tỉnh thành/khu vực (note
-  họp 13/8, mục 2: "để quảng cáo cho giáo viên") tùy chọn, có thể bổ sung sau ở trang Sửa.
-  Dữ liệu thật ($availableRoles) do UserController::create() truyền vào qua
-  UserService::createFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Thêm người dùng')

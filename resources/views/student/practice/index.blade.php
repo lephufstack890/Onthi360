@@ -1,26 +1,3 @@
-{{--
-  Route: student.practice.index | Frame: STU-04
-  Spec: 10.1 — Tabs Tự luyện · Theo lớp · Bài được giao · Đã lưu · Lịch sử.
-  Bộ lọc: môn, khối, chuyên đề, độ khó, loại câu/đề, trạng thái, quyền.
-  Dữ liệu thật do App\Http\Controllers\Student\PracticeController truyền vào.
-
-  SỬA 18/8: trước đây 4 nút lọc dưới đây chỉ là UI tĩnh, không lọc được gì thật (xem TODO cũ).
-  Giờ lọc thật theo 2 chiều có dữ liệu sẵn (App\Services\Student\PracticeService::
-  buildIndexData() — xem docblock ở đó để biết vì sao "chuyên đề" tạm dùng tên
-  App\Models\QuestionBank thay vì 1 bảng Tag/Chuyên đề riêng, hệ thống chưa có):
-  - $type: lọc đề có ít nhất 1 câu hỏi đúng dạng (Lập trình/Trắc nghiệm/Điền đáp án).
-  - $topic: lọc theo "chuyên đề" (tên ngân hàng câu hỏi) — chỉ hiện các chip khi tab đang xem
-    (Tự luyện/Theo lớp/Được giao) thực sự có ít nhất 1 đề gắn chuyên đề nào đó.
-  "Độ khó" CHƯA lọc được thật vì Question không có cột difficulty — cố tình để dạng vô hiệu
-  hoá (không phải nút chết do quên nối, mà là chưa có dữ liệu để lọc).
-
-  SỬA 18/8 (2): làm lại giao diện cho đẹp/hấp dẫn hơn — khách báo "UI xấu quá". KHÔNG đổi
-  logic lọc/dữ liệu ở trên, chỉ đổi cách trình bày: hero pastel giống dashboard (component
-  x-icon-tile/gradient đã dùng sẵn ở student/dashboard.blade.php, giữ nhất quán design
-  system), bộ lọc dạng pill bo tròn dễ bấm hơn, card luyện tập bấm được toàn bộ (trước đây
-  chỉ chữ "Làm bài ›" nhỏ mới bấm được), có dải màu top-bar + icon tile theo loại đề để dễ
-  phân biệt Tự luyện/Bài giao/Đề thi/Đề thi đấu bằng mắt.
---}}
 @extends('layouts.student')
 
 @section('title', 'Luyện tập')
@@ -75,8 +52,6 @@
         <div class="text-5xl">🎯</div>
     </div>
 
-    {{-- SỬA 19/8 (Giai đoạn 6 — "Luyện tập theo câu"): lối vào luồng luyện TỪNG CÂU riêng,
-         khác hẳn luyện theo đề ở trên — xem App\Services\Student\PracticeByQuestionService. --}}
     <a href="{{ route('student.practiceByQuestion.setup') }}"
        class="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-4 lg:p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
         <div class="flex items-center gap-3">
@@ -139,8 +114,6 @@
                 </div>
 
                 <div class="mb-2">
-                    {{-- typeLabel/typeIcon (App\Enums\AssessmentType::label()/icon()) truyền từ
-                         PracticeService — badge hiện nhãn tiếng Việt theo LOẠI ĐỀ. --}}
                     <x-status-badge tone="info">{{ $it['typeLabel'] ?? $it['type'] }}</x-status-badge>
                 </div>
 
@@ -157,9 +130,6 @@
                     </div>
                 @endif
 
-                {{-- Tab "Lịch sử" trỏ sang trang KẾT QUẢ (đã nộp), không phải vào làm bài mới —
-                     nhãn phải phản ánh đúng hành động, không dùng chung "Làm bài" cho cả 2
-                     trường hợp. Cả card giờ bấm được (trước đây chỉ dòng chữ nhỏ mới bấm được). --}}
                 <div class="mt-auto pt-4 flex items-center justify-end">
                     <span class="inline-flex items-center gap-1 text-sm font-medium text-rose-600 group-hover:gap-2 transition-all">
                         {{ $tab === 'history' ? 'Xem kết quả' : 'Làm bài' }}

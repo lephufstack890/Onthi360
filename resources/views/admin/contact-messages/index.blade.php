@@ -1,16 +1,9 @@
-{{--
-  Route: admin.contact-messages.index
-  Spec: PUB-11 (4.1 mục "Liên hệ") — tin nhắn gửi từ form Liên hệ ở trang công khai info.index.
-  Gắn chung nhóm điều hướng với "Đánh giá" (không có mục nav riêng — sidebar cố định đúng 12
-  mục theo BA spec), chuyển qua lại bằng tabs như cặp Cuộc thi/Giáo viên tiêu biểu.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tin nhắn liên hệ')
 @section('page-title', 'Tin nhắn liên hệ')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ContactMessageController truyền vào. --}}
     @php
         $tabs = $tabs ?? [];
         $messages = $messages ?? [];

@@ -1,15 +1,3 @@
-{{--
-  Route: teachers.show
-  Spec: 12.2 + 10.2 (hồ sơ, thành tích, khóa/lớp phụ trách được phép công
-  bố). Không hiện số điện thoại/địa chỉ cá nhân (12.2) — trang vinh danh,
-  không phải danh bạ cá nhân nên CTA chỉ trỏ tới Khóa học/Đăng ký, không
-  có cách "liên hệ trực tiếp" giáo viên.
-  TODO controller: truyền $teacher thật + $classesTaught (chỉ lớp cho
-  phép công bố) — hiện là dữ liệu minh họa để dựng UI; avatar/ảnh bìa
-  dùng ui-avatars.com/picsum.photos tạm. Nhận xét học sinh minh họa được
-  ẩn danh theo đúng nguyên tắc bảo vệ dữ liệu trẻ em ở trang Bảng xếp
-  hạng (11.2) — không suy avatar/tên từ dữ liệu thật.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Hồ sơ giáo viên')

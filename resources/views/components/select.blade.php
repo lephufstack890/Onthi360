@@ -1,9 +1,3 @@
-{{--
-  Select bo tròn dùng chung — bọc <select> gốc trong khung có mũi chevron
-  riêng (native select mặc định trông "xấu"/không đồng bộ giữa các trình
-  duyệt). Toàn bộ thuộc tính truyền vào (name, id, required, onchange,...)
-  được chuyển thẳng vào <select> qua $attributes, không đổi hành vi form.
---}}
 @props(['icon' => null])
 <div class="relative">
     @if ($icon)

@@ -1,11 +1,3 @@
-{{--
-  Route: admin.users.show | tham chiếu ADM-02
-  Spec: 3.1/3.2/4.3 (đa vai trò) + 10.4/16 mục 4 (audit log cho thay đổi vai trò/trạng thái/
-  mật khẩu). Dữ liệu thật ($userModel, $availableRoles, $roleNames, $auditLogs,
-  $studentEnrollments, $linkedParents, $linkedChildren) do UserController::show() truyền vào
-  qua UserService::showData() — hồ sơ theo vai trò chỉ hiện khối tương ứng nếu user có vai
-  trò đó (1 user có thể có NHIỀU vai trò cùng lúc, 4.3).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết người dùng')

@@ -1,16 +1,3 @@
-{{--
-  Route: student.assessment.take (nhánh chặn) | Frame: STU-05
-  Spec: yêu cầu ngày 18/8 — "khi bấm vào thi thì thông báo hết lượt thay vì báo lỗi này":
-  trước đây App\Http\Controllers\Student\AssessmentController::take() dùng abort(422, ...)
-  khi App\Services\Student\AssessmentService::buildTakeData() ném ValidationException (hết
-  lượt làm lại theo resubmission_policy — 6.3, bài giao chưa mở/chưa tới ca thi riêng của học
-  sinh này, hoặc chưa đủ quyền học liệu — 7.1/7.3) — abort() bay thẳng ra trang lỗi kỹ thuật
-  của Laravel (tiếng Anh, có stack trace nếu APP_DEBUG=true), dù đây là thông báo NGHIỆP VỤ
-  bình thường học sinh cần đọc được, không phải lỗi hệ thống. Trang này thay thế abort() đó —
-  hiện đúng thông điệp ($message, tiếng Việt, lấy nguyên văn từ ValidationException) trong
-  giao diện quen thuộc của học sinh (cùng layout/sidebar mọi trang khác), kèm 2 lối ra rõ
-  ràng thay vì màn hình chết.
---}}
 @extends('layouts.student')
 
 @section('title', 'Không thể vào thi')

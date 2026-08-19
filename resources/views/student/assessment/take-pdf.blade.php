@@ -1,20 +1,3 @@
-{{--
-  Route: student.assessment.take | Frame: STU-05 (Giai đoạn 2 — đề PDF, 16/8 mục 1.2/3/6)
-  Nhánh riêng của take.blade.php cho đề content_mode=pdf_answer_sheet — chọn view này thay vì
-  take.blade.php ở App\Http\Controllers\Student\AssessmentController::take() dựa vào
-  $isPdfMode do App\Services\Student\AssessmentService::buildPdfTakeData() trả về. Cùng route
-  làm bài/lưu nháp/nộp bài với đề câu hỏi rời (student.assessment.take.save/.submit) — chỉ
-  hình dạng "answers" gửi lên khác: answers[answer_keys][<id>] và answers[coding_items][<id>].
-
-  Bố cục: nửa trái xem PDF đề (iframe, xem trên web — 16/8 mục 3 "không cần cho tải trực
-  tiếp"), nửa phải là phiếu trả lời + bài lập trình con (nếu có). Đồng hồ đếm ngược/tự nộp khi
-  hết giờ/modal xác nhận nộp bài giữ đúng hành vi của take.blade.php (examTake()) — chỉ đổi
-  tên hàm Alpine + cách gom answers vì cấu trúc dữ liệu khác (answer_keys/coding_items thay vì
-  question_id).
-
-  $assessmentModel, $attempt, $answerRows, $codingRows, $pdfUrl, $deadlineAt, $serverNow do
-  App\Services\Student\AssessmentService::buildPdfTakeData() truyền vào.
---}}
 @extends('layouts.student')
 
 @section('title', 'Làm bài')

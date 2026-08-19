@@ -1,21 +1,3 @@
-{{--
-  Route: info.index | Frame: PUB-11
-  Spec: 4.1 (Giới thiệu, hướng dẫn, tin tức, chính sách, liên hệ, FAQ).
-  Dữ liệu thật do App\Http\Controllers\Public\InfoController (qua App\Services\Public\InfoService)
-  truyền vào — không còn mảng dữ liệu hardcode ngay trong view. 4 số liệu ở "Giới thiệu" dùng lại
-  ĐÚNG kết quả HomeService::buildStats() (trang chủ) để không lệch số giữa 2 trang.
-  Form "Liên hệ" gửi thật tới info.contact.store (App\Http\Controllers\Public\ContactController),
-  lưu vào bảng contact_messages, admin xem/xử lý ở admin.contact-messages.index. Route này có
-  throttle:5,1 (routes/web.php) — khi bị chặn quá tần suất, bootstrap/app.php bắt
-  ThrottleRequestsException và quay lại đây kèm session('status') === 'contact-throttled'.
-  TODO: tách route riêng cho từng mục nếu nội dung dài (info.about/info.faq/info.contact...);
-  hiện gộp 1 trang, điều hướng bằng anchor link nội trang (#gioi-thieu, #huong-dan, ...).
-  5 thẻ "Vì sao chọn" (mục $highlights) bấm được, trỏ đúng trang tính năng thật
-  (App\Services\Public\InfoService::highlights()) — KHÁC với khối "Lợi ích" ($reasons) ngay bên
-  dưới, vốn chỉ là danh sách tĩnh không bấm được; 2 khối cố tình đặt tiêu đề khác hẳn nhau để
-  không ai nhầm khối tĩnh là thẻ bấm được. "Xem chi tiết" ở Chính sách trỏ tới
-  info.policies.show (trang chi tiết thật).
---}}
 @extends('layouts.guest')
 
 @section('title', 'Thông tin')

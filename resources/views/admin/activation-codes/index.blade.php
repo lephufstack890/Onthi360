@@ -1,15 +1,9 @@
-{{--
-  Route: admin.activation-codes.index
-  Spec: 7.4 — mã sai scope không tự chuyển đổi (mã quyền dạy không kích hoạt thành quyền học sinh).
-  TODO controller: truyền $codes (paginate) với filter trạng thái.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Mã kích hoạt')
 @section('page-title', 'Mã kích hoạt')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ActivationCodeController truyền vào. --}}
     @php
         $codes = $codes ?? [];
         $codeStatusMessage = match (session('status')) {

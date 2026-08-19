@@ -1,12 +1,3 @@
-{{--
-  Route: student.assessment.oj | Frame: STU-06/07 (desktop/mobile dùng
-  chung layout responsive: 2 cột → xếp dọc trên mobile).
-  Spec: 6.1 (đề bài, I/O, ví dụ, ràng buộc, editor, ngôn ngữ, chạy thử,
-  nộp, lịch sử verdict) + 10.1 (màn code ưu tiên độ tập trung/tương phản,
-  pastel chỉ là nền nhấn nhẹ, không gây phân tâm).
-  TODO: nối Monaco/CodeMirror thật cho editor; nối runner/OJ cho nút Chạy
-  thử/Nộp; không gửi test ẩn/đáp án xuống trình duyệt (6.2, 16 mục 6).
---}}
 @extends('layouts.student')
 
 @section('title', 'Làm bài lập trình')

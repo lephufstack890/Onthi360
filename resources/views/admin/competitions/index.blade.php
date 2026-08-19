@@ -1,15 +1,9 @@
-{{--
-  Route: admin.competitions.index | Frame: ADM-05
-  Spec: 11.1 (trạng thái: Sắp diễn ra → Đang diễn ra → Chờ công bố → Đã công bố → Lưu trữ).
-  TODO controller: truyền $competitions (paginate).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Cuộc thi')
 @section('page-title', 'Cuộc thi')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\CompetitionController truyền vào. --}}
     @php
         $tabs = $tabs ?? [];
         $competitions = $competitions ?? [];

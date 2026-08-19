@@ -1,9 +1,3 @@
-{{--
-  Route: teacher.results.attempt
-  Spec: 10.2 — giáo viên xem chi tiết một lần nộp cụ thể (đáp án học sinh nộp,
-  verdict/điểm từng câu). Chỉ xem được lần nộp thuộc lớp mình dạy (thực thi tại
-  App\Services\Teacher\ResultService::attemptDetailFor()).
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Chi tiết lần nộp')

@@ -1,10 +1,3 @@
-{{--
-  Route: teacher.questions.create / .store / .edit / .update
-  Spec: 6.1 (3 loại câu) + 6.2 (điều kiện phát hành — chặn nếu thiếu
-  test/đáp án/điểm/cấu hình OJ) + 6.5 (kho riêng giáo viên).
-  Dữ liệu thật ($type, $question) do App\Http\Controllers\Teacher\QuestionController
-  truyền vào. $question null khi tạo mới, khác null khi sửa (form dùng chung).
---}}
 @extends('layouts.teacher')
 
 @section('title', $question ? 'Sửa câu hỏi' : 'Tạo câu hỏi')
@@ -22,18 +15,6 @@
         ];
         $config = $question->grading_config ?? [];
         $options = old('options', $config['options'] ?? ['', '', '', '']);
-        // SỬA 19/8 — LỖI CHẤM ĐIỂM THẬT (phát hiện khi làm Giai đoạn 6): trước đây form này
-        // gửi $correctOption dạng CHỮ CÁI ("A"/"B"/"C"/"D", xem @foreach bên dưới) trong khi
-        // App\Services\AttemptService::gradeMcq() so khớp correct_options bằng CHỈ SỐ (int,
-        // 0/1/2/3 — giống hệt cách admin/content/questions/create.blade.php + edit.blade.php
-        // đã làm ĐÚNG từ đầu, dùng $i thay vì $opt). Hậu quả: mọi câu Trắc nghiệm giáo viên tự
-        // tạo tay (KHÔNG qua OCR — luồng OCR ở DocumentImportService::letterToIndex() vẫn làm
-        // đúng) mà đáp án đúng KHÔNG PHẢI phương án A đều bị chấm SAI cho học sinh chọn đúng
-        // (vì "B"/"C"/"D" ép về int đều ra 0, chỉ khớp khi học sinh chọn đúng index 0). Sửa
-        // $correctOption về đúng kiểu index để khớp hành vi Admin — xem thêm
-        // App\Services\Teacher\QuestionService::buildGradingConfig() (đã sửa cùng lúc) và
-        // database/migrations/..._fix_teacher_mcq_correct_option_index.php (dữ liệu câu đã
-        // tạo trước đó cần chạy lại migrate để tự sửa, không cần Admin/GV làm gì thêm).
         $correctOption = old('correct_option', $config['correct_options'][0] ?? null);
         $acceptedAnswers = old('accepted_answers', implode(', ', $config['accepted_answers'] ?? []));
         $caseSensitive = old('case_sensitive', $config['case_sensitive'] ?? false);
@@ -41,8 +22,6 @@
         $memoryLimitMb = old('memory_limit_mb', $config['memory_limit_mb'] ?? 256);
         $testCasesText = old('test_cases', collect($config['test_cases'] ?? [])->map(fn ($tc) => ($tc['input'] ?? '').' => '.($tc['output'] ?? ''))->implode("\n"));
         $canPublishNow = $question ? app(\App\Services\QuestionPublishGuard::class)->canPublish($question)->allowed : false;
-        // SỬA 19/8 (Giai đoạn 6): tag đã gắn sẵn của câu hỏi (khi sửa) để tick trước —
-        // $question->tags do Teacher\QuestionController::edit() đã eager-load.
         $selectedTagIds = old('tag_ids', $question?->tags?->pluck('id')->all() ?? []);
     @endphp
 

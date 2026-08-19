@@ -1,15 +1,9 @@
-{{--
-  Route: admin.reviews.index | Frame: ADM-06
-  Spec: 9.4 (kiểm duyệt: spam/xúc phạm/quảng cáo/dữ liệu cá nhân...; không xóa chỉ vì tiêu cực).
-  TODO controller: truyền $reviews (paginate) trạng thái "Đang kiểm duyệt"/"Đã báo cáo".
---}}
 @extends('layouts.admin')
 
 @section('title', 'Đánh giá')
 @section('page-title', 'Kiểm duyệt đánh giá')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\ReviewController truyền vào. --}}
     @php
         $tab = $tab ?? 'pending';
         $tabs = $tabs ?? [];

@@ -1,10 +1,3 @@
-{{--
-  Route: teacher.assessments.create / .store | Frame: TEA-04
-  Spec: 6.3 (đề hỗn hợp trộn nhiều kiểu câu) + 8.4 (giao đề: chọn lớp,
-  mốc thời gian, quy tắc — không có ngoại lệ từng học sinh).
-  Dữ liệu thật ($questions, $classRooms) do
-  App\Services\Teacher\AssessmentService::createFormData() truyền vào.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Tạo đề')

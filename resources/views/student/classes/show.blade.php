@@ -1,12 +1,3 @@
-{{--
-  Route: student.classes.show | Frame: STU-03
-  Spec: 8.3 (header + tabs: Tổng quan · Lộ trình & Bài tập · Lịch học ·
-  Tài liệu · Đánh giá · Thông báo · Thành viên). Mỗi bài có nguồn, loại,
-  thời điểm mở, hạn nếu có, trạng thái cá nhân, kết quả gần nhất, lý do khóa.
-  Dữ liệu thật do App\Http\Controllers\Student\ClassRoomController truyền vào.
-  TODO: nối App\Services\AccessGateService cho AccessDecision từng bài (7.3);
-  hiện $roadmap chỉ hiển thị theo Assignment thật, chưa có khái niệm "chương".
---}}
 @extends('layouts.student')
 
 @section('title', 'Chi tiết lớp')

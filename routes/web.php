@@ -56,20 +56,6 @@ use App\Http\Controllers\Admin\TeacherApprovalController as AdminTeacherApproval
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Khung route theo vai trò
-|--------------------------------------------------------------------------
-| public (mục 4.1: Khóa học, Luyện tập, Tài liệu, Cuộc thi) / student /
-| teacher / parent / admin (4.2 BA spec). Auth, Dashboard, Học sinh, Giáo
-| viên, Phụ huynh, Đánh giá, Quyền truy cập, Admin, 4 khu công khai chính
-| (Khóa học/Luyện tập/Tài liệu/Cuộc thi), Bảng xếp hạng (11.2), Trang chủ
-| Giáo viên tiêu biểu và Thông tin đã nối Controller thật (Eloquent). Toàn
-| bộ 4 khu công khai + Trang chủ + Giáo viên tiêu biểu + Thông tin đều đã
-| có Controller/Service thật đứng sau, không còn closure tĩnh.
-*/
-
-// -- Công khai (4.1) — khách xem được, không cần đăng nhập ------------------
 Route::get('/', [PublicHomeController::class, 'index'])->name('home');
 Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
 Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name('courses.show');
@@ -82,8 +68,6 @@ Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->nam
 Route::get('/giao-vien-tieu-bieu', [PublicTeacherController::class, 'index'])->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
 Route::get('/thong-tin', [PublicInfoController::class, 'index'])->name('info.index');
-// Form Liên hệ (4.1 mục Liên hệ) — khách chưa đăng nhập vẫn gửi được, không có middleware
-// auth, nhưng có throttle theo IP (5 lần/phút) để chặn spam tự động (trước đây chưa có).
 Route::post('/thong-tin/lien-he', [PublicContactController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('info.contact.store');
@@ -91,7 +75,6 @@ Route::get('/thong-tin/chinh-sach/{slug}', [PublicInfoController::class, 'policy
     ->whereIn('slug', ['bao-mat', 'dieu-khoan', 'hoan-tien'])
     ->name('info.policies.show');
 
-// -- Xác thực (ACC-01) -------------------------------------------------------
 Route::middleware(['guest'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
@@ -101,24 +84,18 @@ Route::middleware(['guest'])->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-// -- Sau đăng nhập (4.2) ------------------------------------------------------
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // -- Thông báo (chuông toàn cục, dùng chung mọi vai trò) --------------------
     Route::get('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 
-    // -- Học sinh (10.1) -----------------------------------------------------
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
         Route::post('classes/join', [StudentClassRoomController::class, 'join'])->name('classes.join');
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
-        // SỬA 19/8 (Giai đoạn 6 — "Luyện tập theo câu"): luyện từng câu ngoài đề, xem docblock
-        // App\Services\Student\PracticeByQuestionService — tiến trình lưu session, không tạo
-        // Attempt/AttemptAnswer nên KHÔNG cần route dạng resource {id}, chỉ 1 phiên/lúc/học sinh.
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
@@ -128,9 +105,6 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/stop', [StudentPracticeByQuestionController::class, 'stop'])->name('stop');
         });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
-        // SỬA 19/8 (Giai đoạn 2 — đề PDF, 16/8 mục 3): xem PDF đề/lời giải trực tiếp trên
-        // web, luôn qua kiểm tra quyền ở Student\AssessmentService::streamPdfFile() (không
-        // lộ đường dẫn file thật, không cho tải lời giải trước khi được công bố).
         Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])
             ->whereIn('which', ['exam', 'solution'])
             ->name('assessment.pdf.file');
@@ -143,7 +117,6 @@ Route::middleware(['auth'])->group(function () {
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
     });
 
-    // -- Giáo viên (10.2) -----------------------------------------------------
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/', [TeacherDashboardController::class, 'index'])->name('dashboard');
         Route::get('classes', [TeacherClassRoomController::class, 'index'])->name('classes.index');
@@ -176,17 +149,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->name('assessments.publish');
         Route::post('assessments/{assessment}/assign', [TeacherAssessmentController::class, 'assign'])->name('assessments.assign');
 
-        // SỬA 18/8 (đề PDF, 16/8 mục 1.2: "Admin hoặc giáo viên" tải đề lẻ) — tách hẳn khỏi
-        // assessments.* ở trên (đó là "Bài giao" cũ, chọn Question rời — KHÔNG đổi). Phát
-        // hành dùng LẠI đúng route assessments.{assessment}.publish ở trên — AssessmentService
-        // ::publish() đã tự nhận diện content_mode để áp đúng điều kiện (guard PDF hay
-        // canPublish() cũ), không cần route publish riêng cho đề PDF.
         Route::get('papers', [TeacherAssessmentController::class, 'papersIndex'])->name('papers.index');
         Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->name('papers.create');
         Route::post('papers', [TeacherAssessmentController::class, 'papersStore'])->name('papers.store');
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): route tĩnh 'bulk' PHẢI đứng TRƯỚC
-        // papers.{assessment}.pdf.edit bên dưới, cùng lý do với content.assessments.bulk.* ở
-        // khu Admin (route param {assessment} sẽ nuốt luôn chữ "bulk" nếu đăng ký sau).
         Route::get('papers/bulk', [TeacherAssessmentController::class, 'papersBulkCreate'])->name('papers.bulk.create');
         Route::post('papers/bulk/split', [TeacherAssessmentController::class, 'papersBulkSplit'])->name('papers.bulk.split');
         Route::post('papers/bulk/multi', [TeacherAssessmentController::class, 'papersBulkMulti'])->name('papers.bulk.multi');
@@ -217,7 +182,6 @@ Route::middleware(['auth'])->group(function () {
         Route::put('profile/password', [TeacherProfileController::class, 'updatePassword'])->name('profile.password');
     });
 
-    // -- Phụ huynh (10.3) -----------------------------------------------------
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
         Route::get('/', [ParentDashboardController::class, 'index'])->name('dashboard');
         Route::get('children', [ParentChildController::class, 'index'])->name('children.index');
@@ -230,7 +194,6 @@ Route::middleware(['auth'])->group(function () {
         Route::put('profile', [ParentProfileController::class, 'update'])->name('profile.update');
     });
 
-    // -- Đánh giá sao / nhận xét trải nghiệm (mục 9) — dùng chung mọi vai trò --
     Route::prefix('danh-gia')->name('reviews.')->group(function () {
         Route::get('/', [ReviewController::class, 'index'])->name('index');
         Route::get('/viet', [ReviewController::class, 'form'])->name('form');
@@ -239,7 +202,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cua-toi', [ReviewController::class, 'myReviews'])->name('myReviews');
     });
 
-    // -- Quyền truy cập / thanh toán (mục 7) ------------------------------------
     Route::prefix('quyen')->name('access.')->group(function () {
         Route::get('/dat-don/{product}', [AccessController::class, 'checkout'])->name('checkout');
         Route::get('/kich-hoat', [AccessController::class, 'activate'])->name('activate');
@@ -247,17 +209,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/khoa/{material}', [AccessController::class, 'blocked'])->name('blocked');
     });
 
-    // -- Ví token: "Nộp tiền thành token" + QR ngân hàng (note họp 13/8, mục 7-8) --------
     Route::prefix('vi')->name('wallet.')->group(function () {
         Route::get('/', [WalletController::class, 'index'])->name('index');
         Route::post('/nap', [WalletController::class, 'requestTopup'])->name('request');
     });
 
-    // -- Admin/Editor (4.2) -------------------------------------------------
     Route::middleware(['role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        // Người dùng + phê duyệt giáo viên (ADM-02, 3.3)
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/create', [AdminUserController::class, 'create'])->name('users.create');
         Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
@@ -275,7 +234,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('teacher-approvals/{teacherApproval}/suspend', [AdminTeacherApprovalController::class, 'suspend'])->name('teacher-approvals.suspend');
         Route::post('teacher-approvals/{teacherApproval}/reinstate', [AdminTeacherApprovalController::class, 'reinstate'])->name('teacher-approvals.reinstate');
 
-        // Khóa & Lớp (8.1)
         Route::get('courses', [AdminCourseController::class, 'index'])->name('courses.index');
         Route::get('courses/create', [AdminCourseController::class, 'create'])->name('courses.create');
         Route::post('courses', [AdminCourseController::class, 'store'])->name('courses.store');
@@ -289,7 +247,6 @@ Route::middleware(['auth'])->group(function () {
         Route::put('classes/{classRoom}', [AdminCourseController::class, 'classesUpdate'])->name('classes.update');
         Route::delete('classes/{classRoom}', [AdminCourseController::class, 'classesDestroy'])->name('classes.destroy');
 
-        // Sản phẩm & Quyền (ADM-03, 5.1, 7.1-7.5)
         Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
         Route::get('products/create', [AdminProductController::class, 'create'])->name('products.create');
         Route::post('products', [AdminProductController::class, 'store'])->name('products.store');
@@ -304,7 +261,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('access-rights/{accessRight}/revoke', [AdminAccessRightController::class, 'revoke'])->name('access-rights.revoke');
         Route::get('access-rights/{accessRight}', [AdminAccessRightController::class, 'show'])->name('access-rights.show');
 
-        // Đơn hàng + Mã kích hoạt (ADM-04, 7.4)
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::post('orders/{order}/approve', [AdminOrderController::class, 'approve'])->name('orders.approve');
         Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
@@ -312,11 +268,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
         Route::post('activation-codes/{activationCode}/revoke', [AdminActivationCodeController::class, 'revoke'])->name('activation-codes.revoke');
 
-        // Yêu cầu nạp token (note họp 13/8, mục 7-8) — gộp chung trang Đơn hàng (7.4), không thêm mục điều hướng riêng.
         Route::post('orders/token-topups/{tokenTopup}/approve', [AdminOrderController::class, 'approveTopup'])->name('orders.token-topups.approve');
         Route::post('orders/token-topups/{tokenTopup}/reject', [AdminOrderController::class, 'rejectTopup'])->name('orders.token-topups.reject');
 
-        // Đánh giá (ADM-06, 9.4)
         Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
         Route::post('reviews/{review}/publish', [AdminReviewController::class, 'publish'])->name('reviews.publish');
         Route::post('reviews/{review}/reject', [AdminReviewController::class, 'reject'])->name('reviews.reject');
@@ -325,23 +279,17 @@ Route::middleware(['auth'])->group(function () {
         Route::post('reviews/{review}/reply', [AdminReviewController::class, 'reply'])->name('reviews.reply');
         Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
 
-        // Tin nhắn liên hệ (PUB-11, 4.1) — gộp chung nhóm điều hướng với Đánh giá (không thêm mục nav riêng).
         Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
         Route::post('contact-messages/{contactMessage}/resolve', [AdminContactMessageController::class, 'resolve'])->name('contact-messages.resolve');
 
-        // Cuộc thi, Giáo viên tiêu biểu, Bảng xếp hạng (ADM-05, 11.1/11.2)
         Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');
         Route::get('competitions/create', [AdminCompetitionController::class, 'create'])->name('competitions.create');
         Route::post('competitions', [AdminCompetitionController::class, 'store'])->name('competitions.store');
         Route::get('competitions/{competition}/edit', [AdminCompetitionController::class, 'edit'])->name('competitions.edit');
         Route::put('competitions/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
         Route::post('competitions/{competition}/archive', [AdminCompetitionController::class, 'archive'])->name('competitions.archive');
-        // SỬA 19/8 — đảo ngược archive(), xem docblock CompetitionService::unarchive().
         Route::post('competitions/{competition}/unarchive', [AdminCompetitionController::class, 'unarchive'])->name('competitions.unarchive');
         Route::get('competitions/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
-        // Kỳ thi (vòng) bên trong 1 cuộc thi — 1 Competition có thể gồm nhiều kỳ thi, mỗi
-        // kỳ thi có bảng xếp hạng riêng ngoài bảng tổng (xem CompetitionExam, note dual
-        // leaderboard trong CompetitionService::recomputeAggregateFromExams()).
         Route::post('competitions/{competition}/exams', [AdminCompetitionController::class, 'examStore'])->name('competitions.exams.store');
         Route::put('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
         Route::delete('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
@@ -355,10 +303,8 @@ Route::middleware(['auth'])->group(function () {
             ->where('id', '[0-9]+')
             ->name('ranking.show');
 
-        // Báo cáo (2.3: P0 chỉ báo cáo vận hành cơ kản, KHÔNG gồm báo cáo thương mại sâu/chiến dịch)
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
 
-        // Cấu hình hệ thống — CHỈ Super Admin (3.1: "Cấu hình hệ thống tối cao" không thuộc Admin thường).
         Route::middleware('role:super_admin')->group(function () {
             Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
             Route::put('settings/rating-threshold', [AdminSettingsController::class, 'updateRatingThreshold'])->name('settings.rating-threshold.update');
@@ -366,9 +312,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // -- Admin/Editor: Nội dung + Tài khoản (note họp 13/8, mục 5 — Editor "nghề up câu hỏi") --
     Route::middleware(['role:admin,super_admin,editor'])->prefix('admin')->name('admin.')->group(function () {
-        // Nội dung (ADM-03, 6.2/6.4/6.5)
         Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
 
         Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');
@@ -388,8 +332,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
         Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
 
-        // Nhập đề Word/PDF/OCR -> Kho chung (6.4) — tương đương teacher.assessments.import
-        // nhưng đích đến là Kho chung (owner_type=shared) thay vì kho riêng giáo viên.
         Route::get('content/questions/import', [AdminContentController::class, 'questionsImport'])->name('content.questions.import');
         Route::post('content/questions/import', [AdminContentController::class, 'questionsImportStore'])->name('content.questions.import.store');
         Route::get('content/questions/review-draft', [AdminContentController::class, 'questionsReviewDraft'])->name('content.questions.reviewDraft');
@@ -399,38 +341,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/drafts/{draft}/merge', [AdminContentController::class, 'draftMerge'])->name('content.drafts.merge');
         Route::post('content/drafts/{draft}/discard', [AdminContentController::class, 'draftDiscard'])->name('content.drafts.discard');
 
-        // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): quản lý ở tab "Tag/Chuyên
-        // đề" trong admin.content.index (?tab=tags), xem ContentController::tagsStore()/
-        // tagsUpdate()/tagsDestroy().
         Route::post('content/tags', [AdminContentController::class, 'tagsStore'])->name('content.tags.store');
         Route::put('content/tags/{tag}', [AdminContentController::class, 'tagsUpdate'])->name('content.tags.update');
         Route::delete('content/tags/{tag}', [AdminContentController::class, 'tagsDestroy'])->name('content.tags.destroy');
 
         Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): route tĩnh 'bulk' PHẢI đứng TRƯỚC
-        // content.assessments.{assessment}.edit bên dưới (route param {assessment} sẽ nuốt
-        // luôn chữ "bulk" nếu đăng ký sau — đúng thứ tự đã dùng cho content.assessments.create
-        // ở trên).
         Route::get('content/assessments/bulk', [AdminContentController::class, 'assessmentsBulkCreate'])->name('content.assessments.bulk.create');
         Route::post('content/assessments/bulk/split', [AdminContentController::class, 'assessmentsBulkSplit'])->name('content.assessments.bulk.split');
         Route::post('content/assessments/bulk/multi', [AdminContentController::class, 'assessmentsBulkMulti'])->name('content.assessments.bulk.multi');
         Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
         Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
-        // SỬA 18/8: trước đây đề admin tự tạo (owner_type=shared) không có màn nào gắn câu
-        // hỏi — xem ghi chú ở App\Services\Admin\ContentService (khu "Đề/bộ bài").
         Route::get('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsEdit'])->name('content.assessments.items.edit');
         Route::put('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsUpdate'])->name('content.assessments.items.update');
         Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
         Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
         Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');
-        // SỬA 19/8 (Giai đoạn 4 — "Admin duyệt đưa đề GV ra kho chung"): bấm thẳng từ bảng
-        // danh sách tab "Đề/bộ bài" (admin.content.index?tab=assessments), xem
-        // ContentController::assessmentsPromoteToShared().
         Route::post('content/assessments/{assessment}/promote-shared', [AdminContentController::class, 'assessmentsPromoteToShared'])->name('content.assessments.promoteShared');
-
-        // SỬA 18/8 (đề PDF + phiếu đáp án, 16/8 mục 1.2/5/6) — chỉ áp dụng cho đề
-        // content_mode=pdf_answer_sheet (mọi loại trừ Luyện tập theo câu).
         Route::get('content/assessments/{assessment}/pdf', [AdminContentController::class, 'assessmentsPdfEdit'])->name('content.assessments.pdf.edit');
         Route::put('content/assessments/{assessment}/pdf', [AdminContentController::class, 'assessmentsPdfUpdate'])->name('content.assessments.pdf.update');
         Route::post('content/assessments/{assessment}/coding-items', [AdminContentController::class, 'assessmentsCodingItemsStore'])->name('content.assessments.coding-items.store');
@@ -440,7 +367,6 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('content/{content}', [AdminContentController::class, 'show'])->name('content.show');
 
-        // Tài khoản (hồ sơ + đổi mật khẩu) — ACC-01/ACC-02, dùng chung Admin/Editor.
         Route::get('profile', [AdminProfileController::class, 'show'])->name('profile.show');
         Route::put('profile', [AdminProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');

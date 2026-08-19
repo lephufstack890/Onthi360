@@ -1,10 +1,3 @@
-{{--
-  Route: teacher.classes.create | Frame: TEA-02
-  Spec: 8.1 (một khóa học có thể có nhiều lớp; lớp là nơi tổ chức lịch, học viên, tiến độ).
-  Dữ liệu thật ($courses) do App\Http\Controllers\Teacher\ClassRoomController truyền vào.
-  "Lịch học" ở đây chỉ là ghi chú hiển thị (MVP) — lịch buổi học thật quản lý qua
-  ClassSession riêng (tab Lịch/Điểm danh), chưa có UI tạo buổi học theo lịch định kỳ.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Tạo lớp mới')

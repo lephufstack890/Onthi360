@@ -1,9 +1,3 @@
-{{--
-  Route: admin.classes.edit / admin.classes.update / admin.classes.destroy
-  Spec: 8.1 + 7.2 (đổi giáo viên phụ trách) + 10.4 (xóa mềm phải có lý do + audit log).
-  Dữ liệu thật ($classRoom, $currentTeacherId, $teachers) do CourseController::classesEdit()
-  truyền vào qua App\Services\Admin\CourseService::classEditFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa lớp học')

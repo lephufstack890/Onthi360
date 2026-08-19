@@ -1,21 +1,3 @@
-{{--
-  Route: practice.index | Frame: PUB-07
-  Spec: 4.1 + 10.1 (Luyện tập công khai: khách/logged-in/lọc rỗng).
-  Dữ liệu thật do App\Http\Controllers\Public\PracticeController truyền vào qua
-  App\Services\Public\PracticeService::indexData() — cùng nguồn với tab "Tự luyện" của
-  App\Services\Student\PracticeService để không lệch danh sách giữa 2 nơi.
-  $it['hasCoding'] (4.1: môn Tin có 2 lối chấm — trắc nghiệm/điền đáp án tự động, code qua
-  bộ test riêng) — hiện nhãn "Có lập trình" để học sinh biết trước khi bấm vào làm.
-
-  SỬA 18/8: làm lại giao diện card cho đẹp/nhất quán hơn — khách báo "trang ngoài" (trang
-  công khai, chưa đăng nhập) cũng xấu như trang trong. KHÔNG đổi dữ liệu/logic, chỉ đổi
-  trình bày: cả card giờ bấm được (đi thẳng vào làm bài nếu đã đăng nhập, hoặc sang trang
-  đăng nhập nếu chưa — giữ nguyên đúng 2 nhánh $canTakeDirectly cũ), theo đúng khuôn mẫu
-  "group + block rounded-2xl ... hover:shadow-lg hover:-translate-y-0.5" mà các trang công
-  khai khác (VD resources/views/public/competitions/index.blade.php) đã dùng, để 2 trang
-  không bị lệch phong cách. Thêm dải màu + icon tile (x-icon-tile, cùng component dùng ở
-  trang Luyện tập của học sinh) để phân biệt nhanh đề có lập trình hay không bằng mắt.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Luyện tập')

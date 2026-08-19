@@ -1,16 +1,9 @@
-{{--
-  Route: admin.featured-teachers.index
-  Spec: PUB-10 (trang vinh danh, không phải danh bạ cá nhân — 12.2), 12.1 mục 8 (ảnh, chuyên
-  môn, thành tích, khóa/lớp được phép công bố — khóa/lớp phụ trách hiện chưa có cờ "được phép
-  công bố" riêng trong schema, TODO khi cần chọn lọc chi tiết hơn).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Giáo viên tiêu biểu')
 @section('page-title', 'Giáo viên tiêu biểu')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\FeaturedTeacherController truyền vào. --}}
     @php
         $tabs = $tabs ?? [];
         $teachers = $teachers ?? [];

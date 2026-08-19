@@ -1,12 +1,3 @@
-{{--
-  Route: admin.courses.show | "Khóa & Lớp" trong sidebar (4.2)
-  Spec: 8.1 (Khóa học khác Lớp học — lớp thuộc khóa này được tạo bởi giáo
-  viên đã duyệt, xem App\Http\Controllers\Teacher\ClassRoomController).
-  Dữ liệu thật do App\Http\Controllers\Admin\CourseController truyền vào
-  qua App\Services\Admin\CourseService::showData().
-  Lưu ý: $course->description là HTML do CKEditor sinh ra (xem
-  admin.courses.create) — hiển thị bằng {!! !!}, không escape.
---}}
 @extends('layouts.admin')
 
 @section('title', $course->title)

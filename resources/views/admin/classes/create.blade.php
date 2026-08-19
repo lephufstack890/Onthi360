@@ -1,10 +1,3 @@
-{{--
-  Route: admin.courses.classes.create / admin.courses.classes.store
-  Spec: 8.1 (lớp thuộc khóa) + 7.2 (giáo viên phụ trách).
-  Dữ liệu thật ($course, $teachers) do CourseController::classesCreate() truyền vào
-  qua App\Services\Admin\CourseService::classCreateFormData(). $teachers chỉ gồm
-  giáo viên ĐÃ ĐƯỢC DUYỆT (3.3) — chưa duyệt thì chưa thể đứng lớp thật.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo lớp học')

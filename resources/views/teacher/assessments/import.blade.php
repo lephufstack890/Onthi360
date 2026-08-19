@@ -1,13 +1,3 @@
-{{--
-  Route: teacher.assessments.import / .import.store | Frame: TEA-05 (tải)
-  Spec: 6.4 (Tải Word/PDF/PDF scan → OCR/trích xuất → phân rã bản nháp →
-  rà soát → phát hành). OCR không tự phát hành (6.4, 17).
-  Dữ liệu thật do App\Http\Controllers\Teacher\AssessmentController truyền vào
-  qua App\Services\Teacher\AssessmentService::importStatusFor(); xử lý tải lên
-  thật do App\Services\Teacher\DocumentImportService thực hiện (docx: đọc
-  trực tiếp; pdf có lớp văn bản: pdftotext; pdf scan/ảnh: pdftoppm + tesseract
-  OCR tiếng Việt — máy chủ cần cài các công cụ này, xem lỗi bên dưới nếu thiếu).
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Nhập đề')

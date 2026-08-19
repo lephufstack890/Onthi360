@@ -1,9 +1,3 @@
-{{--
-  Route: admin.ranking.show
-  Spec: 11.2 — chi tiết 1 bảng xếp hạng theo phạm vi cụ thể; "Chờ công bố"
-  không lộ rank tạm nếu quy chế cấm ($ranksArePublic === false → danh sách rỗng).
-  Dữ liệu thật do App\Services\Admin\RankingService::showBoard() truyền vào.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết bảng xếp hạng')

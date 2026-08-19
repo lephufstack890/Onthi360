@@ -1,9 +1,3 @@
-{{--
-  Route: info.policies.show | Frame: PUB-11
-  Spec: 4.1 mục Chính sách — trang chi tiết cho từng chính sách (trước đây "Xem chi tiết"
-  trỏ '#' vì chưa có trang này). Dữ liệu thật do App\Http\Controllers\Public\InfoController::
-  policy() (qua App\Services\Public\InfoService::policyDetail()) truyền vào.
---}}
 @extends('layouts.guest')
 
 @section('title', $title ?? 'Chính sách')

@@ -1,15 +1,9 @@
-{{--
-  Route: admin.courses.index | "Khóa & Lớp" trong sidebar (4.2)
-  Spec: 8.1 (Khóa học khác Lớp học).
-  TODO controller: truyền $courses / $classes theo tab.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Khóa & Lớp')
 @section('page-title', 'Khóa & Lớp')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\CourseController truyền vào. --}}
     @php
         $tab = $tab ?? 'courses';
         $tabs = $tabs ?? [];

@@ -1,13 +1,3 @@
-{{--
-  Route: student.notifications | Frame: STU-11 (phần thông báo)
-  Dữ liệu thật do App\Http\Controllers\Student\NotificationController truyền vào, qua
-  App\Services\NotificationService dùng chung mọi vai trò (kênh 'database' của Illuminate
-  Notifications) — cùng nguồn với chuông thông báo global và teacher.notifications.index.
-  Bấm vào 1 thông báo sẽ đánh dấu đã đọc + chuyển tới url gắn kèm (nếu có) qua route dùng
-  chung notifications.read; "Đánh dấu tất cả đã đọc" qua notifications.readAll — trước đây
-  trang này chỉ hiển thị tĩnh, không bấm được, không có nút đánh dấu tất cả như trang giáo
-  viên tương đương.
---}}
 @extends('layouts.student')
 
 @section('title', 'Thông báo')

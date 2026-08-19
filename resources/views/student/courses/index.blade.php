@@ -1,19 +1,9 @@
-{{--
-  Route: student.courses.index | Frame: STU-02
-  Spec: 8.1 (khóa vs lớp), 7.3 (3 cửa truy cập).
-  Dữ liệu thật do App\Http\Controllers\Student\CourseController truyền vào.
-  Form "Nhập mã lớp để tham gia" gửi thật tới student.classes.join (App\Http\Controllers\
-  Student\ClassRoomController::join(), qua App\Services\Student\ClassRoomService::
-  joinByCode()) — trước đây empty-state đã HỨA SẴN "nhập mã lớp giáo viên cung cấp" nhưng
-  chưa có luồng thật nào thực hiện việc này.
---}}
 @extends('layouts.student')
 
 @section('title', 'Khóa học của tôi')
 @section('page-title', 'Khóa học của tôi')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Student\CourseController truyền vào. --}}
     @php
         $classes = $classes ?? [];
     @endphp

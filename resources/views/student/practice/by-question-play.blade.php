@@ -1,10 +1,3 @@
-{{--
-  Route: student.practiceByQuestion.play / .answer / .next / .stop | Giai đoạn 6
-  Spec: luyện 1 câu tại 1 thời điểm — trả lời xong hiện đúng/sai ngay (App\Services\
-  QuestionGrader, dùng chung với AttemptService) rồi mới bấm "Câu tiếp theo". $finished,
-  $question, $options, $progress, $feedback do App\Services\Student\PracticeByQuestionService::
-  playData() truyền vào qua PracticeByQuestionController::play().
---}}
 @extends('layouts.student')
 
 @section('title', 'Luyện tập theo câu')

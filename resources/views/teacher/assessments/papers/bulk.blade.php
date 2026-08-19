@@ -1,10 +1,3 @@
-{{--
-  Route: teacher.papers.bulk.create / .bulk.split / .bulk.multi
-  SỬA 19/8 (Giai đoạn 3 — "Bộ đề", nhập hàng loạt nhiều đề PDF cùng lúc): bản sao layout/hành
-  vi của resources/views/admin/content/assessments/bulk.blade.php cho giáo viên — đề tạo ra
-  riêng tư (owner_type=teacher) cho tới khi Admin duyệt đưa ra kho chung (chưa làm ở Giai đoạn
-  này). Xem App\Services\PdfBulkImportService cho logic thật (dùng CHUNG với Admin).
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Tải bộ đề PDF')

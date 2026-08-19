@@ -1,18 +1,9 @@
-{{--
-  Route: teacher.classes.show | Frame: TEA-02 (chi tiết) + TEA-06 (học liệu)
-  Spec: 8.2/8.3 (gắn học liệu, lộ trình mở theo chương/mục/mã bài) +
-  7.2 (quyền dạy đa lớp — nhãn "Dùng được ở mọi lớp phụ trách đến DD/MM/YYYY").
-  TODO controller: truyền $classRoom thật; tab "materials" cần
-  App\Services\AccessGateService/TeacherAttachMaterialAction để biết học
-  liệu nào giáo viên còn quyền dạy.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Chi tiết lớp')
 @section('page-title', 'Chi tiết lớp')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\ClassRoomController truyền vào. --}}
     @php
         $tab = $tab ?? 'overview';
         $materials = $materials ?? [];
@@ -192,8 +183,6 @@
             <a href="{{ route('teacher.results.index') }}" class="text-sm text-rose-600 font-medium self-center">Xem kết quả chi tiết theo lớp này ›</a>
         </div>
     @elseif ($tab === 'members')
-        {{-- Mã lớp (ClassRoom::code) — học sinh tự tham gia bằng mã này (student.classes.join),
-             chia sẻ ngoài hệ thống (Zalo/nhóm lớp...) như đã mô tả ở hướng dẫn sử dụng công khai. --}}
         <div class="rounded-2xl bg-rose-50/60 border border-rose-100 p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
             <div>
                 <p class="text-sm font-medium text-slate-700">Mã lớp để học sinh tự tham gia</p>

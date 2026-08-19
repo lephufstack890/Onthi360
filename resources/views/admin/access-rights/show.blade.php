@@ -1,9 +1,3 @@
-{{--
-  Route: admin.access-rights.show / .revoke
-  Spec: 7.1-7.5 + 10.4 (thu hồi phải có lý do + audit log — Auditable đã gắn ở AccessRight).
-  Dữ liệu thật ($right, $statusLabel, $tone) do AccessRightController::show() truyền vào
-  qua App\Services\Admin\AccessRightService::showData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết quyền truy cập')

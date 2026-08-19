@@ -1,9 +1,3 @@
-{{--
-  Route: admin.products.create / admin.products.store
-  Spec: 5.1 (sản phẩm là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học) + Table 9.
-  Dữ liệu thật ($types, $visibilities, $statuses) do ProductController::create() truyền vào
-  qua App\Services\Admin\ProductService::createFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo sản phẩm')

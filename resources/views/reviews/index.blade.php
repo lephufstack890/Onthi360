@@ -1,17 +1,8 @@
-{{--
-  Route: reviews.index | Frame: REV-01
-  Spec: 9.5 (rating_summary: điểm TB, số review hợp lệ, phân phối 1-5
-  sao, nhãn "Đã xác thực"; dưới 5 review hiện "Chưa đủ đánh giá để xếp
-  hạng"). 9.6 mục 2 (lọc 1-5 sao, vai trò, mới nhất/hữu ích).
-  Dùng chung cho cả Tài liệu và Lớp học — truyền $type=material|class.
-  TODO controller: truyền $target thật + $reviews (paginate) + $distribution.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Đánh giá')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\ReviewController truyền vào. --}}
     @php
         $type = $type ?? request('type', 'material');
         $targetId = $targetId ?? 1;

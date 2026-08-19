@@ -1,8 +1,3 @@
-{{--
-  Route: admin.reviews.show
-  Spec: 9.4 (Admin xem bằng chứng entitlement/membership/hoạt động; công bố/cần chỉnh/từ chối/ẩn; phản hồi chính thức không sửa điểm sao).
-  $reviewModel (Eloquent thật) do App\Http\Controllers\Admin\ReviewController truyền vào.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết đánh giá')

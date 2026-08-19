@@ -1,26 +1,15 @@
-{{--
-  Route: teacher.dashboard | Frame: TEA-01
-  Spec: 10.2 — dashboard giáo viên: lớp sắp dạy, bài cần mở, tỷ lệ hoàn
-  thành, học sinh cần chú ý, quyền dạy sắp hết hạn, thông báo.
-  TODO controller: truyền dữ liệu thật; quyền dạy sắp hết hạn nối
-  App\Services\AccessGateService / AccessRight.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Tổng quan')
 @section('page-title', 'Tổng quan')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\DashboardController truyền vào. --}}
     @php
         $name = $name ?? (auth()->user()->name ?? 'thầy/cô');
         $upcoming = $upcoming ?? [];
         $toOpen = $toOpen ?? [];
         $attentionStudents = $attentionStudents ?? [];
         $accessExpiring = $accessExpiring ?? null;
-        // Giáo viên tự đăng ký (3.1) vào thẳng trạng thái "Chờ duyệt" — chưa được
-        // tạo lớp/dạy thật cho tới khi Admin duyệt hồ sơ (3.3, xem
-        // App\Http\Middleware\EnsureTeacherApproved).
         $isTeacherApproved = auth()->user()->isTeacherApproved();
     @endphp
 

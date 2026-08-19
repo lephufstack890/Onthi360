@@ -1,10 +1,3 @@
-{{--
-  Route: teacher.notifications.index
-  Spec: 8.2 "Lớp học: ... lịch, điểm danh, thông báo" — thông báo dùng chung mọi vai trò
-  qua App\Services\NotificationService (kênh 'database' của Illuminate Notifications).
-  Sự kiện thật đang bắn vào đây: duyệt/từ chối/tạm dừng hồ sơ giáo viên
-  (App\Services\Admin\TeacherApprovalService).
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Thông báo')

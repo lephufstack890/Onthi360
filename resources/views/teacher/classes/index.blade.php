@@ -1,22 +1,14 @@
-{{--
-  Route: teacher.classes.index | Frame: TEA-02
-  Spec: 8.1 (lớp mà giáo viên phụ trách hoặc đồng phụ trách).
-  TODO controller: truyền $classes = auth()->user()->classRoomsTeaching().
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Lớp học')
 @section('page-title', 'Lớp học')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\ClassRoomController truyền vào. --}}
     @php
         $classes = $classes ?? [];
         $classesCollection = collect($classes);
         $totalStudents = $classesCollection->sum('students');
         $avgCompletion = $classesCollection->count() ? (int) round($classesCollection->avg('completion')) : 0;
-        // Chưa được duyệt (3.3) thì chưa cho tạo lớp mới — xem
-        // App\Http\Middleware\EnsureTeacherApproved.
         $isTeacherApproved = auth()->user()->isTeacherApproved();
     @endphp
 
@@ -62,8 +54,6 @@
                             @if ($c['nextSession'])
                                 <span>· 🗓 Buổi tới: {{ $c['nextSession'] }}</span>
                             @elseif ($c['inProgressSessionLabel'])
-                                {{-- Buổi ĐANG diễn ra (đã bắt đầu, chưa kết thúc) — không được gộp
-                                     chung với "đã kết thúc", tránh báo nhầm buổi vừa mới bắt đầu. --}}
                                 <span class="text-emerald-600 font-medium">· 🔴 Đang diễn ra ({{ $c['inProgressSessionLabel'] }})@if (! $c['inProgressAttendanceTaken']) — chưa điểm danh @endif</span>
                             @elseif ($c['lastSessionLabel'])
                                 @if ($c['lastSessionAttendanceTaken'])
@@ -76,9 +66,6 @@
                     </div>
                 </div>
                 <div class="mt-4 pt-4 border-t border-slate-100">
-                    {{-- "Hoàn thành chung" = % buổi học đã kết thúc / tổng số buổi đã lên lịch
-                         (không phải % bài tập đã nộp — tính năng học sinh nộp bài chưa có nên
-                         số đó sẽ luôn là 0%, xem ClassRoomService::completionPercent()). --}}
                     <x-progress-bar :percent="$c['completion']" label="Hoàn thành chung (theo buổi học)" tone="info" />
                     @if ($c['completionTotalSessions'] > 0)
                         <p class="text-[11px] text-slate-400 mt-1">{{ $c['completionEndedSessions'] }}/{{ $c['completionTotalSessions'] }} buổi đã học</p>

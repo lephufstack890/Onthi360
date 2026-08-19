@@ -1,15 +1,9 @@
-{{--
-  Route: admin.teacher-approvals.index
-  Spec: 3.3 (trạng thái giáo viên: Chưa đăng ký → Chờ duyệt → Đã được duyệt → Tạm dừng/Từ chối).
-  TODO controller: truyền $pending = TeacherProfile::where('status', Pending)->with('user')->paginate().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Duyệt giáo viên')
 @section('page-title', 'Hàng đợi duyệt giáo viên')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\TeacherApprovalController truyền vào. --}}
     @php
         $pending = $pending ?? [];
     @endphp

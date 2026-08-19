@@ -1,22 +1,9 @@
-{{--
-  Route: student.assessment.result | Frame: STU-08/09
-  Spec: 10.1 — kết quả nêu trạng thái nộp/chấm, điểm, thời gian, theo
-  câu, verdict, lời giải/đáp án theo quy tắc công bố. Đề hỗn hợp: kết quả
-  tổng "tạm tính" cho tới khi mọi câu chấm xong (6.3). Cuối trang có CTA
-  nhẹ đánh giá tài liệu/lớp — không chặn hành trình học.
-  Yêu cầu ngày 18/8: "công bố điểm làm cho thân thiện với người dùng" — thêm lời động viên
-  theo mức điểm, làm nổi bật khối điểm, và SỬA lỗi nút đánh giá luôn trỏ cứng vào tài liệu
-  #1 bất kể học sinh vừa làm đề gì (xem $reviewType/$reviewTargetId — App\Services\Student\
-  AssessmentService::reviewCtaTarget()).
---}}
 @extends('layouts.student')
 
 @section('title', 'Kết quả')
 @section('page-title', 'Kết quả bài làm')
 
 @section('content')
-    {{-- $attemptModel, $isFinal, $score, $total, $breakdown, $eligibleForReview, $reviewType,
-    $reviewTargetId do App\Http\Controllers\Student\AssessmentController truyền vào. --}}
     @php
         $isFinal = $isFinal ?? false;
         $score = $score ?? null;
@@ -32,8 +19,6 @@
 
         $percent = ($total !== null && $total > 0 && $score !== null) ? (int) round($score / $total * 100) : null;
 
-        // Lời động viên theo mức điểm — luôn giữ giọng điệu tích cực, không "chê" học sinh dù
-        // điểm thấp, chỉ đổi mức độ khích lệ (10.1: kết quả nên "thân thiện với người dùng").
         [$resultEmoji, $resultHeadline] = match (true) {
             ! $isFinal => ['⏳', 'Đang chờ chấm phần còn lại'],
             $percent === null => ['📄', 'Đã ghi nhận bài làm'],

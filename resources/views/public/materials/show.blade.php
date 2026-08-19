@@ -1,22 +1,3 @@
-{{--
-  Route: materials.show | Frame: PUB-06
-  Spec: 7.5 (màn mua theo vai trò), 9 (rating/review).
-  Dữ liệu thật do App\Http\Controllers\Public\MaterialController truyền vào qua
-  App\Services\Public\MaterialService::showData() — ảnh bìa: Material chưa có cột lưu ảnh bìa
-  thật nào (không có cover_image_path/thumbnail — đã kiểm tra migrations + $fillable), nên
-  KHÔNG dùng ảnh ngẫu nhiên (picsum.photos cũ trông rẻ tiền/không liên quan nội dung) mà thay
-  bằng 1 "bìa" thiết kế sẵn: gradient thương hiệu (chọn theo hash tiêu đề để các tài liệu khác
-  nhau có màu khác nhau, không đơn điệu) + icon tài liệu + tên tài liệu hiển thị luôn trên bìa
-  — giống cách các nền tảng ebook vẫn làm khi chưa có ảnh bìa thật upload. Nếu sau này có cột
-  ảnh bìa thật thì chỉ cần thêm 1 @if($material->cover_image_path) ... @else (khối bên dưới)
-  @endif bọc quanh, không cần đổi gì khác.
-  Lựa chọn quyền theo vai trò (học cá nhân / dùng để dạy) do chính access.checkout xử lý
-  (App\Services\Access\AccessService::checkoutData() đã tính $canTeach) — trang này chỉ cần 1
-  CTA "Đặt đơn".
-  $owned (4.1, "Tic xanh") — người đang xem đã có quyền học cá nhân còn hiệu lực cho tài
-  liệu này: hiện Tic xanh ở ảnh bìa + thay CTA mua bằng thông báo đã sở hữu (mua lại không
-  có ý nghĩa). Khách chưa đăng nhập luôn có $owned = false.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Chi tiết tài liệu')

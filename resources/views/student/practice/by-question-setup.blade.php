@@ -1,9 +1,3 @@
-{{--
-  Route: student.practiceByQuestion.setup / .start | Giai đoạn 6 — "Luyện tập theo câu"
-  Spec: chọn tag/chuyên đề (+ tuỳ chọn dạng câu Trắc nghiệm/Điền đáp án) rồi bắt đầu luyện
-  từng câu một, xem đáp án ngay. Xem docblock App\Services\Student\PracticeByQuestionService
-  để biết vì sao luồng này KHÔNG gắn với 1 đề (Assessment) cụ thể và không lưu Attempt.
---}}
 @extends('layouts.student')
 
 @section('title', 'Luyện tập theo câu')

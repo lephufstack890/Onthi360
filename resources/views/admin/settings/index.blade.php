@@ -1,12 +1,3 @@
-{{--
-  Route: admin.settings.index (chỉ Super Admin — role:super_admin, routes/web.php)
-  Spec: 3.1 (Super Admin: cấu hình role, chính sách, tích hợp) + 18.8 (ngưỡng
-  review thành config hệ thống thay vì hard-code).
-  Khối "Chính sách đánh giá" và "Tích hợp thanh toán" (ngân hàng nhận chuyển khoản
-  token — note họp 13/8, mục 7-8) đã nối logic lưu thật (App\Services\Admin\SettingsService).
-  2 khối còn lại (vai trò & quyền, OCR) chưa nối logic lưu thật — giữ khung UI
-  minh họa, nút "Cấu hình" tắt để không hứa nhầm chức năng chưa có (2.2).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Cấu hình hệ thống')

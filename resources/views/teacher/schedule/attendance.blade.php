@@ -1,16 +1,3 @@
-{{--
-  Route: teacher.schedule.attendance / .attendance.save / .schedule.summary.save /
-  .schedule.resources.save / .schedule.resources.delete
-  Frame: TEA-01/02
-  Spec: 8.2 — điểm danh từng buổi (có mặt/vắng/vắng có phép/đi trễ) + nhận xét đánh giá
-  (mặc định 1 câu, sửa được) + "Em cần học thêm" + tổng kết buổi học + tài nguyên buổi học
-  (note họp 13/8, mục 3: "Gắn tài liệu, câu hỏi, đề thi, video, link, … vào 1 buổi học cụ
-  thể"). Dữ liệu thật do App\Http\Controllers\Teacher\ScheduleController truyền vào qua
-  ScheduleService.
-  Dòng "Tự động" (source=auto) là học sinh tự vào làm bài lúc buổi học đang diễn ra,
-  App\Services\AttemptService::autoCheckIn() đã điểm danh sẵn — giáo viên chỉ cần rà lại
-  nhận xét, không bắt buộc phải sửa trạng thái Có mặt/Vắng của các dòng này.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Điểm danh')

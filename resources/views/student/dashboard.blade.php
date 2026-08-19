@@ -1,21 +1,9 @@
-{{--
-  Route: dashboard (khi user chỉ có role student) | Frame: STU-01
-  Spec: 10.1 — trong 5 giây phải thấy: việc cần làm hôm nay, bài đang
-  dở/mới mở, lịch sắp tới, tiến độ lớp/khóa, kết quả gần đây, thông báo
-  quan trọng. Empty state dẫn tới bài công khai/hướng dẫn vào lớp, không
-  để dashboard trống.
-  TODO controller: truyền $todayTasks, $upcoming, $classProgress,
-  $recentResults, $notifications thật; nếu user chưa vào lớp nào, render
-  nhánh $hasAnyClass = false ở dưới.
---}}
 @extends('layouts.student')
 
 @section('title', 'Tổng quan')
 @section('page-title', 'Tổng quan')
 
 @section('content')
-    {{-- Dữ liệu thật do Student\DashboardController truyền vào; giữ fallback để
-    view vẫn render an toàn nếu có ai gọi trực tiếp mà thiếu biến. --}}
     @php
         $name = $name ?? (auth()->user()->name ?? 'bạn');
         $hasAnyClass = $hasAnyClass ?? false;
@@ -27,7 +15,6 @@
     @endphp
 
     @if (!$hasAnyClass)
-        {{-- Empty state: chưa vào lớp nào — dẫn tới bài công khai / hướng dẫn vào lớp (10.1) --}}
         <div class="rounded-3xl bg-gradient-to-br from-rose-50 to-amber-50 p-10 text-center">
             <div class="text-5xl mb-3">🎈</div>
             <h2 class="text-lg font-semibold text-slate-800">Chào {{ $name }}, bắt đầu hành trình học của bạn nhé!</h2>
@@ -38,7 +25,6 @@
             </div>
         </div>
     @else
-        {{-- Hero chào mừng --}}
         <div class="rounded-3xl bg-gradient-to-br from-rose-100 via-pink-50 to-amber-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
             <div>
                 <p class="text-sm text-rose-600 font-medium">Chào mừng trở lại 👋</p>
@@ -52,7 +38,6 @@
             <div class="text-5xl">🚀</div>
         </div>
 
-        {{-- Việc cần làm hôm nay --}}
         <h3 class="font-medium text-slate-700 mb-3">Việc cần làm hôm nay</h3>
         @if (count($todayTasks) > 0)
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
@@ -75,7 +60,6 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
-                {{-- Tiến độ lớp/khóa --}}
                 <div class="rounded-2xl bg-white border border-slate-200 p-5">
                     <h3 class="font-medium text-slate-700 mb-4">Tiến độ lớp/khóa</h3>
                     <div class="space-y-4">
@@ -85,7 +69,6 @@
                     </div>
                 </div>
 
-                {{-- Lịch sắp tới --}}
                 <div class="rounded-2xl bg-white border border-slate-200 p-5">
                     <h3 class="font-medium text-slate-700 mb-4">Lịch sắp tới</h3>
                     <ul class="space-y-3">
@@ -103,7 +86,6 @@
             </div>
 
             <div class="space-y-6">
-                {{-- Kết quả gần đây --}}
                 <div class="rounded-2xl bg-white border border-slate-200 p-5">
                     <h3 class="font-medium text-slate-700 mb-4">Kết quả gần đây</h3>
                     <ul class="space-y-3">
@@ -120,7 +102,6 @@
                     <a href="{{ route('student.practice.index') }}" class="inline-block mt-4 text-sm text-rose-600 font-medium">Xem toàn bộ lịch sử ›</a>
                 </div>
 
-                {{-- Thông báo --}}
                 <div class="rounded-2xl bg-white border border-slate-200 p-5">
                     <h3 class="font-medium text-slate-700 mb-4">Thông báo</h3>
                     <ul class="space-y-3">

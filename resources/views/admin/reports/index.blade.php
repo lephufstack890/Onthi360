@@ -1,9 +1,3 @@
-{{--
-  Route: admin.reports.index
-  Spec: 2.3 (P0: báo cáo vận hành cơ bản; P1: báo cáo thương mại sâu/chiến
-  dịch — KHÔNG thuộc trang này). Dữ liệu thật do App\Services\Admin\ReportService
-  truyền vào.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Báo cáo')

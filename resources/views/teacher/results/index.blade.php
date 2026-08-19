@@ -1,11 +1,3 @@
-{{--
-  Route: teacher.results.index | Frame: TEA-08
-  Spec: 10.2 — phễu Lớp → Đề → Học sinh → Lần nộp; lọc chưa làm/đang
-  làm/đã nộp; export theo chính sách.
-  Dữ liệu thật do App\Http\Controllers\Teacher\ResultController truyền vào.
-  Xuất file là CSV thật (chưa cài thư viện xlsx) — nút ghi rõ "CSV" để không
-  hứa nhầm chức năng Excel chưa có.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Kết quả')

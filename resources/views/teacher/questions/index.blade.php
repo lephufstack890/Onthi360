@@ -1,21 +1,9 @@
-{{--
-  Route: teacher.questions.index | Frame: TEA-03
-  Spec: 6.5 (kho riêng giáo viên — chỉ giáo viên tạo/chỉnh/sử dụng trong lớp của
-  mình). Tab "Kho chung (chỉ xem)" cho giáo viên xem thêm câu hỏi thuộc Kho chung
-  của hệ thống — CHỈ XEM, không Sửa/Phát hành/Lưu trữ được (đó vẫn là việc của
-  Admin/Editor); teacher.assessments.store khi soạn đề vẫn chỉ nhận câu thuộc
-  đúng kho riêng của giáo viên, không đổi ở đây.
-  Dữ liệu thật do App\Services\Teacher\QuestionService::listForTeacher() truyền vào.
-  "+ Nhập đề (Word/PDF/OCR)" trỏ sang teacher.assessments.import (6.4) — câu tách ra
-  từ OCR/trích xuất, khi lưu và đủ điều kiện, sẽ tự vào đúng kho này.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Kho câu hỏi của tôi')
 @section('page-title', 'Kho câu hỏi của tôi')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Teacher\QuestionController truyền vào. --}}
     @php
         $tab = $tab ?? 'all';
         $tabs = $tabs ?? [];

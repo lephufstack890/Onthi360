@@ -1,8 +1,3 @@
-{{--
-  Route: teacher.papers.create / .store
-  Chỉ tạo khung đề (tên/loại/thời gian) — PDF + đáp án + bài lập trình con hoàn thiện ở màn
-  "Quản lý đề PDF" (papers/pdf.blade.php) ngay sau khi lưu (16/8 mục 1.2/5).
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Tạo đề PDF')

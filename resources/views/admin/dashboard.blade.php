@@ -1,19 +1,9 @@
-{{--
-  Route: admin.dashboard | Frame: ADM-01
-  Spec: 2.1 (mục tiêu vận hành) + 16 mục 9 (quan sát vận hành: hàng đợi
-  chấm, lỗi runner/trích xuất, đơn/mã bất thường, quyền dạy sắp/hết hạn,
-  review pending/reported).
-
-  TODO controller: truyền các số liệu thật thay cho mock $stats/$activity
-  dưới đây (giữ đúng tên biến để không phải sửa view).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tổng quan quản trị')
 @section('page-title', 'Tổng quan')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\DashboardController truyền vào. --}}
     @php
         $stats = $stats ?? [];
         $activity = $activity ?? [];

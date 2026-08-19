@@ -1,11 +1,3 @@
-{{--
-  Route: teacher.profile.show | Spec: 3.3 (state machine duyệt hồ sơ giáo viên).
-  Dữ liệu thật do App\Http\Controllers\Teacher\ProfileController truyền vào qua
-  App\Services\Teacher\ProfileService. approval_status/is_featured/achievement_note CHỈ
-  Admin đổi được (TeacherApprovalService/FeaturedTeacherService) — trang này chỉ hiển thị,
-  không có form sửa các trường đó. Tỉnh thành/khu vực (note họp 13/8, mục 2: "để quảng cáo
-  cho giáo viên") lưu chung với thông tin tài khoản cơ bản qua ProfileController::update().
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Hồ sơ của tôi')

@@ -1,8 +1,3 @@
-{{--
-  Khung bảng dùng chung cho các trang danh sách admin.
-  $columns: ['Tên', 'Email', 'Vai trò', 'Trạng thái', ''] (cột cuối rỗng = hành động)
-  $rows: slot chứa các <tr> — truyền từ view gọi.
---}}
 @props(['columns' => []])
 <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
     <table class="w-full text-sm">

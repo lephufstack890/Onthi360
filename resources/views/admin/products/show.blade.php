@@ -1,11 +1,3 @@
-{{--
-  Route: admin.products.show
-  Dữ liệu thật ($product, $accessRightRows, $accessRightCount) do ProductController::show()
-  truyền vào qua App\Services\Admin\ProductService::showData(). $product->description là
-  HTML do CKEditor sinh ra (xem admin.products.create/edit) — hiển thị bằng {!! !!}, không
-  escape. $accessRightRows: danh sách quyền đã cấp cho sản phẩm này + (nếu cấp từ đơn hàng)
-  thời điểm đơn được duyệt/thanh toán (note họp 13/8, mục 2: "Sản phẩm và quyền cần làm rõ").
---}}
 @extends('layouts.admin')
 
 @section('title', $product->title)

@@ -1,21 +1,3 @@
-{{--
-  Route: teacher.papers.pdf.edit / .update
-         teacher.papers.coding-items.store / .update / .destroy
-         teacher.papers.coding-items.test-cases.import
-  SỬA 18/8 (đề PDF + phiếu đáp án — khách chốt 16/8 mục 1.2: "Đề thi lẻ được Admin hoặc
-  giáo viên tải lên"): màn cấu hình đề PDF của RIÊNG giáo viên (owner_type=teacher) — cùng
-  UI/logic với admin/content/assessments/pdf.blade.php (dùng chung
-  App\Services\PdfAssessmentEditingService phía sau), chỉ khác route/layout. Đề mặc định
-  riêng tư; đưa ra kho chung là Admin duyệt (chưa làm ở Giai đoạn 1).
-  3 khối độc lập:
-    1. File PDF đề + PDF lời giải + mã đề + phạm vi trang xem thử.
-    2. Đáp án đúng từng câu (AssessmentAnswerKey) — nhập trực tiếp trên form, KHÔNG có
-       chức năng nhập bằng Excel/CSV (khách đã chốt rõ, 16/8 mục 1.2).
-    3. Bài lập trình con (AssessmentCodingItem) — mỗi bài có test case riêng, tải bằng
-       gói ZIP (không phải Excel/CSV).
-  Đề chỉ phát hành được khi PdfAssessmentPublishGuard::canPublish() cho phép — hiện rõ lý
-  do còn thiếu ở đầu trang thay vì để giáo viên đoán.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Quản lý đề PDF')
@@ -60,8 +42,6 @@
         </div>
     @endif
 
-    {{-- Khối 1 + 2: PDF/mã đề + đáp án đúng từng câu — cùng 1 form vì
-         ContentService::assessmentPdfUpdate() lưu cả hai cùng lúc. --}}
     <div x-data="answerKeysForm({{ $answerKeys->map(fn ($k) => [
             'question_no' => $k->question_no,
             'question_type' => $k->question_type->value,
@@ -188,8 +168,6 @@
         </form>
     </div>
 
-    {{-- Khối 3: bài lập trình con — mỗi bài quản lý riêng (thêm/sửa/xoá/tải ZIP test case),
-         không nằm trong form đáp án ở trên vì mỗi bài có vòng đời/route riêng. --}}
     <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>💻</span> Bài lập trình con ({{ $codingItems->count() }})</h2>
 

@@ -1,13 +1,3 @@
-{{--
-  Route: teachers.index | Frame: PUB-10
-  Spec: 12.2 (trang vinh danh, không phải danh bạ cá nhân — không hiện số
-  điện thoại/địa chỉ cá nhân).
-  Dữ liệu $teachers do App\Http\Controllers\Public\TeacherController truyền
-  vào (App\Services\Public\TeacherService::indexData()) — CHỈ giáo viên đã
-  được Admin bấm "Vinh danh" (TeacherProfile::is_featured) và đã duyệt hồ
-  sơ. Trước đây route này là closure trả thẳng dữ liệu minh họa cứng, không
-  có Controller/Service thật nào đứng sau — avatar vẫn dùng ui-avatars.com tạm.
---}}
 @extends('layouts.guest')
 
 @section('title', 'Giáo viên tiêu biểu')

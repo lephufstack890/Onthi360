@@ -1,10 +1,3 @@
-{{--
-  Route: competitions.index | Frame: PUB-08
-  Spec: 11.1 (Cuộc thi vs Khảo sát; trạng thái Sắp diễn ra→Đang diễn ra→
-  Chờ công bố→Đã công bố→Lưu trữ).
-  Dữ liệu thật do App\Http\Controllers\Public\CompetitionController truyền vào qua
-  App\Services\Public\CompetitionService::indexData().
---}}
 @extends('layouts.guest')
 
 @section('title', 'Cuộc thi')

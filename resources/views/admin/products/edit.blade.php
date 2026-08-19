@@ -1,8 +1,3 @@
-{{--
-  Route: admin.products.edit / .update / .destroy
-  Dữ liệu thật ($product, $types, $visibilities, $statuses) do ProductController::edit()
-  truyền vào qua ProductService::editFormData(). Slug KHÔNG cho sửa (giữ SEO/link công khai).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa sản phẩm')

@@ -1,10 +1,3 @@
-{{--
-  Route: reviews.myReviews | Frame: REV-04
-  Spec: 9.4 (trạng thái review: Bản nháp → Đã gửi → Đang kiểm duyệt →
-  Đã công bố / Cần chỉnh sửa / Từ chối có lý do / Ẩn sau khi công bố).
-  Dữ liệu thật ($myReviews) do App\Http\Controllers\ReviewController::myReviews() truyền vào
-  qua App\Services\Review\ReviewService::buildMyReviews().
---}}
 @extends('layouts.student')
 
 @section('title', 'Đánh giá của tôi')
@@ -31,8 +24,6 @@
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge>
-                    {{-- Sửa được trong 7 ngày đầu (9.2) — trước đây trang này không có cách nào
-                         quay lại form để sửa, học sinh phải tự dựng URL bằng tay. --}}
                     @if ($r['isEditable'])
                         <a href="{{ route('reviews.form', ['type' => $r['type'], 'id' => $r['targetId']]) }}" class="text-xs font-medium text-rose-600 hover:text-rose-700 whitespace-nowrap">Sửa</a>
                     @endif

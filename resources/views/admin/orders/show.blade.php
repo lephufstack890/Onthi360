@@ -1,9 +1,3 @@
-{{--
-  Route: admin.orders.show
-  Spec: 7.4 luồng: Đặt đơn → Thanh toán → Admin duyệt → Cấp mã → Kích hoạt → Quyền bắt đầu.
-  $orderModel (Eloquent thật) do App\Http\Controllers\Admin\OrderController truyền vào.
-  Duyệt/từ chối gọi App\Services\Admin\OrderService::approve()/reject() -> App\Services\OrderActivationService.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết đơn hàng')

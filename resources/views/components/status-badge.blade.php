@@ -1,8 +1,3 @@
-{{--
-  Badge trạng thái dùng chung toàn admin. $tone nhận 1 trong:
-  neutral | info | success | warning | danger.
-  Không dùng màu làm dấu hiệu DUY NHẤT (13.3) — luôn đi kèm chữ trong $slot.
---}}
 @props(['tone' => 'neutral'])
 @php
     $colors = [

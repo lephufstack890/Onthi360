@@ -1,12 +1,3 @@
-{{--
-  Route: admin.courses.edit / admin.courses.update / admin.courses.destroy
-  Spec: 8.1 + 10.4 (xóa mềm phải có lý do, người thao tác, thời gian, audit log —
-  audit tự ghi qua App\Concerns\Auditable gắn ở App\Models\Course).
-  Dữ liệu thật ($course, $grades, $statuses) do CourseController::edit() truyền vào
-  qua App\Services\Admin\CourseService::editFormData().
-  Slug KHÔNG cho sửa ở đây — cố ý giữ nguyên link công khai đã chia sẻ/SEO (xem
-  CourseService::update()).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa khóa học')

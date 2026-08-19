@@ -1,9 +1,3 @@
-{{--
-  Route: admin.users.edit / admin.users.update
-  Spec: ADM-02 + 10.4 (chuyển sang "suspended" phải có lý do + audit log). Tỉnh thành/khu
-  vực (note họp 13/8, mục 2: "để quảng cáo cho giáo viên") tùy chọn.
-  Dữ liệu thật ($userModel) do UserController::edit() truyền vào qua UserService::editFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa người dùng')

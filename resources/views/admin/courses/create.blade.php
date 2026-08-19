@@ -1,9 +1,3 @@
-{{--
-  Route: admin.courses.create | "Khóa & Lớp" trong sidebar (4.2)
-  Spec: 8.1 (Khóa học khác Lớp học — lớp được tạo riêng sau, gắn về khóa này).
-  Dữ liệu thật ($grades, $statuses) do App\Http\Controllers\Admin\CourseController
-  truyền vào qua App\Services\Admin\CourseService::createFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo khóa học')

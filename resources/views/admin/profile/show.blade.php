@@ -1,8 +1,3 @@
-{{--
-  Route: admin.profile.show | Frame: ACC-01/ACC-02 áp cho khu Admin.
-  Dữ liệu thật do App\Http\Controllers\Admin\ProfileController truyền vào.
-  UI: chỉ chỉnh giao diện — giữ nguyên field/route/action như cũ.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Hồ sơ của tôi')

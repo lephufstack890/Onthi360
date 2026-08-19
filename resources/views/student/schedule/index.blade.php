@@ -1,12 +1,3 @@
-{{--
-  Route: student.schedule.index | Controller: App\Http\Controllers\Student\ScheduleController
-  Service: App\Services\Student\ScheduleService::buildWeekData()
-
-  Thời khoá biểu DẠNG BẢNG (1 hàng tiêu đề Thứ + ngày cụ thể, 1 hàng nội dung, mỗi ô là 1
-  ngày) — GỘP buổi học của TẤT CẢ lớp học sinh đang tham gia — khác với tab "Lịch học" trong
-  student.classes.show (chỉ hiển thị buổi học của MỘT lớp dạng danh sách phẳng). Cuộn ngang
-  trên màn hình nhỏ (overflow-x-auto) vì bảng 7 cột không co vừa điện thoại.
---}}
 @extends('layouts.student')
 
 @section('title', 'Thời khoá biểu')

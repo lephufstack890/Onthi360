@@ -1,9 +1,3 @@
-{{--
-  Route: admin.teacher-approvals.show
-  Spec: 3.3 + 16 mục 4 (duyệt/từ chối/tạm dừng phải ghi lý do + audit log — audit tự ghi qua
-  App\Concerns\Auditable gắn ở App\Models\TeacherProfile, không cần gọi tay ở đây).
-  Dữ liệu thật ($profile) do App\Http\Controllers\Admin\TeacherApprovalController truyền vào.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Hồ sơ giáo viên')

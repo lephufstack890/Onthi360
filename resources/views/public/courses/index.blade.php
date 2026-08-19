@@ -1,9 +1,3 @@
-{{--
-  Route: courses.index | Frame: PUB-03
-  Spec: 4.1 (Khóa học = khám phá chương trình, khác Lớp học).
-  Dữ liệu thật do App\Http\Controllers\Public\CourseController truyền vào qua
-  App\Services\Public\CourseService::indexData().
---}}
 @extends('layouts.guest')
 
 @section('title', 'Khóa học')

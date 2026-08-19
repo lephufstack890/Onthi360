@@ -1,4 +1,3 @@
-{{-- Ô icon bo tròn pastel — dùng cho task-card, feature list, empty state minh họa nhẹ. --}}
 @props(['emoji' => '✨', 'tone' => 'rose'])
 @php
     $bg = [

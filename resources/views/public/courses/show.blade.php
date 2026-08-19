@@ -1,21 +1,3 @@
-{{--
-  Route: courses.show | Frame: PUB-04
-  Spec: 8.1, 8.3 (lớp liên quan, rating summary, CTA đăng ký/mua).
-  Dữ liệu thật do App\Http\Controllers\Public\CourseController truyền vào qua
-  App\Services\Public\CourseService::showData() — ảnh bìa dùng picsum.photos tạm
-  (chưa có cover_image_path thật được upload).
-
-  CTA trước đây chỉ kiểm tra auth()->check() — bất kỳ ai ĐÃ đăng nhập, kể cả học sinh chưa
-  từng tham gia lớp nào của khóa này, đều thấy "Xem lớp học của tôi". Giờ học sinh chỉ thấy
-  nút đó khi thật sự đã tham gia (ClassEnrollment active) ≥ 1 lớp thuộc khóa này; ngược lại
-  thấy CTA "Nhập mã lớp để tham gia" — join-by-code thật (App\Http\Controllers\Student\
-  ClassRoomController::join(), route student.classes.join).
-
-  Lưu ý: $course->description là HTML do CKEditor sinh ra (xem admin.courses.create) — PHẢI
-  hiển thị bằng {!! !!} + class "rich-content", không escape bằng {{ }} (trước đây escape nên
-  hiện nguyên thẻ "<p>...</p>" dạng chữ thay vì render — cùng cách xử lý đã đúng ở
-  admin.courses.show).
---}}
 @extends('layouts.guest')
 
 @section('title', 'Chi tiết khóa học')

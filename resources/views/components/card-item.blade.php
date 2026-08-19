@@ -1,17 +1,3 @@
-{{--
-  Card dùng chung cho khóa học/tài liệu/lớp ở khu vực công khai.
-  Card phải nói rõ Công khai/Có phí/Cần kích hoạt/Sắp mở (12.2) — không
-  giấu điều kiện sau CTA.
-
-  Ảnh bìa: dùng ảnh demo tạm (picsum.photos, seed theo $title nên mỗi thẻ
-  luôn ra đúng 1 ảnh cố định, không đổi mỗi lần tải lại) — thay bằng ảnh bìa
-  thật (upload/CDN riêng) khi có. Truyền $image để override URL thật.
-
-  $owned (mặc định false, KHÔNG đổi giao diện các nơi chưa truyền prop này) — "Tic xanh"
-  góc trên-phải ảnh bìa: người đang xem (nếu đã đăng nhập) đã sở hữu quyền dùng nội dung
-  này (4.1, dùng ở resources/views/public/materials/index.blade.php + show.blade.php qua
-  App\Services\Public\MaterialService).
---}}
 @props(['title', 'href' => '#', 'meta' => null, 'badgeLabel' => null, 'badgeTone' => 'info', 'average' => null, 'count' => 0, 'image' => null, 'owned' => false])
 @php
     $coverUrl = $image ?? 'https://picsum.photos/seed/'.urlencode(\Illuminate\Support\Str::slug($title)).'/480/360';

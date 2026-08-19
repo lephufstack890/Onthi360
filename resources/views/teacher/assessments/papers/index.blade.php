@@ -15,8 +15,6 @@
             </div>
         </div>
         <div class="flex gap-2 shrink-0">
-            {{-- SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): tạo nhiều đề PDF cùng lúc, khác hẳn nút
-                 "+ Tạo đề PDF mới" (tạo TỪNG đề trống 1 lần). --}}
             <a href="{{ route('teacher.papers.bulk.create') }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải bộ đề</a>
             <a href="{{ route('teacher.papers.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm">+ Tạo đề PDF mới</a>
         </div>

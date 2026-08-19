@@ -1,19 +1,9 @@
-{{--
-  Route: admin.orders.index | Frame: ADM-04
-  Spec: 7.4 (Tạo đơn ≠ đã thanh toán ≠ đã có quyền).
-  TODO controller: truyền $orders (paginate) với filter trạng thái.
-  $tokenTopups (note họp 13/8, mục 7-8: "Nộp tiền thành token" + QR ngân hàng) — gộp chung
-  trang này thay vì thêm mục điều hướng riêng, cùng bản chất "đối soát thanh toán thủ công
-  rồi mới duyệt" với đơn hàng. Dữ liệu thật do App\Services\WalletService::
-  pendingAndRecentForAdmin() truyền vào qua App\Http\Controllers\Admin\OrderController.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Đơn hàng')
 @section('page-title', 'Đơn hàng')
 
 @section('content')
-    {{-- Dữ liệu thật do App\Http\Controllers\Admin\OrderController truyền vào. --}}
     @php
         $tab = $tab ?? 'all';
         $tabs = $tabs ?? [];

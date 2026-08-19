@@ -1,17 +1,3 @@
-{{--
-  Route: reviews.form (GET) / reviews.store (POST)
-  Spec: 9.3 (tiêu chí phụ theo loại đối tượng/vai trò) + disclosure
-  checkbox bắt buộc + validation (13.3). 4 loại đối tượng: material (tài liệu), class (lớp
-  học), teacher (giáo viên), competition (cuộc thi) — note họp 13/8, mục 2: "Giáo viên, tài
-  liệu, cuộc thi cần có đánh giá sao của người dùng".
-  $type/$targetId/$existing do App\Http\Controllers\ReviewController::form() truyền vào (đã
-  qua kiểm tra đủ điều kiện — ReviewEligibilityService, hoặc ReviewPolicy::update() nếu đang
-  SỬA review cũ còn trong hạn 7 ngày). $existing (App\Models\Review|null): có giá trị khi học
-  sinh mở lại form để sửa đánh giá đã gửi trước đó — trước đây form luôn trắng dù review cũ đã
-  tồn tại, khiến học sinh mất hết nội dung cũ khi "sửa". Submit thật qua reviews.store, xử lý ở
-  App\Services\Review\ReviewService::store() — kiểm tra lại điều kiện lần nữa tại server
-  trước khi lưu (16 mục 3).
---}}
 @extends('layouts.guest')
 
 @section('title', ($existing ?? null) ? 'Sửa đánh giá' : 'Viết đánh giá')

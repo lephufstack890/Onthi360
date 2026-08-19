@@ -8,26 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-/**
- * SỬA 19/8 — vá DỮ LIỆU đã lưu trước khi sửa lỗi (phát hiện khi làm Giai đoạn 6, xem sửa
- * cùng lúc ở App\Services\Teacher\QuestionService::buildGradingConfig() +
- * resources/views/teacher/questions/create.blade.php): trước đây form Teacher tạo/sửa câu
- * Trắc nghiệm gửi lên 'correct_option' dạng CHỮ CÁI ("A"/"B"/"C"/"D") và lưu THẲNG vào
- * grading_config['correct_options'] mà KHÔNG đổi sang chỉ số — trong khi App\Services\
- * AttemptService::gradeMcq() so khớp bằng array_map('intval', ...), và intval("B")/("C")/
- * ("D") đều ra 0. Hậu quả: mọi câu Trắc nghiệm giáo viên tự tạo tay (KHÔNG qua OCR, luồng OCR
- * vẫn đúng vì có DocumentImportService::letterToIndex()) có đáp án đúng KHÁC phương án A đều
- * bị chấm SAI cho học sinh chọn đúng đáp án thật.
- *
- * Lệnh này quét TOÀN BỘ câu Trắc nghiệm, tìm đúng những câu 'correct_options' còn lưu dạng
- * CHỮ CÁI (không phải số) rồi đổi lại thành chỉ số (A→0, B→1, C→2, D→3) — AN TOÀN chạy lại
- * nhiều lần (idempotent: câu đã đúng dạng số thì bỏ qua, không đụng vào). Chạy thử xem trước
- * bằng --dry-run (không ghi gì), bỏ cờ đó để ghi thật.
- *
- * Cách chạy (server thật, sau khi deploy bản sửa lỗi này):
- *   php artisan app:fix-mcq-correct-option-letters --dry-run   (xem trước, không đổi gì)
- *   php artisan app:fix-mcq-correct-option-letters             (ghi thật)
- */
 Artisan::command('app:fix-mcq-correct-option-letters {--dry-run}', function () {
     $letterToIndex = ['A' => 0, 'B' => 1, 'C' => 2, 'D' => 3];
     $dryRun = (bool) $this->option('dry-run');
@@ -41,7 +21,7 @@ Artisan::command('app:fix-mcq-correct-option-letters {--dry-run}', function () {
             $correctOptions = $config['correct_options'] ?? [];
 
             if ($correctOptions === [] || is_numeric($correctOptions[0] ?? null)) {
-                continue; // rỗng hoặc đã đúng dạng số — không cần sửa.
+                continue;
             }
 
             $letter = strtoupper((string) $correctOptions[0]);

@@ -1,7 +1,3 @@
-{{--
-  Tabs điều hướng dạng link (không JS) — mỗi tab là 1 route/URL khác nhau.
-  $tabs: [['label' => 'Tất cả', 'href' => '#', 'active' => true, 'count' => 12], ...]
---}}
 @props(['tabs' => []])
 <div class="border-b border-slate-200 mb-6">
     <nav class="flex gap-6 overflow-x-auto">
