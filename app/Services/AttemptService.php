@@ -344,7 +344,33 @@ class AttemptService
         foreach ($exams as $exam) {
             $competition = $exam->competition;
 
-            if ($competition !== null && $competition->status !== CompetitionStatus::Archived && $exam->isOngoing()) {
+            if ($competition === null) {
+                continue;
+            }
+
+            // SỬA 19/8 (4, yêu cầu thật của Admin: "kỳ thi nếu công bố rồi hoặc qua thời gian
+            // diễn ra rồi thì khoá lại không cho vào thi nữa"): trước đây chỉ chặn khi cuộc
+            // thi đã "Lưu trữ" ($competition->status !== Archived, và dùng CỘT LƯU SẴN thay vì
+            // tính theo giờ hiện tại) — nếu cuộc thi đã chuyển "Đã công bố" (kết quả đã công bố
+            // xong xuôi) thì KHÔNG hề bị chặn, học sinh vẫn vào làm bài mới được (dù kết quả đã
+            // công bố, làm thêm lúc này cũng không được tính vào bảng đã công bố — vô nghĩa và
+            // dễ gây hiểu lầm). Giờ dùng computedStatus() (tính theo giờ hiện tại, khớp nguyên
+            // tắc chung của cả file — không tin cột status lưu sẵn có thể bị "trễ" nếu lâu
+            // không ai vào sửa cuộc thi) và chặn thêm khi = Published, không chỉ Archived.
+            // CỐ Ý KHÔNG chặn theo Upcoming/PendingPublish ở cấp cuộc thi — cuộc thi nhiều
+            // vòng thường không đặt starts_at/ends_at cấp cuộc thi (chỉ đặt cho từng kỳ thi
+            // con), nên computedStatus() cấp cuộc thi có thể mãi mãi là Upcoming dù kỳ thi con
+            // đang thật sự diễn ra (xem docblock assertMaterialAccessible() — cùng lý do đã
+            // giải thích ở đó). "Qua thời gian diễn ra rồi" của ĐÚNG kỳ thi con này đã được
+            // $exam->isOngoing() tự chặn sẵn (dựa theo starts_at/ends_at RIÊNG của kỳ thi đó,
+            // độc lập với cuộc thi) — không cần thêm gì cho phần đó.
+            $competitionStatus = $competition->computedStatus();
+
+            if ($competitionStatus === CompetitionStatus::Archived || $competitionStatus === CompetitionStatus::Published) {
+                continue;
+            }
+
+            if ($exam->isOngoing()) {
                 return ['open' => true, 'message' => null, 'competitionId' => null, 'competitionExamId' => $exam->id];
             }
         }

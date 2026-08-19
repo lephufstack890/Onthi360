@@ -150,11 +150,21 @@ class CompetitionService
                      * SỬA 18/8 (2): thêm !$examAlreadyAttempted — mỗi học sinh chỉ được làm 1
                      * kỳ thi con này 1 lần, đã nộp rồi thì không hiện "Vào thi" nữa (view sẽ tự
                      * chuyển sang nhánh "Đã làm").
+                     *
+                     * SỬA 19/8 (4, yêu cầu thật của Admin: "kỳ thi công bố rồi hoặc qua thời
+                     * gian diễn ra rồi thì khoá lại"): thêm chặn khi cuộc thi đã "Đã công bố"
+                     * (Published) — trước đây chỉ chặn "Lưu trữ" (Archived), nên nút "Vào thi"
+                     * vẫn hiện dù kết quả cuộc thi đã công bố xong xuôi (làm thêm lúc này vô
+                     * nghĩa, không được tính vào bảng đã công bố). Khớp đúng gate mới ở server
+                     * (AttemptService::competitionEntryDecision(), SỬA 19/8 (4)) — 2 nơi PHẢI
+                     * luôn khớp nhau. Vẫn CỐ Ý không chặn theo Upcoming/PendingPublish cấp cuộc
+                     * thi, lý do y hệt đã giải thích ở đoạn trên.
                      */
                     'canJoinDirectly' => $viewer !== null
                         && $viewer->hasRole(Role::STUDENT)
                         && $exam->assessment_id !== null
                         && $computedStatusValue !== CompetitionStatus::Archived->value
+                        && $computedStatusValue !== CompetitionStatus::Published->value
                         && $examStatusValue === 'ongoing'
                         && ! $examAlreadyAttempted,
                 ];

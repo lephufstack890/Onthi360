@@ -19,7 +19,7 @@
         <div class="max-w-7xl mx-auto px-4 py-14 lg:py-20">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-rose-200 text-xs font-medium mb-4">🏆 Sân đấu học thuật</span>
             <h1 class="text-3xl lg:text-4xl font-semibold leading-tight">Thử thách bản thân<br class="hidden lg:block"> cùng các cuộc thi học thuật</h1>
-            <p class="text-slate-300 mt-4 max-w-md">Đề thi luôn thuộc kho Tài liệu — cuộc thi chỉ tham chiếu đề để tổ chức thành sự kiện có thời gian và bảng xếp hạng riêng (4.3, 11.1).</p>
+            <p class="text-slate-300 mt-4 max-w-md">Đề thi luôn thuộc kho Tài liệu — cuộc thi chỉ tham chiếu đề để tổ chức thành sự kiện có thời gian và bảng xếp hạng riêng.</p>
             <div class="flex flex-wrap gap-6 mt-6 text-sm">
                 <div><p class="text-2xl font-semibold">{{ count($competitions) }}+</p><p class="text-slate-400">cuộc thi/khảo sát đã tổ chức</p></div>
             </div>

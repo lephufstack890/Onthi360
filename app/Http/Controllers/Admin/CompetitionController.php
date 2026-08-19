@@ -31,9 +31,6 @@ class CompetitionController extends Controller
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date'],
             'publish_result_at' => ['nullable', 'date'],
-            // 'status' KHÔNG còn nhận từ form nữa — CompetitionService::store()/update() tự
-            // tính theo giờ hiện tại (xem Competition::computeStatusFor()), chỉ "Lưu trữ" là
-            // admin tự bấm qua route admin.competitions.archive riêng.
             'scoring_note' => ['nullable', 'string', 'max:500'],
             'penalty_note' => ['nullable', 'string', 'max:500'],
             'tie_break_note' => ['nullable', 'string', 'max:500'],
@@ -45,24 +42,27 @@ class CompetitionController extends Controller
     }
 
     /**
-     * Form dùng 5 dropdown Ngày/Tháng/Năm/Giờ/Phút ("{field}_day/_month/_year/_hour/
-     * _minute") thay HOÀN TOÀN cho <input type="datetime-local"|"date"|"time"> native (bị
-     * phản ánh không bấm chọn được trên máy một số người dùng — xem
-     * resources/views/components/date-time-fields.blade.php). Ghép lại thành 1 field gốc
-     * "{field}" chuẩn "Y-m-d\TH:i" NGAY TRƯỚC KHI validate(), để validationRules()/
-     * examValidationRules() và toàn bộ Service layer phía sau không phải đổi gì (vẫn nhận
-     * đúng 1 field 'date' như cũ). Thiếu bất kỳ 1 trong 3 phần Ngày/Tháng/Năm → cả mốc
-     * thời gian này thành null (giờ/phút luôn có mặc định 00:00 nếu bỏ trống).
+     * @throws ValidationException
      */
     private function combineDateTimeInputs(Request $request, array $fields): void
     {
+        $errors = [];
+
         foreach ($fields as $field) {
             $day = trim((string) $request->input($field.'_day'));
             $month = trim((string) $request->input($field.'_month'));
             $year = trim((string) $request->input($field.'_year'));
 
-            if ($day === '' || $month === '' || $year === '') {
+            $filledCount = ($day !== '' ? 1 : 0) + ($month !== '' ? 1 : 0) + ($year !== '' ? 1 : 0);
+
+            if ($filledCount === 0) {
                 $request->merge([$field => null]);
+
+                continue;
+            }
+
+            if ($filledCount < 3) {
+                $errors[$field] = 'Thiếu Ngày/Tháng/Năm — chọn đủ cả 3 ô, hoặc để trống toàn bộ nếu chưa muốn đặt mốc thời gian này.';
 
                 continue;
             }
@@ -76,6 +76,10 @@ class CompetitionController extends Controller
             $minute = $minute !== '' ? str_pad($minute, 2, '0', STR_PAD_LEFT) : '00';
 
             $request->merge([$field => "{$year}-{$month}-{$day}T{$hour}:{$minute}"]);
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
         }
     }
 

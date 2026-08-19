@@ -153,24 +153,41 @@
                 </div>
             @endif
 
-            {{-- Danh sách còn lại --}}
-            <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-                @forelse ($rest as $e)
-                    <div class="flex items-center gap-3 px-4 py-3 {{ $e['isYou'] ? 'bg-rose-50/60' : 'hover:bg-slate-50' }} transition">
-                        <span class="w-6 text-sm font-semibold text-slate-400 shrink-0">{{ $e['rank'] }}</span>
-                        <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm shrink-0">👤</span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-slate-700 truncate">{{ $e['name'] }}{{ $e['isYou'] ? ' (Bạn)' : '' }}</p>
-                            <div class="h-1.5 rounded-full bg-slate-100 mt-1.5 max-w-[140px] overflow-hidden">
-                                <div class="h-full rounded-full bg-gradient-to-r from-rose-400 to-amber-400" style="width: {{ max(6, round($e['score'] / max($topScore, 1) * 100)) }}%"></div>
+            {{--
+                Danh sách còn lại (hạng 4 trở đi) — SỬA 19/8 (báo cáo thật của Admin: "trang
+                rõ ràng có hiện Top 3/Hạng của bạn ở trên mà bên dưới vẫn hiện 'Chưa có dữ liệu
+                xếp hạng', k hiểu"): $rest = array_slice($entries, 3) — khi TOÀN BỘ cuộc thi có
+                từ 1-3 người tham gia, $rest LUÔN rỗng (mọi người đã hiện đủ ở bục Top 3 phía
+                trên rồi, không có ai "hạng 4 trở đi" cả) — đây là chuyện BÌNH THƯỜNG, không
+                phải "chưa có dữ liệu". Trước đây @forelse/@empty không phân biệt được 2 trường
+                hợp "chỉ còn thiếu người hạng 4+" (bình thường) và "cuộc thi này thật sự chưa có
+                ai xếp hạng" (thật sự trống) — cả 2 đều hiện chung 1 câu gây hiểu lầm. Giờ: chỉ
+                hiện khối này (và câu "Chưa có dữ liệu xếp hạng.") khi $entries RỖNG HOÀN TOÀN
+                (trên thực tế khó xảy ra ở đây vì indexData() đã lọc leaderboard_entries_count
+                > 0 từ đầu — chỉ còn là lớp phòng vệ); có 1-3 người thì Top 3 ở trên đã đủ, ẩn
+                hẳn khối này, không hiện thêm câu nào gây rối.
+            --}}
+            @if (count($rest) > 0)
+                <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+                    @foreach ($rest as $e)
+                        <div class="flex items-center gap-3 px-4 py-3 {{ $e['isYou'] ? 'bg-rose-50/60' : 'hover:bg-slate-50' }} transition">
+                            <span class="w-6 text-sm font-semibold text-slate-400 shrink-0">{{ $e['rank'] }}</span>
+                            <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm shrink-0">👤</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-slate-700 truncate">{{ $e['name'] }}{{ $e['isYou'] ? ' (Bạn)' : '' }}</p>
+                                <div class="h-1.5 rounded-full bg-slate-100 mt-1.5 max-w-[140px] overflow-hidden">
+                                    <div class="h-full rounded-full bg-gradient-to-r from-rose-400 to-amber-400" style="width: {{ max(6, round($e['score'] / max($topScore, 1) * 100)) }}%"></div>
+                                </div>
                             </div>
+                            <span class="text-sm font-semibold text-slate-700 shrink-0 w-20 text-right">{{ number_format($e['score'], 2) }} đ</span>
                         </div>
-                        <span class="text-sm font-semibold text-slate-700 shrink-0 w-20 text-right">{{ number_format($e['score'], 2) }} đ</span>
-                    </div>
-                @empty
+                    @endforeach
+                </div>
+            @elseif (count($entries) === 0)
+                <div class="bg-white rounded-2xl border border-slate-200">
                     <div class="px-4 py-8 text-center text-slate-400 text-sm">Chưa có dữ liệu xếp hạng.</div>
-                @endforelse
-            </div>
+                </div>
+            @endif
 
             @if ($totalEntries > count($entries))
                 <p class="text-xs text-slate-400 text-center mt-3">Hiển thị top {{ count($entries) }}/{{ number_format($totalEntries) }} — bảng đầy đủ do admin quản lý.</p>
