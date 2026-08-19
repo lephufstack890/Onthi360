@@ -25,10 +25,7 @@ class AssessmentRepository extends EloquentRepository implements AssessmentRepos
             ->where('status', 'published')
             ->when($questionType, fn (Builder $q) => $q->whereHas('items.question', fn (Builder $qq) => $qq->where('type', $questionType)))
             ->when($bankName, fn (Builder $q) => $q->whereHas('items.question.bank', fn (Builder $qq) => $qq->where('name', $bankName)))
-            // SỬA 19/8 (Giai đoạn 6): thêm items.question.tags — PracticeService::
-            // withQuestionMeta() giờ lấy "chuyên đề" từ Tag thật thay vì tên QuestionBank
-            // (xem docblock ở đó); giữ nguyên 'bank' phòng khi chỗ khác còn cần.
-            ->with('items.question.bank', 'items.question.tags')
+            ->with('items.question.bank')
             ->latest()
             ->limit($limit)
             ->get();

@@ -16,7 +16,6 @@ use App\Http\Controllers\Student\AssessmentController as StudentAssessmentContro
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
-use App\Http\Controllers\Student\PracticeByQuestionController as StudentPracticeByQuestionController;
 use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
@@ -116,17 +115,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
-        // SỬA 19/8 (Giai đoạn 6 — "Luyện tập theo câu"): luyện từng câu ngoài đề, xem docblock
-        // App\Services\Student\PracticeByQuestionService — tiến trình lưu session, không tạo
-        // Attempt/AttemptAnswer nên KHÔNG cần route dạng resource {id}, chỉ 1 phiên/lúc/học sinh.
-        Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
-            Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
-            Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
-            Route::get('/play', [StudentPracticeByQuestionController::class, 'play'])->name('play');
-            Route::post('/answer', [StudentPracticeByQuestionController::class, 'answer'])->name('answer');
-            Route::post('/next', [StudentPracticeByQuestionController::class, 'next'])->name('next');
-            Route::post('/stop', [StudentPracticeByQuestionController::class, 'stop'])->name('stop');
-        });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         // SỬA 19/8 (Giai đoạn 2 — đề PDF, 16/8 mục 3): xem PDF đề/lời giải trực tiếp trên
         // web, luôn qua kiểm tra quyền ở Student\AssessmentService::streamPdfFile() (không

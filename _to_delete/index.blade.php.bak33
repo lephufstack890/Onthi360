@@ -75,20 +75,6 @@
         <div class="text-5xl">🎯</div>
     </div>
 
-    {{-- SỬA 19/8 (Giai đoạn 6 — "Luyện tập theo câu"): lối vào luồng luyện TỪNG CÂU riêng,
-         khác hẳn luyện theo đề ở trên — xem App\Services\Student\PracticeByQuestionService. --}}
-    <a href="{{ route('student.practiceByQuestion.setup') }}"
-       class="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-4 lg:p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-        <div class="flex items-center gap-3">
-            <x-icon-tile emoji="🧠" tone="sky" />
-            <div>
-                <h3 class="font-semibold text-slate-800">Luyện tập theo câu</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Chọn chuyên đề, luyện từng câu một, biết đúng/sai ngay lập tức.</p>
-            </div>
-        </div>
-        <span class="inline-flex items-center gap-1 text-sm font-medium text-sky-600">Bắt đầu <span aria-hidden="true">→</span></span>
-    </a>
-
     <x-tabs :tabs="$tabs" />
 
     @if ($filtersApply)

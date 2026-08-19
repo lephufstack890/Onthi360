@@ -48,16 +48,4 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     {
         return $this->query()->with('owner')->latest()->limit($limit)->get();
     }
-
-    public function idsForPractice(?string $type, array $tagIds): array
-    {
-        return $this->query()
-            ->where('owner_type', 'shared')
-            ->where('status', 'published')
-            ->whereIn('type', ['mcq', 'fill_blank'])
-            ->when($type, fn (Builder $q) => $q->where('type', $type))
-            ->when($tagIds !== [], fn (Builder $q) => $q->whereHas('tags', fn (Builder $qq) => $qq->whereIn('tags.id', $tagIds)))
-            ->pluck('id')
-            ->all();
-    }
 }

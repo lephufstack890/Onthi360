@@ -18,13 +18,10 @@ use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
  * (1) $type — App\Enums\QuestionType ('mcq'/'fill_blank'/'coding'), 1 đề có thể có NHIỀU dạng
  * câu hỏi trộn lẫn (6.3) nên lọc theo "đề có ít nhất 1 câu dạng này", không phải "đề CHỈ có
  * dạng này".
- * (2) $topic — "chuyên đề": SỬA 19/8 (Giai đoạn 6) — trước đây hệ thống chưa có bảng Tag/
- * Chuyên đề riêng nên tạm dùng App\Models\QuestionBank::name làm chiều lọc gần đúng; giờ đã
- * có App\Models\Tag thật (xem withQuestionMeta() bên dưới) nên đổi hẳn sang dùng Tag, đúng như
- * lời mời sửa ghi ở đây trước đó. Lưu ý: câu hỏi cũ tạo trước Giai đoạn 6 chưa được gắn tag nào
- * thì sẽ KHÔNG xuất hiện trong danh sách "Chuyên đề" cho tới khi Admin/Giáo viên vào sửa câu
- * đó và tick/thêm tag — đây là đánh đổi chấp nhận được của việc chuyển nguồn dữ liệu, không
- * phải lỗi.
+ * (2) $topic — "chuyên đề": hệ thống CHƯA có bảng Tag/Chuyên đề riêng, nên tạm dùng
+ * App\Models\QuestionBank::name (ngân hàng câu hỏi thường đã được đặt tên theo chuyên đề/
+ * chương, vd "Đại số 10 — Chương 1") làm chiều lọc gần đúng nhất hiện có — không tự bịa thêm
+ * dữ liệu giả. Nếu sau này có bảng Chuyên đề/Tag thật, chỉ cần đổi nguồn lấy 'topics' bên dưới.
  * "Độ khó" CHƯA lọc được vì Question không có cột difficulty — giữ nguyên là nút vô hiệu hoá
  * (xem view) thay vì giả vờ lọc được.
  */
@@ -129,9 +126,9 @@ class PracticeService
     }
 
     /**
-     * Gắn 'questionTypes' (App\Enums\QuestionType[]) và 'topics' (tên Tag thật — Question::
-     * tags(), xem class docblock) vào 1 item danh sách — dùng để lọc theo dạng câu hỏi/chuyên
-     * đề mà KHÔNG cần truy vấn DB thêm (đã eager-load items.question.tags ở repository).
+     * Gắn 'questionTypes' (App\Enums\QuestionType[]) và 'topics' (tên QuestionBank, xem class
+     * docblock) vào 1 item danh sách — dùng để lọc theo dạng câu hỏi/chuyên đề mà KHÔNG cần
+     * truy vấn DB thêm (đã eager-load items.question.bank ở repository).
      */
     private function withQuestionMeta(array $item, ?Assessment $assessment): array
     {
@@ -147,8 +144,8 @@ class PracticeService
 
             $types[$question->type->value] = true;
 
-            foreach ($question->tags ?? [] as $tag) {
-                $topics[$tag->name] = true;
+            if ($question->bank?->name) {
+                $topics[$question->bank->name] = true;
             }
         }
 
@@ -168,7 +165,7 @@ class PracticeService
         return $this->assignments->query()
             ->whereIn('class_room_id', $classRoomIds)
             ->where('status', 'open')
-            ->with('assessment.items.question.bank', 'assessment.items.question.tags', 'classRoom')
+            ->with('assessment.items.question.bank', 'classRoom')
             ->orderBy('due_at')
             ->limit(30)
             ->get()

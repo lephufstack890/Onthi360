@@ -454,17 +454,15 @@ class AttemptService
         }
     }
 
-    /**
-     * SỬA 19/8 (Giai đoạn 6): so khớp đáp án chuyển qua App\Services\QuestionGrader — dùng
-     * chung với Student\PracticeByQuestionService, xem docblock ở đó để biết lý do tách (bug
-     * chấm sai MCQ giáo viên tự tạo phát hiện cùng đợt cho thấy so khớp đáp án chỉ nên có
-     * đúng 1 nơi hiện thực).
-     *
-     * @return array{0: ?int, 1: VerdictStatus}
-     */
+    /** @return array{0: ?int, 1: VerdictStatus} */
     private function gradeMcq(Question $question, array $answer): array
     {
-        $isCorrect = QuestionGrader::isMcqCorrect($question, $answer['selected_option'] ?? null);
+        $config = $question->grading_config ?? [];
+        $selected = $answer['selected_option'];
+        $correctOptions = array_map('intval', $config['correct_options'] ?? []);
+
+        $isCorrect = $selected !== null && $selected !== ''
+            && in_array((int) $selected, $correctOptions, true);
 
         return [$isCorrect ? $question->points : 0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
     }
@@ -472,7 +470,11 @@ class AttemptService
     /** @return array{0: ?int, 1: VerdictStatus} */
     private function gradeFillBlank(Question $question, array $answer): array
     {
-        $isCorrect = QuestionGrader::isFillBlankCorrect($question, (string) ($answer['text'] ?? ''));
+        $config = $question->grading_config ?? [];
+        $text = mb_strtolower(trim((string) ($answer['text'] ?? '')));
+        $accepted = array_map(fn ($a) => mb_strtolower(trim((string) $a)), $config['accepted_answers'] ?? []);
+
+        $isCorrect = $text !== '' && in_array($text, $accepted, true);
 
         return [$isCorrect ? $question->points : 0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
     }
