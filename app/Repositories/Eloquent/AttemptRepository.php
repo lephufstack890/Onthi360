@@ -46,6 +46,24 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
             ->count();
     }
 
+    public function countSubmittedForUserAndCompetition(int $userId, int $competitionId): int
+    {
+        return $this->query()
+            ->where('user_id', $userId)
+            ->where('competition_id', $competitionId)
+            ->whereNotNull('submitted_at')
+            ->count();
+    }
+
+    public function countSubmittedForUserAndCompetitionExam(int $userId, int $competitionExamId): int
+    {
+        return $this->query()
+            ->where('user_id', $userId)
+            ->where('competition_exam_id', $competitionExamId)
+            ->whereNotNull('submitted_at')
+            ->count();
+    }
+
     public function latestForAssignmentAndUser(int $assignmentId, int $userId): ?Attempt
     {
         return $this->query()

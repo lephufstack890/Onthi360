@@ -1,15 +1,3 @@
-{{--
-  Route: admin.competitions.create / .store
-  Spec: 11.1 (Đề thi không nằm trong menu Cuộc thi — nó là Tài liệu, cuộc thi chỉ THAM CHIẾU
-  đề/bộ bài để tổ chức sự kiện) + 11.2 (bảng xếp hạng: công thức điểm, penalty, đồng điểm) +
-  note họp 13/8 mục 1 ("cuộc thi ngoài đơn vị tổ chức thì cần có chuyên gia cố vấn giáo viên
-  đồng hành để tăng uy tín").
-  Dữ liệu thật ($types, $statuses, $assessmentOptions, $organizerTypes, $teacherOptions) do
-  CompetitionController::create() truyền vào qua App\Services\Admin\CompetitionService::
-  createFormData().
-  Bắt đầu/Kết thúc/Công bố kết quả dùng x-date-time-fields (Ngày + Giờ tách riêng) thay cho
-  <input type="datetime-local"> gộp — xem resources/views/components/date-time-fields.blade.php.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo cuộc thi')
@@ -115,7 +103,7 @@
             </p>
 
             <div class="rounded-lg bg-sky-50 border border-sky-100 p-4 space-y-3">
-                <p class="text-sm font-medium text-sky-700">Quy tắc bảng xếp hạng (11.2)</p>
+                <p class="text-sm font-medium text-sky-700">Quy tắc bảng xếp hạng</p>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1" for="scoring_note">Công thức điểm / kỳ tính</label>
                     <input id="scoring_note" name="scoring_note" type="text" value="{{ old('scoring_note') }}" maxlength="500"

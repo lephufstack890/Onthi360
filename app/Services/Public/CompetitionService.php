@@ -61,13 +61,16 @@ class CompetitionService
         $computedStatusValue = $competition->computedStatus()->value;
         $meta = self::STATUS_META[$computedStatusValue] ?? ['label' => $computedStatusValue, 'tone' => 'neutral'];
 
-        // SỬA 18/8 (yêu cầu "mỗi học sinh chỉ được làm 1 lần"): đã nộp ít nhất 1 lần cho đúng
-        // đề của cuộc thi (đường tham chiếu đơn, không kỳ thi con) thì không cho vào làm lại
-        // nữa — nút chuyển thành "Đã làm" thay vì "Vào thi ngay". Dùng thẳng
-        // countSubmittedForUserAndAssessment() có sẵn (đúng cái AttemptService::startOrResume()
-        // dùng để chặn resubmission_policy) nên luôn khớp với điều mà server sẽ chặn thật khi
-        // học sinh bấm vào — không tự bịa 1 luật đếm khác ở đây.
-        $alreadyAttemptedSingle = $this->hasSubmittedAttempt($viewer, $competition->assessment_id);
+        // SỬA 18/8 (yêu cầu "mỗi học sinh chỉ được làm 1 lần"): đã nộp ít nhất 1 lần cho ĐÚNG
+        // CUỘC THI này (đường tham chiếu đơn, không kỳ thi con) thì không cho vào làm lại nữa —
+        // nút chuyển thành "Đã làm" thay vì "Vào thi ngay".
+        // SỬA 19/8 (fix tận gốc "tái sử dụng đề bị chặn chéo giữa các cuộc thi"): trước đây
+        // đếm theo assessment_id TOÀN CỤC (countSubmittedForUserAndAssessment()) — nếu đề này
+        // được dùng lại ở cuộc thi khác, học sinh nộp bên đó cũng bị coi là "đã làm" ở đây. Giờ
+        // dùng hasSubmittedAttemptForCompetition() — đếm CHỈ TRONG PHẠM VI competition_id này
+        // (Attempt::competition_id, ghi lúc AttemptService::startOrResume() tạo attempt), khớp
+        // đúng cách assertResubmissionAllowed() chặn thật ở server.
+        $alreadyAttemptedSingle = $this->hasSubmittedAttemptForCompetition($viewer, $competition->id);
 
         return [
             'competition' => $competition,
@@ -110,9 +113,11 @@ class CompetitionService
                 $examStatusValue = $exam->computedStatus();
                 $examMeta = self::EXAM_STATUS_META[$examStatusValue] ?? ['label' => $examStatusValue, 'tone' => 'neutral'];
 
-                // SỬA 18/8 (2): xem giải thích ở $alreadyAttemptedSingle phía trên — áp dụng y
-                // hệt cho từng kỳ thi con (mỗi kỳ tham chiếu 1 đề riêng qua $exam->assessment_id).
-                $examAlreadyAttempted = $this->hasSubmittedAttempt($viewer, $exam->assessment_id);
+                // SỬA 18/8 (2) + SỬA 19/8: xem giải thích ở $alreadyAttemptedSingle phía trên —
+                // áp dụng y hệt cho từng kỳ thi con, nhưng đếm theo competition_exam_id riêng
+                // của kỳ thi này (hasSubmittedAttemptForCompetitionExam()) thay vì assessment_id
+                // toàn cục, để đề dùng lại ở kỳ thi khác không bị chặn chéo.
+                $examAlreadyAttempted = $this->hasSubmittedAttemptForCompetitionExam($viewer, $exam->id);
 
                 return [
                     'id' => $exam->id,
@@ -196,18 +201,31 @@ class CompetitionService
     }
 
     /**
-     * Học sinh này đã nộp ít nhất 1 lần cho đề $assessmentId chưa (dùng để hiện "Đã làm" thay
-     * vì "Vào thi") — dùng đúng phép đếm countSubmittedForUserAndAssessment() mà
-     * AttemptService::startOrResume() dùng để chặn resubmission_policy, nên luôn khớp với
-     * hành vi chặn thật của server (không tự đặt ra 1 luật đếm khác ở tầng hiển thị này).
+     * SỬA 19/8 (fix tận gốc "tái sử dụng đề bị chặn chéo giữa các cuộc thi", báo cáo thật của
+     * Admin khi test): trước đây đếm theo assessment_id TOÀN CỤC — nếu 1 đề dùng lại ở nhiều
+     * cuộc thi, làm cuộc thi A xong sẽ hiện "Đã làm" luôn ở cuộc thi B dù độc lập hoàn toàn.
+     * Giờ đếm CHỈ TRONG PHẠM VI đúng cuộc thi này (competition_id — Attempt::competition_id,
+     * ghi lúc AttemptService::startOrResume() tạo attempt), khớp đúng cách
+     * assertResubmissionAllowed() chặn thật ở server cho trường hợp cuộc thi tham chiếu đề
+     * TRỰC TIẾP (không qua kỳ thi con).
      */
-    private function hasSubmittedAttempt(?User $viewer, ?int $assessmentId): bool
+    private function hasSubmittedAttemptForCompetition(?User $viewer, int $competitionId): bool
     {
-        if ($viewer === null || $assessmentId === null) {
+        if ($viewer === null) {
             return false;
         }
 
-        return $this->attempts->countSubmittedForUserAndAssessment($viewer->id, $assessmentId) > 0;
+        return $this->attempts->countSubmittedForUserAndCompetition($viewer->id, $competitionId) > 0;
+    }
+
+    /** Tương tự hasSubmittedAttemptForCompetition() nhưng ở cấp kỳ thi con (CompetitionExam::id). */
+    private function hasSubmittedAttemptForCompetitionExam(?User $viewer, int $competitionExamId): bool
+    {
+        if ($viewer === null) {
+            return false;
+        }
+
+        return $this->attempts->countSubmittedForUserAndCompetitionExam($viewer->id, $competitionExamId) > 0;
     }
 
     /**

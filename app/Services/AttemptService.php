@@ -77,19 +77,9 @@ class AttemptService
             $this->assertAssignmentAccessible($user, $assignment);
         }
 
-        $this->assertMaterialAccessible($user, $assessment, $assignment);
+        $competitionContext = $this->assertMaterialAccessible($user, $assessment, $assignment);
 
-        $maxAttempts = $assessment->resubmission_policy['max_attempts'] ?? null;
-
-        if ($maxAttempts !== null) {
-            $submittedCount = $this->attempts->countSubmittedForUserAndAssessment($user->id, $assessment->id);
-
-            if ($submittedCount >= (int) $maxAttempts) {
-                throw ValidationException::withMessages([
-                    'attempt' => 'Bạn đã dùng hết số lượt làm lại cho đề này ('.$maxAttempts.' lượt).',
-                ]);
-            }
-        }
+        $this->assertResubmissionAllowed($user, $assessment, $competitionContext);
 
         $classRoomId = $assignment?->class_room_id;
 
@@ -98,6 +88,8 @@ class AttemptService
             'assessment_id' => $assessment->id,
             'assignment_id' => $assignment?->id,
             'class_room_id' => $classRoomId,
+            'competition_id' => $competitionContext['competitionId'],
+            'competition_exam_id' => $competitionContext['competitionExamId'],
             'source' => ($assignment !== null ? AttemptSource::Assignment : AttemptSource::PublicPractice)->value,
             'started_at' => now(),
             'status' => AttemptStatus::InProgress->value,
@@ -109,6 +101,54 @@ class AttemptService
         }
 
         return $attempt;
+    }
+
+    /**
+     * SỬA 19/8 (fix tận gốc "tái sử dụng đề bị chặn chéo giữa các cuộc thi", báo cáo thật của
+     * Admin khi test Giai đoạn 5): trước đây resubmission_policy['max_attempts'] luôn đếm theo
+     * assessment_id TOÀN CỤC (bất kể đề có đang gắn cuộc thi nào hay không) — nếu 1 đề được
+     * dùng lại ở NHIỀU cuộc thi khác nhau, học sinh làm cuộc thi A xong bị tính "đã dùng lượt"
+     * luôn ở cuộc thi B dù 2 cuộc thi độc lập, không có cách nào tách bạch. Giờ: nếu đề ĐANG
+     * được 1 cuộc thi/kỳ thi tham chiếu ($competitionContext có id — xem assertMaterialAccessible()/
+     * competitionEntryDecision()), đếm lượt đã nộp CHỈ TRONG PHẠM VI cuộc thi/kỳ thi ĐÓ; đề
+     * KHÔNG gắn cuộc thi nào (Tự luyện/Bài giao) giữ NGUYÊN hành vi cũ — đếm theo assessment_id
+     * toàn cục, không đổi gì cho 2 luồng đó.
+     *
+     * SỬA 19/8 (2, báo cáo thật của Admin khi test: "làm bài rồi mà vẫn cho làm tiếp"):
+     * resubmission_policy['max_attempts'] là 1 CỘT CHUNG của Assessment, chỉ có form tạo đề ở
+     * Teacher (Bộ đề) mới set được — Admin tạo/gắn đề vào cuộc thi KHÔNG có ô nào để đặt số
+     * lượt làm lại, nên hầu hết đề đấu cuộc thi có resubmission_policy = null. Trước đây
+     * max_attempts === null thì return sớm ở ngay trên (KHÔNG giới hạn gì cả) — với đề Tự
+     * luyện/Bài giao thì đúng ý (null = không giới hạn, giáo viên có thể cố tình không đặt),
+     * nhưng với đề đấu CUỘC THI thì sai hẳn yêu cầu gốc "mỗi học sinh chỉ được làm 1 lần" (xem
+     * SỬA 18/8 ở Public\CompetitionService — chỉ ẩn nút ở UI, KHÔNG chặn thật ở server) — học
+     * sinh nộp bài xong vẫn vào làm lại được vô hạn lần qua route take. Sửa: CÓ bối cảnh cuộc
+     * thi/kỳ thi ($isCompetitionScoped) mà resubmission_policy null thì mặc định max_attempts=1
+     * (cuộc thi luôn 1 lượt trừ khi sau này Admin có ô cấu hình riêng — hiện chưa có cột nào ở
+     * competitions/competition_exams cho việc này, xem migration 2 bảng đó); KHÔNG có bối cảnh
+     * cuộc thi (Tự luyện/Bài giao) thì null vẫn là KHÔNG giới hạn như cũ, không đổi gì.
+     */
+    private function assertResubmissionAllowed(User $user, Assessment $assessment, array $competitionContext): void
+    {
+        $isCompetitionScoped = $competitionContext['competitionId'] !== null || $competitionContext['competitionExamId'] !== null;
+
+        $maxAttempts = $assessment->resubmission_policy['max_attempts'] ?? ($isCompetitionScoped ? 1 : null);
+
+        if ($maxAttempts === null) {
+            return;
+        }
+
+        $submittedCount = match (true) {
+            $competitionContext['competitionId'] !== null => $this->attempts->countSubmittedForUserAndCompetition($user->id, $competitionContext['competitionId']),
+            $competitionContext['competitionExamId'] !== null => $this->attempts->countSubmittedForUserAndCompetitionExam($user->id, $competitionContext['competitionExamId']),
+            default => $this->attempts->countSubmittedForUserAndAssessment($user->id, $assessment->id),
+        };
+
+        if ($submittedCount >= (int) $maxAttempts) {
+            throw ValidationException::withMessages([
+                'attempt' => 'Bạn đã dùng hết số lượt làm lại cho '.($isCompetitionScoped ? 'cuộc thi' : 'đề').' này ('.$maxAttempts.' lượt).',
+            ]);
+        }
     }
 
     /**
@@ -162,49 +202,73 @@ class AttemptService
      * SỬA 19/8 (Giai đoạn 4 — vá lỗ hổng "đoán URL vào làm bài miễn phí"): trước đây đề
      * KHÔNG gắn Material nào thì hàm này bỏ qua luôn (return sớm) — đúng cho đề Tự luyện
      * (AssessmentType::Practice, vốn được thiết kế mở tự do, xem PracticeService) VÀ đúng cho
-     * đề đấu của Cuộc thi công khai (AssessmentType::CompetitionPaper được Competition/
-     * CompetitionExam tham chiếu tới — 11.1 "cuộc thi chỉ tham chiếu đề để tổ chức sự kiện",
-     * cố ý mở công khai, KHÔNG qua Assignment/Material/Product — xem Public\CompetitionService),
-     * NHƯNG với đề PDF loại Bài giao/Đề thi (Giai đoạn 1-3, đa số đề PDF hiện KHÔNG gắn
-     * Material vì Bộ đề chỉ tạo Assessment trơn — xem PdfBulkImportService, cố ý chưa bắt buộc
-     * gắn Product/Material ngay lúc tạo) thì việc bỏ qua này lại thành lỗ hổng: học sinh chỉ
-     * cần biết/đoán đúng assessment_id là vào làm bài được, KHÔNG qua Assignment (route
-     * student.assessment.take không bắt buộc truyền assignment). Vì vậy, thứ tự kiểm tra:
-     * (1) Practice luôn cho qua; (2) CompetitionPaper ĐANG được 1 Competition/CompetitionExam
-     * tham chiếu tới VÀ cuộc thi/kỳ thi đó ĐANG MỞ (xem competitionEntryDecision() — Giai
-     * đoạn 5, SỬA 19/8) thì cho qua; nếu có tham chiếu nhưng chưa/không còn mở thì CHẶN LUÔN
-     * với lý do rõ ràng (KHÔNG rơi xuống kiểm tra Material bên dưới — đề đấu Cuộc thi không
-     * nên "lách" qua đường Material để vào thi ngoài giờ); nếu KHÔNG được cuộc thi/kỳ thi nào
-     * tham chiếu tới thì rơi xuống bước (4) như đề PDF thường; (3) có Assignment hợp lệ thì
-     * coi như đã qua đủ cửa ở assertAssignmentAccessible() phía trên rồi, cho qua tiếp (giáo
-     * viên giao bài cho lớp là đủ căn cứ, không bắt buộc phải có Material/Product song song);
-     * (4) có Material gắn thì đi đúng AccessGateService như cũ; (5) không khớp trường hợp nào
-     * ở trên thì đây là đề PDF đứng một mình chưa gắn vào đâu cả — chặn hẳn, không cho vào làm
-     * bài "chùa". Đề muốn cho học sinh làm mà không giao qua lớp thì phải gắn Product (màn
-     * "Gắn vào học liệu để bán" ở Admin, dùng lại Admin\ContentService::materialStore()).
+     * đề đấu của Cuộc thi công khai (Competition/CompetitionExam tham chiếu tới — 11.1 "cuộc
+     * thi chỉ tham chiếu đề để tổ chức sự kiện", cố ý mở công khai, KHÔNG qua Assignment/
+     * Material/Product — xem Public\CompetitionService), NHƯNG với đề PDF loại Bài giao/Đề thi
+     * (Giai đoạn 1-3, đa số đề PDF hiện KHÔNG gắn Material vì Bộ đề chỉ tạo Assessment trơn —
+     * xem PdfBulkImportService, cố ý chưa bắt buộc gắn Product/Material ngay lúc tạo) thì việc
+     * bỏ qua này lại thành lỗ hổng: học sinh chỉ cần biết/đoán đúng assessment_id là vào làm
+     * bài được, KHÔNG qua Assignment (route student.assessment.take không bắt buộc truyền
+     * assignment). Vì vậy, thứ tự kiểm tra: (1) Practice luôn cho qua; (2) đề ĐANG được 1
+     * Competition/CompetitionExam tham chiếu tới VÀ cuộc thi/kỳ thi đó ĐANG MỞ (xem
+     * competitionEntryDecision() — Giai đoạn 5, SỬA 19/8) thì cho qua; nếu có tham chiếu
+     * nhưng chưa/không còn mở thì CHẶN LUÔN với lý do rõ ràng (KHÔNG rơi xuống kiểm tra
+     * Material bên dưới — đề đấu Cuộc thi không nên "lách" qua đường Material để vào thi
+     * ngoài giờ); nếu KHÔNG được cuộc thi/kỳ thi nào tham chiếu tới thì rơi xuống bước (4)
+     * như đề PDF thường; (3) có Assignment hợp lệ thì coi như đã qua đủ cửa ở
+     * assertAssignmentAccessible() phía trên rồi, cho qua tiếp (giáo viên giao bài cho lớp là
+     * đủ căn cứ, không bắt buộc phải có Material/Product song song); (4) có Material gắn thì
+     * đi đúng AccessGateService như cũ; (5) không khớp trường hợp nào ở trên thì đây là đề PDF
+     * đứng một mình chưa gắn vào đâu cả — chặn hẳn, không cho vào làm bài "chùa". Đề muốn cho
+     * học sinh làm mà không giao qua lớp thì phải gắn Product (màn "Gắn vào học liệu để bán"
+     * ở Admin, dùng lại Admin\ContentService::materialStore()).
+     *
+     * SỬA 19/8 (fix tận gốc "chặn nhầm đề trong cuộc thi", báo cáo thật của Admin khi test):
+     * bước (2) TRƯỚC ĐÂY chỉ chạy khi $assessment->type === AssessmentType::CompetitionPaper
+     * — nhưng đi kiểm tra khắp code (Admin\CompetitionService::store()/update()/storeExam()/
+     * updateExam()) thì KHÔNG có chỗ nào từng gán type=CompetitionPaper cho đề khi Admin gắn
+     * 1 đề có sẵn vào cuộc thi/kỳ thi (form chọn đề dùng LUÔN danh sách đề có sẵn, giữ nguyên
+     * type gốc — thường là 'exam' từ lúc tạo ở Bộ đề, KHÔNG PHẢI 'competition_paper'). Nghĩa
+     * là bước (2) THỰC TẾ KHÔNG BAO GIỜ CHẠY cho các cuộc thi thật — mọi đề đấu (thường không
+     * gắn Material, đúng như PdfBulkImportService) rơi thẳng xuống bước (4)/(5) và bị chặn
+     * nhầm với đúng thông báo "chưa giao qua lớp và chưa gắn học liệu" dù cuộc thi đang mở
+     * bình thường. Sửa: bỏ điều kiện lọc theo `type`, LUÔN gọi competitionEntryDecision() —
+     * hàm này tự tra theo assessment_id trên Competition/CompetitionExam (không phụ thuộc cột
+     * type của Assessment), nên vẫn trả về null đúng cách cho đề không liên quan gì tới cuộc
+     * thi nào (rơi xuống Assignment/Material như cũ, không đổi hành vi cho luồng đó).
      */
-    private function assertMaterialAccessible(User $user, Assessment $assessment, ?Assignment $assignment): void
+    /**
+     * SỬA 19/8 (fix tận gốc "tái sử dụng đề bị chặn chéo giữa các cuộc thi"): trước đây trả về
+     * void — giờ trả về bối cảnh cuộc thi/kỳ thi ĐANG mở mà đề này thuộc về (competitionId/
+     * competitionExamId, cả 2 null nếu đề không gắn cuộc thi nào ĐANG mở), để startOrResume()
+     * dùng ghi lại đúng vào Attempt.competition_id/competition_exam_id ngay lúc tạo, và
+     * assertResubmissionAllowed() đếm lượt đã nộp theo ĐÚNG cuộc thi/kỳ thi đó thay vì theo
+     * assessment_id toàn cục — xem docblock assertResubmissionAllowed().
+     *
+     * @return array{competitionId: ?int, competitionExamId: ?int}
+     */
+    private function assertMaterialAccessible(User $user, Assessment $assessment, ?Assignment $assignment): array
     {
+        $noCompetitionContext = ['competitionId' => null, 'competitionExamId' => null];
+
         if ($assessment->type === AssessmentType::Practice) {
-            return;
+            return $noCompetitionContext;
         }
 
-        if ($assessment->type === AssessmentType::CompetitionPaper) {
-            $decision = $this->competitionEntryDecision($assessment);
+        $decision = $this->competitionEntryDecision($assessment);
 
-            if ($decision !== null) {
-                if (! $decision['open']) {
-                    throw ValidationException::withMessages(['attempt' => $decision['message']]);
-                }
-
-                return;
+        if ($decision !== null) {
+            if (! $decision['open']) {
+                throw ValidationException::withMessages(['attempt' => $decision['message']]);
             }
-            // $decision === null: đề đấu này chưa được cuộc thi/kỳ thi nào tham chiếu tới —
-            // rơi xuống kiểm tra Assignment/Material bên dưới như 1 đề PDF thường.
+
+            return ['competitionId' => $decision['competitionId'], 'competitionExamId' => $decision['competitionExamId']];
         }
+        // $decision === null: đề này chưa được cuộc thi/kỳ thi nào tham chiếu tới — rơi xuống
+        // kiểm tra Assignment/Material bên dưới như 1 đề PDF thường.
 
         if ($assignment !== null) {
-            return;
+            return $noCompetitionContext;
         }
 
         $material = $assessment->materials()->first();
@@ -220,6 +284,8 @@ class AttemptService
         if (! $decision->allowed) {
             throw ValidationException::withMessages(['attempt' => $decision->message]);
         }
+
+        return $noCompetitionContext;
     }
 
     /**
@@ -235,10 +301,12 @@ class AttemptService
      * luật riêng ở đây).
      *
      * 1 đề có thể được NHIỀU cuộc thi/kỳ thi tham chiếu tới cùng lúc (hiếm nhưng không cấm) —
-     * chỉ cần 1 trong số đó đang mở là đủ cho qua.
+     * chỉ cần 1 trong số đó đang mở là đủ cho qua, và attempt sẽ được gắn vào ĐÚNG cuộc
+     * thi/kỳ thi đầu tiên tìm thấy đang mở đó (competitionId/competitionExamId — SỬA 19/8,
+     * xem docblock assertMaterialAccessible()).
      *
-     * @return array{open: bool, message: ?string}|null null nếu đề KHÔNG được cuộc thi/kỳ
-     *                                                    thi nào tham chiếu tới.
+     * @return array{open: bool, message: ?string, competitionId: ?int, competitionExamId: ?int}|null
+     *         null nếu đề KHÔNG được cuộc thi/kỳ thi nào tham chiếu tới.
      */
     private function competitionEntryDecision(Assessment $assessment): ?array
     {
@@ -251,7 +319,7 @@ class AttemptService
 
         foreach ($directCompetitions as $competition) {
             if ($competition->computedStatus() === CompetitionStatus::Ongoing) {
-                return ['open' => true, 'message' => null];
+                return ['open' => true, 'message' => null, 'competitionId' => $competition->id, 'competitionExamId' => null];
             }
         }
 
@@ -259,13 +327,15 @@ class AttemptService
             $competition = $exam->competition;
 
             if ($competition !== null && $competition->status !== CompetitionStatus::Archived && $exam->isOngoing()) {
-                return ['open' => true, 'message' => null];
+                return ['open' => true, 'message' => null, 'competitionId' => null, 'competitionExamId' => $exam->id];
             }
         }
 
         return [
             'open' => false,
             'message' => 'Cuộc thi/kỳ thi của đề này hiện không mở (chưa tới giờ, đã kết thúc, hoặc đã lưu trữ) — bạn chưa thể vào làm bài lúc này.',
+            'competitionId' => null,
+            'competitionExamId' => null,
         ];
     }
 

@@ -11,8 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Attempt extends Model
 {
     protected $fillable = [
-        'user_id', 'assessment_id', 'assignment_id', 'class_room_id', 'source',
-        'started_at', 'submitted_at', 'status', 'total_score', 'is_provisional',
+        'user_id', 'assessment_id', 'assignment_id', 'class_room_id',
+        // SỬA 19/8 (fix tận gốc "tái sử dụng đề bị chặn chéo giữa các cuộc thi") — ghi lại
+        // lượt làm bài này thuộc đúng cuộc thi/kỳ thi nào TẠI THỜI ĐIỂM tạo Attempt, xem
+        // migration ..._add_competition_columns_to_attempts_table.php + AttemptService::
+        // startOrResume().
+        'competition_id', 'competition_exam_id',
+        'source', 'started_at', 'submitted_at', 'status', 'total_score', 'is_provisional',
     ];
 
     protected $casts = [
@@ -41,6 +46,16 @@ class Attempt extends Model
     public function classRoom(): BelongsTo
     {
         return $this->belongsTo(ClassRoom::class);
+    }
+
+    public function competition(): BelongsTo
+    {
+        return $this->belongsTo(Competition::class);
+    }
+
+    public function competitionExam(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionExam::class);
     }
 
     public function answers(): HasMany
