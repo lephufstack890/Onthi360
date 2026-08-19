@@ -48,22 +48,6 @@ class Attempt extends Model
         return $this->hasMany(AttemptAnswer::class);
     }
 
-    /**
-     * SỬA 19/8 (Giai đoạn 2 — đề PDF, 16/8 mục 1.2/6): 2 quan hệ song song với answers() ở
-     * trên, chỉ có dữ liệu khi assessment content_mode=pdf_answer_sheet (rỗng, không lỗi,
-     * khi content_mode=structured). Attempt dùng CHUNG cho cả 2 chế độ — không cần bảng/cột
-     * attempts riêng.
-     */
-    public function answerKeys(): HasMany
-    {
-        return $this->hasMany(AttemptAnswerKey::class);
-    }
-
-    public function codingItems(): HasMany
-    {
-        return $this->hasMany(AttemptCodingItem::class);
-    }
-
     /** Kết quả tổng là "tạm tính" tới khi mọi câu cần chấm hoàn tất (6.3). */
     public function recalculateProvisionalFlag(): void
     {

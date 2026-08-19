@@ -1,12 +1,3 @@
-{{--
-  Route: teacher.papers.index
-  SỬA 18/8 (đề PDF, 16/8 mục 1.2: "Đề thi lẻ được Admin hoặc giáo viên tải lên dưới dạng
-  PDF"): danh sách đề PDF RIÊNG của giáo viên — tách hẳn khỏi teacher/assessments/index.blade.php
-  ("Bài tập & Đề" cũ, chọn Question rời — content_mode=structured, KHÔNG đổi). Đề ở đây LUÔN
-  content_mode=pdf_answer_sheet, mặc định riêng tư (owner_type=teacher) cho tới khi Admin
-  duyệt đưa ra kho chung (chưa làm ở Giai đoạn 1).
-  Dữ liệu thật do App\Services\Teacher\AssessmentService::papersForTeacher() truyền vào.
---}}
 @extends('layouts.teacher')
 
 @section('title', 'Đề PDF của tôi')

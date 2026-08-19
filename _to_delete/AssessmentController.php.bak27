@@ -10,7 +10,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentController extends Controller
 {
@@ -45,11 +44,7 @@ class AssessmentController extends Controller
             return redirect()->route('student.assessment.result', $data['attempt']->id);
         }
 
-        // SỬA 19/8 (Giai đoạn 2 — đề PDF): cùng route/action, chỉ chọn view khác theo
-        // content_mode của đề — xem App\Services\Student\AssessmentService::buildTakeData().
-        $view = $data['isPdfMode'] ? 'student.assessment.take-pdf' : 'student.assessment.take';
-
-        return view($view, $data);
+        return view('student.assessment.take', $data);
     }
 
     /**
@@ -57,8 +52,6 @@ class AssessmentController extends Controller
      * hướng lại trang làm bài, KHÔNG cần JS — vẫn giữ để không phá hành vi cũ) và fetch() với
      * header Accept: application/json (autosave thời gian thực từ resources/views/student/
      * assessment/take.blade.php — mỗi lần học sinh trả lời xong 1 câu, KHÔNG đợi bấm nút).
-     * Dùng CHUNG cho cả đề câu hỏi rời VÀ đề PDF — $answers hình dạng khác nhau, nhưng
-     * AssessmentService::saveDraftAnswers() tự rẽ nhánh theo content_mode.
      */
     public function saveAnswers(Request $request, int $attempt): RedirectResponse|JsonResponse
     {
@@ -94,7 +87,7 @@ class AssessmentController extends Controller
         return redirect()->route('student.assessment.take', $params)->with('status', 'draft-saved');
     }
 
-    /** student.assessment.take.submit — nộp bài, khoá lượt làm bài rồi sang trang kết quả. */
+    /** student.assessment.take.submit — nộp bài, khoá lượt làm bài riổi sang trang kết quả. */
     public function submit(Request $request, int $attempt): RedirectResponse
     {
         $user = $request->user();
@@ -109,7 +102,7 @@ class AssessmentController extends Controller
         return redirect()->route('student.assessment.result', $attemptModel->id);
     }
 
-    /** student.assessment.oj (STU-06/07) — làm câu lập trình đơn lẻ. */
+    /** student.assessment.oj (STU-06/07) — làm câu lập trình đ�n lẻ. */
     public function oj(Request $request, int $question): View
     {
         $user = $request->user();
@@ -117,31 +110,11 @@ class AssessmentController extends Controller
         return view('student.assessment.oj', $this->assessmentService->buildOjData($user, $question));
     }
 
-    /**
-     * student.assessment.result (STU-08/09) — kết quả bài làm.
-     * SỬA 19/8 (Giai đoạn 2): chọn view result-pdf khi đề là content_mode=pdf_answer_sheet —
-     * xem AssessmentService::buildResultData().
-     */
+    /** student.assessment.result (STU-08/09) — kết quả bài làm. */
     public function result(Request $request, int $attempt): View
     {
         $user = $request->user();
-        $data = $this->assessmentService->buildResultData($user, $attempt);
 
-        $view = $data['isPdfMode'] ? 'student.assessment.result-pdf' : 'student.assessment.result';
-
-        return view($view, $data);
-    }
-
-    /**
-     * student.assessment.pdf.file (STU-05, Giai đoạn 2 — đề PDF) — phục vụ PDF đề ($which=
-     * 'exam') hoặc PDF lời giải ($which='solution') xem trực tiếp trên web (16/8 mục 3: "PDF
-     * xem trên web, không cần cho tải trực tiếp"). Quyền xem được kiểm tra ở tầng Service
-     * (AssessmentService::streamPdfFile()) chứ không chỉ dựa vào việc ẩn link ở view.
-     */
-    public function pdfFile(Request $request, int $assessment, string $which): StreamedResponse
-    {
-        $user = $request->user();
-
-        return $this->assessmentService->streamPdfFile($user, $assessment, $which);
+        return view('student.assessment.result', $this->assessmentService->buildResultData($user, $attempt));
     }
 }

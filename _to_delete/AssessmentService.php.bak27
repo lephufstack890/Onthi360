@@ -2,11 +2,7 @@
 
 namespace App\Services\Student;
 
-use App\Enums\PublishAnswerRule;
-use App\Models\Assessment;
-use App\Models\Assignment;
 use App\Models\Attempt;
-use App\Models\AttemptCodingItem;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
@@ -16,10 +12,7 @@ use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Services\AttemptService;
-use App\Services\PdfAttemptService;
 use App\Services\ReviewEligibilityService;
-use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentService
 {
@@ -32,10 +25,6 @@ class AssessmentService
         private AssignmentRepositoryInterface $assignments,
         private AttemptService $attemptService,
         private ReviewEligibilityService $reviewEligibility,
-        // SỬA 19/8 (Giai đoạn 2 — đề PDF, 16/8 mục 1.2/6): chấm/lưu câu trả lời cho Attempt
-        // của đề content_mode=pdf_answer_sheet — xem App\Services\PdfAttemptService để biết vì
-        // sao tách riêng khỏi AttemptService (không đụng Question).
-        private PdfAttemptService $pdfAttemptService,
     ) {}
 
     /**
@@ -44,11 +33,6 @@ class AssessmentService
      * từng câu (MCQ/điền đáp án/lập trình) + câu trả lời đã lưu nếu đang làm dở (resume).
      * $assignmentId (tuỳ chọn) cho biết học sinh vào từ "Bài được giao" của lớp nào — nếu
      * có, lượt làm bài mới sẽ mang class_room_id + kích hoạt điểm danh tự động (8.2).
-     *
-     * SỬA 19/8 (Giai đoạn 2): đề content_mode=pdf_answer_sheet rẽ hẳn sang buildPdfTakeData()
-     * — cùng route/view layout ngoài (student.assessment.take.blade.php chọn theo isPdfMode),
-     * KHÔNG tạo route riêng, để mọi nơi đã link sẵn student.assessment.take (trang chủ, Bài
-     * được giao, Luyện tập, Cuộc thi...) không cần sửa gì thêm.
      */
     public function buildTakeData(User $user, int $assessmentId, ?int $assignmentId = null): array
     {
@@ -58,10 +42,6 @@ class AssessmentService
         $assignment = $assignmentId !== null ? $this->assignments->find($assignmentId) : null;
         if ($assignment !== null) {
             abort_unless((int) $assignment->assessment_id === $assessmentModel->id, 404);
-        }
-
-        if ($assessmentModel->isPdfMode()) {
-            return $this->buildPdfTakeData($user, $assessmentModel, $assignment);
         }
 
         $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
@@ -96,7 +76,6 @@ class AssessmentService
         })->all();
 
         return [
-            'isPdfMode' => false,
             'assessmentModel' => $assessmentModel,
             'attempt' => $attempt,
             'questions' => $questions,
@@ -110,90 +89,16 @@ class AssessmentService
     }
 
     /**
-     * SỬA 19/8 — nhánh riêng của buildTakeData() cho đề content_mode=pdf_answer_sheet. Vòng
-     * đời mở/tiếp tục lượt làm bài DÙNG CHUNG AttemptService (startOrResume/finalizeIfExpired/
-     * deadlineFor không phụ thuộc Question); chỉ nội dung hiển thị (answerRows/codingRows) và
-     * việc lưu/nộp câu trả lời (xem saveDraftAnswers()/submitAttempt() bên dưới) là khác nhau.
-     */
-    private function buildPdfTakeData(User $user, Assessment $assessmentModel, ?Assignment $assignment): array
-    {
-        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
-        $attempt = $this->attemptService->finalizeIfExpired($attempt);
-
-        $assessmentModel->load(['answerKeys', 'codingItems.testCases']);
-        $attempt->load(['answerKeys', 'codingItems']);
-
-        $existingAnswerKeys = $attempt->answerKeys->keyBy('answer_key_id');
-        $existingCodingItems = $attempt->codingItems->keyBy('coding_item_id');
-
-        $answerRows = $assessmentModel->answerKeys->map(function ($answerKey) use ($existingAnswerKeys) {
-            $existing = $existingAnswerKeys->get($answerKey->id);
-
-            return [
-                'answerKeyId' => $answerKey->id,
-                'no' => $answerKey->question_no,
-                'type' => $answerKey->question_type->value,
-                'typeLabel' => $answerKey->question_type->label(),
-                'points' => $answerKey->points,
-                'submittedAnswer' => $existing?->submitted_answer,
-                'answered' => $existing !== null,
-            ];
-        })->values()->all();
-
-        $codingRows = $assessmentModel->codingItems->map(function ($codingItem) use ($existingCodingItems) {
-            $existing = $existingCodingItems->get($codingItem->id);
-
-            return [
-                'codingItemId' => $codingItem->id,
-                'code' => $codingItem->code,
-                'title' => $codingItem->title,
-                'pdfPage' => $codingItem->pdf_page,
-                'allowedLanguages' => $codingItem->allowed_languages ?? [],
-                'points' => $codingItem->points,
-                'codeSource' => $existing?->code_source,
-                'language' => $existing?->language,
-                'answered' => $existing !== null,
-            ];
-        })->values()->all();
-
-        return [
-            'isPdfMode' => true,
-            'assessmentModel' => $assessmentModel,
-            'attempt' => $attempt,
-            'answerRows' => $answerRows,
-            'codingRows' => $codingRows,
-            // Xem PDF đề qua route riêng (streamPdfFile()) — KHÔNG lộ đường lưu file thật trên
-            // đĩa ra client, và luôn kiểm tra lại quyền sở hữu attempt ở đó (16 mục 3).
-            'pdfUrl' => route('student.assessment.pdf.file', ['assessment' => $assessmentModel->id, 'which' => 'exam']),
-            'deadlineAt' => $this->attemptService->deadlineFor($attempt)?->toIso8601String(),
-            'serverNow' => now()->toIso8601String(),
-        ];
-    }
-
-    /**
      * student.assessment.take.save (POST "Lưu nháp") — lưu câu trả lời hiện có, KHÔNG nộp
      * bài. $answersInput dạng ['<questionId>' => ['selected_option'=>..|'text'=>..|
      * 'code_source'=>..,'language'=>..]], chỉ những câu thuộc đúng đề của attempt này mới
      * được lưu (không tin question_id client gửi lên — 16 mục 3).
-     *
-     * SỬA 19/8 (Giai đoạn 2): đề PDF gửi $answersInput dạng ['answer_keys'=>[...],
-     * 'coding_items'=>[...]] (xem PdfAttemptService::saveDraft()) — rẽ nhánh theo
-     * $attempt->assessment->isPdfMode(), route/tên hàm giữ nguyên cho cả 2 chế độ.
      *
      * @throws \Illuminate\Validation\ValidationException nếu attempt đã kết thúc.
      */
     public function saveDraftAnswers(User $user, int $attemptId, array $answersInput): Attempt
     {
         $attempt = $this->ownedAttemptOrFail($user, $attemptId);
-
-        if ($attempt->assessment->isPdfMode()) {
-            return $this->pdfAttemptService->saveDraft(
-                $attempt,
-                $answersInput['answer_keys'] ?? [],
-                $answersInput['coding_items'] ?? [],
-            );
-        }
-
         $assessmentModel = $this->assessments->withItemsAndQuestions($attempt->assessment_id);
 
         foreach ($assessmentModel->items as $item) {
@@ -209,8 +114,7 @@ class AssessmentService
 
     /**
      * student.assessment.take.submit (POST "Nộp bài") — lưu mọi câu trả lời gửi kèm rồi
-     * khoá lượt làm bài. SỬA 19/8: khoá lượt làm bài qua đúng service của từng chế độ —
-     * PdfAttemptService::submit() (đề PDF) hay AttemptService::submit() (đề câu hỏi rời).
+     * khoá lượt làm bài qua AttemptService::submit().
      *
      * @throws \Illuminate\Validation\ValidationException nếu attempt đã nộp trước đó.
      */
@@ -219,10 +123,6 @@ class AssessmentService
         $this->saveDraftAnswers($user, $attemptId, $answersInput);
 
         $attempt = $this->ownedAttemptOrFail($user, $attemptId);
-
-        if ($attempt->assessment->isPdfMode()) {
-            return $this->pdfAttemptService->submit($attempt);
-        }
 
         return $this->attemptService->submit($attempt);
     }
@@ -256,12 +156,7 @@ class AssessmentService
         ];
     }
 
-    /**
-     * student.assessment.result (STU-08/09) — kết quả bài làm.
-     *
-     * SỬA 19/8 (Giai đoạn 2): đề content_mode=pdf_answer_sheet rẽ sang buildPdfResultData() —
-     * cùng route student.assessment.result, view chọn theo isPdfMode (giống buildTakeData()).
-     */
+    /** student.assessment.result (STU-08/09) — kết quả bài làm. */
     public function buildResultData(User $user, int $attemptId): array
     {
         $attemptModel = $this->attempts->withAnswersAndAssessment($attemptId);
@@ -271,10 +166,6 @@ class AssessmentService
             $attemptModel->user_id === $user->id || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN),
             403
         );
-
-        if ($attemptModel->assessment->isPdfMode()) {
-            return $this->buildPdfResultData($user, $attemptModel);
-        }
 
         $isFinal = ! $attemptModel->is_provisional;
         $score = $attemptModel->total_score;
@@ -306,7 +197,6 @@ class AssessmentService
         $reviewCta = $this->reviewCtaTarget($user, $attemptModel);
 
         return [
-            'isPdfMode' => false,
             'attemptModel' => $attemptModel,
             'isFinal' => $isFinal,
             'score' => $score,
@@ -319,118 +209,6 @@ class AssessmentService
             'reviewType' => $reviewCta['type'] ?? null,
             'reviewTargetId' => $reviewCta['targetId'] ?? null,
         ];
-    }
-
-    /**
-     * SỬA 19/8 — nhánh riêng của buildResultData() cho đề content_mode=pdf_answer_sheet.
-     * $attemptModel đã qua kiểm tra quyền sở hữu ở buildResultData() — hàm này chỉ lo dựng
-     * dữ liệu hiển thị. Lời giải (solution_pdf_path) chỉ lộ link khi publish_answer_rule cho
-     * phép NGAY LÚC NÀY (xem answersPublishedNow()) — không chỉ dựa vào có file hay không.
-     */
-    private function buildPdfResultData(User $user, Attempt $attemptModel): array
-    {
-        $attemptModel->load(['answerKeys.answerKey', 'codingItems.codingItem']);
-
-        $isFinal = ! $attemptModel->is_provisional;
-        $score = $attemptModel->total_score;
-        $total = ($attemptModel->assessment->answerKeys->sum('points') ?? 0)
-            + ($attemptModel->assessment->codingItems->sum('points') ?? 0);
-        $total = $total > 0 ? $total : null;
-
-        $answerBreakdown = $attemptModel->answerKeys
-            ->sortBy(fn ($a) => $a->answerKey?->question_no ?? 0)
-            ->values()
-            ->map(fn ($a) => [
-                'no' => $a->answerKey?->question_no,
-                'type' => $a->answerKey?->question_type?->label() ?? '',
-                'verdict' => $a->is_correct ? 'Đúng' : 'Sai',
-                'tone' => $a->is_correct ? 'success' : 'danger',
-                'points' => $a->score !== null ? (string) $a->score : '—',
-            ])->all();
-
-        $codingBreakdown = $attemptModel->codingItems->map(function ($c) {
-            $verdictLabel = match (true) {
-                ! $c->verdict->isFinal() => 'Đang chấm',
-                $c->verdict->value === 'accepted' => 'Đúng',
-                default => 'Sai',
-            };
-            $tone = match (true) {
-                ! $c->verdict->isFinal() => 'info',
-                $c->verdict->value === 'accepted' => 'success',
-                default => 'danger',
-            };
-
-            return [
-                'code' => $c->codingItem?->code,
-                'title' => $c->codingItem?->title,
-                'verdict' => $verdictLabel,
-                'tone' => $tone,
-                'points' => $c->score !== null ? (string) $c->score : '—',
-            ];
-        })->all();
-
-        $solutionUrl = ($attemptModel->assessment->solution_pdf_path && $this->answersPublishedNow($attemptModel->assessment, $attemptModel))
-            ? route('student.assessment.pdf.file', ['assessment' => $attemptModel->assessment_id, 'which' => 'solution'])
-            : null;
-
-        $reviewCta = $this->reviewCtaTarget($user, $attemptModel);
-
-        return [
-            'isPdfMode' => true,
-            'attemptModel' => $attemptModel,
-            'isFinal' => $isFinal,
-            'score' => $score,
-            'total' => $total,
-            'answerBreakdown' => $answerBreakdown,
-            'codingBreakdown' => $codingBreakdown,
-            'examUrl' => route('student.assessment.pdf.file', ['assessment' => $attemptModel->assessment_id, 'which' => 'exam']),
-            'solutionUrl' => $solutionUrl,
-            'eligibleForReview' => $reviewCta !== null,
-            'reviewType' => $reviewCta['type'] ?? null,
-            'reviewTargetId' => $reviewCta['targetId'] ?? null,
-        ];
-    }
-
-    /**
-     * Đề PDF chỉ lộ file lời giải khi quy tắc công bố đáp án của đề cho phép NGAY LÚC NÀY —
-     * cùng ý nghĩa với publish_answer_rule dùng cho đề câu hỏi rời, áp dụng lại cho đề PDF
-     * (16/8 mục 6: "lời giải công bố theo đúng quy tắc đã chọn khi tạo đề").
-     */
-    private function answersPublishedNow(Assessment $assessment, Attempt $attemptModel): bool
-    {
-        return match ($assessment->publish_answer_rule) {
-            PublishAnswerRule::Immediately => true,
-            PublishAnswerRule::AfterDeadline => $attemptModel->submitted_at !== null,
-            default => false,
-        };
-    }
-
-    /**
-     * student.assessment.pdf.file (STU-05, đề PDF) — phục vụ file PDF đề/lời giải cho ĐÚNG
-     * học sinh đang/đã làm đề đó. $which='exam' luôn xem được nếu đã có ít nhất 1 lượt làm
-     * bài; $which='solution' chỉ xem được khi answersPublishedNow() cho phép — chặn ở tầng
-     * Service này (không chỉ ẩn link ở view) vì URL có thể bị đoán/chia sẻ (16 mục 3).
-     */
-    public function streamPdfFile(User $user, int $assessmentId, string $which): StreamedResponse
-    {
-        $assessmentModel = $this->assessments->find($assessmentId);
-        abort_if($assessmentModel === null || ! $assessmentModel->isPdfMode(), 404);
-
-        $attemptModel = $this->attempts->query()
-            ->where('user_id', $user->id)
-            ->where('assessment_id', $assessmentModel->id)
-            ->latest('started_at')
-            ->first();
-        abort_if($attemptModel === null, 403);
-
-        if ($which === 'solution') {
-            abort_unless($this->answersPublishedNow($assessmentModel, $attemptModel), 403);
-        }
-
-        $path = $which === 'solution' ? $assessmentModel->solution_pdf_path : $assessmentModel->pdf_path;
-        abort_if(blank($path), 404);
-
-        return Storage::disk('local')->response($path);
     }
 
     /**

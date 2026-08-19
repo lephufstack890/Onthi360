@@ -116,12 +116,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
-        // SỬA 19/8 (Giai đoạn 2 — đề PDF, 16/8 mục 3): xem PDF đề/lời giải trực tiếp trên
-        // web, luôn qua kiểm tra quyền ở Student\AssessmentService::streamPdfFile() (không
-        // lộ đường dẫn file thật, không cho tải lời giải trước khi được công bố).
-        Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])
-            ->whereIn('which', ['exam', 'solution'])
-            ->name('assessment.pdf.file');
         Route::get('assessments/{question}/oj', [StudentAssessmentController::class, 'oj'])->name('assessment.oj');
         Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');
         Route::post('attempts/{attempt}/answers', [StudentAssessmentController::class, 'saveAnswers'])->name('assessment.take.save');
