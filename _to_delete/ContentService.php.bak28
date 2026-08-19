@@ -24,10 +24,8 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
-use App\Services\PdfBulkImportService;
 use App\Services\QuestionPublishGuard;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -48,19 +46,11 @@ class ContentService
         // App\Services\PdfAssessmentEditingService — dùng CHUNG với Teacher\AssessmentService
         // (Giáo viên cũng tải đề PDF riêng, 16/8 mục 1.2) thay vì lặp lại ở 2 nơi.
         private PdfAssessmentEditingService $pdfEditing,
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): nhập hàng loạt nhiều đề PDF cùng lúc, dùng CHUNG
-        // với Teacher\AssessmentService — xem App\Services\PdfBulkImportService.
-        private PdfBulkImportService $pdfBulkImport,
     ) {}
 
     public static function maxPdfKb(): int
     {
         return PdfAssessmentEditingService::maxPdfKb();
-    }
-
-    public static function maxBulkSourcePdfKb(): int
-    {
-        return PdfBulkImportService::maxSourcePdfKb();
     }
 
     private const TYPE_LABELS = [
@@ -748,44 +738,6 @@ class ContentService
         Assessment::$auditReason = null;
 
         return $assessment;
-    }
-
-    // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
-    // 2 cách, theo đúng lựa chọn của khách: (1) tách từ 1 file PDF lớn theo khoảng trang khai
-    // sẵn, (2) tải nhiều file PDF riêng lẻ cùng lúc. Toàn bộ đề tạo ra đều content_mode=
-    // pdf_answer_sheet, owner_type=shared (kho chung, giống assessmentStore() ở trên) — KHÔNG
-    // có type "Luyện tập" (chỉ Luyện tập theo câu mới dùng structured, xem
-    // AssessmentContentMode). Đáp án vẫn phải nhập tay sau đó ở màn "Quản lý đề PDF" — bulk chỉ
-    // lo tạo khung đề + gắn đúng file PDF, không đọc/OCR nội dung.
-
-    public function assessmentBulkCreateFormData(): array
-    {
-        return ['types' => $this->bulkTypeOptions()];
-    }
-
-    private function bulkTypeOptions(): array
-    {
-        return [
-            AssessmentType::Assignment->value => 'Bài giao',
-            AssessmentType::Exam->value => 'Đề thi',
-            AssessmentType::CompetitionPaper->value => 'Đề thi đấu',
-        ];
-    }
-
-    /** @param  array  $rows  @return Collection<int, Assessment> */
-    public function assessmentBulkSplit(User $admin, UploadedFile $sourcePdf, array $rows): Collection
-    {
-        return $this->pdfBulkImport->splitIntoAssessments($admin, OwnerType::Shared, null, $sourcePdf, $rows);
-    }
-
-    /**
-     * @param  array<int, UploadedFile>  $files
-     * @param  array  $meta
-     * @return Collection<int, Assessment>
-     */
-    public function assessmentBulkMulti(User $admin, array $files, array $meta): Collection
-    {
-        return $this->pdfBulkImport->createFromMultipleFiles($admin, OwnerType::Shared, null, $files, $meta);
     }
 
     // ================= Đề PDF + phiếu đáp án (16/8 mục 1.2/5/6) =================

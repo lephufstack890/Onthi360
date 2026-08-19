@@ -345,53 +345,6 @@ class AssessmentController extends Controller
         return redirect()->route('teacher.papers.pdf.edit', $paper->id)->with('status', 'paper-created');
     }
 
-    // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
-    // Khác papersCreate/Store ở trên (tạo TỪNG đề PDF trống 1 lần) — bulk tạo NHIỀU đề cùng
-    // lúc, riêng tư của giáo viên (owner_type=teacher), theo 2 cách: tách từ 1 file PDF lớn
-    // theo khoảng trang, hoặc tải nhiều file PDF riêng lẻ cùng lúc.
-
-    public function papersBulkCreate(): View
-    {
-        return view('teacher.assessments.papers.bulk', $this->assessmentService->paperBulkCreateFormData());
-    }
-
-    public function papersBulkSplit(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'source_pdf' => ['required', 'file', 'mimes:pdf', 'max:'.AssessmentService::maxBulkSourcePdfKb()],
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.exam_code' => ['nullable', 'string', 'max:60'],
-            'rows.*.title' => ['required', 'string', 'max:255'],
-            'rows.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
-            'rows.*.from_page' => ['required', 'integer', 'min:1'],
-            'rows.*.to_page' => ['required', 'integer', 'min:1', 'gte:rows.*.from_page'],
-        ], [], ['source_pdf' => 'File PDF gốc']);
-
-        $created = $this->assessmentService->paperBulkSplit(Auth::user(), $data['source_pdf'], $data['rows']);
-
-        return redirect()->route('teacher.papers.index')
-            ->with('status', 'papers-bulk-created')
-            ->with('bulkCreatedCount', $created->count());
-    }
-
-    public function papersBulkMulti(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
-            'meta' => ['required', 'array', 'min:1'],
-            'meta.*.exam_code' => ['nullable', 'string', 'max:60'],
-            'meta.*.title' => ['required', 'string', 'max:255'],
-            'meta.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
-        ]);
-
-        $created = $this->assessmentService->paperBulkMulti(Auth::user(), $data['files'], $data['meta']);
-
-        return redirect()->route('teacher.papers.index')
-            ->with('status', 'papers-bulk-created')
-            ->with('bulkCreatedCount', $created->count());
-    }
-
     /** teacher.papers.pdf.edit — màn cấu hình PDF + đáp án + bài lập trình con (chỉ đề của chính giáo viên). */
     public function papersPdfEdit(int $assessment): View
     {

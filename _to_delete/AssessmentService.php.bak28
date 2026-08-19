@@ -21,10 +21,8 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
-use App\Services\PdfBulkImportService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /** Tổng hợp dữ liệu cho teacher.assessments.* (TEA-04/05, 6.3/6.4/8.4). */
@@ -41,9 +39,6 @@ class AssessmentService
         // Question riêng của giáo viên đã có, KHÔNG cần cột visibility mới cho Assessment.
         private readonly PdfAssessmentEditingService $pdfEditing,
         private readonly PdfAssessmentPublishGuard $pdfPublishGuard,
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): nhập hàng loạt nhiều đề PDF cùng lúc, dùng CHUNG
-        // với Admin\ContentService — xem App\Services\PdfBulkImportService.
-        private readonly PdfBulkImportService $pdfBulkImport,
     ) {}
 
     /** teacher.assessments.import — trạng thái xử lý thật, kể cả tệp lỗi (6.4). */
@@ -494,37 +489,5 @@ class AssessmentService
     public function assertOwnsCodingItem(User $teacher, AssessmentCodingItem $item): void
     {
         $this->findOwned($teacher, $item->assessment_id);
-    }
-
-    // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
-    // 2 cách, dùng CHUNG App\Services\PdfBulkImportService với Admin\ContentService (khác
-    // owner_type=teacher/owner_id=$teacher->id thay vì shared) — mọi đề tạo ra đều riêng tư
-    // của giáo viên này, giống paperStore() ở trên, cho tới khi Admin duyệt đưa ra kho chung
-    // (chưa làm ở Giai đoạn này).
-
-    public static function maxBulkSourcePdfKb(): int
-    {
-        return PdfBulkImportService::maxSourcePdfKb();
-    }
-
-    public function paperBulkCreateFormData(): array
-    {
-        return ['types' => $this->paperTypeOptions()];
-    }
-
-    /** @param  array  $rows  @return Collection<int, Assessment> */
-    public function paperBulkSplit(User $teacher, UploadedFile $sourcePdf, array $rows): Collection
-    {
-        return $this->pdfBulkImport->splitIntoAssessments($teacher, OwnerType::Teacher, $teacher->id, $sourcePdf, $rows);
-    }
-
-    /**
-     * @param  array<int, UploadedFile>  $files
-     * @param  array  $meta
-     * @return Collection<int, Assessment>
-     */
-    public function paperBulkMulti(User $teacher, array $files, array $meta): Collection
-    {
-        return $this->pdfBulkImport->createFromMultipleFiles($teacher, OwnerType::Teacher, $teacher->id, $files, $meta);
     }
 }

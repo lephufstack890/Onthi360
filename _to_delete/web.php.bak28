@@ -172,12 +172,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('papers', [TeacherAssessmentController::class, 'papersIndex'])->name('papers.index');
         Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->name('papers.create');
         Route::post('papers', [TeacherAssessmentController::class, 'papersStore'])->name('papers.store');
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): route tĩnh 'bulk' PHẢI đứng TRƯỚC
-        // papers.{assessment}.pdf.edit bên dưới, cùng lý do với content.assessments.bulk.* ở
-        // khu Admin (route param {assessment} sẽ nuốt luôn chữ "bulk" nếu đăng ký sau).
-        Route::get('papers/bulk', [TeacherAssessmentController::class, 'papersBulkCreate'])->name('papers.bulk.create');
-        Route::post('papers/bulk/split', [TeacherAssessmentController::class, 'papersBulkSplit'])->name('papers.bulk.split');
-        Route::post('papers/bulk/multi', [TeacherAssessmentController::class, 'papersBulkMulti'])->name('papers.bulk.multi');
         Route::get('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfEdit'])->name('papers.pdf.edit');
         Route::put('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfUpdate'])->name('papers.pdf.update');
         Route::post('papers/{assessment}/coding-items', [TeacherAssessmentController::class, 'papersCodingItemsStore'])->name('papers.coding-items.store');
@@ -387,13 +381,6 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
-        // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): route tĩnh 'bulk' PHẢI đứng TRƯỚC
-        // content.assessments.{assessment}.edit bên dưới (route param {assessment} sẽ nuốt
-        // luôn chữ "bulk" nếu đăng ký sau — đúng thứ tự đã dùng cho content.assessments.create
-        // ở trên).
-        Route::get('content/assessments/bulk', [AdminContentController::class, 'assessmentsBulkCreate'])->name('content.assessments.bulk.create');
-        Route::post('content/assessments/bulk/split', [AdminContentController::class, 'assessmentsBulkSplit'])->name('content.assessments.bulk.split');
-        Route::post('content/assessments/bulk/multi', [AdminContentController::class, 'assessmentsBulkMulti'])->name('content.assessments.bulk.multi');
         Route::get('content/assessments/{assessment}/edit', [AdminContentController::class, 'assessmentsEdit'])->name('content.assessments.edit');
         Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
         // SỬA 18/8: trước đây đề admin tự tạo (owner_type=shared) không có màn nào gắn câu

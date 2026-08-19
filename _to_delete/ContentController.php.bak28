@@ -444,53 +444,6 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-archived');
     }
 
-    // ================= "Bộ đề" — nhập hàng loạt nhiều đề PDF (Giai đoạn 3, 19/8) ==========
-    // Khác assessmentsCreate/Store ở trên (tạo TỪNG đề PDF trống 1 lần) — bulk tạo NHIỀU đề
-    // cùng lúc, theo 2 cách: tách từ 1 file PDF lớn theo khoảng trang, hoặc tải nhiều file PDF
-    // riêng lẻ cùng lúc. Đáp án vẫn phải vào "Quản lý đề PDF" nhập tay từng đề sau khi tạo.
-
-    public function assessmentsBulkCreate(): View
-    {
-        return view('admin.content.assessments.bulk', $this->contentService->assessmentBulkCreateFormData());
-    }
-
-    public function assessmentsBulkSplit(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'source_pdf' => ['required', 'file', 'mimes:pdf', 'max:'.ContentService::maxBulkSourcePdfKb()],
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.exam_code' => ['nullable', 'string', 'max:60'],
-            'rows.*.title' => ['required', 'string', 'max:255'],
-            'rows.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
-            'rows.*.from_page' => ['required', 'integer', 'min:1'],
-            'rows.*.to_page' => ['required', 'integer', 'min:1', 'gte:rows.*.from_page'],
-        ], [], ['source_pdf' => 'File PDF gốc']);
-
-        $created = $this->contentService->assessmentBulkSplit(Auth::user(), $data['source_pdf'], $data['rows']);
-
-        return redirect()->route('admin.content.index', ['tab' => 'assessments'])
-            ->with('status', 'assessments-bulk-created')
-            ->with('bulkCreatedCount', $created->count());
-    }
-
-    public function assessmentsBulkMulti(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
-            'meta' => ['required', 'array', 'min:1'],
-            'meta.*.exam_code' => ['nullable', 'string', 'max:60'],
-            'meta.*.title' => ['required', 'string', 'max:255'],
-            'meta.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
-        ]);
-
-        $created = $this->contentService->assessmentBulkMulti(Auth::user(), $data['files'], $data['meta']);
-
-        return redirect()->route('admin.content.index', ['tab' => 'assessments'])
-            ->with('status', 'assessments-bulk-created')
-            ->with('bulkCreatedCount', $created->count());
-    }
-
     // ================= Đề PDF + phiếu đáp án (18/8, 16/8 mục 1.2/5/6) =================
     // Chỉ áp dụng cho Assessment content_mode=pdf_answer_sheet (mọi type trừ Practice — xem
     // App\Services\Admin\ContentService::contentModeForType()). Không dùng chung route/hàm
