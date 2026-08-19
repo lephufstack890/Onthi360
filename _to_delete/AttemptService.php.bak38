@@ -305,30 +305,12 @@ class AttemptService
      * thi/kỳ thi đầu tiên tìm thấy đang mở đó (competitionId/competitionExamId — SỬA 19/8,
      * xem docblock assertMaterialAccessible()).
      *
-     * SỬA 19/8 (3, báo cáo thật của Admin khi test: "1 cuộc thi nhiều kỳ thi, làm xong 1 kỳ mà
-     * trang vẫn hiện 'Vào thi'"): trước đây $directCompetitions lấy MỌI Competition có
-     * assessment_id = đề này, KỂ CẢ cuộc thi ĐANG DÙNG kỳ thi con (CompetitionExam) — do
-     * migration backfill (create_competition_exams_table) luôn copy Competition::assessment_id
-     * sang CompetitionExam đầu tiên (order=1) NHƯNG KHÔNG XOÁ cột assessment_id gốc ở
-     * Competition, và Admin vẫn có thể tự sửa "Đề/bộ bài tham chiếu" ở cấp cuộc thi song song
-     * với việc thêm kỳ thi con — nên với cuộc thi nhiều vòng, đề của round 1 trùng
-     * Competition::assessment_id, khiến vòng lặp $directCompetitions bên dưới bắt nhầm TRƯỚC
-     * cả $exams và trả về competitionId (competitionExamId = null). Attempt bị gắn nhầm vào
-     * competition_id thay vì đúng competition_exam_id của round đó → hasSubmittedAttemptFor
-     * CompetitionExam() (Public\CompetitionService) không tìm thấy gì → nút "Vào thi" không
-     * bao giờ chuyển thành "Đã làm" dù học sinh đã nộp bài. Sửa: loại khỏi $directCompetitions
-     * bất kỳ Competition nào ĐÃ có kỳ thi con (examSittings) — cuộc thi kiểu nhiều vòng PHẢI
-     * luôn được vào qua đúng round cụ thể, không được "lách" qua đường tham chiếu trực tiếp ở
-     * cấp cuộc thi nữa, dù cột assessment_id cũ vẫn còn đó.
-     *
      * @return array{open: bool, message: ?string, competitionId: ?int, competitionExamId: ?int}|null
      *         null nếu đề KHÔNG được cuộc thi/kỳ thi nào tham chiếu tới.
      */
     private function competitionEntryDecision(Assessment $assessment): ?array
     {
-        $directCompetitions = Competition::where('assessment_id', $assessment->id)
-            ->whereDoesntHave('examSittings')
-            ->get();
+        $directCompetitions = Competition::where('assessment_id', $assessment->id)->get();
         $exams = CompetitionExam::where('assessment_id', $assessment->id)->with('competition')->get();
 
         if ($directCompetitions->isEmpty() && $exams->isEmpty()) {
