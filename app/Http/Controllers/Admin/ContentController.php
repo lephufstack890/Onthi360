@@ -8,6 +8,7 @@ use App\Models\Assessment;
 use App\Models\AssessmentCodingItem;
 use App\Models\Material;
 use App\Models\Question;
+use App\Models\Tag;
 use App\Services\Admin\ContentService;
 use App\Services\Admin\DocumentImportService;
 use Illuminate\Http\RedirectResponse;
@@ -129,6 +130,16 @@ class ContentController extends Controller
         ];
     }
 
+    /** SỬA 19/8 (Giai đoạn 6) — tag có sẵn (tick chọn) + tag mới gõ tay, xem ContentService::resolveTagIds(). */
+    private function tagRules(): array
+    {
+        return [
+            'tag_ids' => ['nullable', 'array'],
+            'tag_ids.*' => ['integer', 'exists:tags,id'],
+            'new_tags' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
     public function questionsStore(Request $request): RedirectResponse
     {
         $data = $request->validate(array_merge([
@@ -138,7 +149,7 @@ class ContentController extends Controller
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
-        ], $this->questionGradingRules()));
+        ], $this->questionGradingRules(), $this->tagRules()));
 
         $question = $this->contentService->questionStore(Auth::user(), $data);
 
@@ -158,7 +169,7 @@ class ContentController extends Controller
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
-        ], $this->questionGradingRules()));
+        ], $this->questionGradingRules(), $this->tagRules()));
 
         $this->contentService->questionUpdate($question, $data);
 
@@ -173,7 +184,7 @@ class ContentController extends Controller
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
-        ], $this->questionGradingRules()));
+        ], $this->questionGradingRules(), $this->tagRules()));
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
 
@@ -346,6 +357,38 @@ class ContentController extends Controller
             ],
             default => $common,
         };
+    }
+
+    // ================= Tag/Chuyên đề (Giai đoạn 6, 19/8) =================
+    // Quản lý ở đúng tab "Tag/Chuyên đề" trong admin.content.index (tab=tags) — không tạo
+    // trang riêng, xem ContentService::indexData()/tagStore()/tagUpdate()/tagDestroy().
+
+    public function tagsStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
+        $this->contentService->tagStore($data['name']);
+
+        return redirect()->route('admin.content.index', ['tab' => 'tags'])->with('status', 'tag-created');
+    }
+
+    public function tagsUpdate(Request $request, Tag $tag): RedirectResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
+
+        try {
+            $this->contentService->tagUpdate($tag, $data['name']);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.content.index', ['tab' => 'tags'])->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.content.index', ['tab' => 'tags'])->with('status', 'tag-updated');
+    }
+
+    public function tagsDestroy(Tag $tag): RedirectResponse
+    {
+        $this->contentService->tagDestroy($tag);
+
+        return redirect()->route('admin.content.index', ['tab' => 'tags'])->with('status', 'tag-deleted');
     }
 
     // ================= Đề/bộ bài (Assessment) =================

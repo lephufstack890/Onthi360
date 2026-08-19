@@ -13,6 +13,7 @@
 @section('content')
     @php
         $question = $question ?? null;
+        $allTags = $allTags ?? collect();
         $type = old('type', $question->type->value ?? ($type ?? request('type', 'mcq')));
         $types = [
             ['key' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => '🔤'],
@@ -21,6 +22,18 @@
         ];
         $config = $question->grading_config ?? [];
         $options = old('options', $config['options'] ?? ['', '', '', '']);
+        // SỬA 19/8 — LỖI CHẤM ĐIỂM THẬT (phát hiện khi làm Giai đoạn 6): trước đây form này
+        // gửi $correctOption dạng CHỮ CÁI ("A"/"B"/"C"/"D", xem @foreach bên dưới) trong khi
+        // App\Services\AttemptService::gradeMcq() so khớp correct_options bằng CHỈ SỐ (int,
+        // 0/1/2/3 — giống hệt cách admin/content/questions/create.blade.php + edit.blade.php
+        // đã làm ĐÚNG từ đầu, dùng $i thay vì $opt). Hậu quả: mọi câu Trắc nghiệm giáo viên tự
+        // tạo tay (KHÔNG qua OCR — luồng OCR ở DocumentImportService::letterToIndex() vẫn làm
+        // đúng) mà đáp án đúng KHÔNG PHẢI phương án A đều bị chấm SAI cho học sinh chọn đúng
+        // (vì "B"/"C"/"D" ép về int đều ra 0, chỉ khớp khi học sinh chọn đúng index 0). Sửa
+        // $correctOption về đúng kiểu index để khớp hành vi Admin — xem thêm
+        // App\Services\Teacher\QuestionService::buildGradingConfig() (đã sửa cùng lúc) và
+        // database/migrations/..._fix_teacher_mcq_correct_option_index.php (dữ liệu câu đã
+        // tạo trước đó cần chạy lại migrate để tự sửa, không cần Admin/GV làm gì thêm).
         $correctOption = old('correct_option', $config['correct_options'][0] ?? null);
         $acceptedAnswers = old('accepted_answers', implode(', ', $config['accepted_answers'] ?? []));
         $caseSensitive = old('case_sensitive', $config['case_sensitive'] ?? false);
@@ -28,6 +41,9 @@
         $memoryLimitMb = old('memory_limit_mb', $config['memory_limit_mb'] ?? 256);
         $testCasesText = old('test_cases', collect($config['test_cases'] ?? [])->map(fn ($tc) => ($tc['input'] ?? '').' => '.($tc['output'] ?? ''))->implode("\n"));
         $canPublishNow = $question ? app(\App\Services\QuestionPublishGuard::class)->canPublish($question)->allowed : false;
+        // SỬA 19/8 (Giai đoạn 6): tag đã gắn sẵn của câu hỏi (khi sửa) để tick trước —
+        // $question->tags do Teacher\QuestionController::edit() đã eager-load.
+        $selectedTagIds = old('tag_ids', $question?->tags?->pluck('id')->all() ?? []);
     @endphp
 
     <a href="{{ route('teacher.questions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Kho câu hỏi</a>
@@ -81,7 +97,7 @@
                         <div class="space-y-2">
                             @foreach (['A', 'B', 'C', 'D'] as $i => $opt)
                                 <div class="flex items-center gap-2">
-                                    <input type="radio" name="correct_option" value="{{ $opt }}" @checked($correctOption === $opt)>
+                                    <input type="radio" name="correct_option" value="{{ $i }}" @checked((string) $correctOption === (string) $i)>
                                     <input type="text" name="options[]" value="{{ $options[$i] ?? '' }}" class="flex-1 rounded-lg border border-slate-200 text-sm p-2" placeholder="Phương án {{ $opt }}">
                                 </div>
                             @endforeach
@@ -129,6 +145,26 @@
                         <span>⚠️</span><span>Chưa đủ điều kiện phát hành — kiểm tra lại cấu hình chấm/đáp án.</span>
                     </div>
                 @endif
+
+                {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
+                     hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem
+                     Teacher\QuestionService::resolveTagIds(). Dùng để lọc ở "Luyện tập theo câu". --}}
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-600 mb-1">Tag/Chuyên đề</label>
+                    @if ($allTags->isNotEmpty())
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach ($allTags as $tagOption)
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 text-xs text-slate-600 has-[:checked]:bg-rose-50 has-[:checked]:border-rose-300 has-[:checked]:text-rose-600">
+                                    <input type="checkbox" name="tag_ids[]" value="{{ $tagOption->id }}"
+                                           @checked(collect($selectedTagIds)->contains((string) $tagOption->id))>
+                                    {{ $tagOption->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                    <input type="text" name="new_tags" value="{{ old('new_tags') }}" maxlength="500" placeholder="Tag mới, cách nhau bằng dấu phẩy"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                </div>
 
                 <button type="submit" name="action" value="draft" class="w-full px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium mb-2">Lưu nháp</button>
                 <button type="submit" name="action" value="publish" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu & Phát hành</button>

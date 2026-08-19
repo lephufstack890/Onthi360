@@ -17,10 +17,11 @@
         $tabs = $tabs ?? [];
         $rows = $rows ?? [];
         $documents = $documents ?? [];
+        $tags = $tags ?? [];
         $total = $total ?? count($rows);
     @endphp
 
-    <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới (6.2, 16 mục 2).">
+    <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
         <x-slot:actions>
             @if ($tab === 'materials')
                 <a href="{{ route('admin.content.materials.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo học liệu</a>
@@ -40,6 +41,12 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo '.session('bulkCreatedCount').' đề PDF — vào từng đề để nhập đáp án.'])
     @elseif (session('status') === 'assessment-promoted-shared')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đưa đề vào Kho chung.'])
+    @elseif (session('status') === 'tag-created')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo tag mới.'])
+    @elseif (session('status') === 'tag-updated')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đổi tên tag.'])
+    @elseif (session('status') === 'tag-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá tag.'])
     @elseif (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
     @endif
@@ -79,6 +86,48 @@
                     description="Kết quả OCR không tự phát hành — bấm &quot;+ Nhập đề (Word/PDF/OCR)&quot; ở trên để tải Word/PDF lên (6.4)."
                     actionLabel="+ Nhập đề (Word/PDF/OCR)"
                     :actionHref="route('admin.content.questions.import')" />
+            @endforelse
+        </div>
+    @elseif ($tab === 'tags')
+        {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): CRUD gọn trong 1 khối,
+             không cần trang riêng — xem ContentService::indexData()/tagStore()/tagUpdate()/
+             tagDestroy(). Tag dùng để lọc ở màn "Luyện tập theo câu" của học sinh và ở form
+             tạo/sửa câu hỏi (Admin + Giáo viên). --}}
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-5">
+            <h2 class="font-medium text-slate-700 mb-3">+ Thêm tag mới</h2>
+            <form method="POST" action="{{ route('admin.content.tags.store') }}" class="flex flex-wrap items-center gap-3">
+                @csrf
+                <input type="text" name="name" required maxlength="120" placeholder="VD: Đại số, Hình học, Dao động cơ..."
+                       class="flex-1 min-w-[220px] rounded-lg border border-slate-200 text-sm p-2.5">
+                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Thêm tag</button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            @forelse ($tags as $t)
+                <div class="flex items-center justify-between gap-3 px-5 py-3" x-data="{ editing: false }">
+                    <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex items-center gap-2" x-show="editing" x-cloak>
+                        @csrf
+                        @method('PUT')
+                        <input type="text" name="name" value="{{ $t['name'] }}" required maxlength="120" class="flex-1 rounded-lg border border-slate-200 text-sm p-2">
+                        <button type="submit" class="text-sm text-rose-600 font-medium">Lưu</button>
+                        <button type="button" @click="editing = false" class="text-sm text-slate-400">Huỷ</button>
+                    </form>
+                    <div class="flex-1 flex items-center gap-2" x-show="!editing">
+                        <span class="text-sm font-medium text-slate-700">{{ $t['name'] }}</span>
+                        <span class="text-xs text-slate-400">{{ $t['questionsCount'] }} câu hỏi đang dùng</span>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0" x-show="!editing">
+                        <button type="button" @click="editing = true" class="text-sm text-slate-500 hover:text-rose-600">Đổi tên</button>
+                        <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-sm text-rose-500 hover:text-rose-700">Xoá</button>
+                        </form>
+                    </div>
+                </div>
+            @empty
+                <div class="px-5 py-6 text-center text-slate-400 text-sm">Chưa có tag nào — thêm tag đầu tiên ở trên.</div>
             @endforelse
         </div>
     @else

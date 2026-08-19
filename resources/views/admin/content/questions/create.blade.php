@@ -12,7 +12,7 @@
 @section('page-title', 'Tạo câu hỏi (Kho chung)')
 
 @section('content')
-    @php $types = $types ?? []; $visibilities = $visibilities ?? []; @endphp
+    @php $types = $types ?? []; $visibilities = $visibilities ?? []; $allTags = $allTags ?? collect(); @endphp
 
     <a href="{{ route('admin.content.index', ['tab' => 'questions']) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Nội dung</a>
 
@@ -122,6 +122,26 @@
                         @endforeach
                     </x-select>
                 </div>
+                {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
+                     hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem
+                     ContentService::resolveTagIds(). Dùng để lọc ở "Luyện tập theo câu". --}}
+                <div>
+                    <label class="block text-sm text-slate-600 mb-1">Tag/Chuyên đề</label>
+                    @if ($allTags->isNotEmpty())
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach ($allTags as $tagOption)
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 text-xs text-slate-600 has-[:checked]:bg-rose-50 has-[:checked]:border-rose-300 has-[:checked]:text-rose-600">
+                                    <input type="checkbox" name="tag_ids[]" value="{{ $tagOption->id }}"
+                                           @checked(collect(old('tag_ids', []))->contains((string) $tagOption->id))>
+                                    {{ $tagOption->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                    <input type="text" name="new_tags" value="{{ old('new_tags') }}" maxlength="500" placeholder="Tag mới, cách nhau bằng dấu phẩy"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                </div>
+
                 <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
                     Câu hỏi luôn tạo ở trạng thái <span class="font-medium">Nháp</span> — vào trang chi tiết để phát hành sau khi đủ điều kiện (6.2).
                 </div>

@@ -11,7 +11,7 @@
 
 @section('content')
     @php
-        $types = $types ?? []; $visibilities = $visibilities ?? [];
+        $types = $types ?? []; $visibilities = $visibilities ?? []; $allTags = $allTags ?? collect();
         $config = $question->grading_config ?? [];
         $options = $config['options'] ?? [];
         $correctOption = ($config['correct_options'][0] ?? null);
@@ -128,6 +128,26 @@
                             <option value="{{ $value }}" @selected(old('visibility', $question->visibility->value) === $value)>{{ $label }}</option>
                         @endforeach
                     </x-select>
+                </div>
+                {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
+                     hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem
+                     ContentService::resolveTagIds(). Tag hiện tại của câu hỏi lấy từ
+                     $question->tags (đã eager-load ở ContentService::questionEditFormData()). --}}
+                <div>
+                    <label class="block text-sm text-slate-600 mb-1">Tag/Chuyên đề</label>
+                    @if ($allTags->isNotEmpty())
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach ($allTags as $tagOption)
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 text-xs text-slate-600 has-[:checked]:bg-rose-50 has-[:checked]:border-rose-300 has-[:checked]:text-rose-600">
+                                    <input type="checkbox" name="tag_ids[]" value="{{ $tagOption->id }}"
+                                           @checked(collect(old('tag_ids', $question->tags->pluck('id')->all()))->contains((string) $tagOption->id))>
+                                    {{ $tagOption->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                    <input type="text" name="new_tags" value="{{ old('new_tags') }}" maxlength="500" placeholder="Tag mới, cách nhau bằng dấu phẩy"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2">
                 </div>
                 <button type="submit" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">
                     {{ $hasBeenAttempted ? 'Tạo phiên bản mới' : 'Lưu thay đổi' }}

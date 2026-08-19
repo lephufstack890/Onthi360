@@ -7,6 +7,7 @@ use App\Enums\AttemptSource;
 use App\Enums\AttemptStatus;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\CompetitionStatus;
 use App\Enums\QuestionType;
 use App\Enums\VerdictStatus;
 use App\Models\Assessment;
@@ -24,7 +25,9 @@ use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Luồng "học sinh làm bài & nộp bài" thật (trước đây chỉ có UI tĩnh minh họa, xem TODO cũ
@@ -48,6 +51,8 @@ class AttemptService
         private readonly AttendanceRepositoryInterface $attendances,
         private readonly ClassEnrollmentRepositoryInterface $classEnrollments,
         private readonly AccessGateService $accessGate,
+        // SỬA 19/8 (Giai đoạn 5 — "Tự động ghi bảng xếp hạng"): xem CompetitionLeaderboardService.
+        private readonly CompetitionLeaderboardService $competitionLeaderboard,
     ) {}
 
     /**
@@ -166,17 +171,17 @@ class AttemptService
      * cần biết/đoán đúng assessment_id là vào làm bài được, KHÔNG qua Assignment (route
      * student.assessment.take không bắt buộc truyền assignment). Vì vậy, thứ tự kiểm tra:
      * (1) Practice luôn cho qua; (2) CompetitionPaper ĐANG được 1 Competition/CompetitionExam
-     * tham chiếu tới thì cho qua (đúng thiết kế mở công khai của Cuộc thi — CompetitionPaper
-     * KHÔNG được tạo ra ngoài luồng Cuộc thi nên nếu chưa có Competition/CompetitionExam nào
-     * trỏ tới thì vẫn chặn ở bước (4), tránh lộ đề đấu trước khi cuộc thi thật sự gắn đề); (3)
-     * có Assignment hợp lệ thì coi như đã qua đủ cửa ở assertAssignmentAccessible() phía trên
-     * rồi, cho qua tiếp (giáo viên giao bài cho lớp là đủ căn cứ, không bắt buộc phải có
-     * Material/Product song song); (4) có Material gắn thì đi đúng AccessGateService như cũ;
-     * (5) không khớp trường hợp nào ở trên (không Assignment, không Material, không phải
-     * Practice/đề đấu Cuộc thi hợp lệ) thì đây là đề PDF đứng một mình chưa gắn vào đâu cả —
-     * chặn hẳn, không cho vào làm bài "chùa". Đề muốn cho học sinh làm mà không giao qua lớp
-     * thì phải gắn Product (màn "Gắn vào học liệu để bán" ở Admin, dùng lại
-     * Admin\ContentService::materialStore()).
+     * tham chiếu tới VÀ cuộc thi/kỳ thi đó ĐANG MỞ (xem competitionEntryDecision() — Giai
+     * đoạn 5, SỬA 19/8) thì cho qua; nếu có tham chiếu nhưng chưa/không còn mở thì CHẶN LUÔN
+     * với lý do rõ ràng (KHÔNG rơi xuống kiểm tra Material bên dưới — đề đấu Cuộc thi không
+     * nên "lách" qua đường Material để vào thi ngoài giờ); nếu KHÔNG được cuộc thi/kỳ thi nào
+     * tham chiếu tới thì rơi xuống bước (4) như đề PDF thường; (3) có Assignment hợp lệ thì
+     * coi như đã qua đủ cửa ở assertAssignmentAccessible() phía trên rồi, cho qua tiếp (giáo
+     * viên giao bài cho lớp là đủ căn cứ, không bắt buộc phải có Material/Product song song);
+     * (4) có Material gắn thì đi đúng AccessGateService như cũ; (5) không khớp trường hợp nào
+     * ở trên thì đây là đề PDF đứng một mình chưa gắn vào đâu cả — chặn hẳn, không cho vào làm
+     * bài "chùa". Đề muốn cho học sinh làm mà không giao qua lớp thì phải gắn Product (màn
+     * "Gắn vào học liệu để bán" ở Admin, dùng lại Admin\ContentService::materialStore()).
      */
     private function assertMaterialAccessible(User $user, Assessment $assessment, ?Assignment $assignment): void
     {
@@ -184,8 +189,18 @@ class AttemptService
             return;
         }
 
-        if ($assessment->type === AssessmentType::CompetitionPaper && $this->isReferencedByCompetition($assessment)) {
-            return;
+        if ($assessment->type === AssessmentType::CompetitionPaper) {
+            $decision = $this->competitionEntryDecision($assessment);
+
+            if ($decision !== null) {
+                if (! $decision['open']) {
+                    throw ValidationException::withMessages(['attempt' => $decision['message']]);
+                }
+
+                return;
+            }
+            // $decision === null: đề đấu này chưa được cuộc thi/kỳ thi nào tham chiếu tới —
+            // rơi xuống kiểm tra Assignment/Material bên dưới như 1 đề PDF thường.
         }
 
         if ($assignment !== null) {
@@ -208,15 +223,50 @@ class AttemptService
     }
 
     /**
-     * true nếu đề đấu này đang được 1 Competition (đường tham chiếu đơn cũ, Competition::
-     * assessment_id) hoặc 1 CompetitionExam (đường tham chiếu nhiều kỳ thi, xem
-     * CompetitionExam::assessment_id) trỏ tới — tức đây thật sự là đề của 1 cuộc thi công
-     * khai, không phải đề đấu tạo ra rồi bỏ đó chưa gắn cuộc thi nào (không nên lộ trước).
+     * SỬA 19/8 (Giai đoạn 5 — "Chặn cửa sổ giờ thi ở server"): trước đây (Giai đoạn 4) chỉ
+     * kiểm tra CÓ được cuộc thi/kỳ thi nào tham chiếu tới hay không, KHÔNG kiểm tra cuộc
+     * thi/kỳ thi đó CÒN ĐANG MỞ hay không — học sinh biết assessment_id vẫn vào thi được cả
+     * khi cuộc thi chưa tới giờ/đã hết giờ/đã lưu trữ, vì trang public/competitions/show.
+     * blade.php chỉ ẨN nút "Vào thi" ở giao diện (canJoinDirectly) chứ KHÔNG có gì chặn thật
+     * ở server nếu học sinh vẫn gọi thẳng route student.assessment.take. Hàm này kiểm tra
+     * đúng logic đó (Competition::computedStatus()/CompetitionExam::isOngoing(), tính THEO
+     * GIỜ HIỆN TẠI, không tin cột status lưu sẵn — 16 mục 3) ở tầng server, cùng 1 nguồn sự
+     * thật với CTA "Vào thi" ở Public\CompetitionService (2 nơi PHẢI khớp nhau, không tự bịa
+     * luật riêng ở đây).
+     *
+     * 1 đề có thể được NHIỀU cuộc thi/kỳ thi tham chiếu tới cùng lúc (hiếm nhưng không cấm) —
+     * chỉ cần 1 trong số đó đang mở là đủ cho qua.
+     *
+     * @return array{open: bool, message: ?string}|null null nếu đề KHÔNG được cuộc thi/kỳ
+     *                                                    thi nào tham chiếu tới.
      */
-    private function isReferencedByCompetition(Assessment $assessment): bool
+    private function competitionEntryDecision(Assessment $assessment): ?array
     {
-        return Competition::where('assessment_id', $assessment->id)->exists()
-            || CompetitionExam::where('assessment_id', $assessment->id)->exists();
+        $directCompetitions = Competition::where('assessment_id', $assessment->id)->get();
+        $exams = CompetitionExam::where('assessment_id', $assessment->id)->with('competition')->get();
+
+        if ($directCompetitions->isEmpty() && $exams->isEmpty()) {
+            return null;
+        }
+
+        foreach ($directCompetitions as $competition) {
+            if ($competition->computedStatus() === CompetitionStatus::Ongoing) {
+                return ['open' => true, 'message' => null];
+            }
+        }
+
+        foreach ($exams as $exam) {
+            $competition = $exam->competition;
+
+            if ($competition !== null && $competition->status !== CompetitionStatus::Archived && $exam->isOngoing()) {
+                return ['open' => true, 'message' => null];
+            }
+        }
+
+        return [
+            'open' => false,
+            'message' => 'Cuộc thi/kỳ thi của đề này hiện không mở (chưa tới giờ, đã kết thúc, hoặc đã lưu trữ) — bạn chưa thể vào làm bài lúc này.',
+        ];
     }
 
     /**
@@ -362,7 +412,7 @@ class AttemptService
         // 2 request chạy song song thật). Khoá dòng (lockForUpdate) bên trong transaction để
         // request thứ 2 phải đợi request thứ 1 commit xong, rồi tự thấy status đã đổi và bị
         // chặn đúng như luồng bình thường.
-        return DB::transaction(function () use ($attempt) {
+        $locked = DB::transaction(function () use ($attempt) {
             $locked = $this->attempts->query()->whereKey($attempt->id)->lockForUpdate()->first();
 
             if ($locked === null || $locked->status !== AttemptStatus::InProgress) {
@@ -381,6 +431,27 @@ class AttemptService
 
             return $locked;
         });
+
+        $this->recordCompetitionLeaderboardSafely($locked);
+
+        return $locked;
+    }
+
+    /**
+     * SỬA 19/8 (Giai đoạn 5 — "Tự động ghi bảng xếp hạng"): gọi NGOÀI transaction nộp bài ở
+     * trên (đã commit xong, Attempt đã lưu chắc chắn) — cố ý bọc try/catch NUỐT lỗi thay vì
+     * để lỗi ném ra ngoài, vì đây chỉ là tác dụng phụ (ghi bảng xếp hạng cho đề đấu Cuộc thi),
+     * KHÔNG được phép làm hỏng việc nộp bài THẬT của học sinh (vd mất kết nối CSDL đúng lúc
+     * này thì học sinh vẫn phải thấy nộp bài THÀNH CÔNG — bảng xếp hạng có thể cập nhật trễ,
+     * Admin vẫn bấm lại "Tính tổng từ các kỳ thi" sau được, không mất dữ liệu Attempt gốc).
+     */
+    private function recordCompetitionLeaderboardSafely(Attempt $attempt): void
+    {
+        try {
+            $this->competitionLeaderboard->recordIfCompetitionExam($attempt);
+        } catch (Throwable $e) {
+            Log::error('Không ghi được bảng xếp hạng Cuộc thi cho attempt #'.$attempt->id, ['exception' => $e]);
+        }
     }
 
     /** @return array{0: ?int, 1: VerdictStatus} */

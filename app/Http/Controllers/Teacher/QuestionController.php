@@ -26,7 +26,7 @@ class QuestionController extends Controller
     {
         $type = $request->query('type', 'mcq');
 
-        return view('teacher.questions.create', ['type' => $type, 'question' => null]);
+        return view('teacher.questions.create', ['type' => $type, 'question' => null, 'allTags' => $this->questionService->allTags()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -43,8 +43,9 @@ class QuestionController extends Controller
     public function edit(Request $request, int $question): View
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
+        $questionModel->load('tags');
 
-        return view('teacher.questions.create', ['type' => $questionModel->type->value, 'question' => $questionModel]);
+        return view('teacher.questions.create', ['type' => $questionModel->type->value, 'question' => $questionModel, 'allTags' => $this->questionService->allTags()]);
     }
 
     public function update(Request $request, int $question): RedirectResponse
@@ -120,13 +121,22 @@ class QuestionController extends Controller
             'body' => ['required', 'string'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             'action' => ['required', 'in:draft,publish'],
+            // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): xem
+            // Teacher\QuestionService::resolveTagIds() — tag_ids là ID có sẵn (tick), new_tags
+            // là tên tag mới gõ tay (cách nhau bằng dấu phẩy), cả 2 đều tùy chọn.
+            'tag_ids' => ['nullable', 'array'],
+            'tag_ids.*' => ['integer'],
+            'new_tags' => ['nullable', 'string', 'max:500'],
         ];
 
         return match ($type) {
+            // SỬA 19/8 — correct_option PHẢI là chỉ số (0-3), không phải chữ cái — xem sửa lỗi
+            // chấm điểm ở QuestionService::buildGradingConfig() + create.blade.php (khớp
+            // đúng validation Admin\ContentController đã dùng từ đầu: 'integer','min:0','max:3').
             'mcq' => $common + [
                 'options' => ['nullable', 'array'],
                 'options.*' => ['nullable', 'string', 'max:500'],
-                'correct_option' => ['nullable', 'string', 'max:10'],
+                'correct_option' => ['nullable', 'integer', 'min:0', 'max:3'],
             ],
             'fill_blank' => $common + [
                 'accepted_answers' => ['nullable', 'string', 'max:1000'],

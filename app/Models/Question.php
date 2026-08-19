@@ -11,6 +11,7 @@ use App\Enums\QuestionType;
 use App\Enums\Visibility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -53,6 +54,12 @@ class Question extends Model
     public function assessmentItems(): HasMany
     {
         return $this->hasMany(AssessmentItem::class);
+    }
+
+    /** SỬA 19/8 (Giai đoạn 6) — chuyên đề/tag gắn cho câu hỏi, xem App\Models\Tag. */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'question_tag');
     }
 
     /**

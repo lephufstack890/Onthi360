@@ -33,6 +33,7 @@ use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\SessionResourceRepositoryInterface;
 use App\Repositories\Contracts\SystemSettingRepositoryInterface;
+use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Repositories\Contracts\TokenTopupRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
@@ -68,6 +69,7 @@ use App\Repositories\Eloquent\ReviewRepository;
 use App\Repositories\Eloquent\RoleRepository;
 use App\Repositories\Eloquent\SessionResourceRepository;
 use App\Repositories\Eloquent\SystemSettingRepository;
+use App\Repositories\Eloquent\TagRepository;
 use App\Repositories\Eloquent\TeacherProfileRepository;
 use App\Repositories\Eloquent\TokenTopupRepository;
 use App\Repositories\Eloquent\UploadedDocumentRepository;
@@ -97,6 +99,7 @@ class RepositoryServiceProvider extends ServiceProvider
         AssessmentRepositoryInterface::class => AssessmentRepository::class,
         QuestionRepositoryInterface::class => QuestionRepository::class,
         QuestionBankRepositoryInterface::class => QuestionBankRepository::class,
+        TagRepositoryInterface::class => TagRepository::class,
         AttemptRepositoryInterface::class => AttemptRepository::class,
         AttemptAnswerRepositoryInterface::class => AttemptAnswerRepository::class,
         ParentLinkRepositoryInterface::class => ParentLinkRepository::class,

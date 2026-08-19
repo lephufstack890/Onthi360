@@ -14,6 +14,7 @@ use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\Tag;
 use App\Models\UploadedDocument;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
@@ -21,6 +22,7 @@ use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
@@ -51,6 +53,8 @@ class ContentService
         // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): nhập hàng loạt nhiều đề PDF cùng lúc, dùng CHUNG
         // với Teacher\AssessmentService — xem App\Services\PdfBulkImportService.
         private PdfBulkImportService $pdfBulkImport,
+        // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): xem App\Models\Tag.
+        private TagRepositoryInterface $tags,
     ) {}
 
     public static function maxPdfKb(): int
@@ -146,6 +150,8 @@ class ContentService
             'questions' => $this->questions->count(),
             'assessments' => $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
+            // SỬA 19/8 (Giai đoạn 6): xem nhánh $tab === 'tags' bên dưới.
+            'tags' => $this->tags->count(),
         ];
 
         $tabs = [
@@ -153,10 +159,12 @@ class ContentService
             ['label' => 'Câu hỏi (Kho chung + Giáo viên)', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
             ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
+            ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
         ];
 
         $documents = [];
         $rows = [];
+        $tags = [];
         if ($tab === 'questions') {
             // Admin xem được toàn bộ câu hỏi — cả Kho chung lẫn kho riêng từng giáo viên
             // (chỉ xem để nắm tình hình; ranh giới sở hữu/sửa vẫn theo 6.5, giống cách
@@ -183,6 +191,13 @@ class ContentService
             })->all();
         } elseif ($tab === 'drafts') {
             $documents = $this->pendingDocuments();
+        } elseif ($tab === 'tags') {
+            // SỬA 19/8 (Giai đoạn 6) — withCount('questions') để hiện rõ tag nào đang được
+            // dùng cho bao nhiêu câu hỏi trước khi admin lỡ tay xoá (xem tagDestroy() bên dưới,
+            // xoá KHÔNG chặn dù đang dùng — chỉ là nhãn, không phải nội dung theo 6.2).
+            $tags = $this->tags->query()->withCount('questions')->orderBy('name')->get()
+                ->map(fn (Tag $t) => ['id' => $t->id, 'name' => $t->name, 'questionsCount' => $t->questions_count])
+                ->all();
         } else {
             $rows = $this->materials->latestWithProduct(50)->map(function ($m) {
                 [$label, $tone] = $this->statusLabel($m->status);
@@ -196,8 +211,50 @@ class ContentService
             'tabs' => $tabs,
             'rows' => $rows,
             'documents' => $documents,
+            'tags' => $tags,
             'total' => $tab === 'drafts' ? count($documents) : ($counts[$tab] ?? count($rows)),
         ];
+    }
+
+    /**
+     * admin.content.tags.store — tạo tag mới. findOrCreateByName() (không phải create() thẳng)
+     * để tự khớp/không tạo trùng nếu admin lỡ gõ lại đúng tên đã có (không phân biệt hoa/
+     * thường, xem TagRepository::findOrCreateByName()).
+     */
+    public function tagStore(string $name): Tag
+    {
+        return $this->tags->findOrCreateByName($name);
+    }
+
+    /**
+     * admin.content.tags.update — đổi tên tag. Ảnh hưởng NGAY tới mọi câu hỏi/bộ lọc đang
+     * dùng tag này (tag chỉ là 1 nhãn dùng chung, không phải nội dung riêng của câu hỏi nào —
+     * không cần tạo version mới như Question/Assessment, 6.2 không áp dụng ở đây).
+     *
+     * @throws ValidationException nếu tên mới trùng 1 tag KHÁC đã có sẵn.
+     */
+    public function tagUpdate(Tag $tag, string $name): Tag
+    {
+        $name = trim($name);
+        $existing = Tag::where('name', $name)->where('id', '!=', $tag->id)->first();
+
+        if ($existing !== null) {
+            throw ValidationException::withMessages(['name' => 'Đã có tag khác trùng tên này — gộp bằng cách xoá 1 trong 2 thay vì đổi tên trùng.']);
+        }
+
+        return $this->tags->update($tag, ['name' => $name]);
+    }
+
+    /**
+     * admin.content.tags.destroy — xoá hẳn (KHÔNG lưu trữ/soft-delete như Material/Question/
+     * Assessment, vì tag chỉ là 1 nhãn phân loại, không phải nội dung học tập theo 6.2) —
+     * cascadeOnDelete ở bảng question_tag tự gỡ tag khỏi mọi câu hỏi đang gắn, KHÔNG xoá câu
+     * hỏi. Cố ý KHÔNG chặn xoá dù đang có câu hỏi dùng (khác Assessment/Material vốn chặn xoá
+     * khi có phụ thuộc dữ liệu xếp hạng) — gỡ nhãn khỏi câu hỏi không làm mất/sai dữ liệu gì.
+     */
+    public function tagDestroy(Tag $tag): void
+    {
+        $this->tags->delete($tag);
     }
 
     /**
@@ -428,6 +485,10 @@ class ContentService
         return [
             'types' => ['coding' => 'Lập trình (OJ)', 'mcq' => 'Trắc nghiệm', 'fill_blank' => 'Điền khuyết'],
             'visibilities' => ['public' => 'Công khai', 'private' => 'Riêng tư (nội bộ)'],
+            // SỬA 19/8 (Giai đoạn 6): danh sách tag có sẵn để tick chọn ở form — xem
+            // resolveTagIds() (cho phép gõ thêm tag MỚI ngay trong form, không bắt buộc phải
+            // sang tab "Tag/Chuyên đề" tạo trước).
+            'allTags' => $this->tags->allOrderedByName(),
         ];
     }
 
@@ -442,7 +503,7 @@ class ContentService
             throw ValidationException::withMessages(['code' => 'Mã câu hỏi này đã tồn tại, chọn mã khác.']);
         }
 
-        return $this->questions->create([
+        $question = $this->questions->create([
             'bank_id' => $this->sharedBank()->id,
             'code' => $data['code'],
             'type' => $data['type'],
@@ -457,12 +518,16 @@ class ContentService
             'version' => 1,
             'created_by' => $admin->id,
         ]);
+
+        $question->tags()->sync($this->resolveTagIds($data));
+
+        return $question;
     }
 
     public function questionEditFormData(int $id): array
     {
         /** @var Question $question */
-        $question = $this->questions->query()->findOrFail($id);
+        $question = $this->questions->query()->with('tags')->findOrFail($id);
 
         return array_merge($this->questionCreateFormData(), [
             'question' => $question,
@@ -483,7 +548,7 @@ class ContentService
             ]);
         }
 
-        return $this->questions->update($question, [
+        $updated = $this->questions->update($question, [
             'code' => $data['code'],
             'title' => $data['title'],
             'body' => $data['body'] ?? null,
@@ -491,18 +556,50 @@ class ContentService
             'grading_config' => $this->buildGradingConfig($question->type->value, $data),
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
         ]);
+
+        $updated->tags()->sync($this->resolveTagIds($data));
+
+        return $updated;
     }
 
     /** Tạo bản version mới thay vì sửa âm thầm (6.2) — dùng khi câu đã có người làm. */
     public function questionCreateNewVersion(Question $question, array $data): Question
     {
-        return $this->publishGuard->createNewVersion($question, [
+        $newVersion = $this->publishGuard->createNewVersion($question, [
             'title' => $data['title'],
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'grading_config' => $this->buildGradingConfig($question->type->value, $data),
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
         ]);
+
+        // Phiên bản mới giữ NGUYÊN tag của bản gốc trừ khi form gửi kèm lựa chọn tag khác —
+        // đổi nội dung câu hỏi (sửa lỗi/cập nhật) hiếm khi đổi luôn chủ đề của nó.
+        $newVersion->tags()->sync($this->resolveTagIds($data));
+
+        return $newVersion;
+    }
+
+    /**
+     * SỬA 19/8 (Giai đoạn 6) — gộp 2 nguồn tag từ form: (1) 'tag_ids' — các tag CÓ SẴN được
+     * tick chọn; (2) 'new_tags' — chuỗi tên tag MỚI cách nhau bằng dấu phẩy, gõ trực tiếp
+     * ngay trong form (không bắt buộc phải sang tab "Tag/Chuyên đề" tạo trước rồi quay lại).
+     * findOrCreateByName() tự khớp nếu trùng tên tag đã có (không phân biệt hoa/thường) —
+     * tránh tự sinh tag gần trùng chỉ vì gõ khác cách viết hoa/thường.
+     *
+     * @return array<int> danh sách tag_id cuối cùng để sync() vào câu hỏi.
+     */
+    private function resolveTagIds(array $data): array
+    {
+        $tagIds = array_map('intval', $data['tag_ids'] ?? []);
+
+        $newNames = array_filter(array_map('trim', explode(',', (string) ($data['new_tags'] ?? ''))), fn ($n) => $n !== '');
+
+        foreach ($newNames as $name) {
+            $tagIds[] = $this->tags->findOrCreateByName($name)->id;
+        }
+
+        return array_values(array_unique($tagIds));
     }
 
     /**

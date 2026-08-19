@@ -13,7 +13,9 @@ use App\Models\AttemptAnswerKey;
 use App\Models\AttemptCodingItem;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * SỬA 19/8 (Giai đoạn 2 — học sinh làm đề PDF, 16/8 mục 1.2/6): logic lưu câu trả lời/chấm
@@ -29,6 +31,10 @@ class PdfAttemptService
     public function __construct(
         private readonly AttemptRepositoryInterface $attempts,
         private readonly AttemptService $attemptService,
+        // SỬA 19/8 (Giai đoạn 5 — "Tự động ghi bảng xếp hạng"): xem CompetitionLeaderboardService
+        // — đề đấu Cuộc thi content_mode=pdf_answer_sheet cũng phải được ghi nhận, giống hệt
+        // đề content_mode=structured ở AttemptService::submit().
+        private readonly CompetitionLeaderboardService $competitionLeaderboard,
     ) {}
 
     /**
@@ -155,7 +161,7 @@ class PdfAttemptService
      */
     public function submit(Attempt $attempt): Attempt
     {
-        return DB::transaction(function () use ($attempt) {
+        $locked = DB::transaction(function () use ($attempt) {
             $locked = $this->attempts->query()->whereKey($attempt->id)->lockForUpdate()->first();
 
             if ($locked === null || $locked->status !== AttemptStatus::InProgress) {
@@ -177,5 +183,16 @@ class PdfAttemptService
 
             return $locked;
         });
+
+        // SỬA 19/8 (Giai đoạn 5) — NGOÀI transaction (đã commit), bọc try/catch nuốt lỗi:
+        // xem lý do đầy đủ ở App\Services\AttemptService::recordCompetitionLeaderboardSafely()
+        // (tác dụng phụ, không được phép làm hỏng việc nộp bài THẬT của học sinh).
+        try {
+            $this->competitionLeaderboard->recordIfCompetitionExam($locked);
+        } catch (Throwable $e) {
+            Log::error('Không ghi được bảng xếp hạng Cuộc thi cho attempt PDF #'.$locked->id, ['exception' => $e]);
+        }
+
+        return $locked;
     }
 }

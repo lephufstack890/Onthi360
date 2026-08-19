@@ -10,7 +10,9 @@ use App\Models\QuestionBank;
 use App\Models\User;
 use App\Repositories\Contracts\QuestionBankRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\QuestionPublishGuard;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Tổng hợp dữ liệu cho teacher.questions.index/create/edit — kho riêng của
@@ -26,7 +28,14 @@ class QuestionService
         private readonly QuestionRepositoryInterface $questions,
         private readonly QuestionBankRepositoryInterface $questionBanks,
         private readonly QuestionPublishGuard $publishGuard,
+        private readonly TagRepositoryInterface $tags,
     ) {}
+
+    /** teacher.questions.create/.edit — danh sách tag để tick chọn (xem App\Models\Tag). */
+    public function allTags(): Collection
+    {
+        return $this->tags->allOrderedByName();
+    }
 
     /**
      * teacher.questions.index — kho riêng của giáo viên + tab "Kho chung" chỉ để XEM
@@ -140,7 +149,7 @@ class QuestionService
     {
         $bank = $this->findOrCreatePersonalBank($teacher);
 
-        return $this->questions->create([
+        $question = $this->questions->create([
             'bank_id' => $bank->id,
             'code' => 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999),
             'owner_type' => OwnerType::Teacher,
@@ -151,6 +160,10 @@ class QuestionService
             'created_by' => $teacher->id,
             ...$this->buildAttributes($data),
         ]);
+
+        $question->tags()->sync($this->resolveTagIds($data));
+
+        return $question;
     }
 
     /**
@@ -164,10 +177,14 @@ class QuestionService
         $attributes = $this->buildAttributes($data);
 
         if ($this->publishGuard->hasBeenAttempted($question)) {
-            return $this->publishGuard->createNewVersion($question, $attributes);
+            $newVersion = $this->publishGuard->createNewVersion($question, $attributes);
+            $newVersion->tags()->sync($this->resolveTagIds($data));
+
+            return $newVersion;
         }
 
         $question->update($attributes);
+        $question->tags()->sync($this->resolveTagIds($data));
 
         return $question;
     }
@@ -213,13 +230,24 @@ class QuestionService
     /**
      * Cấu trúc grading_config theo loại câu (6.1/6.2) — đọc lại bởi
      * Question::hasMinimumGradingConfig() để xác định đủ điều kiện phát hành.
+     *
+     * SỬA 19/8 — LỖI CHẤM ĐIỂM THẬT (phát hiện khi làm Giai đoạn 6): 'correct_options' PHẢI
+     * lưu CHỈ SỐ (int 0-3, khớp thứ tự mảng 'options') vì App\Services\AttemptService::
+     * gradeMcq() so khớp bằng array_map('intval', ...) — trước đây hàm này lưu THẲNG giá trị
+     * $data['correct_option'] gửi từ form (khi đó là chữ cái "A"/"B"/"C"/"D", xem sửa cùng lúc
+     * ở resources/views/teacher/questions/create.blade.php), intval("B")/("C")/("D") đều ra 0
+     * → mọi câu Trắc nghiệm giáo viên tự tạo tay có đáp án đúng KHÁC phương án A đều bị chấm
+     * SAI cho học sinh chọn đúng. Ép (int) ở đây, đúng y hệt Admin\ContentService::
+     * buildGradingConfig() đã làm từ đầu (nơi \DUY NHẤT trước đó làm đúng logic này).
      */
     private function buildGradingConfig(string $type, array $data): array
     {
         return match ($type) {
             'mcq' => [
                 'options' => array_values(array_filter($data['options'] ?? [], fn ($o) => filled($o))),
-                'correct_options' => array_values(array_filter([$data['correct_option'] ?? null], fn ($v) => filled($v))),
+                'correct_options' => isset($data['correct_option']) && $data['correct_option'] !== ''
+                    ? [(int) $data['correct_option']]
+                    : [],
             ],
             'fill_blank' => [
                 'accepted_answers' => array_values(array_filter(array_map('trim', explode(',', (string) ($data['accepted_answers'] ?? ''))), fn ($v) => $v !== '')),
@@ -232,5 +260,27 @@ class QuestionService
             ],
             default => [],
         };
+    }
+
+    /**
+     * SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): gộp tag có sẵn (tick,
+     * "tag_ids[]") + tag gõ mới (cách nhau bằng dấu phẩy, "new_tags") thành 1 danh sách ID
+     * để sync vào Question::tags(). Cố ý TRÙNG LOGIC với App\Services\Admin\ContentService::
+     * resolveTagIds() thay vì gọi chéo sang service của Admin — 2 tầng Teacher/Admin trong
+     * codebase này vốn độc lập nhau (không service nào gọi service của tầng còn lại), tách
+     * riêng 1 helper dùng chung cho cả 2 tầng sẽ phải tạo 1 lớp mới chỉ để tránh 10 dòng
+     * trùng — chưa đáng, nếu sau này logic phức tạp hơn thì tách ra App\Services\TagResolver
+     * dùng chung.
+     */
+    private function resolveTagIds(array $data): array
+    {
+        $tagIds = array_map('intval', $data['tag_ids'] ?? []);
+        $newNames = array_filter(array_map('trim', explode(',', (string) ($data['new_tags'] ?? ''))), fn ($n) => $n !== '');
+
+        foreach ($newNames as $name) {
+            $tagIds[] = $this->tags->findOrCreateByName($name)->id;
+        }
+
+        return array_values(array_unique($tagIds));
     }
 }

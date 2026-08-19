@@ -385,6 +385,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/drafts/{draft}/merge', [AdminContentController::class, 'draftMerge'])->name('content.drafts.merge');
         Route::post('content/drafts/{draft}/discard', [AdminContentController::class, 'draftDiscard'])->name('content.drafts.discard');
 
+        // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): quản lý ở tab "Tag/Chuyên
+        // đề" trong admin.content.index (?tab=tags), xem ContentController::tagsStore()/
+        // tagsUpdate()/tagsDestroy().
+        Route::post('content/tags', [AdminContentController::class, 'tagsStore'])->name('content.tags.store');
+        Route::put('content/tags/{tag}', [AdminContentController::class, 'tagsUpdate'])->name('content.tags.update');
+        Route::delete('content/tags/{tag}', [AdminContentController::class, 'tagsDestroy'])->name('content.tags.destroy');
+
         Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
         // SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): route tĩnh 'bulk' PHẢI đứng TRƯỚC
