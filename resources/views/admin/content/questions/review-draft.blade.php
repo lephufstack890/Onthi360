@@ -1,15 +1,3 @@
-{{--
-  Route: admin.content.questions.reviewDraft | Frame: ADM-03 (rà soát)
-  Spec: 6.4 — xem song song tệp gốc/câu tách, gắn cờ vùng nhận dạng kém,
-  thêm-xóa-gộp-tách-đổi thứ tự câu, sửa nội dung/đáp án/điểm, chọn dạng,
-  thêm metadata/cấu hình OJ. Không cho xuất bản khi còn thiếu điều kiện.
-  Khác Teacher: tài liệu/câu nháp thuộc "Kho chung" (6.5) — bất kỳ Admin/
-  Editor nào cũng rà soát/sửa/gộp/xóa/chuyển vào kho được, không giới hạn
-  theo đúng người đã tải lên. Dữ liệu thật ($document, $drafts) do
-  App\Http\Controllers\Admin\ContentController truyền vào qua
-  App\Services\Admin\ContentService::reviewDraftFor(). Mỗi câu có form riêng
-  lưu ngay khi bấm "Lưu câu này" (POST admin.content.drafts.update).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Rà soát đề nhập')

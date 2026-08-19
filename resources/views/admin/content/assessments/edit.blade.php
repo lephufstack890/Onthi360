@@ -1,4 +1,3 @@
-{{-- Route: admin.content.assessments.edit / .update --}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa đề/bộ bài')
@@ -15,10 +14,6 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    {{-- SỬA 19/8: màn này chỉ sửa Tên/Loại/Điểm/Thời gian — KHÔNG có chỗ tải PDF (dễ gây
-         hiểu lầm "không thấy chỗ tạo file PDF" vì admin bấm "✏️ Sửa" ở trang chi tiết thay vì
-         nút "Quản lý đề PDF ›"). Thêm banner dẫn thẳng sang đúng màn khi đề đang ở
-         content_mode=pdf_answer_sheet, để không phải đoán. --}}
     @if ($assessment->isPdfMode())
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
             <p class="text-sm text-sky-800">Đề này dùng chế độ <strong>PDF + phiếu đáp án</strong> — tải file PDF, nhập đáp án và thêm bài lập trình ở màn riêng, không phải ở đây.</p>

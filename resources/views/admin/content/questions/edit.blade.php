@@ -1,9 +1,3 @@
-{{--
-  Route: admin.content.questions.edit / .update / .newVersion
-  Spec: 6.2 — "Câu hỏi đã có người làm — sửa nội dung phải tạo phiên bản mới, không sửa âm
-  thầm". $hasBeenAttempted do ContentService::questionEditFormData() tính qua
-  QuestionPublishGuard::hasBeenAttempted() — quyết định form nào hiện ra ở đây.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa câu hỏi')

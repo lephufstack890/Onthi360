@@ -1,14 +1,3 @@
-{{--
-  Route: admin.content.questions.import / .import.store | Frame: ADM-03 (tải)
-  Spec: 6.4 (Tải Word/PDF/PDF scan → OCR/trích xuất → phân rã bản nháp →
-  rà soát → phát hành), 6.5 (đích đến là Kho chung, không phải kho riêng
-  giáo viên). OCR không tự phát hành (6.4, 17).
-  Dữ liệu thật do App\Http\Controllers\Admin\ContentController truyền vào qua
-  App\Services\Admin\ContentService::indexData('drafts'); xử lý tải lên thật
-  do App\Services\Admin\DocumentImportService thực hiện (docx: đọc trực tiếp;
-  pdf có lớp văn bản: pdftotext; pdf scan/ảnh: pdftoppm + tesseract OCR tiếng
-  Việt — máy chủ cần cài các công cụ này, xem lỗi bên dưới nếu thiếu).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Nhập đề')

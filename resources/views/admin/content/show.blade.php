@@ -1,11 +1,3 @@
-{{--
-  Route: admin.content.show
-  Spec: 6.2 (chặn phát hành khi thiếu cấu hình) + 10.4 (từ chối/lưu trữ phải có lý do + audit
-  log) + 16 mục 4 (audit "phát hành đề").
-  Dữ liệu thật ($type, $typeLabel, $model, $item, $publishErrors, $hasBeenAttempted) do
-  ContentController::show() truyền vào qua ContentService::showData(). $type quyết định
-  route sửa/hành động nào được render (material/question/assessment dùng route riêng).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chi tiết nội dung')

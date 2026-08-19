@@ -1,15 +1,3 @@
-{{--
-  Route: admin.content.materials.create / admin.content.materials.store
-  Spec: 6.5 (học liệu thuộc sản phẩm — sách/chuyên đề/đề thi) + Table 27 (trạng thái nội dung).
-  Dữ liệu thật ($products, $parents, $assessments, $types, $statuses) do
-  ContentController::materialsCreate() truyền vào qua ContentService::materialCreateFormData().
-
-  SỬA 19/8 (Giai đoạn 4 — "Gắn vào học liệu để bán"): hỗ trợ tiền điền qua query string
-  ?assessment_id=<id> (link tắt từ admin/content/assessments/pdf.blade.php, xem nút "Gắn vào
-  học liệu để bán" ở đó) — tự chọn sẵn loại "Tham chiếu đề/bộ bài" + đúng đề đó, KHÔNG bắt
-  buộc phải tự tay chọn lại 2 lần. Không có gì mới ở backend (materialCreateFormData()/
-  materialStore() giữ NGUYÊN — màn này vốn đã liệt kê MỌI đề, kể cả đề của giáo viên).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo học liệu')
@@ -19,8 +7,6 @@
     @php
         $products = $products ?? []; $parents = $parents ?? []; $assessments = $assessments ?? [];
         $types = $types ?? []; $statuses = $statuses ?? [];
-        // Query string chỉ dùng để tiền điền LẦN ĐẦU vào form — nếu request cũ (old()) đã có
-        // giá trị (vd validate lỗi, quay lại điền tiếp) thì ưu tiên old() như bình thường.
         $defaultType = old('type', request()->filled('assessment_id') ? 'assessment_ref' : 'chapter');
         $defaultAssessmentId = old('assessment_id', request('assessment_id'));
     @endphp

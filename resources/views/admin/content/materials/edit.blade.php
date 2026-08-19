@@ -1,8 +1,3 @@
-{{--
-  Route: admin.content.materials.edit / .update
-  Dữ liệu thật ($material, $products, $parents, $assessments, $types, $statuses) do
-  ContentController::materialsEdit() truyền vào qua ContentService::materialEditFormData().
---}}
 @extends('layouts.admin')
 
 @section('title', 'Sửa học liệu')

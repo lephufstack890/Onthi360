@@ -1,21 +1,3 @@
-{{--
-  Route: admin.content.assessments.pdf.edit / .update
-         admin.content.assessments.coding-items.store / .update / .destroy
-         admin.content.assessments.coding-items.test-cases.import
-  SỬA 18/8 (đề PDF + phiếu đáp án — khách chốt 16/8 mục 1.2/5/6): màn cấu hình cho
-  Assessment content_mode=pdf_answer_sheet (mọi loại trừ Luyện tập theo câu — xem
-  App\Services\Admin\ContentService::contentModeForType()). KHÔNG dùng chung màn với
-  assessments/items.blade.php (đó là gắn Question rời, chỉ dùng cho content_mode=structured).
-  3 khối độc lập:
-    1. File PDF đề + PDF lời giải + mã đề + phạm vi trang xem thử.
-    2. Đáp án đúng từng câu (AssessmentAnswerKey) — nhập trực tiếp trên form, KHÔNG có
-       chức năng nhập bằng Excel/CSV (khách đã chốt rõ, 16/8 mục 1.2).
-    3. Bài lập trình con (AssessmentCodingItem) — mỗi bài có test case riêng, tải bằng
-       gói ZIP (không phải Excel/CSV).
-  Đề chỉ phát hành được khi PdfAssessmentPublishGuard::canPublish() cho phép — hiện rõ
-  lý do còn thiếu ở đầu trang thay vì để admin đoán (giống cách show.blade.php đang làm
-  cho Question/QuestionPublishGuard).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Quản lý đề PDF')
@@ -42,12 +24,6 @@
 
     <x-page-header title="📄 Quản lý đề PDF" :subtitle="$assessment->title">
         <x-slot:actions>
-            {{-- SỬA 19/8 (Giai đoạn 4 — "Gắn vào học liệu để bán"): đề tạo từ Giai đoạn 1-3
-                 (đề lẻ + Bộ đề) mặc định KHÔNG gắn Product/Material nào — chưa gắn thì chưa
-                 bán/kích hoạt được (vẫn tạo/xem trước bình thường, xem note ở
-                 AttemptService::assertMaterialAccessible()). Link tắt sang màn "Tạo học liệu"
-                 sẵn có (KHÔNG phải màn mới) — tự tiền điền loại "Tham chiếu đề/bộ bài" +
-                 đúng đề này qua query string, xem admin/content/materials/create.blade.php. --}}
             <a href="{{ route('admin.content.materials.create', ['assessment_id' => $assessment->id]) }}"
                class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">
                 🔗 Gắn vào học liệu để bán
@@ -73,8 +49,6 @@
         </div>
     @endif
 
-    {{-- Khối 1 + 2: PDF/mã đề + đáp án đúng từng câu — cùng 1 form vì
-         ContentService::assessmentPdfUpdate() lưu cả hai cùng lúc. --}}
     <div x-data="answerKeysForm({{ $answerKeys->map(fn ($k) => [
             'question_no' => $k->question_no,
             'question_type' => $k->question_type->value,
@@ -201,8 +175,6 @@
         </form>
     </div>
 
-    {{-- Khối 3: bài lập trình con — mỗi bài quản lý riêng (thêm/sửa/xoá/tải ZIP test case),
-         không nằm trong form đáp án ở trên vì mỗi bài có vòng đời/route riêng. --}}
     <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>💻</span> Bài lập trình con ({{ $codingItems->count() }})</h2>
 

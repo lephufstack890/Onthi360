@@ -1,16 +1,3 @@
-{{--
-  Route: admin.content.assessments.items.edit / .update
-  SỬA 18/8: bù khoảng trống "chọn đề đâu???" — trước đây màn Admin "Sửa đề/bộ bài"
-  (assessments/edit.blade.php) chỉ sửa được Tên/Loại/Tổng điểm/Thời gian, không có chỗ
-  nào để GẮN câu hỏi vào đề — vì thiết kế cũ giả định việc này luôn làm ở màn soạn đề
-  của giáo viên (teacher/assessments/create.blade.php). Giả định đó SAI với đề do
-  Admin tự tạo (owner_type=shared, không có giáo viên nào sở hữu) — xem ghi chú ở
-  App\Services\Admin\ContentService (khu "Đề/bộ bài"). Màn này mượn đúng UI/UX của
-  teacher/assessments/create.blade.php (danh sách câu hỏi dạng checkbox + điểm ghi đè)
-  nhưng cho Admin: hiện toàn bộ câu hỏi (Kho chung + từng giáo viên, có badge nguồn),
-  tick sẵn câu đã có trong đề, sửa xong thì THAY TOÀN BỘ danh sách (xem docblock
-  ContentService::assessmentItemsUpdate()).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Chọn câu hỏi cho đề/bộ bài')

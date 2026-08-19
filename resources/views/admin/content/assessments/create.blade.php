@@ -1,14 +1,3 @@
-{{--
-  Route: admin.content.assessments.create / .store
-  Spec: 6.1/6.3 (đề/bộ bài). Phạm vi cố ý chỉ gồm metadata — gắn câu hỏi vào đề là luồng
-  riêng của giáo viên khi soạn đề, không lặp lại ở đây (xem ContentService).
-  SỬA 19/8 (đề PDF, 16/8 mục 1.2): content_mode do "Loại" quyết định TỰ ĐỘNG, không có ô
-  chọn riêng — chỉ "Luyện tập" giữ mô hình câu hỏi rời cũ, còn lại (Bài giao/Đề thi/Đề thi
-  đấu) đều chuyển sang PDF + phiếu đáp án (App\Services\Admin\ContentService::
-  contentModeForType()). Thêm ghi chú rõ ràng ở đây vì trước đó "Loại" mặc định là
-  "Luyện tập" — nếu admin không đổi dễ tạo nhầm đề Structured rồi thắc mắc "không thấy chỗ
-  tải PDF" (đúng lỗi đã gặp 19/8) trong khi thực ra PDF nằm ở MÀN SAU, không phải ở đây.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo đề/bộ bài')

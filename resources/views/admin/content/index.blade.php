@@ -1,11 +1,3 @@
-{{--
-  Route: admin.content.index | Frame: ADM-03
-  Spec: 6.2 (điều kiện phát hành), 6.4 (nhập đề OCR), 6.5 (kho chung/kho riêng).
-  Dữ liệu thật do App\Http\Controllers\Admin\ContentController truyền vào qua
-  App\Services\Admin\ContentService::indexData(). Tab "drafts" hiển thị danh
-  sách tài liệu OCR thật ($documents) — rà soát tại admin.content.questions.
-  reviewDraft, chuyển vào Kho chung tại App\Services\Admin\DocumentImportService.
---}}
 @extends('layouts.admin')
 
 @section('title', 'Nội dung')

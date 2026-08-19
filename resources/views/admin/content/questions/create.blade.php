@@ -1,11 +1,3 @@
-{{--
-  Route: admin.content.questions.create / .store
-  Spec: 6.1 (3 loại câu) + 6.2 (điều kiện tối thiểu để phát hành từng loại) + 6.5 (câu hỏi
-  tạo ở đây luôn vào "Kho chung", owner_type=shared).
-  Test case coding dùng định dạng đơn giản "input|||output" mỗi dòng (xem
-  ContentService::buildGradingConfig()) — CHƯA làm trình tải file/kéo-thả test (phạm vi lớn
-  hơn, để dành màn hình OJ chuyên biệt sau).
---}}
 @extends('layouts.admin')
 
 @section('title', 'Tạo câu hỏi')
