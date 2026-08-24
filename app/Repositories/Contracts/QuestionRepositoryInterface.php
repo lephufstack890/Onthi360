@@ -21,11 +21,14 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
 
     /**
      * "Luyện tập theo câu" (Giai đoạn 6) — chỉ lấy ID câu hỏi ĐÃ PHÁT HÀNH + dạng Trắc nghiệm/
-     * Điền đáp án (không có sandbox chấm Lập trình cho luồng luyện ngoài đề này), lọc thêm theo
-     * $tagIds (rỗng = không lọc) và $type (null = cả 2 dạng). SỬA 24/8 (v2) — khách chốt: dùng
-     * CẢ câu Kho chung VÀ câu thuộc kho riêng giáo viên (không lọc owner_type nữa), chỉ cần đã
-     * phát hành. Chỉ trả ID — Student\PracticeByQuestionService tự fetch từng câu khi cần,
-     * tránh tải hết nội dung câu hỏi vào session.
+     * Điền đáp án/Lập trình, lọc thêm theo $tagIds (rỗng = không lọc) và $type (null = tất cả
+     * dạng). SỬA 24/8 (v2) — khách chốt: dùng CẢ câu Kho chung VÀ câu thuộc kho riêng giáo
+     * viên (không lọc owner_type nữa), chỉ cần đã phát hành. SỬA 24/8 (v4) — khách chốt: thêm
+     * dạng Lập trình vào luôn — hệ thống vẫn CHƯA có sandbox chấm code thật, nên câu Lập trình
+     * lấy ra từ đây chỉ được GHI NHẬN bài làm ở Student\PracticeByQuestionService::answer(),
+     * không tự chấm đúng/sai (giống quy ước "Queued" của AttemptService). Chỉ trả ID —
+     * Student\PracticeByQuestionService tự fetch từng câu khi cần, tránh tải hết nội dung câu
+     * hỏi vào session.
      */
     public function idsForPractice(?string $type, array $tagIds): array;
 }

@@ -23,7 +23,11 @@
          luyện tập/quiz phổ biến (Duolingo, Khan Academy, Quizlet) dựng màn "chọn trước khi
          luyện": thẻ lớn bấm chọn dạng câu hỏi (giống ô kỹ năng lớn của Duolingo) thay cho pill
          nhỏ, dải số liệu to kiểu Khan Academy, dải "3 bước" để người mới hiểu ngay luồng hoạt
-         động, chip chuyên đề có đếm số đã chọn + nút xoá lọc bằng Alpine (không tạo route mới). --}}
+         động, chip chuyên đề có đếm số đã chọn + nút xoá lọc bằng Alpine (không tạo route mới).
+
+         SỬA 24/8 (v4) — khách chốt: thêm dạng "Lập trình" vào bộ lọc — hệ thống vẫn CHƯA có
+         sandbox chấm code thật, nên câu Lập trình ở màn luyện chỉ được GHI NHẬN bài làm, không
+         tự báo đúng/sai như Trắc nghiệm/Điền đáp án (xem PracticeByQuestionService::answer()). --}}
     <div class="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-sky-50">
         <div class="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-emerald-200/40 blur-3xl"></div>
         <div class="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-sky-200/40 blur-3xl"></div>
@@ -112,11 +116,12 @@
 
                 <div>
                     <p class="text-sm font-semibold text-slate-700 mb-3">Dạng câu hỏi</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                         @foreach ([
-                            ['value' => '', 'label' => 'Cả 2 dạng', 'desc' => 'Trộn chung cả 2 dạng câu hỏi', 'icon' => '🌈', 'tone' => 'violet'],
+                            ['value' => '', 'label' => 'Tất cả', 'desc' => 'Trộn chung mọi dạng câu hỏi', 'icon' => '🌈', 'tone' => 'violet'],
                             ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'desc' => 'Chọn 1 đáp án đúng trong các lựa chọn', 'icon' => '🔤', 'tone' => 'sky'],
                             ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'desc' => 'Tự gõ câu trả lời của mình', 'icon' => '✏️', 'tone' => 'amber'],
+                            ['value' => 'coding', 'label' => 'Lập trình', 'desc' => 'Viết code — chưa chấm tự động, chỉ ghi nhận bài làm', 'icon' => '💻', 'tone' => 'rose'],
                         ] as $tf)
                             <label class="group relative flex flex-col gap-3 rounded-2xl border-2 border-slate-200 p-4 lg:p-5 cursor-pointer transition-all hover:border-rose-200 hover:shadow-md has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50 has-[:checked]:shadow-md">
                                 <input type="radio" name="type" value="{{ $tf['value'] }}" class="hidden" @checked(old('type', '') === $tf['value'])>
@@ -163,7 +168,7 @@
                 </div>
 
                 <div class="rounded-xl bg-sky-50 border border-sky-100 p-3.5 text-xs text-sky-700">
-                    Chỉ luyện câu Trắc nghiệm/Điền đáp án đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
+                    Luyện câu Trắc nghiệm/Điền đáp án/Lập trình đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện. Riêng câu Lập trình chưa có chấm tự động nên chỉ ghi nhận bài làm, không báo đúng/sai.
                 </div>
 
                 <div class="flex flex-col items-center gap-2 pt-1">
@@ -197,11 +202,11 @@
         {{-- SỬA 24/8 — khách chốt HIỆN TẠI KHÔNG muốn "làm theo đề gồm nhiều câu hỏi" ở trang
              công khai này nữa (thay bằng bộ lọc "Luyện tập theo câu" ở trên) — CHỈ ẨN, không
              xoá gì: $items/$assessments vẫn tính nguyên ở PracticeService::indexData() (dán lại
-             khối dưới đây để hiện lại nếu khách đổi ý). LƯU Ý khi cân nhắc bật lại: đây là nơi
-             DUY NHẤT ở trang công khai từng cho thấy đề có câu Lập trình (💻 Có lập trình) —
-             lối "Luyện tập theo câu" mới KHÔNG hỗ trợ câu Lập trình (chưa có sandbox chấm code,
-             xem PracticeByQuestionService) nên ẩn khối này đồng nghĩa đề có code không còn
-             hiển thị ở đâu trên trang công khai nữa. --}}
+             khối dưới đây để hiện lại nếu khách đổi ý).
+             SỬA 24/8 (v4) — cập nhật lại lưu ý cũ: lúc trước "Luyện tập theo câu" chưa hỗ trợ
+             Lập trình nên khối "đề" bên dưới từng là nơi DUY NHẤT thấy đề có câu Lập trình —
+             giờ đã hỗ trợ (dù chỉ ghi nhận bài làm, chưa tự chấm) nên việc ẩn khối này không còn
+             làm mất hẳn khả năng luyện Lập trình ở trang công khai nữa. --}}
         {{--
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             @forelse ($items as $it)

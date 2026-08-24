@@ -17,19 +17,20 @@ class TagRepository extends EloquentRepository implements TagRepositoryInterface
 
     /**
      * SỬA 24/8 — xem docblock ở TagRepositoryInterface::allWithPracticeQuestions(). Cùng điều
-     * kiện với QuestionRepository::idsForPractice(null, []) (đã phát hành, type mcq/fill_blank)
-     * nhưng lọc theo phía Tag qua whereHas('questions', ...) — KHÔNG lọc theo $type/$tagIds cụ
-     * thể ở đây vì đây là danh sách "còn chọn được" hiển thị SẴN cho người dùng trước khi họ
-     * bấm lọc, không phải kết quả của 1 lượt lọc.
+     * kiện với QuestionRepository::idsForPractice(null, []) (đã phát hành, type mcq/fill_blank/
+     * coding) nhưng lọc theo phía Tag qua whereHas('questions', ...) — KHÔNG lọc theo
+     * $type/$tagIds cụ thể ở đây vì đây là danh sách "còn chọn được" hiển thị SẴN cho người
+     * dùng trước khi họ bấm lọc, không phải kết quả của 1 lượt lọc.
      * SỬA 24/8 (v2) — khách chốt: bỏ điều kiện owner_type='shared' — câu hỏi giáo viên đã phát
      * hành cũng tính, không chỉ Kho chung (khớp QuestionRepository::idsForPractice() bản mới).
+     * SỬA 24/8 (v4) — khách chốt: thêm dạng 'coding' vào luôn, khớp idsForPractice() bản mới.
      */
     public function allWithPracticeQuestions(): Collection
     {
         return $this->query()
             ->whereHas('questions', function ($q) {
                 $q->where('status', 'published')
-                    ->whereIn('type', ['mcq', 'fill_blank']);
+                    ->whereIn('type', ['mcq', 'fill_blank', 'coding']);
             })
             ->orderBy('name')
             ->get();

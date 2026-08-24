@@ -57,12 +57,16 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      * giờ lọt ra dù thuộc kho ai. Cố ý KHÔNG lọc theo cột 'visibility' (câu giáo viên tạo mặc
      * định visibility=private, xem Teacher\QuestionService::store() — lọc thêm điều kiện đó sẽ
      * loại sạch mọi câu giáo viên, ngược lại đúng yêu cầu khách vừa chốt).
+     * SỬA 24/8 (v4) — khách chốt: thêm dạng 'coding' vào luôn — hệ thống vẫn CHƯA có sandbox
+     * chấm code thật, nên Student\PracticeByQuestionService::answer() không tự chấm đúng/sai
+     * cho câu Lập trình (chỉ ghi nhận bài làm, giống quy ước "Queued" của AttemptService) —
+     * đây chỉ là nơi LẤY câu, không phải nơi quyết định có chấm được hay không.
      */
     public function idsForPractice(?string $type, array $tagIds): array
     {
         return $this->query()
             ->where('status', 'published')
-            ->whereIn('type', ['mcq', 'fill_blank'])
+            ->whereIn('type', ['mcq', 'fill_blank', 'coding'])
             ->when($type, fn (Builder $q) => $q->where('type', $type))
             ->when($tagIds !== [], fn (Builder $q) => $q->whereHas('tags', fn (Builder $qq) => $qq->whereIn('tags.id', $tagIds)))
             ->pluck('id')

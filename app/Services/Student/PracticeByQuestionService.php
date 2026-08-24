@@ -21,12 +21,14 @@ use Illuminate\Support\Facades\Session;
  * NHẬN ĐƯỢC vì bản chất là luyện nháp, không phải nhu cầu "xem lại lịch sử luyện tập" (nếu
  * sau này cần lưu vết thật, đó là 1 bảng mới ngoài phạm vi Giai đoạn 6).
  *
- * Chỉ chọn câu Mcq/FillBlank đã phát hành — xem QuestionRepositoryInterface::idsForPractice().
- * SỬA 24/8 (v3) — khách chốt: dùng CẢ câu hỏi kho riêng giáo viên, không chỉ Kho chung nữa
+ * Chỉ chọn câu đã phát hành — xem QuestionRepositoryInterface::idsForPractice(). SỬA 24/8
+ * (v3) — khách chốt: dùng CẢ câu hỏi kho riêng giáo viên, không chỉ Kho chung nữa
  * (idsForPractice() đã bỏ điều kiện owner_type='shared') — "đã phát hành" vẫn là điều kiện
- * chặn duy nhất, câu Nháp của giáo viên không lọt ra được. KHÔNG hỗ trợ câu Lập trình vì hệ
- * thống chưa có sandbox chấm code thật (cùng lý do AttemptService chỉ ghi nhận "Queued" cho
- * Lập trình).
+ * chặn duy nhất, câu Nháp của giáo viên không lọt ra được.
+ * SỬA 24/8 (v4) — khách chốt: nhận cả câu Lập trình — hệ thống vẫn CHƯA có sandbox chấm code
+ * thật (cùng lý do AttemptService chỉ ghi nhận "Queued" cho Lập trình, xem docblock đó), nên
+ * answer() KHÔNG tự chấm đúng/sai cho câu Lập trình — chỉ ghi nhận đã làm (answered++, không
+ * cộng vào correct), xem 'gradable' trong $state['feedback'].
  */
 class PracticeByQuestionService
 {
@@ -40,9 +42,9 @@ class PracticeByQuestionService
     /**
      * student.practiceByQuestion.setup — màn chọn tag/dạng câu trước khi bắt đầu.
      * SỬA 24/8 — đổi allOrderedByName() → allWithPracticeQuestions(): chỉ mời chọn chuyên đề
-     * THỰC SỰ có câu hỏi thoả idsForPractice() (đã phát hành, Mcq/FillBlank — SỬA 24/8 v3:
-     * kể cả câu thuộc kho riêng giáo viên) — chọn 1 tag chỉ gắn cho câu Lập trình hoặc câu
-     * chưa phát hành chắc chắn ra 0 câu ở start(), dù tag đó "có dữ liệu" theo nghĩa khác.
+     * THỰC SỰ có câu hỏi thoả idsForPractice() (đã phát hành — SỬA 24/8 v3: kể cả câu thuộc
+     * kho riêng giáo viên; v4: kể cả dạng Lập trình) — chọn 1 tag chỉ gắn cho câu chưa phát
+     * hành chắc chắn ra 0 câu ở start(), dù tag đó "có dữ liệu" theo nghĩa khác.
      */
     public function setupData(): array
     {
@@ -125,6 +127,9 @@ class PracticeByQuestionService
      * student.practiceByQuestion.answer — chấm câu ĐANG ĐỨNG (theo session['index']), ghi kết
      * quả vào 'feedback' để màn play hiện đáp án đúng/sai trước khi qua câu tiếp theo. false
      * nếu không có phiên đang mở (controller đưa về setup).
+     * SỬA 24/8 (v4) — câu Lập trình KHÔNG tự chấm được (chưa có sandbox) — 'gradable' => false
+     * báo cho view biết để hiện thông báo "đã ghi nhận" trung lập thay vì đúng/sai, và KHÔNG
+     * cộng vào $state['correct'] (vẫn cộng vào 'answered' như mọi câu khác đã làm).
      */
     public function answer(array $data): bool
     {
@@ -140,10 +145,12 @@ class PracticeByQuestionService
             return false;
         }
 
+        $isCoding = $question->type->value === 'coding';
+
         $isCorrect = match ($question->type->value) {
             'mcq' => QuestionGrader::isMcqCorrect($question, $data['selected_option'] ?? null),
             'fill_blank' => QuestionGrader::isFillBlankCorrect($question, (string) ($data['text'] ?? '')),
-            default => false,
+            default => false, // 'coding' — chưa có sandbox chấm, xem 'gradable' ở feedback bên dưới
         };
 
         // Trả lời lại cùng 1 câu (bấm lại nút "Kiểm tra") không cộng dồn thêm lượt — chỉ tính
@@ -151,17 +158,20 @@ class PracticeByQuestionService
         // trả lời câu này).
         if ($state['feedback'] === null) {
             $state['answered']++;
-            if ($isCorrect) {
+            if ($isCorrect && ! $isCoding) {
                 $state['correct']++;
             }
         }
 
         $state['feedback'] = [
             'isCorrect' => $isCorrect,
+            'gradable' => ! $isCoding,
             'correctOptions' => $question->grading_config['correct_options'] ?? [],
             'acceptedAnswers' => $question->grading_config['accepted_answers'] ?? [],
             'yourSelectedOption' => $data['selected_option'] ?? null,
             'yourText' => $data['text'] ?? null,
+            'yourCode' => $isCoding ? ($data['code_source'] ?? '') : null,
+            'yourLanguage' => $isCoding ? ($data['language'] ?? null) : null,
         ];
 
         Session::put(self::SESSION_KEY, $state);

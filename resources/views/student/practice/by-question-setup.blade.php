@@ -26,8 +26,12 @@
 
         <div>
             <p class="text-sm font-medium text-slate-700 mb-2">Dạng câu hỏi</p>
+            {{-- SỬA 24/8 (v4) — thêm "Lập trình" vào lựa chọn dạng câu — hệ thống vẫn CHƯA có
+                 sandbox chấm code thật, nên câu Lập trình ở màn luyện chỉ được GHI NHẬN bài làm
+                 (giống "Đang chấm" của luồng làm đề), không tự báo đúng/sai như Trắc nghiệm/Điền
+                 đáp án — xem PracticeByQuestionService::answer(). --}}
             <div class="flex flex-wrap gap-2">
-                @foreach ([['value' => '', 'label' => 'Cả 2 dạng', 'icon' => '🌈'], ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => '🔤'], ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => '✏️']] as $tf)
+                @foreach ([['value' => '', 'label' => 'Tất cả', 'icon' => '🌈'], ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => '🔤'], ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => '✏️'], ['value' => 'coding', 'label' => 'Lập trình', 'icon' => '💻']] as $tf)
                     <label class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium border border-slate-200 text-slate-600 has-[:checked]:bg-rose-600 has-[:checked]:border-rose-600 has-[:checked]:text-white transition cursor-pointer">
                         <input type="radio" name="type" value="{{ $tf['value'] }}" class="hidden" @checked(old('type', '') === $tf['value'])>
                         <span>{{ $tf['icon'] }}</span> {{ $tf['label'] }}
@@ -54,7 +58,7 @@
         </div>
 
         <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
-            Chỉ luyện câu Trắc nghiệm/Điền đáp án đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
+            Luyện câu Trắc nghiệm/Điền đáp án/Lập trình đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện. Riêng câu Lập trình chưa có chấm tự động nên chỉ ghi nhận bài làm, không báo đúng/sai.
         </div>
 
         <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Bắt đầu luyện ›</button>

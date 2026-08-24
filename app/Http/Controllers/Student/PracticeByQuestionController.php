@@ -34,7 +34,7 @@ class PracticeByQuestionController extends Controller
             $data = $request->validate([
                 'tag_ids' => ['nullable', 'array'],
                 'tag_ids.*' => ['integer'],
-                'type' => ['nullable', 'in:mcq,fill_blank'],
+                'type' => ['nullable', 'in:mcq,fill_blank,coding'],
             ]);
 
             $started = $this->service->start($data['tag_ids'] ?? [], $data['type'] ?? null);
@@ -55,7 +55,7 @@ class PracticeByQuestionController extends Controller
         $data = $request->validate([
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer'],
-            'type' => ['nullable', 'in:mcq,fill_blank'],
+            'type' => ['nullable', 'in:mcq,fill_blank,coding'],
         ]);
 
         $started = $this->service->start($data['tag_ids'] ?? [], $data['type'] ?? null);
@@ -79,11 +79,18 @@ class PracticeByQuestionController extends Controller
         return view('student.practice.by-question-play', $data);
     }
 
+    /**
+     * SỬA 24/8 (v4) — thêm 'code_source'/'language' cho câu Lập trình (xem
+     * PracticeByQuestionService::answer() — chỉ GHI NHẬN bài làm, không tự chấm đúng/sai vì
+     * chưa có sandbox chấm code thật).
+     */
     public function answer(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'selected_option' => ['nullable', 'integer'],
             'text' => ['nullable', 'string', 'max:500'],
+            'code_source' => ['nullable', 'string', 'max:20000'],
+            'language' => ['nullable', 'string', 'max:30'],
         ]);
 
         if (! $this->service->answer($data)) {

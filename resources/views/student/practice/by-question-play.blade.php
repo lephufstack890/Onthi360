@@ -35,7 +35,14 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6">
-                <x-status-badge tone="info">{{ $question->type->value === 'mcq' ? '🔤 Trắc nghiệm' : '✏️ Điền đáp án' }}</x-status-badge>
+                @php
+                    $typeBadge = match ($question->type->value) {
+                        'mcq' => '🔤 Trắc nghiệm',
+                        'fill_blank' => '✏️ Điền đáp án',
+                        default => '💻 Lập trình',
+                    };
+                @endphp
+                <x-status-badge tone="info">{{ $typeBadge }}</x-status-badge>
                 <h3 class="font-semibold text-slate-800 text-lg mt-3 mb-1">{{ $question->title }}</h3>
                 {{-- SỬA 24/8 — $question->body là HTML do CKEditor lưu ra (thẻ <p>, <ul>...),
                      KHÔNG phải text thường — {{ }} escape làm hiện nguyên thẻ ra màn hình học
@@ -54,7 +61,11 @@
                 @endif
 
                 @if ($feedback === null)
-                    {{-- Chưa trả lời câu này — hiện form nhập đáp án. --}}
+                    {{-- Chưa trả lời câu này — hiện form nhập đáp án. SỬA 24/8 (v4) — thêm
+                         nhánh 'coding': viết code + chọn ngôn ngữ (cùng kiểu input với màn làm
+                         đề student/assessment/take.blade.php), không có phương án đúng/sai để
+                         so khớp nên nút bấm đổi chữ thành "Ghi nhận bài làm" thay vì "Kiểm tra
+                         đáp án" — tránh ngụ ý sẽ có chấm đúng/sai ngay. --}}
                     <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="space-y-3">
                         @csrf
                         @if ($question->type->value === 'mcq')
@@ -66,11 +77,19 @@
                                     </label>
                                 @endif
                             @endforeach
-                        @else
+                        @elseif ($question->type->value === 'fill_blank')
                             <input type="text" name="text" required maxlength="500" placeholder="Nhập đáp án..."
                                    class="w-full rounded-lg border border-slate-200 text-sm p-3">
+                        @else
+                            <input type="text" name="language" value="cpp" maxlength="30" placeholder="Ngôn ngữ (vd cpp, python, java)"
+                                   class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                            <textarea name="code_source" rows="10" required placeholder="Viết code ở đây..."
+                                      class="w-full rounded-lg border border-slate-200 text-sm p-2.5 font-mono"></textarea>
+                            <p class="text-xs text-slate-400">Câu Lập trình chưa có chấm tự động — bài làm chỉ được ghi nhận, không báo đúng/sai.</p>
                         @endif
-                        <button type="submit" class="w-full px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Kiểm tra đáp án</button>
+                        <button type="submit" class="w-full px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">
+                            {{ $question->type->value === 'coding' ? 'Ghi nhận bài làm' : 'Kiểm tra đáp án' }}
+                        </button>
                     </form>
                 @else
                     {{-- Đã trả lời — hiện kết quả đúng/sai + đáp án đúng, khoá form lại. --}}
@@ -93,22 +112,35 @@
                                     </div>
                                 @endif
                             @endforeach
-                        @else
+                        @elseif ($question->type->value === 'fill_blank')
                             <div class="p-3 rounded-lg border border-slate-200 text-sm text-slate-500">
                                 Bạn trả lời: <span class="font-medium text-slate-700">{{ $feedback['yourText'] }}</span>
                             </div>
                             <div class="p-3 rounded-lg border border-emerald-300 bg-emerald-50 text-sm text-emerald-700">
                                 Đáp án đúng: {{ implode(', ', $feedback['acceptedAnswers']) }}
                             </div>
+                        @else
+                            {{-- SỬA 24/8 (v4) — câu Lập trình chưa có sandbox chấm, chỉ hiện lại
+                                 bài đã nộp (code + ngôn ngữ), không có khối "đáp án đúng". --}}
+                            <div class="p-3 rounded-lg border border-slate-200 text-sm text-slate-500">
+                                Ngôn ngữ: <span class="font-medium text-slate-700">{{ $feedback['yourLanguage'] ?: '—' }}</span>
+                            </div>
+                            <pre class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap">{{ $feedback['yourCode'] }}</pre>
                         @endif
 
-                        <div @class([
-                            'rounded-lg p-3 text-sm font-medium text-center',
-                            'bg-emerald-50 text-emerald-700 border border-emerald-200' => $feedback['isCorrect'],
-                            'bg-rose-50 text-rose-600 border border-rose-200' => ! $feedback['isCorrect'],
-                        ])>
-                            {{ $feedback['isCorrect'] ? '✓ Chính xác!' : '✕ Chưa đúng — xem đáp án ở trên.' }}
-                        </div>
+                        @if ($feedback['gradable'])
+                            <div @class([
+                                'rounded-lg p-3 text-sm font-medium text-center',
+                                'bg-emerald-50 text-emerald-700 border border-emerald-200' => $feedback['isCorrect'],
+                                'bg-rose-50 text-rose-600 border border-rose-200' => ! $feedback['isCorrect'],
+                            ])>
+                                {{ $feedback['isCorrect'] ? '✓ Chính xác!' : '✕ Chưa đúng — xem đáp án ở trên.' }}
+                            </div>
+                        @else
+                            <div class="rounded-lg p-3 text-sm font-medium text-center bg-sky-50 text-sky-700 border border-sky-200">
+                                📨 Đã ghi nhận bài làm — chưa có chấm tự động cho Lập trình.
+                            </div>
+                        @endif
 
                         <form method="POST" action="{{ route('student.practiceByQuestion.next') }}">
                             @csrf
