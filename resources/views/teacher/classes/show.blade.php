@@ -152,11 +152,50 @@
             @endforelse
         </x-data-table>
     @elseif ($tab === 'assign')
-        @php $assignments = $assignments ?? []; @endphp
+        @php
+            $assignments = $assignments ?? [];
+            $assignableAssessments = $assignableAssessments ?? [];
+        @endphp
 
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 flex items-center justify-between flex-wrap gap-3">
-            <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Cũng có thể giao đề có sẵn từ trang <a href="{{ route('teacher.assessments.index') }}" class="text-rose-600 font-medium">Bài tập & Đề</a>.</p>
-            <a href="{{ route('teacher.assessments.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0">+ Tạo bài giao đánh giá mới</a>
+        {{-- SỬA 24/8 — khách yêu cầu: giao đề ngay tại đây, chỉ cần chọn đề có sẵn (lớp đã
+             biết trước qua trang này) — không còn giao được từ trang "Bài tập & Đề" nữa. --}}
+        @if (session('status') === 'class-exam-assigned')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã giao đề cho lớp này.'])
+        @endif
+        @if ($errors->any())
+            @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+        @endif
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 space-y-3">
+            <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.assessments.create') }}" class="text-rose-600 font-medium">Bài tập & Đề</a> trước, rồi quay lại đây để chọn và giao.</p>
+
+            @if (empty($assignableAssessments))
+                <p class="text-sm text-slate-400">Bạn chưa có đề nào — tạo đề ở "Bài tập & Đề" trước khi giao cho lớp này.</p>
+            @else
+                <form method="POST" action="{{ route('teacher.classes.assign', $classRoom->id) }}" class="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+                    @csrf
+                    <p class="text-xs font-medium text-slate-500 mb-1">+ Giao đề có sẵn cho lớp này</p>
+                    <x-select name="assessment_id" required>
+                        <option value="">— Chọn đề —</option>
+                        @foreach ($assignableAssessments as $ass)
+                            <option value="{{ $ass['id'] }}" @selected((string) old('assessment_id') === (string) $ass['id'])>{{ $ass['title'] }}{{ $ass['status'] === 'Nháp' ? ' (Nháp — tự phát hành khi giao)' : '' }}</option>
+                        @endforeach
+                    </x-select>
+                    <div class="space-y-2">
+                        @include('partials.optional-date-hour-minute-fields', ['prefix' => 'opens', 'label' => 'Mở lúc (tùy chọn)'])
+                        @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
+                        <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1" for="shift_count">Chia ca thi (tùy chọn — chống nghẽn khi đông thí sinh)</label>
+                        <input id="shift_count" name="shift_count" type="number" min="1" max="20" value="{{ old('shift_count') }}"
+                               class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="VD: 3 (cần đủ cả Mở lúc + Đóng lúc)">
+                    </div>
+                    <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)...">{{ old('instructions') }}</textarea>
+                    <p class="text-xs text-slate-400">Đề sẽ tự động phát hành nếu mọi câu đã đủ điều kiện (6.2), không hỗ trợ ngoại lệ từng học sinh (8.4).</p>
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Giao đề cho lớp</button>
+                </form>
+            @endif
         </div>
 
         <x-data-table :columns="['Tên đề', 'Mở lúc', 'Đóng lúc', 'Trạng thái', '']">
@@ -174,7 +213,7 @@
                     <td class="px-4 py-3 text-right"><a href="{{ route('teacher.results.index', ['class' => $classRoom->id, 'assessment' => $ag['id']]) }}" class="text-rose-600 font-medium">Xem kết quả</a></td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Lớp chưa có đề nào được giao — bấm "+ Tạo bài giao đánh giá mới" để bắt đầu.</td></tr>
+                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Lớp chưa có đề nào được giao — chọn đề ở khung trên để giao.</td></tr>
             @endforelse
         </x-data-table>
     @elseif ($tab === 'results')

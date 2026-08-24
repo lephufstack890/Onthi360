@@ -127,6 +127,10 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::post('classes/{class}/materials', [TeacherClassRoomController::class, 'attachMaterial'])->name('classes.materials.attach');
         Route::delete('classes/{class}/materials/{classMaterial}', [TeacherClassRoomController::class, 'detachMaterial'])->name('classes.materials.detach');
+        // SỬA 24/8 — khách yêu cầu: "Giao đề" (chọn đề có sẵn) chuyển hẳn vào đây (tab "Giao
+        // đề" trong Chi tiết lớp) — KHÔNG còn giao được từ Bài tập & Đề nữa (xem
+        // teacher.assessments.store/index đã bỏ nhánh giao lớp, chỉ còn lưu đề).
+        Route::post('classes/{class}/assign', [TeacherClassRoomController::class, 'assignAssessment'])->name('classes.assign');
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');
@@ -162,7 +166,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('assessments/drafts/{draft}/merge', [TeacherAssessmentController::class, 'draftMerge'])->name('assessments.drafts.merge');
         Route::post('assessments/drafts/{draft}/discard', [TeacherAssessmentController::class, 'draftDiscard'])->name('assessments.drafts.discard');
         Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->name('assessments.publish');
-        Route::post('assessments/{assessment}/assign', [TeacherAssessmentController::class, 'assign'])->name('assessments.assign');
 
         Route::get('papers', [TeacherAssessmentController::class, 'papersIndex'])->name('papers.index');
         Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->name('papers.create');

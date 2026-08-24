@@ -39,30 +39,16 @@ class AssessmentController extends Controller
     }
 
     /**
-     * teacher.assessments.store — action=draft chỉ lưu đề; action=assign còn phát hành +
-     * giao ngay cho 1 lớp (8.4: không hỗ trợ ngoại lệ từng học sinh).
+     * teacher.assessments.store — SỬA 24/8 (khách yêu cầu): CHỈ lưu đề (luôn Nháp) — bỏ hẳn
+     * nhánh "giao ngay cho lớp" từng nằm ở đây. Giao đề giờ làm ở tab "Giao đề" trong Chi
+     * tiết lớp, xem Teacher\ClassRoomController::assignAssessment() (tái dùng nguyên
+     * AssessmentService::assignToClass() bên dưới, không đổi logic đó).
      */
     public function store(Request $request): RedirectResponse
     {
-        $action = $request->input('action', 'draft');
-        $data = $request->validate($this->storeRules($action));
+        $data = $request->validate($this->storeRules());
 
-        $assessment = $this->assessmentService->store(Auth::user(), $data);
-
-        if ($action === 'assign') {
-            try {
-                $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
-                $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
-
-                $assignment = $this->assessmentService->assignToClass(Auth::user(), $assessment, $data);
-            } catch (ValidationException $e) {
-                return redirect()->route('teacher.assessments.index')
-                    ->withErrors($e->errors())
-                    ->with('status', 'assessment-created-not-assigned');
-            }
-
-            return redirect()->route('teacher.assessments.index')->with('status', 'assessment-assigned');
-        }
+        $this->assessmentService->store(Auth::user(), $data);
 
         return redirect()->route('teacher.assessments.index')->with('status', 'assessment-created');
     }
@@ -200,27 +186,15 @@ class AssessmentController extends Controller
         return redirect()->route($indexRoute)->with('status', 'assessment-published');
     }
 
-    /** teacher.assessments.assign — "Giao đề" cho một đề đã có sẵn (8.4). */
-    public function assign(Request $request, int $assessment): RedirectResponse
+    // SỬA 24/8 — khách yêu cầu bỏ hẳn "Giao cho lớp" khỏi Bài tập & Đề: route/hàm
+    // teacher.assessments.assign (cùng assignRules()/combineOptionalDateTime() dùng riêng
+    // cho nó) đã CHUYỂN HẲN sang Teacher\ClassRoomController::assignAssessment() — "Giao đề"
+    // giờ chỉ làm từ tab "Giao đề" trong Chi tiết lớp (đã biết sẵn lớp, chỉ cần chọn đề).
+    // AssessmentService::assignToClass() KHÔNG đổi — vẫn 1 nơi duy nhất giữ logic giao đề.
+
+    private function storeRules(): array
     {
-        $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
-        $data = $request->validate($this->assignRules());
-
-        try {
-            $data['opens_at'] = $this->combineOptionalDateTime($data, 'opens');
-            $data['closes_at'] = $this->combineOptionalDateTime($data, 'closes');
-
-            $assignment = $this->assessmentService->assignToClass(Auth::user(), $assessmentModel, $data);
-        } catch (ValidationException $e) {
-            return redirect()->route('teacher.assessments.index')->withErrors($e->errors());
-        }
-
-        return redirect()->route('teacher.assessments.index')->with('status', 'assessment-assigned');
-    }
-
-    private function storeRules(string $action): array
-    {
-        $common = [
+        return [
             'title' => ['required', 'string', 'max:255'],
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer'],
@@ -228,30 +202,6 @@ class AssessmentController extends Controller
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],
-            'action' => ['required', 'in:draft,assign'],
-        ];
-
-        return $action === 'assign' ? array_merge($common, $this->assignRules()) : $common;
-    }
-
-    private function assignRules(): array
-    {
-        return [
-            'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
-            'opens_day' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,31'],
-            'opens_month' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,12'],
-            'opens_year' => ['nullable', 'numeric', 'digits_between:4,4', 'between:2000,2100'],
-            'opens_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
-            'opens_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
-            'closes_day' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,31'],
-            'closes_month' => ['nullable', 'numeric', 'digits_between:1,2', 'between:1,12'],
-            'closes_year' => ['nullable', 'numeric', 'digits_between:4,4', 'between:2000,2100'],
-            'closes_hour' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,23'],
-            'closes_minute' => ['nullable', 'numeric', 'digits_between:1,2', 'between:0,59'],
-            'due_at' => ['nullable', 'date'],
-            'instructions' => ['nullable', 'string', 'max:2000'],
-            // Chia ca thi chống nghẽn khi đông thí sinh (note họp 13/8, mục 7).
-            'shift_count' => ['nullable', 'integer', 'min:1', 'max:20'],
         ];
     }
 
@@ -281,37 +231,6 @@ class AssessmentController extends Controller
             ],
             default => $common,
         };
-    }
-
-    /**
-     * Ghép Ngày/Tháng/Năm (Ngày để trống = coi là "chưa đặt mốc", trả null) + Giờ/Phút
-     * (mặc định 00:00 nếu chưa đổi) thành 1 chuỗi datetime cho AssessmentService::
-     * assignToClass() (vẫn Carbon::parse() như cũ). Ném ValidationException nếu Ngày có
-     * nhưng Ngày/Tháng/Năm ghép lại không phải ngày thật (vd 30/02).
-     *
-     * @throws ValidationException
-     */
-    private function combineOptionalDateTime(array $data, string $prefix): ?string
-    {
-        $day = $data[$prefix.'_day'] ?? null;
-
-        if (blank($day)) {
-            return null;
-        }
-
-        $month = (int) ($data[$prefix.'_month'] ?? now()->format('m'));
-        $year = (int) ($data[$prefix.'_year'] ?? now()->format('Y'));
-        $day = (int) $day;
-        $hour = (int) ($data[$prefix.'_hour'] ?? '00');
-        $minute = (int) ($data[$prefix.'_minute'] ?? '00');
-
-        if (! checkdate($month, $day, $year)) {
-            throw ValidationException::withMessages([
-                $prefix.'_day' => 'Ngày/Tháng/Năm không hợp lệ.',
-            ]);
-        }
-
-        return sprintf('%04d-%02d-%02d %02d:%02d:00', $year, $month, $day, $hour, $minute);
     }
 
     // ================= Đề thi lẻ (PDF) — 16/8 mục 1.2/2/5/6 =================

@@ -6,7 +6,6 @@
 @section('content')
     @php
         $assessments = $assessments ?? [];
-        $classRooms = $classRooms ?? [];
     @endphp
 
     <div class="rounded-3xl bg-gradient-to-br from-violet-100 via-white to-sky-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
@@ -24,10 +23,6 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu nháp đề.'])
     @elseif (session('status') === 'assessment-published')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã phát hành đề.'])
-    @elseif (session('status') === 'assessment-assigned')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã giao đề cho lớp.'])
-    @elseif (session('status') === 'assessment-created-not-assigned')
-        @include('partials.toast-flash', ['type' => 'warning', 'message' => 'Đã lưu đề nhưng chưa giao được cho lớp — xem lỗi bên dưới.'])
     @endif
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -42,41 +37,14 @@
                 <td class="px-4 py-3 text-slate-500">{{ $a['assignmentsCount'] }} lớp</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$a['tone']">{{ $a['status'] }}</x-status-badge></td>
                 <td class="px-4 py-3 text-right">
-                    <div x-data="{ open: false }" class="inline-block text-left">
-                        <div class="space-x-3">
-                            @if ($a['canPublish'])
-                                <form method="POST" action="{{ route('teacher.assessments.publish', $a['id']) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-emerald-600 font-medium">Phát hành</button>
-                                </form>
-                            @endif
-                            @if (! empty($classRooms))
-                                <button type="button" @click="open = !open" class="text-rose-600 font-medium" x-text="open ? 'Đóng' : 'Giao cho lớp'"></button>
-                            @endif
-                        </div>
-                        <form x-show="open" x-cloak method="POST" action="{{ route('teacher.assessments.assign', $a['id']) }}" class="mt-2 space-y-2 text-left bg-slate-50 border border-slate-200 rounded-lg p-3 w-72">
+                    {{-- SỬA 24/8 — khách yêu cầu: bỏ "Giao cho lớp" ở đây, việc giao đề (chọn
+                         đề có sẵn) chuyển hẳn sang tab "Giao đề" trong trang Chi tiết lớp. --}}
+                    @if ($a['canPublish'])
+                        <form method="POST" action="{{ route('teacher.assessments.publish', $a['id']) }}" class="inline">
                             @csrf
-                            <x-select name="class_room_id" required>
-                                <option value="">— Chọn lớp —</option>
-                                @foreach ($classRooms as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </x-select>
-                            <div class="space-y-2">
-                                @include('partials.optional-date-hour-minute-fields', ['prefix' => 'opens', 'label' => 'Mở lúc (tùy chọn)'])
-                                @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
-                                <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
-                            </div>
-                            <div>
-                                <label class="block text-[11px] text-slate-500 mb-1">Chia ca thi (tùy chọn — chống nghẽn khi đông)</label>
-                                <input name="shift_count" type="number" min="1" max="20" placeholder="VD: 3"
-                                       class="w-full rounded-lg border border-slate-200 text-xs p-1.5">
-                                <p class="text-[10px] text-slate-400 mt-0.5">Cần đủ cả Mở lúc + Đóng lúc. Để trống = không chia ca.</p>
-                            </div>
-                            <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)..."></textarea>
-                            <button type="submit" class="w-full px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Xác nhận giao đề (8.4)</button>
+                            <button type="submit" class="text-emerald-600 font-medium">Phát hành</button>
                         </form>
-                    </div>
+                    @endif
                 </td>
             </tr>
         @empty

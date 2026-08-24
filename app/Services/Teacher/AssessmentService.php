@@ -146,9 +146,21 @@ class AssessmentService
     }
 
     /** teacher.assessments.index — đề do chính giáo viên tạo trong kho riêng (6.3, 8.4). */
+    /**
+     * SỬA 24/8 — khách yêu cầu bỏ hẳn "Giao cho lớp" khỏi trang này (đã có tab "Giao đề"
+     * riêng trong Chi tiết lớp, xem Teacher\ClassRoomService::showForTeacher()) — không cần
+     * trả kèm classRooms nữa. assessmentsForPicker() bên dưới vẫn tái dùng $assessments ở
+     * đây cho dropdown "chọn đề" của tab đó (tránh 2 nơi query lệch nhau).
+     */
     public function listForTeacher(User $teacher): array
     {
-        $assessments = $this->assessments->byOwner($teacher->id, 100)
+        return ['assessments' => $this->assessmentsForPicker($teacher)];
+    }
+
+    /** Dùng ở CẢ 2 nơi: teacher.assessments.index (bảng đề) VÀ tab "Giao đề" (dropdown chọn đề). */
+    public function assessmentsForPicker(User $teacher): array
+    {
+        return $this->assessments->byOwner($teacher->id, 100)
             ->map(fn (Assessment $a) => [
                 'id' => $a->id,
                 'title' => $a->title,
@@ -167,13 +179,9 @@ class AssessmentService
                 },
                 'canPublish' => $a->status === ContentStatus::Draft,
             ])->all();
-
-        $classRooms = $teacher->classRoomsTeaching()->get(['class_rooms.id', 'class_rooms.name'])->all();
-
-        return ['assessments' => $assessments, 'classRooms' => $classRooms];
     }
 
-    /** teacher.assessments.create — chọn câu từ kho riêng + lớp đang phụ trách (6.3, 8.4). */
+    /** teacher.assessments.create — chọn câu từ kho riêng (6.3). */
     public function createFormData(User $teacher): array
     {
         $questions = $this->questions->byOwner($teacher->id, null, 200)
@@ -185,9 +193,7 @@ class AssessmentService
                 'status' => $q->status->value,
             ])->all();
 
-        $classRooms = $teacher->classRoomsTeaching()->get(['class_rooms.id', 'class_rooms.name'])->all();
-
-        return ['questions' => $questions, 'classRooms' => $classRooms];
+        return ['questions' => $questions];
     }
 
     /**

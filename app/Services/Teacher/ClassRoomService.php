@@ -34,6 +34,10 @@ class ClassRoomService
         private readonly MaterialRepositoryInterface $materials,
         private readonly ScheduleService $scheduleService,
         private readonly AssignmentRepositoryInterface $assignments,
+        // SỬA 24/8 — khách yêu cầu: "Giao đề" (chọn đề có sẵn) chuyển hẳn vào tab "Giao đề"
+        // ở đây, KHÔNG còn ở Bài tập & Đề nữa — tái dùng nguyên AssessmentService::
+        // assignToClass()/assessmentsForPicker() (không chép lại logic).
+        private readonly AssessmentService $assessmentService,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -192,6 +196,7 @@ class ClassRoomService
         // của lớp (không lọc theo status — status có thể lỗi thời, xem
         // assignmentLiveStatus() bên dưới tự tính lại theo opens_at/closes_at thật).
         $assignments = [];
+        $assignableAssessments = [];
         if ($tab === 'assign') {
             $assignments = $this->assignments->forClassRoomWithAssessment($classRoom->id)
                 ->map(function (Assignment $assignment) {
@@ -207,6 +212,11 @@ class ClassRoomService
                         'instructions' => $assignment->instructions,
                     ];
                 })->all();
+
+            // SỬA 24/8 — khách yêu cầu: chọn đề CÓ SẴN ngay tại đây (lớp đã biết, chỉ cần
+            // chọn đề) — dùng chung dữ liệu với teacher.assessments.index để không lệch
+            // (xem AssessmentService::assessmentsForPicker()).
+            $assignableAssessments = $this->assessmentService->assessmentsForPicker($user);
         }
 
         $members = $tab === 'members' ? $classRoom->students : collect();
@@ -227,9 +237,26 @@ class ClassRoomService
             'attachableMaterials' => $attachableMaterials,
             'sessions' => $sessions,
             'assignments' => $assignments,
+            'assignableAssessments' => $assignableAssessments,
             'members' => $members,
             'ratingSummary' => $ratingSummary,
         ];
+    }
+
+    /**
+     * teacher.classes.assign — SỬA 24/8 (khách yêu cầu): "Giao đề" giờ làm từ tab này (chọn
+     * đề CÓ SẴN cho 1 lớp đã biết trước), thay cho luồng cũ ở Bài tập & Đề. Tái dùng nguyên
+     * AssessmentService::assignToClass() (auto-publish nếu chưa, kiểm tra lớp, chia ca...) —
+     * chỉ khác chỗ $classId đến từ URL {class} thay vì 1 field chọn lớp trong form.
+     */
+    public function assignAssessmentToClass(User $teacher, int $classId, int $assessmentId, array $data): Assignment
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $assessment = $this->assessmentService->findOwned($teacher, $assessmentId);
+
+        $data['class_room_id'] = $classRoom->id;
+
+        return $this->assessmentService->assignToClass($teacher, $assessment, $data);
     }
 
     /**

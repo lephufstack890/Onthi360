@@ -6,7 +6,6 @@
 @section('content')
     @php
         $questions = $questions ?? [];
-        $classRooms = $classRooms ?? [];
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻'];
     @endphp
 
@@ -77,33 +76,11 @@
                     </x-select>
                 </div>
 
-                <button type="submit" name="action" value="draft" class="w-full px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Lưu nháp</button>
-
-                @if (! empty($classRooms))
-                    <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 space-y-2">
-                        <p class="text-xs font-medium text-sky-700">Giao ngay cho lớp (8.4)</p>
-                        <x-select name="class_room_id">
-                            <option value="">— Chọn lớp —</option>
-                            @foreach ($classRooms as $c)
-                                <option value="{{ $c->id }}" @selected((string) old('class_room_id') === (string) $c->id)>{{ $c->name }}</option>
-                            @endforeach
-                        </x-select>
-                        <div class="space-y-2">
-                            @include('partials.optional-date-hour-minute-fields', ['prefix' => 'opens', 'label' => 'Mở lúc (tùy chọn)'])
-                            @include('partials.optional-date-hour-minute-fields', ['prefix' => 'closes', 'label' => 'Đóng lúc (tùy chọn)'])
-                            <p class="text-[11px] text-slate-400">Để trống Ngày nếu không giới hạn mốc thời gian đó.</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-600 mb-1" for="shift_count">Chia ca thi (tùy chọn — chống nghẽn khi đông thí sinh)</label>
-                            <input id="shift_count" name="shift_count" type="number" min="1" max="20" value="{{ old('shift_count') }}"
-                                   class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="VD: 3 (cần đủ cả Mở lúc + Đóng lúc)">
-                            <p class="text-[11px] text-slate-400 mt-1">Để trống hoặc 1 = không chia ca. Học sinh sẽ tự động được xếp cố định vào 1 trong các ca, chia đều khung Mở–Đóng ở trên.</p>
-                        </div>
-                        <textarea name="instructions" rows="2" class="w-full rounded-lg border border-slate-200 text-xs p-2" placeholder="Hướng dẫn làm bài (tùy chọn)...">{{ old('instructions') }}</textarea>
-                        <p class="text-xs text-sky-600">Đề sẽ tự động phát hành nếu mọi câu đã đủ điều kiện (6.2), không hỗ trợ ngoại lệ từng học sinh (8.4).</p>
-                        <button type="submit" name="action" value="assign" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu & Giao cho lớp</button>
-                    </div>
-                @endif
+                {{-- SỬA 24/8 — khách yêu cầu: bỏ hẳn "Giao ngay cho lớp" ở màn Tạo đề, tạo đề
+                     ở đây CHỈ để lưu (luôn Nháp) — việc giao cho lớp chuyển hẳn sang tab
+                     "Giao đề" trong trang Chi tiết lớp (chọn đề có sẵn, xem
+                     Teacher\ClassRoomController::assignAssessment()). --}}
+                <button type="submit" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu đề</button>
             </div>
         </div>
     </form>
