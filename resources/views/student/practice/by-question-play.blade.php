@@ -81,10 +81,24 @@
                             <input type="text" name="text" required maxlength="500" placeholder="Nhập đáp án..."
                                    class="w-full rounded-lg border border-slate-200 text-sm p-3">
                         @else
-                            <input type="text" name="language" value="cpp" maxlength="30" placeholder="Ngôn ngữ (vd cpp, python, java)"
-                                   class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
-                            <textarea name="code_source" rows="10" required placeholder="Viết code ở đây..."
-                                      class="w-full rounded-lg border border-slate-200 text-sm p-2.5 font-mono"></textarea>
+                            {{-- SỬA 24/8 (v5) — khách yêu cầu ô viết code "như VSCode" thay vì
+                                 textarea trơn: nhúng CodeMirror 5 qua CDN (script init ở
+                                 @push('scripts') cuối trang) — có số dòng, tô màu cú pháp theo
+                                 ngôn ngữ chọn ở dropdown, theme tối "monokai". --}}
+                            <div class="rounded-lg overflow-hidden border border-slate-700">
+                                <div class="flex items-center gap-2 bg-[#272822] px-3 py-2 border-b border-slate-700">
+                                    <span class="text-xs text-slate-300 font-medium">Ngôn ngữ:</span>
+                                    <select name="language" data-code-language
+                                            class="text-xs rounded-md border border-slate-600 bg-[#3a3d31] text-slate-100 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-rose-400">
+                                        <option value="cpp" selected>C++</option>
+                                        <option value="c">C</option>
+                                        <option value="java">Java</option>
+                                        <option value="python">Python</option>
+                                        <option value="csharp">C#</option>
+                                    </select>
+                                </div>
+                                <textarea name="code_source" data-code-editor required class="hidden"></textarea>
+                            </div>
                             <p class="text-xs text-slate-400">Câu Lập trình chưa có chấm tự động — bài làm chỉ được ghi nhận, không báo đúng/sai.</p>
                         @endif
                         <button type="submit" class="w-full px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">
@@ -125,7 +139,7 @@
                             <div class="p-3 rounded-lg border border-slate-200 text-sm text-slate-500">
                                 Ngôn ngữ: <span class="font-medium text-slate-700">{{ $feedback['yourLanguage'] ?: '—' }}</span>
                             </div>
-                            <pre class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap">{{ $feedback['yourCode'] }}</pre>
+                            <pre class="p-3 rounded-lg border border-slate-700 bg-[#272822] text-xs text-slate-100 font-mono overflow-x-auto whitespace-pre-wrap">{{ $feedback['yourCode'] }}</pre>
                         @endif
 
                         @if ($feedback['gradable'])
@@ -161,4 +175,57 @@
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content p { margin-bottom: 0.5rem; }
     </style>
+
+    {{-- SỬA 24/8 (v5) — ô viết code "như VSCode": nhúng CodeMirror 5 qua CDN (cùng kiểu nhúng
+         thư viện ngoài qua CDN như CKEditor ở partials/rich-editor-assets.blade.php). Chỉ tải ở
+         trang này — không đụng màn làm đề khác vì khách chỉ yêu cầu đổi ở "Luyện tập theo câu". --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/theme/monokai.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/clike/clike.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/python/python.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/addon/display/placeholder.js"></script>
+    <style>
+        .CodeMirror { height: 320px; font-size: 13px; }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var textarea = document.querySelector('textarea[data-code-editor]');
+            if (!textarea || typeof CodeMirror === 'undefined') return;
+
+            var langSelect = document.querySelector('select[data-code-language]');
+            var MODE_MAP = {
+                cpp: 'text/x-c++src',
+                c: 'text/x-csrc',
+                java: 'text/x-java',
+                python: 'text/x-python',
+                csharp: 'text/x-csharp',
+            };
+
+            var editor = CodeMirror.fromTextArea(textarea, {
+                mode: MODE_MAP[langSelect ? langSelect.value : 'cpp'] || 'text/x-c++src',
+                theme: 'monokai',
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                lineWrapping: false,
+                viewportMargin: Infinity,
+                placeholder: 'Viết code ở đây...',
+            });
+
+            if (langSelect) {
+                langSelect.addEventListener('change', function () {
+                    editor.setOption('mode', MODE_MAP[langSelect.value] || 'text/plain');
+                });
+            }
+
+            var form = textarea.closest('form');
+            if (form) {
+                // CodeMirror thay textarea gốc bằng 1 div riêng — phải gọi save() để đồng bộ
+                // nội dung đang gõ ngược lại textarea gốc TRƯỚC KHI form submit thật (giống
+                // cách CKEditor updateSourceElement() ở partials/rich-editor-assets.blade.php).
+                form.addEventListener('submit', function () { editor.save(); });
+            }
+        });
+    </script>
 @endpush
