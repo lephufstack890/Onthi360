@@ -7,6 +7,9 @@
         // "Bài tập & Đề" ở trên (đó là Bài giao cũ, chọn Question rời).
         ['label' => 'Đề PDF của tôi', 'route' => 'teacher.papers.index', 'icon' => '📄'],
         ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => '❓'],
+        // SỬA 24/8 — khách yêu cầu: giáo viên cố vấn/đồng hành chỉ thêm/sửa kỳ thi (vòng)
+        // trong cuộc thi có sẵn, không sửa cuộc thi (xem Teacher\CompetitionController).
+        ['label' => 'Cuộc thi', 'route' => 'teacher.competitions.index', 'icon' => '🏆'],
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => '📈'],
         ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => '📅'],
         ['label' => 'Thông báo', 'route' => 'teacher.notifications.index', 'icon' => '🔔'],

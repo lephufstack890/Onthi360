@@ -22,6 +22,7 @@ use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentController;
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
+use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
@@ -139,6 +140,15 @@ Route::middleware(['auth'])->group(function () {
         // Teacher\QuestionService::storeFromZipPackage() + attachmentInfo().
         Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->name('questions.zipImport');
         Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
+
+        // SỬA 24/8 — khách yêu cầu: giáo viên (cố vấn/đồng hành) chỉ được THÊM/SỬA kỳ thi
+        // (vòng) trong 1 cuộc thi có sẵn, KHÔNG được tạo/sửa/lưu trữ chính cuộc thi (vẫn chỉ
+        // admin.competitions.* làm được) — xem Teacher\CompetitionController.
+        Route::get('competitions', [TeacherCompetitionController::class, 'index'])->name('competitions.index');
+        Route::get('competitions/{competition}', [TeacherCompetitionController::class, 'show'])->name('competitions.show');
+        Route::post('competitions/{competition}/exams', [TeacherCompetitionController::class, 'examStore'])->name('competitions.exams.store');
+        Route::put('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
+        Route::delete('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
 
         Route::get('assessments', [TeacherAssessmentController::class, 'index'])->name('assessments.index');
         Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->name('assessments.create');
