@@ -6,16 +6,29 @@ use App\Models\AssessmentItem;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
+use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Repositories\Contracts\TagRepositoryInterface;
 
 /**
  * Luyện tập công khai (PUB-07, 4.1 "Kho bài công khai, lọc, chi tiết đề, đăng nhập để bắt
  * đầu/nộp" + 10.1 "Luyện tập"). Cùng NGUỒN dữ liệu với tab "Tự luyện" của
  * App\Services\Student\PracticeService (type=practice, status=published) để danh sách công
  * khai và danh sách học sinh đã đăng nhập không lệch nhau.
+ *
+ * SỬA 24/8 — khách chốt: trang này KHÔNG còn ưu tiên "làm theo đề gồm nhiều câu hỏi" nữa, mà
+ * ưu tiên lối "Luyện tập theo câu" (chọn dạng câu hỏi + chuyên đề, luyện từng câu, bấm "Câu
+ * tiếp theo ›" — cùng cơ chế App\Services\Student\PracticeByQuestionService đã có, xem view
+ * public/practice/index.blade.php). Thêm $tags/$questions CHỈ để lấy dữ liệu hiển thị bộ lọc
+ * (allTags) + số câu khả dụng (đếm nhanh) — KHÔNG đụng gì tới $assessments/indexData() phần
+ * "đề" cũ, phần đó vẫn tính nguyên (chỉ bị ẨN ở view) để dễ khôi phục nếu khách đổi ý.
  */
 class PracticeService
 {
-    public function __construct(private AssessmentRepositoryInterface $assessments) {}
+    public function __construct(
+        private AssessmentRepositoryInterface $assessments,
+        private TagRepositoryInterface $tags,
+        private QuestionRepositoryInterface $questions,
+    ) {}
 
     /** practice.index — kho bài luyện tập công khai; CTA khác nhau theo việc đã đăng nhập là học sinh hay chưa. */
     public function indexData(?User $viewer): array
@@ -49,6 +62,13 @@ class PracticeService
             // khách/vai trò khác vẫn thấy đề nhưng phải đăng nhập trước (4.1: "đăng nhập để
             // bắt đầu/nộp").
             'canTakeDirectly' => $viewer !== null && $viewer->hasRole(Role::STUDENT),
+            // SỬA 24/8 — dữ liệu cho bộ lọc "Luyện tập theo câu" (dạng câu hỏi + chuyên đề) ở
+            // đầu trang, khớp đúng $allTags mà student.practiceByQuestion.setup đang dùng.
+            'allTags' => $this->tags->allOrderedByName(),
+            // Đếm nhanh tổng số câu (Kho chung, đã phát hành, Trắc nghiệm/Điền đáp án — cùng
+            // điều kiện idsForPractice(null, []) không lọc gì) để hiện số liệu ở hero, KHÔNG
+            // fetch nội dung từng câu (idsForPractice() chỉ trả về ID).
+            'practiceQuestionsCount' => count($this->questions->idsForPractice(null, [])),
         ];
     }
 

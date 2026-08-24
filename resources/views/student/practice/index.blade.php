@@ -64,7 +64,7 @@
         <span class="inline-flex items-center gap-1 text-sm font-medium text-sky-600">Bắt đầu <span aria-hidden="true">→</span></span>
     </a>
 
-    <x-tabs :tabs="$tabs" />
+    {{-- <x-tabs :tabs="$tabs" /> --}}
 
     {{-- SỬA 24/8 — khách yêu cầu ẨN hộp lọc "Loại câu hỏi"/"Chuyên đề" ở tab Tự luyện/Theo
          lớp/Bài được giao (lọc DANH SÁCH ĐỀ ở đây, "Chuyên đề" tạm dựa vào QuestionBank::name
@@ -106,7 +106,7 @@
     @endif
     --}}
 
-    <div class="flex items-center justify-between mb-3">
+    {{-- <div class="flex items-center justify-between mb-3">
         <p class="text-sm text-slate-400">{{ count($items) }} bài phù hợp</p>
     </div>
 
@@ -151,5 +151,5 @@
                 <x-empty-state title="Chưa có bài phù hợp bộ lọc" description="Thử bỏ bộ lọc hoặc khám phá thêm bài luyện tập công khai." actionLabel="Khám phá Luyện tập công khai" :actionHref="route('practice.index')" />
             </div>
         @endforelse
-    </div>
+    </div> --}}
 @endsection

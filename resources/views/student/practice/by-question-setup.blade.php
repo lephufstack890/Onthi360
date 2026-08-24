@@ -21,7 +21,7 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <form method="POST" action="{{ route('student.practiceByQuestion.start') }}" class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 space-y-5 max-w-2xl">
+    <form method="POST" action="{{ route('student.practiceByQuestion.start') }}" class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 space-y-5 max-w-10xl">
         @csrf
 
         <div>

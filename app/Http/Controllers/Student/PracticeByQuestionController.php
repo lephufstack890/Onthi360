@@ -17,8 +17,36 @@ class PracticeByQuestionController extends Controller
 {
     public function __construct(private readonly PracticeByQuestionService $service) {}
 
-    public function setup(Request $request): View
+    /**
+     * SỬA 24/8 — trang công khai (public.practice.index) cho khách CHỌN bộ lọc trước khi đăng
+     * nhập, rồi submit GET thẳng vào route này (route này đứng sau middleware auth+role:student).
+     * Khách chưa đăng nhập bị Laravel bounce sang /login và tự lưu NGUYÊN url + query string vào
+     * session('url.intended') (Illuminate\Routing\Redirector::guest(), AuthController::login() ở
+     * cuối dùng redirect()->intended()) — đăng nhập xong quay lại ĐÚNG url này, tức là quay lại
+     * đây kèm 'type'/'tag_ids' như cũ. Thấy 2 param đó trên query string nghĩa là request đến từ
+     * đúng luồng đó (hoặc học sinh tự sửa URL) — tự động start() luôn thay vì bắt chọn lại lần 2.
+     * Không có query nào thì vẫn là màn "chọn tag" bình thường (CTA nội bộ cũ link route này
+     * không kèm query, không đổi hành vi).
+     */
+    public function setup(Request $request): View|RedirectResponse
     {
+        if ($request->query->has('type') || $request->query->has('tag_ids')) {
+            $data = $request->validate([
+                'tag_ids' => ['nullable', 'array'],
+                'tag_ids.*' => ['integer'],
+                'type' => ['nullable', 'in:mcq,fill_blank'],
+            ]);
+
+            $started = $this->service->start($data['tag_ids'] ?? [], $data['type'] ?? null);
+
+            if ($started) {
+                return redirect()->route('student.practiceByQuestion.play');
+            }
+
+            return redirect()->route('student.practiceByQuestion.setup')
+                ->withErrors(['tag_ids' => 'Không tìm thấy câu hỏi phù hợp bộ lọc — thử bỏ bớt điều kiện lọc.']);
+        }
+
         return view('student.practice.by-question-setup', $this->service->setupData());
     }
 
