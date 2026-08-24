@@ -348,28 +348,18 @@ class AttemptService
                 continue;
             }
 
-            // SỬA 19/8 (4, yêu cầu thật của Admin: "kỳ thi nếu công bố rồi hoặc qua thời gian
-            // diễn ra rồi thì khoá lại không cho vào thi nữa"): trước đây chỉ chặn khi cuộc
-            // thi đã "Lưu trữ" ($competition->status !== Archived, và dùng CỘT LƯU SẴN thay vì
-            // tính theo giờ hiện tại) — nếu cuộc thi đã chuyển "Đã công bố" (kết quả đã công bố
-            // xong xuôi) thì KHÔNG hề bị chặn, học sinh vẫn vào làm bài mới được (dù kết quả đã
-            // công bố, làm thêm lúc này cũng không được tính vào bảng đã công bố — vô nghĩa và
-            // dễ gây hiểu lầm). Giờ dùng computedStatus() (tính theo giờ hiện tại, khớp nguyên
-            // tắc chung của cả file — không tin cột status lưu sẵn có thể bị "trễ" nếu lâu
-            // không ai vào sửa cuộc thi) và chặn thêm khi = Published, không chỉ Archived.
-            // CỐ Ý KHÔNG chặn theo Upcoming/PendingPublish ở cấp cuộc thi — cuộc thi nhiều
-            // vòng thường không đặt starts_at/ends_at cấp cuộc thi (chỉ đặt cho từng kỳ thi
-            // con), nên computedStatus() cấp cuộc thi có thể mãi mãi là Upcoming dù kỳ thi con
-            // đang thật sự diễn ra (xem docblock assertMaterialAccessible() — cùng lý do đã
-            // giải thích ở đó). "Qua thời gian diễn ra rồi" của ĐÚNG kỳ thi con này đã được
-            // $exam->isOngoing() tự chặn sẵn (dựa theo starts_at/ends_at RIÊNG của kỳ thi đó,
-            // độc lập với cuộc thi) — không cần thêm gì cho phần đó.
-            $competitionStatus = $competition->computedStatus();
-
-            if ($competitionStatus === CompetitionStatus::Archived || $competitionStatus === CompetitionStatus::Published) {
-                continue;
-            }
-
+            // SỬA 24/8 (v6, khách chốt sau khi test thật "Cuộc thi B" 2 vòng — xem docblock y
+            // hệt ở Public\CompetitionService::showData()): BỎ hẳn việc xét trạng thái CẤP
+            // CUỘC THI cha (Archived/Published, thêm ở SỬA 19/8 (4)) để quyết định 1 kỳ thi con
+            // có mở hay không — thực tế gây đúng lỗi: cuộc thi nhiều vòng có đặt starts_at/
+            // ends_at riêng ở CẤP CUỘC THI, qua giờ kết thúc CỦA CUỘC THI làm computedStatus()
+            // cấp cuộc thi nhảy sang "Đã công bố" trong khi 1 kỳ thi con khác (vd Vòng 2) vẫn
+            // đang thật sự "Đang diễn ra" theo đúng giờ RIÊNG của nó — bị khoá lây oan, học
+            // sinh bấm "Vào thi" vẫn báo lỗi dù nút đã hiện đúng ở UI. Giờ CHỈ còn xét
+            // $exam->isOngoing() (giờ giấc riêng của đúng kỳ thi này) — khớp đúng gate mới ở
+            // Public\CompetitionService::showData() (2 nơi PHẢI luôn khớp nhau). Muốn khoá 1
+            // kỳ thi cụ thể (đã công bố kết quả, hoặc muốn đóng sớm) thì sửa ends_at của ĐÚNG
+            // kỳ thi đó, không dùng trạng thái/thời hạn cấp cuộc thi để khoá gián tiếp nữa.
             if ($exam->isOngoing()) {
                 return ['open' => true, 'message' => null, 'competitionId' => null, 'competitionExamId' => $exam->id];
             }

@@ -109,7 +109,7 @@ class CompetitionService
              * nên luôn có ít nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback
              * UI riêng ở view.
              */
-            'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer, $computedStatusValue) {
+            'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer) {
                 $examStatusValue = $exam->computedStatus();
                 $examMeta = self::EXAM_STATUS_META[$examStatusValue] ?? ['label' => $examStatusValue, 'tone' => 'neutral'];
 
@@ -131,40 +131,31 @@ class CompetitionService
                     'statusTone' => $examMeta['tone'],
                     'alreadyAttempted' => $examAlreadyAttempted,
                     /*
-                     * BUG SỬA 18/8: trước đây bắt buộc $computedStatusValue === 'ongoing' —
-                     * tức trạng thái vòng đời của CẢ CUỘC THI (tính từ $competition->starts_at/
-                     * ends_at riêng) cũng phải "Đang diễn ra" thì nút "Vào thi" mới hiện, dù kỳ
-                     * thi (exam sitting) này có khung giờ HOÀN TOÀN RIÊNG. Cuộc thi tạo theo
-                     * kiểu nhiều vòng thường KHÔNG điền starts_at/ends_at ở cấp cuộc thi (chỉ
-                     * điền cho từng kỳ thi con) — khi đó $competition->starts_at = null nên
-                     * computedStatus() luôn trả "Upcoming" (Competition::computeStatusFor():
-                     * starts_at null → Upcoming), NGHĨA LÀ $computedStatusValue KHÔNG BAO GIỜ
-                     * bằng 'ongoing' — nút "Vào thi" bị ẩn vĩnh viễn dù kỳ thi con đang thật sự
-                     * diễn ra (badge vẫn hiện đúng "Đang diễn ra" vì lấy từ $examStatusValue
-                     * riêng, chỉ có CTA bên dưới bị sai) — học sinh bấm vào chỉ thấy "Về trang
-                     * của tôi". Chỉ còn chặn theo cờ "Lưu trữ" cấp cuộc thi (admin chủ động lưu
-                     * trữ thì không cho vào thi nữa dù kỳ thi con tính ra vẫn "ongoing"), KHÔNG
-                     * chặn thêm theo cả vòng đời Upcoming/PendingPublish/Published của cuộc thi
-                     * (không liên quan tới việc kỳ thi con này có đang mở hay không).
+                     * SỬA 24/8 (v6, khách chốt sau khi test thật "Cuộc thi B" 2 vòng): BỎ HẲN
+                     * mọi điều kiện dựa theo trạng thái CẤP CUỘC THI (Archived/Published) khỏi
+                     * CTA của từng kỳ thi con — chỉ còn xét $examStatusValue (giờ giấc RIÊNG
+                     * của đúng kỳ thi này). Trước đây (SỬA 18/8 + SỬA 19/8 (4)) có chặn thêm
+                     * khi cuộc thi cha = Lưu trữ/Đã công bố — nhưng thực tế gây đúng lỗi khách
+                     * báo: cuộc thi nhiều vòng, Vòng 1 đã làm xong + cuộc thi cha (có đặt
+                     * starts_at/ends_at riêng ở cấp cuộc thi) đã qua giờ kết thúc CỦA CHÍNH
+                     * CUỘC THI → computedStatus() cấp cuộc thi nhảy sang "Đã công bố", khiến
+                     * TOÀN BỘ kỳ thi con còn lại (kể cả Vòng 2 đang thật sự "Đang diễn ra" theo
+                     * đúng giờ riêng của nó) bị khoá theo, học sinh bấm vào chỉ thấy "Về trang
+                     * của tôi" dù badge vẫn hiện đúng "Đang diễn ra" — đúng NGƯỢC với mục đích
+                     * thiết kế nhiều vòng (mỗi vòng có khung giờ ĐỘC LẬP). Khách chốt: kỳ thi
+                     * con tự chủ hoàn toàn theo giờ riêng của nó, không ăn theo trạng thái cuộc
+                     * thi cha nữa — muốn khoá 1 kỳ thi cụ thể thì sửa ends_at của ĐÚNG kỳ thi
+                     * đó, không dùng nút "Lưu trữ"/thời hạn cấp cuộc thi để khoá gián tiếp nữa.
+                     * Khớp đúng gate mới ở server (AttemptService::competitionEntryDecision(),
+                     * SỬA 24/8 (v6)) — 2 nơi PHẢI luôn khớp nhau.
                      *
-                     * SỬA 18/8 (2): thêm !$examAlreadyAttempted — mỗi học sinh chỉ được làm 1
-                     * kỳ thi con này 1 lần, đã nộp rồi thì không hiện "Vào thi" nữa (view sẽ tự
-                     * chuyển sang nhánh "Đã làm").
-                     *
-                     * SỬA 19/8 (4, yêu cầu thật của Admin: "kỳ thi công bố rồi hoặc qua thời
-                     * gian diễn ra rồi thì khoá lại"): thêm chặn khi cuộc thi đã "Đã công bố"
-                     * (Published) — trước đây chỉ chặn "Lưu trữ" (Archived), nên nút "Vào thi"
-                     * vẫn hiện dù kết quả cuộc thi đã công bố xong xuôi (làm thêm lúc này vô
-                     * nghĩa, không được tính vào bảng đã công bố). Khớp đúng gate mới ở server
-                     * (AttemptService::competitionEntryDecision(), SỬA 19/8 (4)) — 2 nơi PHẢI
-                     * luôn khớp nhau. Vẫn CỐ Ý không chặn theo Upcoming/PendingPublish cấp cuộc
-                     * thi, lý do y hệt đã giải thích ở đoạn trên.
+                     * SỬA 18/8 (2): !$examAlreadyAttempted — mỗi học sinh chỉ được làm 1 kỳ thi
+                     * con này 1 lần, đã nộp rồi thì không hiện "Vào thi" nữa (view sẽ tự chuyển
+                     * sang nhánh "Đã làm").
                      */
                     'canJoinDirectly' => $viewer !== null
                         && $viewer->hasRole(Role::STUDENT)
                         && $exam->assessment_id !== null
-                        && $computedStatusValue !== CompetitionStatus::Archived->value
-                        && $computedStatusValue !== CompetitionStatus::Published->value
                         && $examStatusValue === 'ongoing'
                         && ! $examAlreadyAttempted,
                 ];
