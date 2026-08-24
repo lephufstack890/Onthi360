@@ -7,8 +7,10 @@ use App\Services\Teacher\QuestionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class QuestionController extends Controller
 {
@@ -79,6 +81,34 @@ class QuestionController extends Controller
         $this->questionService->archive($questionModel);
 
         return redirect()->route('teacher.questions.index')->with('status', 'question-archived');
+    }
+
+    // ================= Câu hỏi lập trình — "Nhập từ gói ZIP" (24/8) =================
+    // Xem App\Services\Teacher\QuestionService::storeFromZipPackage() — tái sử dụng store()
+    // nguyên vẹn nên KHÔNG đụng gì tới create/store ở trên.
+
+    /** teacher.questions.zipImport — tải 1 gói ZIP OT360-QPACK, tự điền, redirect sang Sửa. */
+    public function zipImportStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.QuestionService::maxZipPackageKb()],
+        ], [], ['zip_package' => 'Gói ZIP']);
+
+        try {
+            $question = $this->questionService->storeFromZipPackage(Auth::user(), $request->file('zip_package'));
+        } catch (ValidationException $e) {
+            return redirect()->route('teacher.questions.create', ['type' => 'coding'])->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.questions.edit', $question->id)->with('status', 'question-zip-imported');
+    }
+
+    /** teacher.questions.attachment — tải lại 1 tệp đính kèm (đề/lời giải/code mẫu) đã nhập từ ZIP. */
+    public function attachmentDownload(Request $request, int $question, string $kind): StreamedResponse
+    {
+        $info = $this->questionService->attachmentInfo(Auth::user(), $question, $kind);
+
+        return Storage::disk('local')->download($info['path'], $info['filename']);
     }
 
     private function finishSubmit($question, string $action, string $createdStatus): RedirectResponse

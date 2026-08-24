@@ -218,6 +218,34 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', $question->id)->with('status', 'question-archived');
     }
 
+    // ================= Câu hỏi lập trình — "Nhập từ gói ZIP" (24/8) =================
+    // Xem App\Services\Admin\ContentService::questionStoreFromZipPackage() — tái sử dụng
+    // questionStore() nguyên vẹn nên KHÔNG đụng gì tới questionsCreate/questionsStore ở trên.
+
+    /** admin.content.questions.zipImport — tải 1 gói ZIP OT360-QPACK, tự điền, redirect sang Sửa. */
+    public function questionsZipImportStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxQuestionZipKb()],
+        ], [], ['zip_package' => 'Gói ZIP']);
+
+        try {
+            $question = $this->contentService->questionStoreFromZipPackage(Auth::user(), $request->file('zip_package'));
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.content.questions.create')->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.content.questions.edit', $question->id)->with('status', 'question-zip-imported');
+    }
+
+    /** admin.content.questions.attachment — tải lại 1 tệp đính kèm (đề/lời giải/code mẫu) đã nhập từ ZIP. */
+    public function questionsAttachmentDownload(Request $request, Question $question, string $kind): StreamedResponse
+    {
+        $info = $this->contentService->questionAttachmentInfo($question, $kind);
+
+        return Storage::disk('local')->download($info['path'], $info['filename']);
+    }
+
     // ================= Nhập đề Word/PDF/OCR -> Kho chung (6.4) =================
 
     /** admin.content.questions.import (ADM-03, TEA-05 tương đương phía admin) — trạng thái xử lý OCR thật. */

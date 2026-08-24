@@ -27,6 +27,25 @@
     </div>
 
     <div class="max-w-7xl mx-auto px-4 py-10">
+        {{-- SỬA 24/8 — thêm lối "Luyện tập theo câu" (lọc theo chuyên đề THẬT — Tag — và dạng
+             câu hỏi, luyện từng câu một, bấm "Câu tiếp theo ›" biết đúng/sai ngay) ra trang công
+             khai này, mirror đúng CTA đã có sẵn ở resources/views/student/practice/index.blade.php.
+             Route student.practiceByQuestion.setup nằm sau middleware auth+role:student — khách
+             bấm vào sẽ tự được chuyển sang đăng nhập (không cần code thêm gì), học sinh đã đăng
+             nhập vào thẳng màn chọn bộ lọc rồi luyện. KHÔNG lặp lại UI bộ lọc ở đây — dùng lại
+             nguyên form lọc đã có ở student.practiceByQuestion.setup. --}}
+        <a href="{{ $canTakeDirectly ? route('student.practiceByQuestion.setup') : route('login') }}"
+           class="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-5 lg:p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div class="flex items-center gap-3">
+                <x-icon-tile emoji="🧠" tone="sky" />
+                <div>
+                    <h3 class="font-semibold text-slate-800">Luyện tập theo câu</h3>
+                    <p class="text-sm text-slate-500 mt-0.5">Chọn chuyên đề và dạng câu hỏi muốn ôn — hệ thống trộn ngẫu nhiên câu hỏi, luyện từng câu một, biết đúng/sai ngay lập tức.</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 text-sm font-medium text-sky-600 shrink-0">{{ $canTakeDirectly ? 'Bắt đầu' : 'Đăng nhập để bắt đầu' }} <span aria-hidden="true">→</span></span>
+        </a>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             @forelse ($items as $it)
                 @php $accent = $cardAccent($it['hasCoding'] ?? false); @endphp

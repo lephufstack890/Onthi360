@@ -135,6 +135,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('questions/{question}/publish', [TeacherQuestionController::class, 'publish'])->name('questions.publish');
         Route::post('questions/{question}/archive', [TeacherQuestionController::class, 'archive'])->name('questions.archive');
 
+        // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
+        // Teacher\QuestionService::storeFromZipPackage() + attachmentInfo().
+        Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->name('questions.zipImport');
+        Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
+
         Route::get('assessments', [TeacherAssessmentController::class, 'index'])->name('assessments.index');
         Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->name('assessments.create');
         Route::post('assessments', [TeacherAssessmentController::class, 'store'])->name('assessments.store');
@@ -331,6 +336,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
         Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
         Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
+
+        // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
+        // Admin\ContentService::questionStoreFromZipPackage() + questionAttachmentInfo().
+        Route::post('content/questions/zip-import', [AdminContentController::class, 'questionsZipImportStore'])->name('content.questions.zipImport');
+        Route::get('content/questions/{question}/attachment/{kind}', [AdminContentController::class, 'questionsAttachmentDownload'])->name('content.questions.attachment');
 
         Route::get('content/questions/import', [AdminContentController::class, 'questionsImport'])->name('content.questions.import');
         Route::post('content/questions/import', [AdminContentController::class, 'questionsImportStore'])->name('content.questions.import.store');

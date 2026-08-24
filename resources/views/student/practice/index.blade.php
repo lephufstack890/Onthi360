@@ -66,6 +66,14 @@
 
     <x-tabs :tabs="$tabs" />
 
+    {{-- SỬA 24/8 — khách yêu cầu ẨN hộp lọc "Loại câu hỏi"/"Chuyên đề" ở tab Tự luyện/Theo
+         lớp/Bài được giao (lọc DANH SÁCH ĐỀ ở đây, "Chuyên đề" tạm dựa vào QuestionBank::name
+         chứ chưa phải Tag thật — xem PracticeService::buildIndexData()). Lý do ẩn: lọc theo
+         chuyên đề/dạng câu hỏi THẬT (dùng Tag) đã có sẵn ở lối "Luyện tập theo câu" ngay phía
+         trên (CTA 🧠, dẫn vào student.practiceByQuestion.setup — luyện từng câu, bấm Next) nên
+         khỏi trùng 2 nơi. CHỈ COMMENT LẠI — controller/service filter theo ?type=&?topic= vẫn
+         chạy nguyên, chưa đụng gì, dán lại nguyên khối dưới đây để hiện lại nếu cần dùng tiếp. --}}
+    {{--
     @if ($filtersApply)
         <div class="bg-white rounded-2xl border border-slate-200 p-4 lg:p-5 mb-6 space-y-4">
             <div>
@@ -96,6 +104,7 @@
             @endif
         </div>
     @endif
+    --}}
 
     <div class="flex items-center justify-between mb-3">
         <p class="text-sm text-slate-400">{{ count($items) }} bài phù hợp</p>

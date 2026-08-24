@@ -14,7 +14,38 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div x-data="{ type: '{{ old('type', 'mcq') }}' }">
+    {{-- SỬA 24/8 — nếu quay lại đây do lỗi từ chính form "Nhập từ gói ZIP" (zip_package), giữ
+         nguyên loại "Lập trình" đang chọn thay vì rơi về mặc định "mcq" khiến form ZIP bị ẩn
+         mất ngay lúc đang cần sửa lỗi. --}}
+    <div x-data="{ type: '{{ old('type', $errors->has('zip_package') ? 'coding' : 'mcq') }}' }">
+        {{-- SỬA 24/8 ("Nhập từ gói ZIP"): CHỈ hiện khi đang chọn loại "Lập trình" (x-show theo
+             đúng $type Alpine ở trên) — tải lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời
+             giải PDF + test case, định dạng "OT360-QPACK") để hệ thống tự điền toàn bộ thông tin
+             câu hỏi lập trình bên dưới, chỉ cần vào trang Sửa kiểm tra rồi bấm Lưu. Đây là FORM
+             RIÊNG (enctype multipart riêng), KHÔNG liên quan tới form tạo tay bên dưới — xem
+             App\Services\Admin\ContentService::questionStoreFromZipPackage(). --}}
+        <div x-show="type === 'coding'" x-cloak class="mb-6">
+            {{-- SỬA 24/8 (2) — khách yêu cầu: chọn xong tệp ZIP là TỰ ĐỘNG nhập ngay, không bắt
+                 bấm thêm nút. @change ở input tự gọi requestSubmit() (Alpine — cùng cách dùng
+                 @click/@change đã có sẵn ở nơi khác trong dự án, ví dụ student/assessment/
+                 take.blade.php). Nút "Nhập từ ZIP" vẫn giữ lại làm phương án dự phòng (JS lỗi/
+                 tắt) + hiện trạng thái "Đang xử lý..." ngay khi vừa chọn tệp. --}}
+            <form method="POST" action="{{ route('admin.content.questions.zipImport') }}" enctype="multipart/form-data"
+                  x-data="{ submitting: false }"
+                  class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-wrap items-end gap-3">
+                @csrf
+                <div class="flex-1 min-w-[240px]">
+                    <label class="block text-sm font-medium text-indigo-700 mb-1" for="zip_package">📦 Nhập câu hỏi lập trình từ gói ZIP</label>
+                    <input id="zip_package" name="zip_package" type="file" accept=".zip" required
+                           @change="submitting = true; $el.form.requestSubmit()" :disabled="submitting"
+                           class="w-full text-sm text-indigo-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-sm disabled:opacity-60">
+                    <p class="text-xs text-indigo-500 mt-1">Gói định dạng OT360-QPACK (question.json + đề/lời giải PDF + test case) — <strong>chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
+                </div>
+                <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
+                        class="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
+            </form>
+        </div>
+
         <form method="POST" action="{{ route('admin.content.questions.store') }}" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             @csrf
 
@@ -30,7 +61,7 @@
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại câu hỏi</label>
                         <x-select id="type" name="type" x-model="type" required>
                             @foreach ($types as $value => $label)
-                                <option value="{{ $value }}" @selected(old('type', 'mcq') === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('type', $errors->has('zip_package') ? 'coding' : 'mcq') === $value)>{{ $label }}</option>
                             @endforeach
                         </x-select>
                     </div>

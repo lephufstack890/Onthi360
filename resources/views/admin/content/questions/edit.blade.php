@@ -32,6 +32,24 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
+    {{-- SỬA 24/8 — câu hỏi nhập từ gói ZIP ("Nhập từ gói ZIP") có kèm đề/lời giải/code mẫu lưu
+         ở metadata.attachments (xem ContentService::questionStoreFromZipPackage()); câu hỏi tạo
+         tay như trước giờ không có mục này. --}}
+    @php $zipAttachments = $question->metadata['attachments'] ?? []; @endphp
+    @if (! empty($zipAttachments))
+        <div class="mb-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <p class="text-sm font-medium text-slate-600 mb-2">📎 Tệp đính kèm (nhập từ gói ZIP)</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($zipAttachments as $kind => $file)
+                    <a href="{{ route('admin.content.questions.attachment', [$question->id, $kind]) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:border-rose-200 hover:text-rose-600">
+                        {{ match ($kind) { 'statement' => '📄 Đề bài', 'solution' => '📄 Lời giải', 'reference' => '💻 Code mẫu', default => $kind } }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div x-data="{ type: '{{ $question->type->value }}' }">
         <form method="POST" action="{{ $actionRoute }}" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             @csrf

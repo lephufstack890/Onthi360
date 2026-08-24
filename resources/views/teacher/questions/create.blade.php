@@ -42,6 +42,50 @@
         </div>
     @endif
 
+    {{-- SỬA 24/8 ("Nhập từ gói ZIP"): CHỈ hiện ở màn Tạo (không phải Sửa) VÀ khi đang chọn loại
+         "Lập trình" ($type === 'coding', xem $type ở @php trên — link chọn loại tải lại trang
+         với ?type=... nên đây là điều kiện SERVER-SIDE, không cần Alpine như bên Admin) — tải
+         lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời giải PDF + test case, định dạng
+         "OT360-QPACK") để hệ thống tự điền toàn bộ thông tin, chỉ cần kiểm tra và Lưu. Xem
+         App\Services\Teacher\QuestionService::storeFromZipPackage(). Ngược lại, ở màn Sửa hiện
+         link tải lại tệp đính kèm nếu câu hỏi này từng được nhập từ ZIP. --}}
+    @if (! $question && $type === 'coding')
+        {{-- SỬA 24/8 (2) — khách yêu cầu: chọn xong tệp ZIP là TỰ ĐỘNG nhập ngay, không bắt
+             bấm thêm nút. @change ở input tự gọi requestSubmit() (Alpine — cùng cách dùng
+             @click/@change đã có sẵn ở nơi khác trong dự án, ví dụ student/assessment/
+             take.blade.php). Nút "Nhập từ ZIP" vẫn giữ lại làm phương án dự phòng (JS lỗi/tắt)
+             + hiện trạng thái "Đang xử lý..." ngay khi vừa chọn tệp. --}}
+        <form method="POST" action="{{ route('teacher.questions.zipImport') }}" enctype="multipart/form-data"
+              x-data="{ submitting: false }"
+              class="mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-wrap items-end gap-3">
+            @csrf
+            <div class="flex-1 min-w-[240px]">
+                <label class="block text-sm font-medium text-indigo-700 mb-1" for="zip_package">📦 Nhập câu hỏi lập trình từ gói ZIP</label>
+                <input id="zip_package" name="zip_package" type="file" accept=".zip" required
+                       @change="submitting = true; $el.form.requestSubmit()" :disabled="submitting"
+                       class="w-full text-sm text-indigo-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-sm disabled:opacity-60">
+                <p class="text-xs text-indigo-500 mt-1">Gói định dạng OT360-QPACK (question.json + đề/lời giải PDF + test case) — <strong>chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
+            </div>
+            <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
+                    class="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
+        </form>
+    @elseif ($question)
+        @php $zipAttachments = $question->metadata['attachments'] ?? []; @endphp
+        @if (! empty($zipAttachments))
+            <div class="mb-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <p class="text-sm font-medium text-slate-600 mb-2">📎 Tệp đính kèm (nhập từ gói ZIP)</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($zipAttachments as $kind => $file)
+                        <a href="{{ route('teacher.questions.attachment', [$question->id, $kind]) }}"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:border-rose-200 hover:text-rose-600">
+                            {{ match ($kind) { 'statement' => '📄 Đề bài', 'solution' => '📄 Lời giải', 'reference' => '💻 Code mẫu', default => $kind } }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @endif
+
     <div class="flex gap-3 mb-6">
         @foreach ($types as $t)
             <a href="{{ $question ? '#' : route('teacher.questions.create', ['type' => $t['key']]) }}"

@@ -30,7 +30,9 @@ use App\Services\PdfBulkImportService;
 use App\Services\QuestionPublishGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use ZipArchive;
 
 /**
  * Gom truy vấn/nhãn cho admin.content.* (ADM-03, 6.2/6.4/6.5).
@@ -625,11 +627,24 @@ class ContentService
                 )),
                 'case_sensitive' => (bool) ($data['case_sensitive'] ?? false),
             ],
-            'coding' => [
-                'test_cases' => $this->parseTestCases($data['test_cases_raw'] ?? ''),
+            'coding' => array_filter([
+                // SỬA 24/8 (Nhập câu hỏi lập trình từ gói ZIP "OT360-QPACK"): ưu tiên
+                // 'test_cases_parsed' (mảng {input,output} đã tách sẵn, ví dụ đọc thẳng từ
+                // tệp trong gói ZIP) nếu có — TRÁNH vòng lặp lossy qua ô "Test cases" 1-dòng-
+                // 1-test "input|||output" khi test case gốc có nhiều dòng (xem
+                // questionStoreFromZipPackage() bên dưới). Form nhập tay bình thường không
+                // gửi 'test_cases_parsed' nên hành vi cũ (đọc 'test_cases_raw') không đổi.
+                'test_cases' => $data['test_cases_parsed'] ?? $this->parseTestCases($data['test_cases_raw'] ?? ''),
                 'time_limit_ms' => filled($data['time_limit_ms'] ?? null) ? (int) $data['time_limit_ms'] : null,
                 'memory_limit_mb' => filled($data['memory_limit_mb'] ?? null) ? (int) $data['memory_limit_mb'] : null,
-            ],
+                // SỬA 24/8 — 3 khoá dưới đây CHỈ được gói ZIP điền (form nhập tay không có
+                // trường tương ứng) — giữ lại trong grading_config để dành cho khi có judge
+                // chấm code thật sau này (ngôn ngữ cho phép / quy ước tên file input-output /
+                // chấm theo nhóm điểm subtasks). Không dùng ở đâu khác hiện tại — vô hại.
+                'languages' => $data['languages'] ?? null,
+                'file_io' => $data['file_io'] ?? null,
+                'subtasks' => $data['subtasks'] ?? null,
+            ], fn ($v) => $v !== null),
             default => [],
         };
     }
@@ -679,6 +694,253 @@ class ContentService
         Question::$auditReason = null;
 
         return $question;
+    }
+
+    // ================= Câu hỏi lập trình — "Nhập từ gói ZIP" (24/8) =================
+    // Khách muốn tải lên 1 gói ZIP đóng gói sẵn (question.json + statement.pdf + solution.pdf
+    // + reference/official.cpp + tests/<số>/INPUT+OUTPUT theo định dạng "OT360-QPACK") rồi CHỈ
+    // CẦN bấm Lưu ở màn Sửa — không phải gõ tay từng test case. Cố ý tái sử dụng questionStore()
+    // NGUYÊN VẸN bên trên (không đổi chữ ký/nội dung hàm đó) để không đụng vào luồng tạo câu hỏi
+    // thủ công đang chạy đúng — ở đây chỉ build đúng $data mà questionStore() đã hiểu, rồi gắn
+    // thêm 'metadata' (môn/khối/chuyên đề/độ khó/tác giả — xem cột metadata ở migration
+    // questions) và lưu 3 tệp đính kèm sau khi đã có $question->id.
+
+    private const MAX_ZIP_PACKAGE_KB = 20480; // 20MB — gói ZIP gồm cả PDF đề+lời giải+nhiều test case
+
+    public static function maxQuestionZipKb(): int
+    {
+        return self::MAX_ZIP_PACKAGE_KB;
+    }
+
+    /**
+     * admin.content.questions.zipImport — điểm vào duy nhất của tính năng. LƯU Ý ĐÃ BÁO CHO
+     * KHÁCH: test case nhập từ ZIP được lưu đúng nguyên vẹn (kể cả nhiều dòng) nhờ
+     * 'test_cases_parsed' ở buildGradingConfig() trên — nhưng nếu SAU ĐÓ ai sửa câu hỏi này
+     * qua ô "Test cases" thủ công (dạng text "input|||output" mỗi dòng), nội dung nhiều dòng
+     * có thể bị hiểu sai thành nhiều test case khác nhau. Đây là hạn chế CÓ SẴN TỪ TRƯỚC (ô
+     * nhập tay dùng chung cho mọi câu lập trình, không riêng câu nhập từ ZIP) — cố ý KHÔNG sửa
+     * ô nhập tay ở đây vì phạm vi rộng hơn nhiều so với yêu cầu hiện tại.
+     *
+     * @throws ValidationException nếu gói ZIP không mở được, thiếu/sai question.json, hoặc
+     *                              không có test case hợp lệ nào trong thư mục tests/.
+     */
+    public function questionStoreFromZipPackage(User $admin, UploadedFile $zip): Question
+    {
+        $package = $this->parseZipQuestionPackage($zip);
+        $json = $package['json'];
+        $content = $json['content'] ?? [];
+        $grading = $json['grading'] ?? [];
+
+        $points = isset($content['points']) ? (int) round((float) $content['points']) : 0;
+
+        $tagNames = array_values(array_filter(array_map('trim', array_merge(
+            $json['taxonomy']['tags'] ?? [],
+            $json['taxonomy']['keywords'] ?? [],
+        )), fn ($t) => $t !== ''));
+
+        $data = [
+            'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
+            'type' => 'coding',
+            'title' => $content['title'] ?? 'Câu hỏi lập trình (nhập từ ZIP)',
+            'body' => $this->placeholderBodyForZipImport($content),
+            'points' => max(0, $points),
+            'visibility' => Visibility::Public->value,
+            'test_cases_parsed' => $package['testCases'],
+            'time_limit_ms' => $grading['time_limit_ms'] ?? 1000,
+            'memory_limit_mb' => $grading['memory_limit_mb'] ?? 256,
+            'languages' => $grading['languages'] ?? null,
+            'file_io' => $grading['file_io'] ?? null,
+            'subtasks' => $json['subtasks'] ?? null,
+            'new_tags' => implode(',', $tagNames),
+        ];
+
+        $question = $this->questionStore($admin, $data);
+
+        $question->update([
+            'metadata' => [
+                'source_package' => [
+                    'schema' => $json['schema'] ?? null,
+                    'original_filename' => $zip->getClientOriginalName(),
+                    'imported_at' => now()->toIso8601String(),
+                ],
+                'taxonomy' => $json['taxonomy'] ?? null,
+                'pedagogy' => $json['pedagogy'] ?? null,
+                'attribution' => $json['attribution'] ?? null,
+                'attachments' => $this->storeZipAttachments($question, $package['attachments']),
+            ],
+        ]);
+
+        return $question;
+    }
+
+    /**
+     * admin.content.questions.attachment — tệp đính kèm (đề/lời giải/code mẫu) lưu trong
+     * metadata.attachments khi câu hỏi được nhập từ gói ZIP (xem questionStoreFromZipPackage()).
+     * Câu hỏi tạo tay (không qua ZIP) không có metadata.attachments -> luôn 404 ở đây, đúng vì
+     * không có tệp gì để tải.
+     */
+    public function questionAttachmentInfo(Question $question, string $kind): array
+    {
+        $attachments = $question->metadata['attachments'] ?? [];
+        if (! isset($attachments[$kind]['path'])) {
+            abort(404);
+        }
+
+        return [
+            'path' => $attachments[$kind]['path'],
+            'filename' => $attachments[$kind]['filename'] ?? basename($attachments[$kind]['path']),
+        ];
+    }
+
+    /**
+     * Mở gói ZIP, đọc + kiểm tra question.json (phải đúng schema "OT360-QPACK" và
+     * content.type = "programming"), gom test case từ các thư mục tests/<số>/ (mỗi thư mục có
+     * 1 tệp chứa "input" trong tên và 1 tệp chứa "output" trong tên — KHÔNG cố định đúng tên
+     * "INPUT.INP"/"OUTPUT.OUT" vì gói khác có thể đặt tên file khác), và đọc luôn nội dung 3
+     * tệp đính kèm cố định (statement.pdf/solution.pdf/reference/official.cpp) nếu có — đọc hết
+     * NGAY TRONG hàm này rồi đóng ZIP luôn, tránh phải giữ ZipArchive mở vắt qua nhiều hàm.
+     *
+     * @return array{json: array, testCases: array<int, array{input:string, output:string}>, attachments: array<string, array{content:string, filename:string}>}
+     */
+    private function parseZipQuestionPackage(UploadedFile $zip): array
+    {
+        $zipArchive = new ZipArchive();
+        if ($zipArchive->open($zip->getRealPath()) !== true) {
+            throw ValidationException::withMessages(['zip_package' => 'Không mở được gói ZIP, kiểm tra lại tệp.']);
+        }
+
+        $jsonRaw = $zipArchive->getFromName('question.json');
+        if ($jsonRaw === false) {
+            $zipArchive->close();
+            throw ValidationException::withMessages(['zip_package' => 'Gói ZIP thiếu tệp question.json ở gốc.']);
+        }
+
+        $json = json_decode($jsonRaw, true);
+        if (! is_array($json)) {
+            $zipArchive->close();
+            throw ValidationException::withMessages(['zip_package' => 'question.json trong gói ZIP không đúng định dạng JSON.']);
+        }
+
+        $schema = (string) ($json['schema'] ?? '');
+        $contentType = (string) ($json['content']['type'] ?? '');
+        if (! str_starts_with($schema, 'OT360-QPACK') || $contentType !== 'programming') {
+            $zipArchive->close();
+            throw ValidationException::withMessages([
+                'zip_package' => 'Gói ZIP không đúng định dạng OT360-QPACK cho câu hỏi lập trình (schema/loại nội dung không khớp).',
+            ]);
+        }
+
+        $attachmentNames = ['statement.pdf' => 'statement', 'solution.pdf' => 'solution', 'reference/official.cpp' => 'reference'];
+        $attachments = [];
+        $testFolders = [];
+
+        for ($i = 0; $i < $zipArchive->numFiles; $i++) {
+            $name = $zipArchive->getNameIndex($i);
+            if ($name === false || str_ends_with($name, '/')) {
+                continue; // thư mục con trong zip, bỏ qua
+            }
+
+            if (isset($attachmentNames[$name])) {
+                $raw = $zipArchive->getFromName($name);
+                if ($raw !== false) {
+                    $attachments[$attachmentNames[$name]] = ['content' => $raw, 'filename' => basename($name)];
+                }
+
+                continue;
+            }
+
+            if (preg_match('#^tests/([^/]+)/([^/]+)$#i', $name, $m)) {
+                $lower = strtolower($m[2]);
+                if (str_contains($lower, 'input')) {
+                    $testFolders[$m[1]]['input'] = $name;
+                } elseif (str_contains($lower, 'output')) {
+                    $testFolders[$m[1]]['output'] = $name;
+                }
+            }
+        }
+
+        ksort($testFolders, SORT_NATURAL);
+        $testCases = [];
+        foreach ($testFolders as $pair) {
+            if (! isset($pair['input'], $pair['output'])) {
+                continue; // thiếu 1 trong 2 vế — không đoán bừa, bỏ qua thư mục test này
+            }
+
+            $input = $zipArchive->getFromName($pair['input']);
+            $output = $zipArchive->getFromName($pair['output']);
+            if ($input === false || $output === false) {
+                continue;
+            }
+
+            $testCases[] = ['input' => $input, 'output' => $output];
+        }
+
+        $zipArchive->close();
+
+        if ($testCases === []) {
+            throw ValidationException::withMessages([
+                'zip_package' => 'Không tìm thấy test case hợp lệ trong gói ZIP (cần thư mục tests/<số>/ chứa 2 tệp input/output).',
+            ]);
+        }
+
+        return ['json' => $json, 'testCases' => $testCases, 'attachments' => $attachments];
+    }
+
+    /**
+     * Mã câu hỏi tự sinh từ TÊN GỐC của tệp ZIP (ví dụ "TIN9TONG_2_SO_001.zip" ->
+     * "TIN9TONG_2_SO_001") — admin không phải tự gõ mã khi nhập từ ZIP. Thêm hậu tố "-2", "-3"...
+     * nếu trùng mã đã có (questionStore() vẫn tự kiểm tra lại lần cuối, đây chỉ để tránh va
+     * trùng ngay từ đầu trong trường hợp thường gặp).
+     */
+    private function deriveUniqueQuestionCode(string $originalFilename): string
+    {
+        $base = trim((string) pathinfo($originalFilename, PATHINFO_FILENAME));
+        $base = $base !== '' ? $base : 'ZIP-IMPORT';
+        $base = mb_substr($base, 0, 36); // chừa chỗ cho hậu tố "-NN" (mã tối đa 40 ký tự)
+
+        $code = $base;
+        $suffix = 1;
+        while ($this->questions->query()->where('code', $code)->exists()) {
+            $suffix++;
+            $code = $base.'-'.$suffix;
+        }
+
+        return $code;
+    }
+
+    /**
+     * Chưa có pipeline đọc/trích nội dung PDF thành text cho Question::body — đề bài thật nằm
+     * trong statement.pdf đính kèm (xem questionAttachmentInfo()). Để trống body sẽ bị
+     * QuestionPublishGuard chặn phát hành (đòi body không rỗng), nên điền 1 dòng ghi chú rõ
+     * ràng thay vì bịa nội dung.
+     */
+    private function placeholderBodyForZipImport(array $content): string
+    {
+        $note = 'Đề bài đầy đủ nằm trong tệp PDF đính kèm (nhập từ gói ZIP) — xem mục "Tệp đính kèm" ở trang Sửa câu hỏi.';
+        $title = $content['title'] ?? null;
+
+        return $title ? "{$title}\n\n{$note}" : $note;
+    }
+
+    /**
+     * Lưu tệp đính kèm (đề/lời giải/code mẫu) vào đúng disk 'local' (riêng tư, giống quy ước
+     * PdfAssessmentEditingService::PDF_DISK) theo đường dẫn khoá bởi $question->id — chỉ gọi
+     * SAU KHI câu hỏi đã tạo (cần id để đặt đường dẫn).
+     *
+     * @param  array<string, array{content:string, filename:string}>  $attachments
+     * @return array<string, array{path:string, filename:string}>
+     */
+    private function storeZipAttachments(Question $question, array $attachments): array
+    {
+        $stored = [];
+        foreach ($attachments as $kind => $attachment) {
+            $extension = pathinfo($attachment['filename'], PATHINFO_EXTENSION) ?: 'bin';
+            $path = "questions/{$question->id}/{$kind}.{$extension}";
+            Storage::disk('local')->put($path, $attachment['content']);
+            $stored[$kind] = ['path' => $path, 'filename' => $attachment['filename']];
+        }
+
+        return $stored;
     }
 
     // ================= Đề/bộ bài (Assessment) =================
