@@ -42,19 +42,7 @@
         </div>
     @endif
 
-    {{-- SỬA 24/8 ("Nhập từ gói ZIP"): CHỈ hiện ở màn Tạo (không phải Sửa) VÀ khi đang chọn loại
-         "Lập trình" ($type === 'coding', xem $type ở @php trên — link chọn loại tải lại trang
-         với ?type=... nên đây là điều kiện SERVER-SIDE, không cần Alpine như bên Admin) — tải
-         lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời giải PDF + test case, định dạng
-         "OT360-QPACK") để hệ thống tự điền toàn bộ thông tin, chỉ cần kiểm tra và Lưu. Xem
-         App\Services\Teacher\QuestionService::storeFromZipPackage(). Ngược lại, ở màn Sửa hiện
-         link tải lại tệp đính kèm nếu câu hỏi này từng được nhập từ ZIP. --}}
     @if (! $question && $type === 'coding')
-        {{-- SỬA 24/8 (2) — khách yêu cầu: chọn xong tệp ZIP là TỰ ĐỘNG nhập ngay, không bắt
-             bấm thêm nút. @change ở input tự gọi requestSubmit() (Alpine — cùng cách dùng
-             @click/@change đã có sẵn ở nơi khác trong dự án, ví dụ student/assessment/
-             take.blade.php). Nút "Nhập từ ZIP" vẫn giữ lại làm phương án dự phòng (JS lỗi/tắt)
-             + hiện trạng thái "Đang xử lý..." ngay khi vừa chọn tệp. --}}
         <form method="POST" action="{{ route('teacher.questions.zipImport') }}" enctype="multipart/form-data"
               x-data="{ submitting: false }"
               class="mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-wrap items-end gap-3">
