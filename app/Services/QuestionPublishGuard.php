@@ -44,7 +44,16 @@ class QuestionPublishGuard
         return \App\Models\AttemptAnswer::where('question_id', $question->id)->exists();
     }
 
-    /** Tạo bản version mới thay vì overwrite khi câu đã có người làm (6.2). */
+    /**
+     * Tạo bản version mới thay vì overwrite khi câu đã có người làm (6.2).
+     * SỬA 24/8 — replicate() copy NGUYÊN cột 'code' từ câu gốc, mà 'code' có ràng buộc UNIQUE
+     * (questions_code_unique) — save() ở dưới trước đây ném UniqueConstraintViolationException
+     * vì bản gốc và bản version mới trùng code y hệt nhau. Tự thêm hậu tố "-vN" (N = version
+     * mới) vào code để vẫn nhận ra được cùng 1 câu gốc mà không trùng — bỏ hậu tố "-vN" CŨ
+     * trước (nếu câu đang sửa cũng đã từng là 1 version trước đó) rồi mới thêm hậu tố mới,
+     * tránh mã dài dần qua nhiều lần tạo version ("...-v2-v3-v4"). substr() phòng khi mã gốc
+     * đã dài gần hết 40 ký tự cho phép (cột 'code' varchar(40)).
+     */
     public function createNewVersion(Question $question, array $changes): Question
     {
         $new = $question->replicate(['created_at', 'updated_at']);
@@ -52,6 +61,10 @@ class QuestionPublishGuard
         $new->version = $question->version + 1;
         $new->parent_version_id = $question->id;
         $new->status = ContentStatus::Draft;
+
+        $rootCode = preg_replace('/-v\d+$/', '', $question->code);
+        $new->code = substr($rootCode.'-v'.$new->version, 0, 40);
+
         $new->save();
 
         return $new;

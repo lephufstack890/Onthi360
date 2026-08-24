@@ -16,7 +16,16 @@
         ];
     @endphp
 
-    <style>[x-cloak] { display: none !important; }</style>
+    {{-- SỬA 24/8 — thêm .rich-content (cùng quy tắc ul/ol/p dùng ở admin/content/show.blade.php,
+         admin/courses/show.blade.php, public/courses/show.blade.php...) vì $q['body'] giờ render
+         RAW (xem lý do ở khối "Nội dung đề bài" bên dưới) — không có style này thì list/đoạn văn
+         CKEditor lưu ra sẽ dính sát nhau, mất dấu đầu dòng. --}}
+    <style>
+        [x-cloak] { display: none !important; }
+        .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content p { margin-bottom: 0.5rem; }
+    </style>
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -139,7 +148,13 @@
 
                             <p class="text-slate-800 font-medium mb-4">{{ $q['title'] }}</p>
                             @if ($q['body'])
-                                <p class="text-sm text-slate-500 mb-4 whitespace-pre-line">{{ $q['body'] }}</p>
+                                {{-- SỬA 24/8 — $q['body'] là HTML do CKEditor lưu ra (thẻ <p>, <ul>...),
+                                     KHÔNG phải text thường — {{ }} escape làm hiện nguyên thẻ ra
+                                     màn hình học sinh (ví dụ "<p>...</p>" hiện thành chữ). Đổi
+                                     sang {!! !!} + <div> (không dùng <p> bọc ngoài vì nội dung
+                                     bên trong đã có thể tự chứa <p> khác, lồng <p> trong <p> là
+                                     HTML không hợp lệ) để hiển thị đúng định dạng đã soạn. --}}
+                                <div class="rich-content text-sm text-slate-500 mb-4">{!! $q['body'] !!}</div>
                             @endif
 
                             @if ($q['type'] === 'mcq')

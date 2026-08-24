@@ -37,7 +37,13 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6">
                 <x-status-badge tone="info">{{ $question->type->value === 'mcq' ? '🔤 Trắc nghiệm' : '✏️ Điền đáp án' }}</x-status-badge>
                 <h3 class="font-semibold text-slate-800 text-lg mt-3 mb-1">{{ $question->title }}</h3>
-                <p class="text-sm text-slate-600 whitespace-pre-line mb-5">{{ $question->body }}</p>
+                {{-- SỬA 24/8 — $question->body là HTML do CKEditor lưu ra (thẻ <p>, <ul>...),
+                     KHÔNG phải text thường — {{ }} escape làm hiện nguyên thẻ ra màn hình học
+                     sinh (ví dụ "<p>...</p>" hiện thành chữ). Đổi sang {!! !!} + <div> (không
+                     dùng <p> bọc ngoài vì nội dung bên trong đã có thể tự chứa <p> khác, lồng
+                     <p> trong <p> là HTML không hợp lệ) để hiển thị đúng định dạng đã soạn —
+                     cùng class .rich-content + quy tắc ul/ol/p ở admin/content/show.blade.php. --}}
+                <div class="rich-content text-sm text-slate-600 mb-5">{!! $question->body !!}</div>
 
                 @if ($question->tags->isNotEmpty())
                     <div class="flex flex-wrap gap-1 mb-5">
@@ -116,3 +122,11 @@
         </div>
     @endif
 @endsection
+
+@push('scripts')
+    <style>
+        .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .rich-content p { margin-bottom: 0.5rem; }
+    </style>
+@endpush
