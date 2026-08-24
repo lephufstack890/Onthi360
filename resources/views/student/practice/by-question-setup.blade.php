@@ -54,7 +54,7 @@
         </div>
 
         <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
-            Chỉ luyện câu Trắc nghiệm/Điền đáp án thuộc Kho chung đã phát hành — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
+            Chỉ luyện câu Trắc nghiệm/Điền đáp án đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
         </div>
 
         <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Bắt đầu luyện ›</button>

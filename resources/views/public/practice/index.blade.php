@@ -163,7 +163,7 @@
                 </div>
 
                 <div class="rounded-xl bg-sky-50 border border-sky-100 p-3.5 text-xs text-sky-700">
-                    Chỉ luyện câu Trắc nghiệm/Điền đáp án thuộc Kho chung đã phát hành — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
+                    Chỉ luyện câu Trắc nghiệm/Điền đáp án đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện.
                 </div>
 
                 <div class="flex flex-col items-center gap-2 pt-1">

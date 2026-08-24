@@ -16,6 +16,26 @@ class TagRepository extends EloquentRepository implements TagRepositoryInterface
     }
 
     /**
+     * SỬA 24/8 — xem docblock ở TagRepositoryInterface::allWithPracticeQuestions(). Cùng điều
+     * kiện với QuestionRepository::idsForPractice(null, []) (đã phát hành, type mcq/fill_blank)
+     * nhưng lọc theo phía Tag qua whereHas('questions', ...) — KHÔNG lọc theo $type/$tagIds cụ
+     * thể ở đây vì đây là danh sách "còn chọn được" hiển thị SẴN cho người dùng trước khi họ
+     * bấm lọc, không phải kết quả của 1 lượt lọc.
+     * SỬA 24/8 (v2) — khách chốt: bỏ điều kiện owner_type='shared' — câu hỏi giáo viên đã phát
+     * hành cũng tính, không chỉ Kho chung (khớp QuestionRepository::idsForPractice() bản mới).
+     */
+    public function allWithPracticeQuestions(): Collection
+    {
+        return $this->query()
+            ->whereHas('questions', function ($q) {
+                $q->where('status', 'published')
+                    ->whereIn('type', ['mcq', 'fill_blank']);
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
      * firstOrCreate() dựa vào collation mặc định của cột 'name' (utf8mb4_unicode_ci — không
      * phân biệt hoa/thường) để tự khớp "đại số" với "Đại Số" đã có sẵn, tránh tự sinh thêm
      * tag gần trùng chỉ vì khác cách viết hoa — KHÔNG tự viết thêm điều kiện LOWER() ở đây.

@@ -64,10 +64,19 @@ class PracticeService
             'canTakeDirectly' => $viewer !== null && $viewer->hasRole(Role::STUDENT),
             // SỬA 24/8 — dữ liệu cho bộ lọc "Luyện tập theo câu" (dạng câu hỏi + chuyên đề) ở
             // đầu trang, khớp đúng $allTags mà student.practiceByQuestion.setup đang dùng.
-            'allTags' => $this->tags->allOrderedByName(),
-            // Đếm nhanh tổng số câu (Kho chung, đã phát hành, Trắc nghiệm/Điền đáp án — cùng
-            // điều kiện idsForPractice(null, []) không lọc gì) để hiện số liệu ở hero, KHÔNG
-            // fetch nội dung từng câu (idsForPractice() chỉ trả về ID).
+            // SỬA 24/8 (v2) — đổi allOrderedByName() → allWithPracticeQuestions(): khách báo
+            // chọn 1 chuyên đề là bị báo "không tìm thấy câu hỏi phù hợp" dù chuyên đề đó "có dữ
+            // liệu" — do allOrderedByName() liệt kê MỌI tag trong hệ thống, kể cả tag chỉ gắn
+            // cho câu Lập trình hoặc câu chưa phát hành (không đủ điều kiện idsForPractice()) —
+            // chọn đúng tag đó chắc chắn ra 0 câu. Giờ chỉ mời chọn chuyên đề THỰC SỰ có câu hỏi
+            // thoả điều kiện luyện.
+            'allTags' => $this->tags->allWithPracticeQuestions(),
+            // SỬA 24/8 (v3) — khách chốt: dùng CẢ câu hỏi kho riêng giáo viên (không chỉ Kho
+            // chung) cho "Luyện tập theo câu" — QuestionRepository::idsForPractice() đã bỏ điều
+            // kiện owner_type='shared', chỉ cần đã phát hành. Đếm nhanh tổng số câu (đã phát
+            // hành, Trắc nghiệm/Điền đáp án — cùng điều kiện idsForPractice(null, []) không lọc
+            // gì) để hiện số liệu ở hero, KHÔNG fetch nội dung từng câu (idsForPractice() chỉ
+            // trả về ID).
             'practiceQuestionsCount' => count($this->questions->idsForPractice(null, [])),
         ];
     }

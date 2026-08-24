@@ -49,10 +49,18 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
         return $this->query()->with('owner')->latest()->limit($limit)->get();
     }
 
+    /**
+     * SỬA 24/8 (v2) — khách chốt: "Luyện tập theo câu" dùng CẢ câu hỏi thuộc kho riêng giáo
+     * viên, không chỉ Kho chung nữa — bỏ hẳn điều kiện where('owner_type', 'shared'). "Đã
+     * phát hành" (status=published) vẫn là điều kiện chặn duy nhất còn lại — giáo viên phải tự
+     * bấm Phát hành ở câu đó thì câu mới vào được vòng luyện công khai này, câu Nháp không bao
+     * giờ lọt ra dù thuộc kho ai. Cố ý KHÔNG lọc theo cột 'visibility' (câu giáo viên tạo mặc
+     * định visibility=private, xem Teacher\QuestionService::store() — lọc thêm điều kiện đó sẽ
+     * loại sạch mọi câu giáo viên, ngược lại đúng yêu cầu khách vừa chốt).
+     */
     public function idsForPractice(?string $type, array $tagIds): array
     {
         return $this->query()
-            ->where('owner_type', 'shared')
             ->where('status', 'published')
             ->whereIn('type', ['mcq', 'fill_blank'])
             ->when($type, fn (Builder $q) => $q->where('type', $type))
