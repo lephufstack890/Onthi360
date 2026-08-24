@@ -8,7 +8,7 @@
 
     <a href="{{ route('admin.access-rights.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Quyền truy cập</a>
 
-    <x-page-header title="🔐 Cấp quyền truy cập" subtitle="Cấp trực tiếp — KHÁC với luồng đơn hàng (7.4). Chỉ dùng khi có lý do rõ ràng (hỗ trợ, đền bù, tặng...)." />
+    <x-page-header title="🔐 Cấp quyền truy cập" subtitle="Cấp trực tiếp — KHÁC với luồng đơn hàng. Chỉ dùng khi có lý do rõ ràng (hỗ trợ, đền bù, tặng...)." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -65,7 +65,7 @@
             </div>
 
             <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
-                Quyền có hiệu lực <span class="font-medium">ngay khi cấp</span> — thời hạn tính từ thời điểm này, không phải lúc tạo đơn (7.4).
+                Quyền có hiệu lực <span class="font-medium">ngay khi cấp</span> — thời hạn tính từ thời điểm này, không phải lúc tạo đơn
             </div>
 
             <div class="flex gap-3 pt-2">

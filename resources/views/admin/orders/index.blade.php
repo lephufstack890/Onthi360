@@ -12,7 +12,7 @@
         $tokenTopups = $tokenTopups ?? [];
     @endphp
 
-    <x-page-header title="🧾 Đơn hàng" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log (7.4)." />
+    <x-page-header title="🧾 Đơn hàng" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log." />
 
     @if (session('status') === 'topup-approved')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã duyệt — đã cộng token cho học sinh.'])

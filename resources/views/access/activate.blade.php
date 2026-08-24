@@ -13,7 +13,7 @@
         <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
             <div class="text-4xl mb-3">🔑</div>
             <h1 class="text-lg font-semibold text-slate-800 mb-1">Kích hoạt mã</h1>
-            <p class="text-sm text-slate-500 mb-6">Thời hạn quyền bắt đầu tính từ lúc kích hoạt — không phải lúc đặt đơn (7.4).</p>
+            <p class="text-sm text-slate-500 mb-6">Thời hạn quyền bắt đầu tính từ lúc kích hoạt — không phải lúc đặt đơn</p>
 
             <form class="space-y-4 text-left">
                 <div>
@@ -25,7 +25,7 @@
 
             {{-- Ví dụ trạng thái lỗi — TODO: hiển thị đúng theo phản hồi server --}}
             <div class="mt-4 rounded-lg bg-rose-50 border border-rose-100 p-3 text-xs text-rose-700 text-left">
-                Mã này thuộc phạm vi "Dùng để dạy" — không thể kích hoạt thành quyền học cá nhân (7.4).
+                Mã này thuộc phạm vi "Dùng để dạy" — không thể kích hoạt thành quyền học cá nhân.
             </div>
         </div>
     </div>

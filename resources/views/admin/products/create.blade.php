@@ -123,7 +123,7 @@
             </div>
             <div class="flex items-start gap-3">
                 <x-icon-tile emoji="⏳" tone="violet" />
-                <p class="text-sm text-slate-500">"Thời hạn quyền" là mặc định khi kích hoạt mã/cấp quyền — mỗi lần cấp vẫn có thể chỉnh riêng (7.4).</p>
+                <p class="text-sm text-slate-500">"Thời hạn quyền" là mặc định khi kích hoạt mã/cấp quyền — mỗi lần cấp vẫn có thể chỉnh riêng.</p>
             </div>
         </div>
     </div>

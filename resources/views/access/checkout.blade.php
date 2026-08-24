@@ -25,7 +25,7 @@
 
         <div class="bg-white rounded-2xl border border-slate-200 p-6">
             <h1 class="text-lg font-semibold text-slate-800 mb-1">Đặt đơn</h1>
-            <p class="text-sm text-slate-500 mb-6">Tạo đơn ≠ đã thanh toán ≠ đã có quyền — thời hạn chỉ bắt đầu khi bạn kích hoạt mã (7.4).</p>
+            <p class="text-sm text-slate-500 mb-6">Tạo đơn ≠ đã thanh toán ≠ đã có quyền — thời hạn chỉ bắt đầu khi bạn kích hoạt mã</p>
 
             <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 mb-4">
                 <div>
