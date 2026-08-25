@@ -60,9 +60,19 @@
                         </h2>
                         <div class="divide-y divide-slate-100">
                             @foreach ($toc as $i => $chap)
+                                @php $readable = $owned && ($chap['hasContent'] ?? false); @endphp
                                 <div class="flex items-center gap-3 py-3">
                                     <span class="w-7 h-7 rounded-full bg-rose-50 text-rose-600 text-xs font-semibold flex items-center justify-center shrink-0">{{ $i + 1 }}</span>
-                                    <p class="text-sm text-slate-700">{{ $chap['title'] }}</p>
+                                    @if ($readable)
+                                        <a href="{{ route('student.materials.read', $chap['id']) }}" class="text-sm text-slate-700 hover:text-rose-600">{{ $chap['title'] }}</a>
+                                    @else
+                                        <p class="text-sm text-slate-500 flex items-center gap-1">
+                                            {{ $chap['title'] }}
+                                            @if ($chap['hasContent'] ?? false)
+                                                <span class="text-slate-300" title="Cần mua quyền để đọc">🔒</span>
+                                            @endif
+                                        </p>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

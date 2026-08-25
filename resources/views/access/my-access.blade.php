@@ -19,6 +19,12 @@
 
     <x-page-header title="Quyền của tôi" subtitle="Hết hạn vẫn xem được lịch sử nộp, điểm và kết quả cũ — chỉ không đọc/làm/nộp mới nội dung được bảo vệ (7.3)." />
 
+    {{-- SỬA 25/8: flash sau khi kích hoạt mã thành công (access.activate.store), xem
+         App\Http\Controllers\Access\AccessController::activateStore(). --}}
+    @if (session('status') === 'code-activated')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Kích hoạt thành công — quyền đã có hiệu lực ngay bây giờ.'])
+    @endif
+
     <x-tabs :tabs="$tabs" />
 
     <div class="space-y-3">

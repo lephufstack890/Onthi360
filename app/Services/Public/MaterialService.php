@@ -88,7 +88,16 @@ class MaterialService
 
         return [
             'material' => $product,
-            'toc' => $product->materials->map(fn ($m) => ['id' => $m->id, 'title' => $m->title])->all(),
+            // SỬA 25/8 ("đọc bài"): thêm 'hasContent' — chỉ bài đã có PDF mới có gì để đọc.
+            // Blade dùng cờ này CÙNG VỚI 'owned' bên dưới để quyết định mục lục có bấm vào
+            // đọc được không (đủ 2 điều kiện: đã mua VÀ bài đó có nội dung) — xem
+            // resources/views/public/materials/show.blade.php. Quyền đọc THẬT vẫn luôn được
+            // App\Services\AccessGateService kiểm tra lại ở route đọc, đây chỉ là hiển thị.
+            'toc' => $product->materials->map(fn ($m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'hasContent' => $m->pdf_path !== null,
+            ])->all(),
             'ratingAverage' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
             'ratingCount' => $summary->review_count ?? 0,
             'owned' => $owned,

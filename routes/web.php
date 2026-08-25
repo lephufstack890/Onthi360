@@ -15,6 +15,7 @@ use App\Http\Controllers\Public\TeacherController as PublicTeacherController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
 use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
 use App\Http\Controllers\Student\PracticeByQuestionController as StudentPracticeByQuestionController;
 use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
@@ -113,6 +114,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');
         Route::post('attempts/{attempt}/answers', [StudentAssessmentController::class, 'saveAnswers'])->name('assessment.take.save');
         Route::post('attempts/{attempt}/submit', [StudentAssessmentController::class, 'submit'])->name('assessment.take.submit');
+        // SỬA 25/8 ("đọc bài" — Sách/Chuyên đề/Đề thi): quyền đọc kiểm tra qua
+        // App\Services\AccessGateService::canAccessMaterial() (đúng 1 nơi kiểm tra quyền học
+        // liệu của toàn hệ thống, xem MaterialReadService). File PDF phục vụ qua route riêng
+        // (materials.file), gọi bằng fetch() từ trang đọc — không phải link tải trực tiếp.
+        Route::get('materials/{material}', [StudentMaterialController::class, 'read'])->name('materials.read');
+        Route::get('materials/{material}/file', [StudentMaterialController::class, 'pdfFile'])->name('materials.file');
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
@@ -222,7 +229,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('quyen')->name('access.')->group(function () {
         Route::get('/dat-don/{product}', [AccessController::class, 'checkout'])->name('checkout');
+        // SỬA 25/8 — nối "Đặt đơn" thành submit thật (trước đây chỉ có GET hiển thị trang, xem
+        // AccessService::placeOrder()).
+        Route::post('/dat-don/{product}', [AccessController::class, 'store'])->name('checkout.store');
         Route::get('/kich-hoat', [AccessController::class, 'activate'])->name('activate');
+        // SỬA 25/8 — nối "Kích hoạt" thành submit thật (xem AccessService::activateCode()).
+        Route::post('/kich-hoat', [AccessController::class, 'activateStore'])->name('activate.store');
         Route::get('/cua-toi', [AccessController::class, 'myAccess'])->name('myAccess');
         Route::get('/khoa/{material}', [AccessController::class, 'blocked'])->name('blocked');
     });
