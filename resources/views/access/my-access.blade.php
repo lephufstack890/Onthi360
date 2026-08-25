@@ -19,6 +19,12 @@
 
     <x-page-header title="Quyền của tôi" subtitle="Hết hạn vẫn xem được lịch sử nộp, điểm và kết quả cũ — chỉ không đọc/làm/nộp mới nội dung được bảo vệ (7.3)." />
 
+    {{-- SỬA 25/8 (2): "lưu lại lịch sử đặt mua có học sinh luôn" — liên kết sang access.history
+         (liệt kê Order thô, khác trang này chỉ hiện AccessRight). --}}
+    <div class="mb-4">
+        <a href="{{ route('access.history') }}" class="text-sm text-rose-600 font-medium inline-flex items-center gap-1">🧾 Xem lịch sử đặt mua</a>
+    </div>
+
     {{-- SỬA 25/8: flash sau khi kích hoạt mã thành công (access.activate.store), xem
          App\Http\Controllers\Access\AccessController::activateStore(). --}}
     @if (session('status') === 'code-activated')

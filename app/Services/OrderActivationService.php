@@ -123,6 +123,35 @@ class OrderActivationService
         });
     }
 
+    /**
+     * SỬA 25/8 (2) — thanh toán token: hoàn tất đơn NGAY, không qua bước admin duyệt (khác
+     * approveOfflineOrder() ở trên, vẫn giữ nguyên cho nhánh thanh toán ngoài hệ thống). Sinh
+     * mã kích hoạt cho từng item RỒI kích hoạt luôn cho đúng người mua qua activate() đã có sẵn
+     * — vẫn giữ đúng bất biến "AccessRight chỉ được tạo qua activate()", chỉ khác ở chỗ gọi
+     * activate() ngay lập tức thay vì chờ học sinh tự nhập mã ở trang Kích hoạt.
+     */
+    public function completeInstantly(Order $order, User $user): Order
+    {
+        return DB::transaction(function () use ($order, $user) {
+            $order->items()->with('product')->get()->each(function (OrderItem $item) use ($user) {
+                for ($i = 0; $i < $item->quantity; $i++) {
+                    $code = ActivationCode::create([
+                        'code' => $this->generateUniqueCode(),
+                        'order_item_id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'scope' => $item->scope,
+                        'status' => ActivationCodeStatus::Unused,
+                        'validity_months' => $item->product->duration_months,
+                    ]);
+
+                    $this->activate($code, $user);
+                }
+            });
+
+            return $order->refresh();
+        });
+    }
+
     private function generateUniqueCode(): string
     {
         do {

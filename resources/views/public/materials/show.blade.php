@@ -22,6 +22,16 @@
     </div>
 
     <div class="max-w-6xl mx-auto px-4 pb-14 -mt-2">
+        {{-- SỬA 25/8 (2): flash sau khi đặt đơn thành công ở access.checkout.store — "đặt xong
+             thì chuyển qua trang tài liệu luôn" (xem AccessController::store()). Token trả ngay
+             -> có quyền đọc tức thì; Offline -> vẫn chờ admin duyệt như trước. --}}
+        @if (session('status') === 'access-granted')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đặt mua thành công — token đã được trừ và bạn có thể đọc bài ngay bây giờ!'])
+        @endif
+        @if (session('status') === 'order-placed')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo đơn '.session('orderNo').' — chờ admin duyệt, bạn sẽ nhận mã kích hoạt qua email/thông báo.'])
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex flex-col sm:flex-row gap-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">

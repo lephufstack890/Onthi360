@@ -67,25 +67,40 @@ class AccessService
             // Chỉ giáo viên đã được duyệt mới thấy scope "Dùng để dạy" (7.2, 7.5).
             'canTeach' => $user->isTeacherApproved(),
             'printPrice' => self::PRINT_PRICE,
+            // SỬA 25/8 (2): hiện số dư token ngay ở trang đặt đơn để học sinh biết đủ trả ngay
+            // hay chưa TRƯỚC khi bấm "Đặt đơn" — tránh phải bấm thử rồi mới biết thiếu.
+            'tokenBalance' => $user->token_balance,
         ];
     }
 
     /**
-     * access.checkout.store (25/8) — SỬA: trước đây nút "Đặt đơn" chưa nối POST thật (ghi chú
-     * cũ trong checkout.blade.php), giờ tạo Order + 1 OrderItem thật, trạng thái luôn
-     * pending_approval + payment_method=offline (P0 chỉ có thanh toán ngoài hệ thống — admin
-     * duyệt, VNPAY còn tắt ở form). ĐÚNG bất biến 7.4 "Tạo đơn ≠ đã thanh toán ≠ đã có quyền":
-     * hàm này CHỈ tạo Order/OrderItem, không đụng gì tới AccessRight — mã kích hoạt chỉ sinh ra
-     * khi admin duyệt (OrderActivationService::approveOfflineOrder(), đã có sẵn từ trước).
+     * access.checkout.store (25/8, SỬA 25/8 (2)) — nút "Đặt đơn" tạo Order + 1 OrderItem thật.
+     * 2 phương thức thanh toán:
+     * - Offline (P0 gốc): trạng thái luôn pending_approval, KHÔNG đụng gì tới AccessRight — mã
+     *   kích hoạt chỉ sinh ra khi admin duyệt (OrderActivationService::approveOfflineOrder()).
+     * - Token (SỬA 25/8 (2), "phải trừ token"): trừ token_balance NGAY, đơn hoàn tất tức thì,
+     *   cấp quyền ngay qua OrderActivationService::completeInstantly() — không chờ admin.
+     * Cả 2 nhánh đều giữ đúng bất biến 7.4 "Tạo đơn ≠ đã thanh toán ≠ đã có quyền": AccessRight
+     * luôn chỉ được tạo qua OrderActivationService::activate(), không bao giờ tạo trực tiếp ở đây.
      *
-     * @param  array{scope: string, include_print?: bool}  $data
+     * SỬA 25/8 (2), "cái nào đã đặt rồi thì không được đặt nữa": chặn đặt trùng nếu user ĐÃ có
+     * quyền còn hiệu lực (đúng scope) hoặc đang có đơn chưa xử lý xong cho đúng sản phẩm+scope
+     * này — quyền cũ đã HẾT HẠN thì vẫn cho đặt lại (luồng "Gia hạn" ở access.myAccess).
      *
-     * @throws ValidationException nếu chọn scope "Dùng để dạy" mà chưa được duyệt giáo viên.
+     * @param  array{scope: string, include_print?: bool, payment_method?: string}  $data
+     *
+     * @throws ValidationException nếu chọn scope "Dùng để dạy" mà chưa được duyệt giáo viên,
+     *                              nếu đã có quyền/đơn đang xử lý cho sản phẩm này, hoặc (khi
+     *                              payment_method=token) nếu số dư token không đủ — lỗi này
+     *                              dùng riêng key 'insufficient_token' để Controller biết mà
+     *                              chuyển hướng sang trang nạp token (wallet.index) thay vì
+     *                              quay lại trang đặt đơn.
      */
     public function placeOrder(User $user, int $productId, array $data): Order
     {
         $product = $this->products->findOrFail($productId);
         $scope = AccessScope::from($data['scope']);
+        $paymentMethod = PaymentMethod::from($data['payment_method'] ?? PaymentMethod::Offline->value);
 
         if ($scope === AccessScope::TeacherTeaching && ! $user->isTeacherApproved()) {
             throw ValidationException::withMessages([
@@ -93,15 +108,38 @@ class AccessService
             ]);
         }
 
+        $alreadyActive = $this->accessRights->forUserWithProduct($user->id)
+            ->contains(fn (AccessRight $ar) => $ar->product_id === $product->id
+                && $ar->scope === $scope
+                && $ar->isCurrentlyActive());
+
+        if ($alreadyActive) {
+            throw ValidationException::withMessages([
+                'product' => 'Bạn đã có quyền còn hiệu lực với học liệu này rồi — không cần đặt lại.',
+            ]);
+        }
+
+        if ($this->orders->hasOpenOrderForProduct($user->id, $product->id, $scope->value)) {
+            throw ValidationException::withMessages([
+                'product' => 'Bạn đã có một đơn đang xử lý cho học liệu này — vui lòng chờ xử lý xong trước khi đặt thêm.',
+            ]);
+        }
+
         $includePrint = (bool) ($data['include_print'] ?? false);
         $totalAmount = $product->price + ($includePrint ? self::PRINT_PRICE : 0);
 
-        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $totalAmount) {
+        if ($paymentMethod === PaymentMethod::Token && $user->token_balance < $totalAmount) {
+            throw ValidationException::withMessages([
+                'insufficient_token' => 'Số dư token không đủ để thanh toán — vui lòng nạp thêm token.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $totalAmount, $paymentMethod) {
             $order = $this->orders->create([
                 'order_no' => $this->generateUniqueOrderNo(),
                 'buyer_id' => $user->id,
-                'status' => OrderStatus::PendingApproval->value,
-                'payment_method' => PaymentMethod::Offline->value,
+                'status' => ($paymentMethod === PaymentMethod::Token ? OrderStatus::Completed : OrderStatus::PendingApproval)->value,
+                'payment_method' => $paymentMethod->value,
                 'total_amount' => $totalAmount,
             ]);
 
@@ -117,7 +155,15 @@ class AccessService
                 'print_shipping_info' => null,
             ]);
 
-            return $order;
+            if ($paymentMethod === PaymentMethod::Token) {
+                // Trừ token TRONG transaction — nếu completeInstantly() phía sau lỗi thì rollback
+                // luôn cả 2, không để mất token mà không ra quyền (16 mục 3).
+                $user->decrement('token_balance', $totalAmount);
+
+                $this->orderActivation->completeInstantly($order, $user);
+            }
+
+            return $order->fresh();
         });
     }
 
@@ -232,6 +278,48 @@ class AccessService
         ])->values()->all();
 
         return ['tab' => $tab, 'tabs' => $tabs, 'rights' => $rights];
+    }
+
+    /**
+     * access.history (mới 25/8 (2)) — "nhớ lưu lại lịch sử đặt mua có học sinh luôn": liệt kê
+     * TOÀN BỘ Order do CHÍNH user này đặt (buyer_id), mới nhất trước — khác access.myAccess vốn
+     * chỉ hiện AccessRight (quyền hiện có), không hiện Order (đơn) thô kèm trạng thái xử lý.
+     */
+    public function purchaseHistoryData(User $user): array
+    {
+        $orders = $this->orders->forBuyerWithItems($user->id);
+
+        return [
+            'orders' => $orders->map(fn (Order $o) => [
+                'orderNo' => $o->order_no,
+                'createdAt' => $o->created_at,
+                'items' => $o->items->map(fn ($item) => [
+                    'title' => $item->product->title ?? 'Học liệu',
+                    'scope' => $item->scope === AccessScope::TeacherTeaching ? 'Dùng để dạy' : 'Học cá nhân',
+                ])->all(),
+                'totalAmount' => $o->total_amount,
+                'paymentMethod' => match ($o->payment_method) {
+                    PaymentMethod::Token => 'Token',
+                    PaymentMethod::Vnpay => 'VNPAY',
+                    default => 'Ngoài hệ thống',
+                },
+                'status' => match ($o->status) {
+                    OrderStatus::Completed => 'Hoàn tất',
+                    OrderStatus::Approved => 'Đã duyệt',
+                    OrderStatus::PendingApproval => 'Chờ duyệt',
+                    OrderStatus::PendingPayment => 'Chờ thanh toán',
+                    OrderStatus::Rejected => 'Từ chối',
+                    OrderStatus::Canceled => 'Đã huỷ',
+                    OrderStatus::Refunded => 'Đã hoàn tiền',
+                    default => 'Khác',
+                },
+                'tone' => match ($o->status) {
+                    OrderStatus::Completed, OrderStatus::Approved => 'success',
+                    OrderStatus::PendingApproval, OrderStatus::PendingPayment => 'warning',
+                    default => 'neutral',
+                },
+            ])->all(),
+        ];
     }
 
     /**

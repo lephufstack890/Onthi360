@@ -26,6 +26,11 @@
         @if (session('status') === 'topup-requested')
             @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo yêu cầu nạp token — chuyển khoản đúng nội dung bên dưới rồi chờ Admin duyệt.'])
         @endif
+        {{-- SỬA 25/8 (2): "nếu không đủ token thì chuyển sang trang bắt học sinh phải nạp" —
+             AccessController::store() chuyển hẳn về đây khi placeOrder() báo thiếu token. --}}
+        @if (session('status') === 'need-topup')
+            @include('partials.toast-flash', ['type' => 'warning', 'message' => 'Số dư token không đủ để đặt mua học liệu — vui lòng nạp thêm token bên dưới rồi quay lại đặt đơn.'])
+        @endif
         @if ($errors->any())
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif

@@ -237,6 +237,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/kich-hoat', [AccessController::class, 'activateStore'])->name('activate.store');
         Route::get('/cua-toi', [AccessController::class, 'myAccess'])->name('myAccess');
         Route::get('/khoa/{material}', [AccessController::class, 'blocked'])->name('blocked');
+        // SỬA 25/8 (2) — "lưu lại lịch sử đặt mua có học sinh luôn", xem
+        // AccessService::purchaseHistoryData().
+        Route::get('/lich-su', [AccessController::class, 'history'])->name('history');
     });
 
     Route::prefix('vi')->name('wallet.')->group(function () {
