@@ -76,6 +76,25 @@ class ContentService
     ];
 
     /**
+     * Nhãn tiếng Việt cho Material::type — nguồn DUY NHẤT, dùng cả ở dropdown tạo/sửa học
+     * liệu (materialCreateFormData()) lẫn cột "Loại" của bảng Nội dung (indexData()). Trước
+     * đây bảng Nội dung hiện thẳng $m->type (chuỗi thô "assessment_ref"...) — khó hiểu với
+     * người dùng, đã báo lại và sửa ở đây.
+     */
+    private const MATERIAL_TYPE_LABELS = [
+        'chapter' => 'Chương',
+        'section' => 'Bài/Mục',
+        'assessment_ref' => 'Tham chiếu đề/bộ bài',
+    ];
+
+    /** Nhãn tiếng Việt cho Question::type — nguồn DUY NHẤT, dùng cả ở dropdown tạo/sửa câu hỏi (questionCreateFormData()) lẫn cột "Loại" của bảng Nội dung (indexData()), cùng lý do như MATERIAL_TYPE_LABELS ở trên. */
+    private const QUESTION_TYPE_LABELS = [
+        'coding' => 'Lập trình (OJ)',
+        'mcq' => 'Trắc nghiệm',
+        'fill_blank' => 'Điền khuyết',
+    ];
+
+    /**
      * Kho câu hỏi chung dùng chung cho toàn hệ thống (6.5: "Kho chung: Editor/Admin/Super
      * Admin quản lý"). Tự tạo nếu chưa seed sẵn (môi trường mới/production chưa chạy
      * DemoDataSeeder) — không bắt admin phải tự quản lý khái niệm "bank" khi tạo câu hỏi.
@@ -174,7 +193,7 @@ class ContentService
             $rows = $this->questions->allLatestWithOwner(50)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
-                return ['id' => $q->id, 'title' => $q->title, 'type' => $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
+                return ['id' => $q->id, 'title' => $q->title, 'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
             })->all();
         } elseif ($tab === 'assessments') {
             $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {
@@ -182,7 +201,7 @@ class ContentService
                 $isTeacherOwned = $a->owner_type !== OwnerType::Shared;
 
                 return [
-                    'id' => $a->id, 'title' => $a->title, 'type' => $a->type->value, 'status' => $label, 'tone' => $tone,
+                    'id' => $a->id, 'title' => $a->title, 'type' => $a->type->label(), 'status' => $label, 'tone' => $tone,
                     'owner' => $isTeacherOwned ? 'GV '.($a->creator->name ?? '') : 'Kho chung',
                     // SỬA 19/8 (Giai đoạn 4 — "Admin duyệt đưa đề GV ra kho chung"): chỉ đề
                     // của giáo viên mới cần nút duyệt — đề đã ở Kho chung thì không có gì để
@@ -204,7 +223,7 @@ class ContentService
             $rows = $this->materials->latestWithProduct(50)->map(function ($m) {
                 [$label, $tone] = $this->statusLabel($m->status);
 
-                return ['id' => $m->id, 'title' => $m->title, 'type' => $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung'];
+                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung'];
             })->all();
         }
 
@@ -416,7 +435,7 @@ class ContentService
             'parents' => $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order')->get()
                 ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
             'assessments' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
-            'types' => ['chapter' => 'Chương', 'section' => 'Bài/Mục', 'assessment_ref' => 'Tham chiếu đề/bộ bài'],
+            'types' => self::MATERIAL_TYPE_LABELS,
             'statuses' => $this->statusOptions(),
         ];
     }
@@ -485,7 +504,7 @@ class ContentService
     public function questionCreateFormData(): array
     {
         return [
-            'types' => ['coding' => 'Lập trình (OJ)', 'mcq' => 'Trắc nghiệm', 'fill_blank' => 'Điền khuyết'],
+            'types' => self::QUESTION_TYPE_LABELS,
             'visibilities' => ['public' => 'Công khai', 'private' => 'Riêng tư (nội bộ)'],
             // SỬA 19/8 (Giai đoạn 6): danh sách tag có sẵn để tick chọn ở form — xem
             // resolveTagIds() (cho phép gõ thêm tag MỚI ngay trong form, không bắt buộc phải

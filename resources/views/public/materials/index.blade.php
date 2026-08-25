@@ -23,7 +23,7 @@
             @forelse ($materials as $m)
                 <x-card-item :title="$m['title']" :meta="$m['meta']" :average="$m['average']" :count="$m['count']"
                              href="{{ route('materials.show', $m['id']) }}" :badgeLabel="$m['badge']" :badgeTone="$m['tone']"
-                             :owned="$m['owned'] ?? false" />
+                             :owned="$m['owned'] ?? false" :image="$m['image']" />
             @empty
                 <div class="col-span-full">
                     <x-empty-state title="Chưa có tài liệu trong danh mục này" description="Thử chọn danh mục khác ở trên." />

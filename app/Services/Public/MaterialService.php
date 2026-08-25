@@ -92,6 +92,9 @@ class MaterialService
             'ratingAverage' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
             'ratingCount' => $summary->review_count ?? 0,
             'owned' => $owned,
+            // Dùng đúng 1 hàm coverUrl() — y hệt ảnh đã hiện ở thẻ danh sách (mapCard()) —
+            // để trang chi tiết KHÔNG BAO GIỜ lệch ảnh bìa so với thẻ ngoài danh sách nữa.
+            'coverUrl' => $this->coverUrl($product),
         ];
     }
 
@@ -143,7 +146,92 @@ class MaterialService
             'badge' => $badgeLabel,
             'tone' => $badgeTone,
             'owned' => $ownedProductIds->contains($product->id),
+            'image' => $this->coverUrl($product),
         ];
+    }
+
+    /**
+     * Ảnh bìa 1 sản phẩm — dùng CHUNG bởi cả thẻ danh sách (mapCard) lẫn trang chi tiết
+     * (showData), để 2 nơi luôn hiện đúng 1 ảnh giống nhau, không lệch nhau như trước đây
+     * (khi mỗi nơi tự vẽ ảnh/placeholder riêng theo 2 cách khác nhau).
+     *
+     * Có ảnh bìa thật (admin đã tải lên qua Admin\ProductController) → dùng đúng ảnh đó,
+     * cùng cách lấy URL với resources/views/admin/products/edit.blade.php
+     * (asset('storage/'.cover_image_path)). Chưa có ảnh thật → tự vẽ 1 ảnh bìa SVG ngay
+     * trên server (gradient thương hiệu + tên tài liệu), không phụ thuộc dịch vụ ảnh ngoài
+     * (trước đây trang danh sách dùng picsum.photos — ảnh ngẫu nhiên không liên quan nội
+     * dung, còn trang chi tiết lại tự vẽ 1 kiểu placeholder khác — đây chính là nguyên nhân
+     * "ảnh thumbnail không khớp với ảnh ngoài" đã được báo).
+     */
+    private function coverUrl(Product $product): string
+    {
+        return $product->cover_image_path
+            ? asset('storage/'.$product->cover_image_path)
+            : $this->placeholderCoverDataUri($product->title);
+    }
+
+    /** Bìa tạm dạng SVG (data URI) khi sản phẩm chưa có ảnh bìa thật — màu gradient chọn ổn định theo tiêu đề (không đổi mỗi lần tải lại trang), tái dùng đúng bảng màu thương hiệu hiện có. */
+    private function placeholderCoverDataUri(string $title): string
+    {
+        $palettes = [
+            ['#f43f5e', '#be123c'],
+            ['#f59e0b', '#ea580c'],
+            ['#0ea5e9', '#1d4ed8'],
+            ['#10b981', '#0f766e'],
+            ['#8b5cf6', '#7e22ce'],
+        ];
+        [$from, $to] = $palettes[crc32($title) % count($palettes)];
+
+        $lines = $this->wrapTitle($title, 16, 4);
+        $lineHeight = 30;
+        $startY = 250 - (count($lines) - 1) * $lineHeight / 2;
+
+        $tspans = collect($lines)->map(fn ($line, $i) => sprintf(
+            '<tspan x="200" y="%d">%s</tspan>',
+            (int) round($startY + $i * $lineHeight),
+            htmlspecialchars($line, ENT_QUOTES | ENT_XML1)
+        ))->implode('');
+
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">'
+            .'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+            .'<stop offset="0" stop-color="'.$from.'"/><stop offset="1" stop-color="'.$to.'"/>'
+            .'</linearGradient></defs>'
+            .'<rect width="400" height="400" fill="url(#g)"/>'
+            .'<text x="200" y="150" font-size="56" text-anchor="middle">📘</text>'
+            .'<text font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="24" font-weight="600" fill="#ffffff" text-anchor="middle">'.$tspans.'</text>'
+            .'</svg>';
+
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
+    }
+
+    /** Bẻ tiêu đề thành tối đa $maxLines dòng (~$maxChars ký tự/dòng) để vẽ trong SVG — SVG không tự xuống dòng như CSS line-clamp. */
+    private function wrapTitle(string $title, int $maxChars, int $maxLines): array
+    {
+        $words = preg_split('/\s+/u', trim($title)) ?: [];
+        $lines = [];
+        $current = '';
+
+        foreach ($words as $word) {
+            $candidate = $current === '' ? $word : $current.' '.$word;
+            if ($current === '' || mb_strlen($candidate) <= $maxChars) {
+                $current = $candidate;
+
+                continue;
+            }
+            $lines[] = $current;
+            $current = $word;
+        }
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        if (count($lines) > $maxLines) {
+            $lines = array_slice($lines, 0, $maxLines);
+            $last = rtrim($lines[$maxLines - 1]);
+            $lines[$maxLines - 1] = (mb_strlen($last) > $maxChars - 1 ? mb_substr($last, 0, $maxChars - 1) : $last).'…';
+        }
+
+        return $lines;
     }
 
     /**
