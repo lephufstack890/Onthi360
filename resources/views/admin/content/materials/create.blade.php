@@ -20,7 +20,7 @@
     @endif
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ type: '{{ $defaultType }}' }">
-        <form method="POST" action="{{ route('admin.content.materials.store') }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.content.materials.store') }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
@@ -82,6 +82,25 @@
                         <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
                     @endforeach
                 </x-select>
+            </div>
+
+            {{--
+                SỬA 25/8 (tải bài — 2 trường MỚI, đều TÙY CHỌN, xem ContentService::materialStore()):
+                bỏ trống "Mã bài" mà có tải PDF thì hệ thống tự đặt mã theo tên tệp; bỏ trống cả 2
+                thì Material vẫn tạo được như trước (dùng làm mục lục/chương cha không cần nội dung).
+            --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="code">Mã bài (tùy chọn)</label>
+                    <input id="code" name="code" type="text" value="{{ old('code') }}" maxlength="60"
+                           placeholder="Để trống sẽ tự đặt theo tên tệp PDF"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">Tệp PDF bài học (tùy chọn)</label>
+                    <input id="pdf" name="pdf" type="file" accept="application/pdf"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
             </div>
 
             <div class="flex gap-3 pt-2">

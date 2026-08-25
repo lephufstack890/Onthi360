@@ -28,6 +28,7 @@ use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
 use App\Services\QuestionPublishGuard;
+use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -67,6 +68,16 @@ class ContentService
     public static function maxBulkSourcePdfKb(): int
     {
         return PdfBulkImportService::maxSourcePdfKb();
+    }
+
+    // SỬA 25/8 (tải bài hàng loạt qua ZIP, xem materialsBulkImportFromZip()) — 50MB vì gói
+    // này gồm NHIỀU tệp PDF nội dung (mỗi bài 1 tệp), khác MAX_ZIP_PACKAGE_KB (20MB) của gói
+    // OT360-QPACK chỉ có 1 câu hỏi + test case.
+    private const MAX_BULK_MATERIAL_ZIP_KB = 51200;
+
+    public static function maxBulkMaterialZipKb(): int
+    {
+        return self::MAX_BULK_MATERIAL_ZIP_KB;
     }
 
     private const TYPE_LABELS = [
@@ -440,9 +451,18 @@ class ContentService
         ];
     }
 
+    /**
+     * SỬA 25/8 (tải bài — 16 mục "tải bài hàng loạt"): $data['code']/$data['pdf'] (UploadedFile,
+     * có thể null) là 2 trường MỚI, tùy chọn — xem resolveMaterialCode()/storeMaterialPdf().
+     * Vẫn tạo được Material KHÔNG có mã/PDF như trước (ví dụ Material chỉ là mục lục cha), nên
+     * không phá luồng cũ.
+     */
     public function materialStore(array $data): Material
     {
-        return $this->materials->create([
+        $pdf = $data['pdf'] ?? null;
+        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf);
+
+        $attributes = [
             'product_id' => $data['product_id'],
             'parent_id' => $data['parent_id'] ?: null,
             'type' => $data['type'],
@@ -450,7 +470,16 @@ class ContentService
             'order' => $data['order'] ?? 0,
             'assessment_id' => $data['type'] === 'assessment_ref' ? ($data['assessment_id'] ?: null) : null,
             'status' => $data['status'],
-        ]);
+            'code' => $code,
+        ];
+
+        if ($pdf !== null) {
+            // $code chắc chắn khác null ở đây — pdf khác null thì resolveMaterialCode() luôn
+            // trả về 1 mã (tự gõ hoặc tự sinh từ tên tệp), không bao giờ về nhánh "để NULL".
+            $attributes = array_merge($attributes, $this->storeMaterialPdf((int) $data['product_id'], $code, $pdf));
+        }
+
+        return $this->materials->create($attributes);
     }
 
     public function materialEditFormData(int $id): array
@@ -460,9 +489,20 @@ class ContentService
         ]);
     }
 
+    /**
+     * SỬA 25/8: khách yêu cầu rõ "các bài cần có cơ chế sửa sau khi nhập" — mã bài và PDF ĐỀU
+     * sửa lại được ở đây, không phải tải lên xong là khóa cứng:
+     *  - Đổi mã: gõ mã mới vào $data['code'], assertMaterialCodeAvailable() bỏ qua CHÍNH bản ghi
+     *    đang sửa (2 mục "$material->id" dưới) nên không tự báo trùng với mã cũ của chính nó.
+     *  - Thay PDF: có tải $data['pdf'] mới thì XÓA file PDF cũ trên disk rồi lưu file mới — nếu
+     *    không tải gì thì giữ nguyên pdf_path hiện tại (không đụng vào).
+     */
     public function materialUpdate(Material $material, array $data): Material
     {
-        return $this->materials->update($material, [
+        $pdf = $data['pdf'] ?? null;
+        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf, $material->id);
+
+        $attributes = [
             'product_id' => $data['product_id'],
             'parent_id' => $data['parent_id'] ?: null,
             'type' => $data['type'],
@@ -470,7 +510,18 @@ class ContentService
             'order' => $data['order'] ?? 0,
             'assessment_id' => $data['type'] === 'assessment_ref' ? ($data['assessment_id'] ?: null) : null,
             'status' => $data['status'],
-        ]);
+            'code' => $code,
+        ];
+
+        if ($pdf !== null) {
+            if ($material->pdf_path) {
+                Storage::disk('local')->delete($material->pdf_path);
+            }
+
+            $attributes = array_merge($attributes, $this->storeMaterialPdf((int) $data['product_id'], $code, $pdf));
+        }
+
+        return $this->materials->update($material, $attributes);
     }
 
     /** Không có guard đặc thù cho Material (chỉ Question mới có điều kiện phát hành, 6.2). */
@@ -497,6 +548,176 @@ class ContentService
         Material::$auditReason = null;
 
         return $material;
+    }
+
+    /**
+     * Xác định giá trị 'code' cuối cùng khi tạo/sửa 1 Material — DÙNG CHUNG cho materialStore()
+     * và materialUpdate() (nên đổi quy tắc chỉ cần sửa 1 chỗ):
+     *  - Admin tự gõ mã (khác rỗng) -> kiểm tra trùng TRONG CÙNG sản phẩm rồi dùng nguyên văn
+     *    (assertMaterialCodeAvailable()).
+     *  - Bỏ trống NHƯNG có tải PDF kèm -> tự sinh mã từ TÊN GỐC tệp PDF (giống cơ chế
+     *    questionStoreFromZipPackage(), qua deriveUniqueMaterialCode()).
+     *  - Bỏ trống VÀ không có PDF -> để NULL (Material chỉ làm mục lục/chương cha, chưa cần mã).
+     *
+     * $ignoreMaterialId: khi SỬA, truyền $material->id để bỏ qua CHÍNH bản ghi đang sửa lúc dò
+     * trùng mã — không truyền (null) thì hiểu là đang TẠO MỚI, không có gì để bỏ qua.
+     */
+    private function resolveMaterialCode(int $productId, ?string $rawCode, ?UploadedFile $pdf, ?int $ignoreMaterialId = null): ?string
+    {
+        $code = trim((string) $rawCode);
+
+        if ($code !== '') {
+            $this->assertMaterialCodeAvailable($productId, $code, $ignoreMaterialId);
+
+            return $code;
+        }
+
+        if ($pdf !== null) {
+            return $this->deriveUniqueMaterialCode($productId, $pdf->getClientOriginalName(), $ignoreMaterialId);
+        }
+
+        return null;
+    }
+
+    /**
+     * Mã bài tự sinh từ TÊN GỐC 1 tệp (PDF tải tay hoặc 1 mục trong ZIP hàng loạt) — duy nhất
+     * TRONG PHẠM VI 1 sản phẩm ($productId), KHÁC deriveUniqueQuestionCode() (duy nhất TOÀN hệ
+     * thống) vì 2 quyển sách/chuyên đề khác nhau được phép dùng trùng mã bài. Thuật toán dùng
+     * CHUNG qua App\Support\UniqueCodeFromFilename — xem docblock lớp đó.
+     */
+    private function deriveUniqueMaterialCode(int $productId, string $originalFilename, ?int $ignoreMaterialId = null): string
+    {
+        return UniqueCodeFromFilename::generate(
+            $originalFilename,
+            fn (string $code) => $this->materialCodeExists($productId, $code, $ignoreMaterialId),
+        );
+    }
+
+    /**
+     * Ném lỗi validate nếu mã bài đã dùng TRONG CÙNG sản phẩm — chỉ gọi khi ADMIN TỰ GÕ mã
+     * (nhánh tự sinh ở deriveUniqueMaterialCode() đã tự thêm hậu tố "-2", "-3"... nên không bao
+     * giờ trùng, không cần assert).
+     */
+    private function assertMaterialCodeAvailable(int $productId, string $code, ?int $ignoreMaterialId = null): void
+    {
+        if ($this->materialCodeExists($productId, $code, $ignoreMaterialId)) {
+            throw ValidationException::withMessages([
+                'code' => "Mã bài \"{$code}\" đã được dùng trong sản phẩm này, đổi mã khác.",
+            ]);
+        }
+    }
+
+    private function materialCodeExists(int $productId, string $code, ?int $ignoreMaterialId = null): bool
+    {
+        return $this->materials->query()
+            ->where('product_id', $productId)
+            ->where('code', $code)
+            ->when($ignoreMaterialId, fn ($q) => $q->where('id', '!=', $ignoreMaterialId))
+            ->exists();
+    }
+
+    /**
+     * Lưu 1 tệp PDF bài học vào disk 'local' (riêng tư — giống quy ước
+     * PdfAssessmentEditingService::PDF_DISK, xem migration add_code_and_pdf_to_materials_table).
+     * Đặt tên tệp theo $code (đã được resolveMaterialCode() đảm bảo duy nhất trong sản phẩm) chứ
+     * không theo material->id, vì lúc TẠO MỚI chưa có id — $code thì luôn có sẵn trước khi lưu.
+     *
+     * @return array{pdf_path: string, pdf_original_name: string}
+     */
+    private function storeMaterialPdf(int $productId, string $code, UploadedFile $pdf): array
+    {
+        $path = "materials/{$productId}/{$code}.pdf";
+        Storage::disk('local')->putFileAs("materials/{$productId}", $pdf, "{$code}.pdf");
+
+        return ['pdf_path' => $path, 'pdf_original_name' => $pdf->getClientOriginalName()];
+    }
+
+    // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
+    // Khác materialsStore/Update ở trên (nhập TỪNG bài 1) — bulk tạo NHIỀU Material cùng lúc,
+    // mỗi tệp .pdf ở gốc ZIP = 1 bài, mã bài lấy thẳng từ tên tệp đó (khách chốt 25/8: "đặt tên
+    // các gói zip chính là mã bài"). $type/$parentId/$status áp dụng CHUNG cho cả gói — bài nào
+    // cần khác thì sửa lại riêng sau qua materialsEdit (đã hỗ trợ sửa mã + thay PDF, xem
+    // materialUpdate() ở trên).
+
+    public function materialsBulkImportFormData(): array
+    {
+        return [
+            'products' => $this->products->query()->orderBy('title')->get(['id', 'title'])->all(),
+            'parents' => $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order')->get()
+                ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
+            // 'assessment_ref' KHÔNG có trong danh sách này — loại này chỉ để THAM CHIẾU 1
+            // Assessment đã có sẵn (không có nội dung PDF riêng, xem materialStore()), không hợp
+            // với luồng "mỗi tệp PDF trong ZIP = 1 bài" của bulk import.
+            'types' => array_filter(self::MATERIAL_TYPE_LABELS, fn ($key) => $key !== 'assessment_ref', ARRAY_FILTER_USE_KEY),
+            'statuses' => $this->statusOptions(),
+        ];
+    }
+
+    /**
+     * admin.content.materials.bulk.store — mở gói ZIP, mỗi tệp .pdf nằm NGAY GỐC ZIP (không đọc
+     * thư mục con lồng nhau, tránh đoán bừa cấu trúc nếu khách nén sai cách) tạo thành 1
+     * Material mới. Tiêu đề tạm lấy từ tên tệp (bỏ đuôi .pdf) — admin sửa lại cho gọn sau nếu
+     * cần, không bắt buộc đúng chuẩn ngay từ lúc nhập.
+     *
+     * @throws ValidationException nếu ZIP không mở được hoặc không có tệp .pdf hợp lệ nào ở gốc.
+     * @return Collection<int, Material>
+     */
+    public function materialsBulkImportFromZip(int $productId, string $type, ?int $parentId, string $status, UploadedFile $zip): Collection
+    {
+        $zipArchive = new ZipArchive();
+        if ($zipArchive->open($zip->getRealPath()) !== true) {
+            throw ValidationException::withMessages(['zip_package' => 'Không mở được gói ZIP, kiểm tra lại tệp.']);
+        }
+
+        $pdfEntries = [];
+        for ($i = 0; $i < $zipArchive->numFiles; $i++) {
+            $name = $zipArchive->getNameIndex($i);
+            if ($name === false || str_contains($name, '/') || strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'pdf') {
+                continue; // bỏ qua thư mục con và mọi tệp không phải .pdf nằm ngay gốc ZIP
+            }
+
+            $pdfEntries[] = $name;
+        }
+
+        if ($pdfEntries === []) {
+            $zipArchive->close();
+
+            throw ValidationException::withMessages([
+                'zip_package' => 'Không tìm thấy tệp PDF nào ở gốc gói ZIP (mỗi bài = 1 tệp .pdf, tên tệp sẽ dùng làm mã bài).',
+            ]);
+        }
+
+        natsort($pdfEntries);
+        $pdfEntries = array_values($pdfEntries);
+
+        $created = collect();
+        foreach ($pdfEntries as $order => $name) {
+            $raw = $zipArchive->getFromName($name);
+            if ($raw === false) {
+                continue; // không đọc được entry này (hiếm) — bỏ qua, không chặn cả gói
+            }
+
+            $code = $this->deriveUniqueMaterialCode($productId, $name);
+            $path = "materials/{$productId}/{$code}.pdf";
+            Storage::disk('local')->put($path, $raw);
+
+            $created->push($this->materials->create([
+                'product_id' => $productId,
+                'parent_id' => $parentId,
+                'type' => $type,
+                'title' => pathinfo($name, PATHINFO_FILENAME),
+                'order' => $order,
+                'assessment_id' => null,
+                'status' => $status,
+                'code' => $code,
+                'pdf_path' => $path,
+                'pdf_original_name' => basename($name),
+            ]));
+        }
+
+        $zipArchive->close();
+
+        return $created;
     }
 
     // ================= Câu hỏi kho chung (Question, 6.5) =================
@@ -913,18 +1134,14 @@ class ContentService
      */
     private function deriveUniqueQuestionCode(string $originalFilename): string
     {
-        $base = trim((string) pathinfo($originalFilename, PATHINFO_FILENAME));
-        $base = $base !== '' ? $base : 'ZIP-IMPORT';
-        $base = mb_substr($base, 0, 36); // chừa chỗ cho hậu tố "-NN" (mã tối đa 40 ký tự)
-
-        $code = $base;
-        $suffix = 1;
-        while ($this->questions->query()->where('code', $code)->exists()) {
-            $suffix++;
-            $code = $base.'-'.$suffix;
-        }
-
-        return $code;
+        // SỬA 25/8: thuật toán chuyển sang dùng CHUNG App\Support\UniqueCodeFromFilename với
+        // deriveUniqueMaterialCode() (mã bài học liệu) — khác nhau đúng 1 chỗ là PHẠM VI kiểm
+        // tra trùng ($exists dưới đây: toàn hệ thống cho câu hỏi, trong 1 sản phẩm cho học
+        // liệu), còn lại (cắt đuôi, giới hạn độ dài, thêm hậu tố) là 1 thuật toán duy nhất.
+        return UniqueCodeFromFilename::generate(
+            $originalFilename,
+            fn (string $code) => $this->questions->query()->where('code', $code)->exists(),
+        );
     }
 
     /**

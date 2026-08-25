@@ -18,7 +18,7 @@
     @endif
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ type: '{{ old('type', $material->type) }}' }">
-        <form method="POST" action="{{ route('admin.content.materials.update', $material->id) }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.content.materials.update', $material->id) }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div>
@@ -81,6 +81,31 @@
                         <option value="{{ $value }}" @selected(old('status', $material->status->value) === $value)>{{ $label }}</option>
                     @endforeach
                 </x-select>
+            </div>
+
+            {{--
+                SỬA 25/8 (khách chốt: "các bài cần có cơ chế sửa sau khi nhập" — mã bài và PDF
+                ĐỀU sửa lại được, không phải tải lên xong là khóa cứng, xem ContentService::materialUpdate()).
+                Để trống ô PDF thì GIỮ NGUYÊN tệp hiện tại, không xóa/thay gì cả.
+            --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="code">Mã bài (tùy chọn)</label>
+                    <input id="code" name="code" type="text" value="{{ old('code', $material->code) }}" maxlength="60"
+                           placeholder="Để trống sẽ tự đặt theo tên tệp PDF"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">Tệp PDF bài học (tùy chọn)</label>
+                    @if ($material->pdf_path)
+                        <p class="text-xs text-slate-500 mb-1.5">
+                            📄 Đã có tệp: <span class="font-medium text-slate-600">{{ $material->pdf_original_name ?: basename($material->pdf_path) }}</span>
+                            — chọn tệp mới bên dưới để thay thế.
+                        </p>
+                    @endif
+                    <input id="pdf" name="pdf" type="file" accept="application/pdf"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
             </div>
 
             <div class="flex gap-3 pt-2">

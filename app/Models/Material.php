@@ -27,6 +27,11 @@ class Material extends Model
         // SỬA 18/8 (Bộ đề, 16/8 mục 5) — chỉ có giá trị khi Material này được hệ thống TỰ
         // SINH ra từ việc cắt 1 PDF tổng của Bộ đề, xem migration add_page_range_to_materials.
         'page_from', 'page_to',
+        // SỬA 25/8 (tải bài — từng bài/hàng loạt qua ZIP): 'code' duy nhất TRONG 1 sản phẩm
+        // (product_id, code), không phải toàn hệ thống — xem migration
+        // add_code_and_pdf_to_materials_table. 'pdf_path' lưu ở disk riêng tư 'local', xem
+        // App\Services\Admin\ContentService::materialStore()/materialsBulkImportFromZip().
+        'code', 'pdf_path', 'pdf_original_name',
     ];
 
     protected $casts = [

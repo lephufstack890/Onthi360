@@ -17,6 +17,9 @@
         <x-slot:actions>
             @if ($tab === 'materials')
                 <a href="{{ route('admin.content.materials.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo học liệu</a>
+                {{-- SỬA 25/8 ("tải bài hàng loạt" qua ZIP): tạo nhiều bài (Material) cùng lúc
+                     cho 1 sản phẩm — khác hẳn nút "+ Tạo học liệu" ở trên (tạo TỪNG bài 1 lần). --}}
+                <a href="{{ route('admin.content.materials.bulk.create') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải bài (hàng loạt qua ZIP)</a>
             @elseif ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo câu hỏi</a>
             @elseif ($tab === 'assessments')
@@ -31,6 +34,8 @@
 
     @if (session('status') === 'assessments-bulk-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo '.session('bulkCreatedCount').' đề PDF — vào từng đề để nhập đáp án.'])
+    @elseif (session('status') === 'materials-bulk-imported')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tải lên '.session('bulkCreatedCount').' bài — vào từng bài nếu cần sửa tên/mã/PDF.'])
     @elseif (session('status') === 'assessment-promoted-shared')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đưa đề vào Kho chung.'])
     @elseif (session('status') === 'tag-created')

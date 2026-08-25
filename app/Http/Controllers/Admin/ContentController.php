@@ -57,9 +57,19 @@ class ContentController extends Controller
             'order' => ['nullable', 'integer', 'min:0'],
             'assessment_id' => ['nullable', 'integer', 'exists:assessments,id'],
             'status' => ['required', 'string', 'in:draft,pending_review,published,archived'],
-        ]);
+            // SỬA 25/8 (tải bài — cả 2 đều TÙY CHỌN, không phá form tạo mục lục cũ không cần
+            // mã/PDF): mã trùng trong CÙNG sản phẩm được ContentService::materialStore() ném
+            // ValidationException riêng (không kiểm tra được bằng rule 'unique' đơn giản vì
+            // phạm vi trùng lặp lồng theo product_id, xem assertMaterialCodeAvailable()).
+            'code' => ['nullable', 'string', 'max:60'],
+            'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học']);
 
-        $material = $this->contentService->materialStore($data);
+        try {
+            $material = $this->contentService->materialStore($data);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.content.show', $material->id)->with('status', 'material-created');
     }
@@ -79,9 +89,17 @@ class ContentController extends Controller
             'order' => ['nullable', 'integer', 'min:0'],
             'assessment_id' => ['nullable', 'integer', 'exists:assessments,id'],
             'status' => ['required', 'string', 'in:draft,pending_review,published,archived'],
-        ]);
+            // SỬA 25/8 (tải bài — "cần có cơ chế sửa sau khi nhập"): để trống 'pdf' thì GIỮ
+            // NGUYÊN file cũ (materialUpdate() chỉ đụng vào pdf_path khi có tải file mới).
+            'code' => ['nullable', 'string', 'max:60'],
+            'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học']);
 
-        $this->contentService->materialUpdate($material, $data);
+        try {
+            $this->contentService->materialUpdate($material, $data);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.content.show', $material->id)->with('status', 'material-updated');
     }
@@ -107,6 +125,46 @@ class ContentController extends Controller
         $this->contentService->materialArchive($material, $data['reason']);
 
         return redirect()->route('admin.content.show', $material->id)->with('status', 'material-archived');
+    }
+
+    // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
+    // Xem App\Services\Admin\ContentService::materialsBulkImportFromZip() — mỗi tệp .pdf ở gốc
+    // ZIP tạo thành 1 Material, mã bài lấy thẳng từ tên tệp. Bài nào cần sửa lại (tên/mã/PDF)
+    // thì vào materialsEdit như bình thường sau khi nhập xong (đã hỗ trợ sửa, xem materialsUpdate()).
+
+    /** admin.content.materials.bulk.create — chọn sản phẩm + loại + trạng thái áp dụng chung, rồi tải 1 ZIP. */
+    public function materialsBulkImportCreate(): View
+    {
+        return view('admin.content.materials.bulk', $this->contentService->materialsBulkImportFormData());
+    }
+
+    public function materialsBulkImportStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:materials,id'],
+            // Cố ý KHÔNG cho 'assessment_ref' ở đây — loại đó chỉ tham chiếu 1 Assessment có sẵn,
+            // không có PDF riêng (xem ContentService::materialsBulkImportFormData()).
+            'type' => ['required', 'string', 'in:chapter,section'],
+            'status' => ['required', 'string', 'in:draft,pending_review,published,archived'],
+            'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxBulkMaterialZipKb()],
+        ], [], ['zip_package' => 'Gói ZIP']);
+
+        try {
+            $created = $this->contentService->materialsBulkImportFromZip(
+                (int) $data['product_id'],
+                $data['type'],
+                $data['parent_id'] ? (int) $data['parent_id'] : null,
+                $data['status'],
+                $request->file('zip_package'),
+            );
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        return redirect()->route('admin.content.index', ['tab' => 'materials'])
+            ->with('status', 'materials-bulk-imported')
+            ->with('bulkCreatedCount', $created->count());
     }
 
     // ================= Câu hỏi kho chung (Question) =================

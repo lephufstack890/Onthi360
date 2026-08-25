@@ -335,6 +335,12 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');
         Route::post('content/materials', [AdminContentController::class, 'materialsStore'])->name('content.materials.store');
+        // SỬA 25/8 — "tải bài hàng loạt" qua ZIP (16 mục "tải bài"): xem
+        // Admin\ContentService::materialsBulkImportFromZip(). Đặt TRƯỚC {material}/edit bên
+        // dưới theo đúng quy ước của content/assessments/bulk ở dưới (dễ đọc, dù không bắt buộc
+        // vì 'bulk' không trùng số đoạn với '{material}/edit').
+        Route::get('content/materials/bulk', [AdminContentController::class, 'materialsBulkImportCreate'])->name('content.materials.bulk.create');
+        Route::post('content/materials/bulk', [AdminContentController::class, 'materialsBulkImportStore'])->name('content.materials.bulk.store');
         Route::get('content/materials/{material}/edit', [AdminContentController::class, 'materialsEdit'])->name('content.materials.edit');
         Route::put('content/materials/{material}', [AdminContentController::class, 'materialsUpdate'])->name('content.materials.update');
         Route::post('content/materials/{material}/publish', [AdminContentController::class, 'materialsPublish'])->name('content.materials.publish');
