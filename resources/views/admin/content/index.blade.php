@@ -44,6 +44,8 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đổi tên tag.'])
     @elseif (session('status') === 'tag-deleted')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá tag.'])
+    @elseif (session('status') === 'material-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá học liệu cùng bài con và file PDF liên quan.'])
     @elseif (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
     @endif
@@ -143,6 +145,17 @@
                             <form method="POST" action="{{ route('admin.content.assessments.promoteShared', $r['id']) }}" class="inline">
                                 @csrf
                                 <button type="submit" class="text-emerald-600 font-medium">Duyệt vào kho chung</button>
+                            </form>
+                        @endif
+                        {{-- SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu có nút
+                             này (canDelete chỉ được set ở nhánh materials của indexData()) — xóa
+                             THẬT, xóa luôn file PDF + bài con, không thể khôi phục nên PHẢI xác
+                             nhận qua confirm() trước khi submit. --}}
+                        @if ($r['canDelete'] ?? false)
+                            <form method="POST" action="{{ route('admin.content.materials.destroy', $r['id']) }}" class="inline" onsubmit="return confirm('Xoá vĩnh viễn học liệu này cùng toàn bộ bài con và file PDF liên quan? Không thể khôi phục.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-rose-500 hover:text-rose-700 font-medium">Xoá</button>
                             </form>
                         @endif
                     </td>

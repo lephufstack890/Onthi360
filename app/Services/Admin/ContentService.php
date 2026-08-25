@@ -14,9 +14,12 @@ use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\RatingSummary;
+use App\Models\Review;
 use App\Models\Tag;
 use App\Models\UploadedDocument;
 use App\Models\User;
+use App\Enums\ReviewTargetType;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
@@ -234,7 +237,10 @@ class ContentService
             $rows = $this->materials->latestWithProduct(50)->map(function ($m) {
                 [$label, $tone] = $this->statusLabel($m->status);
 
-                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung'];
+                // SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu mới có nút
+                // Xoá (khách xác nhận phạm vi CHỈ Học liệu, không áp dụng Câu hỏi/Đề/Tag) —
+                // xem materialDelete() bên dưới + nút bấm ở admin/content/index.blade.php.
+                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true];
             })->all();
         }
 
@@ -548,6 +554,63 @@ class ContentService
         Material::$auditReason = null;
 
         return $material;
+    }
+
+    /**
+     * SỬA 25/8 (7) — "thêm tính năng xóa cho admin, xóa luôn file liên quan tránh rác": XÓA
+     * THẬT (khác materialArchive() ở trên — Table 27 vốn không có trạng thái "đã xóa", chỉ có
+     * "lưu trữ"; khách đã được hỏi lại và xác nhận muốn xóa thật, không thể khôi phục).
+     *
+     * Thứ tự bắt buộc: PHẢI thu thập + xóa file PDF trên disk của material này VÀ TOÀN BỘ
+     * material con cháu TRƯỚC khi xóa bản ghi — 1 khi bản ghi mất thì đường dẫn pdf_path cũng
+     * mất theo, không còn cách nào dọn file nữa (đúng lo ngại "về lâu về dài nặng máy chủ" của
+     * khách). materials.parent_id VÀ class_materials.material_id đều đã có cascadeOnDelete() ở
+     * DB (xem migration create_materials_table/create_class_materials_table) nên chỉ cần
+     * $this->materials->delete($material) là DB tự dọn sạch các bản ghi con + liên kết lớp —
+     * không cần tự viết vòng lặp xóa từng bản ghi con.
+     */
+    public function materialDelete(Material $material): void
+    {
+        $ids = $this->collectMaterialAndDescendantIds($material);
+
+        $pdfPaths = $this->materials->query()
+            ->whereIn('id', $ids)
+            ->whereNotNull('pdf_path')
+            ->pluck('pdf_path');
+
+        foreach ($pdfPaths as $path) {
+            Storage::disk('local')->delete($path);
+        }
+
+        // Dọn luôn đánh giá/tổng hợp điểm mồ côi trỏ vào material sắp không còn tồn tại (9.x)
+        // — không phải file, nhưng tránh để lại dữ liệu rác tham chiếu vào bản ghi đã xóa.
+        Review::where('target_type', ReviewTargetType::Material->value)->whereIn('target_id', $ids)->delete();
+        RatingSummary::where('target_type', ReviewTargetType::Material->value)->whereIn('target_id', $ids)->delete();
+
+        $this->materials->delete($material);
+    }
+
+    /**
+     * $material + TOÀN BỘ con cháu (đệ quy theo parent_id, không giới hạn độ sâu) — dùng để
+     * biết cần xóa những file PDF nào TRƯỚC KHI cascadeOnDelete() ở DB xóa các bản ghi con.
+     *
+     * @return array<int, int>
+     */
+    private function collectMaterialAndDescendantIds(Material $material): array
+    {
+        $ids = [$material->id];
+        $queue = [$material->id];
+
+        while ($queue !== []) {
+            $childIds = $this->materials->query()->whereIn('parent_id', $queue)->pluck('id')->all();
+            if ($childIds === []) {
+                break;
+            }
+            $ids = array_merge($ids, $childIds);
+            $queue = $childIds;
+        }
+
+        return $ids;
     }
 
     /**

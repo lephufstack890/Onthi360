@@ -127,6 +127,18 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', $material->id)->with('status', 'material-archived');
     }
 
+    /**
+     * admin.content.materials.destroy (25/8, SỬA 25/8 (7)) — "thêm tính năng xóa cho admin":
+     * XÓA THẬT bản ghi + file PDF liên quan (khác materialsArchive() ở trên, vốn chỉ đổi
+     * status) — xem ContentService::materialDelete(). Không thể khôi phục.
+     */
+    public function materialsDestroy(Material $material): RedirectResponse
+    {
+        $this->contentService->materialDelete($material);
+
+        return redirect()->route('admin.content.index', ['tab' => 'materials'])->with('status', 'material-deleted');
+    }
+
     // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
     // Xem App\Services\Admin\ContentService::materialsBulkImportFromZip() — mỗi tệp .pdf ở gốc
     // ZIP tạo thành 1 Material, mã bài lấy thẳng từ tên tệp. Bài nào cần sửa lại (tên/mã/PDF)

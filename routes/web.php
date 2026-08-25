@@ -361,6 +361,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/materials/{material}/publish', [AdminContentController::class, 'materialsPublish'])->name('content.materials.publish');
         Route::post('content/materials/{material}/reject', [AdminContentController::class, 'materialsReject'])->name('content.materials.reject');
         Route::post('content/materials/{material}/archive', [AdminContentController::class, 'materialsArchive'])->name('content.materials.archive');
+        // SỬA 25/8 (7) — "thêm tính năng xóa cho admin, xóa luôn file liên quan tránh rác", xem
+        // ContentService::materialDelete().
+        Route::delete('content/materials/{material}', [AdminContentController::class, 'materialsDestroy'])->name('content.materials.destroy');
 
         Route::get('content/questions/create', [AdminContentController::class, 'questionsCreate'])->name('content.questions.create');
         Route::post('content/questions', [AdminContentController::class, 'questionsStore'])->name('content.questions.store');
