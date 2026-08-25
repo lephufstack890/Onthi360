@@ -66,18 +66,34 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
-    <script>
-        (function () {
+    {{--
+      SỬA 25/8 (5) — "không tải được bộ đọc nội dung" (KHÔNG PHẢI lỗi trang lẻ đã sửa ở SỬA
+      25/8 (3), mà pdf.js CHƯA HỀ tải được — đã xác minh trực tiếp bằng `npm pack
+      pdfjs-dist@4.0.379`: bản 4.0.379 KHÔNG CÒN file .js (UMD/gán window.pdfjsLib) nào nữa —
+      kể cả thư mục legacy/build/ cũng chỉ có .mjs (ES module): legacy/build/pdf.min.mjs,
+      legacy/build/pdf.worker.min.mjs. SỬA 25/8 (4) trước đó đổi đúng CDN (jsdelivr) nhưng vẫn
+      trỏ nhầm đuôi .js (không tồn tại) nên vẫn 404 — trình duyệt nhận về trang lỗi 404 với
+      Content-Type không phải JS, bị "X-Content-Type-Options: nosniff" chặn thực thi.
+      Fix ĐÚNG: dùng `<script type="module">` + `import()` động trỏ thẳng vào file .mjs thật —
+      cách dùng CHÍNH THỨC cho pdf.js từ v4.x khi nhúng qua CDN không qua bundler.
+    --}}
+    <script type="module">
+        (async function () {
             var container = document.getElementById('material-pdf-viewer');
-            if (!container || typeof pdfjsLib === 'undefined') {
-                if (container) {
-                    container.innerHTML = '<p class="text-center text-sm text-rose-500 py-10">Không tải được bộ đọc nội dung. Vui lòng tải lại trang.</p>';
-                }
+            if (!container) {
                 return;
             }
 
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+            var pdfjsLib;
+            try {
+                pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/legacy/build/pdf.min.mjs');
+            } catch (err) {
+                console.error('Không tải được thư viện pdf.js:', err);
+                container.innerHTML = '<p class="text-center text-sm text-rose-500 py-10">Không tải được thư viện đọc PDF — vui lòng kiểm tra kết nối mạng rồi tải lại trang.</p>';
+                return;
+            }
+
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/legacy/build/pdf.worker.min.mjs';
 
             var pdfUrl = container.dataset.pdfUrl;
             var watermarkText = container.dataset.watermark || '';
@@ -125,6 +141,18 @@
                 return overlay;
             }
 
+            // SỬA 25/8 (3) — "không tải được toàn bộ nội dung đọc": trước đây renderNext()
+            // KHÔNG có .catch() ở cả pdf.getPage() lẫn page.render() — hễ 1 TRANG BẤT KỲ lỗi
+            // (vd font nhúng dạng CID cần dữ liệu CMap ngoài mà trước đây chưa cấu hình, ảnh
+            // trong trang không giải mã được, kích cỡ trang vượt giới hạn canvas của trình
+            // duyệt...) thì promise bị reject ÂM THẦM, renderNext(pageNum + 1) KHÔNG BAO GIỜ
+            // được gọi tiếp — toàn bộ các trang SAU trang lỗi biến mất trắng, không có thông
+            // báo gì (dù quyền/đăng nhập vẫn hoàn toàn đúng — đây là lỗi ở bước RENDER, không
+            // phải lỗi cấp quyền). Fix: bắt lỗi ở TỪNG trang, hiện placeholder cho đúng trang
+            // đó rồi VẪN tiếp tục renderNext() sang trang kế — 1 trang lỗi không còn chặn cả
+            // các trang phía sau. Đồng thời thêm cMapUrl/cMapPacked + standardFontDataUrl cho
+            // getDocument() — nguyên nhân phổ biến nhất khiến 1 số trang PDF tiếng Việt (font
+            // nhúng dạng Identity-H/CID) lỗi render nếu thiếu dữ liệu CMap.
             function renderAllPages(pdf) {
                 container.innerHTML = '';
 
@@ -132,6 +160,17 @@
                     if (pageNum > pdf.numPages) {
                         return;
                     }
+
+                    var renderPageError = function (err) {
+                        console.error('Lỗi hiển thị trang ' + pageNum + ':', err);
+
+                        var errBox = document.createElement('p');
+                        errBox.className = 'text-center text-xs text-rose-500 py-6 max-w-3xl mx-auto';
+                        errBox.textContent = 'Không hiển thị được trang ' + pageNum + ' — đã bỏ qua, tiếp tục các trang khác.';
+                        container.appendChild(errBox);
+
+                        renderNext(pageNum + 1);
+                    };
 
                     pdf.getPage(pageNum).then(function (page) {
                         var viewport = page.getViewport({ scale: 1.4 });
@@ -152,8 +191,8 @@
                         var ctx = canvas.getContext('2d');
                         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
                             renderNext(pageNum + 1);
-                        });
-                    });
+                        }, renderPageError);
+                    }, renderPageError);
                 };
 
                 renderNext(1);
@@ -167,10 +206,16 @@
                     return res.arrayBuffer();
                 })
                 .then(function (buf) {
-                    return pdfjsLib.getDocument({ data: buf }).promise;
+                    return pdfjsLib.getDocument({
+                        data: buf,
+                        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/cmaps/',
+                        cMapPacked: true,
+                        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/',
+                    }).promise;
                 })
                 .then(renderAllPages)
-                .catch(function () {
+                .catch(function (err) {
+                    console.error('Không tải được tài liệu PDF:', err);
                     container.innerHTML = '<p class="text-center text-sm text-rose-500 py-10">Không tải được nội dung bài học. Vui lòng thử lại sau.</p>';
                 });
         })();
