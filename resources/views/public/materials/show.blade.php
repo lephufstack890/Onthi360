@@ -69,21 +69,11 @@
                             <span>📑</span> Mục lục <span class="text-slate-400 font-normal">({{ count($toc) }} phần)</span>
                         </h2>
                         <div class="divide-y divide-slate-100">
+                            {{-- SỬA 25/8 (8 — "mục lục đa cấp"): thay khối phẳng cũ bằng partial đệ
+                                 quy — mỗi chương hiện đủ các bài con lồng bên trong, xem
+                                 MaterialService::buildTocTree() + partials/materials-toc-item. --}}
                             @foreach ($toc as $i => $chap)
-                                @php $readable = $owned && ($chap['hasContent'] ?? false); @endphp
-                                <div class="flex items-center gap-3 py-3">
-                                    <span class="w-7 h-7 rounded-full bg-rose-50 text-rose-600 text-xs font-semibold flex items-center justify-center shrink-0">{{ $i + 1 }}</span>
-                                    @if ($readable)
-                                        <a href="{{ route('student.materials.read', $chap['id']) }}" class="text-sm text-slate-700 hover:text-rose-600">{{ $chap['title'] }}</a>
-                                    @else
-                                        <p class="text-sm text-slate-500 flex items-center gap-1">
-                                            {{ $chap['title'] }}
-                                            @if ($chap['hasContent'] ?? false)
-                                                <span class="text-slate-300" title="Cần mua quyền để đọc">🔒</span>
-                                            @endif
-                                        </p>
-                                    @endif
-                                </div>
+                                @include('partials.materials-toc-item', ['item' => $chap, 'index' => $i, 'depth' => 0, 'owned' => $owned])
                             @endforeach
                         </div>
                     </div>
@@ -124,6 +114,10 @@
             .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
             .rich-content p { margin-bottom: 0.5rem; }
             .rich-content a { color: #e11d48; text-decoration: underline; }
+            {{-- SỬA 25/8 (9 — "mục lục dạng dropdown"): ẩn phần con TRƯỚC khi Alpine.js kịp
+                 khởi tạo (script Alpine tải kiểu "defer" nên có 1 khoảng trễ nhỏ) — tránh
+                 nháy hiện toàn bộ rồi mới đóng lại. Xem partials/materials-toc-item.blade.php. --}}
+            [x-cloak] { display: none !important; }
         </style>
     @endpush
 @endsection
