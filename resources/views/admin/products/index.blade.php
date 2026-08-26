@@ -29,8 +29,9 @@
                 <td class="px-4 py-3 text-slate-500">{{ $p['type'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $p['price'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$p['tone']">{{ $p['visibility'] }}</x-status-badge></td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-4 py-3 text-right space-x-3">
                     <a href="{{ route('admin.products.show', $p['id']) }}" class="text-rose-600 font-medium">Xem</a>
+                    <a href="{{ route('admin.products.edit', $p['id']) }}" class="text-slate-500 font-medium hover:text-rose-600">Sửa</a>
                 </td>
             </tr>
         @empty
