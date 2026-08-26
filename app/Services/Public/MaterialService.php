@@ -53,7 +53,7 @@ class MaterialService
         $tabs = [
             ['label' => '📘 Sách', 'href' => route('materials.index'), 'active' => $tab === 'sach', 'count' => $counts['sach']],
             ['label' => '🗂️ Chuyên đề', 'href' => route('materials.index', ['tab' => 'chuyen-de']), 'active' => $tab === 'chuyen-de', 'count' => $counts['chuyen-de']],
-            ['label' => '📝 Đề thi', 'href' => route('materials.index', ['tab' => 'de-thi']), 'active' => $tab === 'de-thi', 'count' => $counts['de-thi']],
+            ['label' => '📝 Bộ đề', 'href' => route('materials.index', ['tab' => 'de-thi']), 'active' => $tab === 'de-thi', 'count' => $counts['de-thi']],
         ];
 
         $products = $this->baseQuery()->where('type', $type->value)->latest()->limit(40)->get();

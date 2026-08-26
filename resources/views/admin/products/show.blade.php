@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $typeLabels = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Đề thi', 'course' => 'Khóa học'];
+        $typeLabels = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề', 'course' => 'Khóa học'];
         $statusMeta = [
             'draft' => ['label' => 'Bản nháp', 'tone' => 'neutral'],
             'pending_review' => ['label' => 'Chờ duyệt', 'tone' => 'warning'],

@@ -33,7 +33,7 @@ class ProductService
         return [
             'types' => [
                 ProductType::Book->value => 'Sách', ProductType::Topic->value => 'Chuyên đề',
-                ProductType::Exam->value => 'Đề thi', ProductType::Course->value => 'Khóa học',
+                ProductType::Exam->value => 'Bộ đề', ProductType::Course->value => 'Khóa học',
             ],
             'visibilities' => [Visibility::Public->value => 'Công khai', Visibility::Private->value => 'Riêng tư'],
             'statuses' => [
