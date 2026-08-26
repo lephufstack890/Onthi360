@@ -15,12 +15,20 @@
         $meta = $statusMeta[$product->status->value] ?? ['label' => $product->status->value, 'tone' => 'neutral'];
         $accessRightRows = $accessRightRows ?? [];
         $accessRightCount = $accessRightCount ?? 0;
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): $materialsTree — xem
+        // App\Services\Admin\ProductService::buildMaterialsTree().
+        $materialsTree = $materialsTree ?? [];
     @endphp
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm</a>
 
     @if (in_array(session('status'), ['product-created', 'product-updated'], true))
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'product-created' ? 'Đã tạo sản phẩm mới.' : 'Đã lưu thay đổi.'])
+    @endif
+    @if (session('status') === 'material-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá học liệu cùng bài con và file PDF liên quan.'])
+    @elseif (session('status') === 'materials-bulk-imported')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tải lên '.session('bulkCreatedCount').' bài — vào từng bài nếu cần sửa tên/mã/PDF.'])
     @endif
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">
@@ -56,16 +64,23 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📚</span> Học liệu thuộc sản phẩm</h2>
-                <div class="space-y-2">
-                    @forelse ($product->materials as $m)
-                        <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50">
-                            <x-icon-tile emoji="📄" tone="sky" />
-                            <p class="text-sm font-medium text-slate-700 flex-1">{{ $m->title }}</p>
-                            <a href="{{ route('admin.content.show', $m->id) }}" class="text-rose-600 text-sm font-medium">Xem</a>
-                        </div>
+                <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📚</span> Học liệu thuộc sản phẩm</h2>
+                    {{-- SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): trước đây phải qua tab
+                         "Học liệu" riêng ở Nội dung rồi tự chọn lại sản phẩm — giờ 2 nút này
+                         luôn hiện ngay tại đây, đi thẳng tới đúng form đã điền sẵn sản phẩm
+                         hiện tại (?product_id=), xem ContentController::materialsCreate()/
+                         materialsBulkImportCreate(). --}}
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('admin.content.materials.create', ['product_id' => $product->id]) }}" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">+ Thêm học liệu</a>
+                        <a href="{{ route('admin.content.materials.bulk.create', ['product_id' => $product->id]) }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải hàng loạt (ZIP)</a>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100">
+                    @forelse ($materialsTree as $i => $node)
+                        @include('partials.admin-materials-tree-item', ['item' => $node, 'depth' => 0])
                     @empty
-                        <x-empty-state title="Chưa có học liệu nào" description="Tạo học liệu (chương/bài/mục) ở mục Nội dung và gắn vào sản phẩm này (6.5)." :actionLabel="'+ Tạo học liệu'" :actionHref="route('admin.content.materials.create')" />
+                        <x-empty-state title="Chưa có học liệu nào" description="Bấm &quot;+ Thêm học liệu&quot; ở trên để tạo chương/bài/mục đầu tiên cho sản phẩm này (6.5)." :actionLabel="'+ Thêm học liệu'" :actionHref="route('admin.content.materials.create', ['product_id' => $product->id])" />
                     @endforelse
                 </div>
             </div>

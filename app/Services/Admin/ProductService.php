@@ -8,10 +8,13 @@ use App\Enums\ContentStatus;
 use App\Enums\ProductType;
 use App\Enums\Visibility;
 use App\Models\AccessRight;
+use App\Models\Material;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
+use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -25,6 +28,7 @@ class ProductService
     public function __construct(
         private ProductRepositoryInterface $products,
         private AccessRightRepositoryInterface $accessRights,
+        private MaterialRepositoryInterface $materials,
     ) {}
 
     /** @return array{types: array, visibilities: array, statuses: array} */
@@ -155,7 +159,7 @@ class ProductService
      * tin) VÀ danh sách quyền đã cấp cho sản phẩm này, kèm — với quyền đến từ đơn hàng —
      * thời điểm đơn được duyệt/thanh toán (note họp 13/8, mục 2).
      *
-     * @return array{product: Product, accessRightRows: array, accessRightCount: int}
+     * @return array{product: Product, accessRightRows: array, accessRightCount: int, materialsTree: array}
      */
     public function showData(int $productId): array
     {
@@ -196,11 +200,47 @@ class ProductService
             ];
         })->values()->all();
 
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): trước đây trang này chỉ hiện học
+        // liệu CẤP 1 (qua $product->materials, quan hệ lọc whereNull('parent_id')) — giờ lấy
+        // TẤT CẢ học liệu của sản phẩm (mọi cấp) rồi dựng cây theo parent_id, y hệt cách
+        // App\Services\Public\MaterialService::buildTocTree() làm cho trang công khai, để admin
+        // quản lý (thêm/sửa/xoá) đúng cấu trúc chương/bài thật đang có, không chỉ thấy 1 lớp.
+        $allMaterials = $this->materials->query()
+            ->where('product_id', $productId)
+            ->orderBy('order')
+            ->get(['id', 'parent_id', 'title', 'pdf_path', 'status']);
+
         return [
             'product' => $product,
             'accessRightRows' => $accessRightRows,
             'accessRightCount' => $this->accessRights->query()->where('product_id', $productId)->count(),
+            'materialsTree' => $this->buildMaterialsTree($allMaterials, null),
         ];
+    }
+
+    /**
+     * Dựng cây học liệu đa cấp cho trang chi tiết sản phẩm (admin) từ danh sách Material
+     * PHẲNG (đã orderBy('order')) — xem ghi chú ở showData() phía trên. Cùng cách làm với
+     * App\Services\Public\MaterialService::buildTocTree() (trang công khai) nhưng thêm
+     * 'statusValue' vì admin cần thấy trạng thái phát hành của từng bài, khác trang công khai
+     * chỉ cần biết đọc được hay không.
+     *
+     * @param  Collection<int, Material>  $materials
+     * @return array<int, array{id:int,title:string,hasContent:bool,statusValue:string,children:array}>
+     */
+    private function buildMaterialsTree(Collection $materials, ?int $parentId): array
+    {
+        return $materials
+            ->where('parent_id', $parentId)
+            ->map(fn (Material $m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'hasContent' => $m->pdf_path !== null,
+                'statusValue' => $m->status->value,
+                'children' => $this->buildMaterialsTree($materials, $m->id),
+            ])
+            ->values()
+            ->all();
     }
 
     /** Phân loại cửa sổ hết hạn cho 1 AccessRight — trả về [nhãn, tone] (giống AccessRightService). */

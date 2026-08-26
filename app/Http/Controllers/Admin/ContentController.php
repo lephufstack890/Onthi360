@@ -29,7 +29,15 @@ class ContentController extends Controller
     /** admin.content.index (ADM-03) — 6.2/6.4/6.5. */
     public function index(Request $request): View
     {
-        $tab = $request->query('tab', 'materials');
+        $tab = $request->query('tab', 'questions');
+
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): tab "Học liệu" đã bỏ khỏi Nội dung —
+        // link/bookmark cũ ?tab=materials được đưa về tab mặc định thay vì hiện bảng cũ đã
+        // không còn lối vào từ giao diện nữa (thêm/sửa/xoá học liệu giờ làm ở trang chi tiết
+        // từng sản phẩm, xem ProductController::show()).
+        if ($tab === 'materials') {
+            return redirect()->route('admin.content.index', ['tab' => 'questions']);
+        }
 
         return view('admin.content.index', $this->contentService->indexData($tab));
     }
@@ -42,9 +50,12 @@ class ContentController extends Controller
 
     // ================= Học liệu (Material) =================
 
-    public function materialsCreate(): View
+    /** SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — ?product_id= khi vào từ nút "+ Thêm học liệu" ở trang chi tiết 1 sản phẩm, để form tự điền sẵn (xem ContentService::materialCreateFormData()). */
+    public function materialsCreate(Request $request): View
     {
-        return view('admin.content.materials.create', $this->contentService->materialCreateFormData());
+        $productId = $request->integer('product_id') ?: null;
+
+        return view('admin.content.materials.create', $this->contentService->materialCreateFormData($productId));
     }
 
     public function materialsStore(Request $request): RedirectResponse
@@ -134,9 +145,15 @@ class ContentController extends Controller
      */
     public function materialsDestroy(Material $material): RedirectResponse
     {
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): lấy product_id TRƯỚC khi xoá — sau
+        // materialDelete() bản ghi (và có thể cả các bài con) đã mất, không đọc lại được nữa.
+        // Quay về đúng trang sản phẩm thay vì tab "Học liệu" đã bỏ (xem ContentService::
+        // materialDelete()).
+        $productId = $material->product_id;
+
         $this->contentService->materialDelete($material);
 
-        return redirect()->route('admin.content.index', ['tab' => 'materials'])->with('status', 'material-deleted');
+        return redirect()->route('admin.products.show', $productId)->with('status', 'material-deleted');
     }
 
     // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
@@ -144,10 +161,16 @@ class ContentController extends Controller
     // ZIP tạo thành 1 Material, mã bài lấy thẳng từ tên tệp. Bài nào cần sửa lại (tên/mã/PDF)
     // thì vào materialsEdit như bình thường sau khi nhập xong (đã hỗ trợ sửa, xem materialsUpdate()).
 
-    /** admin.content.materials.bulk.create — chọn sản phẩm + loại + trạng thái áp dụng chung, rồi tải 1 ZIP. */
-    public function materialsBulkImportCreate(): View
+    /**
+     * admin.content.materials.bulk.create — chọn sản phẩm + loại + trạng thái áp dụng chung, rồi tải 1 ZIP.
+     * SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — ?product_id= khi vào từ nút "+ Tải hàng
+     * loạt (ZIP)" ở trang chi tiết 1 sản phẩm, để form tự điền sẵn.
+     */
+    public function materialsBulkImportCreate(Request $request): View
     {
-        return view('admin.content.materials.bulk', $this->contentService->materialsBulkImportFormData());
+        $productId = $request->integer('product_id') ?: null;
+
+        return view('admin.content.materials.bulk', $this->contentService->materialsBulkImportFormData($productId));
     }
 
     public function materialsBulkImportStore(Request $request): RedirectResponse
@@ -174,7 +197,9 @@ class ContentController extends Controller
             return back()->withErrors($e->errors())->withInput();
         }
 
-        return redirect()->route('admin.content.index', ['tab' => 'materials'])
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): quay về đúng trang sản phẩm thay vì
+        // tab "Học liệu" đã bỏ.
+        return redirect()->route('admin.products.show', (int) $data['product_id'])
             ->with('status', 'materials-bulk-imported')
             ->with('bulkCreatedCount', $created->count());
     }

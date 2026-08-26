@@ -30,15 +30,13 @@
                 </x-select>
             </div>
 
+            {{-- SỬA 26/8: ẩn field "Loại" (giống form Tạo học liệu) — giữ nguyên giá trị hiện
+                 có của học liệu qua input ẩn (x-model="type" đã khởi tạo đúng giá trị cũ ở
+                 x-data phía trên), không cho đổi loại qua màn Sửa nữa nhưng KHÔNG làm mất dữ
+                 liệu 'type' đang có. --}}
+            <input type="hidden" name="type" x-model="type">
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại</label>
-                    <x-select id="type" name="type" x-model="type" required>
-                        @foreach ($types as $value => $label)
-                            <option value="{{ $value }}" @selected(old('type', $material->type) === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-select>
-                </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="order">Thứ tự hiển thị</label>
                     <input id="order" name="order" type="number" min="0" value="{{ old('order', $material->order) }}"
@@ -52,17 +50,12 @@
                        class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="parent_id">Thuộc mục cha (tùy chọn)</label>
-                <x-select id="parent_id" name="parent_id">
-                    <option value="">— Không có, đây là mục gốc —</option>
-                    @foreach ($parents as $par)
-                        @if ($par['id'] !== $material->id)
-                            <option value="{{ $par['id'] }}" @selected((string) old('parent_id', $material->parent_id) === (string) $par['id'])>{{ $par['label'] }}</option>
-                        @endif
-                    @endforeach
-                </x-select>
-            </div>
+            {{-- SỬA 26/8: ẩn field "Thuộc mục cha" (giống form Tạo học liệu) — GIỮ NGUYÊN qua
+                 input ẩn thay vì bỏ hẳn, khác với lúc TẠO mới (không có gì để mất): nếu bỏ
+                 field này khỏi form mà không có input ẩn, bấm "Lưu thay đổi" sẽ gửi parent_id
+                 rỗng và xoá mất quan hệ cha-con đang có (materialsUpdate() coi thiếu field này
+                 là null vì 'parent_id' đang khai 'nullable'). --}}
+            <input type="hidden" name="parent_id" value="{{ old('parent_id', $material->parent_id) }}">
 
             <div x-show="type === 'assessment_ref'" x-cloak>
                 <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>

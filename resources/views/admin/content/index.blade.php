@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $tab = $tab ?? 'materials';
+        $tab = $tab ?? 'questions';
         $tabs = $tabs ?? [];
         $rows = $rows ?? [];
         $documents = $documents ?? [];
@@ -15,12 +15,11 @@
 
     <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
         <x-slot:actions>
-            @if ($tab === 'materials')
-                <a href="{{ route('admin.content.materials.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo học liệu</a>
-                {{-- SỬA 25/8 ("tải bài hàng loạt" qua ZIP): tạo nhiều bài (Material) cùng lúc
-                     cho 1 sản phẩm — khác hẳn nút "+ Tạo học liệu" ở trên (tạo TỪNG bài 1 lần). --}}
-                <a href="{{ route('admin.content.materials.bulk.create') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải bài (hàng loạt qua ZIP)</a>
-            @elseif ($tab === 'questions')
+            {{-- SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): trước đây có 2 nút tạo/tải
+                 hàng loạt Học liệu ở đây (tab riêng) — giờ thêm học liệu làm NGAY trong trang
+                 chi tiết từng sản phẩm (admin/products/show.blade.php), không còn ở Nội dung
+                 nữa, xem ContentService::indexData()/ProductService::showData(). --}}
+            @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo câu hỏi</a>
             @elseif ($tab === 'assessments')
                 <a href="{{ route('admin.content.assessments.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo đề/bộ bài</a>

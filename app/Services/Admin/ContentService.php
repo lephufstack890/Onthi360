@@ -181,7 +181,6 @@ class ContentService
     public function indexData(string $tab): array
     {
         $counts = [
-            'materials' => $this->materials->count(),
             'questions' => $this->questions->count(),
             'assessments' => $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
@@ -189,8 +188,11 @@ class ContentService
             'tags' => $this->tags->count(),
         ];
 
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): tab "Học liệu" đã bỏ khỏi đây —
+        // thêm/sửa/xoá học liệu giờ làm ngay trong trang chi tiết từng sản phẩm (admin
+        // Sản phẩm & quyền), xem ProductService::showData()/buildMaterialsTree(). Link cũ
+        // ?tab=materials được ContentController::index() tự đưa về tab mặc định bên dưới.
         $tabs = [
-            ['label' => 'Học liệu (Sách/Chuyên đề/Đề thi)', 'href' => route('admin.content.index'), 'active' => $tab === 'materials', 'count' => $counts['materials']],
             ['label' => 'Câu hỏi (Kho chung + Giáo viên)', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
             ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
@@ -445,15 +447,29 @@ class ContentService
 
     // ================= Học liệu (Material) =================
 
-    public function materialCreateFormData(): array
+    /**
+     * SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — $selectedProductId: khi bấm "+ Thêm
+     * học liệu" từ NGAY trang chi tiết 1 sản phẩm (admin/products/show.blade.php), sản phẩm
+     * đó được truyền qua ?product_id= để form tự điền sẵn, khỏi phải chọn lại; đồng thời danh
+     * sách "mục cha" cũng chỉ còn học liệu CỦA ĐÚNG sản phẩm đó (đỡ rối vì trước đây liệt kê
+     * lẫn lộn học liệu của mọi sản phẩm). Không truyền (null) thì form vẫn hoạt động y hệt cũ
+     * (chọn sản phẩm từ dropdown đầy đủ) — phòng khi có người vào thẳng URL không qua sản phẩm.
+     */
+    public function materialCreateFormData(?int $selectedProductId = null): array
     {
+        $parentsQuery = $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order');
+        if ($selectedProductId !== null) {
+            $parentsQuery->where('product_id', $selectedProductId);
+        }
+
         return [
             'products' => $this->products->query()->orderBy('title')->get(['id', 'title'])->all(),
-            'parents' => $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order')->get()
+            'parents' => $parentsQuery->get()
                 ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
             'assessments' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
             'types' => self::MATERIAL_TYPE_LABELS,
             'statuses' => $this->statusOptions(),
+            'selectedProductId' => $selectedProductId,
         ];
     }
 
@@ -702,17 +718,24 @@ class ContentService
     // cần khác thì sửa lại riêng sau qua materialsEdit (đã hỗ trợ sửa mã + thay PDF, xem
     // materialUpdate() ở trên).
 
-    public function materialsBulkImportFormData(): array
+    /** SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — $selectedProductId: xem ghi chú ở materialCreateFormData(), áp dụng y hệt cho form tải hàng loạt này. */
+    public function materialsBulkImportFormData(?int $selectedProductId = null): array
     {
+        $parentsQuery = $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order');
+        if ($selectedProductId !== null) {
+            $parentsQuery->where('product_id', $selectedProductId);
+        }
+
         return [
             'products' => $this->products->query()->orderBy('title')->get(['id', 'title'])->all(),
-            'parents' => $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order')->get()
+            'parents' => $parentsQuery->get()
                 ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
             // 'assessment_ref' KHÔNG có trong danh sách này — loại này chỉ để THAM CHIẾU 1
             // Assessment đã có sẵn (không có nội dung PDF riêng, xem materialStore()), không hợp
             // với luồng "mỗi tệp PDF trong ZIP = 1 bài" của bulk import.
             'types' => array_filter(self::MATERIAL_TYPE_LABELS, fn ($key) => $key !== 'assessment_ref', ARRAY_FILTER_USE_KEY),
             'statuses' => $this->statusOptions(),
+            'selectedProductId' => $selectedProductId,
         ];
     }
 

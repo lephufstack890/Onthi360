@@ -6,9 +6,17 @@
 @section('content')
     @php
         $type = $type ?? null;
+        $model = $model ?? null;
         $publishErrors = $publishErrors ?? [];
         $hasBeenAttempted = $hasBeenAttempted ?? false;
         $statusValue = $item['statusValue'] ?? null;
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): học liệu giờ quản lý từ trang sản
+        // phẩm, không còn tab riêng ở Nội dung — quay lại đúng sản phẩm sở hữu bài này thay
+        // vì Nội dung (Câu hỏi/Đề vẫn quay lại Nội dung như cũ).
+        $backHref = ($type === 'material' && $model?->product_id)
+            ? route('admin.products.show', $model->product_id)
+            : route('admin.content.index');
+        $backLabel = $type === 'material' ? '‹ Quay lại sản phẩm' : '‹ Quay lại Nội dung';
 
         $editRoute = match ($type) {
             'material' => route('admin.content.materials.edit', $item['id']),
@@ -36,7 +44,7 @@
         };
     @endphp
 
-    <a href="{{ route('admin.content.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Nội dung</a>
+    <a href="{{ $backHref }}" class="text-sm text-slate-500 mb-4 inline-block">{{ $backLabel }}</a>
 
     @php
         $contentStatusMessage = match (session('status')) {

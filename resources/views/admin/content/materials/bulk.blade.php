@@ -7,9 +7,13 @@
     @php
         $products = $products ?? []; $parents = $parents ?? [];
         $types = $types ?? []; $statuses = $statuses ?? [];
+        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — xem ghi chú tương ứng ở create.blade.php.
+        $selectedProductId = $selectedProductId ?? null;
+        $backHref = $selectedProductId ? route('admin.products.show', $selectedProductId) : route('admin.products.index');
+        $backLabel = $selectedProductId ? '‹ Quay lại sản phẩm' : '‹ Quay lại Sản phẩm & quyền';
     @endphp
 
-    <a href="{{ route('admin.content.index', ['tab' => 'materials']) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Học liệu</a>
+    <a href="{{ $backHref }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">{{ $backLabel }}</a>
 
     <x-page-header title="🗂️ Tải bài hàng loạt" subtitle="Tải 1 gói ZIP chứa nhiều tệp PDF — mỗi tệp = 1 bài, tên tệp sẽ dùng làm mã bài. Áp dụng cho Sách, Chuyên đề, Đề thi (đều là 1 sản phẩm gồm nhiều bài)." />
 
@@ -26,7 +30,7 @@
                 <x-select id="product_id" name="product_id" required>
                     <option value="">— Chọn sản phẩm —</option>
                     @foreach ($products as $p)
-                        <option value="{{ $p->id }}" @selected((string) old('product_id') === (string) $p->id)>{{ $p->title }}</option>
+                        <option value="{{ $p->id }}" @selected((string) old('product_id', $selectedProductId) === (string) $p->id)>{{ $p->title }}</option>
                     @endforeach
                 </x-select>
             </div>
@@ -73,7 +77,7 @@
 
             <div class="flex gap-3 pt-2 border-t border-slate-100">
                 <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Tải lên</button>
-                <a href="{{ route('admin.content.index', ['tab' => 'materials']) }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
+                <a href="{{ $backHref }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
             </div>
         </form>
     </div>
