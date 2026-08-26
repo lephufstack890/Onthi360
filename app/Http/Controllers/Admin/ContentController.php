@@ -107,12 +107,16 @@ class ContentController extends Controller
         ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học']);
 
         try {
-            $this->contentService->materialUpdate($material, $data);
+            $updated = $this->contentService->materialUpdate($material, $data);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
-        return redirect()->route('admin.content.show', $material->id)->with('status', 'material-updated');
+        // SỬA 26/8: sau khi lưu, quay về trang chi tiết sản phẩm của học liệu đó (giống
+        // materialsDestroy()/materialsBulkImportStore()) thay vì trang "content.show" chung —
+        // dùng product_id của bản ghi ĐÃ CẬP NHẬT vì admin có thể đổi "Thuộc sản phẩm" ngay
+        // trong form sửa này.
+        return redirect()->route('admin.products.show', $updated->product_id)->with('status', 'material-updated');
     }
 
     public function materialsPublish(Material $material): RedirectResponse
