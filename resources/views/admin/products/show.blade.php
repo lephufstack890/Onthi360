@@ -41,7 +41,8 @@
                 </div>
                 <p class="text-sm text-slate-500">
                     {{ $typeLabels[$product->type->value] ?? $product->type->value }}
-                    · Giá: {{ number_format($product->price) }}đ
+                    · Giá học: {{ number_format($product->price) }}đ
+                    · Giá dạy: {{ number_format($product->price_teaching) }}đ
                     · Hiển thị: {{ $product->visibility->value === 'public' ? 'Công khai' : 'Riêng tư' }}
                 </p>
             </div>

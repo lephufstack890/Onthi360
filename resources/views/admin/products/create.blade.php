@@ -70,12 +70,20 @@
                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">{{ old('description') }}</textarea>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="price">Giá (đ)</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="price">Giá để học (đ)</label>
                         <input id="price" name="price" type="number" min="0" value="{{ old('price', 0) }}" required
                                class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="price_teaching">Giá để dạy (đ)</label>
+                        <input id="price_teaching" name="price_teaching" type="number" min="0" value="{{ old('price_teaching', 0) }}" required
+                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="duration_months">Thời hạn quyền (tháng)</label>
                         <input id="duration_months" name="duration_months" type="number" min="1" value="{{ old('duration_months') }}"

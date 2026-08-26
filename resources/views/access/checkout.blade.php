@@ -32,7 +32,10 @@
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
-        <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ includePrint: false, scope: 'personal_learning', paymentMethod: 'offline' }">
+        {{-- SỬA 26/8 ("giá để học"/"giá để dạy" tách riêng): priceLearning/priceTeaching nạp
+             sẵn vào x-data để giá hiển thị đổi theo scope đang chọn — khớp với số tiền thật sẽ
+             bị trừ ở AccessService::placeOrder() (không còn dùng 1 giá chung cho mọi scope). --}}
+        <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ includePrint: false, scope: 'personal_learning', paymentMethod: 'offline', priceLearning: {{ (int) $product->price }}, priceTeaching: {{ (int) $product->price_teaching }} }">
             <h1 class="text-lg font-semibold text-slate-800 mb-1">Đặt đơn</h1>
             <p class="text-sm text-slate-500 mb-6">Tạo đơn ≠ đã thanh toán ≠ đã có quyền — thời hạn chỉ bắt đầu khi bạn kích hoạt mã (trả bằng token thì có quyền ngay lập tức)</p>
 
@@ -44,7 +47,7 @@
                         <p class="font-medium text-slate-700">{{ $product->title }}</p>
                         <p class="text-xs text-slate-400">Bản mềm — bắt buộc trong đơn số</p>
                     </div>
-                    <p class="font-medium text-slate-700">{{ number_format($product->price) }}đ</p>
+                    <p class="font-medium text-slate-700" x-text="(scope === 'teacher_teaching' ? priceTeaching : priceLearning).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ'">{{ number_format($product->price) }}đ</p>
                 </div>
 
                 <label class="flex items-center justify-between p-4 rounded-xl border border-slate-200 mb-6 cursor-pointer">
@@ -95,7 +98,7 @@
                                     <span class="block text-xs text-slate-500">Trừ ví ngay, có quyền đọc ngay lập tức — không chờ admin duyệt.</span>
                                 </span>
                             </span>
-                            <span class="text-xs font-medium shrink-0" :class="{{ (int) $tokenBalance }} >= (({{ (int) $product->price }} + (includePrint ? {{ (int) $printPrice }} : 0)) ) ? 'text-emerald-600' : 'text-rose-500'">
+                            <span class="text-xs font-medium shrink-0" :class="{{ (int) $tokenBalance }} >= (((scope === 'teacher_teaching' ? priceTeaching : priceLearning) + (includePrint ? {{ (int) $printPrice }} : 0)) ) ? 'text-emerald-600' : 'text-rose-500'">
                                 Số dư: {{ number_format($tokenBalance) }}
                             </span>
                         </label>
@@ -116,7 +119,7 @@
 
                 <div class="flex items-center justify-between border-t border-slate-100 pt-4 mb-6">
                     <span class="text-sm text-slate-500">Tổng tiền</span>
-                    <span class="text-xl font-semibold text-slate-800" x-text="(({{ (int) $product->price }} + (includePrint ? {{ (int) $printPrice }} : 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'đ'"></span>
+                    <span class="text-xl font-semibold text-slate-800" x-text="(((scope === 'teacher_teaching' ? priceTeaching : priceLearning) + (includePrint ? {{ (int) $printPrice }} : 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'đ'"></span>
                 </div>
 
                 <button type="submit" class="w-full px-5 py-3 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition">Đặt đơn</button>

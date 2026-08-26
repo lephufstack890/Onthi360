@@ -23,7 +23,7 @@ class Product extends Model
 
     protected $fillable = [
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',
-        'price', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
+        'price', 'price_teaching', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
         'created_by', 'duration_months',
     ];
 
@@ -34,6 +34,7 @@ class Product extends Model
         'owner_type' => OwnerType::class,
         'has_print_option' => 'boolean',
         'price' => 'integer',
+        'price_teaching' => 'integer',
     ];
 
     public function owner(): BelongsTo

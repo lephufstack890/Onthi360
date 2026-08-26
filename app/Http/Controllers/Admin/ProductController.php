@@ -40,6 +40,7 @@ class ProductController extends Controller
             'grade' => ['nullable', 'string', 'max:20'],
             'topic' => ['nullable', 'string', 'max:120'],
             'price' => ['required', 'integer', 'min:0'],
+            'price_teaching' => ['required', 'integer', 'min:0'],
             'has_print_option' => ['nullable', 'boolean'],
             'duration_months' => ['nullable', 'integer', 'min:1'],
             'status' => ['required', 'string', 'in:draft,published,archived'],

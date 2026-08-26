@@ -125,8 +125,13 @@ class AccessService
             ]);
         }
 
+        // SỬA 26/8 ("giá để học"/"giá để dạy" tách riêng): giá tính vào đơn PHẢI theo đúng
+        // scope người mua chọn — Product::$price_teaching mới thêm cho scope TeacherTeaching,
+        // scope PersonalLearning vẫn dùng Product::$price như cũ.
+        $unitPrice = $scope === AccessScope::TeacherTeaching ? $product->price_teaching : $product->price;
+
         $includePrint = (bool) ($data['include_print'] ?? false);
-        $totalAmount = $product->price + ($includePrint ? self::PRINT_PRICE : 0);
+        $totalAmount = $unitPrice + ($includePrint ? self::PRINT_PRICE : 0);
 
         if ($paymentMethod === PaymentMethod::Token && $user->token_balance < $totalAmount) {
             throw ValidationException::withMessages([
@@ -134,7 +139,7 @@ class AccessService
             ]);
         }
 
-        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $totalAmount, $paymentMethod) {
+        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $totalAmount, $unitPrice, $paymentMethod) {
             $order = $this->orders->create([
                 'order_no' => $this->generateUniqueOrderNo(),
                 'buyer_id' => $user->id,
@@ -150,7 +155,7 @@ class AccessService
                 'product_id' => $product->id,
                 'scope' => $scope->value,
                 'quantity' => 1,
-                'unit_price' => $product->price,
+                'unit_price' => $unitPrice,
                 'include_print' => $includePrint,
                 'print_shipping_info' => null,
             ]);
