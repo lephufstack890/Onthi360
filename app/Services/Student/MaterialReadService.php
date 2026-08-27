@@ -54,9 +54,15 @@ class MaterialReadService
      * tính các bài đã phát hành và có sẵn PDF — bài chỉ làm mục lục/chương cha không có gì để
      * đọc thì bỏ qua, không đưa vào điều hướng để tránh bấm Tiếp mà ra trang trống).
      *
-     * @return array{material: Material, prev: ?Material, next: ?Material, pdfUrl: string, watermarkText: string}
+     * SỬA 27/8 ("giáo viên xem học liệu đã gắn lớp như nào"): thêm $routePrefix (mặc định
+     * 'student' — GIỮ NGUYÊN hành vi cũ cho Student\MaterialController) để trang đọc/route file
+     * dùng ĐÚNG group vai trò đang gọi (route('teacher.materials.read', ...) khi
+     * App\Http\Controllers\Teacher\MaterialController gọi với 'teacher') — logic quyền/dữ liệu
+     * đọc vẫn NGUYÊN VẸN 1 chỗ này, chỉ khác route/layout hiển thị theo vai trò.
+     *
+     * @return array{material: Material, prev: ?Material, next: ?Material, pdfUrl: string, watermarkText: string, readRoute: string, layoutView: string}
      */
-    public function buildReadData(User $user, Material $material): array
+    public function buildReadData(User $user, Material $material, string $routePrefix = 'student'): array
     {
         $siblings = $this->materials->query()
             ->where('product_id', $material->product_id)
@@ -73,11 +79,13 @@ class MaterialReadService
             'material' => $material,
             'prev' => $prev,
             'next' => $next,
-            'pdfUrl' => route('student.materials.file', $material->id),
+            'pdfUrl' => route($routePrefix.'.materials.file', $material->id),
             // Đóng dấu mờ lên từng trang khi hiển thị (giảm thiểu chia sẻ ảnh chụp màn hình ra
             // ngoài) — không chặn được tuyệt đối (không phần mềm nào chặn được chụp màn hình),
             // chỉ để TRUY VẾT được nguồn nếu có rò rỉ, khách đã được báo trước điều này.
             'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
+            'readRoute' => $routePrefix.'.materials.read',
+            'layoutView' => 'layouts.'.$routePrefix,
         ];
     }
 

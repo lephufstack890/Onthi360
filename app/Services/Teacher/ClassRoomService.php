@@ -173,9 +173,15 @@ class ClassRoomService
         $materials = [];
         $attachableMaterials = [];
         if ($tab === 'materials') {
+            // SỬA 27/8 ("giáo viên xem học liệu đã gắn lớp như nào") — thêm materialId/hasPdf để
+            // Blade dựng link "Xem" sang teacher.materials.read (trước đây tab này chỉ có
+            // Gỡ, không có cách nào tự đọc lại bài đã gắn). $cm->id vẫn giữ nguyên cho form Gỡ
+            // (route nhận classMaterial id, khác material_id).
             $materials = $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
                 ->map(fn ($cm) => [
                     'id' => $cm->id,
+                    'materialId' => $cm->material_id,
+                    'hasPdf' => $cm->material?->pdf_path !== null,
                     'title' => $cm->material->title ?? 'Học liệu',
                     'scope' => 'Đang dùng ở lớp này',
                     'tone' => 'success',

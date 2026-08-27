@@ -25,6 +25,7 @@ use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentContro
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
 use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
+use App\Http\Controllers\Teacher\MaterialController as TeacherMaterialController;
 use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
 use App\Http\Controllers\Teacher\ScheduleController as TeacherScheduleController;
@@ -134,6 +135,12 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::post('classes/{class}/materials', [TeacherClassRoomController::class, 'attachMaterial'])->name('classes.materials.attach');
         Route::delete('classes/{class}/materials/{classMaterial}', [TeacherClassRoomController::class, 'detachMaterial'])->name('classes.materials.detach');
+        // SỬA 27/8 ("giáo viên đọc tài liệu bị 403" / "xem học liệu đã gắn lớp như nào") —
+        // trước đây chỉ có student.materials.read/file (khoá bởi role:student), giáo viên
+        // không có route nào để tự đọc học liệu đã mua/đã gắn lớp. Xem
+        // App\Http\Controllers\Teacher\MaterialController — tái dùng MaterialReadService.
+        Route::get('materials/{material}', [TeacherMaterialController::class, 'read'])->name('materials.read');
+        Route::get('materials/{material}/file', [TeacherMaterialController::class, 'pdfFile'])->name('materials.file');
         // SỬA 24/8 — khách yêu cầu: "Giao đề" (chọn đề có sẵn) chuyển hẳn vào đây (tab "Giao
         // đề" trong Chi tiết lớp) — KHÔNG còn giao được từ Bài tập & Đề nữa (xem
         // teacher.assessments.store/index đã bỏ nhánh giao lớp, chỉ còn lưu đề).

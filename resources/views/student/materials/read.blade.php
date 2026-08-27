@@ -1,4 +1,12 @@
-@extends('layouts.student')
+{{--
+  SỬA 27/8 ("giáo viên đọc tài liệu bị 403" / "xem học liệu đã gắn lớp như nào"): trang này
+  giờ dùng CHUNG cho cả student.materials.read và teacher.materials.read (xem
+  App\Http\Controllers\Teacher\MaterialController — cùng gọi MaterialReadService::
+  buildReadData(), chỉ khác $routePrefix) — $layoutView/$readRoute do service đó truyền vào
+  theo đúng vai trò đang gọi, mặc định giữ nguyên 'layouts.student'/'student.materials.read'
+  như cũ nếu thiếu (không đổi gì cho luồng học sinh hiện có).
+--}}
+@extends($layoutView ?? 'layouts.student')
 
 @section('title', $material->title)
 @section('page-title', 'Đọc bài')
@@ -8,6 +16,7 @@
         $prev = $prev ?? null;
         $next = $next ?? null;
         $watermarkText = $watermarkText ?? '';
+        $readRoute = $readRoute ?? 'student.materials.read';
     @endphp
 
     {{--
@@ -192,7 +201,7 @@
         <div class="reader-toolbar-dock">
             <div class="reader-toolbar">
                 @if ($prev)
-                    <a href="{{ route('student.materials.read', $prev->id) }}" class="reader-toolbar-btn" title="Bài trước">‹</a>
+                    <a href="{{ route($readRoute, $prev->id) }}" class="reader-toolbar-btn" title="Bài trước">‹</a>
                 @else
                     <span class="reader-toolbar-btn" aria-disabled="true">‹</span>
                 @endif
@@ -200,7 +209,7 @@
                 <span class="reader-page-indicator" id="reader-page-indicator">…</span>
 
                 @if ($next)
-                    <a href="{{ route('student.materials.read', $next->id) }}" class="reader-toolbar-btn" title="Bài sau">›</a>
+                    <a href="{{ route($readRoute, $next->id) }}" class="reader-toolbar-btn" title="Bài sau">›</a>
                 @else
                     <span class="reader-toolbar-btn" aria-disabled="true">›</span>
                 @endif

@@ -67,6 +67,12 @@
                     </div>
                     <div class="flex items-center gap-2 text-sm">
                         <x-status-badge tone="success">{{ $m['linkedStatus'] }}</x-status-badge>
+                        {{-- SỬA 27/8 ("giáo viên xem học liệu đã gắn lớp như nào") — chỉ hiện
+                             "Xem" khi bài đã có PDF (giống quy tắc $readable ở TOC công khai),
+                             bài chỉ làm mục lục/chương cha thì không có gì để đọc. --}}
+                        @if ($m['hasPdf'] ?? false)
+                            <a href="{{ route('teacher.materials.read', $m['materialId']) }}" class="text-rose-600 font-medium">Xem</a>
+                        @endif
                         <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}" class="inline">
                             @csrf
                             @method('DELETE')

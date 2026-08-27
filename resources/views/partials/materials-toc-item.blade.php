@@ -15,6 +15,13 @@
     $readable = $owned && ($item['hasContent'] ?? false);
     $children = $item['children'] ?? [];
     $hasChildren = count($children) > 0;
+    // SỬA 27/8 ("giáo viên đọc tài liệu bị 403"): TRƯỚC ĐÂY link luôn trỏ cứng sang
+    // student.materials.read — chỉ role student mở được (xem routes/web.php), giáo viên bấm
+    // vào đây (sau khi mua) là dính 403. $owned=true chỉ khi đã đăng nhập nên auth()->user()
+    // luôn có ở nhánh này.
+    $readRouteName = auth()->user()?->hasAnyRole(\App\Models\Role::TEACHER)
+        ? 'teacher.materials.read'
+        : 'student.materials.read';
 @endphp
 <div @if ($hasChildren) x-data="{ open: false }" @endif @if ($depth > 0) style="padding-left: {{ $depth * 1.5 }}rem" @endif>
     <div class="flex items-center gap-3 {{ $depth === 0 ? 'py-3' : 'py-2' }}">
@@ -24,7 +31,7 @@
             <span class="shrink-0" style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:#cbd5e1"></span>
         @endif
         @if ($readable)
-            <a href="{{ route('student.materials.read', $item['id']) }}" class="text-sm {{ $depth === 0 ? 'font-medium text-slate-700' : 'text-slate-600' }} hover:text-rose-600">{{ $item['title'] }}</a>
+            <a href="{{ route($readRouteName, $item['id']) }}" class="text-sm {{ $depth === 0 ? 'font-medium text-slate-700' : 'text-slate-600' }} hover:text-rose-600">{{ $item['title'] }}</a>
         @else
             <p class="text-sm flex items-center gap-1 {{ $depth === 0 ? 'font-medium text-slate-500' : 'text-slate-400' }}">
                 {{ $item['title'] }}

@@ -133,11 +133,20 @@ class AccessGateService
         return AccessDecision::allow();
     }
 
+    /**
+     * SỬA 27/8 ("giáo viên mua tài liệu xong đọc bị 403"): TRƯỚC ĐÂY chỉ nhận
+     * scope=PersonalLearning — quyền mua với scope=TeacherTeaching (giá "để dạy", xem
+     * ProductService::store()/AccessService::placeOrder()) không bao giờ qua được cửa này, nên
+     * giáo viên tự đọc tài liệu mình đã mua (kể cả KHÔNG qua lớp) luôn bị chặn dù quyền còn
+     * hiệu lực. Cả 2 scope đều là quyền đọc THẬT đã trả tiền/kích hoạt cho đúng sản phẩm này —
+     * khác nhau ở MỤC ĐÍCH dùng (tự học hay dùng để dạy/gắn lớp), không phải ở việc có được mở
+     * bài hay không — nên chỗ này chỉ cần "có quyền còn hiệu lực", không lọc theo scope.
+     */
     public function hasActivePersonalAccess(User $user, int $productId): bool
     {
         return $user->accessRights()
             ->where('product_id', $productId)
-            ->where('scope', AccessScope::PersonalLearning)
+            ->whereIn('scope', [AccessScope::PersonalLearning->value, AccessScope::TeacherTeaching->value])
             ->where('status', AccessRightStatus::Active)
             ->where('expires_at', '>', now())
             ->exists();
