@@ -9,6 +9,7 @@ use App\Enums\ProgressUnitType;
 use App\Enums\Visibility;
 use App\Models\ClassRoom;
 use App\Models\Material;
+use App\Models\Product;
 use App\Models\ProgressUnlock;
 use App\Models\Role;
 use App\Models\User;
@@ -36,6 +37,30 @@ class AccessGateService
         return $classRoom
             ? $this->canAccessViaClass($user, $material, $classRoom)
             : $this->canAccessViaPersonalEntitlement($user, $material);
+    }
+
+    /**
+     * SỬA 27/8 ("4 file đính kèm sản phẩm" — PDF hướng dẫn/ZIP bài tập/học liệu media): các
+     * tài nguyên này gắn THẲNG vào Product (không chia chương/mục, không gắn lớp như Material)
+     * nên chỉ cần 1 cửa — sản phẩm công khai HOẶC user có quyền còn hiệu lực. Dùng lại đúng
+     * hasActivePersonalAccess() bên dưới, không viết luật riêng.
+     */
+    public function canAccessProduct(User $user, Product $product): AccessDecision
+    {
+        if ($product->visibility === Visibility::Public) {
+            return AccessDecision::allow();
+        }
+
+        if ($this->hasActivePersonalAccess($user, $product->id)) {
+            return AccessDecision::allow();
+        }
+
+        return AccessDecision::deny(
+            reasonCode: 'need_personal_access',
+            message: 'Bạn cần quyền học liệu để tải/xem tài nguyên này.',
+            ctaLabel: 'Mua học liệu / Nhập mã',
+            ctaAction: 'purchase_or_activate',
+        );
     }
 
     /** Truy cập trực tiếp theo sản phẩm (không qua lớp) — 7.1 dòng "Theo sản phẩm". */

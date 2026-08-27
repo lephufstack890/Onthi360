@@ -78,6 +78,40 @@
                         </div>
                     </div>
                 @endif
+
+                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): đủ 4
+                     tài nguyên — content (PDF nội dung chính, thay khối "Học liệu" cây
+                     chương/mục đã bỏ ở admin), guide, exercise, media. Khoá/mở theo đúng $owned
+                     y hệt Mục lục — tải qua access.resource (xem AccessService::
+                     downloadResource(), AccessGateService::canAccessProduct()). $material ở
+                     view này chính là Product (xem MaterialService::showData()). --}}
+                @php
+                    $extraResources = collect([
+                        ['kind' => 'content', 'icon' => '📄', 'label' => 'File PDF', 'present' => filled($material->content_pdf_path)],
+                        ['kind' => 'guide', 'icon' => '📘', 'label' => 'PDF hướng dẫn', 'present' => filled($material->guide_pdf_path)],
+                        ['kind' => 'exercise', 'icon' => '🗂️', 'label' => 'ZIP bài tập', 'present' => filled($material->exercise_zip_path)],
+                        ['kind' => 'media', 'icon' => '🎬', 'label' => 'Học liệu (ảnh động/audio)', 'present' => filled($material->media_path)],
+                    ])->filter(fn ($r) => $r['present']);
+                @endphp
+                @if ($extraResources->isNotEmpty())
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2">
+                            <span>📎</span> Tài nguyên đính kèm
+                        </h2>
+                        <div class="space-y-2">
+                            @foreach ($extraResources as $res)
+                                <div class="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200">
+                                    <span class="text-sm text-slate-600 flex items-center gap-2">{{ $res['icon'] }} {{ $res['label'] }}</span>
+                                    @if ($owned)
+                                        <a href="{{ route('access.resource', ['product' => $material->id, 'kind' => $res['kind']]) }}" class="text-sm text-rose-600 font-medium">Xem/Tải ›</a>
+                                    @else
+                                        <span class="text-slate-300" title="Cần mua quyền để tải">🔒</span>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 h-fit sticky top-6">

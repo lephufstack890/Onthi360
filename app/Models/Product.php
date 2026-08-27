@@ -25,6 +25,13 @@ class Product extends Model
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',
         'price', 'price_teaching', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
         'created_by', 'duration_months',
+        // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản
+        // phẩm" — cây chương/mục Material cũ): content_pdf = file PDF nội dung chính (thay
+        // Material), 3 cột còn lại là tài nguyên phụ.
+        'content_pdf_path', 'content_pdf_original_name',
+        'guide_pdf_path', 'guide_pdf_original_name',
+        'exercise_zip_path', 'exercise_zip_original_name',
+        'media_path', 'media_original_name',
     ];
 
     protected $casts = [

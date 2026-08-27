@@ -313,9 +313,14 @@ class MaterialService
     }
 
     /**
-     * "Tic xanh" (4.1) — product_id mà $viewer đang có quyền học cá nhân CÒN HIỆU LỰC
-     * (scope=personal_learning, không tính teacher_teaching — đó là quyền dạy 1 khóa học,
-     * khác phạm vi trang Tài liệu này). Khách ($viewer=null) luôn trả về rỗng.
+     * "Tic xanh" (4.1) — product_id mà $viewer đang có quyền CÒN HIỆU LỰC cho sản phẩm đó.
+     * Khách ($viewer=null) luôn trả về rỗng.
+     *
+     * SỬA 27/8 ("giáo viên mua tài liệu xong đọc bị 403" — cùng gốc với
+     * AccessGateService::hasActivePersonalAccess()): TRƯỚC ĐÂY chỉ nhận scope=personal_learning,
+     * nên giáo viên mua theo giá "để dạy" (scope=teacher_teaching) vẫn thấy trang này như CHƯA
+     * mua (mục lục khoá 🔒, không có tic xanh) dù đã trả tiền và đọc bài đã mở được (sau khi
+     * sửa AccessGateService). Nhận cả 2 scope cho khớp — cùng là quyền đọc thật đã kích hoạt.
      *
      * @param  array<int, int>  $productIds
      * @return Collection<int, int>
@@ -327,7 +332,7 @@ class MaterialService
         }
 
         return $this->accessRights->forUserWithProduct($viewer->id)
-            ->filter(fn (AccessRight $ar) => $ar->scope === AccessScope::PersonalLearning
+            ->filter(fn (AccessRight $ar) => in_array($ar->scope, [AccessScope::PersonalLearning, AccessScope::TeacherTeaching], true)
                 && in_array($ar->product_id, $productIds, true)
                 && $ar->isCurrentlyActive())
             ->pluck('product_id')

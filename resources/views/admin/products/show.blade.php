@@ -66,26 +66,35 @@
                 @endif
             </div>
 
+            {{-- SỬA 27/8 (2 — "bỏ mục học liệu thuộc sản phẩm đi"): đã bỏ khối "Học liệu thuộc
+                 sản phẩm" (cây chương/mục PDF cũ) ở đây theo yêu cầu — quản lý học liệu (nếu
+                 còn cần) vẫn còn nguyên ở admin.content.materials.* (route/controller/service
+                 KHÔNG bị xoá, chỉ bỏ lối vào từ trang này). SỬA 27/8 ("4 file đính kèm sản
+                 phẩm") — 3 tài nguyên dưới đây upload/thay qua nút "Sửa sản phẩm" (cùng form,
+                 xem admin/products/edit.blade.php). --}}
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
-                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📚</span> Học liệu thuộc sản phẩm</h2>
-                    {{-- SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): trước đây phải qua tab
-                         "Học liệu" riêng ở Nội dung rồi tự chọn lại sản phẩm — giờ 2 nút này
-                         luôn hiện ngay tại đây, đi thẳng tới đúng form đã điền sẵn sản phẩm
-                         hiện tại (?product_id=), xem ContentController::materialsCreate()/
-                         materialsBulkImportCreate(). --}}
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('admin.content.materials.create', ['product_id' => $product->id]) }}" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">+ Thêm học liệu</a>
-                        <a href="{{ route('admin.content.materials.bulk.create', ['product_id' => $product->id]) }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải hàng loạt (ZIP)</a>
-                    </div>
-                </div>
+                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📎</span> Tài nguyên đính kèm</h2>
+                @php
+                    $extraResources = [
+                        ['label' => 'File PDF', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name],
+                        ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
+                        ['label' => 'ZIP bài tập', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name],
+                        ['label' => 'Học liệu (ảnh động/audio)', 'path' => $product->media_path, 'name' => $product->media_original_name],
+                    ];
+                @endphp
                 <div class="divide-y divide-slate-100">
-                    @forelse ($materialsTree as $i => $node)
-                        @include('partials.admin-materials-tree-item', ['item' => $node, 'depth' => 0])
-                    @empty
-                        <x-empty-state title="Chưa có học liệu nào" description="Bấm &quot;+ Thêm học liệu&quot; ở trên để tạo chương/bài/mục đầu tiên cho sản phẩm này (6.5)." :actionLabel="'+ Thêm học liệu'" :actionHref="route('admin.content.materials.create', ['product_id' => $product->id])" />
-                    @endforelse
+                    @foreach ($extraResources as $res)
+                        <div class="flex items-center justify-between gap-3 py-2.5">
+                            <span class="text-sm text-slate-600 shrink-0">{{ $res['label'] }}</span>
+                            @if ($res['path'])
+                                <span class="text-xs text-emerald-600 font-medium truncate min-w-0">✓ {{ $res['name'] }}</span>
+                            @else
+                                <span class="text-xs text-slate-400">Chưa có</span>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
+                <a href="{{ route('admin.products.edit', $product->id) }}" class="text-sm text-rose-600 font-medium mt-3 inline-block">Thêm/thay file ›</a>
             </div>
 
             {{-- Note họp 13/8 mục 2: "Có danh sách các quyền được cấp, cần danh sách phê

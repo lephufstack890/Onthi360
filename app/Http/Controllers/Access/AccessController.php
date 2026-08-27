@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AccessController extends Controller
 {
@@ -114,5 +115,15 @@ class AccessController extends Controller
         $classRoomId = $request->query('class') ? (int) $request->query('class') : null;
 
         return view('access.blocked', $this->accessService->blockedGates($user, $material, $classRoomId));
+    }
+
+    /**
+     * access.resource (mới 27/8, "4 file đính kèm sản phẩm") — tải/xem PDF hướng dẫn/ZIP bài
+     * tập/học liệu media của 1 sản phẩm. {kind} giới hạn bằng route whereIn (xem routes/web.php)
+     * — logic quyền/tìm file THẬT nằm hết ở AccessService::downloadResource().
+     */
+    public function resource(Request $request, int $product, string $kind): StreamedResponse
+    {
+        return $this->accessService->downloadResource(Auth::user(), $product, $kind);
     }
 }

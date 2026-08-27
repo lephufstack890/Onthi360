@@ -247,6 +247,13 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 25/8 (2) — "lưu lại lịch sử đặt mua có học sinh luôn", xem
         // AccessService::purchaseHistoryData().
         Route::get('/lich-su', [AccessController::class, 'history'])->name('history');
+        // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô) — tải/xem PDF nội dung chính/PDF
+        // hướng dẫn/ZIP bài tập/học liệu media của 1 sản phẩm. Đặt ở group role-agnostic này
+        // (giống checkout/blocked) vì mọi vai trò đã mua đều tải/xem được, không riêng học
+        // sinh hay giáo viên.
+        Route::get('/tai-nguyen/{product}/{kind}', [AccessController::class, 'resource'])
+            ->whereIn('kind', ['content', 'guide', 'exercise', 'media'])
+            ->name('resource');
     });
 
     Route::prefix('vi')->name('wallet.')->group(function () {

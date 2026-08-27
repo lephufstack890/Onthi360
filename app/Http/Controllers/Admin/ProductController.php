@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\Admin\ProductService;
+use App\Services\PdfAssessmentEditingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,10 @@ class ProductController extends Controller
         return view('admin.products.create', $this->productService->createFormData());
     }
 
+    private const MAX_EXERCISE_ZIP_KB = 204800; // 200MB — gói bài tập có thể gồm nhiều tệp con
+
+    private const MAX_MEDIA_KB = 51200; // 50MB — ảnh động/audio ngắn
+
     private function validationRules(): array
     {
         return [
@@ -45,7 +50,44 @@ class ProductController extends Controller
             'duration_months' => ['nullable', 'integer', 'min:1'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
             'visibility' => ['required', 'string', 'in:public,private'],
+            // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản
+            // phẩm"): mỗi ô đúng 1 file, để trống = giữ nguyên file cũ (giống cover_image, xem
+            // applyResourceUploads()).
+            'content_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
+            'guide_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
+            'exercise_zip' => ['nullable', 'file', 'mimes:zip', 'max:'.self::MAX_EXERCISE_ZIP_KB],
+            'media' => ['nullable', 'file', 'mimes:gif,webp,png,jpg,jpeg,mp4,mp3,wav,ogg', 'max:'.self::MAX_MEDIA_KB],
         ];
+    }
+
+    /**
+     * SỬA 27/8 ("4 file đính kèm sản phẩm") — xử lý CHUNG cho cả 4 ô file (content_pdf,
+     * guide_pdf, exercise_zip, media): có file mới thì xoá file cũ (nếu $existing có) rồi lưu
+     * file mới vào disk 'local' (riêng tư — khác cover_image ở disk 'public' vì 4 tài nguyên
+     * này PHẢI qua kiểm tra quyền mới tải được, xem AccessGateService::canAccessProduct());
+     * không có file mới thì bỏ hẳn field khỏi $data để giữ nguyên giá trị cũ trong DB
+     * (ProductService chỉ ghi đè khi key có mặt, giống cover_image_path).
+     */
+    private function applyResourceUploads(Request $request, array &$data, ?Product $existing): void
+    {
+        $fields = [
+            'content_pdf' => ['content_pdf_path', 'content_pdf_original_name', 'products/content'],
+            'guide_pdf' => ['guide_pdf_path', 'guide_pdf_original_name', 'products/guides'],
+            'exercise_zip' => ['exercise_zip_path', 'exercise_zip_original_name', 'products/exercises'],
+            'media' => ['media_path', 'media_original_name', 'products/media'],
+        ];
+
+        foreach ($fields as $field => [$pathKey, $nameKey, $folder]) {
+            if ($request->hasFile($field)) {
+                if ($existing?->{$pathKey}) {
+                    Storage::disk('local')->delete($existing->{$pathKey});
+                }
+                $file = $request->file($field);
+                $data[$pathKey] = $file->store($folder, 'local');
+                $data[$nameKey] = $file->getClientOriginalName();
+            }
+            unset($data[$field]);
+        }
     }
 
     public function store(Request $request): RedirectResponse
@@ -56,6 +98,8 @@ class ProductController extends Controller
             $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
         }
         unset($data['cover_image']);
+
+        $this->applyResourceUploads($request, $data, null);
 
         $product = $this->productService->store($data);
 
@@ -78,6 +122,8 @@ class ProductController extends Controller
             $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
         }
         unset($data['cover_image']);
+
+        $this->applyResourceUploads($request, $data, $product);
 
         $this->productService->update($product, $data);
 

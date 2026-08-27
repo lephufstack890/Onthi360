@@ -21,8 +21,10 @@ use App\Services\OrderActivationService;
 use App\Support\AccessDecision;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Quyền truy cập / thanh toán (mục 7) — checkout, kích hoạt mã, "Quyền của
@@ -71,6 +73,38 @@ class AccessService
             // hay chưa TRƯỚC khi bấm "Đặt đơn" — tránh phải bấm thử rồi mới biết thiếu.
             'tokenBalance' => $user->token_balance,
         ];
+    }
+
+    /**
+     * access.resource (27/8, "4 file đính kèm sản phẩm") — tải/xem 1 trong 4 tài nguyên gắn
+     * thẳng vào Product: PDF nội dung chính (content — thay khối "Học liệu"/Material cây
+     * chương/mục đã bỏ, xem SỬA 27/8 (2)), PDF hướng dẫn (guide), ZIP bài tập (exercise), học
+     * liệu media (media). Quyền tải/xem dùng lại AccessGateService::canAccessProduct() — kiểm
+     * tra Ở ĐÂY, không tin route trước đã kiểm tra (cùng nguyên tắc "2 request độc lập" như
+     * MaterialReadService::pdfFile()).
+     */
+    public function downloadResource(User $user, int $productId, string $kind): StreamedResponse
+    {
+        $product = $this->products->findOrFail($productId);
+
+        abort_unless($this->accessGate->canAccessProduct($user, $product)->allowed, 403);
+
+        [$path, $originalName] = match ($kind) {
+            'content' => [$product->content_pdf_path, $product->content_pdf_original_name],
+            'guide' => [$product->guide_pdf_path, $product->guide_pdf_original_name],
+            'exercise' => [$product->exercise_zip_path, $product->exercise_zip_original_name],
+            'media' => [$product->media_path, $product->media_original_name],
+            default => [null, null],
+        };
+
+        abort_if(blank($path), 404);
+
+        // ZIP bài tập luôn TẢI VỀ (không đọc trực tiếp được trên web) — PDF (nội dung
+        // chính/hướng dẫn)/học liệu media thì mở/nghe/xem trực tiếp trên trình duyệt
+        // (response() thay vì download()).
+        return $kind === 'exercise'
+            ? Storage::disk('local')->download($path, $originalName ?: basename($path))
+            : Storage::disk('local')->response($path, $originalName ?: basename($path));
     }
 
     /**

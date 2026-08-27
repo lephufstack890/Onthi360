@@ -90,6 +90,17 @@ class ProductService
             'owner_type' => 'shared',
             'owner_id' => null,
             'created_by' => null,
+            // SỬA 27/8 ("4 file đính kèm sản phẩm") — ProductController::applyResourceUploads()
+            // chỉ đưa 2 key path/original_name vào $data khi THỰC SỰ có file mới, nên ?? null
+            // ở đây là đúng cho lần tạo mới (chưa có gì để giữ nguyên).
+            'content_pdf_path' => $data['content_pdf_path'] ?? null,
+            'content_pdf_original_name' => $data['content_pdf_original_name'] ?? null,
+            'guide_pdf_path' => $data['guide_pdf_path'] ?? null,
+            'guide_pdf_original_name' => $data['guide_pdf_original_name'] ?? null,
+            'exercise_zip_path' => $data['exercise_zip_path'] ?? null,
+            'exercise_zip_original_name' => $data['exercise_zip_original_name'] ?? null,
+            'media_path' => $data['media_path'] ?? null,
+            'media_original_name' => $data['media_original_name'] ?? null,
         ]);
     }
 
@@ -123,6 +134,15 @@ class ProductService
         // chọn ảnh mới, PHẢI giữ nguyên ảnh cũ, không được ghi đè thành null.
         if (array_key_exists('cover_image_path', $data)) {
             $attributes['cover_image_path'] = $data['cover_image_path'];
+        }
+
+        // SỬA 27/8 ("4 file đính kèm sản phẩm") — CÙNG quy tắc trên, áp dụng cho cả 4 cặp
+        // path/original_name: chỉ ghi đè khi ProductController::applyResourceUploads() thực sự
+        // có file mới (key có mặt trong $data), giữ nguyên file cũ nếu không upload.
+        foreach (['content_pdf_path', 'content_pdf_original_name', 'guide_pdf_path', 'guide_pdf_original_name', 'exercise_zip_path', 'exercise_zip_original_name', 'media_path', 'media_original_name'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $attributes[$key] = $data[$key];
+            }
         }
 
         return $this->products->update($product, $attributes);
