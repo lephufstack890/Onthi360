@@ -15,6 +15,7 @@ use App\Http\Controllers\Public\TeacherController as PublicTeacherController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\Student\LibraryController as StudentLibraryController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
 use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
 use App\Http\Controllers\Student\PracticeByQuestionController as StudentPracticeByQuestionController;
@@ -121,6 +122,12 @@ Route::middleware(['auth'])->group(function () {
         // (materials.file), gọi bằng fetch() từ trang đọc — không phải link tải trực tiếp.
         Route::get('materials/{material}', [StudentMaterialController::class, 'read'])->name('materials.read');
         Route::get('materials/{material}/file', [StudentMaterialController::class, 'pdfFile'])->name('materials.file');
+        // SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang public, chỉ xem trong khu vực
+        // học sinh"): "Tài liệu của tôi" — tab Sách/Chuyên đề/Bộ đề, chỉ liệt kê sản phẩm đã
+        // mua (App\Services\Student\LibraryService), gộp cả Mục lục (đọc bài — vẫn qua
+        // materials.read/file phía trên) VÀ 3 tài nguyên đính kèm (content/exercise/media —
+        // guide bị chặn hẳn cho học sinh, xem AccessService::downloadResource()).
+        Route::get('tai-lieu-cua-toi', [StudentLibraryController::class, 'index'])->name('library.index');
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
@@ -249,8 +256,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/lich-su', [AccessController::class, 'history'])->name('history');
         // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô) — tải/xem PDF nội dung chính/PDF
         // hướng dẫn/ZIP bài tập/học liệu media của 1 sản phẩm. Đặt ở group role-agnostic này
-        // (giống checkout/blocked) vì mọi vai trò đã mua đều tải/xem được, không riêng học
-        // sinh hay giáo viên.
+        // (giống checkout/blocked) vì mọi vai trò đã mua đều tải/xem được — TRỪ RIÊNG kind
+        // 'guide': SỬA 28/8 ("học sinh xem toàn bộ file trừ hướng dẫn") chặn hẳn cho vai trò
+        // học sinh ngay trong AccessService::downloadResource(), không chỉ ẩn ở UI.
         Route::get('/tai-nguyen/{product}/{kind}', [AccessController::class, 'resource'])
             ->whereIn('kind', ['content', 'guide', 'exercise', 'media'])
             ->name('resource');

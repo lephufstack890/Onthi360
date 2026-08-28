@@ -63,55 +63,15 @@
                     </div>
                 </div>
 
-                @if (count($toc) > 0)
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2">
-                            <span>📑</span> Mục lục <span class="text-slate-400 font-normal">({{ count($toc) }} phần)</span>
-                        </h2>
-                        <div class="divide-y divide-slate-100">
-                            {{-- SỬA 25/8 (8 — "mục lục đa cấp"): thay khối phẳng cũ bằng partial đệ
-                                 quy — mỗi chương hiện đủ các bài con lồng bên trong, xem
-                                 MaterialService::buildTocTree() + partials/materials-toc-item. --}}
-                            @foreach ($toc as $i => $chap)
-                                @include('partials.materials-toc-item', ['item' => $chap, 'index' => $i, 'depth' => 0, 'owned' => $owned])
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): đủ 4
-                     tài nguyên — content (PDF nội dung chính, thay khối "Học liệu" cây
-                     chương/mục đã bỏ ở admin), guide, exercise, media. Khoá/mở theo đúng $owned
-                     y hệt Mục lục — tải qua access.resource (xem AccessService::
-                     downloadResource(), AccessGateService::canAccessProduct()). $material ở
-                     view này chính là Product (xem MaterialService::showData()). --}}
-                @php
-                    $extraResources = collect([
-                        ['kind' => 'content', 'icon' => '📄', 'label' => 'File PDF', 'present' => filled($material->content_pdf_path)],
-                        ['kind' => 'guide', 'icon' => '📘', 'label' => 'PDF hướng dẫn', 'present' => filled($material->guide_pdf_path)],
-                        ['kind' => 'exercise', 'icon' => '🗂️', 'label' => 'ZIP bài tập', 'present' => filled($material->exercise_zip_path)],
-                        ['kind' => 'media', 'icon' => '🎬', 'label' => 'Học liệu (ảnh động/audio)', 'present' => filled($material->media_path)],
-                    ])->filter(fn ($r) => $r['present']);
-                @endphp
-                @if ($extraResources->isNotEmpty())
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2">
-                            <span>📎</span> Tài nguyên đính kèm
-                        </h2>
-                        <div class="space-y-2">
-                            @foreach ($extraResources as $res)
-                                <div class="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200">
-                                    <span class="text-sm text-slate-600 flex items-center gap-2">{{ $res['icon'] }} {{ $res['label'] }}</span>
-                                    @if ($owned)
-                                        <a href="{{ route('access.resource', ['product' => $material->id, 'kind' => $res['kind']]) }}" class="text-sm text-rose-600 font-medium">Xem/Tải ›</a>
-                                    @else
-                                        <span class="text-slate-300" title="Cần mua quyền để tải">🔒</span>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
+                {{-- SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang tài liệu công khai"):
+                     2 khối "Mục lục" và "Tài nguyên đính kèm" trước đây hiện ngay ở đây (kể cả
+                     khách chưa mua, chỉ khoá 🔒 phần chưa mua được) — theo yêu cầu, trang công
+                     khai giờ CHỈ hiện thông tin sách + giá bình thường, KHÔNG lộ mục lục hay
+                     danh sách file đính kèm nữa. Toàn bộ nội dung này giờ CHỈ xem được trong
+                     khu vực học sinh, SAU KHI đã mua (xem student.library.index, mục "Tài liệu
+                     của tôi" — App\Services\Student\LibraryService) — KHÔNG xoá dữ liệu/route
+                     phía sau ($toc, MaterialService::showData() vẫn tính như cũ, chỉ bỏ hiển
+                     thị ở trang này). --}}
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 h-fit sticky top-6">

@@ -4,7 +4,10 @@
         ['label' => 'Khóa học', 'route' => 'student.courses.index', 'icon' => '📚'],
         ['label' => 'Thời khoá biểu', 'route' => 'student.schedule.index', 'icon' => '🗓️'],
         ['label' => 'Luyện tập', 'route' => 'student.practice.index', 'icon' => '📝'],
-        ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => '📖'],
+        // SỬA 28/8 ("tài liệu mua được chỉ xem trong trang học sinh"): trước đây trỏ sang
+        // trang tài liệu CÔNG KHAI (materials.index) — giờ trỏ sang "Tài liệu của tôi"
+        // (student.library.index), chỉ liệt kê tài liệu ĐÃ MUA — xem App\Services\Student\LibraryService.
+        ['label' => 'Tài liệu', 'route' => 'student.library.index', 'icon' => '📖'],
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => '🏆'],
         ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => '📊'],
         ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => '💳'],

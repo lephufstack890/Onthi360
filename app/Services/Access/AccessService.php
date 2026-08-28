@@ -9,6 +9,7 @@ use App\Models\AccessRight;
 use App\Models\ClassRoom;
 use App\Models\Material;
 use App\Models\Order;
+use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ActivationCodeRepositoryInterface;
@@ -88,6 +89,18 @@ class AccessService
         $product = $this->products->findOrFail($productId);
 
         abort_unless($this->accessGate->canAccessProduct($user, $product)->allowed, 403);
+
+        // SỬA 28/8 ("học sinh dc xem toàn bộ file chỉ trừ file hướng dẫn là không được xem"):
+        // PDF hướng dẫn dành riêng cho giáo viên (giáo án/hướng dẫn giảng dạy) — vai trò học
+        // sinh (KHÔNG kiêm giáo viên/admin/super_admin) không được xem/tải file này dù đã có
+        // quyền sản phẩm còn hiệu lực. Chặn thật ở đây (không chỉ ẩn link ở UI) vì
+        // student.library.index chỉ là 1 cách vào, request trực tiếp route này vẫn phải bị
+        // chặn đúng luật.
+        if ($kind === 'guide'
+            && $user->hasAnyRole(Role::STUDENT)
+            && ! $user->hasAnyRole(Role::TEACHER, Role::ADMIN, Role::SUPER_ADMIN)) {
+            abort(403);
+        }
 
         [$path, $originalName] = match ($kind) {
             'content' => [$product->content_pdf_path, $product->content_pdf_original_name],
