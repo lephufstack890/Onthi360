@@ -20,6 +20,8 @@ class LibraryController extends Controller
     {
         $tab = $request->query('tab', 'sach');
 
-        return view('student.materials.mine', $this->library->indexData($request->user(), $tab));
+        // includeGuide=false — học sinh KHÔNG được xem PDF hướng dẫn (xem
+        // App\Services\Student\LibraryService, luật thật chặn ở AccessService::downloadResource()).
+        return view('student.materials.mine', $this->library->indexData($request->user(), $tab, 'student.library.index', false));
     }
 }

@@ -2,6 +2,10 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
         ['label' => 'Lớp học', 'route' => 'teacher.classes.index', 'icon' => '🏫'],
+        // SỬA 28/8 (2 — "bên giáo viên cũng xem tài liệu giống như học sinh, chỉ khác được
+        // xem thêm file hướng dẫn"): "Tài liệu của tôi" — sản phẩm ĐÃ MUA, xem thêm được PDF
+        // hướng dẫn (học sinh thì không) — xem App\Services\Student\LibraryService.
+        ['label' => 'Tài liệu', 'route' => 'teacher.library.index', 'icon' => '📖'],
         ['label' => 'Bài tập & Đề', 'route' => 'teacher.assessments.index', 'icon' => '🧾'],
         // SỬA 18/8 (đề PDF, 16/8 mục 1.2 "Admin hoặc giáo viên" tải đề lẻ) — tách hẳn khỏi
         // "Bài tập & Đề" ở trên (đó là Bài giao cũ, chọn Question rời).

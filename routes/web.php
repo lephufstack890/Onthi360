@@ -26,6 +26,7 @@ use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentContro
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
 use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
+use App\Http\Controllers\Teacher\LibraryController as TeacherLibraryController;
 use App\Http\Controllers\Teacher\MaterialController as TeacherMaterialController;
 use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
@@ -148,6 +149,11 @@ Route::middleware(['auth'])->group(function () {
         // App\Http\Controllers\Teacher\MaterialController — tái dùng MaterialReadService.
         Route::get('materials/{material}', [TeacherMaterialController::class, 'read'])->name('materials.read');
         Route::get('materials/{material}/file', [TeacherMaterialController::class, 'pdfFile'])->name('materials.file');
+        // SỬA 28/8 (2 — "bên giáo viên cũng xem tài liệu giống như học sinh, chỉ khác được
+        // xem thêm file hướng dẫn") — "Tài liệu của tôi" bên giáo viên, tái dùng nguyên
+        // App\Services\Student\LibraryService (xem Teacher\LibraryController), chỉ khác gọi
+        // với includeGuide=true.
+        Route::get('tai-lieu-cua-toi', [TeacherLibraryController::class, 'index'])->name('library.index');
         // SỬA 24/8 — khách yêu cầu: "Giao đề" (chọn đề có sẵn) chuyển hẳn vào đây (tab "Giao
         // đề" trong Chi tiết lớp) — KHÔNG còn giao được từ Bài tập & Đề nữa (xem
         // teacher.assessments.store/index đã bỏ nhánh giao lớp, chỉ còn lưu đề).
