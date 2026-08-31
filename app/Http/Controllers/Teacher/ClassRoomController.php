@@ -49,11 +49,18 @@ class ClassRoomController extends Controller
         return redirect()->route('teacher.classes.show', $classRoom->id)->with('status', 'class-created');
     }
 
+    /**
+     * SỬA 31/8 (khách yêu cầu — "chỗ Học liệu trong lớp nên gắn CẢ sản phẩm: sách/chuyên
+     * đề/bộ đề, không chỉ 1 chương lẻ"): nhận product_id thay vì material_id — gắn NGUYÊN
+     * 1 sản phẩm vào lớp (xem Teacher\ClassRoomService::attachProduct()). Route/URI giữ
+     * nguyên tên cũ (classes.materials.attach) — không đổi để tránh vỡ link/route đã dùng
+     * nơi khác, chỉ đổi cái gắn vào bên trong.
+     */
     public function attachMaterial(Request $request, int $class)
     {
-        $data = $request->validate(['material_id' => ['required', 'integer', 'exists:materials,id']]);
+        $data = $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
 
-        $this->classRoomService->attachMaterial(Auth::user(), $class, (int) $data['material_id']);
+        $this->classRoomService->attachProduct(Auth::user(), $class, (int) $data['product_id']);
 
         return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'materials'])->with('status', 'material-attached');
     }

@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Question;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
+use App\Services\AccessGateService;
 use Illuminate\Support\Collection;
 
 /**
@@ -45,7 +46,13 @@ class LibraryService
         'de-thi' => ProductType::Exam,
     ];
 
-    public function __construct(private AccessRightRepositoryInterface $accessRights) {}
+    public function __construct(
+        private AccessRightRepositoryInterface $accessRights,
+        // SỬA 31/8 (khách yêu cầu — "gắn cả sản phẩm vào lớp, học sinh thuộc lớp xem được"):
+        // dùng classGrantedProducts() để gộp thêm sản phẩm được cấp quyền MIỄN PHÍ qua lớp
+        // vào danh sách "đang sở hữu", xem ownedProducts() bên dưới.
+        private AccessGateService $accessGate,
+    ) {}
 
     /**
      * @param  string  $routeName  Tên route trang này của ĐÚNG vai trò đang gọi — 'student.library.index'
@@ -162,15 +169,24 @@ class LibraryService
      * TeacherTeaching, AccessRight::isCurrentlyActive()), khác ở chỗ cần CẢ Product (không
      * chỉ id) để nhóm theo type và dựng thẻ hiển thị.
      *
+     * SỬA 31/8 (khách yêu cầu — "gắn cả sản phẩm vào lớp, học sinh thuộc lớp xem được miễn
+     * phí"): gộp thêm sản phẩm được cấp qua lớp (AccessGateService::classGrantedProducts() —
+     * lớp $user đang là thành viên active có gắn active sản phẩm đó), KHÔNG đòi $user phải
+     * tự có AccessRight cho sản phẩm này. Sau khi gộp, sản phẩm hiện y hệt sản phẩm tự mua ở
+     * "Tài liệu của tôi" — dùng lại nguyên resources()/exercisesFor() bên dưới, không viết
+     * nhánh hiển thị riêng.
+     *
      * @return Collection<int, Product>
      */
     private function ownedProducts(User $user): Collection
     {
-        return $this->accessRights->forUserWithProduct($user->id)
+        $personal = $this->accessRights->forUserWithProduct($user->id)
             ->filter(fn (AccessRight $ar) => in_array($ar->scope, [AccessScope::PersonalLearning, AccessScope::TeacherTeaching], true)
                 && $ar->isCurrentlyActive()
                 && $ar->product !== null)
-            ->pluck('product')
+            ->pluck('product');
+
+        return $personal->merge($this->accessGate->classGrantedProducts($user))
             ->unique('id')
             ->values();
     }

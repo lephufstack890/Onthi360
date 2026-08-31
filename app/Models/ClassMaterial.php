@@ -49,4 +49,16 @@ class ClassMaterial extends Model
     {
         return $this->status === ClassMaterialStatus::Active;
     }
+
+    /**
+     * SỬA 31/8 (khách yêu cầu, "gắn cả sản phẩm vào lớp"): material_id=null nghĩa là dòng
+     * này gắn NGUYÊN 1 sản phẩm (sách/chuyên đề/bộ đề, xem migration
+     * make_material_id_nullable_on_class_materials_table) thay vì 1 chương/mục lẻ như
+     * trước 31/8 — dùng ở Blade/Service để biết cách hiển thị (product->title thay vì
+     * material->title) mà không phải so sánh null rải rác nhiều nơi.
+     */
+    public function isWholeProduct(): bool
+    {
+        return $this->material_id === null;
+    }
 }

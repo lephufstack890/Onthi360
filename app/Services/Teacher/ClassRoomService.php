@@ -16,7 +16,7 @@ use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
-use App\Repositories\Contracts\MaterialRepositoryInterface;
+use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +24,19 @@ use Illuminate\Validation\ValidationException;
 /** Tổng hợp dữ liệu cho teacher.classes.index/show (TEA-02/06). */
 class ClassRoomService
 {
+    /**
+     * SỬA 31/8 (khách yêu cầu — "chỗ Học liệu trong lớp nên gắn CẢ sản phẩm: sách/chuyên
+     * đề/bộ đề, có 3 loại để chọn"): nhãn 3 loại để dựng bước "chọn loại rồi chọn sản phẩm"
+     * ở attachableProducts() — khớp đúng 3 tab Sách/Chuyên đề/Bộ đề dùng ở
+     * Student\LibraryService/Public\MaterialService (type=course KHÔNG thuộc "học liệu",
+     * loại bỏ y hệt 2 nơi đó).
+     */
+    private const TYPE_LABELS = [
+        'book' => '📘 Sách',
+        'topic' => '🗂️ Chuyên đề',
+        'exam' => '📝 Bộ đề',
+    ];
+
     public function __construct(
         private readonly ClassRoomRepositoryInterface $classRooms,
         private readonly ClassSessionRepositoryInterface $classSessions,
@@ -31,7 +44,10 @@ class ClassRoomService
         private readonly RatingSummaryRepositoryInterface $ratingSummaries,
         private readonly CourseRepositoryInterface $courses,
         private readonly AccessRightRepositoryInterface $accessRights,
-        private readonly MaterialRepositoryInterface $materials,
+        // SỬA 31/8 — thay MaterialRepositoryInterface (cây chương/mục cũ, đã bỏ khỏi luồng
+        // gắn lớp): giờ gắn NGUYÊN 1 Product (sách/chuyên đề/bộ đề), xem attachableProducts()/
+        // attachProduct() bên dưới.
+        private readonly ProductRepositoryInterface $products,
         private readonly ScheduleService $scheduleService,
         private readonly AssignmentRepositoryInterface $assignments,
         // SỬA 24/8 — khách yêu cầu: "Giao đề" (chọn đề có sẵn) chuyển hẳn vào tab "Giao đề"
@@ -171,24 +187,28 @@ class ClassRoomService
         $completionTotalSessions = $totalSessions;
 
         $materials = [];
-        $attachableMaterials = [];
+        $attachableProducts = [];
         if ($tab === 'materials') {
-            // SỬA 27/8 ("giáo viên xem học liệu đã gắn lớp như nào") — thêm materialId/hasPdf để
-            // Blade dựng link "Xem" sang teacher.materials.read (trước đây tab này chỉ có
-            // Gỡ, không có cách nào tự đọc lại bài đã gắn). $cm->id vẫn giữ nguyên cho form Gỡ
-            // (route nhận classMaterial id, khác material_id).
+            // SỬA 31/8 (khách yêu cầu — "gắn CẢ sản phẩm: sách/chuyên đề/bộ đề, không chỉ 1
+            // chương lẻ"): mỗi dòng giờ là 1 SẢN PHẨM nguyên vẹn (material_id=null, xem
+            // migration make_material_id_nullable_on_class_materials_table +
+            // ClassMaterial::isWholeProduct()) — 'productId'/'hasContent' để Blade dựng link
+            // "Xem" qua access.resource (kind=content, đã cho phép giáo viên vì có
+            // TeacherTeaching — AccessGateService::canAccessProduct()), thay cho link cũ
+            // teacher.materials.read (chỉ đọc được 1 Material chương/mục, không còn phù hợp).
             $materials = $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
                 ->map(fn ($cm) => [
                     'id' => $cm->id,
-                    'materialId' => $cm->material_id,
-                    'hasPdf' => $cm->material?->pdf_path !== null,
-                    'title' => $cm->material->title ?? 'Học liệu',
+                    'productId' => $cm->product_id,
+                    'hasContent' => filled($cm->product?->content_pdf_path),
+                    'title' => $cm->product->title ?? 'Học liệu',
+                    'typeLabel' => self::TYPE_LABELS[$cm->product?->type?->value] ?? '',
                     'scope' => 'Đang dùng ở lớp này',
                     'tone' => 'success',
                     'linkedStatus' => 'Đang dùng',
                 ])->all();
 
-            $attachableMaterials = $this->attachableMaterials($user, $classRoom);
+            $attachableProducts = $this->attachableProducts($user, $classRoom);
         }
 
         $sessions = [];
@@ -240,7 +260,7 @@ class ClassRoomService
             'completionEndedSessions' => $completionEndedSessions,
             'completionTotalSessions' => $completionTotalSessions,
             'materials' => $materials,
-            'attachableMaterials' => $attachableMaterials,
+            'attachableProducts' => $attachableProducts,
             'sessions' => $sessions,
             'assignments' => $assignments,
             'assignableAssessments' => $assignableAssessments,
@@ -294,10 +314,17 @@ class ClassRoomService
     }
 
     /**
-     * Học liệu giáo viên còn quyền dạy (teacher_teaching còn hạn), đã phát hành, chưa gắn vào
-     * lớp này (8.2: "Danh sách chỉ hiển thị học liệu mà giáo viên có quyền dạy còn hạn").
+     * SỬA 31/8 (khách yêu cầu — "chỗ Học liệu trong lớp nên gắn CẢ sản phẩm: sách/chuyên
+     * đề/bộ đề, có 3 loại để chọn, chọn xong list ra để giáo viên chọn"): THAY THẾ
+     * attachableMaterials() cũ (dựa trên Material — cây chương/mục đã bỏ từ 27/8, "4 file
+     * đính kèm sản phẩm" — nên gần như luôn rỗng với sản phẩm mới). Giờ trả về Product
+     * giáo viên còn quyền dạy (teacher_teaching còn hạn), đã phát hành, CHƯA gắn (đang
+     * active) vào lớp này — nhóm sẵn theo 3 loại (self::TYPE_LABELS) để Blade dựng bước
+     * "chọn loại rồi chọn sản phẩm trong loại đó".
+     *
+     * @return array<string, array{label:string, products:array}>
      */
-    public function attachableMaterials(User $teacher, ClassRoom $classRoom): array
+    public function attachableProducts(User $teacher, ClassRoom $classRoom): array
     {
         $activeTeachingByProduct = $this->accessRights->forUserWithProduct($teacher->id)
             ->filter(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching && $ar->isCurrentlyActive())
@@ -307,47 +334,58 @@ class ClassRoomService
             return [];
         }
 
-        $alreadyAttachedMaterialIds = $this->classMaterials->query()
+        $alreadyAttachedProductIds = $this->classMaterials->query()
             ->where('class_room_id', $classRoom->id)
             ->where('status', 'active')
-            ->pluck('material_id')
+            ->pluck('product_id')
             ->all();
 
-        return $this->materials->query()
-            ->whereIn('product_id', $activeTeachingByProduct->keys())
+        $products = $this->products->query()
+            ->whereIn('id', $activeTeachingByProduct->keys())
             ->where('status', ContentStatus::Published)
-            ->whereNull('parent_id')
-            ->whereNotIn('id', $alreadyAttachedMaterialIds)
-            ->with('product')
-            ->orderBy('order')
-            ->get()
-            ->map(fn ($m) => [
-                'id' => $m->id,
-                'title' => $m->title,
-                'product' => $m->product->title ?? '',
-                'expiresAtLabel' => optional($activeTeachingByProduct->get($m->product_id)?->expires_at)->format('d/m/Y'),
-            ])->all();
+            ->whereIn('type', array_keys(self::TYPE_LABELS))
+            ->whereNotIn('id', $alreadyAttachedProductIds)
+            ->orderBy('title')
+            ->get();
+
+        $grouped = [];
+        foreach (self::TYPE_LABELS as $typeValue => $label) {
+            $grouped[$typeValue] = ['label' => $label, 'products' => []];
+        }
+
+        foreach ($products as $p) {
+            $grouped[$p->type->value]['products'][] = [
+                'id' => $p->id,
+                'title' => $p->title,
+                'expiresAtLabel' => optional($activeTeachingByProduct->get($p->id)?->expires_at)->format('d/m/Y'),
+            ];
+        }
+
+        return $grouped;
     }
 
     /**
-     * teacher.classes.attachMaterial — "Thêm vào lớp" (8.2). Kiểm tra lại quyền dạy còn hạn
-     * TẠI THỜI ĐIỂM gắn, không tin danh sách đã hiển thị trước đó trên UI (16 mục 3).
+     * teacher.classes.attachMaterial (route/URI giữ tên cũ) — "Thêm vào lớp" (8.2), giờ gắn
+     * NGUYÊN 1 sản phẩm (material_id=null trên dòng class_materials tạo mới — xem
+     * ClassMaterial::isWholeProduct()) thay vì 1 chương/mục lẻ. Kiểm tra lại quyền dạy còn
+     * hạn TẠI THỜI ĐIỂM gắn, không tin danh sách đã hiển thị trước đó trên UI (16 mục 3).
      */
-    public function attachMaterial(User $teacher, int $classId, int $materialId): void
+    public function attachProduct(User $teacher, int $classId, int $productId): void
     {
         $classRoom = $this->findTaughtClassRoom($teacher, $classId);
-        $material = $this->materials->findOrFail($materialId);
+        $product = $this->products->findOrFail($productId);
 
         $stillEligible = $this->accessRights->forUserWithProduct($teacher->id)
             ->contains(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching
                 && $ar->isCurrentlyActive()
-                && (int) $ar->product_id === (int) $material->product_id);
+                && (int) $ar->product_id === (int) $product->id);
 
-        abort_unless($stillEligible, 403, 'Bạn không còn quyền dạy học liệu này (quyền đã hết hạn hoặc chưa từng có).');
+        abort_unless($stillEligible, 403, 'Bạn không còn quyền dạy sản phẩm này (quyền đã hết hạn hoặc chưa từng có).');
 
         $existing = $this->classMaterials->query()
             ->where('class_room_id', $classRoom->id)
-            ->where('material_id', $materialId)
+            ->where('product_id', $productId)
+            ->whereNull('material_id')
             ->first();
 
         if ($existing !== null) {
@@ -363,8 +401,8 @@ class ClassRoomService
 
         $this->classMaterials->create([
             'class_room_id' => $classRoom->id,
-            'material_id' => $materialId,
-            'product_id' => $material->product_id,
+            'material_id' => null,
+            'product_id' => $productId,
             'release_version' => 1,
             'status' => ClassMaterialStatus::Active,
             'added_by' => $teacher->id,

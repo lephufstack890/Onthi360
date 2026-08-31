@@ -44,10 +44,26 @@
     <x-tabs :tabs="$tabsData" />
 
     @if ($tab === 'materials')
-        @php $attachableMaterials = $attachableMaterials ?? []; @endphp
+        {{-- SỬA 31/8 (khách yêu cầu — "thêm học liệu thì thêm cả cuốn sách/chuyên đề/bộ đề,
+             có 3 loại để chọn, chọn xong list ra để giáo viên chọn"): mỗi lần "Thêm vào lớp"
+             giờ gắn NGUYÊN 1 sản phẩm (không còn gắn 1 chương/mục lẻ như trước) — dữ liệu
+             $attachableProducts đã nhóm sẵn theo 3 loại ở
+             Teacher\ClassRoomService::attachableProducts(). Bước chọn: bấm loại (Alpine
+             x-data, không cần route/logic mới) rồi chọn đúng sản phẩm trong danh sách hiện
+             ra, y hệt cách "Tài liệu của tôi" đã làm cho lưới thẻ (không phải điều hướng
+             trang khác). --}}
+        @php
+            $attachableProducts = $attachableProducts ?? [];
+            $hasAnyAttachable = collect($attachableProducts)->sum(fn ($g) => count($g['products'])) > 0;
+            $defaultType = null;
+            foreach ($attachableProducts as $typeKey => $group) {
+                if (count($group['products']) > 0) { $defaultType = $typeKey; break; }
+            }
+            $defaultType = $defaultType ?? array_key_first($attachableProducts);
+        @endphp
 
         @if (session('status') === 'material-attached')
-            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm học liệu vào lớp.'])
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm học liệu vào lớp — học sinh trong lớp xem được ngay, không cần tự mua riêng.'])
         @elseif (session('status') === 'material-detached')
             @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ học liệu — lịch sử bài làm cũ vẫn giữ nguyên (8.2).'])
         @endif
@@ -62,16 +78,23 @@
                         <x-icon-tile emoji="📚" tone="sky" />
                         <div>
                             <p class="font-medium text-slate-700">{{ $m['title'] }}</p>
-                            <p class="text-xs mt-1"><x-status-badge :tone="$m['tone']">{{ $m['scope'] }}</x-status-badge></p>
+                            <p class="text-xs mt-1 flex items-center gap-2">
+                                @if ($m['typeLabel'])
+                                    <span class="text-slate-400">{{ $m['typeLabel'] }}</span>
+                                @endif
+                                <x-status-badge :tone="$m['tone']">{{ $m['scope'] }}</x-status-badge>
+                            </p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 text-sm">
                         <x-status-badge tone="success">{{ $m['linkedStatus'] }}</x-status-badge>
-                        {{-- SỬA 27/8 ("giáo viên xem học liệu đã gắn lớp như nào") — chỉ hiện
-                             "Xem" khi bài đã có PDF (giống quy tắc $readable ở TOC công khai),
-                             bài chỉ làm mục lục/chương cha thì không có gì để đọc. --}}
-                        @if ($m['hasPdf'] ?? false)
-                            <a href="{{ route('teacher.materials.read', $m['materialId']) }}" class="text-rose-600 font-medium">Xem</a>
+                        {{-- Xem NGUYÊN sản phẩm qua đúng route học sinh/giáo viên đang tải PDF
+                             nội dung (access.resource, kind=content) — giáo viên đã có quyền
+                             dạy sản phẩm này nên không bị chặn. Mở tab mới cùng kiểu với "Xem
+                             đề bài ↗" ở mục Bài tập bên dưới, tiện xem sách/chuyên đề/bộ đề
+                             nhiều cuốn cùng lúc. --}}
+                        @if ($m['hasContent'] ?? false)
+                            <a href="{{ route('access.resource', ['product' => $m['productId'], 'kind' => 'content']) }}" target="_blank" rel="noopener" class="text-rose-600 font-medium">Xem ↗</a>
                         @endif
                         <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}" class="inline">
                             @csrf
@@ -84,26 +107,45 @@
                 <x-empty-state title="Lớp chưa gắn học liệu nào" />
             @endforelse
 
-            @if (empty($attachableMaterials))
+            @if (empty($attachableProducts))
                 <div class="rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm py-4 text-center">
-                    Không có học liệu nào bạn còn quyền dạy để thêm — quyền dạy (teacher_teaching) đã hết hạn hoặc chưa được cấp (7.2).
+                    Không có sách/chuyên đề/bộ đề nào bạn còn quyền dạy để thêm — quyền dạy (teacher_teaching) đã hết hạn hoặc chưa được cấp (7.2).
                 </div>
             @else
-                <div class="rounded-2xl border-2 border-dashed border-slate-200 p-4">
-                    <p class="text-sm text-slate-600 mb-3">+ Thêm học liệu vào lớp (chỉ hiện học liệu bạn còn quyền dạy còn hạn, 8.2):</p>
-                    <div class="space-y-2">
-                        @foreach ($attachableMaterials as $am)
-                            <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="flex items-center justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2">
-                                @csrf
-                                <input type="hidden" name="material_id" value="{{ $am['id'] }}">
-                                <div class="min-w-0">
-                                    <p class="text-sm text-slate-700 truncate">{{ $am['title'] }}</p>
-                                    <p class="text-xs text-slate-400">{{ $am['product'] }} · Dùng được ở mọi lớp phụ trách đến {{ $am['expiresAtLabel'] }}</p>
-                                </div>
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium shrink-0">Thêm vào lớp</button>
-                            </form>
+                <div class="rounded-2xl border-2 border-dashed border-slate-200 p-4" x-data="{ type: '{{ $defaultType }}' }">
+                    <p class="text-sm text-slate-600 mb-3">+ Thêm học liệu vào lớp — chọn loại rồi chọn đúng cuốn (chỉ hiện sách/chuyên đề/bộ đề bạn còn quyền dạy còn hạn, 8.2):</p>
+
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        @foreach ($attachableProducts as $typeKey => $group)
+                            <button type="button" @click="type = '{{ $typeKey }}'"
+                                    :class="type === '{{ $typeKey }}' ? 'bg-rose-600 text-white' : 'bg-white text-slate-600 border border-slate-200'"
+                                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                                {{ $group['label'] }} ({{ count($group['products']) }})
+                            </button>
                         @endforeach
                     </div>
+
+                    @if (! $hasAnyAttachable)
+                        <p class="text-sm text-slate-400 text-center py-3">Mọi sách/chuyên đề/bộ đề bạn còn quyền dạy đã gắn hết vào lớp này rồi.</p>
+                    @endif
+
+                    @foreach ($attachableProducts as $typeKey => $group)
+                        <div x-show="type === '{{ $typeKey }}'" x-cloak class="space-y-2">
+                            @forelse ($group['products'] as $p)
+                                <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="flex items-center justify-between gap-3 bg-slate-50 rounded-lg px-3 py-2">
+                                    @csrf
+                                    <input type="hidden" name="product_id" value="{{ $p['id'] }}">
+                                    <div class="min-w-0">
+                                        <p class="text-sm text-slate-700 truncate">{{ $p['title'] }}</p>
+                                        <p class="text-xs text-slate-400">Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] }}</p>
+                                    </div>
+                                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium shrink-0">Thêm vào lớp</button>
+                                </form>
+                            @empty
+                                <p class="text-sm text-slate-400 text-center py-3">Không còn {{ mb_strtolower($group['label']) }} nào để thêm.</p>
+                            @endforelse
+                        </div>
+                    @endforeach
                 </div>
             @endif
         </div>
@@ -265,4 +307,13 @@
             </div>
         </div>
     @endif
+
+    @push('scripts')
+        {{-- SỬA 31/8 — cần cho x-show/x-cloak ở khối "chọn loại rồi chọn sản phẩm" (tab
+             "Học liệu") phía trên: ẩn nội dung Alpine ngay từ đầu (trước khi Alpine kịp
+             chạy), tránh chớp nháy hiện cả 3 loại cùng lúc rồi mới ẩn 2 loại còn lại. --}}
+        <style>
+            [x-cloak] { display: none !important; }
+        </style>
+    @endpush
 @endsection

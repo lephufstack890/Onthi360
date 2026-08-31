@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Enums\AccessRightStatus;
 use App\Enums\AccessScope;
 use App\Enums\ClassMaterialStatus;
+use App\Enums\ContentStatus;
 use App\Enums\ProgressUnitType;
 use App\Enums\Visibility;
+use App\Models\ClassMaterial;
 use App\Models\ClassRoom;
 use App\Models\Material;
 use App\Models\Product;
@@ -14,6 +16,7 @@ use App\Models\ProgressUnlock;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\AccessDecision;
+use Illuminate\Support\Collection;
 
 /**
  * Bộ máy trung tâm quyết định "học sinh có được đọc/làm một học liệu không".
@@ -44,6 +47,13 @@ class AccessGateService
      * tài nguyên này gắn THẲNG vào Product (không chia chương/mục, không gắn lớp như Material)
      * nên chỉ cần 1 cửa — sản phẩm công khai HOẶC user có quyền còn hiệu lực. Dùng lại đúng
      * hasActivePersonalAccess() bên dưới, không viết luật riêng.
+     *
+     * SỬA 31/8 (khách yêu cầu — "gắn cả sản phẩm vào lớp, học sinh thuộc lớp xem được"):
+     * thêm CỬA THỨ 2 độc lập — hasActiveClassGrantedAccess() bên dưới. Khác hẳn 3 cửa của
+     * canAccessViaClass() (dành cho Material cây chương/mục cũ, LUÔN đòi CẢ quyền cá nhân
+     * lẫn tiến độ lớp — 7.3): ở đây việc giáo viên gắn nguyên sản phẩm vào lớp CHÍNH LÀ
+     * nguồn cấp quyền (coi như học phí lớp đã bao gồm tài liệu này), không đòi thêm quyền cá
+     * nhân — qua 1 trong 2 cửa (cá nhân HOẶC lớp) là đủ.
      */
     public function canAccessProduct(User $user, Product $product): AccessDecision
     {
@@ -52,6 +62,10 @@ class AccessGateService
         }
 
         if ($this->hasActivePersonalAccess($user, $product->id)) {
+            return AccessDecision::allow();
+        }
+
+        if ($this->hasActiveClassGrantedAccess($user, $product->id)) {
             return AccessDecision::allow();
         }
 
@@ -175,6 +189,55 @@ class AccessGateService
             ->where('status', AccessRightStatus::Active)
             ->where('expires_at', '>', now())
             ->exists();
+    }
+
+    /**
+     * SỬA 31/8 (khách yêu cầu — "gắn cả sản phẩm vào lớp, học sinh thuộc lớp xem được miễn
+     * phí"): true nếu sản phẩm này đang được MỘT lớp mà $user là thành viên ACTIVE gắn
+     * (active) NGUYÊN sản phẩm (class_materials.material_id = null, xem migration
+     * make_material_id_nullable_on_class_materials_table + ClassMaterial::isWholeProduct()).
+     * classRoom->students() đã tự lọc wherePivot('status','active') (xem
+     * App\Models\ClassRoom) nên không lặp lại điều kiện đó ở đây.
+     *
+     * KHÔNG áp cho canAccessMaterial()/canAccessViaClass() ở trên — đó là luồng Material cây
+     * chương/mục cũ, cố ý giữ nguyên "ba cửa độc lập" 7.3 (luôn đòi thêm quyền cá nhân).
+     */
+    public function hasActiveClassGrantedAccess(User $user, int $productId): bool
+    {
+        return ClassMaterial::query()
+            ->whereNull('material_id')
+            ->where('product_id', $productId)
+            ->where('status', ClassMaterialStatus::Active)
+            ->whereHas('classRoom.students', fn ($q) => $q->where('users.id', $user->id))
+            ->exists();
+    }
+
+    /**
+     * Toàn bộ Product đang cấp quyền MIỄN PHÍ qua lớp cho $user (mọi lớp $user đang là
+     * thành viên active, sản phẩm đang gắn active) — dùng ở
+     * Student\LibraryService::ownedProducts() để sản phẩm hiện ra ở "Tài liệu của tôi"
+     * y hệt sản phẩm tự mua, tái dùng nguyên hạ tầng tải/làm bài đã có (không viết UI
+     * riêng cho lối vào này).
+     *
+     * @return Collection<int, Product>
+     */
+    public function classGrantedProducts(User $user): Collection
+    {
+        $productIds = ClassMaterial::query()
+            ->whereNull('material_id')
+            ->where('status', ClassMaterialStatus::Active)
+            ->whereHas('classRoom.students', fn ($q) => $q->where('users.id', $user->id))
+            ->pluck('product_id')
+            ->unique();
+
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        return Product::query()
+            ->whereIn('id', $productIds)
+            ->where('status', ContentStatus::Published)
+            ->get();
     }
 
     private function isProgressOpen(ClassRoom $classRoom, Material $material): bool
