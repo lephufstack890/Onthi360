@@ -85,7 +85,15 @@
                                                 </div>
                                                 <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
                                                     @csrf
-                                                    <input type="hidden" name="return_url" value="{{ url()->full() }}">
+                                                    {{-- SỬA (fix "quay lại" sai trang): url()->full() trả về URL TUYỆT ĐỐI
+                                                         (có scheme+host) — PracticeByQuestionController::startExercise() chỉ
+                                                         nhận đường dẫn bắt đầu bằng đúng 1 dấu '/' (chặn open-redirect) nên
+                                                         luôn bị coi là không hợp lệ và rơi về mặc định route('student.library.index')
+                                                         (xem exercise-play.blade.php: $backUrl = $returnUrl ?? route(...)),
+                                                         DÙ đang bấm "Làm bài" từ trang nào khác (vd tab Học liệu ở chi tiết
+                                                         lớp) — request()->getRequestUri() trả về đúng path+query TƯƠNG ĐỐI
+                                                         (bắt đầu bằng '/'), qua được kiểm tra và quay lại ĐÚNG trang đã bấm. --}}
+                                                    <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
                                                     <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition">Làm bài ›</button>
                                                 </form>
                                             </div>

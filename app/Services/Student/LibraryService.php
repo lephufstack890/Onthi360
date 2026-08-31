@@ -117,6 +117,38 @@ class LibraryService
     }
 
     /**
+     * SỬA 31/8 (khách yêu cầu — "học sinh xem học liệu NGAY TRONG LỚP (tab Học liệu ở chi
+     * tiết lớp), tách hẳn khỏi Tài liệu của tôi — tài liệu tự mua xem ở trang Tài liệu,
+     * không liên quan"): dựng đúng 1 "thẻ" tài nguyên+bài tập cho MỘT Product — dùng ở
+     * Student\ClassRoomService cho tab "Học liệu" của MỘT lớp cụ thể. Khác indexData() ở
+     * trên (liệt kê MỌI sản phẩm đang sở hữu, gộp cả cá nhân lẫn qua lớp, không phân biệt
+     * lớp nào) — hàm này chỉ dựng 1 thẻ độc lập cho sản phẩm ĐÃ BIẾT TRƯỚC (đang gắn lớp
+     * đó), nên không cần bước "lọc theo lớp" ở đây (ClassRoomService tự lọc trước khi gọi).
+     * Tái dùng đúng resources()/exercisesFor() để hiển thị giống hệt "Tài liệu của tôi" —
+     * học sinh không bị lẫn 2 cách trình bày khác nhau cho cùng 1 loại dữ liệu.
+     * $includeGuide luôn false — trang lớp là của học sinh, không có khái niệm "giáo viên
+     * xem PDF hướng dẫn" ở đây (khác teacher.library.index).
+     *
+     * @return array{id:int,title:string,coverPath:?string,resources:array,exercises:array}
+     */
+    public function productCard(Product $product): array
+    {
+        $exercises = Question::query()
+            ->where('product_id', $product->id)
+            ->where('status', ContentStatus::Published->value)
+            ->orderByDesc('id')
+            ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config']);
+
+        return [
+            'id' => $product->id,
+            'title' => $product->title,
+            'coverPath' => $product->cover_image_path,
+            'resources' => $this->resources($product, false),
+            'exercises' => $this->exercisesFor($exercises),
+        ];
+    }
+
+    /**
      * Danh sách bài tập (Question, product_id = sản phẩm này) để hiện ở mục "🧪 Bài tập" của
      * mine.blade.php — học sinh có nút "Làm bài" (tái dùng
      * Student\PracticeByQuestionService::startForQuestion()), giáo viên chỉ xem/tải đề bài

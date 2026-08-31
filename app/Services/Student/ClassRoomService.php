@@ -56,6 +56,11 @@ class ClassRoomService
         private ReviewRepositoryInterface $reviews,
         private AccessGateService $accessGate,
         private NotificationService $notifications,
+        // SỬA 31/8 (khách yêu cầu — "học sinh xem học liệu NGAY TRONG LỚP, tách khỏi Tài
+        // liệu của tôi"): tái dùng đúng LibraryService::productCard() để tab "Học liệu" ở
+        // đây hiển thị resources/exercises giống hệt "Tài liệu của tôi", không viết lại
+        // cách trình bày riêng — xem buildShowData() bên dưới.
+        private LibraryService $libraryService,
     ) {}
 
     public function buildShowData(User $user, int $classId, string $tab, int $weekOffset = 0): array
@@ -70,7 +75,13 @@ class ClassRoomService
             ['label' => 'Tổng quan', 'key' => 'overview'],
             // ['label' => 'Lộ trình & Bài tập', 'key' => 'roadmap'],
             ['label' => 'Lịch học', 'key' => 'schedule'],
-            // ['label' => 'Tài liệu', 'key' => 'materials'],
+            // SỬA 31/8 (khách yêu cầu — "chi tiết lớp có tab Học liệu để xem TRONG lớp thôi,
+            // tài liệu tự mua xem ở trang Tài liệu, không liên quan"): bật lại tab này (đã
+            // tắt từ trước — lúc đó dựa trên Material cây chương/mục cũ, nay dựa trên Product
+            // NGUYÊN gắn lớp, xem buildShowData() bên dưới). Đổi nhãn 'Tài liệu' → 'Học liệu'
+            // để khỏi lẫn với "Tài liệu của tôi" (trang riêng, liệt kê MỌI sản phẩm đã mua,
+            // không phân biệt lớp nào — 2 khái niệm cố ý KHÔNG liên quan nhau).
+            ['label' => 'Học liệu', 'key' => 'materials'],
             ['label' => 'Đánh giá', 'key' => 'reviews'],
             ['label' => 'Thông báo', 'key' => 'notifications'],
             ['label' => 'Thành viên', 'key' => 'members'],
@@ -101,10 +112,21 @@ class ClassRoomService
             $roadmap = $this->buildRoadmap($classRoom, $user);
         }
 
-        // Tài liệu lớp: ClassMaterial đang Active.
+        // Học liệu lớp (SỬA 31/8, khách yêu cầu — "xem học liệu NGAY TRONG LỚP, tách khỏi
+        // Tài liệu của tôi"): CHỈ lấy dòng gắn NGUYÊN 1 sản phẩm (material_id=null —
+        // ClassMaterial::isWholeProduct(), xem Teacher\ClassRoomService::attachProduct())
+        // đang Active — đây CHÍNH LÀ tập sản phẩm AccessGateService::hasActiveClassGrantedAccess()
+        // cho phép xem miễn phí qua lớp, nên hiển thị ở đây khớp 100% với thứ học sinh thực
+        // sự mở được (không hiện thứ chưa chắc mở được). Dòng cũ material_id != null (cây
+        // chương/mục Material, đã bỏ từ 27/8) bị loại khỏi tab này — không áp dụng "miễn phí
+        // qua lớp", giữ đúng luật cũ (7.3, ba cửa độc lập) nếu còn sót dữ liệu cũ.
         $materials = [];
-        if ($tab === 'materials' || $tab === 'overview') {
-            $materials = $this->classMaterials->activeForClassRoom($classRoom->id);
+        if ($tab === 'materials') {
+            $materials = $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
+                ->filter(fn ($cm) => $cm->isWholeProduct() && $cm->product !== null)
+                ->map(fn ($cm) => $this->libraryService->productCard($cm->product))
+                ->values()
+                ->all();
         }
 
         // Lịch học: DẠNG BẢNG theo tuần (Thứ Hai → Chủ Nhật, có ngày cụ thể) — cùng cách trình

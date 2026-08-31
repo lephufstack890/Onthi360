@@ -152,14 +152,79 @@
             </table>
         </div>
     @elseif ($tab === 'materials')
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            @forelse ($materials as $cm)
+        {{-- SỬA 31/8 (khách yêu cầu — "chi tiết lớp có tab Học liệu để xem TRONG lớp thôi,
+             tài liệu tự mua xem ở trang Tài liệu, không liên quan"): $materials giờ là mảng
+             "thẻ" đã dựng sẵn qua LibraryService::productCard() (App\Services\Student\
+             ClassRoomService::buildShowData()) — CHỈ gồm sản phẩm giáo viên đã gắn NGUYÊN
+             vào LỚP NÀY, không phải danh sách "Tài liệu của tôi" (trang riêng, gộp mọi sản
+             phẩm đã mua từ mọi lớp/tự mua — 2 trang cố ý KHÔNG liên quan nhau). Bố cục thẻ
+             tài nguyên/bài tập y hệt student/materials/mine.blade.php để học sinh quen mắt,
+             không phải học 2 cách trình bày khác nhau cho cùng 1 loại dữ liệu. --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            @forelse ($materials as $p)
                 <div class="rounded-2xl bg-white border border-slate-200 p-5">
-                    <x-status-badge tone="success">Đang dùng</x-status-badge>
-                    <h3 class="font-medium text-slate-800 mt-2">{{ $cm->material->title ?? 'Học liệu' }}</h3>
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-14 rounded-lg overflow-hidden shrink-0 bg-gradient-to-br from-rose-100 to-sky-50 flex items-center justify-center">
+                            @if ($p['coverPath'])
+                                <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
+                            @else
+                                <span class="text-lg">📘</span>
+                            @endif
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="font-medium text-slate-800 leading-snug">{{ $p['title'] }}</h3>
+                            <span class="inline-flex mt-1"><x-status-badge tone="success">Đang dùng ở lớp này</x-status-badge></span>
+                        </div>
+                    </div>
+
+                    @if (count($p['resources']) > 0)
+                        <div class="mt-4">
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Tài nguyên đính kèm</p>
+                            <div class="space-y-2">
+                                @foreach ($p['resources'] as $res)
+                                    <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener"
+                                       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:border-rose-200 hover:text-rose-600 transition">
+                                        <span>{{ $res['icon'] }}</span> {{ $res['label'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (count($p['exercises']) > 0)
+                        <div class="mt-4">
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">🧪 Bài tập</p>
+                            <div class="space-y-2">
+                                @foreach ($p['exercises'] as $ex)
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
+                                        <div class="min-w-0">
+                                            <p class="text-sm text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
+                                        </div>
+                                        <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
+                                            @csrf
+                                            {{-- Xem ghi chú đầy đủ ở student/materials/mine.blade.php: url()->full() là
+                                                 URL TUYỆT ĐỐI nên bị PracticeByQuestionController::startExercise() coi
+                                                 là không hợp lệ (chỉ nhận path bắt đầu bằng 1 dấu '/'), khiến sau khi
+                                                 làm xong LUÔN quay về "Tài liệu của tôi" dù đang bấm từ tab Học liệu
+                                                 của lớp này — request()->getRequestUri() mới là path+query tương đối
+                                                 đúng, quay lại ĐÚNG tab Học liệu của ĐÚNG lớp này. --}}
+                                            <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
+                                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition">Làm bài ›</button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
+                        </div>
+                    @endif
+
+                    @if (count($p['resources']) === 0 && count($p['exercises']) === 0)
+                        <p class="text-sm text-slate-400 mt-4">Chưa có tài nguyên/bài tập nào cho học liệu này.</p>
+                    @endif
                 </div>
             @empty
-                <div class="col-span-full"><x-empty-state title="Lớp chưa gắn học liệu nào" /></div>
+                <div class="col-span-full"><x-empty-state title="Lớp chưa gắn học liệu nào" description="Giáo viên sẽ gắn sách/chuyên đề/bộ đề vào lớp khi cần — mục này sẽ hiện ra ngay khi có." /></div>
             @endforelse
         </div>
     @elseif ($tab === 'reviews')
