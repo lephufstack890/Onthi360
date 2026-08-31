@@ -110,6 +110,15 @@ class PracticeByQuestionController extends Controller
         return redirect()->route('student.practiceByQuestion.play');
     }
 
+    /**
+     * SỬA 31/8 (3, khách yêu cầu): "Làm bài" 1 bài tập sản phẩm (mode='single_question', mở
+     * qua startExercise() ở trên — TỪ trang "Tài liệu của tôi") giờ dùng 1 UI RIÊNG
+     * (student.practice.exercise-play), KHÔNG dùng chung view với "Luyện tập theo câu"
+     * (student.practice.by-question-play) nữa — 2 luồng khác hẳn về ngữ cảnh (làm 1 bài tập cụ
+     * thể của sản phẩm đã mua, có đề bài PDF cần hiện ra, KHÔNG có khái niệm "câu tiếp theo/
+     * điểm luyện tập") dù dùng chung state/logic chấm ở PracticeByQuestionService. Vẫn CÙNG 1
+     * route/action — chỉ chọn template theo 'mode' đã có sẵn trong $data (playData()).
+     */
     public function play(Request $request): View|RedirectResponse
     {
         $data = $this->service->playData();
@@ -118,7 +127,11 @@ class PracticeByQuestionController extends Controller
             return redirect()->route('student.practiceByQuestion.setup');
         }
 
-        return view('student.practice.by-question-play', $data);
+        $view = ($data['mode'] ?? null) === 'single_question'
+            ? 'student.practice.exercise-play'
+            : 'student.practice.by-question-play';
+
+        return view($view, $data);
     }
 
     /**

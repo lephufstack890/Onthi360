@@ -150,7 +150,17 @@ class AccessService
         $attachment = $exercise->metadata['attachments'][$kind] ?? null;
         abort_if(! isset($attachment['path']), 404);
 
-        return Storage::disk('local')->download($attachment['path'], $attachment['filename'] ?? basename($attachment['path']));
+        // SỬA 31/8 (3, khách báo lỗi hiển thị đề bài ở màn "Làm bài"): 'statement' (đề bài) giờ
+        // NHÚNG THẲNG (iframe) vào student/practice/exercise-play.blade.php để học sinh đọc đề
+        // ngay khi làm bài — response() (mở trực tiếp trên trình duyệt, Content-Disposition:
+        // inline) thay vì download() (Content-Disposition: attachment ép tải xuống, trình
+        // duyệt sẽ tải file thay vì hiện trong iframe) — cùng quy tắc "PDF xem được thì
+        // response(), chỉ ZIP mới download()" đã dùng ở downloadResource() phía trên.
+        // 'solution'/'reference' giữ NGUYÊN download() như cũ (chỉ giáo viên/admin xem, không
+        // cần nhúng iframe ở đâu).
+        return $kind === 'statement'
+            ? Storage::disk('local')->response($attachment['path'], $attachment['filename'] ?? basename($attachment['path']))
+            : Storage::disk('local')->download($attachment['path'], $attachment['filename'] ?? basename($attachment['path']));
     }
 
     /**
