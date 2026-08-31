@@ -3,10 +3,12 @@
 namespace App\Services\Student;
 
 use App\Enums\AccessScope;
+use App\Enums\ContentStatus;
 use App\Enums\ProductType;
 use App\Models\AccessRight;
 use App\Models\Material;
 use App\Models\Product;
+use App\Models\Question;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use Illuminate\Support\Collection;
@@ -76,15 +78,51 @@ class LibraryService
             ->get(['id', 'product_id', 'parent_id', 'title', 'pdf_path'])
             ->groupBy('product_id');
 
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — bài tập lập trình đính kèm TỪNG sản phẩm
+        // đã mua ở tab này, CHỈ lấy bài đã Published (admin đã bấm "Lưu bài tập" ở
+        // ContentService::productExerciseSave() — bản Nháp mới đọc từ ZIP chưa xong không bao
+        // giờ lọt ra đây, dù có lỡ chưa kịp bị discardAbandonedDraftsFor() quét dọn). 1 câu
+        // truy vấn cho cả trang, cùng cách tránh N+1 với $materialsByProduct ở trên.
+        $exercisesByProduct = Question::query()
+            ->whereIn('product_id', $productsForTab->pluck('id')->all())
+            ->where('status', ContentStatus::Published->value)
+            ->orderByDesc('id')
+            ->get(['id', 'product_id', 'title', 'points', 'grading_config'])
+            ->groupBy('product_id');
+
         $products = $productsForTab->map(fn (Product $p) => [
             'id' => $p->id,
             'title' => $p->title,
             'coverPath' => $p->cover_image_path,
             'toc' => $this->buildTocTree($materialsByProduct->get($p->id, collect()), null),
             'resources' => $this->resources($p, $includeGuide),
+            'exercises' => $this->exercisesFor($exercisesByProduct->get($p->id, collect())),
         ])->all();
 
-        return ['tabs' => $tabs, 'products' => $products];
+        // SỬA 31/8 — $includeGuide (true = đang gọi cho giáo viên) TÁI DÙNG làm cờ cho
+        // mine.blade.php biết có nên hiện nút "Làm bài" (chỉ học sinh) hay chỉ xem/tải đề bài
+        // (giáo viên) ở mục "🧪 Bài tập" — đúng ý nghĩa hiện có của tham số này, không cần thêm
+        // cờ riêng.
+        return ['tabs' => $tabs, 'products' => $products, 'isTeacherView' => $includeGuide];
+    }
+
+    /**
+     * Danh sách bài tập (Question, product_id = sản phẩm này) để hiện ở mục "🧪 Bài tập" của
+     * mine.blade.php — học sinh có nút "Làm bài" (tái dùng
+     * Student\PracticeByQuestionService::startForQuestion()), giáo viên chỉ xem/tải đề bài
+     * (KHÔNG có nút "Làm bài" — xem ghi chú ở mine.blade.php).
+     *
+     * @param  Collection<int, Question>  $exercises
+     * @return array<int, array{id:int,title:string,points:int,testCasesCount:int}>
+     */
+    private function exercisesFor(Collection $exercises): array
+    {
+        return $exercises->map(fn (Question $q) => [
+            'id' => $q->id,
+            'title' => $q->title,
+            'points' => $q->points,
+            'testCasesCount' => count($q->grading_config['test_cases'] ?? []),
+        ])->values()->all();
     }
 
     /**

@@ -103,11 +103,16 @@
                     </div>
                 </div>
 
-                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): đủ 4 ô
-                     — content_pdf (nội dung chính) + 3 tài nguyên phụ. Để trống = giữ nguyên
-                     file cũ (xem ProductController::applyResourceUploads()), chọn file mới thì
-                     thay thế. --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
+                     (nội dung chính) + 2 tài nguyên phụ. Để trống = giữ nguyên file cũ (xem
+                     ProductController::applyResourceUploads()), chọn file mới thì thay thế.
+                     SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã bỏ ô
+                     "File ZIP bài tập" ở đây — quản lý ở mục "🧪 Bài tập đính kèm" tại trang chi
+                     tiết sản phẩm (nút "✏️ Sửa" phía trên). Nếu sản phẩm này còn file ZIP CŨ
+                     (upload từ trước khi có mục Bài tập đính kèm) thì vẫn xem/tải được ở đúng
+                     mục "📎 Tài nguyên đính kèm" của trang chi tiết — không mất dữ liệu, chỉ
+                     không upload MỚI qua đây được nữa. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
                         <input id="content_pdf" name="content_pdf" type="file" accept="application/pdf"
@@ -122,14 +127,6 @@
                                class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
                         <p class="text-xs mt-1 {{ $product->guide_pdf_path ? 'text-emerald-600' : 'text-slate-400' }}">
                             {{ $product->guide_pdf_path ? '✓ Đã có: '.$product->guide_pdf_original_name : 'Chưa có — PDF tối đa 50MB' }}
-                        </p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="exercise_zip">File ZIP bài tập</label>
-                        <input id="exercise_zip" name="exercise_zip" type="file" accept=".zip"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
-                        <p class="text-xs mt-1 {{ $product->exercise_zip_path ? 'text-emerald-600' : 'text-slate-400' }}">
-                            {{ $product->exercise_zip_path ? '✓ Đã có: '.$product->exercise_zip_original_name : 'Chưa có — ZIP tối đa 200MB' }}
                         </p>
                     </div>
                     <div>

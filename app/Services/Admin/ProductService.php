@@ -29,6 +29,10 @@ class ProductService
         private ProductRepositoryInterface $products,
         private AccessRightRepositoryInterface $accessRights,
         private MaterialRepositoryInterface $materials,
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — danh sách/quét dọn bài tập của sản phẩm
+        // dùng lại nguyên bộ logic Question đã có ở ContentService (productExercise*()), tránh
+        // lặp lại (đặc biệt là dọn file đính kèm trên đĩa khi xoá) ở đây.
+        private ContentService $contentService,
     ) {}
 
     /** @return array{types: array, visibilities: array, statuses: array} */
@@ -237,6 +241,9 @@ class ProductService
             'accessRightRows' => $accessRightRows,
             'accessRightCount' => $this->accessRights->query()->where('product_id', $productId)->count(),
             'materialsTree' => $this->buildMaterialsTree($allMaterials, null),
+            // SỬA 31/8 — danh sách "Bài tập đính kèm" (nhập từ ZIP); tự dọn bản nháp bỏ dở
+            // ngay trong productExercisesFor(), xem ContentService::discardAbandonedDraftsFor().
+            'exercises' => $this->contentService->productExercisesFor($product),
         ];
     }
 

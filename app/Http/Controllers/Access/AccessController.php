@@ -126,4 +126,13 @@ class AccessController extends Controller
     {
         return $this->accessService->downloadResource(Auth::user(), $product, $kind);
     }
+
+    /**
+     * access.resource.exerciseAttachment (31/8, "ZIP bài tập" gắn vào sản phẩm) — đề bài/lời
+     * giải/code mẫu của 1 bài tập cụ thể — xem AccessService::downloadExerciseAttachment().
+     */
+    public function exerciseAttachment(Request $request, int $product, int $exercise, string $kind): StreamedResponse
+    {
+        return $this->accessService->downloadExerciseAttachment(Auth::user(), $product, $exercise, $kind);
+    }
 }

@@ -61,6 +61,33 @@
                          nói sau"): đã ẩn khối "Mục lục" ở đây theo yêu cầu — KHÔNG xoá dữ liệu
                          phía sau ($p['toc'] vẫn được LibraryService tính như cũ, chỉ bỏ hiển
                          thị), cần lại thì chỉ việc thêm lại đúng khối này. --}}
+
+                    {{-- SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — bài tập lập trình chấm kiểu
+                         thi online (tái dùng Student\PracticeByQuestionService). Xem
+                         LibraryService::exercisesFor(); "Làm bài" mở phiên luyện CHỈ bài này
+                         qua startExercise() (kiểm tra lại quyền sở hữu sản phẩm ở đó, không tin
+                         riêng việc trang này chỉ hiện sản phẩm đã mua). --}}
+                    @if (count($p['exercises']) > 0)
+                        <div class="mt-4 pt-4 border-t border-slate-100">
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">🧪 Bài tập</p>
+                            <div class="space-y-2">
+                                @foreach ($p['exercises'] as $ex)
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
+                                        <div class="min-w-0">
+                                            <p class="text-sm text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['testCasesCount'] }} test case</p>
+                                        </div>
+                                        <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
+                                            @csrf
+                                            <input type="hidden" name="return_url" value="{{ url()->full() }}">
+                                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition">Làm bài ›</button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

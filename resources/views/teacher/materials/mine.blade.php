@@ -55,6 +55,30 @@
                             </div>
                         </div>
                     @endif
+
+                    {{-- SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — giáo viên CHỈ xem/tải đề
+                         bài để tham khảo, KHÔNG có nút "Làm bài" (mục này chỉ Admin quản lý
+                         thêm/sửa/xoá — giáo viên không quản lý; và luồng "Làm bài" tương tác là
+                         luồng riêng dành cho học sinh, xem
+                         Student\PracticeByQuestionService::startForQuestion() — bên giáo viên
+                         không có UI làm bài tương ứng). Xem LibraryService::exercisesFor(). --}}
+                    @if (count($p['exercises']) > 0)
+                        <div class="mt-4 pt-4 border-t border-slate-100">
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">🧪 Bài tập</p>
+                            <div class="space-y-2">
+                                @foreach ($p['exercises'] as $ex)
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
+                                        <div class="min-w-0">
+                                            <p class="text-sm text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['testCasesCount'] }} test case</p>
+                                        </div>
+                                        <a href="{{ route('access.resource.exerciseAttachment', [$p['id'], $ex['id'], 'statement']) }}" class="text-xs text-rose-600 font-medium shrink-0">Xem đề bài</a>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Học sinh làm bài trực tiếp (kiểu thi online) ở trang "Tài liệu của tôi" của các em.</p>
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

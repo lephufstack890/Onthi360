@@ -25,6 +25,10 @@ class Question extends Model
     protected $fillable = [
         'bank_id', 'code', 'type', 'title', 'body', 'points', 'grading_config', 'metadata',
         'owner_type', 'owner_id', 'visibility', 'status', 'version', 'parent_version_id', 'created_by',
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — product_id khác null nghĩa là câu hỏi
+        // này là bài tập riêng của 1 sản phẩm, không thuộc Kho câu hỏi dùng chung. Mọi nơi lấy
+        // câu hỏi CHUNG phải whereNull('product_id'), xem QuestionRepository.
+        'product_id',
     ];
 
     protected $casts = [
@@ -39,6 +43,12 @@ class Question extends Model
     public function bank(): BelongsTo
     {
         return $this->belongsTo(QuestionBank::class, 'bank_id');
+    }
+
+    /** SỬA 31/8 — sản phẩm sở hữu câu hỏi này (khi đây là "bài tập đính kèm sản phẩm"). */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function owner(): BelongsTo

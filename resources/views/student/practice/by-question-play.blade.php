@@ -8,17 +8,31 @@
         $finished = $finished ?? false;
         $feedback = $feedback ?? null;
         $options = $options ?? [];
+        // SỬA 31/8 ("Làm bài" 1 bài tập sản phẩm, xem PracticeByQuestionService::startForQuestion())
+        // — mode/returnUrl chỉ khác null khi phiên này mở từ trang "Tài liệu của tôi" (1 bài
+        // tập, không phải luyện nhiều câu theo tag như bình thường) — đổi nút quay lại cho phù
+        // hợp ngữ cảnh đó thay vì "Luyện lại"/"Về Luyện tập" (vô nghĩa với 1 bài tập sản phẩm).
+        $mode = $mode ?? null;
+        $returnUrl = $returnUrl ?? null;
     @endphp
 
     @if ($finished)
         <div class="max-w-3xl mx-auto text-center bg-white rounded-2xl border border-slate-200 p-8 mt-8">
             <div class="text-5xl mb-3">🎉</div>
-            <h2 class="text-2xl font-semibold text-slate-800 mb-2">Đã luyện hết {{ $total }} câu!</h2>
-            <p class="text-base text-slate-500 mb-6">Đúng <span class="font-semibold text-emerald-600">{{ $correct }}</span>/{{ $answered }} câu đã trả lời{{ $answered < $total ? ' ('.($total - $answered).' câu bỏ qua)' : '' }}.</p>
-            <div class="flex items-center justify-center gap-3">
-                <a href="{{ route('student.practiceByQuestion.setup') }}" class="px-5 py-3 rounded-lg bg-rose-600 text-white text-base font-medium">Luyện lại ›</a>
-                <a href="{{ route('student.practice.index') }}" class="px-5 py-3 rounded-lg border border-slate-200 text-slate-600 text-base font-medium hover:border-rose-200 hover:text-rose-600">Về Luyện tập</a>
-            </div>
+            @if ($mode === 'single_question')
+                <h2 class="text-2xl font-semibold text-slate-800 mb-2">Đã ghi nhận bài làm!</h2>
+                <p class="text-base text-slate-500 mb-6">Bài tập chưa có chấm tự động — bài làm của bạn đã được ghi nhận.</p>
+                <div class="flex items-center justify-center gap-3">
+                    <a href="{{ $returnUrl ?? route('student.library.index') }}" class="px-5 py-3 rounded-lg bg-rose-600 text-white text-base font-medium">‹ Quay lại Tài liệu của tôi</a>
+                </div>
+            @else
+                <h2 class="text-2xl font-semibold text-slate-800 mb-2">Đã luyện hết {{ $total }} câu!</h2>
+                <p class="text-base text-slate-500 mb-6">Đúng <span class="font-semibold text-emerald-600">{{ $correct }}</span>/{{ $answered }} câu đã trả lời{{ $answered < $total ? ' ('.($total - $answered).' câu bỏ qua)' : '' }}.</p>
+                <div class="flex items-center justify-center gap-3">
+                    <a href="{{ route('student.practiceByQuestion.setup') }}" class="px-5 py-3 rounded-lg bg-rose-600 text-white text-base font-medium">Luyện lại ›</a>
+                    <a href="{{ route('student.practice.index') }}" class="px-5 py-3 rounded-lg border border-slate-200 text-slate-600 text-base font-medium hover:border-rose-200 hover:text-rose-600">Về Luyện tập</a>
+                </div>
+            @endif
         </div>
     @else
         <div class="max-w-8xl mx-auto">

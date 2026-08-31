@@ -9,6 +9,7 @@ use App\Models\AccessRight;
 use App\Models\ClassRoom;
 use App\Models\Material;
 use App\Models\Order;
+use App\Models\Question;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
@@ -118,6 +119,38 @@ class AccessService
         return $kind === 'exercise'
             ? Storage::disk('local')->download($path, $originalName ?: basename($path))
             : Storage::disk('local')->response($path, $originalName ?: basename($path));
+    }
+
+    /**
+     * access.resource.exerciseAttachment (31/8, "ZIP bài tập" gắn vào sản phẩm) — đề bài/lời
+     * giải/code mẫu của 1 BÀI TẬP cụ thể (Question, product_id khác null), khác
+     * downloadResource() ở trên vốn phục vụ 4 tệp gắn THẲNG vào Product. Cùng quy tắc kiểm tra
+     * quyền: canAccessProduct() Ở ĐÂY (không tin route/UI đã kiểm tra trước).
+     *
+     * 'solution' (lời giải) và 'reference' (code mẫu) CHỈ giáo viên/admin xem được — học sinh
+     * đang tự làm bài không được xem trước đáp án (cùng tinh thần chặn kind='guide' ở
+     * downloadResource() phía trên). 'statement' (đề bài) thì ai có quyền sản phẩm cũng xem
+     * được — không có đề thì không thể làm bài.
+     */
+    public function downloadExerciseAttachment(User $user, int $productId, int $questionId, string $kind): StreamedResponse
+    {
+        $product = $this->products->findOrFail($productId);
+
+        abort_unless($this->accessGate->canAccessProduct($user, $product)->allowed, 403);
+
+        /** @var Question $exercise */
+        $exercise = Question::where('product_id', $productId)->findOrFail($questionId);
+
+        if (in_array($kind, ['solution', 'reference'], true)
+            && $user->hasAnyRole(Role::STUDENT)
+            && ! $user->hasAnyRole(Role::TEACHER, Role::ADMIN, Role::SUPER_ADMIN)) {
+            abort(403);
+        }
+
+        $attachment = $exercise->metadata['attachments'][$kind] ?? null;
+        abort_if(! isset($attachment['path']), 404);
+
+        return Storage::disk('local')->download($attachment['path'], $attachment['filename'] ?? basename($attachment['path']));
     }
 
     /**

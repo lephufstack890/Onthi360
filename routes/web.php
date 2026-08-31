@@ -53,6 +53,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FeaturedTeacherController as AdminFeaturedTeacherController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExerciseController;
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
@@ -104,6 +105,11 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
+            // SỬA 31/8 ("Làm bài" 1 bài tập cụ thể của sản phẩm, từ "Tài liệu của tôi") — mở
+            // phiên luyện CHỈ 1 câu (khác start() ở trên vốn xáo trộn cả pool theo tag/dạng
+            // câu), có kiểm tra quyền sở hữu sản phẩm — xem
+            // Student\PracticeByQuestionController::startExercise().
+            Route::post('/exercise/{exercise}', [StudentPracticeByQuestionController::class, 'startExercise'])->name('startExercise');
             Route::get('/play', [StudentPracticeByQuestionController::class, 'play'])->name('play');
             Route::post('/answer', [StudentPracticeByQuestionController::class, 'answer'])->name('answer');
             Route::post('/next', [StudentPracticeByQuestionController::class, 'next'])->name('next');
@@ -268,6 +274,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/tai-nguyen/{product}/{kind}', [AccessController::class, 'resource'])
             ->whereIn('kind', ['content', 'guide', 'exercise', 'media'])
             ->name('resource');
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — đề bài/lời giải/code mẫu của 1 bài tập cụ
+        // thể (khác 4 tệp gắn thẳng Product ở route ngay trên) — xem
+        // AccessService::downloadExerciseAttachment().
+        Route::get('/tai-nguyen/{product}/bai-tap/{exercise}/{kind}', [AccessController::class, 'exerciseAttachment'])
+            ->whereIn('kind', ['statement', 'solution', 'reference'])
+            ->name('resource.exerciseAttachment');
     });
 
     Route::prefix('vi')->name('wallet.')->group(function () {
@@ -315,6 +327,15 @@ Route::middleware(['auth'])->group(function () {
         Route::put('products/{product}', [AdminProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — CHỈ Admin/Super Admin quản lý (cùng
+        // middleware role:admin,super_admin với các route products.* ở trên) — không mở cho
+        // editor/giáo viên. Xem App\Http\Controllers\Admin\ProductExerciseController.
+        Route::post('products/{product}/exercises', [AdminProductExerciseController::class, 'store'])->name('products.exercises.store');
+        Route::get('products/{product}/exercises/{exercise}/edit', [AdminProductExerciseController::class, 'edit'])->name('products.exercises.edit');
+        Route::put('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'update'])->name('products.exercises.update');
+        Route::delete('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'destroy'])->name('products.exercises.destroy');
+        Route::get('products/{product}/exercises/{exercise}/attachment/{kind}', [AdminProductExerciseController::class, 'attachmentDownload'])->name('products.exercises.attachment');
 
         Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
         Route::get('access-rights/create', [AdminAccessRightController::class, 'create'])->name('access-rights.create');

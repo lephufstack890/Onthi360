@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Question;
+use App\Services\AccessGateService;
 use App\Services\Student\PracticeByQuestionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
@@ -15,7 +18,12 @@ use Illuminate\View\View;
  */
 class PracticeByQuestionController extends Controller
 {
-    public function __construct(private readonly PracticeByQuestionService $service) {}
+    public function __construct(
+        private readonly PracticeByQuestionService $service,
+        // SỬA 31/8 ("Làm bài" 1 bài tập của sản phẩm) — kiểm tra quyền sở hữu sản phẩm trước
+        // khi mở phiên luyện, xem startExercise() bên dưới.
+        private readonly AccessGateService $accessGate,
+    ) {}
 
     /**
      * SỬA 24/8 — trang công khai (public.practice.index) cho khách CHỌN bộ lọc trước khi đăng
@@ -68,6 +76,36 @@ class PracticeByQuestionController extends Controller
         return redirect()->route('student.practiceByQuestion.play');
     }
 
+    /**
+     * student.practiceByQuestion.startExercise (31/8, "ZIP bài tập" gắn vào sản phẩm) — "Làm
+     * bài" 1 bài tập cụ thể từ trang "Tài liệu của tôi". Kiểm tra lại quyền sở hữu sản phẩm Ở
+     * ĐÂY (không tin trang "Tài liệu của tôi" đã lọc đúng — cùng nguyên tắc "2 request độc lập"
+     * dùng khắp nơi trong hệ thống, ví dụ AccessService::downloadResource()) — chặn cả việc học
+     * sinh tự gõ URL vào thẳng 1 bài tập của sản phẩm mình chưa mua.
+     */
+    public function startExercise(Request $request, Question $exercise): RedirectResponse
+    {
+        abort_if($exercise->product_id === null, 404);
+
+        $product = $exercise->product;
+        abort_unless($this->accessGate->canAccessProduct(Auth::user(), $product)->allowed, 403);
+
+        $data = $request->validate(['return_url' => ['nullable', 'string', 'max:2000']]);
+
+        // Chặn open-redirect: chỉ nhận đường dẫn NỘI BỘ bắt đầu bằng đúng 1 dấu '/' (không phải
+        // '//host/...' — dạng protocol-relative có thể trỏ ra domain khác) — 'return_url' tuy
+        // do server tự đặt vào form ẩn ở mine.blade.php, nhưng vẫn là input POST nên không tin
+        // nguyên văn giá trị người dùng gửi lên (16 mục 3).
+        $returnUrl = $data['return_url'] ?? null;
+        if ($returnUrl !== null && (! str_starts_with($returnUrl, '/') || str_starts_with($returnUrl, '//'))) {
+            $returnUrl = null;
+        }
+
+        $this->service->startForQuestion($exercise->id, $returnUrl);
+
+        return redirect()->route('student.practiceByQuestion.play');
+    }
+
     public function play(Request $request): View|RedirectResponse
     {
         $data = $this->service->playData();
@@ -107,10 +145,14 @@ class PracticeByQuestionController extends Controller
         return redirect()->route('student.practiceByQuestion.play');
     }
 
+    /** SỬA 31/8 — nếu phiên vừa dừng là "Làm bài" 1 bài tập sản phẩm (có returnUrl lưu sẵn,
+     *  xem startForQuestion()), quay lại ĐÚNG trang sản phẩm thay vì trang "Luyện tập" chung. */
     public function stop(Request $request): RedirectResponse
     {
-        $this->service->stop();
+        $returnUrl = $this->service->stop();
 
-        return redirect()->route('student.practice.index');
+        return $returnUrl !== null
+            ? redirect()->to($returnUrl)
+            : redirect()->route('student.practice.index');
     }
 }

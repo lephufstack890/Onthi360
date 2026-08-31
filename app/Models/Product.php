@@ -64,6 +64,16 @@ class Product extends Model
         return $this->hasMany(AccessRight::class);
     }
 
+    /**
+     * SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — danh sách bài tập (Question, type=coding)
+     * riêng của sản phẩm này, nhập từ gói ZIP OT360-QPACK. CHỈ admin quản lý (thêm/sửa/xoá),
+     * không hiện trong Kho câu hỏi/luyện tập dùng chung. Xem ContentService::productExercise*().
+     */
+    public function exercises(): HasMany
+    {
+        return $this->hasMany(Question::class)->orderByDesc('id');
+    }
+
     public function isPublished(): bool
     {
         return $this->status === ContentStatus::Published;

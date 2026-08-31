@@ -181,7 +181,10 @@ class ContentService
     public function indexData(string $tab): array
     {
         $counts = [
-            'questions' => $this->questions->count(),
+            // SỬA 31/8 — đếm đúng số lượng hiện ở tab "Câu hỏi (Kho chung + Giáo viên)":
+            // loại các câu hỏi là "bài tập đính kèm sản phẩm" (product_id khác null, quản lý
+            // riêng ở trang Sản phẩm), khớp với allLatestWithOwner() bên dưới.
+            'questions' => $this->questions->query()->whereNull('product_id')->count(),
             'assessments' => $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
             // SỬA 19/8 (Giai đoạn 6): xem nhánh $tab === 'tags' bên dưới.
@@ -1263,6 +1266,190 @@ class ContentService
         }
 
         return $stored;
+    }
+
+    // ================= Bài tập đính kèm sản phẩm ("ZIP bài tập", 31/8) =================
+    // Khách chốt qua nhiều vòng: (1) nhập bằng ZIP OT360-QPACK — tái dùng
+    // parseZipQuestionPackage()/storeZipAttachments()/deriveUniqueQuestionCode()/
+    // placeholderBodyForZipImport()/questionAttachmentInfo() y hệt Kho câu hỏi ở trên, chỉ khác
+    // gắn product_id thay vì đưa vào Kho chung; (2) không giới hạn số lượng bài tập/sản phẩm;
+    // (3) chấm kiểu thi online khi học sinh làm — thực chất tái dùng
+    // Student\PracticeByQuestionService (xem startForQuestion() ở đó) — LƯU Ý: hệ thống hiện
+    // CHƯA có sandbox chấm code thật (AttemptService.php đã ghi chú từ trước, không riêng gì
+    // tính năng này), nên bài nộp vẫn ở trạng thái "Đang chấm" — khách đã được báo và đồng ý
+    // làm trước, chấm thật sẽ tự chạy đúng khi có sandbox thật sau này, không cần sửa lại;
+    // (4) chọn ZIP xong mà thoát ra không bấm "Lưu bài tập" thì tự xoá — xem
+    // discardAbandonedDraftsFor(); (5) CHỈ Admin quản lý — route đặt cùng nhóm middleware
+    // role:admin,super_admin với admin.products.* (routes/web.php), giáo viên không có route
+    // nào trỏ tới các hàm dưới đây.
+
+    /**
+     * admin.products.show — danh sách bài tập để hiển thị + tự dọn bản nháp bỏ dở TRƯỚC khi
+     * trả về danh sách (xem discardAbandonedDraftsFor()) — nhờ vậy nút "Thêm ZIP" ở màn hình
+     * này luôn có thể bấm ngay, không bao giờ bị "kẹt" vì 1 bản nháp cũ quên chưa lưu.
+     */
+    public function productExercisesFor(Product $product): array
+    {
+        $this->discardAbandonedDraftsFor($product);
+
+        return $product->exercises()->with('tags')->get()->map(fn (Question $q) => [
+            'id' => $q->id,
+            'title' => $q->title,
+            'points' => $q->points,
+            'testCasesCount' => count($q->grading_config['test_cases'] ?? []),
+            'tags' => $q->tags->pluck('name')->all(),
+            'createdAt' => $q->created_at?->format('d/m/Y H:i'),
+        ])->all();
+    }
+
+    /**
+     * Bản NHÁP (status=Draft) chỉ tồn tại trong khoảng thời gian giữa lúc admin chọn xong ZIP
+     * (productExerciseStoreFromZipPackage() tạo ngay + chuyển thẳng sang màn Sửa) và lúc admin
+     * bấm "Lưu bài tập" (productExerciseSave() chuyển status -> Published). Hàm này chỉ được
+     * gọi khi trang chi tiết sản phẩm được tải lại — nghĩa là admin CHẮC CHẮN không còn ở màn
+     * Sửa bản nháp đó nữa (rời đi mà chưa lưu = bỏ dở) — xoá thẳng, không cần hỏi lại, đúng
+     * yêu cầu "thoát ra không bấm Lưu thì xoá luôn, không cần thao tác gì thêm". Bài tập ĐÃ LƯU
+     * (status khác Draft) không bao giờ bị đụng tới ở đây.
+     */
+    public function discardAbandonedDraftsFor(Product $product): void
+    {
+        $product->exercises()->where('status', ContentStatus::Draft->value)->get()
+            ->each(fn (Question $draft) => $this->productExerciseDestroy($draft));
+    }
+
+    /**
+     * admin.products.exercises.store — chọn ZIP xong tạo NGAY bản nháp rồi chuyển sang màn Sửa
+     * (controller redirect) để admin xem lại/sửa Tiêu đề-Điểm-Tag trước khi bấm "Lưu bài tập".
+     * Quét dọn nháp bỏ dở TRƯỚC KHI tạo mới (phòng khi admin bấm "Thêm ZIP" từ 1 tab/trang cũ
+     * đã lỗi thời) — đúng tinh thần "phải thêm xong thì mới được thêm file ZIP mới".
+     *
+     * @throws ValidationException nếu gói ZIP không mở được/sai định dạng/thiếu test case hợp
+     *                              lệ — xem parseZipQuestionPackage().
+     */
+    public function productExerciseStoreFromZipPackage(Product $product, User $admin, UploadedFile $zip): Question
+    {
+        $this->discardAbandonedDraftsFor($product);
+
+        $package = $this->parseZipQuestionPackage($zip);
+        $json = $package['json'];
+        $content = $json['content'] ?? [];
+        $grading = $json['grading'] ?? [];
+
+        $points = isset($content['points']) ? (int) round((float) $content['points']) : 0;
+
+        $tagNames = array_values(array_filter(array_map('trim', array_merge(
+            $json['taxonomy']['tags'] ?? [],
+            $json['taxonomy']['keywords'] ?? [],
+        )), fn ($t) => $t !== ''));
+
+        $gradingData = [
+            'test_cases_parsed' => $package['testCases'],
+            'time_limit_ms' => $grading['time_limit_ms'] ?? 1000,
+            'memory_limit_mb' => $grading['memory_limit_mb'] ?? 256,
+            'languages' => $grading['languages'] ?? null,
+            'file_io' => $grading['file_io'] ?? null,
+            'subtasks' => $json['subtasks'] ?? null,
+        ];
+
+        $question = $this->questions->create([
+            'bank_id' => $this->sharedBank()->id,
+            // SỬA 31/8 — điểm khác biệt DUY NHẤT với questionStoreFromZipPackage(): gắn
+            // product_id để câu hỏi này là "riêng của sản phẩm", loại khỏi mọi nơi lấy câu hỏi
+            // dùng chung (xem whereNull('product_id') ở QuestionRepository).
+            'product_id' => $product->id,
+            'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
+            'type' => 'coding',
+            'title' => $content['title'] ?? 'Bài tập (nhập từ ZIP)',
+            'body' => $this->placeholderBodyForZipImport($content),
+            'points' => max(0, $points),
+            'grading_config' => $this->buildGradingConfig('coding', $gradingData),
+            'owner_type' => OwnerType::Shared->value,
+            'owner_id' => null,
+            'visibility' => Visibility::Public->value,
+            // Draft = "đang thêm dở, chưa bấm Lưu" — KHÁC nghĩa "chờ duyệt" bên Kho câu hỏi
+            // chung. Bài tập sản phẩm không qua vòng duyệt riêng; bấm "Lưu bài tập"
+            // (productExerciseSave()) chuyển thẳng sang Published.
+            'status' => ContentStatus::Draft->value,
+            'version' => 1,
+            'created_by' => $admin->id,
+        ]);
+
+        $question->update([
+            'metadata' => [
+                'source_package' => [
+                    'schema' => $json['schema'] ?? null,
+                    'original_filename' => $zip->getClientOriginalName(),
+                    'imported_at' => now()->toIso8601String(),
+                ],
+                'taxonomy' => $json['taxonomy'] ?? null,
+                'pedagogy' => $json['pedagogy'] ?? null,
+                'attribution' => $json['attribution'] ?? null,
+                'attachments' => $this->storeZipAttachments($question, $package['attachments']),
+            ],
+        ]);
+
+        if ($tagNames !== []) {
+            $question->tags()->sync(array_map(fn ($name) => $this->tags->findOrCreateByName($name)->id, $tagNames));
+        }
+
+        return $question;
+    }
+
+    /** admin.products.exercises.edit — form riêng, đơn giản hơn nhiều so với Kho câu hỏi: chỉ
+     *  cho sửa Tiêu đề/Điểm/Tag, test case + tệp đính kèm hiện READ-ONLY (xem lý do ở
+     *  productExerciseSave()). */
+    public function productExerciseEditFormData(Product $product, Question $exercise): array
+    {
+        return [
+            'product' => $product,
+            'exercise' => $exercise->load('tags'),
+            'allTags' => $this->tags->allOrderedByName(),
+            'isDraft' => $exercise->status === ContentStatus::Draft,
+        ];
+    }
+
+    /**
+     * admin.products.exercises.update — admin bấm "Lưu bài tập". CHỈ cho sửa Tiêu đề/Điểm/Tag
+     * — test case nhập từ ZIP giữ NGUYÊN, không cho sửa tay ở đây (ô nhập tay 1-dòng-1-test
+     * "input|||output" của Kho câu hỏi dễ làm hỏng test case nhiều dòng đọc thẳng từ ZIP, đã
+     * ghi chú ở questionStoreFromZipPackage() phía trên — cố ý không lặp lại rủi ro đó ở đây).
+     * status -> Published: bản nháp chính thức trở thành bài tập của sản phẩm, từ nay
+     * discardAbandonedDraftsFor() không còn đụng tới bài này nữa.
+     */
+    public function productExerciseSave(Question $exercise, array $data): Question
+    {
+        $updated = $this->questions->update($exercise, [
+            'title' => $data['title'],
+            'points' => $data['points'] ?? 0,
+            'status' => ContentStatus::Published->value,
+        ]);
+
+        $updated->tags()->sync($this->resolveTagIds($data));
+
+        return $updated;
+    }
+
+    /**
+     * Xoá bài tập — dùng cho cả (a) nháp bỏ dở (discardAbandonedDraftsFor() tự gọi) lẫn (b)
+     * admin chủ động xoá bài đã lưu (nút "Xoá" ở trang chi tiết sản phẩm). Xoá HẲN
+     * (forceDelete), KHÔNG soft-delete như Question::delete() mặc định, vì 2 lý do: (1) bài tập
+     * sản phẩm không có lịch sử làm bài lưu ở DB để cần giữ lại — luồng "Làm bài"
+     * (PracticeByQuestionService) cố ý CHỈ lưu trong session, không ghi Attempt/AttemptAnswer;
+     * (2) xoá hẳn mới giải phóng lại cột 'code' (unique) — soft-delete sẽ để hàng cũ chiếm chỗ
+     * mã đó, khiến nhập lại ĐÚNG tệp ZIP y hệt (rất dễ xảy ra khi admin thêm-rồi-bỏ-dở-rồi-thêm-
+     * lại) báo lỗi trùng khoá ở lần tạo sau. Xoá tệp đính kèm trên đĩa trước, giống
+     * materialDelete() ở trên.
+     */
+    public function productExerciseDestroy(Question $exercise): void
+    {
+        foreach (($exercise->metadata['attachments'] ?? []) as $attachment) {
+            if (isset($attachment['path'])) {
+                Storage::disk('local')->delete($attachment['path']);
+            }
+        }
+
+        $exercise->tags()->detach();
+        $exercise->forceDelete();
     }
 
     // ================= Đề/bộ bài (Assessment) =================

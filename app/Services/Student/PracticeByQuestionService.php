@@ -79,6 +79,30 @@ class PracticeByQuestionService
     }
 
     /**
+     * SỬA 31/8 ("Làm bài" 1 bài tập cụ thể của sản phẩm, từ "Tài liệu của tôi") — mở phiên
+     * luyện CHỈ 1 câu, khác start() ở trên (xáo trộn cả pool theo tag/dạng câu). Controller gọi
+     * hàm này ĐÃ tự kiểm tra quyền sở hữu sản phẩm trước (AccessGateService::canAccessProduct())
+     * — hàm này không lặp lại kiểm tra đó, chỉ lo phần "mở phiên luyện".
+     *
+     * $returnUrl lưu lại để playData()/stop() biết đường quay về ĐÚNG trang sản phẩm (Tài liệu
+     * của tôi) khi xong/dừng, thay vì trang "Luyện tập theo câu" chung — xem 'mode' ở
+     * playData() và stop() bên dưới.
+     */
+    public function startForQuestion(int $questionId, ?string $returnUrl = null): void
+    {
+        Session::put(self::SESSION_KEY, [
+            'question_ids' => [$questionId],
+            'index' => 0,
+            'answered' => 0,
+            'correct' => 0,
+            'filters' => null,
+            'feedback' => null,
+            'mode' => 'single_question',
+            'returnUrl' => $returnUrl,
+        ]);
+    }
+
+    /**
      * student.practiceByQuestion.play — null nếu chưa có phiên luyện đang mở (controller
      * đưa về màn setup). 'finished' => true khi đã luyện hết toàn bộ câu trong phiên.
      */
@@ -99,6 +123,11 @@ class PracticeByQuestionService
                 'total' => $total,
                 'correct' => $state['correct'],
                 'answered' => $state['answered'],
+                // SỬA 31/8 — màn "đã xong" đổi nút quay lại khi đây là phiên "Làm bài" 1 câu
+                // (xem startForQuestion()) — quay về đúng trang sản phẩm thay vì trang "Luyện
+                // tập theo câu" chung.
+                'mode' => $state['mode'] ?? null,
+                'returnUrl' => $state['returnUrl'] ?? null,
             ];
         }
 
@@ -120,6 +149,8 @@ class PracticeByQuestionService
             'options' => $question->grading_config['options'] ?? [],
             'progress' => ['current' => $index + 1, 'total' => $total, 'correct' => $state['correct'], 'answered' => $state['answered']],
             'feedback' => $state['feedback'],
+            'mode' => $state['mode'] ?? null,
+            'returnUrl' => $state['returnUrl'] ?? null,
         ];
     }
 
@@ -194,9 +225,19 @@ class PracticeByQuestionService
         Session::put(self::SESSION_KEY, $state);
     }
 
-    /** student.practiceByQuestion.stop — kết thúc phiên luyện, dọn session. */
-    public function stop(): void
+    /**
+     * student.practiceByQuestion.stop — kết thúc phiên luyện, dọn session. SỬA 31/8 — trả về
+     * 'returnUrl' đã lưu (nếu phiên "Làm bài" 1 câu, xem startForQuestion()) để controller
+     * chuyển đúng về trang sản phẩm; null nếu là phiên luyện tập thường (controller giữ hành vi
+     * cũ, về trang "Luyện tập").
+     */
+    public function stop(): ?string
     {
+        $state = Session::get(self::SESSION_KEY);
+        $returnUrl = is_array($state) ? ($state['returnUrl'] ?? null) : null;
+
         Session::forget(self::SESSION_KEY);
+
+        return $returnUrl;
     }
 }

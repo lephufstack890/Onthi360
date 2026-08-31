@@ -97,11 +97,13 @@
                     </div>
                 </div>
 
-                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): đủ 4 ô
-                     — content_pdf (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã
-                     bỏ) + 3 tài nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được sản
-                     phẩm bình thường. --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
+                     (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã bỏ) + 2 tài
+                     nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được sản phẩm bình
+                     thường. SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã
+                     bỏ ô "File ZIP bài tập" (1 file duy nhất) ở đây — sau khi tạo sản phẩm,
+                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết sản phẩm. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
                         <input id="content_pdf" name="content_pdf" type="file" accept="application/pdf"
@@ -113,12 +115,6 @@
                         <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf"
                                class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
                         <p class="text-xs text-slate-400 mt-1">PDF, tối đa 50MB.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="exercise_zip">File ZIP bài tập</label>
-                        <input id="exercise_zip" name="exercise_zip" type="file" accept=".zip"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
-                        <p class="text-xs text-slate-400 mt-1">ZIP, tối đa 200MB.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="media">Học liệu (ảnh động/audio)</label>

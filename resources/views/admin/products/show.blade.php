@@ -18,6 +18,9 @@
         // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): $materialsTree — xem
         // App\Services\Admin\ProductService::buildMaterialsTree().
         $materialsTree = $materialsTree ?? [];
+        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — danh sách bài tập, xem
+        // App\Services\Admin\ContentService::productExercisesFor().
+        $exercises = $exercises ?? [];
     @endphp
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm</a>
@@ -31,6 +34,12 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tải lên '.session('bulkCreatedCount').' bài — vào từng bài nếu cần sửa tên/mã/PDF.'])
     @elseif (session('status') === 'material-updated')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi học liệu.'])
+    @elseif (session('status') === 'exercise-parsed')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đọc xong gói ZIP — kiểm tra lại thông tin rồi bấm "Lưu bài tập" để hoàn tất.'])
+    @elseif (session('status') === 'exercise-saved')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu bài tập.'])
+    @elseif (session('status') === 'exercise-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá bài tập.'])
     @endif
 
     <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">
@@ -75,12 +84,21 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📎</span> Tài nguyên đính kèm</h2>
                 @php
+                    // SỬA 31/8 — "ZIP bài tập" (1 file duy nhất) không còn upload MỚI được qua
+                    // form Sửa nữa (xem mục "🧪 Bài tập đính kèm" bên dưới) — chỉ còn hiện ở đây
+                    // NẾU sản phẩm này có file cũ từ trước, để không mất khả năng xem/tải dữ
+                    // liệu đã có (route access.resource, kind=exercise vẫn hoạt động bình
+                    // thường). Sản phẩm mới sẽ không bao giờ có dòng này.
                     $extraResources = [
                         ['label' => 'File PDF', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name],
                         ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
-                        ['label' => 'ZIP bài tập', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name],
                         ['label' => 'Học liệu (ảnh động/audio)', 'path' => $product->media_path, 'name' => $product->media_original_name],
                     ];
+                    if ($product->exercise_zip_path) {
+                        array_splice($extraResources, 2, 0, [[
+                            'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
+                        ]]);
+                    }
                 @endphp
                 <div class="divide-y divide-slate-100">
                     @foreach ($extraResources as $res)
@@ -95,6 +113,62 @@
                     @endforeach
                 </div>
                 <a href="{{ route('admin.products.edit', $product->id) }}" class="text-sm text-rose-600 font-medium mt-3 inline-block">Thêm/thay file ›</a>
+            </div>
+
+            {{-- SỬA 31/8 ("ZIP bài tập" — nhập bằng ZIP, không giới hạn số lượng, chấm kiểu thi
+                 online khi học sinh làm): xem App\Services\Admin\ContentService::productExercise*()
+                 + Admin\ProductExerciseController. CHỈ Admin quản lý mục này (route cùng nhóm
+                 middleware role:admin,super_admin với admin.products.* — routes/web.php) —
+                 giáo viên KHÔNG có nút thêm/sửa/xoá; học sinh/giáo viên "Làm bài" ở trang "Tài
+                 liệu của tôi" (student/teacher materials/mine.blade.php). --}}
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>🧪</span> Bài tập đính kèm</h2>
+                    <span class="text-xs text-slate-400">{{ count($exercises) }} bài</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-3">
+                    Chọn 1 gói ZIP (định dạng OT360-QPACK) — hệ thống tự đọc đề bài + test case, bạn
+                    chỉ cần kiểm tra lại rồi bấm "Lưu bài tập". Không giới hạn số lượng bài — thêm
+                    xong 1 bài mới được thêm bài tiếp theo.
+                </p>
+
+                <form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data" class="flex items-center gap-3 flex-wrap mb-4 p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200">
+                    @csrf
+                    <input type="file" name="zip_package" accept=".zip" required
+                           class="text-sm text-slate-600 flex-1 min-w-[200px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition shrink-0">
+                        ⬆️ Thêm bài tập từ ZIP
+                    </button>
+                </form>
+
+                @if (empty($exercises))
+                    <x-empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP đầu tiên ở ô trên để bắt đầu." />
+                @else
+                    <div class="divide-y divide-slate-100">
+                        @foreach ($exercises as $ex)
+                            <div class="flex items-center justify-between gap-3 py-3 flex-wrap">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                    <p class="text-xs text-slate-400">
+                                        {{ $ex['points'] }} điểm · {{ $ex['testCasesCount'] }} test case
+                                        @if (!empty($ex['tags']))
+                                            · {{ implode(', ', $ex['tags']) }}
+                                        @endif
+                                        · {{ $ex['createdAt'] }}
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <a href="{{ route('admin.products.exercises.edit', [$product->id, $ex['id']]) }}" class="text-sm text-rose-600 font-medium">Sửa</a>
+                                    <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Xoá bài tập này? Không thể hoàn tác.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-sm text-slate-400 hover:text-rose-600">Xoá</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             {{-- Note họp 13/8 mục 2: "Có danh sách các quyền được cấp, cần danh sách phê

@@ -30,8 +30,6 @@ class ProductController extends Controller
         return view('admin.products.create', $this->productService->createFormData());
     }
 
-    private const MAX_EXERCISE_ZIP_KB = 204800; // 200MB — gói bài tập có thể gồm nhiều tệp con
-
     private const MAX_MEDIA_KB = 51200; // 50MB — ảnh động/audio ngắn
 
     private function validationRules(): array
@@ -53,27 +51,33 @@ class ProductController extends Controller
             // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản
             // phẩm"): mỗi ô đúng 1 file, để trống = giữ nguyên file cũ (giống cover_image, xem
             // applyResourceUploads()).
+            // SỬA 31/8 ("ZIP bài tập" — nhập bằng ZIP, thêm được nhiều bài, chấm kiểu thi
+            // online): đã bỏ ô "exercise_zip" (1 file duy nhất) khỏi form tạo/sửa sản phẩm ở
+            // đây — thay bằng mục "Bài tập đính kèm" riêng ngay tại trang chi tiết sản phẩm
+            // (xem admin/products/show.blade.php + Admin\ProductExerciseController). Cột
+            // exercise_zip_path/exercise_zip_original_name và route tải cũ (access.resource,
+            // kind=exercise) VẪN giữ nguyên, không xoá — sản phẩm nào đã có file ZIP cũ trước
+            // đây vẫn xem/tải được bình thường, chỉ là không thể upload MỚI qua form nữa.
             'content_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
             'guide_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
-            'exercise_zip' => ['nullable', 'file', 'mimes:zip', 'max:'.self::MAX_EXERCISE_ZIP_KB],
             'media' => ['nullable', 'file', 'mimes:gif,webp,png,jpg,jpeg,mp4,mp3,wav,ogg', 'max:'.self::MAX_MEDIA_KB],
         ];
     }
 
     /**
-     * SỬA 27/8 ("4 file đính kèm sản phẩm") — xử lý CHUNG cho cả 4 ô file (content_pdf,
-     * guide_pdf, exercise_zip, media): có file mới thì xoá file cũ (nếu $existing có) rồi lưu
-     * file mới vào disk 'local' (riêng tư — khác cover_image ở disk 'public' vì 4 tài nguyên
-     * này PHẢI qua kiểm tra quyền mới tải được, xem AccessGateService::canAccessProduct());
-     * không có file mới thì bỏ hẳn field khỏi $data để giữ nguyên giá trị cũ trong DB
-     * (ProductService chỉ ghi đè khi key có mặt, giống cover_image_path).
+     * SỬA 27/8 ("4 file đính kèm sản phẩm") — xử lý CHUNG cho các ô file còn lại (content_pdf,
+     * guide_pdf, media — KHÔNG còn exercise_zip, xem ghi chú SỬA 31/8 ở validationRules()): có
+     * file mới thì xoá file cũ (nếu $existing có) rồi lưu file mới vào disk 'local' (riêng tư —
+     * khác cover_image ở disk 'public' vì các tài nguyên này PHẢI qua kiểm tra quyền mới tải
+     * được, xem AccessGateService::canAccessProduct()); không có file mới thì bỏ hẳn field khỏi
+     * $data để giữ nguyên giá trị cũ trong DB (ProductService chỉ ghi đè khi key có mặt, giống
+     * cover_image_path).
      */
     private function applyResourceUploads(Request $request, array &$data, ?Product $existing): void
     {
         $fields = [
             'content_pdf' => ['content_pdf_path', 'content_pdf_original_name', 'products/content'],
             'guide_pdf' => ['guide_pdf_path', 'guide_pdf_original_name', 'products/guides'],
-            'exercise_zip' => ['exercise_zip_path', 'exercise_zip_original_name', 'products/exercises'],
             'media' => ['media_path', 'media_original_name', 'products/media'],
         ];
 
