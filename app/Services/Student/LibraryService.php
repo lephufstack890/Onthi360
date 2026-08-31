@@ -87,7 +87,10 @@ class LibraryService
             ->whereIn('product_id', $productsForTab->pluck('id')->all())
             ->where('status', ContentStatus::Published->value)
             ->orderByDesc('id')
-            ->get(['id', 'product_id', 'title', 'points', 'grading_config'])
+            // SỬA 31/8 (2) — thêm cột 'type' vào select: exercisesFor() bên dưới giờ gọi
+            // Question::exerciseSummaryLabel() (match theo $this->type) thay vì luôn đọc
+            // 'test_cases' cứng — thiếu cột này match() sẽ luôn nhận giá trị cast mặc định sai.
+            ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config'])
             ->groupBy('product_id');
 
         $products = $productsForTab->map(fn (Product $p) => [
@@ -113,15 +116,19 @@ class LibraryService
      * (KHÔNG có nút "Làm bài" — xem ghi chú ở mine.blade.php).
      *
      * @param  Collection<int, Question>  $exercises
-     * @return array<int, array{id:int,title:string,points:int,testCasesCount:int}>
+     * @return array<int, array{id:int,title:string,points:int,summary:string}>
      */
     private function exercisesFor(Collection $exercises): array
     {
+        // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu/nhiều môn) — 'testCasesCount' (chỉ
+        // đúng cho Lập trình) đổi thành 'summary' (Question::exerciseSummaryLabel(), mô tả
+        // đúng theo TỪNG dạng: trắc nghiệm/điền đáp án/nhiều phần) vì bài tập giờ có thể là bất
+        // kỳ dạng nào trong 4 dạng ZIP hỗ trợ.
         return $exercises->map(fn (Question $q) => [
             'id' => $q->id,
             'title' => $q->title,
             'points' => $q->points,
-            'testCasesCount' => count($q->grading_config['test_cases'] ?? []),
+            'summary' => $q->exerciseSummaryLabel(),
         ])->values()->all();
     }
 

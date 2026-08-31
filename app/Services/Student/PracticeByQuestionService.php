@@ -147,11 +147,48 @@ class PracticeByQuestionService
             'finished' => false,
             'question' => $question,
             'options' => $question->grading_config['options'] ?? [],
+            // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — câu Composite (nhiều phần
+            // khác dạng) cần thêm danh sách phần con để dựng form — SANITIZED (bỏ đáp án
+            // đúng/accepted_answers/rubric), KHÔNG đưa nguyên grading_config['parts'] ra view vì
+            // đó có cả đáp án đúng, lộ đáp án trước khi học sinh trả lời.
+            'compositeParts' => $question->type->value === 'composite'
+                ? $this->sanitizedCompositeParts($question->grading_config['parts'] ?? [])
+                : [],
+            // SỬA 31/8 (2) — audio/ảnh... đính kèm câu hỏi (bất kỳ dạng nào, không riêng
+            // Composite — vd câu trắc nghiệm nghe-hiểu "ANH7AUDIO_DEMO_001" là single_choice
+            // thường) — url phục vụ qua route riêng (asset id, có kiểm tra quyền lại ở
+            // controller), KHÔNG lộ đường dẫn disk thật.
+            'assets' => collect($question->metadata['assets'] ?? [])->map(fn ($a) => [
+                'id' => $a['id'] ?? null,
+                'kind' => $a['kind'] ?? 'file',
+                'filename' => $a['filename'] ?? null,
+                'altText' => $a['alt_text'] ?? null,
+                'transcript' => $a['transcript'] ?? null,
+                'url' => route('student.practiceByQuestion.asset', [$question->id, $a['id'] ?? '']),
+            ])->all(),
             'progress' => ['current' => $index + 1, 'total' => $total, 'correct' => $state['correct'], 'answered' => $state['answered']],
             'feedback' => $state['feedback'],
             'mode' => $state['mode'] ?? null,
             'returnUrl' => $state['returnUrl'] ?? null,
         ];
+    }
+
+    /**
+     * Rút gọn grading_config['parts'] của câu Composite để đưa ra view DỰNG FORM trả lời — chỉ
+     * giữ những gì cần để HIỆN câu hỏi (code phần, dạng con, phương án chọn nếu là single_choice,
+     * điểm), bỏ hẳn 'correct_answer'/'accepted_answers'/'rubric' (đáp án đúng — chỉ lộ ra sau khi
+     * đã trả lời, qua $state['feedback'], xem gradeCompositeParts() bên dưới).
+     *
+     * @return array<int, array{code:string, responseType:string, choices:array, points:float}>
+     */
+    private function sanitizedCompositeParts(array $parts): array
+    {
+        return array_map(fn (array $part) => [
+            'code' => $part['code'] ?? '',
+            'responseType' => $part['response_type'] ?? '',
+            'choices' => $part['choices'] ?? [],
+            'points' => $part['points'] ?? 0,
+        ], $parts);
     }
 
     /**
@@ -177,37 +214,113 @@ class PracticeByQuestionService
         }
 
         $isCoding = $question->type->value === 'coding';
+        $isComposite = $question->type->value === 'composite';
 
+        // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm nhánh 'composite': chấm
+        // TỪNG PHẦN qua gradeCompositeParts() (mỗi phần 1 response_type khác nhau), gán luôn
+        // vào biến $compositeResult để dùng lại bên dưới (tránh gọi lại 2 lần) — cú pháp gán
+        // trong biểu thức match() ($compositeResult = ...)[...] hợp lệ vì PHP đánh giá gán
+        // trước rồi mới lấy phần tử mảng.
+        $compositeResult = null;
         $isCorrect = match ($question->type->value) {
             'mcq' => QuestionGrader::isMcqCorrect($question, $data['selected_option'] ?? null),
             'fill_blank' => QuestionGrader::isFillBlankCorrect($question, (string) ($data['text'] ?? '')),
+            'composite' => ($compositeResult = $this->gradeCompositeParts($question, $data['parts'] ?? []))['allGradableCorrect'],
             default => false, // 'coding' — chưa có sandbox chấm, xem 'gradable' ở feedback bên dưới
         };
+
+        // SỬA 31/8 (2) — câu Composite có ÍT NHẤT 1 phần "essay" (tự luận, chưa có chấm tay/AI)
+        // thì CẢ CÂU coi là "chưa chấm được hoàn toàn" — cùng lý do/cách xử lý với câu Lập
+        // trình (không cộng vào $state['correct'] dù mọi phần trắc nghiệm/đúng-sai/trả lời ngắn
+        // khác trong CÙNG câu đã chấm đúng hết, tránh báo "đúng" cho 1 câu còn phần chưa chấm).
+        $gradable = ! $isCoding && ! ($isComposite && $compositeResult['hasUngraded']);
 
         // Trả lời lại cùng 1 câu (bấm lại nút "Kiểm tra") không cộng dồn thêm lượt — chỉ tính
         // lần trả lời ĐẦU TIÊN của câu đó trong phiên (feedback === null nghĩa là chưa từng
         // trả lời câu này).
         if ($state['feedback'] === null) {
             $state['answered']++;
-            if ($isCorrect && ! $isCoding) {
+            if ($isCorrect && $gradable) {
                 $state['correct']++;
             }
         }
 
         $state['feedback'] = [
             'isCorrect' => $isCorrect,
-            'gradable' => ! $isCoding,
+            'gradable' => $gradable,
             'correctOptions' => $question->grading_config['correct_options'] ?? [],
             'acceptedAnswers' => $question->grading_config['accepted_answers'] ?? [],
             'yourSelectedOption' => $data['selected_option'] ?? null,
             'yourText' => $data['text'] ?? null,
             'yourCode' => $isCoding ? ($data['code_source'] ?? '') : null,
             'yourLanguage' => $isCoding ? ($data['language'] ?? null) : null,
+            'compositeParts' => $compositeResult['parts'] ?? null,
         ];
 
         Session::put(self::SESSION_KEY, $state);
 
         return true;
+    }
+
+    /**
+     * SỬA 31/8 (2) — chấm TỪNG PHẦN của câu Composite (mỗi phần 1 response_type riêng — xem
+     * gói ZIP mẫu "NGU_VAN8DOC_HIEU_001": phần a trắc nghiệm, b đúng/sai, c trả lời ngắn, d tự
+     * luận). $rawParts là mảng ['<code phần>' => '<câu trả lời thô>'] gửi lên từ form (xem
+     * blade student/practice/by-question-play.blade.php, input name="parts[<code>]").
+     *
+     * 'essay' (và bất kỳ response_type lạ nào chưa hỗ trợ) CHỈ ghi nhận, KHÔNG tự chấm — chưa
+     * có chấm tay/chấm AI cho tự luận, cùng cách xử lý với câu Lập trình toàn hệ thống.
+     *
+     * @return array{parts: array<int, array>, hasUngraded: bool, allGradableCorrect: bool}
+     */
+    private function gradeCompositeParts(Question $question, array $rawParts): array
+    {
+        $parts = $question->grading_config['parts'] ?? [];
+        $results = [];
+        $hasUngraded = false;
+        $allGradableCorrect = true;
+
+        foreach ($parts as $part) {
+            $code = $part['code'] ?? '';
+            $responseType = $part['response_type'] ?? '';
+            $yourAnswer = $rawParts[$code] ?? null;
+
+            $result = [
+                'code' => $code,
+                'responseType' => $responseType,
+                'points' => $part['points'] ?? 0,
+                'yourAnswer' => $yourAnswer,
+            ];
+
+            switch ($responseType) {
+                case 'single_choice':
+                    $correct = $part['correct_answer'] ?? null;
+                    $isPartCorrect = QuestionGrader::isChoiceCorrect($yourAnswer, $correct);
+                    $result += ['gradable' => true, 'isCorrect' => $isPartCorrect, 'correctAnswer' => $correct];
+                    $allGradableCorrect = $allGradableCorrect && $isPartCorrect;
+                    break;
+                case 'true_false':
+                    $correct = (bool) ($part['correct_answer'] ?? false);
+                    $isPartCorrect = QuestionGrader::isTrueFalseCorrect($yourAnswer, $correct);
+                    $result += ['gradable' => true, 'isCorrect' => $isPartCorrect, 'correctAnswer' => $correct ? 'true' : 'false'];
+                    $allGradableCorrect = $allGradableCorrect && $isPartCorrect;
+                    break;
+                case 'short_answer':
+                    $accepted = $part['accepted_answers'] ?? [];
+                    $isPartCorrect = QuestionGrader::matchesAcceptedAnswers((string) ($yourAnswer ?? ''), $accepted, $part['normalization'] ?? []);
+                    $result += ['gradable' => true, 'isCorrect' => $isPartCorrect, 'correctAnswer' => implode(', ', $accepted)];
+                    $allGradableCorrect = $allGradableCorrect && $isPartCorrect;
+                    break;
+                default: // 'essay' hoặc dạng lạ chưa hỗ trợ
+                    $hasUngraded = true;
+                    $result += ['gradable' => false, 'isCorrect' => null, 'correctAnswer' => null];
+                    break;
+            }
+
+            $results[] = $result;
+        }
+
+        return ['parts' => $results, 'hasUngraded' => $hasUngraded, 'allGradableCorrect' => $allGradableCorrect];
     }
 
     /** student.practiceByQuestion.next — qua câu kế tiếp, xoá feedback câu vừa xong. */

@@ -86,6 +86,54 @@ class Question extends Model
                 && filled($config['memory_limit_mb'] ?? null),
             QuestionType::Mcq => filled($config['correct_options'] ?? null) && $this->points > 0,
             QuestionType::FillBlank => filled($config['accepted_answers'] ?? null) && $this->points > 0,
+            // SỬA 31/8 (2) — câu Composite CHỈ tạo được qua nhập ZIP (không có form nhập tay
+            // tương ứng, xem ContentService::questionUpdate()/questionCreateNewVersion() —
+            // grading_config giữ NGUYÊN từ lúc nhập, không qua buildGradingConfig()) — điều
+            // kiện tối thiểu ở đây chỉ là có ít nhất 1 phần con và có điểm, không kiểm tra sâu
+            // từng phần (gói ZIP đã tự đảm bảo cấu trúc từng phần lúc nhập).
+            QuestionType::Composite => filled($config['parts'] ?? null) && $this->points > 0,
         };
+    }
+
+    /**
+     * SỬA 31/8 (2) — mô tả ngắn gọn cấu hình chấm, dùng ở mọi nơi hiển thị danh sách "Bài tập"
+     * (LibraryService::exercisesFor(), ContentService::productExercisesFor()) THAY cho
+     * "X test case" cứng cho mọi loại như trước — trước đây chỉ đúng với câu Lập trình, giờ
+     * bài tập có thể là bất kỳ dạng nào trong 4 dạng ZIP hỗ trợ (xem ContentService::
+     * SUPPORTED_ZIP_CONTENT_TYPES).
+     */
+    public function exerciseSummaryLabel(): string
+    {
+        $config = $this->grading_config ?? [];
+
+        return match ($this->type) {
+            QuestionType::Coding => count($config['test_cases'] ?? []).' test case',
+            QuestionType::Mcq => count($config['options'] ?? []).' phương án',
+            QuestionType::FillBlank => count($config['accepted_answers'] ?? []).' đáp án chấp nhận',
+            QuestionType::Composite => count($config['parts'] ?? []).' phần',
+        };
+    }
+
+    /**
+     * SỬA 31/8 (2) — tìm 1 asset (audio/ảnh...) đính kèm theo id, đọc từ metadata.assets (xem
+     * ContentService::storeZipAssets()) — dùng ở route phục vụ tệp cho học sinh nghe/xem lúc
+     * "Làm bài" (Student\PracticeByQuestionController::asset()). null nếu không có asset nào
+     * khớp id (asset id sai, hoặc câu hỏi này không có asset nào).
+     *
+     * @return array{path:string, filename:string, kind:string}|null
+     */
+    public function findAsset(string $assetId): ?array
+    {
+        foreach (($this->metadata['assets'] ?? []) as $asset) {
+            if (($asset['id'] ?? null) === $assetId && isset($asset['path'])) {
+                return [
+                    'path' => $asset['path'],
+                    'filename' => $asset['filename'] ?? basename($asset['path']),
+                    'kind' => $asset['kind'] ?? 'file',
+                ];
+            }
+        }
+
+        return null;
     }
 }

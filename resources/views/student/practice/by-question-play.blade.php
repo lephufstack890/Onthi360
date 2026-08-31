@@ -53,8 +53,10 @@
                     $typeBadge = match ($question->type->value) {
                         'mcq' => '🔤 Trắc nghiệm',
                         'fill_blank' => '✏️ Điền đáp án',
+                        'composite' => '🧩 Câu hỏi nhiều phần',
                         default => '💻 Lập trình',
                     };
+                    $assets = $assets ?? [];
                 @endphp
                 <x-status-badge tone="info">{{ $typeBadge }}</x-status-badge>
                 <h3 class="font-semibold text-slate-800 text-2xl mt-3 mb-1">{{ $question->title }}</h3>
@@ -70,6 +72,29 @@
                     <div class="flex flex-wrap gap-1 mb-5">
                         @foreach ($question->tags as $t)
                             <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">📚 {{ $t->name }}</span>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): học liệu CẦN để trả lời
+                     (vd nghe audio nghe-hiểu) — hiện NGAY ở đây (khác đề bài PDF, chỉ xem qua
+                     link riêng ở "Xem đề bài"), luôn hiện bất kể đã trả lời hay chưa. --}}
+                @if (! empty($assets))
+                    <div class="mb-5 space-y-3">
+                        @foreach ($assets as $asset)
+                            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                                @if ($asset['kind'] === 'audio')
+                                    <audio controls preload="none" class="w-full" src="{{ $asset['url'] }}"></audio>
+                                @elseif ($asset['kind'] === 'image')
+                                    {{-- max-width:100%/height:auto đã có sẵn ở Tailwind preflight cho <img>, không cần class max-w-full. --}}
+                                    <img src="{{ $asset['url'] }}" alt="{{ $asset['altText'] ?? '' }}" class="rounded-lg">
+                                @else
+                                    <a href="{{ $asset['url'] }}" class="text-sm text-rose-600 font-medium">📎 {{ $asset['filename'] ?? 'Tệp đính kèm' }}</a>
+                                @endif
+                                @if (! empty($asset['altText']))
+                                    <p class="text-xs text-slate-400 mt-1">🔊 {{ $asset['altText'] }}</p>
+                                @endif
+                            </div>
                         @endforeach
                     </div>
                 @endif
@@ -94,6 +119,44 @@
                         @elseif ($question->type->value === 'fill_blank')
                             <input type="text" name="text" required maxlength="500" placeholder="Nhập đáp án..."
                                    class="w-full rounded-lg border border-slate-200 text-base p-4">
+                        @elseif ($question->type->value === 'composite')
+                            {{-- SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — câu nhiều
+                                 phần, mỗi phần 1 dạng con khác nhau (xem $compositeParts —
+                                 SANITIZED, không có đáp án đúng, xem PracticeByQuestionService::
+                                 sanitizedCompositeParts()). Mỗi phần gửi lên qua
+                                 name="parts[<code phần>]" — PracticeByQuestionService::
+                                 gradeCompositeParts() đọc đúng cấu trúc này. --}}
+                            @foreach (($compositeParts ?? []) as $part)
+                                <div class="p-4 rounded-lg border border-slate-200">
+                                    <p class="text-sm font-medium text-slate-700 mb-2">Phần {{ strtoupper($part['code']) }} <span class="text-slate-400 font-normal">({{ $part['points'] }} điểm)</span></p>
+                                    @if ($part['responseType'] === 'single_choice')
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach ($part['choices'] as $choice)
+                                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm cursor-pointer has-[:checked]:border-rose-300 has-[:checked]:bg-rose-50">
+                                                    <input type="radio" name="parts[{{ $part['code'] }}]" value="{{ $choice }}" required> {{ $choice }}
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @elseif ($part['responseType'] === 'true_false')
+                                        <div class="flex gap-2">
+                                            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm cursor-pointer has-[:checked]:border-rose-300 has-[:checked]:bg-rose-50">
+                                                <input type="radio" name="parts[{{ $part['code'] }}]" value="true" required> Đúng
+                                            </label>
+                                            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm cursor-pointer has-[:checked]:border-rose-300 has-[:checked]:bg-rose-50">
+                                                <input type="radio" name="parts[{{ $part['code'] }}]" value="false" required> Sai
+                                            </label>
+                                        </div>
+                                    @elseif ($part['responseType'] === 'short_answer')
+                                        <input type="text" name="parts[{{ $part['code'] }}]" maxlength="500" placeholder="Nhập đáp án..."
+                                               class="w-full rounded-lg border border-slate-200 text-sm p-3">
+                                    @else
+                                        {{-- 'essay' hoặc dạng lạ chưa hỗ trợ — chỉ ghi nhận. --}}
+                                        <textarea name="parts[{{ $part['code'] }}]" rows="4" maxlength="5000" placeholder="Viết câu trả lời của bạn..."
+                                                  class="w-full rounded-lg border border-slate-200 text-sm p-3"></textarea>
+                                        <p class="text-xs text-slate-400 mt-1">Phần tự luận chưa có chấm tự động — chỉ được ghi nhận.</p>
+                                    @endif
+                                </div>
+                            @endforeach
                         @else
                             {{-- SỬA 24/8 (v5) — khách yêu cầu ô viết code "như VSCode" thay vì
                                  textarea trơn: nhúng CodeMirror 5 qua CDN (script init ở
@@ -147,6 +210,23 @@
                             <div class="p-4 rounded-lg border border-emerald-300 bg-emerald-50 text-base text-emerald-700">
                                 Đáp án đúng: {{ implode(', ', $feedback['acceptedAnswers']) }}
                             </div>
+                        @elseif ($question->type->value === 'composite')
+                            @foreach (($feedback['compositeParts'] ?? []) as $part)
+                                <div @class([
+                                    'p-4 rounded-lg border text-base',
+                                    'border-emerald-300 bg-emerald-50 text-emerald-700' => $part['gradable'] && $part['isCorrect'],
+                                    'border-rose-300 bg-rose-50 text-rose-600' => $part['gradable'] && ! $part['isCorrect'],
+                                    'border-sky-200 bg-sky-50 text-sky-700' => ! $part['gradable'],
+                                ])>
+                                    <p class="font-medium mb-1">Phần {{ strtoupper($part['code']) }} ({{ $part['points'] }} điểm)</p>
+                                    <p>Bạn trả lời: {{ is_bool($part['yourAnswer']) ? ($part['yourAnswer'] ? 'Đúng' : 'Sai') : ($part['yourAnswer'] ?: '—') }}</p>
+                                    @if ($part['gradable'])
+                                        <p>{{ $part['isCorrect'] ? '✓ Chính xác' : '✕ Chưa đúng — đáp án đúng: '.$part['correctAnswer'] }}</p>
+                                    @else
+                                        <p>📨 Đã ghi nhận — phần tự luận chưa có chấm tự động.</p>
+                                    @endif
+                                </div>
+                            @endforeach
                         @else
                             {{-- SỬA 24/8 (v4) — câu Lập trình chưa có sandbox chấm, chỉ hiện lại
                                  bài đã nộp (code + ngôn ngữ), không có khối "đáp án đúng". --}}

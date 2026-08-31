@@ -474,6 +474,18 @@ class AttemptService
             $language = $rawInput['language'] ?? null;
             $score = null;
             $verdict = VerdictStatus::Queued;
+        } elseif ($question->type === QuestionType::Composite) {
+            // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — câu Composite chưa có gắn
+            // vào 1 Assessment thật nào (chỉ tạo qua nhập ZIP vào Kho chung/bài tập sản phẩm,
+            // dùng ở "Luyện tập theo câu" — xem Student\PracticeByQuestionService::answer(), nơi
+            // DUY NHẤT hiện chấm từng phần) — nhưng NẾU sau này có ai gắn 1 câu Composite vào
+            // đề thi chính thức, saveAnswer() vẫn phải xử lý được thay vì rơi vào nhánh 'else'
+            // bên dưới (dành cho FillBlank) và hiểu sai cấu trúc dữ liệu. Chưa có pipeline
+            // chấm/tổng hợp điểm từng phần cho luồng thi chính thức — ghi nhận "Queued" giống
+            // hệt Lập trình (không tự chấm), an toàn hơn là chấm sai.
+            $answer = ['parts' => $rawInput['parts'] ?? []];
+            $score = null;
+            $verdict = VerdictStatus::Queued;
         } elseif ($question->type === QuestionType::Mcq) {
             $answer = ['selected_option' => $rawInput['selected_option'] ?? null];
             [$score, $verdict] = $this->gradeMcq($question, $answer);

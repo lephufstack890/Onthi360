@@ -148,9 +148,9 @@
                         @foreach ($exercises as $ex)
                             <div class="flex items-center justify-between gap-3 py-3 flex-wrap">
                                 <div class="min-w-0">
-                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $ex['title'] }} <span class="text-xs font-normal text-slate-400">· {{ $ex['typeLabel'] }}</span></p>
                                     <p class="text-xs text-slate-400">
-                                        {{ $ex['points'] }} điểm · {{ $ex['testCasesCount'] }} test case
+                                        {{ $ex['points'] }} điểm · {{ $ex['summary'] }}
                                         @if (!empty($ex['tags']))
                                             · {{ implode(', ', $ex['tags']) }}
                                         @endif

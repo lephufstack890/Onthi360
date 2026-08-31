@@ -98,4 +98,21 @@ class ProductExerciseController extends Controller
 
         return Storage::disk('local')->download($info['path'], $info['filename']);
     }
+
+    /**
+     * admin.products.exercises.asset (31/8 (2), "mở rộng ZIP bài tập") — audio/ảnh... đính kèm
+     * câu hỏi (xem Question::findAsset()) — KHÁC attachmentDownload() ở trên (3 tên CỐ ĐỊNH,
+     * luôn tải xuống) ở 2 điểm: (1) định danh bằng asset id (không giới hạn số lượng/loại
+     * trước), (2) dùng response() (hiện INLINE, không ép tải xuống) để admin xem/nghe thử ngay
+     * trong màn Sửa bài tập (audio player/ảnh), không phải để tải về máy.
+     */
+    public function assetDownload(Product $product, Question $exercise, string $asset)
+    {
+        $this->assertBelongsToProduct($product, $exercise);
+
+        $info = $exercise->findAsset($asset);
+        abort_if($info === null, 404);
+
+        return Storage::disk('local')->response($info['path'], $info['filename']);
+    }
 }

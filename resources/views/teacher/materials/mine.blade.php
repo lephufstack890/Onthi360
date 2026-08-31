@@ -70,7 +70,7 @@
                                     <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
                                         <div class="min-w-0">
                                             <p class="text-sm text-slate-700 truncate">{{ $ex['title'] }}</p>
-                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['testCasesCount'] }} test case</p>
+                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
                                         </div>
                                         <a href="{{ route('access.resource.exerciseAttachment', [$p['id'], $ex['id'], 'statement']) }}" class="text-xs text-rose-600 font-medium shrink-0">Xem đề bài</a>
                                     </div>

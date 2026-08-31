@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\ContentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Services\AccessGateService;
@@ -9,6 +10,7 @@ use App\Services\Student\PracticeByQuestionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -42,7 +44,9 @@ class PracticeByQuestionController extends Controller
             $data = $request->validate([
                 'tag_ids' => ['nullable', 'array'],
                 'tag_ids.*' => ['integer'],
-                'type' => ['nullable', 'in:mcq,fill_blank,coding'],
+                // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm 'composite' vào bộ
+                // lọc dạng câu, khớp QuestionRepository::idsForPractice() bản mới.
+                'type' => ['nullable', 'in:mcq,fill_blank,coding,composite'],
             ]);
 
             $started = $this->service->start($data['tag_ids'] ?? [], $data['type'] ?? null);
@@ -129,6 +133,12 @@ class PracticeByQuestionController extends Controller
             'text' => ['nullable', 'string', 'max:500'],
             'code_source' => ['nullable', 'string', 'max:20000'],
             'language' => ['nullable', 'string', 'max:30'],
+            // SỬA 31/8 (2) — câu Composite gửi lên 1 mảng ['<code phần>' => '<trả lời thô>']
+            // (xem PracticeByQuestionService::gradeCompositeParts()) — mỗi giá trị có thể là
+            // chữ cái (single_choice), "true"/"false", văn bản ngắn, hoặc cả đoạn tự luận, nên
+            // để string chung, giới hạn đủ rộng cho phần tự luận dài nhất.
+            'parts' => ['nullable', 'array'],
+            'parts.*' => ['nullable', 'string', 'max:5000'],
         ]);
 
         if (! $this->service->answer($data)) {
@@ -143,6 +153,31 @@ class PracticeByQuestionController extends Controller
         $this->service->advance();
 
         return redirect()->route('student.practiceByQuestion.play');
+    }
+
+    /**
+     * student.practiceByQuestion.asset (31/8 (2), "mở rộng ZIP bài tập" — audio/ảnh...) — phát/
+     * hiện 1 asset đính kèm câu hỏi NGAY trong màn "Làm bài" (khác PDF đề bài, chỉ xem qua link
+     * riêng — asset ở đây là nội dung CẦN để trả lời, vd nghe audio nghe-hiểu). Kiểm tra quyền
+     * lại Ở ĐÂY (không tin riêng việc câu hỏi này có mặt trong phiên luyện của học sinh — cùng
+     * nguyên tắc "2 request độc lập" dùng khắp hệ thống): (1) câu hỏi phải Đã phát hành — chặn
+     * asset của câu Nháp/Lưu trữ lộ ra dù có ai đoán đúng URL; (2) nếu là bài tập RIÊNG của 1
+     * sản phẩm (product_id khác null) thì phải qua canAccessProduct() như startExercise() —
+     * câu hỏi thuộc Kho chung (product_id null) đã công khai cho vòng luyện tập, không cần
+     * kiểm tra thêm.
+     */
+    public function asset(Question $question, string $asset)
+    {
+        abort_unless($question->status === ContentStatus::Published, 404);
+
+        if ($question->product_id !== null) {
+            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+        }
+
+        $info = $question->findAsset($asset);
+        abort_if($info === null, 404);
+
+        return Storage::disk('local')->response($info['path'], $info['filename']);
     }
 
     /** SỬA 31/8 — nếu phiên vừa dừng là "Làm bài" 1 bài tập sản phẩm (có returnUrl lưu sẵn,

@@ -29,8 +29,9 @@ class TagRepository extends EloquentRepository implements TagRepositoryInterface
     {
         return $this->query()
             ->whereHas('questions', function ($q) {
+                // SỬA 31/8 (2) — thêm 'composite', khớp QuestionRepository::idsForPractice() bản mới.
                 $q->where('status', 'published')
-                    ->whereIn('type', ['mcq', 'fill_blank', 'coding']);
+                    ->whereIn('type', ['mcq', 'fill_blank', 'coding', 'composite']);
             })
             ->orderBy('name')
             ->get();

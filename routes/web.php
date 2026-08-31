@@ -114,6 +114,11 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/answer', [StudentPracticeByQuestionController::class, 'answer'])->name('answer');
             Route::post('/next', [StudentPracticeByQuestionController::class, 'next'])->name('next');
             Route::post('/stop', [StudentPracticeByQuestionController::class, 'stop'])->name('stop');
+            // SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): phát/hiện asset đính kèm câu
+            // hỏi NGAY trong màn "Làm bài" (khác PDF đề bài — chỉ xem qua link riêng, đây là
+            // nội dung CẦN để trả lời, vd nghe audio nghe-hiểu) — xem
+            // StudentPracticeByQuestionController::asset().
+            Route::get('/asset/{question}/{asset}', [StudentPracticeByQuestionController::class, 'asset'])->name('asset');
         });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])
@@ -336,6 +341,9 @@ Route::middleware(['auth'])->group(function () {
         Route::put('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'update'])->name('products.exercises.update');
         Route::delete('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'destroy'])->name('products.exercises.destroy');
         Route::get('products/{product}/exercises/{exercise}/attachment/{kind}', [AdminProductExerciseController::class, 'attachmentDownload'])->name('products.exercises.attachment');
+        // SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): xem lý do tách riêng khỏi route
+        // 'attachment' ở trên (3 tên CỐ ĐỊNH) ở Admin\ProductExerciseController::assetDownload().
+        Route::get('products/{product}/exercises/{exercise}/asset/{asset}', [AdminProductExerciseController::class, 'assetDownload'])->name('products.exercises.asset');
 
         Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
         Route::get('access-rights/create', [AdminAccessRightController::class, 'create'])->name('access-rights.create');

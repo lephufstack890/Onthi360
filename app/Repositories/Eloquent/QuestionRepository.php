@@ -77,7 +77,12 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
         return $this->query()
             ->where('status', 'published')
             ->whereNull('product_id')
-            ->whereIn('type', ['mcq', 'fill_blank', 'coding'])
+            // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm 'composite' vào pool
+            // luyện tập công khai: câu Composite tạo qua nhập ZIP vào Kho chung (không phải bài
+            // tập sản phẩm) vẫn phải lọt ra đây như 3 dạng cũ, xem Student\
+            // PracticeByQuestionService::gradeCompositeParts() (nơi chấm từng phần cho luồng
+            // luyện tập này).
+            ->whereIn('type', ['mcq', 'fill_blank', 'coding', 'composite'])
             ->when($type, fn (Builder $q) => $q->where('type', $type))
             ->when($tagIds !== [], fn (Builder $q) => $q->whereHas('tags', fn (Builder $qq) => $qq->whereIn('tags.id', $tagIds)))
             ->pluck('id')

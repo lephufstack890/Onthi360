@@ -18,6 +18,12 @@
         $timeLimitMs = $config['time_limit_ms'] ?? 1000;
         $memoryLimitMb = $config['memory_limit_mb'] ?? 256;
         $zipAttachments = $exercise->metadata['attachments'] ?? [];
+        // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu/nhiều môn) — bài tập giờ có thể là
+        // 1 trong 4 dạng ZIP hỗ trợ (coding/mcq/fill_blank/composite, xem QuestionType) — panel
+        // "Xem trước (chỉ đọc)" bên dưới hiện đúng theo TỪNG dạng thay vì luôn giả định Lập
+        // trình như trước.
+        $exerciseType = $exercise->type->value;
+        $zipAssets = $exercise->metadata['assets'] ?? [];
         $isDraft = $isDraft ?? false;
     @endphp
 
@@ -90,11 +96,66 @@
                 rồi thêm lại bằng gói ZIP đã sửa.
             </p>
 
-            <div class="text-sm space-y-2">
-                <div class="flex items-center justify-between"><span class="text-slate-500">Số test case</span><span class="font-medium text-slate-700">{{ $testCasesCount }}</span></div>
-                <div class="flex items-center justify-between"><span class="text-slate-500">Giới hạn thời gian</span><span class="font-medium text-slate-700">{{ $timeLimitMs }} ms</span></div>
-                <div class="flex items-center justify-between"><span class="text-slate-500">Giới hạn bộ nhớ</span><span class="font-medium text-slate-700">{{ $memoryLimitMb }} MB</span></div>
-            </div>
+            @if ($exerciseType === 'coding')
+                <div class="text-sm space-y-2">
+                    <div class="flex items-center justify-between"><span class="text-slate-500">Số test case</span><span class="font-medium text-slate-700">{{ $testCasesCount }}</span></div>
+                    <div class="flex items-center justify-between"><span class="text-slate-500">Giới hạn thời gian</span><span class="font-medium text-slate-700">{{ $timeLimitMs }} ms</span></div>
+                    <div class="flex items-center justify-between"><span class="text-slate-500">Giới hạn bộ nhớ</span><span class="font-medium text-slate-700">{{ $memoryLimitMb }} MB</span></div>
+                </div>
+            @elseif ($exerciseType === 'mcq')
+                <div class="text-sm space-y-1.5">
+                    @foreach (($config['options'] ?? []) as $i => $opt)
+                        @php $isCorrect = in_array((int) $i, array_map('intval', $config['correct_options'] ?? []), true); @endphp
+                        <div @class(['px-2.5 py-1.5 rounded-lg border text-slate-600', 'border-emerald-300 bg-emerald-50 text-emerald-700 font-medium' => $isCorrect, 'border-slate-200' => ! $isCorrect])>
+                            {{ $isCorrect ? '✓ ' : '' }}{{ $opt }}
+                        </div>
+                    @endforeach
+                </div>
+            @elseif ($exerciseType === 'fill_blank')
+                <div class="text-sm space-y-1.5">
+                    <p class="text-slate-500">Đáp án chấp nhận:</p>
+                    <p class="font-medium text-slate-700">{{ implode(', ', $config['accepted_answers'] ?? []) }}</p>
+                    <p class="text-xs text-slate-400">
+                        {{ ($config['case_sensitive'] ?? false) ? 'Phân biệt hoa/thường' : 'Không phân biệt hoa/thường' }}
+                        @if ($config['remove_diacritics'] ?? false) · Không phân biệt dấu @endif
+                    </p>
+                </div>
+            @elseif ($exerciseType === 'composite')
+                <div class="text-sm space-y-3">
+                    @foreach (($config['parts'] ?? []) as $part)
+                        <div class="p-3 rounded-lg border border-slate-200">
+                            <p class="font-medium text-slate-700 mb-1">Phần {{ strtoupper($part['code'] ?? '?') }} ({{ $part['points'] ?? 0 }} điểm) — {{ match ($part['response_type'] ?? '') { 'single_choice' => 'Trắc nghiệm', 'true_false' => 'Đúng/Sai', 'short_answer' => 'Trả lời ngắn', 'essay' => 'Tự luận', default => $part['response_type'] ?? '?' } }}</p>
+                            @if (($part['response_type'] ?? '') === 'single_choice')
+                                <p class="text-slate-500">Phương án: {{ implode(', ', $part['choices'] ?? []) }} · Đáp án đúng: <span class="font-medium text-emerald-700">{{ $part['correct_answer'] ?? '—' }}</span></p>
+                            @elseif (($part['response_type'] ?? '') === 'true_false')
+                                <p class="text-slate-500">Đáp án đúng: <span class="font-medium text-emerald-700">{{ ($part['correct_answer'] ?? false) ? 'Đúng' : 'Sai' }}</span></p>
+                            @elseif (($part['response_type'] ?? '') === 'short_answer')
+                                <p class="text-slate-500">Đáp án chấp nhận: <span class="font-medium text-emerald-700">{{ implode(', ', $part['accepted_answers'] ?? []) }}</span></p>
+                            @else
+                                <p class="text-xs text-sky-600">📨 Tự luận — ghi nhận bài làm, chưa có chấm tự động.</p>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            @if (! empty($zipAssets))
+                <div class="pt-3 border-t border-slate-100">
+                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Học liệu đính kèm (audio/ảnh...)</p>
+                    <div class="space-y-2">
+                        @foreach ($zipAssets as $asset)
+                            @php $assetUrl = route('admin.products.exercises.asset', [$product->id, $exercise->id, $asset['id']]); @endphp
+                            @if (($asset['kind'] ?? '') === 'audio')
+                                <audio controls preload="none" class="w-full" src="{{ $assetUrl }}"></audio>
+                            @elseif (($asset['kind'] ?? '') === 'image')
+                                <img src="{{ $assetUrl }}" alt="{{ $asset['alt_text'] ?? '' }}" class="rounded-lg border border-slate-200">
+                            @else
+                                <a href="{{ $assetUrl }}" class="text-xs text-rose-600 font-medium">📎 {{ $asset['filename'] ?? $asset['kind'] }}</a>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             @if (! empty($zipAttachments))
                 <div class="pt-3 border-t border-slate-100">

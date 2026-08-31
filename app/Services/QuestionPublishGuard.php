@@ -25,6 +25,11 @@ class QuestionPublishGuard
                 match ($question->type) {
                     \App\Enums\QuestionType::Coding => 'Thiếu test, giới hạn thời gian/bộ nhớ hoặc cấu hình OJ hợp lệ.',
                     \App\Enums\QuestionType::Mcq, \App\Enums\QuestionType::FillBlank => 'Thiếu đáp án hoặc điểm.',
+                    // SỬA 31/8 (2, "mở rộng ZIP bài tập") — câu Composite luôn nhập từ ZIP đã
+                    // qua parseZipQuestionPackage(), thông báo này gần như không bao giờ hiện
+                    // ra thực tế — vẫn thêm cho đủ nhánh (khớp Question::hasMinimumGradingConfig()),
+                    // tránh UnhandledMatchError nếu có ai lỡ tạo Composite thiếu 'parts'/điểm.
+                    \App\Enums\QuestionType::Composite => 'Thiếu cấu hình các phần con (parts) hoặc điểm.',
                 },
             );
         }
