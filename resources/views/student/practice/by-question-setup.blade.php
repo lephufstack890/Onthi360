@@ -21,15 +21,12 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <form method="POST" action="{{ route('student.practiceByQuestion.start') }}" class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 space-y-5 max-w-2xl">
+    <form method="POST" action="{{ route('student.practiceByQuestion.start') }}" class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 space-y-5">
         @csrf
 
-        <div>
+        <div class="w-100">
             <p class="text-sm font-medium text-slate-700 mb-2">Dạng câu hỏi</p>
             <div class="flex flex-wrap gap-2">
-                {{-- SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm lựa chọn
-                     'composite' (câu nhiều phần, vd Đọc hiểu Ngữ văn) — khớp
-                     QuestionRepository::idsForPractice() bản mới. --}}
                 @foreach ([['value' => '', 'label' => 'Tất cả dạng', 'icon' => '🌈'], ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => '🔤'], ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => '✏️'], ['value' => 'composite', 'label' => 'Nhiều phần', 'icon' => '🧩']] as $tf)
                     <label class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium border border-slate-200 text-slate-600 has-[:checked]:bg-rose-600 has-[:checked]:border-rose-600 has-[:checked]:text-white transition cursor-pointer">
                         <input type="radio" name="type" value="{{ $tf['value'] }}" class="hidden" @checked(old('type', '') === $tf['value'])>
