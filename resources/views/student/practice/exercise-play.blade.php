@@ -264,8 +264,82 @@
                                     'bg-emerald-50 text-emerald-700 border border-emerald-200' => $feedback['isCorrect'],
                                     'bg-rose-50 text-rose-600 border border-rose-200' => ! $feedback['isCorrect'],
                                 ])>
-                                    {{ $feedback['isCorrect'] ? '✓ Chính xác!' : '✕ Chưa đúng — xem đáp án ở trên.' }}
+                                    {{-- SỬA 3/9 (2, đồng bộ với by-question-play.blade.php) — câu
+                                         Lập trình hiện nhãn verdict CỤ THỂ (VerdictStatus::label(),
+                                         vd "Sai kết quả (Wrong Answer)"/"Lỗi biên dịch (Compilation
+                                         Error)"/"Quá thời gian (Time Limit Exceeded)") thay vì luôn
+                                         "✕ Chưa đúng" chung chung — MCQ/điền đáp án/composite giữ
+                                         nguyên câu cũ (không có nhiều dạng verdict như Lập trình). --}}
+                                    @if ($question->type->value === 'coding' && ! $feedback['isCorrect'] && $feedback['codingVerdictLabel'])
+                                        ✕ {{ $feedback['codingVerdictLabel'] }}
+                                    @else
+                                        {{ $feedback['isCorrect'] ? '✓ Chính xác!' : '✕ Chưa đúng — xem đáp án ở trên.' }}
+                                    @endif
                                 </div>
+                                {{-- SỬA 3/9 (2, khách yêu cầu: hiện chi tiết từng test đúng/sai +
+                                     cho tải test sai về) — danh sách ĐẦY ĐỦ từng test case
+                                     (PracticeByQuestionService::judgeCodingAnswer() trả
+                                     'codingTestCases', xem CodeJudgingService::judge()). Test
+                                     ĐÚNG chỉ hiện 1 dòng khoá cứng — test SAI bấm vào mới xổ chi
+                                     tiết (script cuối trang, cùng logic by-question-play.blade.php). --}}
+                                @if ($question->type->value === 'coding' && ! empty($feedback['codingTestCases']))
+                                    @php
+                                        $tcs = $feedback['codingTestCases'];
+                                        $tcPassed = collect($tcs)->where('isAccepted', true)->count();
+                                        $tcFailed = collect($tcs)->reject(fn ($t) => $t['isAccepted'])->values();
+                                    @endphp
+                                    <div class="mt-1">
+                                        <p class="text-sm text-slate-500 mb-2">Kết quả từng test: <span class="font-medium text-slate-700">Đúng {{ $tcPassed }}/{{ count($tcs) }}</span></p>
+                                        <div class="space-y-1">
+                                            @foreach ($tcs as $tc)
+                                                <div class="rounded-lg border border-slate-200 overflow-hidden" data-test-case-row>
+                                                    <button type="button"
+                                                            @class([
+                                                                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left',
+                                                                'bg-emerald-50 text-emerald-700' => $tc['isAccepted'],
+                                                                'bg-rose-50 text-rose-600 hover:bg-rose-100' => ! $tc['isAccepted'],
+                                                            ])
+                                                            @if ($tc['isAccepted']) disabled @else data-test-case-toggle @endif>
+                                                        <span>{{ $tc['isAccepted'] ? '✓' : '✕' }} Test {{ $tc['index'] }} — {{ $tc['statusLabel'] }}</span>
+                                                        @if (! $tc['isAccepted'])
+                                                            <span data-test-case-arrow>▾</span>
+                                                        @endif
+                                                    </button>
+                                                    @if (! $tc['isAccepted'])
+                                                        <div class="hidden px-3 py-2 text-xs text-slate-600 bg-white border-t border-slate-200 space-y-2" data-test-case-detail>
+                                                            <div>
+                                                                <p class="font-medium text-slate-500 mb-1">Dữ liệu vào</p>
+                                                                <pre class="p-2 rounded bg-slate-50 border border-slate-200 overflow-x-auto whitespace-pre-wrap">{{ $tc['input'] !== '' ? $tc['input'] : '(rỗng)' }}</pre>
+                                                            </div>
+                                                            <div>
+                                                                <p class="font-medium text-slate-500 mb-1">Kết quả mong đợi</p>
+                                                                <pre class="p-2 rounded bg-slate-50 border border-slate-200 overflow-x-auto whitespace-pre-wrap">{{ $tc['expectedOutput'] }}</pre>
+                                                            </div>
+                                                            <div>
+                                                                <p class="font-medium text-slate-500 mb-1">Chương trình của bạn in ra</p>
+                                                                <pre class="p-2 rounded bg-slate-50 border border-slate-200 overflow-x-auto whitespace-pre-wrap">{{ $tc['actualOutput'] !== null && $tc['actualOutput'] !== '' ? $tc['actualOutput'] : '(không có gì)' }}</pre>
+                                                            </div>
+                                                            @if ($tc['compileOutput'] || $tc['stderr'])
+                                                                <div>
+                                                                    <p class="font-medium text-rose-500 mb-1">Lỗi</p>
+                                                                    <pre class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-700 overflow-x-auto whitespace-pre-wrap">{{ trim(($tc['compileOutput'] ?? '')."\n".($tc['stderr'] ?? '')) }}</pre>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        @if ($tcFailed->isNotEmpty())
+                                            <button type="button" class="mt-2 text-sm text-rose-600 font-medium"
+                                                    data-download-failed-tests
+                                                    data-question-id="{{ $question->id }}"
+                                                    data-tests="{{ $tcFailed->toJson() }}">
+                                                ⬇️ Tải test sai (.txt)
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endif
                             @else
                                 <div class="rounded-lg p-4 text-base font-medium text-center bg-sky-50 text-sky-700 border border-sky-200">
                                     📨 Đã ghi nhận bài làm — chưa có chấm tự động cho phần này.
@@ -438,6 +512,62 @@
                         errorEl.classList.remove('hidden');
                     }
                 });
+        });
+
+        // SỬA 3/9 (2, khách yêu cầu: bấm mở rộng xem chi tiết test sai + tải file test sai) —
+        // delegation trên toàn trang (giống submit handler trên) vì các nút này nằm TRONG
+        // #practice-container, có thể bị thay mới sau mỗi lần AJAX — gắn 1 lần ở document là đủ,
+        // luôn bắt được nút mới mà không cần gọi lại hàm init nào khác. Cùng logic hệt
+        // by-question-play.blade.php.
+        document.addEventListener('click', function (event) {
+            var toggle = event.target.closest('[data-test-case-toggle]');
+            if (toggle) {
+                var row = toggle.closest('[data-test-case-row]');
+                var detail = row ? row.querySelector('[data-test-case-detail]') : null;
+                var arrow = toggle.querySelector('[data-test-case-arrow]');
+                if (detail) {
+                    var willShow = detail.classList.contains('hidden');
+                    detail.classList.toggle('hidden');
+                    if (arrow) arrow.textContent = willShow ? '▴' : '▾';
+                }
+                return;
+            }
+
+            var downloadBtn = event.target.closest('[data-download-failed-tests]');
+            if (downloadBtn) {
+                var tests = [];
+                try {
+                    tests = JSON.parse(downloadBtn.getAttribute('data-tests') || '[]');
+                } catch (e) {
+                    tests = [];
+                }
+
+                var lines = [];
+                tests.forEach(function (t) {
+                    lines.push('=== Test ' + t.index + ' (' + t.statusLabel + ') ===');
+                    lines.push('--- Dữ liệu vào ---');
+                    lines.push(t.input !== '' ? t.input : '(rỗng)');
+                    lines.push('--- Kết quả mong đợi ---');
+                    lines.push(String(t.expectedOutput));
+                    lines.push('--- Chương trình của bạn in ra ---');
+                    lines.push(t.actualOutput ? t.actualOutput : '(không có gì)');
+                    if (t.compileOutput || t.stderr) {
+                        lines.push('--- Lỗi ---');
+                        lines.push(((t.compileOutput || '') + '\n' + (t.stderr || '')).trim());
+                    }
+                    lines.push('');
+                });
+
+                var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'test-sai-cau-' + (downloadBtn.getAttribute('data-question-id') || 'x') + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
         });
     </script>
 @endpush
