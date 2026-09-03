@@ -14,7 +14,6 @@ use App\Models\AttemptCodingItem;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -36,9 +35,6 @@ class PdfAttemptService
         // — đề đấu Cuộc thi content_mode=pdf_answer_sheet cũng phải được ghi nhận, giống hệt
         // đề content_mode=structured ở AttemptService::submit().
         private readonly CompetitionLeaderboardService $competitionLeaderboard,
-        // SỬA (nối máy chấm Judge0 thật) — xem gradePendingCodingItems() bên dưới, nơi DUY
-        // NHẤT gọi ra Judge0 trong file này.
-        private readonly CodeJudgingService $codeJudging,
     ) {}
 
     /**
@@ -137,12 +133,7 @@ class PdfAttemptService
         };
     }
 
-    /**
-     * Chỉ lưu code — verdict luôn "queued" ở BƯỚC LƯU NHÁP này (autosave gọi hàm này nhiều
-     * lần lúc học sinh đang gõ code, KHÔNG nên gọi Judge0 mỗi lần autosave — tốn tài nguyên
-     * máy chấm vô ích). Chấm THẬT chỉ xảy ra 1 LẦN lúc nộp bài — xem submit()/
-     * gradePendingCodingItems() bên dưới.
-     */
+    /** Chỉ lưu code — verdict luôn "queued", CHƯA có sandbox chấm code thật (giống giới hạn hiện tại của OJ câu hỏi rời). */
     public function saveCodingItem(Attempt $attempt, AssessmentCodingItem $codingItem, array $rawInput): AttemptCodingItem
     {
         $existing = AttemptCodingItem::where('attempt_id', $attempt->id)
@@ -162,20 +153,14 @@ class PdfAttemptService
 
     /**
      * Nộp bài: khoá lượt làm bài, cộng điểm mọi câu đáp án + bài lập trình đã lưu. Bài lập
-     * trình được CHẤM THẬT qua Judge0 ngay TRƯỚC khi khoá dòng (xem gradePendingCodingItems()
-     * — cố ý làm NGOÀI transaction vì gọi mạng có thể chậm, giữ khoá dòng suốt lúc chờ Judge0
-     * sẽ chặn oan các request khác); nếu Judge0 không tới được (mất mạng/đường hầm đứt) thì
-     * verdict giữ nguyên "queued" — tổng điểm vẫn "tạm tính" cho tới khi có chấm thật, đúng như
-     * thiết kế is_provisional ban đầu — cùng khoá lockForUpdate() trong transaction như
-     * App\Services\AttemptService::submit() để chặn nộp trùng khi 2 request cùng lúc
-     * (double-click/retry mất mạng).
+     * trình luôn "queued" (chưa final) nên tổng điểm vẫn "tạm tính" cho tới khi có chấm thật
+     * — cùng khoá lockForUpdate() trong transaction như App\Services\AttemptService::submit()
+     * để chặn nộp trùng khi 2 request cùng lúc (double-click/retry mất mạng).
      *
      * @throws ValidationException nếu lượt làm bài đã nộp trước đó.
      */
     public function submit(Attempt $attempt): Attempt
     {
-        $this->gradePendingCodingItems($attempt);
-
         $locked = DB::transaction(function () use ($attempt) {
             $locked = $this->attempts->query()->whereKey($attempt->id)->lockForUpdate()->first();
 
@@ -209,53 +194,5 @@ class PdfAttemptService
         }
 
         return $locked;
-    }
-
-    /**
-     * SỬA (nối máy chấm Judge0 thật): chấm THẬT mọi bài lập trình con còn "chưa chấm" (verdict
-     * chưa final) của attempt này — test case dùng đúng file input/expected_output đã import
-     * ZIP (App\Models\AssessmentCodingTestCase, CHỈ dùng hiddenTestCases() — test mẫu is_sample
-     * không tính điểm, chỉ để học sinh xem trước). Bỏ qua (giữ nguyên "queued") nếu học sinh
-     * chưa nộp code nào, hoặc nếu Judge0 không gọi được — KHÔNG được để 1 lỗi mạng biến thành
-     * điểm 0 sai oan cho học sinh.
-     */
-    private function gradePendingCodingItems(Attempt $attempt): void
-    {
-        $attempt->load(['codingItems.codingItem.hiddenTestCases']);
-
-        foreach ($attempt->codingItems as $item) {
-            if ($item->verdict->isFinal() || blank($item->code_source)) {
-                continue;
-            }
-
-            $codingItem = $item->codingItem;
-            if ($codingItem === null) {
-                continue;
-            }
-
-            $testCases = $codingItem->hiddenTestCases->map(fn ($tc) => [
-                'input' => (string) Storage::disk('local')->get($tc->input_path),
-                'expected_output' => (string) Storage::disk('local')->get($tc->expected_output_path),
-            ])->all();
-
-            try {
-                $result = $this->codeJudging->judge(
-                    $item->code_source,
-                    $item->language,
-                    $testCases,
-                    $codingItem->time_limit_ms,
-                    $codingItem->memory_limit_kb,
-                );
-            } catch (Throwable $e) {
-                Log::error('Không chấm được bài lập trình con #'.$item->id.' (Judge0 không tới được)', ['exception' => $e]);
-
-                continue;
-            }
-
-            $item->verdict = $result['verdict']->value;
-            $item->score = $result['isAccepted'] ? $codingItem->points : 0;
-            $item->graded_at = now();
-            $item->save();
-        }
     }
 }

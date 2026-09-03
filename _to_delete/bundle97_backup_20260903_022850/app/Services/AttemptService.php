@@ -16,7 +16,6 @@ use App\Models\Attempt;
 use App\Models\AttemptAnswer;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
-use App\Models\JudgeSubmission;
 use App\Models\Question;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptAnswerRepositoryInterface;
@@ -54,9 +53,6 @@ class AttemptService
         private readonly AccessGateService $accessGate,
         // SỬA 19/8 (Giai đoạn 5 — "Tự động ghi bảng xếp hạng"): xem CompetitionLeaderboardService.
         private readonly CompetitionLeaderboardService $competitionLeaderboard,
-        // SỬA (nối máy chấm Judge0 thật) — xem gradePendingCodingAnswers() bên dưới, nơi DUY
-        // NHẤT gọi ra Judge0 trong file này.
-        private readonly CodeJudgingService $codeJudging,
     ) {}
 
     /**
@@ -523,11 +519,6 @@ class AttemptService
      */
     public function submit(Attempt $attempt): Attempt
     {
-        // SỬA (nối máy chấm Judge0 thật) — chấm THẬT câu Lập trình còn "queued" TRƯỚC khi mở
-        // transaction/khoá dòng bên dưới, cùng lý do với App\Services\PdfAttemptService::
-        // submit(): gọi Judge0 qua mạng có thể chậm, không nên giữ khoá dòng suốt lúc chờ.
-        $this->gradePendingCodingAnswers($attempt);
-
         // Trước đây đọc $attempt->status rồi mới ghi (check-then-write) KHÔNG có transaction/
         // khoá dòng — 2 request nộp bài đồng thời cho CÙNG 1 lượt làm (double-click, hoặc
         // client tự động retry khi mất mạng giữa chừng) có thể cùng đọc thấy 'in_progress'
@@ -576,71 +567,6 @@ class AttemptService
             $this->competitionLeaderboard->recordIfCompetitionExam($attempt);
         } catch (Throwable $e) {
             Log::error('Không ghi được bảng xếp hạng Cuộc thi cho attempt #'.$attempt->id, ['exception' => $e]);
-        }
-    }
-
-    /**
-     * SỬA (nối máy chấm Judge0 thật): chấm THẬT mọi câu trả lời loại Coding còn "chưa chấm"
-     * (verdict chưa final) của attempt này — test case đọc từ Question::grading_config
-     * ['test_cases'] (mảng {input,output} phẳng, KHÔNG phân biệt sample/hidden như bên PDF —
-     * cả bài thi cấu trúc chính thức, mọi test case đều tính điểm). Ghi thêm 1 dòng
-     * App\Models\JudgeSubmission làm nhật ký (16 mục 1 — bảng này sinh ra sẵn CHO đúng việc
-     * này, xem migration 2025_01_01_000250) — 1 dòng/1 lượt chấm (không phải 1 dòng/test case,
-     * vì AttemptAnswer chỉ có đúng 1 verdict/score tổng, không chấm từng phần).
-     *
-     * Bỏ qua (giữ nguyên "queued") nếu học sinh chưa nộp code, hoặc nếu Judge0 không gọi được
-     * — KHÔNG được để 1 lỗi mạng biến thành điểm 0 sai oan cho học sinh.
-     */
-    private function gradePendingCodingAnswers(Attempt $attempt): void
-    {
-        $attempt->load(['answers.question']);
-
-        foreach ($attempt->answers as $answer) {
-            $question = $answer->question;
-
-            if ($question === null || $question->type !== QuestionType::Coding) {
-                continue;
-            }
-
-            if ($answer->verdict->isFinal() || blank($answer->code_source)) {
-                continue;
-            }
-
-            $config = $question->grading_config ?? [];
-            $testCases = collect($config['test_cases'] ?? [])
-                ->map(fn ($tc) => ['input' => (string) ($tc['input'] ?? ''), 'expected_output' => (string) ($tc['output'] ?? '')])
-                ->all();
-            $timeLimitMs = (int) ($config['time_limit_ms'] ?? 5000);
-            $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
-
-            try {
-                $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb);
-            } catch (Throwable $e) {
-                Log::error('Không chấm được câu trả lời Lập trình #'.$answer->id.' (Judge0 không tới được)', ['exception' => $e]);
-
-                JudgeSubmission::create([
-                    'attempt_answer_id' => $answer->id,
-                    'status' => 'failed',
-                    'dispatched_at' => now(),
-                    'raw_result' => ['error' => $e->getMessage()],
-                ]);
-
-                continue;
-            }
-
-            $answer->verdict = $result['verdict']->value;
-            $answer->score = $result['isAccepted'] ? $question->points : 0;
-            $answer->graded_at = now();
-            $answer->save();
-
-            JudgeSubmission::create([
-                'attempt_answer_id' => $answer->id,
-                'status' => 'completed',
-                'verdict' => $result['verdict']->value,
-                'raw_result' => $result['details'],
-                'dispatched_at' => now(),
-                'completed_at' => now(),
-            ]);
         }
     }
 

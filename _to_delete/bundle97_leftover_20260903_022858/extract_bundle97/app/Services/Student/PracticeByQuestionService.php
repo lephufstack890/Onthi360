@@ -128,6 +128,9 @@ class PracticeByQuestionService
                 'total' => $total,
                 'correct' => $state['correct'],
                 'answered' => $state['answered'],
+                // SỬA 31/8 — màn "đã xong" đổi nút quay lại khi đây là phiên "Làm bài" 1 câu
+                // (xem startForQuestion()) — quay về đúng trang sản phẩm thay vì trang "Luyện
+                // tập theo câu" chung.
                 'mode' => $state['mode'] ?? null,
                 'returnUrl' => $state['returnUrl'] ?? null,
             ];
@@ -135,6 +138,10 @@ class PracticeByQuestionService
 
         $question = Question::with('tags')->find($state['question_ids'][$index]);
 
+        // Câu hỏi có thể đã bị Admin/Giáo viên lưu trữ/xoá SAU khi phiên luyện đã xáo trộn
+        // xong (6.2 không cấm lưu trữ câu đang có trong 1 phiên luyện đang chạy của học sinh
+        // khác) — bỏ qua, coi như đã "trả lời" (không tính đúng/sai) rồi qua câu kế tiếp thay
+        // vì làm hỏng cả phiên luyện.
         if ($question === null) {
             $this->advance();
 
@@ -145,9 +152,17 @@ class PracticeByQuestionService
             'finished' => false,
             'question' => $question,
             'options' => $question->grading_config['options'] ?? [],
+            // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — câu Composite (nhiều phần
+            // khác dạng) cần thêm danh sách phần con để dựng form — SANITIZED (bỏ đáp án
+            // đúng/accepted_answers/rubric), KHÔNG đưa nguyên grading_config['parts'] ra view vì
+            // đó có cả đáp án đúng, lộ đáp án trước khi học sinh trả lời.
             'compositeParts' => $question->type->value === 'composite'
                 ? $this->sanitizedCompositeParts($question->grading_config['parts'] ?? [])
                 : [],
+            // SỬA 31/8 (2) — audio/ảnh... đính kèm câu hỏi (bất kỳ dạng nào, không riêng
+            // Composite — vd câu trắc nghiệm nghe-hiểu "ANH7AUDIO_DEMO_001" là single_choice
+            // thường) — url phục vụ qua route riêng (asset id, có kiểm tra quyền lại ở
+            // controller), KHÔNG lộ đường dẫn disk thật.
             'assets' => collect($question->metadata['assets'] ?? [])->map(fn ($a) => [
                 'id' => $a['id'] ?? null,
                 'kind' => $a['kind'] ?? 'file',
@@ -181,6 +196,16 @@ class PracticeByQuestionService
         ], $parts);
     }
 
+    /**
+     * student.practiceByQuestion.answer — chấm câu ĐANG ĐỨNG (theo session['index']), ghi kết
+     * quả vào 'feedback' để màn play hiện đáp án đúng/sai trước khi qua câu tiếp theo. false
+     * nếu không có phiên đang mở (controller đưa về setup).
+     * SỬA (nối máy chấm Judge0 thật) — câu Lập trình giờ CHẤM NGAY qua judgeCodingAnswer()
+     * (đồng bộ, học sinh chờ kết quả luôn trong request này, đúng tinh thần "luyện tập xem đáp
+     * án ngay" của màn hình này) — 'gradable' chỉ còn false trong trường hợp Judge0 tạm thời
+     * không gọi được (mất mạng/đường hầm đứt), khi đó hiện thông báo "đã ghi nhận" trung lập
+     * như hành vi cũ, KHÔNG báo sai thành sai/đúng.
+     */
     public function answer(array $data): bool
     {
         $state = Session::get(self::SESSION_KEY);
@@ -200,6 +225,11 @@ class PracticeByQuestionService
 
         $codingResult = $isCoding ? $this->judgeCodingAnswer($question, $data) : null;
 
+        // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm nhánh 'composite': chấm
+        // TỪNG PHẦN qua gradeCompositeParts() (mỗi phần 1 response_type khác nhau), gán luôn
+        // vào biến $compositeResult để dùng lại bên dưới (tránh gọi lại 2 lần) — cú pháp gán
+        // trong biểu thức match() ($compositeResult = ...)[...] hợp lệ vì PHP đánh giá gán
+        // trước rồi mới lấy phần tử mảng.
         $compositeResult = null;
         $isCorrect = match ($question->type->value) {
             'mcq' => QuestionGrader::isMcqCorrect($question, $data['selected_option'] ?? null),
@@ -209,8 +239,15 @@ class PracticeByQuestionService
             default => false,
         };
 
+        // SỬA 31/8 (2) — câu Composite có ÍT NHẤT 1 phần "essay" (tự luận, chưa có chấm tay/AI)
+        // thì CẢ CÂU coi là "chưa chấm được hoàn toàn". SỬA (nối Judge0) — câu Lập trình giờ
+        // "gradable" ĐÚNG khi Judge0 chấm xong được ($codingResult !== null); chỉ false khi
+        // Judge0 không gọi được (tránh báo sai thành sai/đúng dù thật ra chưa chấm được).
         $gradable = ($isCoding ? $codingResult !== null : true) && ! ($isComposite && $compositeResult['hasUngraded']);
 
+        // Trả lời lại cùng 1 câu (bấm lại nút "Kiểm tra") không cộng dồn thêm lượt — chỉ tính
+        // lần trả lời ĐẦU TIÊN của câu đó trong phiên (feedback === null nghĩa là chưa từng
+        // trả lời câu này).
         if ($state['feedback'] === null) {
             $state['answered']++;
             if ($isCorrect && $gradable) {
@@ -227,6 +264,8 @@ class PracticeByQuestionService
             'yourText' => $data['text'] ?? null,
             'yourCode' => $isCoding ? ($data['code_source'] ?? '') : null,
             'yourLanguage' => $isCoding ? ($data['language'] ?? null) : null,
+            // SỬA (nối Judge0) — nhãn verdict thật (VD "Wrong Answer", "Time Limit Exceeded")
+            // để sau này view có thể hiện chi tiết hơn "đúng/sai" đơn thuần, nếu cần.
             'codingVerdict' => $codingResult['verdict'] ?? null,
             'compositeParts' => $compositeResult['parts'] ?? null,
         ];
@@ -347,6 +386,12 @@ class PracticeByQuestionService
         Session::put(self::SESSION_KEY, $state);
     }
 
+    /**
+     * student.practiceByQuestion.stop — kết thúc phiên luyện, dọn session. SỬA 31/8 — trả về
+     * 'returnUrl' đã lưu (nếu phiên "Làm bài" 1 câu, xem startForQuestion()) để controller
+     * chuyển đúng về trang sản phẩm; null nếu là phiên luyện tập thường (controller giữ hành vi
+     * cũ, về trang "Luyện tập").
+     */
     public function stop(): ?string
     {
         $state = Session::get(self::SESSION_KEY);
