@@ -30,6 +30,7 @@ use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Services\PdfAssessmentEditingService;
 use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
+use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
 use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
@@ -62,6 +63,9 @@ class ContentService
         private PdfBulkImportService $pdfBulkImport,
         // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): xem App\Models\Tag.
         private TagRepositoryInterface $tags,
+        // SỬA 3/9 (nối trích PDF thành text cho đề bài nhập ZIP) — xem
+        // placeholderBodyForZipImport() bên dưới.
+        private PdfTextExtractor $pdfTextExtractor,
     ) {}
 
     public static function maxPdfKb(): int
@@ -1108,7 +1112,7 @@ class ContentService
             'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
             'type' => $type,
             'title' => $content['title'] ?? 'Câu hỏi (nhập từ ZIP)',
-            'body' => $this->placeholderBodyForZipImport($content),
+            'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'grading_config' => $this->buildGradingConfigFromZipPackage($contentType, $json, $package['testCases']),
             'owner_type' => OwnerType::Shared->value,
@@ -1451,13 +1455,25 @@ class ContentService
     }
 
     /**
-     * Chưa có pipeline đọc/trích nội dung PDF thành text cho Question::body — đề bài thật nằm
-     * trong statement.pdf đính kèm (xem questionAttachmentInfo()). Để trống body sẽ bị
-     * QuestionPublishGuard chặn phát hành (đòi body không rỗng), nên điền 1 dòng ghi chú rõ
-     * ràng thay vì bịa nội dung.
+     * SỬA 3/9 (khách chốt: "hiển thị thẳng đề bài dạng text, khỏi hiển thị file") — thử trích
+     * chữ thật từ statement.pdf đính kèm (nếu gói ZIP có) qua PdfTextExtractor, dùng THẲNG làm
+     * body để học sinh đọc ngay trên trang luyện tập/làm bài, KHÔNG cần mở file riêng nữa.
+     * Chỉ rơi về dòng ghi chú cũ khi: không có statement.pdf, hoặc trích lỗi/rỗng (PDF là ảnh
+     * scan, không có lớp text thật) — để trống body sẽ bị QuestionPublishGuard chặn phát hành
+     * (đòi body không rỗng), nên vẫn cần 1 nội dung hợp lệ trong mọi trường hợp.
+     *
+     * @param  array<string, array{content:string, filename:string}>  $rawAttachments  $package['attachments'] TRƯỚC khi lưu disk (storeZipAttachments()) — cần nguyên bytes PDF để trích, không phải đường dẫn đã lưu.
      */
-    private function placeholderBodyForZipImport(array $content): string
+    private function placeholderBodyForZipImport(array $content, array $rawAttachments = []): string
     {
+        $statementPdf = $rawAttachments['statement']['content'] ?? null;
+        if ($statementPdf !== null) {
+            $extracted = $this->pdfTextExtractor->extractText($statementPdf);
+            if ($extracted !== null) {
+                return $this->pdfTextExtractor->toBodyHtml($extracted);
+            }
+        }
+
         $note = 'Đề bài đầy đủ nằm trong tệp PDF đính kèm (nhập từ gói ZIP) — xem mục "Tệp đính kèm" ở trang Sửa câu hỏi.';
         $title = $content['title'] ?? null;
 
@@ -1610,7 +1626,7 @@ class ContentService
             'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
             'type' => $type,
             'title' => $content['title'] ?? 'Bài tập (nhập từ ZIP)',
-            'body' => $this->placeholderBodyForZipImport($content),
+            'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'grading_config' => $this->buildGradingConfigFromZipPackage($contentType, $json, $package['testCases']),
             'owner_type' => OwnerType::Shared->value,

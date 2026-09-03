@@ -119,6 +119,10 @@ Route::middleware(['auth'])->group(function () {
             // nội dung CẦN để trả lời, vd nghe audio nghe-hiểu) — xem
             // StudentPracticeByQuestionController::asset().
             Route::get('/asset/{question}/{asset}', [StudentPracticeByQuestionController::class, 'asset'])->name('asset');
+            // SỬA (nối "Xem đề bài" PDF cho học sinh, trước đây có ghi chú "chỉ xem qua link
+            // riêng" ở by-question-play.blade.php nhưng CHƯA thực ra route/hàm nào) — xem
+            // Student\PracticeByQuestionController::statement().
+            Route::get('/statement/{question}', [StudentPracticeByQuestionController::class, 'statement'])->name('statement');
         });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])

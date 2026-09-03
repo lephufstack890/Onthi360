@@ -136,4 +136,32 @@ class Question extends Model
 
         return null;
     }
+
+    /**
+     * SỬA (nối "Xem đề bài" PDF cho học sinh) — 1 trong 3 tệp đính kèm CỐ ĐỊNH của câu hỏi
+     * nhập từ gói ZIP (statement.pdf/solution.pdf/reference, xem App\Services\Admin\
+     * ContentService::parseZipQuestionPackage()) — lưu trong metadata.attachments, KHÁC hẳn
+     * metadata.assets (audio/ảnh... cần để trả lời, xem findAsset() ở trên). Dùng chung ở cả
+     * Admin/Teacher (trang Sửa câu hỏi, đã có sẵn từ trước — xem Admin\ContentService::
+     * questionAttachmentInfo()/Teacher\QuestionService::attachmentInfo(), 2 hàm đó KHÔNG đổi,
+     * chỉ thêm hàm này để Student\PracticeByQuestionController::statement() dùng lại đúng 1
+     * chỗ đọc dữ liệu, không chép lại logic lần 3) LẪN học sinh lúc luyện tập (statement()
+     * CHỈ cho phép kind='statement', KHÔNG bao giờ lộ 'solution'/'reference' ra cho học sinh
+     * — xem route/controller). null nếu câu hỏi này không có đính kèm loại đó.
+     *
+     * @return array{path:string, filename:string}|null
+     */
+    public function attachmentInfo(string $kind): ?array
+    {
+        $path = $this->metadata['attachments'][$kind]['path'] ?? null;
+
+        if ($path === null) {
+            return null;
+        }
+
+        return [
+            'path' => $path,
+            'filename' => $this->metadata['attachments'][$kind]['filename'] ?? basename($path),
+        ];
+    }
 }

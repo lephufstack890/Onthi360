@@ -48,16 +48,36 @@
                         default => '💻 Lập trình',
                     };
                     $assets = $assets ?? [];
+                    // SỬA 3/9 (khách chốt: "hiển thị thẳng file ra luôn") — câu hỏi nhập từ ZIP
+                    // có đề bài THẬT nằm trong statement.pdf đính kèm ($question->body chỉ là
+                    // text trích thô, có thể mất định dạng công thức/bảng...) — nhúng THẲNG file
+                    // PDF làm đề bài chính, cùng cách đã làm ở student/practice/exercise-play.
+                    // blade.php (route student.practiceByQuestion.statement — kiểm tra quyền y
+                    // hệt asset() ở PracticeByQuestionController, khác route access.resource.
+                    // exerciseAttachment bên exercise-play vì route đó ĐÒI product_id thật, câu
+                    // hỏi ở "Luyện tập theo câu" có thể thuộc Kho chung (product_id null)).
+                    $statementUrl = $question->attachmentInfo('statement') !== null
+                        ? route('student.practiceByQuestion.statement', $question)
+                        : null;
                 @endphp
                 <x-status-badge tone="info">{{ $typeBadge }}</x-status-badge>
                 <h3 class="font-semibold text-slate-800 text-2xl mt-3 mb-1">{{ $question->title }}</h3>
-                {{-- SỬA 24/8 — $question->body là HTML do CKEditor lưu ra (thẻ <p>, <ul>...),
-                     KHÔNG phải text thường — {{ }} escape làm hiện nguyên thẻ ra màn hình học
-                     sinh (ví dụ "<p>...</p>" hiện thành chữ). Đổi sang {!! !!} + <div> (không
-                     dùng <p> bọc ngoài vì nội dung bên trong đã có thể tự chứa <p> khác, lồng
-                     <p> trong <p> là HTML không hợp lệ) để hiển thị đúng định dạng đã soạn —
-                     cùng class .rich-content + quy tắc ul/ol/p ở admin/content/show.blade.php. --}}
-                <div class="rich-content text-base text-slate-600 mb-5">{!! $question->body !!}</div>
+
+                @if ($statementUrl)
+                    <div class="rounded-lg overflow-hidden border border-slate-200 mb-2">
+                        <iframe src="{{ $statementUrl }}" class="w-full" style="height: 560px;" title="Đề bài"></iframe>
+                    </div>
+                    <a href="{{ $statementUrl }}" target="_blank" rel="noopener" class="text-xs text-rose-600 font-medium mb-5 inline-block">Mở đề bài trong tab mới ›</a>
+                @else
+                    {{-- SỬA 24/8 — $question->body là HTML do CKEditor lưu ra (thẻ <p>, <ul>...),
+                         KHÔNG phải text thường — {{ }} escape làm hiện nguyên thẻ ra màn hình học
+                         sinh (ví dụ "<p>...</p>" hiện thành chữ). Đổi sang {!! !!} + <div> (không
+                         dùng <p> bọc ngoài vì nội dung bên trong đã có thể tự chứa <p> khác, lồng
+                         <p> trong <p> là HTML không hợp lệ) để hiển thị đúng định dạng đã soạn —
+                         cùng class .rich-content + quy tắc ul/ol/p ở admin/content/show.blade.php.
+                         Fallback: chỉ hiện khi câu hỏi KHÔNG có statement.pdf (câu tự soạn tay). --}}
+                    <div class="rich-content text-base text-slate-600 mb-5">{!! $question->body !!}</div>
+                @endif
 
                 @if ($question->tags->isNotEmpty())
                     <div class="flex flex-wrap gap-1 mb-5">

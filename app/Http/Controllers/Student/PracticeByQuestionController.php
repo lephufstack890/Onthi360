@@ -193,6 +193,32 @@ class PracticeByQuestionController extends Controller
         return Storage::disk('local')->response($info['path'], $info['filename']);
     }
 
+    /**
+     * SỬA (nối "Xem đề bài" PDF cho học sinh) — câu hỏi nhập từ gói ZIP chỉ có 1 dòng ghi chú
+     * làm Question::body ("Đề bài đầy đủ nằm trong tệp PDF đính kèm..."), đề bài THẬT nằm
+     * trong statement.pdf (xem Question::attachmentInfo()) — trước đây by-question-play.blade
+     * .php có ghi chú sẽ hiện link "Xem đề bài" riêng nhưng CHƯA có route/hàm nào phục vụ,
+     * khiến học sinh chỉ thấy đúng dòng ghi chú, không có cách nào xem đề bài thật (báo cáo lỗi
+     * hiển thị của giáo viên). Kiểm tra quyền giống HỆT asset() ở trên (2 route độc lập, không
+     * tin lẫn nhau): (1) câu hỏi phải Đã phát hành; (2) nếu là bài tập riêng 1 sản phẩm thì phải
+     * qua canAccessProduct(). CHỈ nhận kind cố định 'statement' (không nhận tham số kind từ
+     * client) — 'solution'/'reference' (lời giải/code mẫu) KHÔNG BAO GIỜ được lộ cho học sinh
+     * qua route này.
+     */
+    public function statement(Question $question)
+    {
+        abort_unless($question->status === ContentStatus::Published, 404);
+
+        if ($question->product_id !== null) {
+            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+        }
+
+        $info = $question->attachmentInfo('statement');
+        abort_if($info === null, 404);
+
+        return Storage::disk('local')->response($info['path'], $info['filename']);
+    }
+
     /** SỬA 31/8 — nếu phiên vừa dừng là "Làm bài" 1 bài tập sản phẩm (có returnUrl lưu sẵn,
      *  xem startForQuestion()), quay lại ĐÚNG trang sản phẩm thay vì trang "Luyện tập" chung. */
     public function stop(Request $request): RedirectResponse

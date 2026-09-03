@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Repositories\Contracts\QuestionBankRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
+use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -33,6 +34,9 @@ class QuestionService
         private readonly QuestionBankRepositoryInterface $questionBanks,
         private readonly QuestionPublishGuard $publishGuard,
         private readonly TagRepositoryInterface $tags,
+        // SỬA 3/9 (nối trích PDF thành text cho đề bài nhập ZIP) — xem
+        // placeholderBodyForZipImport() bên dưới.
+        private readonly PdfTextExtractor $pdfTextExtractor,
     ) {}
 
     /** teacher.questions.create/.edit — danh sách tag để tick chọn (xem App\Models\Tag). */
@@ -336,7 +340,7 @@ class QuestionService
         $data = [
             'type' => 'coding',
             'title' => $content['title'] ?? 'Câu hỏi lập trình (nhập từ ZIP)',
-            'body' => $this->placeholderBodyForZipImport($content),
+            'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'test_cases_parsed' => $package['testCases'],
             'time_limit_ms' => $grading['time_limit_ms'] ?? 1000,
@@ -478,13 +482,24 @@ class QuestionService
     }
 
     /**
-     * Chưa có pipeline đọc/trích nội dung PDF thành text cho Question::body — đề bài thật nằm
-     * trong statement.pdf đính kèm (xem attachmentInfo()). Để trống body sẽ bị
-     * QuestionPublishGuard chặn phát hành (đòi body không rỗng), nên điền 1 dòng ghi chú rõ
-     * ràng thay vì bịa nội dung.
+     * SỬA 3/9 (khách chốt: "hiển thị thẳng đề bài dạng text, khỏi hiển thị file") — thử trích
+     * chữ thật từ statement.pdf đính kèm (nếu gói ZIP có) qua PdfTextExtractor, dùng THẲNG làm
+     * body — chỉ rơi về dòng ghi chú cũ khi không có statement.pdf hoặc trích lỗi/rỗng (PDF là
+     * ảnh scan) — cùng lý do/cách làm với Admin\ContentService::placeholderBodyForZipImport(),
+     * xem docblock đầy đủ ở đó.
+     *
+     * @param  array<string, array{content:string, filename:string}>  $rawAttachments  $package['attachments'] TRƯỚC khi lưu disk.
      */
-    private function placeholderBodyForZipImport(array $content): string
+    private function placeholderBodyForZipImport(array $content, array $rawAttachments = []): string
     {
+        $statementPdf = $rawAttachments['statement']['content'] ?? null;
+        if ($statementPdf !== null) {
+            $extracted = $this->pdfTextExtractor->extractText($statementPdf);
+            if ($extracted !== null) {
+                return $this->pdfTextExtractor->toBodyHtml($extracted);
+            }
+        }
+
         $note = 'Đề bài đầy đủ nằm trong tệp PDF đính kèm (nhập từ gói ZIP) — xem mục "Tệp đính kèm" ở trang Sửa câu hỏi.';
         $title = $content['title'] ?? null;
 
