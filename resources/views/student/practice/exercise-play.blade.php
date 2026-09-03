@@ -40,6 +40,18 @@
         }
     @endphp
 
+    {{-- SỬA 3/9 (khách yêu cầu: bấm chấm bài KHÔNG reload cả trang, chỉ hiện spinner ở nút rồi
+         hiện kết quả tại chỗ — CÙNG hành vi đã làm ở by-question-play.blade.php, khách báo trang
+         "Làm bài" 1 bài tập cụ thể này — cùng route/action student.practiceByQuestion.play,
+         khác template do PracticeByQuestionController::play() chọn theo mode — vẫn còn load lại
+         trang) — bọc id="practice-container" quanh CẢ 2 nhánh (đã xong/chưa xong) làm 1 khối
+         DUY NHẤT có thể thay nguyên khối bằng JS: form "Ghi nhận bài làm"/"Kiểm tra đáp án" giờ
+         submit qua fetch() (script cuối trang) thay vì để trình duyệt tự điều hướng — fetch tới
+         ĐÚNG route cũ (student.practiceByQuestion.answer), Laravel vẫn redirect sang GET .play
+         như cũ (KHÔNG đổi controller/route nào), fetch tự đi theo redirect đó và nhận về HTML
+         trang mới, JS chỉ lấy đúng #practice-container trong HTML đó rồi thay vào chỗ cũ —
+         không cần sửa gì ở backend. --}}
+    <div id="practice-container">
     @if ($finished)
         <div class="max-w-3xl mx-auto text-center bg-white rounded-2xl border border-slate-200 p-8 mt-8">
             <div class="text-5xl mb-3">🎉</div>
@@ -109,7 +121,12 @@
                 {{-- Cột phải: trả lời / kết quả --}}
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6">
                     @if ($feedback === null)
-                        <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="space-y-3">
+                        {{-- SỬA 3/9 (khách yêu cầu: bấm nút KHÔNG reload trang, chỉ hiện spinner
+                             rồi hiện kết quả tại chỗ) — data-ajax-answer đánh dấu để script cuối
+                             trang bắt sự kiện submit của ĐÚNG form này (không đụng form "Thoát
+                             bài tập"/"Hoàn tất bài tập" — 2 form đó vẫn điều hướng bình thường vì
+                             không có độ trễ mạng đáng kể). --}}
+                        <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="space-y-3" data-ajax-answer>
                             @csrf
                             @if ($question->type->value === 'mcq')
                                 @foreach ($options as $i => $opt)
@@ -170,13 +187,24 @@
                                             <option value="csharp">C#</option>
                                         </select>
                                     </div>
-                                    <textarea name="code_source" data-code-editor required class="hidden"></textarea>
+                                    {{-- SỬA (khách báo lỗi console "invalid form control ... not
+                                         focusable") — bỏ 'required': control này bị CodeMirror ẩn
+                                         đi (class hidden/display:none), nhưng trình duyệt validate
+                                         HTML5 chạy TRƯỚC sự kiện 'submit' nên không thể focus 1
+                                         control required đang ẩn để báo lỗi — kết quả là trình
+                                         duyệt CHẶN LUÔN submit, học sinh bấm nút không thấy gì xảy
+                                         ra. Xem giải thích đầy đủ ở by-question-play.blade.php
+                                         (cùng lỗi, sửa cùng lúc). --}}
+                                    <textarea name="code_source" data-code-editor class="hidden"></textarea>
                                 </div>
-                                <p class="text-xs text-slate-400">Câu Lập trình chưa có chấm tự động — bài làm chỉ được ghi nhận, không báo đúng/sai.</p>
                             @endif
                             <button type="submit" class="w-full px-4 py-3 rounded-lg bg-rose-600 text-white text-base font-medium">
                                 {{ $question->type->value === 'coding' ? 'Ghi nhận bài làm' : 'Kiểm tra đáp án' }}
                             </button>
+                            {{-- SỬA 3/9 — chỗ hiện lỗi khi gửi AJAX thất bại (mất mạng...), thay
+                                 vì alert() gây gián đoạn. Ẩn mặc định, script cuối trang bật lên
+                                 khi cần. --}}
+                            <p data-ajax-error class="hidden text-sm text-rose-600 text-center"></p>
                         </form>
                     @else
                         {{-- Đã trả lời — hiện kết quả đúng/sai + đáp án đúng, khoá form lại. --}}
@@ -256,6 +284,7 @@
             </div>
         </div>
     @endif
+    </div>
 @endsection
 
 @push('scripts')
@@ -263,6 +292,28 @@
         .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content p { margin-bottom: 0.5rem; }
+    </style>
+
+    {{-- SỬA 3/9 (khách yêu cầu nút loading xoay xoay lúc chấm) — CSS thường (không dùng class
+         Tailwind), cùng lý do đã giải thích ở by-question-play.blade.php: màu trắng-trên-nền-
+         rose-600 cho spinner này chưa có sẵn trong CSS đã build (public/build/assets/*.css là
+         build JIT theo class thực tế đang dùng), CSS thường luôn hoạt động ngay không cần build
+         lại gì. --}}
+    <style>
+        .oi-btn-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            vertical-align: -3px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: oi-btn-spin 0.7s linear infinite;
+        }
+        @keyframes oi-btn-spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 
     {{-- Ô viết code "như VSCode" (chỉ dùng khi bài tập là Lập trình) — cùng kiểu nhúng CodeMirror
@@ -277,7 +328,12 @@
         .CodeMirror { height: 420px; font-size: 14px; }
     </style>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        // SỬA 3/9 — tách hàm init CodeMirror ra tên riêng (initCodeEditor) để gọi LẠI được sau
+        // mỗi lần thay #practice-container bằng AJAX (xem submit handler bên dưới) — cùng cách
+        // đã làm ở by-question-play.blade.php (dù trang "Làm bài" 1 bài tập này không có khái
+        // niệm "câu tiếp theo", vẫn cần init lại nếu học sinh bấm nộp mà kết quả trả về vẫn còn
+        // hiện lại form — vd form composite/coding submit lỗi validate phía Judge0/mạng).
+        function initCodeEditor() {
             var textarea = document.querySelector('textarea[data-code-editor]');
             if (!textarea || typeof CodeMirror === 'undefined') return;
 
@@ -309,8 +365,79 @@
 
             var form = textarea.closest('form');
             if (form) {
-                form.addEventListener('submit', function () { editor.save(); });
+                // Gắn editor lên chính form để submit handler AJAX bên dưới gọi save() (đồng
+                // bộ nội dung đang gõ ngược lại textarea gốc) TRƯỚC KHI fetch() gửi đi — thay
+                // cho cách cũ nghe sự kiện 'submit' thật (giờ submit thật đã bị preventDefault).
+                form.__codeEditor = editor;
             }
+        }
+
+        document.addEventListener('DOMContentLoaded', initCodeEditor);
+
+        // SỬA 3/9 (khách yêu cầu: bấm chấm bài KHÔNG reload cả trang, chỉ hiện spinner ở nút rồi
+        // hiện kết quả tại chỗ) — nghe sự kiện submit kiểu delegation trên toàn trang (không gắn
+        // trực tiếp vào 1 form cố định) vì form thật sự tồn tại lúc chạy đoạn script này có thể
+        // bị THAY MỚI hoàn toàn sau mỗi lần nộp bài (xem replaceWith() bên dưới) — gắn listener
+        // kiểu delegation thì luôn bắt được form MỚI mà không cần gắn lại tay.
+        document.addEventListener('submit', function (event) {
+            var form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.matches('[data-ajax-answer]')) return;
+
+            event.preventDefault();
+
+            if (form.__codeEditor) {
+                form.__codeEditor.save();
+            }
+
+            var button = form.querySelector('button[type="submit"]');
+            var errorEl = form.querySelector('[data-ajax-error]');
+            var originalButtonHtml = button ? button.innerHTML : '';
+            if (errorEl) errorEl.classList.add('hidden');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="oi-btn-spinner"></span>Đang chấm...';
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then(function (response) {
+                    // fetch() tự đi theo redirect (Laravel vẫn redirect sang GET .play như cũ,
+                    // KHÔNG đổi controller/route nào) — response.ok ở đây là của trang .play sau
+                    // redirect, không phải của route .answer.
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.text();
+                })
+                .then(function (html) {
+                    var newContainer = new DOMParser().parseFromString(html, 'text/html')
+                        .querySelector('#practice-container');
+                    var oldContainer = document.querySelector('#practice-container');
+
+                    if (!newContainer || !oldContainer) {
+                        // Không thấy #practice-container trong HTML trả về — có thể phiên đăng
+                        // nhập đã hết hạn (bị chuyển sang trang login) hoặc lỗi lạ khác. An toàn
+                        // nhất là điều hướng thật để học sinh thấy đúng trạng thái thật sự, tránh
+                        // hiện trang trống/kẹt spinner mãi.
+                        window.location.reload();
+                        return;
+                    }
+
+                    oldContainer.replaceWith(newContainer);
+                    initCodeEditor();
+                })
+                .catch(function () {
+                    if (button) {
+                        button.disabled = false;
+                        button.innerHTML = originalButtonHtml;
+                    }
+                    if (errorEl) {
+                        errorEl.textContent = 'Không gửi được bài làm — kiểm tra lại kết nối mạng rồi thử lại.';
+                        errorEl.classList.remove('hidden');
+                    }
+                });
         });
     </script>
 @endpush

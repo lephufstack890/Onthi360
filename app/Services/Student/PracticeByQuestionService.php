@@ -227,7 +227,13 @@ class PracticeByQuestionService
             'yourText' => $data['text'] ?? null,
             'yourCode' => $isCoding ? ($data['code_source'] ?? '') : null,
             'yourLanguage' => $isCoding ? ($data['language'] ?? null) : null,
+            // SỬA 3/9 (khách hỏi "Chưa đúng là sao" — không phân biệt được sai đáp án với lỗi
+            // biên dịch/quá giờ) — thêm nhãn tiếng Việt CỤ THỂ (VerdictStatus::label()) + chi
+            // tiết lỗi biên dịch/runtime của test case ĐẦU TIÊN không Accepted, để học sinh tự
+            // sửa được thay vì chỉ thấy "✕ Chưa đúng" chung chung — xem judgeCodingAnswer().
             'codingVerdict' => $codingResult['verdict'] ?? null,
+            'codingVerdictLabel' => $codingResult['verdictLabel'] ?? null,
+            'codingFailureDetail' => $codingResult['failureDetail'] ?? null,
             'compositeParts' => $compositeResult['parts'] ?? null,
         ];
 
@@ -304,7 +310,12 @@ class PracticeByQuestionService
      * gõ code nào, hoặc nếu Judge0 không gọi được (mất mạng/đường hầm SSH đứt) — 2 trường hợp
      * này answer() coi là "chưa chấm được", KHÔNG phải "sai".
      *
-     * @return array{isAccepted: bool, verdict: string}|null
+     * SỬA 3/9 — trả thêm 'verdictLabel' (VerdictStatus::label(), tiếng Việt) và
+     * 'failureDetail' (compile_output/stderr của test case ĐẦU TIÊN không Accepted, nếu có)
+     * để học sinh/giáo viên tự chẩn đoán được "Chưa đúng" là do sai kết quả, lỗi biên dịch,
+     * hay quá thời gian — thay vì chỉ 1 dòng "✕ Chưa đúng" chung chung như trước.
+     *
+     * @return array{isAccepted: bool, verdict: string, verdictLabel: string, failureDetail: ?string}|null
      */
     private function judgeCodingAnswer(Question $question, array $data): ?array
     {
@@ -329,7 +340,23 @@ class PracticeByQuestionService
             return null;
         }
 
-        return ['isAccepted' => $result['isAccepted'], 'verdict' => $result['verdict']->value];
+        $failureDetail = null;
+        if (! $result['isAccepted']) {
+            foreach ($result['details'] as $detail) {
+                if ($detail['status'] !== 'Accepted') {
+                    $failureDetail = trim(($detail['compileOutput'] ?? '').("\n".($detail['stderr'] ?? '')));
+                    $failureDetail = $failureDetail !== '' ? $failureDetail : null;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'isAccepted' => $result['isAccepted'],
+            'verdict' => $result['verdict']->value,
+            'verdictLabel' => $result['verdict']->label(),
+            'failureDetail' => $failureDetail,
+        ];
     }
 
     /** student.practiceByQuestion.next — qua câu kế tiếp, xoá feedback câu vừa xong. */
