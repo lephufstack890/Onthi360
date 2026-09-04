@@ -24,6 +24,20 @@
         $selectedProductId = $selectedProductId ?? null;
         $backHref = $selectedProductId ? route('admin.products.show', $selectedProductId) : route('admin.products.index');
         $backLabel = $selectedProductId ? '‹ Quay lại sản phẩm' : '‹ Quay lại Sản phẩm & quyền';
+        // SỬA 4/9 (khách yêu cầu: "ẩn hết field đi chỉ để cho chọn chương với chọn các file") —
+        // bỏ khỏi giao diện: Thứ tự hiển thị, Tiêu đề, Trạng thái, Mã bài — chỉ còn Thuộc sản
+        // phẩm (ẩn luôn nếu đã biết sẵn từ ?product_id=), chọn chương/phần/đề, và 3 ô tệp.
+        // - order: gửi ngầm = 0 (giữ nguyên mặc định cũ, admin không cần chỉnh tay nữa).
+        // - status: gửi ngầm = 'published' — học liệu thêm thủ công lên thẳng luôn, không qua
+        //   bước nháp/chờ duyệt (khớp cách bài tập thủ công cũng lưu Published ngay, xem
+        //   ContentService::productExerciseStoreManual()).
+        // - title: KHÔNG còn ô nhập tay — tự lấy theo TÊN TỆP admin vừa chọn (ưu tiên PDF, rồi
+        //   audio, rồi ảnh — xem script cuối file), có placeholder mặc định phòng khi chưa chọn
+        //   tệp nào (vẫn tạo được Material rỗng làm mục lục, 'title' đang required).
+        // - code: bỏ hẳn (không gửi field) — ContentService::resolveMaterialCode() đã tự đặt mã
+        //   theo tên tệp khi để trống, y hệt trước giờ.
+        $lockProduct = (bool) $selectedProductId;
+        $defaultTitle = old('title', 'Học liệu '.now()->format('d/m/Y H:i'));
     @endphp
 
     <a href="{{ $backHref }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">{{ $backLabel }}</a>
@@ -43,18 +57,37 @@
             chapterLabelByProduct: {{ json_encode($chapterLabelByProduct) }},
             get chapterLabel() { return this.chapterLabelByProduct[this.productId] || null },
             get chapters() { return this.chaptersByProduct[this.productId] || [] },
+            lockProduct: {{ $lockProduct ? 'true' : 'false' }},
+            updateTitleFromFiles() {
+                const pick = this.$refs.pdf.files[0] || this.$refs.audio.files[0] || this.$refs.image.files[0];
+                if (pick) {
+                    this.$refs.titleInput.value = pick.name.replace(/\.[^.]+$/, '');
+                }
+            },
          }">
         <form method="POST" action="{{ route('admin.content.materials.store') }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
-                <x-select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
-                    <option value="">— Chọn sản phẩm —</option>
-                    @foreach ($products as $p)
-                        <option value="{{ $p->id }}" @selected((string) old('product_id', $selectedProductId) === (string) $p->id)>{{ $p->title }}</option>
-                    @endforeach
-                </x-select>
-            </div>
+
+            {{-- SỬA 4/9 (khách yêu cầu "ẩn hết field... chỉ để chọn chương với chọn file") — chỉ
+                 1 trong 2 phần tử dưới đây thực sự TỒN TẠI trong DOM tại 1 thời điểm (dùng
+                 <template x-if>, KHÔNG dùng x-show — x-show chỉ ẩn bằng CSS nên nếu dùng ở đây
+                 sẽ gửi trùng 2 giá trị "product_id" cùng lúc). lockProduct cố định ngay từ lúc
+                 tải trang (true khi đã có sẵn ?product_id=, tức vào từ nút "+ Thêm học liệu" ở
+                 trang 1 sản phẩm cụ thể — trường hợp thường gặp), nên không cần phản ứng động. --}}
+            <template x-if="!lockProduct">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
+                    <x-select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
+                        <option value="">— Chọn sản phẩm —</option>
+                        @foreach ($products as $p)
+                            <option value="{{ $p['id'] }}" @selected((string) old('product_id', $selectedProductId) === (string) $p['id'])>{{ $p['title'] }}</option>
+                        @endforeach
+                    </x-select>
+                </div>
+            </template>
+            <template x-if="lockProduct">
+                <input type="hidden" name="product_id" :value="productId">
+            </template>
 
             {{-- SỬA 4/9 (khách yêu cầu "chỗ thêm file học liệu thì cho chọn chương/phần/đề") —
                  chỉ hiện khi sản phẩm đang chọn thuộc loại có khái niệm này (sách/chuyên đề/bộ
@@ -81,20 +114,10 @@
                  lên vì 'type' là required ở materialsStore(), nên giữ input ẩn thay vì bỏ hẳn. --}}
             <input type="hidden" name="type" x-model="type">
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="order">Thứ tự hiển thị</label>
-                    <input id="order" name="order" type="number" min="0" value="{{ old('order', 0) }}"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tiêu đề</label>
-                <input id="title" name="title" type="text" value="{{ old('title') }}" required maxlength="255"
-                       placeholder="Ví dụ: Chương 1 - Nhập môn"
-                       class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-            </div>
+            {{-- SỬA 4/9 — ẩn "Thứ tự hiển thị"/"Tiêu đề"/"Trạng thái", xem ghi chú ở khối php phía trên. --}}
+            <input type="hidden" name="order" value="{{ old('order', 0) }}">
+            <input type="hidden" name="status" value="{{ old('status', 'published') }}">
+            <input type="hidden" name="title" value="{{ $defaultTitle }}" x-ref="titleInput">
 
             <div x-show="type === 'assessment_ref'" x-cloak>
                 <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
@@ -106,49 +129,29 @@
                 </x-select>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                <x-select id="status" name="status" required>
-                    @foreach ($statuses as $value => $label)
-                        <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
-                    @endforeach
-                </x-select>
-            </div>
-
             {{--
-                SỬA 25/8 (tải bài — 2 trường MỚI, đều TÙY CHỌN, xem ContentService::materialStore()):
-                bỏ trống "Mã bài" mà có tải PDF thì hệ thống tự đặt mã theo tên tệp; bỏ trống cả 2
-                thì Material vẫn tạo được như trước (dùng làm mục lục/chương cha không cần nội dung).
+                SỬA 25/8 (tải bài): bỏ trống PDF thì Material vẫn tạo được như trước (dùng làm
+                mục lục/chương cha không cần nội dung). SỬA 4/9 (khách yêu cầu: "file học liệu
+                có thể là audio, pdf, ảnh động..."): thêm 2 tệp audio/ảnh, ĐỘC LẬP với PDF, cả 3
+                đều tùy chọn — xem ContentService::materialStore()/storeMaterialAudio()/
+                storeMaterialImage(). "Mã bài" đã bỏ khỏi giao diện — để trống sẽ tự đặt theo
+                tên tệp (resolveMaterialCode()).
             --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="code">Mã bài (tùy chọn)</label>
-                    <input id="code" name="code" type="text" value="{{ old('code') }}" maxlength="60"
-                           placeholder="Để trống sẽ tự đặt theo tên tệp"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">Tệp PDF bài học (tùy chọn)</label>
-                    <input id="pdf" name="pdf" type="file" accept="application/pdf"
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">📄 Tệp PDF (tùy chọn)</label>
+                    <input id="pdf" name="pdf" type="file" accept="application/pdf" x-ref="pdf" @change="updateTitleFromFiles()"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                 </div>
-            </div>
-
-            {{--
-                SỬA 4/9 (khách yêu cầu: "file học liệu có thể là audio, pdf, ảnh động...") — 2
-                tệp MỚI, ĐỘC LẬP với PDF ở trên, cả 2 đều tùy chọn, xem ContentService::
-                materialStore()/storeMaterialAudio()/storeMaterialImage().
-            --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
-                    <input id="audio" name="audio" type="file" accept="audio/*"
+                    <input id="audio" name="audio" type="file" accept="audio/*" x-ref="audio" @change="updateTitleFromFiles()"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     <p class="text-xs text-slate-400 mt-1">mp3/wav/ogg/m4a/aac — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialAudioKb() / 1024) }}MB.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
-                    <input id="image" name="image" type="file" accept="image/*"
+                    <input id="image" name="image" type="file" accept="image/*" x-ref="image" @change="updateTitleFromFiles()"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     <p class="text-xs text-slate-400 mt-1">jpg/png/gif/webp — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialImageKb() / 1024) }}MB.</p>
                 </div>
