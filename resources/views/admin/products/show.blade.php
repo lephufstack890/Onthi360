@@ -109,12 +109,22 @@
                     $extraResources = [
                         ['label' => 'File PDF', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name],
                         ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
-                        ['label' => 'Học liệu (ảnh động/audio)', 'path' => $product->media_path, 'name' => $product->media_original_name],
                     ];
                     if ($product->exercise_zip_path) {
-                        array_splice($extraResources, 2, 0, [[
+                        $extraResources[] = [
                             'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
-                        ]]);
+                        ];
+                    }
+                    // SỬA 4/9 (khách yêu cầu: "chỗ xem cũng vậy, bỏ mục Học liệu (ảnh động/
+                    // audio) Chưa có đi") — cùng nguyên tắc như "ZIP bài tập (cũ)" ở trên: ô
+                    // upload MỚI đã bỏ khỏi form Tạo/Sửa (trùng chức năng với mục "📂 Học liệu
+                    // theo chương/phần/đề" bên dưới), nên ở đây cũng CHỈ hiện dòng này nếu tài
+                    // liệu có sẵn file "media" CŨ từ trước — không hiện dòng "Chưa có" gây rối
+                    // mắt cho tài liệu mới/không có file.
+                    if ($product->media_path) {
+                        $extraResources[] = [
+                            'label' => 'Học liệu (ảnh động/audio, cũ)', 'path' => $product->media_path, 'name' => $product->media_original_name,
+                        ];
                     }
                 @endphp
                 <div class="divide-y divide-slate-100">

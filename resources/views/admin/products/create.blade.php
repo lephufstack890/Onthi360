@@ -8,7 +8,7 @@
 
     <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Tài liệu</a>
 
-    <x-page-header title="🎫 Tạo tài liệu" subtitle="Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học" />
+    <x-page-header title="🎫 Tạo tài liệu" subtitle="Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1)." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -98,12 +98,18 @@
                 </div>
 
                 {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
-                     (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã bỏ) + 2 tài
+                     (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã bỏ) + 1 tài
                      nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được tài liệu bình
                      thường. SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã
                      bỏ ô "File ZIP bài tập" (1 file duy nhất) ở đây — sau khi tạo tài liệu,
-                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết tài liệu. --}}
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết tài liệu.
+                     SỬA 4/9 (khách yêu cầu: "chỗ tài nguyên đính kèm bỏ Học liệu (ảnh động/
+                     audio) này đi tại vì có thêm học liệu bên dưới rồi không cần này nữa"): đã
+                     bỏ ô "media" (Học liệu ảnh động/audio) khỏi form tạo — trùng chức năng với
+                     mục "📂 Học liệu theo chương/phần/đề" mới ở trang chi tiết tài liệu (sau khi
+                     tạo xong), hỗ trợ nhiều tệp và gắn đúng chương/phần/đề, xem admin/content/
+                     materials/create.blade.php. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
                         <input id="content_pdf" name="content_pdf" type="file" accept="application/pdf"
@@ -115,12 +121,6 @@
                         <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf"
                                class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
                         <p class="text-xs text-slate-400 mt-1">PDF, tối đa 50MB.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="media">Học liệu (ảnh động/audio)</label>
-                        <input id="media" name="media" type="file" accept=".gif,.webp,.png,.jpg,.jpeg,.mp4,.mp3,.wav,.ogg"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
-                        <p class="text-xs text-slate-400 mt-1">Ảnh động/audio, tối đa 50MB.</p>
                     </div>
                 </div>
 

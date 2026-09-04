@@ -164,6 +164,10 @@ class ProductService
     public function indexData(): array
     {
         $tabs = [
+            // SỬA 4/9 (khách yêu cầu đổi tên "Sản phẩm & Quyền" -> "Tài liệu"): nhãn tab này
+            // TRƯỚC ĐÂY còn sót "Sản phẩm" (bỏ sót lúc đổi tên vì nằm ở service, không phải
+            // trong file blade) — khách phát hiện khi bấm vào trang "Tài liệu" thấy tab không
+            // khớp tên mới, đã sửa lại đúng "Tài liệu".
             ['label' => 'Tài liệu', 'href' => route('admin.products.index'), 'active' => true, 'count' => $this->products->count()],
             ['label' => 'Quyền đã cấp', 'href' => route('admin.access-rights.index'), 'active' => false, 'count' => $this->accessRights->count()],
         ];

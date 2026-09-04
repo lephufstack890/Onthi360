@@ -104,15 +104,23 @@
                 </div>
 
                 {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
-                     (nội dung chính) + 2 tài nguyên phụ. Để trống = giữ nguyên file cũ (xem
+                     (nội dung chính) + 1 tài nguyên phụ. Để trống = giữ nguyên file cũ (xem
                      ProductController::applyResourceUploads()), chọn file mới thì thay thế.
                      SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã bỏ ô
                      "File ZIP bài tập" ở đây — quản lý ở mục "🧪 Bài tập đính kèm" tại trang chi
                      tiết tài liệu (nút "✏️ Sửa" phía trên). Nếu tài liệu này còn file ZIP CŨ
                      (upload từ trước khi có mục Bài tập đính kèm) thì vẫn xem/tải được ở đúng
                      mục "📎 Tài nguyên đính kèm" của trang chi tiết — không mất dữ liệu, chỉ
-                     không upload MỚI qua đây được nữa. --}}
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     không upload MỚI qua đây được nữa.
+                     SỬA 4/9 (khách yêu cầu: "chỗ tài nguyên đính kèm bỏ Học liệu (ảnh động/
+                     audio) này đi tại vì có thêm học liệu bên dưới rồi không cần này nữa"): đã
+                     bỏ ô "media" (Học liệu ảnh động/audio) khỏi form — trùng chức năng với mục
+                     "📂 Học liệu theo chương/phần/đề" mới ở trang chi tiết tài liệu (hỗ trợ
+                     nhiều tệp, gắn đúng chương/phần/đề, xem admin/content/materials/create.blade.php).
+                     Sản phẩm nào còn file "media" CŨ (upload từ trước) vẫn xem/tải được ở mục
+                     "📎 Tài nguyên đính kèm" tại trang chi tiết — không mất dữ liệu, chỉ không
+                     upload MỚI qua đây được nữa. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
                         <input id="content_pdf" name="content_pdf" type="file" accept="application/pdf"
@@ -127,14 +135,6 @@
                                class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
                         <p class="text-xs mt-1 {{ $product->guide_pdf_path ? 'text-emerald-600' : 'text-slate-400' }}">
                             {{ $product->guide_pdf_path ? '✓ Đã có: '.$product->guide_pdf_original_name : 'Chưa có — PDF tối đa 50MB' }}
-                        </p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="media">Học liệu (ảnh động/audio)</label>
-                        <input id="media" name="media" type="file" accept=".gif,.webp,.png,.jpg,.jpeg,.mp4,.mp3,.wav,.ogg"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-rose-600 file:text-sm">
-                        <p class="text-xs mt-1 {{ $product->media_path ? 'text-emerald-600' : 'text-slate-400' }}">
-                            {{ $product->media_path ? '✓ Đã có: '.$product->media_original_name : 'Chưa có — tối đa 50MB' }}
                         </p>
                     </div>
                 </div>
