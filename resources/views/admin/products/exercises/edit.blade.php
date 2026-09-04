@@ -25,6 +25,10 @@
         $exerciseType = $exercise->type->value;
         $zipAssets = $exercise->metadata['assets'] ?? [];
         $isDraft = $isDraft ?? false;
+        // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — dropdown chọn chương/phần/đề, ẩn hẳn nếu
+        // tài liệu loại Khóa học (không dùng khái niệm này) hoặc chưa có mục nào.
+        $chapters = $chapters ?? [];
+        $chapterLabel = $product->chapterLabel();
     @endphp
 
     <a href="{{ route('admin.products.show', $product->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại {{ $product->title }}</a>
@@ -64,6 +68,18 @@
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', $exercise->points) }}"
                            class="w-40 rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                 </div>
+
+                @if ($chapterLabel && ! empty($chapters))
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="material_id">Thuộc {{ mb_strtolower($chapterLabel) }}</label>
+                        <x-select id="material_id" name="material_id">
+                            <option value="">— Chưa gắn {{ mb_strtolower($chapterLabel) }} —</option>
+                            @foreach ($chapters as $c)
+                                <option value="{{ $c['id'] }}" @selected((string) old('material_id', $exercise->material_id) === (string) $c['id'])>{{ $c['title'] }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                @endif
 
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-2">Tag/chuyên đề</label>

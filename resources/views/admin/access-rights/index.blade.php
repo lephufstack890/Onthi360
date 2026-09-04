@@ -21,7 +21,7 @@
 
     <x-tabs :tabs="$tabs" />
 
-    <x-data-table :columns="['Người dùng', 'Sản phẩm', 'Phạm vi', 'Hết hạn', 'Trạng thái', '']">
+    <x-data-table :columns="['Người dùng', 'Tài liệu', 'Phạm vi', 'Hết hạn', 'Trạng thái', '']">
         @forelse ($rights as $r)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['user'] }}</td>

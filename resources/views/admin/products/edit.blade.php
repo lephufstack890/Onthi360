@@ -1,14 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Sửa sản phẩm')
-@section('page-title', 'Sửa sản phẩm')
+@section('title', 'Sửa tài liệu')
+@section('page-title', 'Sửa tài liệu')
 
 @section('content')
     @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; $grades = $grades ?? []; @endphp
 
     <a href="{{ route('admin.products.show', $product->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
 
-    <x-page-header title="✏️ Sửa sản phẩm" :subtitle="$product->title" />
+    <x-page-header title="✏️ Sửa tài liệu" :subtitle="$product->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -21,12 +21,12 @@
                 @method('PUT')
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tên sản phẩm</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tên tài liệu</label>
                         <input id="title" name="title" type="text" value="{{ old('title', $product->title) }}" required maxlength="255"
                                class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại sản phẩm</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại tài liệu</label>
                         <x-select id="type" name="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $product->type->value) === $value)>{{ $label }}</option>
@@ -108,7 +108,7 @@
                      ProductController::applyResourceUploads()), chọn file mới thì thay thế.
                      SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã bỏ ô
                      "File ZIP bài tập" ở đây — quản lý ở mục "🧪 Bài tập đính kèm" tại trang chi
-                     tiết sản phẩm (nút "✏️ Sửa" phía trên). Nếu sản phẩm này còn file ZIP CŨ
+                     tiết tài liệu (nút "✏️ Sửa" phía trên). Nếu tài liệu này còn file ZIP CŨ
                      (upload từ trước khi có mục Bài tập đính kèm) thì vẫn xem/tải được ở đúng
                      mục "📎 Tài nguyên đính kèm" của trang chi tiết — không mất dữ liệu, chỉ
                      không upload MỚI qua đây được nữa. --}}
@@ -166,10 +166,10 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-rose-200 p-6 space-y-3" x-data="{ open: false, reason: '' }">
-            <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>⚠️</span> Xóa sản phẩm</h3>
+            <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>⚠️</span> Xóa tài liệu</h3>
             <p class="text-sm text-slate-500">Xóa mềm — quyền truy cập đã cấp trước đó vẫn còn dữ liệu để tra cứu. Bắt buộc nêu lý do (10.4).</p>
-            <button type="button" @click="open = !open" class="text-sm font-medium text-rose-600 hover:underline" x-text="open ? 'Đóng' : 'Tôi muốn xóa sản phẩm này'"></button>
-            <form x-show="open" x-cloak method="POST" action="{{ route('admin.products.destroy', $product->id) }}" class="space-y-3 pt-2" onsubmit="return confirm('Xác nhận xóa sản phẩm này?');">
+            <button type="button" @click="open = !open" class="text-sm font-medium text-rose-600 hover:underline" x-text="open ? 'Đóng' : 'Tôi muốn xóa tài liệu này'"></button>
+            <form x-show="open" x-cloak method="POST" action="{{ route('admin.products.destroy', $product->id) }}" class="space-y-3 pt-2" onsubmit="return confirm('Xác nhận xóa tài liệu này?');">
                 @csrf
                 @method('DELETE')
                 <div>

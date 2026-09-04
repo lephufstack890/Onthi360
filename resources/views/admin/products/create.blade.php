@@ -1,14 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Tạo sản phẩm')
-@section('page-title', 'Tạo sản phẩm')
+@section('title', 'Tạo tài liệu')
+@section('page-title', 'Tạo tài liệu')
 
 @section('content')
     @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; $grades = $grades ?? []; @endphp
 
-    <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Sản phẩm & Quyền</a>
+    <a href="{{ route('admin.products.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Tài liệu</a>
 
-    <x-page-header title="🎫 Tạo sản phẩm" subtitle="Sản phẩm là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1)." />
+    <x-page-header title="🎫 Tạo tài liệu" subtitle="Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -20,13 +20,13 @@
                 @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tên sản phẩm</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tên tài liệu</label>
                         <input id="title" name="title" type="text" value="{{ old('title') }}" required maxlength="255"
                                placeholder="Ví dụ: Sách luyện thi Tin học 10"
                                class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại sản phẩm</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại tài liệu</label>
                         <x-select id="type" name="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', 'book') === $value)>{{ $label }}</option>
@@ -99,10 +99,10 @@
 
                 {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
                      (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã bỏ) + 2 tài
-                     nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được sản phẩm bình
+                     nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được tài liệu bình
                      thường. SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã
-                     bỏ ô "File ZIP bài tập" (1 file duy nhất) ở đây — sau khi tạo sản phẩm,
-                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết sản phẩm. --}}
+                     bỏ ô "File ZIP bài tập" (1 file duy nhất) ở đây — sau khi tạo tài liệu,
+                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết tài liệu. --}}
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
@@ -144,7 +144,7 @@
                 </div>
 
                 <div class="flex gap-3 pt-2">
-                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Tạo sản phẩm</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Tạo tài liệu</button>
                     <a href="{{ route('admin.products.index') }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
                 </div>
             </form>
@@ -154,7 +154,7 @@
             <h3 class="font-medium text-slate-700 flex items-center gap-2"><span>💡</span> Cần biết</h3>
             <div class="flex items-start gap-3">
                 <x-icon-tile emoji="🔗" tone="sky" />
-                <p class="text-sm text-slate-500">Đường dẫn (slug) tự sinh từ tên sản phẩm, không cần tự nhập.</p>
+                <p class="text-sm text-slate-500">Đường dẫn (slug) tự sinh từ tên tài liệu, không cần tự nhập.</p>
             </div>
             <div class="flex items-start gap-3">
                 <x-icon-tile emoji="⏳" tone="violet" />

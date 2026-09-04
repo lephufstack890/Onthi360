@@ -4,6 +4,10 @@
   (routes/web.php: nhóm role:admin,super_admin,editor) — nên với Editor thuần
   (không kiêm admin/super_admin), danh sách nav được thu gọn còn đúng 2 mục để
   tránh hiện link dẫn tới trang họ sẽ bị 403 khi bấm vào.
+
+  SỬA 4/9 (khách yêu cầu: "Tên sản phẩm & quyền đổi lại thành tài liệu ... đổi tên thôi
+  nha logic không ảnh hưởng") — CHỈ đổi $items['label'] hiển thị ở đây, route/controller/
+  tên cột CSDL vẫn giữ "products"/"Product" y nguyên (xem admin.products.* ở routes/web.php).
 --}}
 @php
     $items = [
@@ -11,7 +15,7 @@
         ['label' => 'Người dùng', 'route' => 'admin.users.index', 'icon' => '👥', 'also' => ['admin.users.show', 'admin.teacher-approvals.index', 'admin.teacher-approvals.show']],
         ['label' => 'Nội dung', 'route' => 'admin.content.index', 'icon' => '🗂️', 'also' => ['admin.content.show'], 'editorOk' => true],
         ['label' => 'Khóa & Lớp', 'route' => 'admin.courses.index', 'icon' => '🏫'],
-        ['label' => 'Sản phẩm & Quyền', 'route' => 'admin.products.index', 'icon' => '🎫', 'also' => ['admin.products.show', 'admin.access-rights.index']],
+        ['label' => 'Tài liệu', 'route' => 'admin.products.index', 'icon' => '🎫', 'also' => ['admin.products.show', 'admin.access-rights.index']],
         ['label' => 'Đơn hàng', 'route' => 'admin.orders.index', 'icon' => '🧾', 'also' => ['admin.orders.show']],
         ['label' => 'Mã kích hoạt', 'route' => 'admin.activation-codes.index', 'icon' => '🔑'],
         ['label' => 'Đánh giá', 'route' => 'admin.reviews.index', 'icon' => '⭐', 'also' => ['admin.reviews.show', 'admin.contact-messages.index']],

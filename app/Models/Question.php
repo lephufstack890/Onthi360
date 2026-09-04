@@ -29,6 +29,12 @@ class Question extends Model
         // này là bài tập riêng của 1 sản phẩm, không thuộc Kho câu hỏi dùng chung. Mọi nơi lấy
         // câu hỏi CHUNG phải whereNull('product_id'), xem QuestionRepository.
         'product_id',
+        // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — liên kết TÙY CHỌN tới 1 materials.id
+        // (type=chapter) CÙNG product_id với câu hỏi này, để biết bài tập thuộc chương nào
+        // (Sách)/phần nào (Chuyên đề)/đề nào (Bộ đề) — xem migration
+        // add_material_id_to_questions_table + ContentService::productExerciseSave()/
+        // productExerciseStoreManual().
+        'material_id',
     ];
 
     protected $casts = [
@@ -49,6 +55,12 @@ class Question extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** SỬA 4/9 — chương/phần/đề (materials.type=chapter) mà bài tập này thuộc về, xem $fillable ở trên. */
+    public function chapter(): BelongsTo
+    {
+        return $this->belongsTo(Material::class, 'material_id');
     }
 
     public function owner(): BelongsTo

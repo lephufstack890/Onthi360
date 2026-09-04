@@ -59,6 +59,23 @@ class Product extends Model
         return $this->hasMany(Material::class)->whereNull('parent_id')->orderBy('order');
     }
 
+    /**
+     * SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — danh sách "chương" (Sách) / "phần" (Chuyên
+     * đề) / "đề" (Bộ đề) của sản phẩm này, tái dùng Material (type=chapter) có sẵn — xem
+     * Material::scopeChapters(), ProductType::chapterLabel(), ContentService::
+     * productChaptersFor().
+     */
+    public function chapters(): HasMany
+    {
+        return $this->hasMany(Material::class)->chapters()->orderBy('order');
+    }
+
+    /** Nhãn hiển thị "Chương"/"Phần"/"Đề" tuỳ loại sản phẩm — null nếu loại này (vd Khóa học) không dùng khái niệm này. */
+    public function chapterLabel(): ?string
+    {
+        return $this->type->chapterLabel();
+    }
+
     public function accessRights(): HasMany
     {
         return $this->hasMany(AccessRight::class);

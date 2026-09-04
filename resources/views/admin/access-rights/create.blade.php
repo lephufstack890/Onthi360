@@ -29,9 +29,9 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Sản phẩm</label>
+                <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Tài liệu</label>
                 <x-select id="product_id" name="product_id" required>
-                    <option value="">— Chọn sản phẩm —</option>
+                    <option value="">— Chọn tài liệu —</option>
                     @foreach ($products as $p)
                         <option value="{{ $p->id }}" @selected((string) old('product_id') === (string) $p->id)>
                             {{ $p->title }} ({{ $p->duration_months ? $p->duration_months.' tháng' : 'không giới hạn' }})
@@ -53,7 +53,7 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="expires_at">Hết hạn vào ngày</label>
                     <input id="expires_at" name="expires_at" type="date" value="{{ old('expires_at') }}"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
-                    <p class="text-xs text-slate-400 mt-1">Để trống = dùng thời hạn mặc định của sản phẩm (hoặc không giới hạn nếu sản phẩm cũng không đặt).</p>
+                    <p class="text-xs text-slate-400 mt-1">Để trống = dùng thời hạn mặc định của tài liệu (hoặc không giới hạn nếu tài liệu cũng không đặt).</p>
                 </div>
             </div>
 

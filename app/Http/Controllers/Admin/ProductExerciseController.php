@@ -59,9 +59,9 @@ class ProductExerciseController extends Controller
         return view('admin.products.exercises.edit', $this->contentService->productExerciseEditFormData($product, $exercise));
     }
 
-    /** admin.products.exercises.update — bấm "Lưu bài tập": chỉ Tiêu đề/Điểm/Tag sửa được, xem
-     *  lý do ở ContentService::productExerciseSave(). Lưu xong -> Published, quay về trang sản
-     *  phẩm, nút "Thêm ZIP" lại bấm được ngay (không còn nháp nào treo). */
+    /** admin.products.exercises.update — bấm "Lưu bài tập": chỉ Tiêu đề/Điểm/Tag/Chương-phần-đề
+     *  sửa được, xem lý do ở ContentService::productExerciseSave(). Lưu xong -> Published, quay
+     *  về trang sản phẩm, nút "Thêm ZIP" lại bấm được ngay (không còn nháp nào treo). */
     public function update(Request $request, Product $product, Question $exercise): RedirectResponse
     {
         $this->assertBelongsToProduct($product, $exercise);
@@ -69,12 +69,57 @@ class ProductExerciseController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'points' => ['nullable', 'integer', 'min:0'],
+            // SỬA 4/9 — không ràng buộc 'exists:materials,id' ở đây vì còn phải kiểm tra ĐÚNG
+            // sản phẩm nữa (2 điều kiện gộp), xem ContentService::resolveChapterId() — giá trị
+            // sai/không thuộc sản phẩm này sẽ tự bị bỏ qua (lưu null) chứ không lỗi 422.
+            'material_id' => ['nullable', 'integer'],
             'tag_ids' => ['array'],
             'tag_ids.*' => ['integer'],
             'new_tags' => ['nullable', 'string', 'max:500'],
         ]);
 
         $this->contentService->productExerciseSave($exercise, $data);
+
+        return redirect()->route('admin.products.show', $product->id)->with('status', 'exercise-saved');
+    }
+
+    /**
+     * admin.products.exercises.createManual (SỬA 4/9, khách yêu cầu "vừa thêm được từ ZIP và
+     * thêm thủ công nữa") — form nhập tay, xem ContentService::productExerciseManualCreateFormData().
+     */
+    public function createManual(Product $product): View
+    {
+        return view('admin.products.exercises.create', $this->contentService->productExerciseManualCreateFormData($product));
+    }
+
+    /** admin.products.exercises.storeManual — lưu thẳng Published, xem ContentService::productExerciseStoreManual(). */
+    public function storeManual(Request $request, Product $product): RedirectResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:40'],
+            'type' => ['required', 'string', 'in:coding,mcq,fill_blank'],
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['nullable', 'string'],
+            'points' => ['nullable', 'integer', 'min:0'],
+            'material_id' => ['nullable', 'integer'],
+            'options' => ['nullable', 'array'],
+            'options.*' => ['nullable', 'string', 'max:255'],
+            'correct_option' => ['nullable', 'integer', 'min:0', 'max:3'],
+            'accepted_answers' => ['nullable', 'string', 'max:2000'],
+            'case_sensitive' => ['nullable', 'boolean'],
+            'test_cases_raw' => ['nullable', 'string', 'max:10000'],
+            'time_limit_ms' => ['nullable', 'integer', 'min:1'],
+            'memory_limit_mb' => ['nullable', 'integer', 'min:1'],
+            'tag_ids' => ['array'],
+            'tag_ids.*' => ['integer'],
+            'new_tags' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $exercise = $this->contentService->productExerciseStoreManual($product, $request->user(), $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'exercise-saved');
     }

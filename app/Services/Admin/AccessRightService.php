@@ -25,7 +25,7 @@ class AccessRightService
     public function indexData(): array
     {
         $tabs = [
-            ['label' => 'Sản phẩm', 'href' => route('admin.products.index'), 'active' => false, 'count' => $this->products->count()],
+            ['label' => 'Tài liệu', 'href' => route('admin.products.index'), 'active' => false, 'count' => $this->products->count()],
             ['label' => 'Quyền đã cấp', 'href' => route('admin.access-rights.index'), 'active' => true, 'count' => $this->accessRights->count()],
         ];
 

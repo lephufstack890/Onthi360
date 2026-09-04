@@ -74,7 +74,11 @@ class ContentController extends Controller
             // phạm vi trùng lặp lồng theo product_id, xem assertMaterialCodeAvailable()).
             'code' => ['nullable', 'string', 'max:60'],
             'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
-        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học']);
+            // SỬA 4/9 (khách yêu cầu: "file học liệu có thể là audio, pdf, ảnh động... đính
+            // nhiều loại cùng lúc") — cả 2 đều TÙY CHỌN, độc lập với pdf ở trên.
+            'audio' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:'.ContentService::maxMaterialAudioKb()],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:'.ContentService::maxMaterialImageKb()],
+        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học', 'audio' => 'Tệp audio', 'image' => 'Tệp ảnh']);
 
         try {
             $material = $this->contentService->materialStore($data);
@@ -82,7 +86,9 @@ class ContentController extends Controller
             return back()->withErrors($e->errors())->withInput();
         }
 
-        return redirect()->route('admin.content.show', $material->id)->with('status', 'material-created');
+        // SỬA 4/9 — quay về đúng trang tài liệu vừa thêm học liệu (đồng bộ với
+        // materialsUpdate()/materialsDestroy() bên dưới) thay vì trang "content.show" chung.
+        return redirect()->route('admin.products.show', $material->product_id)->with('status', 'material-created');
     }
 
     public function materialsEdit(int $material): View
@@ -104,7 +110,10 @@ class ContentController extends Controller
             // NGUYÊN file cũ (materialUpdate() chỉ đụng vào pdf_path khi có tải file mới).
             'code' => ['nullable', 'string', 'max:60'],
             'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
-        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học']);
+            // SỬA 4/9 — xem materialsStore() ở trên.
+            'audio' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:'.ContentService::maxMaterialAudioKb()],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:'.ContentService::maxMaterialImageKb()],
+        ], [], ['code' => 'Mã bài', 'pdf' => 'Tệp PDF bài học', 'audio' => 'Tệp audio', 'image' => 'Tệp ảnh']);
 
         try {
             $updated = $this->contentService->materialUpdate($material, $data);

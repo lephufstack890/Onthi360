@@ -78,6 +78,23 @@ class ContentService
         return PdfBulkImportService::maxSourcePdfKb();
     }
 
+    // SỬA 4/9 ("file học liệu có thể là audio, pdf, ảnh động... đính nhiều loại cùng lúc") —
+    // giới hạn riêng cho 2 loại file mới, xem materialsCreate/materialsUpdate() ở
+    // ContentController + storeMaterialAudio()/storeMaterialImage() ở dưới.
+    private const MAX_MATERIAL_AUDIO_KB = 20480; // 20MB
+
+    private const MAX_MATERIAL_IMAGE_KB = 15360; // 15MB — đủ cho ảnh GIF động dung lượng lớn
+
+    public static function maxMaterialAudioKb(): int
+    {
+        return self::MAX_MATERIAL_AUDIO_KB;
+    }
+
+    public static function maxMaterialImageKb(): int
+    {
+        return self::MAX_MATERIAL_IMAGE_KB;
+    }
+
     // SỬA 25/8 (tải bài hàng loạt qua ZIP, xem materialsBulkImportFromZip()) — 50MB vì gói
     // này gồm NHIỀU tệp PDF nội dung (mỗi bài 1 tệp), khác MAX_ZIP_PACKAGE_KB (20MB) của gói
     // OT360-QPACK chỉ có 1 câu hỏi + test case.
@@ -465,17 +482,26 @@ class ContentService
      * lẫn lộn học liệu của mọi sản phẩm). Không truyền (null) thì form vẫn hoạt động y hệt cũ
      * (chọn sản phẩm từ dropdown đầy đủ) — phòng khi có người vào thẳng URL không qua sản phẩm.
      */
+    /**
+     * SỬA 4/9 (khách yêu cầu: "chỗ thêm file học liệu thì cho chọn chương/phần/đề") — bỏ
+     * $parents cũ (mọi Material bất kỳ loại nào làm mục cha, không phân biệt sản phẩm nào khi
+     * admin đổi dropdown "Thuộc sản phẩm"), thay bằng 2 mảng để JS tự lọc theo ĐÚNG sản phẩm
+     * đang chọn (xem resources/views/admin/content/materials/create.blade.php):
+     *  - 'chaptersByProduct': product_id => danh sách chương/phần/đề (chỉ Material type=
+     *    chapter, xem Material::scopeChapters()) CỦA sản phẩm đó.
+     *  - 'chapterLabelByProduct': product_id => nhãn "Chương"/"Phần"/"Đề" (null nếu sản phẩm
+     *    loại Khóa học — không dùng khái niệm này, xem ProductType::chapterLabel()).
+     */
     public function materialCreateFormData(?int $selectedProductId = null): array
     {
-        $parentsQuery = $this->materials->query()->with('product')->orderBy('product_id')->orderBy('order');
-        if ($selectedProductId !== null) {
-            $parentsQuery->where('product_id', $selectedProductId);
-        }
+        $products = $this->products->query()->with('chapters')->orderBy('title')->get();
 
         return [
-            'products' => $this->products->query()->orderBy('title')->get(['id', 'title'])->all(),
-            'parents' => $parentsQuery->get()
-                ->map(fn ($m) => ['id' => $m->id, 'label' => ($m->product->title ?? '?').' › '.$m->title])->all(),
+            'products' => $products->map(fn ($p) => ['id' => $p->id, 'title' => $p->title])->all(),
+            'chaptersByProduct' => $products->mapWithKeys(fn ($p) => [
+                $p->id => $p->chapters->map(fn ($c) => ['id' => $c->id, 'title' => $c->title])->values()->all(),
+            ])->all(),
+            'chapterLabelByProduct' => $products->mapWithKeys(fn ($p) => [$p->id => $p->chapterLabel()])->all(),
             'assessments' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
             'types' => self::MATERIAL_TYPE_LABELS,
             'statuses' => $this->statusOptions(),
@@ -492,7 +518,11 @@ class ContentService
     public function materialStore(array $data): Material
     {
         $pdf = $data['pdf'] ?? null;
-        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf);
+        $audio = $data['audio'] ?? null;
+        $image = $data['image'] ?? null;
+        // SỬA 4/9 — $code giờ tự sinh từ TỆP ĐẦU TIÊN có mặt trong 3 loại (không chỉ riêng
+        // pdf như trước), để 1 học liệu chỉ có audio/ảnh (không có PDF) vẫn tự đặt được mã.
+        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf ?? $audio ?? $image);
 
         $attributes = [
             'product_id' => $data['product_id'],
@@ -509,6 +539,14 @@ class ContentService
             // $code chắc chắn khác null ở đây — pdf khác null thì resolveMaterialCode() luôn
             // trả về 1 mã (tự gõ hoặc tự sinh từ tên tệp), không bao giờ về nhánh "để NULL".
             $attributes = array_merge($attributes, $this->storeMaterialPdf((int) $data['product_id'], $code, $pdf));
+        }
+
+        if ($audio !== null) {
+            $attributes = array_merge($attributes, $this->storeMaterialAudio((int) $data['product_id'], $code, $audio));
+        }
+
+        if ($image !== null) {
+            $attributes = array_merge($attributes, $this->storeMaterialImage((int) $data['product_id'], $code, $image));
         }
 
         return $this->materials->create($attributes);
@@ -532,7 +570,9 @@ class ContentService
     public function materialUpdate(Material $material, array $data): Material
     {
         $pdf = $data['pdf'] ?? null;
-        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf, $material->id);
+        $audio = $data['audio'] ?? null;
+        $image = $data['image'] ?? null;
+        $code = $this->resolveMaterialCode((int) $data['product_id'], $data['code'] ?? null, $pdf ?? $audio ?? $image, $material->id);
 
         $attributes = [
             'product_id' => $data['product_id'],
@@ -551,6 +591,22 @@ class ContentService
             }
 
             $attributes = array_merge($attributes, $this->storeMaterialPdf((int) $data['product_id'], $code, $pdf));
+        }
+
+        if ($audio !== null) {
+            if ($material->audio_path) {
+                Storage::disk('local')->delete($material->audio_path);
+            }
+
+            $attributes = array_merge($attributes, $this->storeMaterialAudio((int) $data['product_id'], $code, $audio));
+        }
+
+        if ($image !== null) {
+            if ($material->image_path) {
+                Storage::disk('local')->delete($material->image_path);
+            }
+
+            $attributes = array_merge($attributes, $this->storeMaterialImage((int) $data['product_id'], $code, $image));
         }
 
         return $this->materials->update($material, $attributes);
@@ -606,6 +662,16 @@ class ContentService
 
         foreach ($pdfPaths as $path) {
             Storage::disk('local')->delete($path);
+        }
+
+        // SỬA 4/9 ("file học liệu có thể là audio, pdf, ảnh động... đính nhiều loại cùng
+        // lúc") — dọn luôn 2 loại file mới, cùng cách với pdf_path ở trên.
+        foreach (['audio_path', 'image_path'] as $column) {
+            $paths = $this->materials->query()->whereIn('id', $ids)->whereNotNull($column)->pluck($column);
+
+            foreach ($paths as $path) {
+                Storage::disk('local')->delete($path);
+            }
         }
 
         // Dọn luôn đánh giá/tổng hợp điểm mồ côi trỏ vào material sắp không còn tồn tại (9.x)
@@ -719,6 +785,35 @@ class ContentService
         Storage::disk('local')->putFileAs("materials/{$productId}", $pdf, "{$code}.pdf");
 
         return ['pdf_path' => $path, 'pdf_original_name' => $pdf->getClientOriginalName()];
+    }
+
+    /**
+     * SỬA 4/9 (khách yêu cầu: "file học liệu có thể là audio, pdf, ảnh động... đính nhiều
+     * loại cùng lúc") — cùng cách đặt tên với storeMaterialPdf() ở trên (theo $code, không
+     * theo material->id), thêm hậu tố "_audio"/"_image" để không đè lên file PDF cùng mã (1
+     * Material giờ có thể có cả 3 file cùng lúc, xem materialStore()/materialUpdate()).
+     *
+     * @return array{audio_path: string, audio_original_name: string}
+     */
+    private function storeMaterialAudio(int $productId, string $code, UploadedFile $audio): array
+    {
+        $ext = strtolower($audio->getClientOriginalExtension()) ?: 'mp3';
+        $filename = "{$code}_audio.{$ext}";
+        $path = "materials/{$productId}/{$filename}";
+        Storage::disk('local')->putFileAs("materials/{$productId}", $audio, $filename);
+
+        return ['audio_path' => $path, 'audio_original_name' => $audio->getClientOriginalName()];
+    }
+
+    /** SỬA 4/9 — xem storeMaterialAudio() ở trên, cùng nguyên tắc, cho ảnh (tĩnh hoặc GIF động). */
+    private function storeMaterialImage(int $productId, string $code, UploadedFile $image): array
+    {
+        $ext = strtolower($image->getClientOriginalExtension()) ?: 'jpg';
+        $filename = "{$code}_image.{$ext}";
+        $path = "materials/{$productId}/{$filename}";
+        Storage::disk('local')->putFileAs("materials/{$productId}", $image, $filename);
+
+        return ['image_path' => $path, 'image_original_name' => $image->getClientOriginalName()];
     }
 
     // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
@@ -1557,7 +1652,7 @@ class ContentService
     {
         $this->discardAbandonedDraftsFor($product);
 
-        return $product->exercises()->with('tags')->get()->map(fn (Question $q) => [
+        return $product->exercises()->with(['tags', 'chapter'])->get()->map(fn (Question $q) => [
             'id' => $q->id,
             'title' => $q->title,
             'points' => $q->points,
@@ -1567,8 +1662,110 @@ class ContentService
             'summary' => $q->exerciseSummaryLabel(),
             'typeLabel' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
             'tags' => $q->tags->pluck('name')->all(),
+            // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — tên chương/phần/đề bài tập này thuộc
+            // về (null nếu chưa gắn) — xem Question::chapter().
+            'chapterTitle' => $q->chapter?->title,
             'createdAt' => $q->created_at?->format('d/m/Y H:i'),
         ])->all();
+    }
+
+    // ================= Chương/Phần/Đề (materials.type=chapter) — SỬA 4/9 =================
+    // Khách yêu cầu: "nếu loại sách thì thêm chương, loại chuyên đề là thêm phần, loại bộ đề
+    // thì thêm đề, field chỉ cần title". Tái dùng NGUYÊN hệ Học liệu (Material) có sẵn — xem
+    // Material::scopeChapters(), Product::chapters(), ProductType::chapterLabel() — KHÔNG tạo
+    // bảng mới. Sản phẩm loại "Khóa học" không có khái niệm này (chapterLabel() trả null),
+    // route/view tự ẩn khối này khi đó (xem admin/products/show.blade.php).
+
+    /** Danh sách chương/phần/đề của 1 sản phẩm, kèm số bài tập đang gắn vào (để cảnh báo trước khi xoá). */
+    public function productChaptersFor(Product $product): array
+    {
+        return $product->chapters()->withCount('questions')->get()->map(fn (Material $m) => [
+            'id' => $m->id,
+            'title' => $m->title,
+            'order' => $m->order,
+            'questionsCount' => $m->questions_count,
+        ])->all();
+    }
+
+    /**
+     * SỬA 4/9 (khách yêu cầu: "chỗ thêm file học liệu thì cho chọn chương/phần/đề") — danh
+     * sách học liệu (file PDF/audio/ảnh THẬT, KHÁC bản thân chương/phần/đề — loại trừ
+     * type=chapter) của 1 sản phẩm, kèm tên chương/phần/đề đang gắn (qua parent_id, null nếu
+     * chưa gắn) — hiện ở khối mới trên trang chi tiết sản phẩm.
+     */
+    public function productMaterialsFor(Product $product): array
+    {
+        return $this->materials->query()
+            ->where('product_id', $product->id)
+            ->where('type', '!=', 'chapter')
+            ->with('parent')
+            ->orderBy('order')
+            ->get()
+            ->map(function (Material $m) {
+                [$label, $tone] = $this->statusLabel($m->status);
+
+                return [
+                    'id' => $m->id,
+                    'title' => $m->title,
+                    'chapterTitle' => $m->parent?->title,
+                    'hasPdf' => (bool) $m->pdf_path,
+                    'hasAudio' => (bool) $m->audio_path,
+                    'hasImage' => (bool) $m->image_path,
+                    'statusLabel' => $label,
+                    'statusTone' => $tone,
+                ];
+            })->all();
+    }
+
+    public function productChapterStore(Product $product, array $data): Material
+    {
+        return $this->materials->create([
+            'product_id' => $product->id,
+            'parent_id' => null,
+            'type' => 'chapter',
+            'title' => $data['title'],
+            'order' => $data['order'] ?? 0,
+            'assessment_id' => null,
+            // Published ngay — khái niệm "chương/phần/đề" ở đây chỉ là mục lục nội bộ để gắn
+            // bài tập/học liệu, không qua vòng duyệt nội dung như Material dạng nội dung thật.
+            'status' => ContentStatus::Published->value,
+        ]);
+    }
+
+    public function productChapterUpdate(Material $chapter, array $data): Material
+    {
+        return $this->materials->update($chapter, [
+            'title' => $data['title'],
+            'order' => $data['order'] ?? $chapter->order,
+        ]);
+    }
+
+    /**
+     * Chặn xoá khi vẫn còn bài tập/học liệu đang gắn vào — Material::parent_id có
+     * cascadeOnDelete() ở DB (xem migration create_materials_table), xoá "lụi" 1 chương có thể
+     * âm thầm xoá theo cả cây học liệu con bên dưới nó, rất dễ mất dữ liệu ngoài ý muốn.
+     *
+     * @throws ValidationException nếu vẫn còn học liệu con (parent_id) hoặc bài tập (material_id) gắn vào.
+     */
+    public function productChapterDestroy(Material $chapter): void
+    {
+        if ($chapter->children()->exists() || $chapter->questions()->exists()) {
+            throw ValidationException::withMessages([
+                'chapter' => 'Không thể xoá — vẫn còn học liệu hoặc bài tập đang gắn vào mục này. Gỡ/chuyển hết rồi thử lại.',
+            ]);
+        }
+
+        $chapter->delete();
+    }
+
+    /** material_id gửi lên có thực sự là 1 chương/phần/đề CỦA ĐÚNG sản phẩm này không — chặn admin tự sửa URL gắn nhầm sang chương của sản phẩm khác. */
+    private function resolveChapterId(Product $product, mixed $rawMaterialId): ?int
+    {
+        if (! filled($rawMaterialId)) {
+            return null;
+        }
+
+        return $product->chapters()->whereKey($rawMaterialId)->value('id');
     }
 
     /**
@@ -1663,6 +1860,59 @@ class ContentService
         return $question;
     }
 
+    /**
+     * admin.products.exercises.createManual (SỬA 4/9, khách yêu cầu "vừa thêm được từ ZIP và
+     * thêm thủ công nữa") — chỉ hỗ trợ 3 dạng đã có form nhập tay sẵn ở Kho câu hỏi (mcq/
+     * fill_blank/coding, xem questionCreateFormData()) — dạng "Nhiều phần" (composite) vẫn CHỈ
+     * tạo được qua ZIP như quy ước cũ, không có form nhập tay tương ứng ở đây.
+     */
+    public function productExerciseManualCreateFormData(Product $product): array
+    {
+        return [
+            'product' => $product,
+            'types' => array_filter(self::QUESTION_TYPE_LABELS, fn ($key) => in_array($key, ['mcq', 'fill_blank', 'coding'], true), ARRAY_FILTER_USE_KEY),
+            'chapters' => $this->productChaptersFor($product),
+            'allTags' => $this->tags->allOrderedByName(),
+        ];
+    }
+
+    /**
+     * admin.products.exercises.storeManual — KHÁC productExerciseStoreFromZipPackage() ở chỗ
+     * tạo THẲNG ra Published (không qua bước Nháp -> màn Sửa -> Lưu), vì toàn bộ nội dung đã
+     * nhập đủ ngay trong 1 form duy nhất (giống questionStore() ở Kho câu hỏi) — không cần màn
+     * riêng để "kiểm tra lại rồi Lưu" như luồng ZIP (vốn cần xem lại dữ liệu tự đọc từ gói).
+     *
+     * @throws ValidationException nếu trùng 'code' (Question.code duy nhất TOÀN hệ thống, xem questionStore()).
+     */
+    public function productExerciseStoreManual(Product $product, User $admin, array $data): Question
+    {
+        if ($this->questions->query()->where('code', $data['code'])->exists()) {
+            throw ValidationException::withMessages(['code' => 'Mã bài tập này đã tồn tại, chọn mã khác.']);
+        }
+
+        $question = $this->questions->create([
+            'bank_id' => $this->sharedBank()->id,
+            'product_id' => $product->id,
+            'material_id' => $this->resolveChapterId($product, $data['material_id'] ?? null),
+            'code' => $data['code'],
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'body' => $data['body'] ?? null,
+            'points' => $data['points'] ?? 0,
+            'grading_config' => $this->buildGradingConfig($data['type'], $data),
+            'owner_type' => OwnerType::Shared->value,
+            'owner_id' => null,
+            'visibility' => Visibility::Public->value,
+            'status' => ContentStatus::Published->value,
+            'version' => 1,
+            'created_by' => $admin->id,
+        ]);
+
+        $question->tags()->sync($this->resolveTagIds($data));
+
+        return $question;
+    }
+
     /** admin.products.exercises.edit — form riêng, đơn giản hơn nhiều so với Kho câu hỏi: chỉ
      *  cho sửa Tiêu đề/Điểm/Tag, test case + tệp đính kèm hiện READ-ONLY (xem lý do ở
      *  productExerciseSave()). */
@@ -1673,6 +1923,8 @@ class ContentService
             'exercise' => $exercise->load('tags'),
             'allTags' => $this->tags->allOrderedByName(),
             'isDraft' => $exercise->status === ContentStatus::Draft,
+            // SỬA 4/9 — dropdown "Thuộc chương/phần/đề" ở màn Sửa, xem productChaptersFor().
+            'chapters' => $this->productChaptersFor($product),
         ];
     }
 
@@ -1689,6 +1941,8 @@ class ContentService
         $updated = $this->questions->update($exercise, [
             'title' => $data['title'],
             'points' => $data['points'] ?? 0,
+            // SỬA 4/9 — gắn/gỡ chương-phần-đề ngay ở màn Sửa, xem resolveChapterId().
+            'material_id' => $this->resolveChapterId($exercise->product, $data['material_id'] ?? null),
             'status' => ContentStatus::Published->value,
         ]);
 

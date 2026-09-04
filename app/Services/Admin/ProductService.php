@@ -164,7 +164,7 @@ class ProductService
     public function indexData(): array
     {
         $tabs = [
-            ['label' => 'Sản phẩm', 'href' => route('admin.products.index'), 'active' => true, 'count' => $this->products->count()],
+            ['label' => 'Tài liệu', 'href' => route('admin.products.index'), 'active' => true, 'count' => $this->products->count()],
             ['label' => 'Quyền đã cấp', 'href' => route('admin.access-rights.index'), 'active' => false, 'count' => $this->accessRights->count()],
         ];
 
@@ -244,6 +244,11 @@ class ProductService
             // SỬA 31/8 — danh sách "Bài tập đính kèm" (nhập từ ZIP); tự dọn bản nháp bỏ dở
             // ngay trong productExercisesFor(), xem ContentService::discardAbandonedDraftsFor().
             'exercises' => $this->contentService->productExercisesFor($product),
+            // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — mục lục chương/phần/đề (tái dùng
+            // Material type=chapter) + danh sách học liệu thật (PDF/audio/ảnh) đã gắn theo
+            // từng mục, xem ContentService::productChaptersFor()/productMaterialsFor().
+            'chapters' => $this->contentService->productChaptersFor($product),
+            'materialsList' => $this->contentService->productMaterialsFor($product),
         ];
     }
 

@@ -32,6 +32,10 @@ class Material extends Model
         // add_code_and_pdf_to_materials_table. 'pdf_path' lưu ở disk riêng tư 'local', xem
         // App\Services\Admin\ContentService::materialStore()/materialsBulkImportFromZip().
         'code', 'pdf_path', 'pdf_original_name',
+        // SỬA 4/9 (khách yêu cầu: "file học liệu có thể là audio, pdf, ảnh động... đính nhiều
+        // loại cùng lúc") — 2 cặp cột mới, ĐỘC LẬP với PDF ở trên — xem migration
+        // add_audio_image_to_materials_table.
+        'audio_path', 'audio_original_name', 'image_path', 'image_original_name',
     ];
 
     protected $casts = [
@@ -56,5 +60,23 @@ class Material extends Model
     public function assessment(): BelongsTo
     {
         return $this->belongsTo(Assessment::class);
+    }
+
+    /** SỬA 4/9 — bài tập (Question) đã gắn vào chương/phần/đề này, xem Question::chapter(). */
+    public function questions(): HasMany
+    {
+        return $this->hasMany(Question::class, 'material_id');
+    }
+
+    /**
+     * SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — lọc đúng các record Material đóng vai trò
+     * "chương/phần/đề" (mục lục gốc của 1 sản phẩm): type=chapter VÀ không có parent_id (bản
+     * thân 1 chương không thể lồng trong chương khác). Dùng ở ContentService::
+     * productChaptersFor() và nơi liệt kê lựa chọn "Thuộc chương/phần/đề" khi thêm bài
+     * tập/học liệu.
+     */
+    public function scopeChapters($query)
+    {
+        return $query->where('type', 'chapter')->whereNull('parent_id');
     }
 }

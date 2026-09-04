@@ -52,6 +52,7 @@ use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FeaturedTeacherController as AdminFeaturedTeacherController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\ProductChapterController as AdminProductChapterController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExerciseController;
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
@@ -341,6 +342,10 @@ Route::middleware(['auth'])->group(function () {
         // middleware role:admin,super_admin với các route products.* ở trên) — không mở cho
         // editor/giáo viên. Xem App\Http\Controllers\Admin\ProductExerciseController.
         Route::post('products/{product}/exercises', [AdminProductExerciseController::class, 'store'])->name('products.exercises.store');
+        // SỬA 4/9 (khách yêu cầu "vừa thêm được từ ZIP và thêm thủ công nữa") — form nhập tay
+        // riêng, xem ProductExerciseController::createManual()/storeManual().
+        Route::get('products/{product}/exercises/create', [AdminProductExerciseController::class, 'createManual'])->name('products.exercises.createManual');
+        Route::post('products/{product}/exercises/manual', [AdminProductExerciseController::class, 'storeManual'])->name('products.exercises.storeManual');
         Route::get('products/{product}/exercises/{exercise}/edit', [AdminProductExerciseController::class, 'edit'])->name('products.exercises.edit');
         Route::put('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'update'])->name('products.exercises.update');
         Route::delete('products/{product}/exercises/{exercise}', [AdminProductExerciseController::class, 'destroy'])->name('products.exercises.destroy');
@@ -348,6 +353,13 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): xem lý do tách riêng khỏi route
         // 'attachment' ở trên (3 tên CỐ ĐỊNH) ở Admin\ProductExerciseController::assetDownload().
         Route::get('products/{product}/exercises/{exercise}/asset/{asset}', [AdminProductExerciseController::class, 'assetDownload'])->name('products.exercises.asset');
+
+        // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — CRUD gọn (chỉ Tiêu đề+Thứ tự) cho mục
+        // lục chương/phần/đề của 1 sản phẩm, xem App\Http\Controllers\Admin\
+        // ProductChapterController + ContentService::productChapter*().
+        Route::post('products/{product}/chapters', [AdminProductChapterController::class, 'store'])->name('products.chapters.store');
+        Route::put('products/{product}/chapters/{chapter}', [AdminProductChapterController::class, 'update'])->name('products.chapters.update');
+        Route::delete('products/{product}/chapters/{chapter}', [AdminProductChapterController::class, 'destroy'])->name('products.chapters.destroy');
 
         Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
         Route::get('access-rights/create', [AdminAccessRightController::class, 'create'])->name('access-rights.create');

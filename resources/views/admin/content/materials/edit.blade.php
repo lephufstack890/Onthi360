@@ -5,8 +5,12 @@
 
 @section('content')
     @php
-        $products = $products ?? []; $parents = $parents ?? []; $assessments = $assessments ?? [];
+        $products = $products ?? []; $assessments = $assessments ?? [];
         $types = $types ?? []; $statuses = $statuses ?? [];
+        // SỬA 4/9 (khách yêu cầu: "chỗ thêm file học liệu thì cho chọn chương/phần/đề") — xem
+        // ghi chú tương ứng ở materials/create.blade.php.
+        $chaptersByProduct = $chaptersByProduct ?? [];
+        $chapterLabelByProduct = $chapterLabelByProduct ?? [];
     @endphp
 
     <a href="{{ route('admin.content.show', $material->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
@@ -17,17 +21,48 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6" x-data="{ type: '{{ old('type', $material->type) }}' }">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6"
+         x-data="{
+            type: '{{ old('type', $material->type) }}',
+            productId: '{{ old('product_id', $material->product_id) }}',
+            selectedParentId: '{{ old('parent_id', $material->parent_id) }}',
+            chaptersByProduct: {{ json_encode($chaptersByProduct) }},
+            chapterLabelByProduct: {{ json_encode($chapterLabelByProduct) }},
+            get chapterLabel() { return this.chapterLabelByProduct[this.productId] || null },
+            get chapters() { return this.chaptersByProduct[this.productId] || [] },
+         }">
         <form method="POST" action="{{ route('admin.content.materials.update', $material->id) }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
-                <x-select id="product_id" name="product_id" required>
+                <x-select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
                     @foreach ($products as $p)
                         <option value="{{ $p->id }}" @selected((string) old('product_id', $material->product_id) === (string) $p->id)>{{ $p->title }}</option>
                     @endforeach
                 </x-select>
+            </div>
+
+            {{-- SỬA 4/9 (khách yêu cầu "chỗ thêm file học liệu thì cho chọn chương/phần/đề") —
+                 GIỮ hidden input thật (name="parent_id") để không mất giá trị khi field bị ẩn
+                 (sản phẩm loại Khóa học hoặc chưa có chương/phần/đề nào) — cùng nguyên tắc như
+                 hidden input "type" ở dưới. Dropdown hiển thị chỉ là "proxy" (không có name),
+                 chỉ cập nhật selectedParentId qua x-model. --}}
+            <input type="hidden" name="parent_id" :value="selectedParentId">
+            <div x-show="chapterLabel" x-cloak>
+                <label class="block text-sm font-medium text-slate-600 mb-1" for="parent_id_picker" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
+                <template x-if="chapters.length > 0">
+                    <x-select id="parent_id_picker" x-model="selectedParentId">
+                        <option value="">— Chưa gắn —</option>
+                        <template x-for="c in chapters" :key="c.id">
+                            <option :value="String(c.id)" x-text="c.title"></option>
+                        </template>
+                    </x-select>
+                </template>
+                <template x-if="chapters.length === 0">
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2"
+                       x-text="'Tài liệu này chưa có ' + (chapterLabel || '').toLowerCase() + ' nào — vào trang tài liệu để tạo trước.'"></p>
+                </template>
             </div>
 
             {{-- SỬA 26/8: ẩn field "Loại" (giống form Tạo học liệu) — giữ nguyên giá trị hiện
@@ -49,13 +84,6 @@
                 <input id="title" name="title" type="text" value="{{ old('title', $material->title) }}" required maxlength="255"
                        class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
             </div>
-
-            {{-- SỬA 26/8: ẩn field "Thuộc mục cha" (giống form Tạo học liệu) — GIỮ NGUYÊN qua
-                 input ẩn thay vì bỏ hẳn, khác với lúc TẠO mới (không có gì để mất): nếu bỏ
-                 field này khỏi form mà không có input ẩn, bấm "Lưu thay đổi" sẽ gửi parent_id
-                 rỗng và xoá mất quan hệ cha-con đang có (materialsUpdate() coi thiếu field này
-                 là null vì 'parent_id' đang khai 'nullable'). --}}
-            <input type="hidden" name="parent_id" value="{{ old('parent_id', $material->parent_id) }}">
 
             <div x-show="type === 'assessment_ref'" x-cloak>
                 <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
@@ -97,7 +125,39 @@
                         </p>
                     @endif
                     <input id="pdf" name="pdf" type="file" accept="application/pdf"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+            </div>
+
+            {{--
+                SỬA 4/9 (khách yêu cầu: "file học liệu có thể là audio, pdf, ảnh động...") — 2
+                tệp MỚI, ĐỘC LẬP với PDF ở trên, cùng nguyên tắc sửa: để trống thì GIỮ NGUYÊN
+                tệp hiện tại, xem ContentService::materialUpdate().
+            --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
+                    @if ($material->audio_path)
+                        <p class="text-xs text-slate-500 mb-1.5">
+                            🔊 Đã có tệp: <span class="font-medium text-slate-600">{{ $material->audio_original_name ?: basename($material->audio_path) }}</span>
+                            — chọn tệp mới bên dưới để thay thế.
+                        </p>
+                    @endif
+                    <input id="audio" name="audio" type="file" accept="audio/*"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    <p class="text-xs text-slate-400 mt-1">mp3/wav/ogg/m4a/aac — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialAudioKb() / 1024) }}MB.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
+                    @if ($material->image_path)
+                        <p class="text-xs text-slate-500 mb-1.5">
+                            🖼️ Đã có tệp: <span class="font-medium text-slate-600">{{ $material->image_original_name ?: basename($material->image_path) }}</span>
+                            — chọn tệp mới bên dưới để thay thế.
+                        </p>
+                    @endif
+                    <input id="image" name="image" type="file" accept="image/*"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                    <p class="text-xs text-slate-400 mt-1">jpg/png/gif/webp — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialImageKb() / 1024) }}MB.</p>
                 </div>
             </div>
 
