@@ -78,10 +78,15 @@ class ClassRoomService
             // SỬA 31/8 (khách yêu cầu — "chi tiết lớp có tab Học liệu để xem TRONG lớp thôi,
             // tài liệu tự mua xem ở trang Tài liệu, không liên quan"): bật lại tab này (đã
             // tắt từ trước — lúc đó dựa trên Material cây chương/mục cũ, nay dựa trên Product
-            // NGUYÊN gắn lớp, xem buildShowData() bên dưới). Đổi nhãn 'Tài liệu' → 'Học liệu'
-            // để khỏi lẫn với "Tài liệu của tôi" (trang riêng, liệt kê MỌI sản phẩm đã mua,
-            // không phân biệt lớp nào — 2 khái niệm cố ý KHÔNG liên quan nhau).
-            ['label' => 'Học liệu', 'key' => 'materials'],
+            // NGUYÊN gắn lớp, xem buildShowData() bên dưới). LÚC ĐÓ đổi nhãn 'Tài liệu' →
+            // 'Học liệu' để khỏi lẫn với "Tài liệu của tôi" (trang riêng, liệt kê MỌI sản
+            // phẩm đã mua, không phân biệt lớp nào).
+            // SỬA 4/9 (khách yêu cầu MỚI: "bên giáo viên tab học liệu đổi tên lại thành tài
+            // liệu, học sinh cũng thế") — đổi NGƯỢC LẠI 'Học liệu' → 'Tài liệu' theo đúng yêu
+            // cầu này; khách ĐÃ được hỏi lại và xác nhận chấp nhận trùng tên với trang "Tài
+            // liệu của tôi" (2 khái niệm khác nhau: đây là tài liệu CỦA LỚP, trang kia liệt kê
+            // MỌI tài liệu đã mua không theo lớp nào).
+            ['label' => 'Tài liệu', 'key' => 'materials'],
             ['label' => 'Đánh giá', 'key' => 'reviews'],
             ['label' => 'Thông báo', 'key' => 'notifications'],
             ['label' => 'Thành viên', 'key' => 'members'],

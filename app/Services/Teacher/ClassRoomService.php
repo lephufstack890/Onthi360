@@ -168,7 +168,18 @@ class ClassRoomService
 
         $this->ensureTeaches($classRoom, $user);
 
-        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Học liệu', 'schedule' => 'Buổi học', 'assign' => 'Giao đề', 'results' => 'Kết quả', 'members' => 'Thành viên'];
+        // SỬA 4/9 (khách yêu cầu: "bên giáo viên tab học liệu đổi tên lại thành tài liệu, học
+        // sinh cũng thế") — đổi nhãn tab 'materials' 'Học liệu' -> 'Tài liệu' theo yêu cầu MỚI
+        // này, dù trang riêng "Tài liệu của tôi" (teacher.materials.mine) vẫn giữ tên đó — 2
+        // nơi trùng chữ "Tài liệu" là CỐ Ý theo đúng yêu cầu, khách đã xác nhận sau khi được
+        // hỏi lại (trước đây SỬA 31/8 từng đổi ngược lại 'Tài liệu' -> 'Học liệu' đúng vì lý
+        // do này, nay khách đổi ý muốn quay lại 'Tài liệu').
+        // SỬA 4/9 (khách yêu cầu: "ẩn mục tab giao đề trong trang chi tiết lớp") — bỏ 'assign'
+        // khỏi danh sách tab hiển thị (giống cách 'roadmap' từng bị ẩn ở Student\
+        // ClassRoomService::buildShowData()) — CHỈ ẩn khỏi thanh tab, KHÔNG xoá logic tải dữ
+        // liệu "Giao đề" bên dưới (vẫn còn nguyên trong showForTeacher(), route teacher.
+        // classes.show vẫn nhận ?tab=assign nếu có link cũ trỏ tới) — dễ bật lại sau này.
+        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Tài liệu', 'schedule' => 'Buổi học', 'results' => 'Kết quả', 'members' => 'Thành viên'];
         $tabsData = [];
         foreach ($tabDefs as $key => $label) {
             $tabsData[] = ['label' => $label, 'href' => route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => $key]), 'active' => $tab === $key];
