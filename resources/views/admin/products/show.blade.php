@@ -332,14 +332,21 @@
                     <x-empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
                 @else
                     <div class="overflow-x-auto">
-                        <x-data-table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Hiệu lực', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
+                        {{-- SỬA 4/9 (khách yêu cầu: "trạng thái sắp hết hạn hiển thị sai + không
+                             cần chia ra cho nó nằm bên phải") — gộp 2 cột "Trạng thái"/"Hiệu
+                             lực" cũ làm 1: badge trạng thái + ngày hiệu lực nằm chung 1 ô, thay
+                             vì tách "Hiệu lực" thành cột riêng ở xa bên phải. Ngưỡng "Sắp hết
+                             hạn" đã sửa lại 5 ngày (xem ProductService::expiryStatus()). --}}
+                        <x-data-table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
                             @foreach ($accessRightRows as $row)
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-4 py-3 text-sm text-slate-700">{{ $row['userName'] }}</td>
                                     <td class="px-4 py-3 text-sm text-slate-600">{{ $row['scopeLabel'] }}</td>
-                                    <td class="px-4 py-3"><x-status-badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-status-badge></td>
-                                    <td class="px-4 py-3 text-xs text-slate-500">
-                                        {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
+                                    <td class="px-4 py-3">
+                                        <x-status-badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-status-badge>
+                                        <p class="text-xs text-slate-400 mt-1">
+                                            {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
+                                        </p>
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500">{{ $row['sourceLabel'] }}</td>
                                     <td class="px-4 py-3 text-xs text-slate-500">
