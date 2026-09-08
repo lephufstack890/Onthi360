@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\Schema;
  * pdf_answer_sheet có thể vừa có câu ở assessment_answer_keys (trắc nghiệm/đúng-sai/trả lời
  * ngắn) vừa có bài ở đây (lập trình), không loại trừ nhau. allowed_languages là JSON vì học
  * sinh tự CHỌN ngôn ngữ lúc làm (C++ hoặc Python), Admin không ép cứng 1 ngôn ngữ.
+ *
+ * SỬA 7/9: MySQL 8 chặn default literal trên cột JSON/TEXT/BLOB (lỗi 1101) trừ khi default
+ * được viết dạng "expression default" bọc trong dấu ngoặc đơn — dùng Expression thay vì
+ * truyền thẳng chuỗi JSON vào default().
  */
 return new class extends Migration
 {
@@ -21,7 +26,7 @@ return new class extends Migration
             $table->string('code', 40); // mã bài trong đề, VD "Câu 5" — Admin tự đặt
             $table->string('title');
             $table->unsignedInteger('pdf_page')->nullable(); // vị trí bài trong PDF, để học sinh biết mở trang nào
-            $table->json('allowed_languages')->default('["cpp","python"]');
+            $table->json('allowed_languages')->default(new Expression('(\'["cpp","python"]\')'));
             $table->unsignedInteger('time_limit_ms')->default(1000);
             $table->unsignedInteger('memory_limit_kb')->default(262144);
             $table->unsignedInteger('points')->default(0);

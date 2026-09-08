@@ -16,15 +16,25 @@
 
     {{-- SỬA 24/8 — nếu quay lại đây do lỗi từ chính form "Nhập từ gói ZIP" (zip_package), giữ
          nguyên loại "Lập trình" đang chọn thay vì rơi về mặc định "mcq" khiến form ZIP bị ẩn
-         mất ngay lúc đang cần sửa lỗi. --}}
-    <div x-data="{ type: '{{ old('type', $errors->has('zip_package') ? 'coding' : 'mcq') }}' }">
-        {{-- SỬA 24/8 ("Nhập từ gói ZIP"): CHỈ hiện khi đang chọn loại "Lập trình" (x-show theo
-             đúng $type Alpine ở trên) — tải lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời
-             giải PDF + test case, định dạng "OT360-QPACK") để hệ thống tự điền toàn bộ thông tin
-             câu hỏi lập trình bên dưới, chỉ cần vào trang Sửa kiểm tra rồi bấm Lưu. Đây là FORM
-             RIÊNG (enctype multipart riêng), KHÔNG liên quan tới form tạo tay bên dưới — xem
-             App\Services\Admin\ContentService::questionStoreFromZipPackage(). --}}
-        <div x-show="type === 'coding'" x-cloak class="mb-6">
+         mất ngay lúc đang cần sửa lỗi.
+         SỬA 8/9 (khách: "trắc nghiệm và điền khuyết cũng nhập từ ZIP luôn") — khối ZIP giờ hiện
+         với CẢ 3 dạng trong dropdown nên không còn cần ép về "coding" khi có lỗi zip_package
+         (form ZIP không bao giờ bị ẩn lúc đang báo lỗi nữa) -> quay về mặc định "mcq". --}}
+    <div x-data="{ type: '{{ old('type', 'mcq') }}' }">
+        {{-- SỬA 24/8 ("Nhập từ gói ZIP") — tải lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời
+             giải PDF + test case nếu là câu lập trình, định dạng "OT360-QPACK") để hệ thống tự
+             điền toàn bộ thông tin câu hỏi bên dưới, chỉ cần vào trang Sửa kiểm tra rồi bấm Lưu.
+             Đây là FORM RIÊNG (enctype multipart riêng), KHÔNG liên quan tới form tạo tay bên
+             dưới — xem App\Services\Admin\ContentService::questionStoreFromZipPackage().
+             (Ban đầu khối này chỉ hiện với loại "Lập trình" — xem SỬA 8/9 ngay dưới.) --}}
+        {{-- SỬA 8/9 (khách: "trắc nghiệm và điền khuyết cũng nhập từ file zip luôn") — trước đây
+             khối này CHỈ hiện khi type === 'coding' nên 2 dạng còn lại không thấy ô tải ZIP, dù
+             ContentService::questionStoreFromZipPackage() ĐÃ hỗ trợ sẵn đủ các content.type
+             (programming / single_choice / true_false / short_answer / composite). Đây thuần tuý
+             là mở hiển thị: KHÔNG đổi service/controller/route/luồng chấm nào. Lưu ý loại câu
+             hỏi thật vẫn do content.type trong question.json quyết định (server tự map), ô "Loại
+             câu hỏi" bên dưới chỉ để chọn form nhập TAY. --}}
+        <div x-show="['coding', 'mcq', 'fill_blank'].includes(type)" x-cloak class="mb-6">
             {{-- SỬA 24/8 (2) — khách yêu cầu: chọn xong tệp ZIP là TỰ ĐỘNG nhập ngay, không bắt
                  bấm thêm nút. @change ở input tự gọi requestSubmit() (Alpine — cùng cách dùng
                  @click/@change đã có sẵn ở nơi khác trong dự án, ví dụ student/assessment/
@@ -35,11 +45,22 @@
                   class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-wrap items-end gap-3">
                 @csrf
                 <div class="flex-1 min-w-[240px]">
-                    <label class="block text-sm font-medium text-indigo-700 mb-1" for="zip_package">📦 Nhập câu hỏi lập trình từ gói ZIP</label>
-                    <input id="zip_package" name="zip_package" type="file" accept=".zip" required
+                    <label class="block text-sm font-medium text-indigo-700 mb-1" for="zip_package">
+                        <span x-show="type === 'coding'">📦 Nhập câu hỏi lập trình từ gói ZIP</span>
+                        <span x-show="type === 'mcq'" x-cloak>📦 Nhập câu trắc nghiệm từ gói ZIP</span>
+                        <span x-show="type === 'fill_blank'" x-cloak>📦 Nhập câu điền khuyết từ gói ZIP</span>
+                    </label>
+                    <input id="zip_package" name="zip_package" type="file" accept=".zip,application/zip" required
                            @change="submitting = true; $el.form.requestSubmit()" :disabled="submitting"
                            class="w-full text-sm text-indigo-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-sm disabled:opacity-60">
-                    <p class="text-xs text-indigo-500 mt-1">Gói định dạng OT360-QPACK (question.json + đề/lời giải PDF + test case) — <strong>chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
+                    <p class="text-xs text-indigo-500 mt-1">
+                        Gói định dạng OT360-QPACK — bắt buộc có <code>question.json</code> ở gốc gói, kèm <code>statement.pdf</code> (đề) và <code>solution.pdf</code> (lời giải) nếu có. Tối đa {{ number_format(\App\Services\Admin\ContentService::maxQuestionZipKb() / 1024) }} MB.
+                        <span x-show="type === 'coding'"><code>content.type</code> = <strong>"programming"</strong>, kèm thư mục <code>tests/1/</code>, <code>tests/2/</code>… (mỗi thư mục 2 tệp input/output).</span>
+                        <span x-show="type === 'mcq'" x-cloak><code>content.type</code> = <strong>"single_choice"</strong> (grading.choices + grading.correct_answer) hoặc <strong>"true_false"</strong> (grading.correct_answer là true/false) — không cần thư mục <code>tests/</code>.</span>
+                        <span x-show="type === 'fill_blank'" x-cloak><code>content.type</code> = <strong>"short_answer"</strong> (grading.accepted_answers + grading.normalization) — không cần thư mục <code>tests/</code>.</span>
+                        <strong>Chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.
+                        Loại câu hỏi lấy theo <code>content.type</code> trong gói, không phụ thuộc ô "Loại câu hỏi" đang chọn.
+                    </p>
                 </div>
                 <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
                         class="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
@@ -61,7 +82,7 @@
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại câu hỏi</label>
                         <x-select id="type" name="type" x-model="type" required>
                             @foreach ($types as $value => $label)
-                                <option value="{{ $value }}" @selected(old('type', $errors->has('zip_package') ? 'coding' : 'mcq') === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('type', 'mcq') === $value)>{{ $label }}</option>
                             @endforeach
                         </x-select>
                     </div>
