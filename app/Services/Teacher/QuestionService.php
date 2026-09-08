@@ -13,6 +13,7 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\SubjectCatalog;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -229,6 +230,11 @@ class QuestionService
         return [
             'type' => $data['type'],
             'title' => $data['title'],
+            // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — câu giáo viên tự tạo cũng hiện ở
+            // tab "Câu hỏi" của admin, nên cũng cần Môn/Khối, nếu không sẽ đọng lại nhóm "Chưa
+            // phân loại". Chuẩn hoá qua SubjectCatalog, giá trị lạ -> null (giống Admin\ContentService).
+            'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'],
             'points' => (int) $data['points'],
             'grading_config' => $this->buildGradingConfig($data['type'], $data),
@@ -337,9 +343,15 @@ class QuestionService
             $json['taxonomy']['keywords'] ?? [],
         )), fn ($t) => $t !== ''));
 
+        // SỬA 8/9 (3) — lấy Môn/Khối từ taxonomy của gói ZIP, cùng cách Admin\ContentService
+        // ::questionStoreFromZipPackage() đang làm.
+        $classification = SubjectCatalog::fromTaxonomy($json['taxonomy'] ?? []);
+
         $data = [
             'type' => 'coding',
             'title' => $content['title'] ?? 'Câu hỏi lập trình (nhập từ ZIP)',
+            'subject' => $classification['subject'],
+            'grade' => $classification['grade'],
             'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'test_cases_parsed' => $package['testCases'],

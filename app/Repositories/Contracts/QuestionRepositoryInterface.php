@@ -20,6 +20,27 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
     public function allLatestWithOwner(int $limit = 50): Collection;
 
     /**
+     * SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — như allLatestWithOwner() nhưng có LỌC.
+     * $filters nhận các khoá (khoá vắng mặt/null = không lọc theo tiêu chí đó):
+     *   'subject' => mã môn (SubjectCatalog::SUBJECTS) hoặc 'none' = chưa phân loại
+     *   'grade'   => khối 6-12 hoặc 'none' = chưa gán khối
+     *   'type'    => Enums\QuestionType
+     *   'status'  => Enums\ContentStatus
+     *   'q'       => từ khoá, khớp tên HOẶC mã câu hỏi
+     */
+    public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection;
+
+    /** SỬA 8/9 (3) — tổng số câu khớp bộ lọc (để hiện "đang xem X / Y"). */
+    public function countAllFiltered(array $filters): int;
+
+    /**
+     * SỬA 8/9 (3) — đếm số câu theo từng môn để hiện ngay trên bộ lọc.
+     *
+     * @return array<string, int> mã môn => số câu; khoá '' là nhóm chưa phân loại
+     */
+    public function countsBySubject(): array;
+
+    /**
      * "Luyện tập theo câu" (Giai đoạn 6) — chỉ lấy ID câu hỏi ĐÃ PHÁT HÀNH + dạng Trắc nghiệm/
      * Điền đáp án/Lập trình, lọc thêm theo $tagIds (rỗng = không lọc) và $type (null = tất cả
      * dạng). SỬA 24/8 (v2) — khách chốt: dùng CẢ câu Kho chung VÀ câu thuộc kho riêng giáo

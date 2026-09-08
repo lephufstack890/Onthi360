@@ -39,7 +39,19 @@ class ContentController extends Controller
             return redirect()->route('admin.content.index', ['tab' => 'questions']);
         }
 
-        return view('admin.content.index', $this->contentService->indexData($tab));
+        // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — bộ lọc của tab "Câu hỏi" đi qua query
+        // string để admin bookmark/chia sẻ được đúng khung nhìn đang xem (vd ?tab=questions&
+        // subject=TOAN&grade=6). Không validate cứng ở đây: giá trị lạ được ContentService/
+        // SubjectCatalog bỏ qua, tệ nhất là ra danh sách rỗng chứ không lỗi 422 giữa lúc lọc.
+        $filters = [
+            'subject' => $request->query('subject') ?: null,
+            'grade' => $request->query('grade') ?: null,
+            'type' => $request->query('type') ?: null,
+            'status' => $request->query('status') ?: null,
+            'q' => $request->query('q') ?: null,
+        ];
+
+        return view('admin.content.index', $this->contentService->indexData($tab, $filters));
     }
 
     /** admin.content.show — 6.2 (chặn phát hành khi thiếu cấu hình). */
@@ -254,6 +266,8 @@ class ContentController extends Controller
             'code' => ['required', 'string', 'max:40'],
             'type' => ['required', 'string', 'in:coding,mcq,fill_blank'],
             'title' => ['required', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:20'],
+            'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
@@ -274,6 +288,8 @@ class ContentController extends Controller
         $data = $request->validate(array_merge([
             'code' => ['required', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:20'],
+            'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
@@ -289,6 +305,8 @@ class ContentController extends Controller
     {
         $data = $request->validate(array_merge([
             'title' => ['required', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:20'],
+            'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],

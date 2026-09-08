@@ -24,6 +24,9 @@ class Question extends Model
 
     protected $fillable = [
         'bank_id', 'code', 'type', 'title', 'body', 'points', 'grading_config', 'metadata',
+        // SỬA 8/9 (3) ("phân loại câu hỏi theo môn") — MÃ môn (App\Support\SubjectCatalog::SUBJECTS,
+        // vd "TOAN") + khối lớp 6-12. Xem migration add_subject_grade_to_questions_table.
+        'subject', 'grade',
         'owner_type', 'owner_id', 'visibility', 'status', 'version', 'parent_version_id', 'created_by',
         // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — product_id khác null nghĩa là câu hỏi
         // này là bài tập riêng của 1 sản phẩm, không thuộc Kho câu hỏi dùng chung. Mọi nơi lấy
@@ -49,6 +52,18 @@ class Question extends Model
     public function bank(): BelongsTo
     {
         return $this->belongsTo(QuestionBank::class, 'bank_id');
+    }
+
+    /** SỬA 8/9 (3) — nhãn môn để hiển thị ("TOAN" -> "Toán"); chưa gán/mã lạ -> "Chưa phân loại". */
+    public function subjectLabel(): string
+    {
+        return \App\Support\SubjectCatalog::label($this->subject) ?? 'Chưa phân loại';
+    }
+
+    /** SỬA 8/9 (3) — nhãn khối lớp để hiển thị (6 -> "Lớp 6"); chưa gán -> "—". */
+    public function gradeLabel(): string
+    {
+        return $this->grade !== null ? 'Lớp '.$this->grade : '—';
     }
 
     /** SỬA 31/8 — sản phẩm sở hữu câu hỏi này (khi đây là "bài tập đính kèm sản phẩm"). */

@@ -100,7 +100,10 @@
             @if ($type === 'question' && $model)
                 <div class="bg-white rounded-2xl border border-slate-200 p-5">
                     <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📝</span> Nội dung đề bài</h2>
-                    <p class="text-xs text-slate-400 mb-2">Mã: {{ $model->code }} · Điểm: {{ $model->points }} · Phiên bản: v{{ $model->version }}</p>
+                    {{-- SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — hiện Môn/Khối ngay dòng
+                         thông tin để trang chi tiết khớp với cột mới ở danh sách; sửa lại ở nút
+                         Sửa (2 ô Môn học/Khối lớp). --}}
+                    <p class="text-xs text-slate-400 mb-2">Mã: {{ $model->code }} · Môn: {{ $model->subjectLabel() }} · Khối: {{ $model->gradeLabel() }} · Điểm: {{ $model->points }} · Phiên bản: v{{ $model->version }}</p>
                     <div class="rich-content text-sm text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
                 </div>
             @elseif ($type === 'assessment' && $model && $model->isPdfMode())

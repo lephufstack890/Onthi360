@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $types = $types ?? []; $visibilities = $visibilities ?? []; $allTags = $allTags ?? collect();
+        $types = $types ?? []; $visibilities = $visibilities ?? []; $allTags = $allTags ?? collect(); $subjects = $subjects ?? []; $grades = $grades ?? [];
         $config = $question->grading_config ?? [];
         $options = $config['options'] ?? [];
         $correctOption = ($config['correct_options'][0] ?? null);
@@ -69,6 +69,33 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1">Loại câu hỏi</label>
                         <p class="text-sm text-slate-500 py-2.5 px-1">{{ $types[$question->type->value] ?? $question->type->value }} <span class="text-xs text-slate-400">(không đổi được sau khi tạo)</span></p>
+                    </div>
+                </div>
+
+
+                {{-- SỬA 8/9 (3) (khách: "kho câu hỏi giờ làm sao để phân loại được các môn") —
+                     2 ô phân loại, ghi thẳng vào cột questions.subject/questions.grade (KHÔNG
+                     phải metadata) để tab "Câu hỏi" lọc/đếm nhanh. Cả 2 để trống được: câu chưa
+                     rõ môn vẫn tạo được bình thường, nằm nhóm "Chưa phân loại" cho tới khi gán.
+                     Câu nhập từ gói ZIP tự điền sẵn từ taxonomy trong question.json. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="subject">Môn học</label>
+                        <x-select id="subject" name="subject">
+                            <option value="">— Chưa phân loại —</option>
+                            @foreach ($subjects as $code => $label)
+                                <option value="{{ $code }}" @selected(old('subject', $question->subject) === $code)>{{ $label }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
+                        <x-select id="grade" name="grade">
+                            <option value="">— Chưa gán —</option>
+                            @foreach ($grades as $g)
+                                <option value="{{ $g }}" @selected((string) old('grade', $question->grade) === (string) $g)>Lớp {{ $g }}</option>
+                            @endforeach
+                        </x-select>
                     </div>
                 </div>
 

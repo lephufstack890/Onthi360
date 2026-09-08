@@ -32,6 +32,7 @@ use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\SubjectCatalog;
 use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -133,6 +134,18 @@ class ContentService
     ];
 
     /**
+     * SỬA 8/9 (3) — nhãn trạng thái cho dropdown BỘ LỌC ở tab "Câu hỏi". Cố ý tách khỏi
+     * statusLabel() (hàm đó còn trả kèm 'tone' màu cho badge từng dòng, và nhận enum chứ không
+     * phải chuỗi) — ở đây chỉ cần cặp giá trị=>nhãn để dựng thẻ <option>.
+     */
+    private const CONTENT_STATUS_OPTIONS = [
+        'draft' => 'Nháp',
+        'pending_review' => 'Chờ duyệt',
+        'published' => 'Phát hành',
+        'archived' => 'Lưu trữ',
+    ];
+
+    /**
      * Kho câu hỏi chung dùng chung cho toàn hệ thống (6.5: "Kho chung: Editor/Admin/Super
      * Admin quản lý"). Tự tạo nếu chưa seed sẵn (môi trường mới/production chưa chạy
      * DemoDataSeeder) — không bắt admin phải tự quản lý khái niệm "bank" khi tạo câu hỏi.
@@ -201,8 +214,13 @@ class ContentService
             })->all();
     }
 
-    /** @return array{tab: string, tabs: array, rows: array, total: int, documents: array} */
-    public function indexData(string $tab): array
+    /**
+     * @param  array  $filters  SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — bộ lọc của tab
+     *                          "Câu hỏi", xem QuestionRepositoryInterface::allWithOwnerFiltered().
+     *                          Tab khác bỏ qua tham số này.
+     * @return array{tab: string, tabs: array, rows: array, total: int, documents: array}
+     */
+    public function indexData(string $tab, array $filters = []): array
     {
         $counts = [
             // SỬA 31/8 — đếm đúng số lượng hiện ở tab "Câu hỏi (Kho chung + Giáo viên)":
@@ -233,11 +251,18 @@ class ContentService
             // Admin xem được toàn bộ câu hỏi — cả Kho chung lẫn kho riêng từng giáo viên
             // (chỉ xem để nắm tình hình; ranh giới sở hữu/sửa vẫn theo 6.5, giống cách
             // tab "Đề/bộ bài" đã hiển thị cả đề của giáo viên bên dưới).
-            $rows = $this->questions->allLatestWithOwner(50)->map(function ($q) {
+            // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — trước đây đổ phẳng 50 câu mới
+            // nhất, không lọc không tìm; giờ đi qua allWithOwnerFiltered() với bộ lọc Môn/Khối/
+            // Dạng/Trạng thái + ô tìm theo tên hoặc mã. Giới hạn nâng 50 -> 100 vì đã có bộ lọc
+            // để thu hẹp (vẫn là giới hạn cứng, chưa phân trang thật — xem x-pagination-note).
+            $rows = $this->questions->allWithOwnerFiltered($filters, 100)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
-                return ['id' => $q->id, 'title' => $q->title, 'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
+                return ['id' => $q->id, 'title' => $q->title, 'code' => $q->code, 'subject' => $q->subjectLabel(), 'grade' => $q->gradeLabel(), 'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
             })->all();
+
+            // Tổng khớp bộ lọc (khác $counts['questions'] = tổng toàn kho, vẫn hiện trên tab).
+            $filteredTotal = $this->questions->countAllFiltered($filters);
         } elseif ($tab === 'assessments') {
             $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {
                 [$label, $tone] = $this->statusLabel($a->status);
@@ -279,7 +304,25 @@ class ContentService
             'rows' => $rows,
             'documents' => $documents,
             'tags' => $tags,
-            'total' => $tab === 'drafts' ? count($documents) : ($counts[$tab] ?? count($rows)),
+            'total' => match (true) {
+                $tab === 'drafts' => count($documents),
+                // SỬA 8/9 (3) — tab Câu hỏi hiện tổng ĐÃ LỌC, không phải tổng toàn kho.
+                $tab === 'questions' => $filteredTotal ?? count($rows),
+                default => $counts[$tab] ?? count($rows),
+            },
+            // SỬA 8/9 (3) — dữ liệu dựng thanh bộ lọc ở admin/content/index.blade.php.
+            'filters' => [
+                'subject' => $filters['subject'] ?? null,
+                'grade' => $filters['grade'] ?? null,
+                'type' => $filters['type'] ?? null,
+                'status' => $filters['status'] ?? null,
+                'q' => $filters['q'] ?? null,
+            ],
+            'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
+            'gradeOptions' => $tab === 'questions' ? SubjectCatalog::GRADES : [],
+            'questionTypeOptions' => $tab === 'questions' ? self::QUESTION_TYPE_LABELS : [],
+            'statusOptions' => $tab === 'questions' ? self::CONTENT_STATUS_OPTIONS : [],
+            'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject() : [],
         ];
     }
 
@@ -922,6 +965,10 @@ class ContentService
             // dùng nguyên ở indexData() để hiển thị đúng nhãn cho câu đã có.
             'types' => array_filter(self::QUESTION_TYPE_LABELS, fn ($key) => $key !== 'composite', ARRAY_FILTER_USE_KEY),
             'visibilities' => ['public' => 'Công khai', 'private' => 'Riêng tư (nội bộ)'],
+            // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — danh mục CỐ ĐỊNH cho 2 ô Môn học/
+            // Khối lớp ở form tạo & sửa, xem App\Support\SubjectCatalog.
+            'subjects' => SubjectCatalog::SUBJECTS,
+            'grades' => SubjectCatalog::GRADES,
             // SỬA 19/8 (Giai đoạn 6): danh sách tag có sẵn để tick chọn ở form — xem
             // resolveTagIds() (cho phép gõ thêm tag MỚI ngay trong form, không bắt buộc phải
             // sang tab "Tag/Chuyên đề" tạo trước).
@@ -945,6 +992,10 @@ class ContentService
             'code' => $data['code'],
             'type' => $data['type'],
             'title' => $data['title'],
+            // SỬA 8/9 (3) — chuẩn hoá lại qua SubjectCatalog thay vì tin thẳng input: giá trị lạ
+            // (form bị sửa tay/link cũ) thành null = "Chưa phân loại", không lưu rác vào cột lọc.
+            'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'grading_config' => $this->buildGradingConfig($data['type'], $data),
@@ -988,6 +1039,10 @@ class ContentService
         $attributes = [
             'code' => $data['code'],
             'title' => $data['title'],
+            // SỬA 8/9 (3) — sửa lại Môn/Khối cho câu cũ (kể cả câu nhập ZIP bị đoán sai) ngay ở
+            // form Sửa, không cần lệnh backfill.
+            'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
@@ -1014,6 +1069,10 @@ class ContentService
     {
         $changes = [
             'title' => $data['title'],
+            // SỬA 8/9 (3) — bản version mới giữ đúng Môn/Khối đang chọn trên form (replicate()
+            // đã copy giá trị cũ sang, dòng này để sửa được luôn khi tạo version mới).
+            'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
@@ -1202,11 +1261,19 @@ class ContentService
         // questionStore() cho luồng nhập tay ở form, không đụng vào).
         $type = $this->questionTypeFromZipContentType($contentType);
 
+        // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — gói ZIP đã khai báo sẵn môn/khối ở
+        // taxonomy.subject + taxonomy.grade_levels; đổ thẳng vào 2 cột lọc, không để câu nhập từ
+        // ZIP rơi vào nhóm "Chưa phân loại". Mã môn lạ (không có trong SubjectCatalog) -> null,
+        // admin gán lại ở form Sửa. Bản taxonomy đầy đủ vẫn giữ nguyên trong metadata bên dưới.
+        $classification = SubjectCatalog::fromTaxonomy($json['taxonomy'] ?? []);
+
         $question = $this->questions->create([
             'bank_id' => $this->sharedBank()->id,
             'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
             'type' => $type,
             'title' => $content['title'] ?? 'Câu hỏi (nhập từ ZIP)',
+            'subject' => $classification['subject'],
+            'grade' => $classification['grade'],
             'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'grading_config' => $this->buildGradingConfigFromZipPackage($contentType, $json, $package['testCases']),

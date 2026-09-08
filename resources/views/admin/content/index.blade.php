@@ -11,6 +11,16 @@
         $documents = $documents ?? [];
         $tags = $tags ?? [];
         $total = $total ?? count($rows);
+        // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — dữ liệu bộ lọc chỉ có ở tab Câu hỏi,
+        // xem ContentService::indexData().
+        $isQuestions = $tab === 'questions';
+        $filters = $filters ?? [];
+        $subjectOptions = $subjectOptions ?? [];
+        $gradeOptions = $gradeOptions ?? [];
+        $questionTypeOptions = $questionTypeOptions ?? [];
+        $statusOptions = $statusOptions ?? [];
+        $subjectCounts = $subjectCounts ?? [];
+        $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     @endphp
 
     <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
@@ -53,6 +63,90 @@
     @endif
 
     <x-tabs :tabs="$tabs" />
+
+    {{-- SỬA 8/9 (3) (khách: "kho câu hỏi... để một đống câu hỏi như này không ổn") — thanh phân
+         loại của tab Câu hỏi. Dùng form GET (không phải POST/ajax) để mọi khung nhìn đều có URL
+         riêng, bookmark/gửi cho nhau được: ?tab=questions&subject=TOAN&grade=6. --}}
+    @if ($isQuestions)
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 mb-4 space-y-3">
+            {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.content.index', ['tab' => 'questions']) }}"
+                   class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ! ($filters['subject'] ?? null) ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-600' }}">
+                    Tất cả môn
+                </a>
+                @foreach ($subjectOptions as $code => $label)
+                    @php $count = $subjectCounts[$code] ?? 0; @endphp
+                    @if ($count > 0 || ($filters['subject'] ?? null) === $code)
+                        <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => $code, 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                           class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === $code ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-600' }}">
+                            {{ $label }} <span class="opacity-70">({{ $count }})</span>
+                        </a>
+                    @endif
+                @endforeach
+                @if (($subjectCounts[''] ?? 0) > 0 || ($filters['subject'] ?? null) === 'none')
+                    {{-- Nhóm "Chưa phân loại" (subject IS NULL) — chỗ để dọn dần câu cũ, xem lệnh
+                         `php artisan questions:backfill-subject --all`. --}}
+                    <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => 'none', 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                       class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === 'none' ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400' }}">
+                        Chưa phân loại <span class="opacity-70">({{ $subjectCounts[''] ?? 0 }})</span>
+                    </a>
+                @endif
+            </div>
+
+            <form method="GET" action="{{ route('admin.content.index') }}" class="flex flex-wrap items-end gap-3 pt-3 border-t border-slate-100">
+                <input type="hidden" name="tab" value="questions">
+                <div class="min-w-[150px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-subject">Môn học</label>
+                    <x-select id="filter-subject" name="subject">
+                        <option value="">Tất cả môn</option>
+                        @foreach ($subjectOptions as $code => $label)
+                            <option value="{{ $code }}" @selected(($filters['subject'] ?? null) === $code)>{{ $label }}</option>
+                        @endforeach
+                        <option value="none" @selected(($filters['subject'] ?? null) === 'none')>Chưa phân loại</option>
+                    </x-select>
+                </div>
+                <div class="min-w-[120px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-grade">Khối lớp</label>
+                    <x-select id="filter-grade" name="grade">
+                        <option value="">Tất cả khối</option>
+                        @foreach ($gradeOptions as $g)
+                            <option value="{{ $g }}" @selected((string) ($filters['grade'] ?? '') === (string) $g)>Lớp {{ $g }}</option>
+                        @endforeach
+                        <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
+                    </x-select>
+                </div>
+                <div class="min-w-[150px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-type">Dạng câu</label>
+                    <x-select id="filter-type" name="type">
+                        <option value="">Tất cả dạng</option>
+                        @foreach ($questionTypeOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(($filters['type'] ?? null) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </x-select>
+                </div>
+                <div class="min-w-[140px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-status">Trạng thái</label>
+                    <x-select id="filter-status" name="status">
+                        <option value="">Tất cả trạng thái</option>
+                        @foreach ($statusOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(($filters['status'] ?? null) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </x-select>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-q">Tìm theo tên hoặc mã</label>
+                    <input id="filter-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
+                           placeholder="Ví dụ: ước chung, TOAN6…"
+                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                </div>
+                <button type="submit" class="px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0">Lọc</button>
+                @if ($hasActiveFilter)
+                    <a href="{{ route('admin.content.index', ['tab' => 'questions']) }}" class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium shrink-0 hover:border-rose-200 hover:text-rose-600 transition">Xoá lọc</a>
+                @endif
+            </form>
+        </div>
+    @endif
 
     @if ($tab === 'drafts')
         <div class="space-y-3">
@@ -129,10 +223,27 @@
             @endforelse
         </div>
     @else
-        <x-data-table :columns="['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
+        {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm 2 cột Môn/Khối (và mã câu hỏi dưới tên) để nhìn
+             bảng là biết ngay câu nào chưa phân loại; các tab khác giữ nguyên bộ cột cũ. --}}
+        <x-data-table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
                 <tr>
-                    <td class="px-4 py-3 font-medium text-slate-700">{{ $r['title'] }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-700">
+                        {{ $r['title'] }}
+                        @if ($isQuestions && ! empty($r['code']))
+                            <div class="text-xs font-normal text-slate-400">{{ $r['code'] }}</div>
+                        @endif
+                    </td>
+                    @if ($isQuestions)
+                        <td class="px-4 py-3">
+                            @if (($r['subject'] ?? '') === 'Chưa phân loại')
+                                <span class="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Chưa phân loại</span>
+                            @else
+                                <span class="text-slate-600">{{ $r['subject'] }}</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['grade'] }}</td>
+                    @endif
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
                     <td class="px-4 py-3"><x-status-badge :tone="$r['tone']">{{ $r['status'] }}</x-status-badge></td>
@@ -160,7 +271,9 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu.</td></tr>
+                <tr><td colspan="{{ $isQuestions ? 7 : 5 }}" class="px-4 py-6 text-center text-slate-400">
+                    {{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc — thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Chưa có dữ liệu.' }}
+                </td></tr>
             @endforelse
         </x-data-table>
         <x-pagination-note :shown="count($rows)" :total="$total" />

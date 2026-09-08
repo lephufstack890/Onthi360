@@ -28,7 +28,7 @@ class QuestionController extends Controller
     {
         $type = $request->query('type', 'mcq');
 
-        return view('teacher.questions.create', ['type' => $type, 'question' => null, 'allTags' => $this->questionService->allTags()]);
+        return view('teacher.questions.create', ['type' => $type, 'question' => null, 'allTags' => $this->questionService->allTags(), 'subjects' => \App\Support\SubjectCatalog::SUBJECTS, 'grades' => \App\Support\SubjectCatalog::GRADES]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -47,7 +47,7 @@ class QuestionController extends Controller
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);
         $questionModel->load('tags');
 
-        return view('teacher.questions.create', ['type' => $questionModel->type->value, 'question' => $questionModel, 'allTags' => $this->questionService->allTags()]);
+        return view('teacher.questions.create', ['type' => $questionModel->type->value, 'question' => $questionModel, 'allTags' => $this->questionService->allTags(), 'subjects' => \App\Support\SubjectCatalog::SUBJECTS, 'grades' => \App\Support\SubjectCatalog::GRADES]);
     }
 
     public function update(Request $request, int $question): RedirectResponse
@@ -148,6 +148,10 @@ class QuestionController extends Controller
         $common = [
             'type' => ['required', 'in:mcq,fill_blank,coding'],
             'title' => ['required', 'string', 'max:255'],
+            // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — cả 2 đều tuỳ chọn; giá trị được
+            // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
+            'subject' => ['nullable', 'string', 'max:20'],
+            'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['required', 'string'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             'action' => ['required', 'in:draft,publish'],

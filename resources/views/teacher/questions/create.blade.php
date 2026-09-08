@@ -97,6 +97,30 @@
                     <input id="title" name="title" type="text" value="{{ old('title', $question->title ?? '') }}" required maxlength="255"
                            class="w-full rounded-lg border border-slate-200 text-sm p-2.5" placeholder="VD: Bài 14 - Quy hoạch động cơ bản">
                 </div>
+                {{-- SỬA 8/9 (3) (khách: "kho câu hỏi giờ làm sao để phân loại được các môn") — câu
+                     giáo viên tạo cũng hiện ở tab "Câu hỏi" bên admin nên cũng cần Môn/Khối; để
+                     trống được, khi đó câu nằm nhóm "Chưa phân loại". Xem App\Support\SubjectCatalog. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="subject">Môn học</label>
+                        <x-select id="subject" name="subject">
+                            <option value="">— Chưa phân loại —</option>
+                            @foreach ($subjects ?? [] as $code => $label)
+                                <option value="{{ $code }}" @selected(old('subject', $question->subject ?? '') === $code)>{{ $label }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
+                        <x-select id="grade" name="grade">
+                            <option value="">— Chưa gán —</option>
+                            @foreach ($grades ?? [] as $g)
+                                <option value="{{ $g }}" @selected((string) old('grade', $question->grade ?? '') === (string) $g)>Lớp {{ $g }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="body">Nội dung đề bài</label>
                     <textarea id="body" name="body" rows="5" data-rich-editor class="w-full rounded-lg border border-slate-200 text-sm p-3" placeholder="Nhập đề bài...">{{ old('body', $question->body ?? '') }}</textarea>

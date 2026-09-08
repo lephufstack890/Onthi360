@@ -55,6 +55,81 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     }
 
     /**
+     * SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — bản CÓ LỌC của allLatestWithOwner().
+     * Giữ nguyên 2 ràng buộc gốc của Kho câu hỏi (whereNull('product_id') — bài tập riêng của
+     * sản phẩm quản lý ở trang Sản phẩm; sắp xếp mới nhất trước), chỉ chồng thêm điều kiện lọc.
+     */
+    public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection
+    {
+        return $this->applyQuestionBankFilters($this->query()->with('owner'), $filters)
+            ->latest()->limit($limit)->get();
+    }
+
+    public function countAllFiltered(array $filters): int
+    {
+        return $this->applyQuestionBankFilters($this->query(), $filters)->count();
+    }
+
+    /**
+     * SỬA 8/9 (3) — 1 truy vấn GROUP BY duy nhất cho cả bảng đếm theo môn, thay vì bắn N câu
+     * count() cho N môn. Câu chưa gán môn (subject IS NULL) gom về khoá ''.
+     */
+    public function countsBySubject(): array
+    {
+        return $this->query()
+            ->whereNull('product_id')
+            ->selectRaw('subject, COUNT(*) as aggregate')
+            ->groupBy('subject')
+            ->pluck('aggregate', 'subject')
+            ->mapWithKeys(fn ($count, $subject) => [(string) ($subject ?? '') => (int) $count])
+            ->all();
+    }
+
+    /**
+     * SỬA 8/9 (3) — điểm DUY NHẤT hiểu mảng $filters (xem QuestionRepositoryInterface), để 2
+     * hàm trên (lấy danh sách / đếm tổng) không bao giờ lệch điều kiện nhau.
+     */
+    private function applyQuestionBankFilters(Builder $query, array $filters): Builder
+    {
+        $query->whereNull('product_id');
+
+        $subject = $filters['subject'] ?? null;
+        if ($subject === 'none') {
+            $query->whereNull('subject');
+        } elseif (is_string($subject) && $subject !== '') {
+            $query->where('subject', $subject);
+        }
+
+        $grade = $filters['grade'] ?? null;
+        if ($grade === 'none') {
+            $query->whereNull('grade');
+        } elseif ($grade !== null && $grade !== '') {
+            $query->where('grade', (int) $grade);
+        }
+
+        if (! empty($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        $keyword = trim((string) ($filters['q'] ?? ''));
+        if ($keyword !== '') {
+            // escape ký tự đại diện của LIKE để admin tìm chuỗi có '%' hoặc '_' không ra kết
+            // quả rác (vd mã câu hỏi có gạch dưới: "TOAN6_..." — '_' vốn khớp 1 ký tự bất kỳ).
+            $escaped = addcslashes($keyword, '%_\\');
+            $query->where(function (Builder $sub) use ($escaped) {
+                $sub->where('title', 'like', '%'.$escaped.'%')
+                    ->orWhere('code', 'like', '%'.$escaped.'%');
+            });
+        }
+
+        return $query;
+    }
+
+    /**
      * SỬA 24/8 (v2) — khách chốt: "Luyện tập theo câu" dùng CẢ câu hỏi thuộc kho riêng giáo
      * viên, không chỉ Kho chung nữa — bỏ hẳn điều kiện where('owner_type', 'shared'). "Đã
      * phát hành" (status=published) vẫn là điều kiện chặn duy nhất còn lại — giáo viên phải tự
