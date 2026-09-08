@@ -23,9 +23,25 @@ class AssessmentController extends Controller
         private readonly DocumentImportService $documentImportService,
     ) {}
 
+    /**
+     * SỬA 8/9 (5) (khách: "ẩn màn Luyện tập bên giáo viên, sau tôi kêu mở thì mở, không được
+     * xoá") — cổng ẩn/hiện DUY NHẤT của màn này, dùng cho cả index/create/store bên dưới.
+     * Ẩn = trả 404 để bookmark cũ cũng không vào được, KHÔNG xoá route/controller/service/view.
+     * Bật lại: config/features.php -> 'teacher_practice_screen' => true (rồi config:cache).
+     * CỐ Ý không đặt ở tầng route/middleware: teacher.assessments.* còn chứa "Nhập đề Word/PDF/
+     * OCR" và route Phát hành dùng chung với màn "Đề PDF của tôi" — chặn cả nhóm sẽ chết luôn 2
+     * chức năng đó.
+     */
+    private function abortIfPracticeScreenHidden(): void
+    {
+        abort_unless((bool) config('features.teacher_practice_screen', false), 404);
+    }
+
     /** teacher.assessments.index (TEA-04) — đề do chính giáo viên tạo (6.3, 8.4). */
     public function index(Request $request): View
     {
+        $this->abortIfPracticeScreenHidden();
+
         return view('teacher.assessments.index', $this->assessmentService->listForTeacher(Auth::user()));
     }
 
@@ -35,6 +51,8 @@ class AssessmentController extends Controller
      */
     public function create(Request $request): View
     {
+        $this->abortIfPracticeScreenHidden();
+
         return view('teacher.assessments.create', $this->assessmentService->createFormData(Auth::user()));
     }
 
@@ -46,6 +64,8 @@ class AssessmentController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $this->abortIfPracticeScreenHidden();
+
         $data = $request->validate($this->storeRules());
 
         $this->assessmentService->store(Auth::user(), $data);

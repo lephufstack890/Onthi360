@@ -34,11 +34,25 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại</label>
-                    <x-select id="type" name="type" required>
-                        @foreach ($types as $value => $label)
-                            <option value="{{ $value }}" @selected(old('type', $assessment->type->value) === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-select>
+                    {{-- SỬA 8/9 (5) (khách: "ẩn loại Tự luyện ở đề/bộ bài bên admin") — $types đã
+                         bị lọc bỏ 'practice' theo cờ config('features.assessment_type_practice').
+                         Nếu đề NÀY đang là "Tự luyện": KHÔNG đổ dropdown (loại đó không còn trong
+                         danh sách, chọn bừa option đầu sẽ ÂM THẦM đổi loại đề + đổi luôn
+                         content_mode sang PDF, xem ContentService::contentModeForType()) — hiện
+                         loại hiện tại dạng chữ và gửi lại đúng giá trị cũ qua input ẩn. --}}
+                    @if (! array_key_exists($assessment->type->value, $types))
+                        <input type="hidden" name="type" value="{{ $assessment->type->value }}">
+                        <p class="text-sm text-slate-500 py-2.5 px-1">
+                            {{ $assessment->type->label() }}
+                            <span class="text-xs text-slate-400">(loại này đang ẩn — giữ nguyên, không đổi được ở đây)</span>
+                        </p>
+                    @else
+                        <x-select id="type" name="type" required>
+                            @foreach ($types as $value => $label)
+                                <option value="{{ $value }}" @selected(old('type', $assessment->type->value) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </x-select>
+                    @endif
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>

@@ -91,7 +91,11 @@ class ScheduleController extends Controller
     public function addResource(Request $request, int $session): RedirectResponse
     {
         $data = $request->validate([
-            'type' => ['required', 'string', 'in:material,question,assessment,video,link,note'],
+            // SỬA 8/9 (6) (khách: "loại tài nguyên chỉ cần để bài giao, còn lại xoá hết") — form
+            // chỉ còn gửi lên type=assessment; siết validation đúng bằng đó để không ai gắn thêm
+            // được loại khác qua request tự chế. Enum SessionResourceType + các nhánh xử lý loại
+            // cũ ở ScheduleService::addResource() giữ nguyên cho dữ liệu đã gắn trước đây.
+            'type' => ['required', 'string', 'in:assessment'],
             'material_id' => ['nullable', 'integer'],
             'question_id' => ['nullable', 'integer'],
             'assessment_id' => ['nullable', 'integer'],

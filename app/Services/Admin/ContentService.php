@@ -2054,10 +2054,21 @@ class ContentService
 
     public function assessmentCreateFormData(): array
     {
+        // SỬA 8/9 (5) (khách: "bên admin khi thêm hay sửa đề/bộ bài cũng ẩn loại Tự luyện đi —
+        // ẩn thôi, sau tôi kêu mở thì mở, không được xoá") — loại 'practice' chỉ bị LOẠI KHỎI
+        // DANH SÁCH CHỌN khi cờ tắt; enum AssessmentType::Practice, contentModeForType() và mọi
+        // đề cũ đang mang loại này đều giữ nguyên. Bật lại: config/features.php ->
+        // 'assessment_type_practice' => true (rồi config:cache).
+        $types = [
+            'practice' => 'Luyện tập', 'assignment' => 'Bài giao', 'exam' => 'Đề thi', 'competition_paper' => 'Đề thi đấu',
+        ];
+
+        if (! config('features.assessment_type_practice', false)) {
+            unset($types['practice']);
+        }
+
         return [
-            'types' => [
-                'practice' => 'Luyện tập', 'assignment' => 'Bài giao', 'exam' => 'Đề thi', 'competition_paper' => 'Đề thi đấu',
-            ],
+            'types' => $types,
             'publishAnswerRules' => [
                 'never' => 'Không bao giờ hiện đáp án', 'after_deadline' => 'Hiện sau hạn nộp', 'immediately' => 'Hiện ngay sau khi nộp',
             ],

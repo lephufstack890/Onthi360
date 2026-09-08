@@ -9,7 +9,10 @@
         $tabs = $tabs ?? [];
         $questions = $questions ?? [];
         $total = $total ?? count($questions);
-        $typeIcons = ['Trắc nghiệm' => '🔤', 'Điền đáp án' => '✏️', 'Lập trình' => '💻'];
+        // SỬA 8/9 (4) — icon map theo MÃ loại câu ('mcq'/'fill_blank'/…), không theo nhãn tiếng
+        // Việt như trước: nhãn cũ ở đây ('Điền đáp án', 'Lập trình') không khớp nhãn thật nên mọi
+        // dòng đều rơi về icon '❓'. Xem App\Enums\QuestionType::label().
+        $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻', 'composite' => '🧩'];
     @endphp
 
     <div class="rounded-3xl bg-gradient-to-br from-violet-100 via-white to-sky-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
@@ -42,7 +45,7 @@
         @forelse ($questions as $q)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-700">
-                    <span class="mr-2">{{ $typeIcons[$q['type']] ?? '❓' }}</span>{{ $q['title'] }}
+                    <span class="mr-2">{{ $typeIcons[$q['typeValue'] ?? ''] ?? '❓' }}</span>{{ $q['title'] }}
                 </td>
                 <td class="px-4 py-3 text-slate-500">{{ $q['type'] }}</td>
                 <td class="px-4 py-3"><x-status-badge :tone="$q['tone']">{{ $q['status'] }}</x-status-badge></td>

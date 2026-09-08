@@ -100,7 +100,11 @@ class QuestionService
         return [
             'id' => $q->id,
             'title' => $q->title,
-            'type' => $q->type->value,
+            // SỬA 8/9 (4) — 'type' giờ là NHÃN tiếng Việt để hiện thẳng ra bảng; 'typeValue' giữ
+            // mã gốc cho phần chọn icon ở view (icon map theo mã, không theo nhãn — đổi chữ nhãn
+            // sau này không làm mất icon). Xem App\Enums\QuestionType::label().
+            'type' => $q->type->label(),
+            'typeValue' => $q->type->value,
             'status' => $q->status === ContentStatus::Published ? 'Phát hành' : ($q->status === ContentStatus::Archived ? 'Lưu trữ' : $this->draftLabel($q)),
             'tone' => $q->status === ContentStatus::Published ? 'success' : ($q->status === ContentStatus::Archived ? 'neutral' : 'warning'),
             'canPublish' => ! $readOnly && $q->status === ContentStatus::Draft,

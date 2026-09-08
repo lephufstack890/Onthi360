@@ -9,7 +9,7 @@
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻'];
     @endphp
 
-    <a href="{{ route('teacher.assessments.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Bài tập & Đề</a>
+    <a href="{{ route('teacher.assessments.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Luyện tập</a>
 
     <x-page-header title="Tạo đề" subtitle="Trộn được lập trình, trắc nghiệm và điền đáp án trong cùng một đề (6.3)." />
 

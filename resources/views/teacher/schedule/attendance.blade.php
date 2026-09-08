@@ -81,11 +81,12 @@
         </form>
     </div>
 
-    {{-- Tài nguyên buổi học — note họp 13/8 mục 3: gắn tài liệu/câu hỏi/đề thi/video/link
-         riêng cho đúng buổi này, khác với "học liệu gắn cả lớp" ở tab Học liệu. --}}
+    {{-- Tài nguyên buổi học — note họp 13/8 mục 3: gắn riêng cho đúng buổi này, khác với "học
+         liệu gắn cả lớp" ở tab Học liệu. SỬA 8/9 (6) — chỉ còn gắn được Bài giao (xem form bên
+         dưới); danh sách vẫn hiện đủ mọi loại đã gắn từ trước. --}}
     <div class="bg-white rounded-2xl border border-slate-200 p-5 mt-6">
         <h3 class="font-medium text-slate-700 mb-1">Tài nguyên buổi học</h3>
-        <p class="text-xs text-slate-400 mb-3">Tài liệu, câu hỏi, đề thi, video, link… chuẩn bị riêng cho buổi này.</p>
+        <p class="text-xs text-slate-400 mb-3">Bài giao chuẩn bị riêng cho buổi này.</p>
 
         <div class="space-y-2 mb-4">
             @forelse ($sessionResources as $res)
@@ -116,79 +117,46 @@
             @endforelse
         </div>
 
-        <div x-data="{ type: 'material' }" class="rounded-2xl border-2 border-dashed border-slate-200 p-4">
+        {{-- SỬA 8/9 (6) (khách: "loại tài nguyên chỉ cần để bài giao là được, còn lại xoá hết
+             đi" + "xoá luôn field chọn học liệu, không cần") — form gắn tài nguyên giờ CHỈ còn
+             đúng 1 loại: Bài giao (SessionResourceType::Assessment). Ô "Loại tài nguyên" rút từ
+             6 lựa chọn xuống còn 1; đã bỏ hẳn ô nhập của 5 loại kia (Tài liệu, Câu hỏi, Video,
+             Link, Ghi chú) — kéo theo bỏ luôn state Alpine `type` vì không còn gì để ẩn/hiện.
+             GIỮ NGUYÊN phía sau: enum App\Enums\SessionResourceType và các nhánh xử lý từng
+             loại ở Teacher\ScheduleService::addResource() — tài nguyên loại cũ đã gắn vào các
+             buổi học TRƯỚC ĐÂY vẫn hiển thị đúng tên/nhãn ở danh sách phía trên và vẫn gỡ được;
+             xoá enum sẽ làm các bản ghi cũ đó lỗi khi đọc ra. --}}
+        <div class="rounded-2xl border-2 border-dashed border-slate-200 p-4">
             <form method="POST" action="{{ route('teacher.schedule.resources.save', $session->id) }}" class="space-y-3">
                 @csrf
-                <div>
-                    <label class="text-xs text-slate-500">Loại tài nguyên</label>
-                    <x-select name="type" x-model="type" class="mt-1 w-full sm:w-64">
-                        <option value="material">Tài liệu (đã gắn lớp)</option>
-                        <option value="question">Câu hỏi (của tôi)</option>
-                        <option value="assessment">Đề thi / bài tập (của tôi)</option>
-                        <option value="video">Video</option>
-                        <option value="link">Link</option>
-                        <option value="note">Ghi chú</option>
-                    </x-select>
-                </div>
-
-                <div x-show="type === 'material'">
-                    <label class="text-xs text-slate-500">Chọn tài liệu</label>
-                    <x-select name="material_id" class="mt-1 w-full">
-                        @if (empty($materialOptions))
-                            <option value="">— Lớp chưa gắn tài liệu nào (xem tab Học liệu) —</option>
-                        @else
-                            @foreach ($materialOptions as $opt)
-                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
-                            @endforeach
-                        @endif
-                    </x-select>
-                </div>
-
-                <div x-show="type === 'question'">
-                    <label class="text-xs text-slate-500">Chọn câu hỏi</label>
-                    <x-select name="question_id" class="mt-1 w-full">
-                        @if (empty($questionOptions))
-                            <option value="">— Bạn chưa có câu hỏi đã phát hành nào (xem Kho câu hỏi) —</option>
-                        @else
-                            @foreach ($questionOptions as $opt)
-                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
-                            @endforeach
-                        @endif
-                    </x-select>
-                </div>
-
-                <div x-show="type === 'assessment'">
-                    <label class="text-xs text-slate-500">Chọn đề thi / bài tập</label>
-                    <x-select name="assessment_id" class="mt-1 w-full">
-                        @if (empty($assessmentOptions))
-                            <option value="">— Bạn chưa tạo đề thi/bài tập nào —</option>
-                        @else
-                            @foreach ($assessmentOptions as $opt)
-                                <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
-                            @endforeach
-                        @endif
-                    </x-select>
-                </div>
-
-                <div x-show="type === 'video' || type === 'link' || type === 'note'" class="space-y-2">
+                {{-- SỬA 8/9 (6b) (khách: "chọn bài giao chỉ cần để 1 loại bài giao, xong chọn đề
+                     để giao") — giữ lại ô "Loại tài nguyên" nhưng chỉ còn DUY NHẤT 1 lựa chọn
+                     "Bài giao", rồi mới tới ô chọn ĐỀ. Cố ý không thay ô này bằng input ẩn: giáo
+                     viên vẫn cần nhìn thấy mình đang gắn loại gì vào buổi học. --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs text-slate-500">Tiêu đề</label>
-                        <input type="text" name="title" maxlength="255" placeholder="VD: Video ôn tập chương 2"
-                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                        <label class="text-xs text-slate-500" for="resource_type">Loại tài nguyên</label>
+                        <x-select id="resource_type" name="type" class="mt-1 w-full">
+                            <option value="assessment" selected>Bài giao</option>
+                        </x-select>
                     </div>
-                    <div x-show="type === 'video' || type === 'link'">
-                        <label class="text-xs text-slate-500">Link</label>
-                        <input type="url" name="url" maxlength="2048" placeholder="https://..."
-                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
-                    </div>
+
                     <div>
-                        <label class="text-xs text-slate-500">Ghi chú (tuỳ chọn)</label>
-                        <input type="text" name="note" maxlength="1000"
-                               class="mt-1 w-full rounded-lg border border-slate-200 text-sm p-2">
+                        <label class="text-xs text-slate-500" for="assessment_id">Chọn đề để giao</label>
+                        <x-select id="assessment_id" name="assessment_id" class="mt-1 w-full">
+                            @if (empty($assessmentOptions))
+                                <option value="">— Bạn chưa tạo đề nào —</option>
+                            @else
+                                @foreach ($assessmentOptions as $opt)
+                                    <option value="{{ $opt['id'] }}">{{ $opt['title'] }}</option>
+                                @endforeach
+                            @endif
+                        </x-select>
                     </div>
                 </div>
 
-                <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-medium">Gắn vào buổi học</button>
+                <button type="submit" @disabled(empty($assessmentOptions))
+                        class="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed">Gắn vào buổi học</button>
             </form>
         </div>
     </div>

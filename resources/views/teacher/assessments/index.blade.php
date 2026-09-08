@@ -1,7 +1,7 @@
 @extends('layouts.teacher')
 
-@section('title', 'Bài tập & Đề')
-@section('page-title', 'Bài tập & Đề')
+@section('title', 'Luyện tập')
+@section('page-title', 'Luyện tập')
 
 @section('content')
     @php
@@ -12,7 +12,7 @@
         <div class="flex items-start gap-4">
             <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🧾</div>
             <div>
-                <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Bài tập & Đề</h1>
+                <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Luyện tập</h1>
                 <p class="text-sm text-slate-500 mt-1">Đề do bạn tự tạo từ kho câu hỏi riêng — trộn được nhiều kiểu câu (6.3).</p>
             </div>
         </div>

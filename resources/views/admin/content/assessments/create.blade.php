@@ -33,12 +33,19 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại</label>
+                    @php $defaultType = array_key_first($types); @endphp
                     <x-select id="type" name="type" required>
                         @foreach ($types as $value => $label)
-                            <option value="{{ $value }}" @selected(old('type', 'practice') === $value)>{{ $label }}</option>
+                            <option value="{{ $value }}" @selected(old('type', $defaultType) === $value)>{{ $label }}</option>
                         @endforeach
                     </x-select>
-                    <p class="text-[11px] text-slate-400 mt-1">"Luyện tập" = câu hỏi rời · Còn lại = PDF + đáp án.</p>
+                    <p class="text-[11px] text-slate-400 mt-1">
+                        @if (array_key_exists('practice', $types))
+                            "Luyện tập" = câu hỏi rời · Còn lại = PDF + đáp án.
+                        @else
+                            Đề/bộ bài tạo ở đây dùng PDF + phiếu đáp án.
+                        @endif
+                    </p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>

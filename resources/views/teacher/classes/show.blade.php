@@ -215,10 +215,17 @@
         @endif
 
         <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 space-y-3">
-            <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.assessments.create') }}" class="text-rose-600 font-medium">Bài tập & Đề</a> trước, rồi quay lại đây để chọn và giao.</p>
+            {{-- SỬA 8/9 (5) — màn "Luyện tập" có thể đang ẩn (config/features.php); khi ẩn thì
+                 không trỏ người dùng sang đó nữa mà chỉ sang "Đề PDF của tôi". Giao đề vẫn chạy
+                 bình thường với các đề đã có. --}}
+            @if (config('features.teacher_practice_screen', false))
+                <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.assessments.create') }}" class="text-rose-600 font-medium">Luyện tập</a> trước, rồi quay lại đây để chọn và giao.</p>
+            @else
+                <p class="text-sm text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.papers.index') }}" class="text-rose-600 font-medium">Đề PDF của tôi</a> trước, rồi quay lại đây để chọn và giao.</p>
+            @endif
 
             @if (empty($assignableAssessments))
-                <p class="text-sm text-slate-400">Bạn chưa có đề nào — tạo đề ở "Bài tập & Đề" trước khi giao cho lớp này.</p>
+                <p class="text-sm text-slate-400">Bạn chưa có đề nào — tạo đề ở "{{ config('features.teacher_practice_screen', false) ? 'Luyện tập' : 'Đề PDF của tôi' }}" trước khi giao cho lớp này.</p>
             @else
                 <form method="POST" action="{{ route('teacher.classes.assign', $classRoom->id) }}" class="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
                     @csrf
