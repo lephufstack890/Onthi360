@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Khóa học')
+@section('meta-description', 'Danh sách khoá học trực tuyến của Ôn Thi 360 — lọc theo môn học và khối lớp, xem lớp đang mở, học phí, đánh giá của học viên trước khi đăng ký.')
 
 @section('content')
     @php

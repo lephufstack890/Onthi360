@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
-@section('title', 'Chi tiết cuộc thi')
+@section('title', $competition->title)
+@section('meta-description', 'Cuộc thi '.$competition->title.' trên Ôn Thi 360 — thể lệ, thời gian diễn ra, cách tính điểm xếp hạng và hướng dẫn tham gia.')
 
 @section('content')
     @php

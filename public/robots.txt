@@ -1,2 +1,20 @@
+# Ôn Thi 360 — robots.txt (SỬA 9/9: khách yêu cầu tối ưu SEO)
+# LƯU Ý: nếu tên miền thật KHÁC onthi360.edu.vn thì sửa lại dòng "Sitemap:" ở cuối file —
+# địa chỉ sitemap bắt buộc phải ghi đầy đủ (https://ten-mien-that/sitemap.xml).
+
 User-agent: *
-Disallow:
+Allow: /
+
+# Khu vực phải đăng nhập — không có nội dung cho người tìm kiếm, chặn để bot khỏi tốn lượt quét
+Disallow: /login
+Disallow: /register
+Disallow: /dashboard
+Disallow: /admin/
+Disallow: /teacher/
+Disallow: /student/
+Disallow: /parent/
+Disallow: /danh-gia/
+Disallow: /quyen/
+Disallow: /vi/
+
+Sitemap: https://onthi360.edu.vn/sitemap.xml

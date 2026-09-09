@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Bảng xếp hạng')
+@section('meta-description', 'Bảng xếp hạng Ôn Thi 360 — thành tích của học sinh qua các cuộc thi và bài luyện tập, cập nhật liên tục theo từng đợt.')
 
 @section('content')
     @php

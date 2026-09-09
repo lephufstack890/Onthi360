@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Giáo viên và chuyên gia')
+@section('meta-description', 'Đội ngũ giáo viên và chuyên gia đồng hành cùng Ôn Thi 360 — chuyên môn, kinh nghiệm giảng dạy và các khoá học đang phụ trách.')
 
 @section('content')
     @php

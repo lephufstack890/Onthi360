@@ -11,6 +11,7 @@ use App\Http\Controllers\Public\ContactController as PublicContactController;
 use App\Http\Controllers\Public\LeaderboardController as PublicLeaderboardController;
 use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
 use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
+use App\Http\Controllers\Public\SitemapController as PublicSitemapController;
 use App\Http\Controllers\Public\TeacherController as PublicTeacherController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
@@ -64,6 +65,9 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicHomeController::class, 'index'])->name('home');
+// SỬA 9/9 (9) — sitemap cho Google (xem Public\SitemapController). Đặt ngay dưới trang chủ
+// để không lọt vào nhóm route nào có middleware auth.
+Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap');
 Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
 Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name('courses.show');
 Route::get('/luyen-tap', [PublicPracticeController::class, 'index'])->name('practice.index');

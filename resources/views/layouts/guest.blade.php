@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Ôn Thi 360') — Ôn Thi 360</title>
+    @include('partials.seo')
     {{-- SỬA 8/9 (7) — bản design dùng chữ bo tròn; nạp Nunito (có đủ dấu tiếng Việt) CHỈ cho
          layout công khai này, các layout admin/giáo viên/học sinh giữ nguyên font cũ. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">

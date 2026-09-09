@@ -1,6 +1,9 @@
 @extends('layouts.guest')
+@section('meta-description', 'Ôn Thi 360 — học và luyện thi trực tuyến: khoá học theo môn và khối lớp, kho tài liệu, luyện tập từng câu biết đúng/sai ngay, cuộc thi và bảng xếp hạng.')
 
-@section('title', 'Trang chủ')
+{{-- SỬA 9/9 (9) — tiêu đề trang chủ cũ là 'Trang chủ' (không mang thông tin gì cho người
+     tìm kiếm). Thẻ <title> là yếu tố SEO nặng nhất, nên đổi thành câu mô tả đúng việc site làm. --}}
+@section('title', 'Học và luyện thi trực tuyến')
 
 @section('content')
     @php

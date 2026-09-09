@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Luyện tập')
+@section('meta-description', 'Luyện tập trực tuyến miễn phí: chọn dạng câu hỏi (trắc nghiệm, điền đáp án, lập trình, câu nhiều phần) và chuyên đề, làm từng câu và biết ngay đúng hay sai.')
 
 @section('content')
     @php

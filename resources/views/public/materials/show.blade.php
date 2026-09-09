@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', $material->title)
+@section('meta-description', 'Tài liệu '.$material->title.' trên Ôn Thi 360 — xem trước nội dung, mục lục từng phần và cách sử dụng để ôn tập.')
 
 @section('content')
     @php

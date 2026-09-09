@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ôn Thi 360">
+  <title>Ôn Thi 360</title>
+  <defs>
+    <linearGradient id="ot360" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="64" y2="64">
+      <stop offset="0" stop-color="#4cbafb"/>
+      <stop offset="1" stop-color="#2d63f3"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#ot360)"/>
+  <path d="M25.3 27.2 V33.2 A6.7 6.7 0 0 0 38.7 33.2 V27.2" fill="none" stroke="#ffffff" stroke-width="2.9" stroke-linecap="round"/>
+  <path d="M32 17.7 L45.3 23.9 L32 30.1 L18.7 23.9 Z" fill="#ffffff"/>
+</svg>

@@ -33,3 +33,4 @@ _to_delete_*
 *_5_bak
 *_5_bak[0-9]
 *.bak
+/Claude outputs

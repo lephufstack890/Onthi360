@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Tài liệu')
+@section('meta-description', 'Kho tài liệu ôn thi của Ôn Thi 360: sách, bộ đề, chuyên đề luyện tập theo từng môn và khối lớp — xem trước nội dung trước khi tải hoặc mua.')
 
 @section('content')
     @php

@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Cuộc thi')
+@section('meta-description', 'Các cuộc thi và kỳ khảo sát trực tuyến trên Ôn Thi 360 — lịch thi, thể lệ, cách tính điểm xếp hạng và kết quả sau khi kết thúc.')
 
 @section('content')
     @php

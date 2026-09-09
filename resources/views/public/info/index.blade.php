@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Thông tin')
+@section('meta-description', 'Giới thiệu Ôn Thi 360, thông tin liên hệ và các chính sách: bảo mật thông tin, điều khoản sử dụng và chính sách hoàn tiền.')
 
 @section('content')
     @php

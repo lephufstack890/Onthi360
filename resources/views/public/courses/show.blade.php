@@ -1,6 +1,7 @@
 @extends('layouts.guest')
 
-@section('title', 'Chi tiết khóa học')
+@section('title', $course->title)
+@section('meta-description', \Illuminate\Support\Str::limit(strip_tags((string) $course->description), 155) ?: 'Khoá học '.$course->title.' trên Ôn Thi 360 — nội dung, lớp đang mở, học phí và đánh giá của học viên.')
 
 @section('content')
     @php
