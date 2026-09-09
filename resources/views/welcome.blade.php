@@ -18,7 +18,7 @@
             ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => 'doc'],
             ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => 'trophy'],
             ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'chart'],
-            ['label' => 'Giáo viên tiêu biểu', 'route' => 'teachers.index', 'icon' => 'users'],
+            ['label' => 'Giáo viên và chuyên gia', 'route' => 'teachers.index', 'icon' => 'users'],
             ['label' => 'Thông tin', 'route' => 'info.index', 'icon' => 'info'],
         ];
     @endphp
@@ -56,19 +56,19 @@
                     @endif
                 </a>
 
-                {{-- Thẻ "Giáo viên tiêu biểu" — dùng giáo viên đầu tiên từ dữ liệu có sẵn nếu có. --}}
+                {{-- Thẻ "Giáo viên và chuyên gia" — dùng giáo viên đầu tiên từ dữ liệu có sẵn nếu có. --}}
                 @php $spotlight = $featuredTeachers[0] ?? null; @endphp
                 <div class="rounded-2xl bg-white border border-slate-200/80 p-4">
                     <a href="{{ route('teachers.index') }}" class="flex items-center gap-2 mb-3">
                         <span class="w-7 h-7 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
                             <x-nav-icon name="users" class="w-4 h-4" />
                         </span>
-                        <span class="text-[13px] font-bold text-slate-700">Giáo viên tiêu biểu</span>
+                        <span class="text-[13px] font-bold text-slate-700">Giáo viên và chuyên gia</span>
                         <span class="ml-auto text-slate-300">›</span>
                     </a>
                     <div class="text-center">
                         <img src="https://ui-avatars.com/api/?name={{ urlencode($spotlight['name'] ?? 'Nguyễn Tiến Thành') }}&background=e0f2fe&color=0369a1&size=160&bold=true"
-                             alt="{{ $spotlight['name'] ?? 'Giáo viên tiêu biểu' }}"
+                             alt="{{ $spotlight['name'] ?? 'Giáo viên và chuyên gia' }}"
                              class="w-24 h-24 rounded-full mx-auto object-cover ring-4 ring-sky-50">
                         <p class="mt-3 text-sm font-bold text-slate-700">{{ $spotlight['name'] ?? 'Thầy Nguyễn Tiến Thành' }}</p>
                         <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">

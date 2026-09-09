@@ -30,4 +30,13 @@ class ClassSession extends Model
     {
         return $this->hasMany(SessionResource::class);
     }
+
+    /**
+     * SỬA 9/9 (4) — các HOẠT ĐỘNG của buổi học, mỗi hoạt động gom nhiều tài nguyên và có công
+     * tắc phát riêng cho học sinh (xem App\Models\SessionActivity).
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(SessionActivity::class)->orderBy('position')->orderBy('id');
+    }
 }

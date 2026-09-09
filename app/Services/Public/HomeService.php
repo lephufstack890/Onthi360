@@ -10,7 +10,7 @@ use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 
 /**
  * home (PUB-01/02, 12.1: hero → lộ trình → năng lực chấm → khóa/tài liệu nổi bật → cuộc thi
- * → giáo viên tiêu biểu → cam kết/FAQ) — trước đây route 'home' là closure
+ * → Giáo viên và chuyên gia → cam kết/FAQ) — trước đây route 'home' là closure
  * (Route::get('/', fn () => view('welcome'))) và welcome.blade.php TỰ khai báo mảng dữ liệu
  * minh họa cứng ngay trong view — không có Controller/Service thật nào đứng sau.
  *

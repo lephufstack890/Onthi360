@@ -140,6 +140,30 @@
                                                 <x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge>
                                                 <x-status-badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-status-badge>
                                             </div>
+
+                                            {{-- SỬA 9/9 (4) — hoạt động giáo viên ĐÃ PHÁT cho buổi này.
+                                                 Hoạt động đang soạn không bao giờ tới đây (đã lọc ở
+                                                 Student\ClassRoomService bằng scopePublished()). --}}
+                                            @if (! empty($s['activities']))
+                                                <div class="mt-2 pt-2 border-t border-slate-200/70 space-y-1.5">
+                                                    @foreach ($s['activities'] as $activity)
+                                                        <div class="rounded-lg bg-white border border-violet-100 p-1.5">
+                                                            <p class="text-[11px] font-semibold text-violet-700 leading-tight flex items-center gap-1">
+                                                                <span>🧩</span>
+                                                                <span class="truncate" title="{{ $activity['title'] }}">{{ $activity['title'] }}</span>
+                                                            </p>
+                                                            @if (! empty($activity['note']))
+                                                                <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">{{ $activity['note'] }}</p>
+                                                            @endif
+                                                            @foreach ($activity['resources'] as $res)
+                                                                <p class="text-[10px] text-slate-600 mt-0.5 truncate leading-tight" title="{{ $res['title'] }}">
+                                                                    🧾 {{ $res['title'] }}
+                                                                </p>
+                                                            @endforeach
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                     @empty
                                         <p class="text-xs text-slate-300 italic px-1">—</p>

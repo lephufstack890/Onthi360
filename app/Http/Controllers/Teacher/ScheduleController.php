@@ -88,6 +88,41 @@ class ScheduleController extends Controller
         return redirect()->route('teacher.schedule.attendance', $session)->with('status', 'summary-saved');
     }
 
+    /**
+     * SỬA 9/9 (4) (khách: "thêm mục tạo hoạt động, trong hoạt động thì có nhiều tài nguyên") —
+     * tạo hoạt động mới cho buổi học. Hoạt động luôn sinh ra ở trạng thái CHƯA PHÁT.
+     */
+    public function storeActivity(Request $request, int $session): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ], [], ['title' => 'Tên hoạt động']);
+
+        $this->scheduleService->createActivity(Auth::user(), $session, $data);
+
+        return redirect()->route('teacher.schedule.attendance', $session)->with('status', 'activity-created');
+    }
+
+    /**
+     * SỬA 9/9 (4) — nút ▶ / ⏸ (khách: "giáo viên phải click icon play thì học sinh mới thấy
+     * được"). Cùng 1 route dùng cho cả phát và thu hồi, xem ScheduleService::toggleActivityPublish().
+     */
+    public function toggleActivityPublish(Request $request, int $session, int $activity): RedirectResponse
+    {
+        $updated = $this->scheduleService->toggleActivityPublish(Auth::user(), $session, $activity);
+
+        return redirect()->route('teacher.schedule.attendance', $session)
+            ->with('status', $updated->isPublished() ? 'activity-published' : 'activity-unpublished');
+    }
+
+    public function destroyActivity(Request $request, int $session, int $activity): RedirectResponse
+    {
+        $this->scheduleService->deleteActivity(Auth::user(), $session, $activity);
+
+        return redirect()->route('teacher.schedule.attendance', $session)->with('status', 'activity-deleted');
+    }
+
     public function addResource(Request $request, int $session): RedirectResponse
     {
         $data = $request->validate([
@@ -96,6 +131,9 @@ class ScheduleController extends Controller
             // được loại khác qua request tự chế. Enum SessionResourceType + các nhánh xử lý loại
             // cũ ở ScheduleService::addResource() giữ nguyên cho dữ liệu đã gắn trước đây.
             'type' => ['required', 'string', 'in:assessment'],
+            // SỬA 9/9 (4) — bắt buộc chọn hoạt động; service kiểm tra lại hoạt động có đúng
+            // thuộc buổi học này không.
+            'activity_id' => ['required', 'integer'],
             'material_id' => ['nullable', 'integer'],
             'question_id' => ['nullable', 'integer'],
             'assessment_id' => ['nullable', 'integer'],

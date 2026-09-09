@@ -228,6 +228,17 @@ class ClassRoomService
 
         $attendanceBySessionId = $this->attendance->forStudentInSessionIds($user->id, $sessions->pluck('id')->all());
 
+        // SỬA 9/9 (4) (khách: "giáo viên phải click icon play thì học sinh mới thấy được") — nạp
+        // sẵn HOẠT ĐỘNG ĐÃ PHÁT của các buổi trong tuần. scopePublished() là chỗ DUY NHẤT quyết
+        // định học sinh thấy gì: hoạt động giáo viên đang soạn (published_at = null) không bao giờ
+        // lọt vào đây. Nạp kèm quan hệ của tài nguyên để displayTitle() không bắn thêm truy vấn.
+        $sessions->load([
+            'activities' => fn ($q) => $q->published(),
+            'activities.resources.material',
+            'activities.resources.question',
+            'activities.resources.assessment',
+        ]);
+
         $days = collect(range(0, 6))->map(function (int $i) use ($weekStart, $sessions, $attendanceBySessionId) {
             $date = $weekStart->copy()->addDays($i);
 
@@ -274,6 +285,16 @@ class ClassRoomService
             'timeStatusTone' => $timeStatusTone,
             'attendanceLabel' => $attendanceLabel,
             'attendanceTone' => $attendanceTone,
+            // SỬA 9/9 (4) — chỉ hoạt động ĐÃ PHÁT (đã lọc từ lúc nạp quan hệ ở trên).
+            'activities' => $session->activities->map(fn ($activity) => [
+                'title' => $activity->title,
+                'note' => $activity->note,
+                'resources' => $activity->resources->map(fn ($r) => [
+                    'type' => $r->type->value,
+                    'typeLabel' => $r->type->label(),
+                    'title' => $r->displayTitle(),
+                ])->values()->all(),
+            ])->values()->all(),
         ];
     }
 

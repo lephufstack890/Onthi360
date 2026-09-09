@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Giáo viên tiêu biểu')
+@section('title', 'Giáo viên và chuyên gia')
 
 @section('content')
     @php
@@ -10,7 +10,7 @@
     <div class="bg-gradient-to-br from-rose-50 via-white to-amber-50">
         <div class="max-w-7xl mx-auto px-4 py-12 lg:py-16 text-center">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-rose-600 text-xs font-medium mb-4 shadow-sm">🏆 Vinh danh</span>
-            <h1 class="text-2xl lg:text-3xl font-semibold text-slate-800">Giáo viên tiêu biểu</h1>
+            <h1 class="text-2xl lg:text-3xl font-semibold text-slate-800">Giáo viên và chuyên gia</h1>
             <p class="text-slate-500 mt-3 max-w-xl mx-auto">Vinh danh và tạo niềm tin — đây không phải danh bạ cá nhân, không hiển thị số điện thoại hay thông tin liên hệ riêng (12.2).</p>
         </div>
     </div>
@@ -32,7 +32,7 @@
                 </a>
             @empty
                 <div class="col-span-full">
-                    <x-empty-state title="Chưa có giáo viên được vinh danh" description="Ban quản trị sẽ chọn và cập nhật giáo viên tiêu biểu tại đây." />
+                    <x-empty-state title="Chưa có giáo viên được vinh danh" description="Ban quản trị sẽ chọn và cập nhật Giáo viên và chuyên gia tại đây." />
                 </div>
             @endforelse
         </div>

@@ -22,7 +22,7 @@ class FeaturedTeacherService
     {
         $tabs = [
             ['label' => 'Cuộc thi', 'href' => route('admin.competitions.index'), 'active' => false, 'count' => $this->competitions->count()],
-            ['label' => 'Giáo viên tiêu biểu', 'href' => route('admin.featured-teachers.index'), 'active' => true, 'count' => $this->teacherProfiles->countApproved()],
+            ['label' => 'Giáo viên và chuyên gia', 'href' => route('admin.featured-teachers.index'), 'active' => true, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
         $teachers = $this->teacherProfiles->approvedWithUser(50)->map(fn (TeacherProfile $p) => [

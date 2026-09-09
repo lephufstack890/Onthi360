@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Giáo viên tiêu biểu')
-@section('page-title', 'Giáo viên tiêu biểu')
+@section('title', 'Giáo viên và chuyên gia')
+@section('page-title', 'Giáo viên và chuyên gia')
 
 @section('content')
     @php
@@ -9,7 +9,7 @@
         $teachers = $teachers ?? [];
     @endphp
 
-    <x-page-header title="🏆 Giáo viên tiêu biểu" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
+    <x-page-header title="🏆 Giáo viên và chuyên gia" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
 
     @if (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'featured' ? 'Đã vinh danh giáo viên.' : 'Đã bỏ vinh danh giáo viên.'])

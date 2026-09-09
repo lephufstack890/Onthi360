@@ -237,6 +237,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('schedule/{session}/attendance', [TeacherScheduleController::class, 'attendance'])->name('schedule.attendance');
         Route::post('schedule/{session}/attendance', [TeacherScheduleController::class, 'saveAttendance'])->name('schedule.attendance.save');
         Route::post('schedule/{session}/summary', [TeacherScheduleController::class, 'saveSummary'])->name('schedule.summary.save');
+        // SỬA 9/9 (4) ("tạo hoạt động" trong buổi học; icon play để phát cho học sinh) — xem
+        // App\Services\Teacher\ScheduleService::createActivity()/toggleActivityPublish().
+        Route::post('schedule/{session}/activities', [TeacherScheduleController::class, 'storeActivity'])->name('schedule.activities.store');
+        Route::post('schedule/{session}/activities/{activity}/publish', [TeacherScheduleController::class, 'toggleActivityPublish'])->name('schedule.activities.publish');
+        Route::delete('schedule/{session}/activities/{activity}', [TeacherScheduleController::class, 'destroyActivity'])->name('schedule.activities.destroy');
         Route::post('schedule/{session}/resources', [TeacherScheduleController::class, 'addResource'])->name('schedule.resources.save');
         Route::delete('schedule/{session}/resources/{resource}', [TeacherScheduleController::class, 'removeResource'])->name('schedule.resources.delete');
 

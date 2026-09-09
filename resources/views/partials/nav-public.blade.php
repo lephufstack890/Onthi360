@@ -6,7 +6,7 @@
         ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => 'doc'],
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => 'trophy'],
         ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'chart'],
-        ['label' => 'Giáo viên tiêu biểu', 'route' => 'teachers.index', 'icon' => 'users'],
+        ['label' => 'Giáo viên và chuyên gia', 'route' => 'teachers.index', 'icon' => 'users'],
         ['label' => 'Thông tin', 'route' => 'info.index', 'icon' => 'info'],
     ];
 @endphp

@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\ClassRoom;
 use App\Models\ClassSession;
 use App\Models\Role;
+use App\Models\SessionActivity;
 use App\Models\SessionResource;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
@@ -198,15 +199,37 @@ class ScheduleService
      */
     private function resourcePickerData(User $teacher, ClassSession $session): array
     {
-        $resources = $this->sessionResources->forClassSession($session->id)
-            ->map(fn (SessionResource $r) => [
-                'id' => $r->id,
-                'type' => $r->type->value,
-                'typeLabel' => $r->type->label(),
-                'title' => $r->displayTitle(),
-                'url' => $r->url,
-                'note' => $r->note,
-            ])->values()->all();
+        // SỬA 9/9 (4) — tài nguyên giờ gom theo HOẠT ĐỘNG. Lấy 1 lần rồi nhóm trong PHP thay vì
+        // truy vấn lại theo từng hoạt động (buổi học chỉ vài chục tài nguyên, không đáng N+1).
+        $mapResource = fn (SessionResource $r) => [
+            'id' => $r->id,
+            'type' => $r->type->value,
+            'typeLabel' => $r->type->label(),
+            'title' => $r->displayTitle(),
+            'url' => $r->url,
+            'note' => $r->note,
+        ];
+
+        $allResources = $this->sessionResources->forClassSession($session->id);
+        $byActivity = $allResources->groupBy('activity_id');
+
+        $activities = $session->activities()->get()->map(fn (SessionActivity $a) => [
+            'id' => $a->id,
+            'title' => $a->title,
+            'note' => $a->note,
+            'published' => $a->isPublished(),
+            'publishedAt' => $a->published_at,
+            'resources' => ($byActivity->get($a->id) ?? collect())->map($mapResource)->values()->all(),
+        ])->values()->all();
+
+        // Tài nguyên gắn TRƯỚC khi có tính năng Hoạt động (activity_id null) — vẫn hiện để giáo
+        // viên xem/gỡ, nhưng không thuộc hoạt động nào nên học sinh không thấy.
+        // groupBy() gặp activity_id = null thì khoá nhóm có thể là null HOẶC chuỗi rỗng (PHP tự
+        // ép null thành "" khi dùng làm khoá mảng) — nhận cả 2 để tài nguyên cũ không bị "biến mất".
+        $looseGroup = $byActivity->get(null) ?? $byActivity->get('') ?? collect();
+        $looseResources = $looseGroup->map($mapResource)->values()->all();
+
+        $resources = $allResources->map($mapResource)->values()->all();
 
         $materialOptions = $this->classMaterials->activeForClassRoom($session->class_room_id)
             ->map(fn ($cm) => ['id' => $cm->material_id, 'title' => $cm->material->title ?? '(học liệu)'])
@@ -222,6 +245,8 @@ class ScheduleService
 
         return [
             'sessionResources' => $resources,
+            'sessionActivities' => $activities,
+            'looseResources' => $looseResources,
             'materialOptions' => $materialOptions,
             'questionOptions' => $questionOptions,
             'assessmentOptions' => $assessmentOptions,
@@ -246,8 +271,22 @@ class ScheduleService
             throw ValidationException::withMessages(['type' => 'Loại tài nguyên không hợp lệ.']);
         }
 
+        // SỬA 9/9 (4) — tài nguyên phải nằm trong 1 hoạt động CỦA CHÍNH buổi học này; không tin
+        // activity_id gửi từ client (16 mục 3), kiểm tra lại quyền sở hữu ngay lúc lưu.
+        $activityId = (int) ($data['activity_id'] ?? 0);
+        $activity = $activityId > 0
+            ? SessionActivity::where('id', $activityId)->where('class_session_id', $session->id)->first()
+            : null;
+
+        if ($activity === null) {
+            throw ValidationException::withMessages([
+                'activity_id' => 'Chọn hoạt động để gắn tài nguyên vào (tạo hoạt động trước nếu chưa có).',
+            ]);
+        }
+
         $attrs = [
             'class_session_id' => $session->id,
+            'activity_id' => $activity->id,
             'type' => $type->value,
             'added_by' => $teacher->id,
         ];
@@ -312,6 +351,69 @@ class ScheduleService
     }
 
     /** teacher.schedule.resources.delete — gỡ 1 tài nguyên khỏi buổi học. */
+    /**
+     * SỬA 9/9 (4) — teacher.schedule.activities.store: tạo 1 hoạt động MỚI, luôn ở trạng thái
+     * CHƯA PHÁT (published_at = null) để giáo viên soạn xong mới bấm phát.
+     */
+    public function createActivity(User $teacher, int $sessionId, array $data): SessionActivity
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        return SessionActivity::create([
+            'class_session_id' => $session->id,
+            'title' => trim($data['title']),
+            'note' => filled($data['note'] ?? null) ? trim($data['note']) : null,
+            // Xếp cuối danh sách hiện có.
+            'position' => (int) SessionActivity::where('class_session_id', $session->id)->max('position') + 1,
+            'published_at' => null,
+            'created_by' => $teacher->id,
+        ]);
+    }
+
+    /**
+     * SỬA 9/9 (4) — teacher.schedule.activities.publish: chính là nút ▶/⏸. Bấm lần nữa thì THU
+     * HỒI (published_at về null) — giáo viên lỡ phát nhầm phải rút lại được ngay, không phải xoá
+     * cả hoạt động.
+     *
+     * Cố ý CHẶN phát hoạt động chưa có tài nguyên nào: phát ra thì học sinh mở vào thấy trống,
+     * chỉ gây hoang mang.
+     */
+    public function toggleActivityPublish(User $teacher, int $sessionId, int $activityId): SessionActivity
+    {
+        $activity = $this->findOwnedActivity($teacher, $sessionId, $activityId);
+
+        if (! $activity->isPublished() && $activity->resources()->count() === 0) {
+            throw ValidationException::withMessages([
+                'activity' => 'Hoạt động "'.$activity->title.'" chưa có tài nguyên nào — thêm ít nhất 1 tài nguyên rồi mới phát cho học sinh.',
+            ]);
+        }
+
+        $activity->update(['published_at' => $activity->isPublished() ? null : now()]);
+
+        return $activity;
+    }
+
+    /** SỬA 9/9 (4) — xoá hoạt động; tài nguyên bên trong xoá theo (cascade ở migration). */
+    public function deleteActivity(User $teacher, int $sessionId, int $activityId): void
+    {
+        $this->findOwnedActivity($teacher, $sessionId, $activityId)->delete();
+    }
+
+    /** Hoạt động phải thuộc đúng buổi học mà giáo viên này đang dạy — dùng chung cho 2 hàm trên. */
+    private function findOwnedActivity(User $teacher, int $sessionId, int $activityId): SessionActivity
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        $activity = SessionActivity::find($activityId);
+        abort_if($activity === null || (int) $activity->class_session_id !== $session->id, 404);
+
+        return $activity;
+    }
+
     public function removeResource(User $teacher, int $sessionId, int $resourceId): void
     {
         $session = $this->classSessions->find($sessionId)

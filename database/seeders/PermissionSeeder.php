@@ -29,7 +29,7 @@ class PermissionSeeder extends Seeder
             ['activation-codes.manage', 'Quản lý mã kích hoạt', 'commerce'],
             ['reviews.manage', 'Duyệt đánh giá', 'reviews'],
             ['competitions.manage', 'Quản lý cuộc thi', 'competitions'],
-            ['featured-teachers.manage', 'Quản lý giáo viên tiêu biểu', 'competitions'],
+            ['featured-teachers.manage', 'Quản lý Giáo viên và chuyên gia', 'competitions'],
             ['ranking.view', 'Xem bảng xếp hạng quản trị', 'competitions'],
             ['reports.view', 'Xem báo cáo', 'reports'],
             ['settings.manage', 'Cấu hình hệ thống', 'settings'],

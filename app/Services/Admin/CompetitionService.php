@@ -73,7 +73,7 @@ class CompetitionService
     {
         $tabs = [
             ['label' => 'Cuộc thi', 'href' => route('admin.competitions.index'), 'active' => true, 'count' => $this->competitions->count()],
-            ['label' => 'Giáo viên tiêu biểu', 'href' => route('admin.featured-teachers.index'), 'active' => false, 'count' => $this->teacherProfiles->countApproved()],
+            ['label' => 'Giáo viên và chuyên gia', 'href' => route('admin.featured-teachers.index'), 'active' => false, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
         $competitions = $this->competitions->latest(50)->map(function ($c) {

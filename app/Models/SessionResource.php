@@ -11,6 +11,9 @@ class SessionResource extends Model
     protected $fillable = [
         'class_session_id', 'type', 'material_id', 'question_id', 'assessment_id',
         'title', 'url', 'note', 'added_by',
+        // SỬA 9/9 (4) — hoạt động chứa tài nguyên này; null = tài nguyên gắn từ trước khi có
+        // tính năng Hoạt động (xem migration add_activity_id_to_session_resources_table).
+        'activity_id',
     ];
 
     protected $casts = [
@@ -20,6 +23,12 @@ class SessionResource extends Model
     public function classSession(): BelongsTo
     {
         return $this->belongsTo(ClassSession::class);
+    }
+
+    /** SỬA 9/9 (4) — hoạt động chứa tài nguyên này (null với dữ liệu cũ). */
+    public function activity(): BelongsTo
+    {
+        return $this->belongsTo(SessionActivity::class, 'activity_id');
     }
 
     public function material(): BelongsTo

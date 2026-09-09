@@ -29,7 +29,7 @@
     @endphp
 
     <div class="max-w-5xl mx-auto px-4 py-10">
-        <a href="{{ route('teachers.index') }}" class="text-sm text-slate-500 mb-6 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Giáo viên tiêu biểu</a>
+        <a href="{{ route('teachers.index') }}" class="text-sm text-slate-500 mb-6 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Giáo viên và chuyên gia</a>
 
         {{-- Hero: ảnh bìa + avatar nổi --}}
         <div class="rounded-3xl overflow-hidden border border-slate-200 mb-6">

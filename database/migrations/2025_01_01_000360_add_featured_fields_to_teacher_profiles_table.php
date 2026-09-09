@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/** Spec 12.2/PUB-10: trang "Giáo viên tiêu biểu" là trang vinh danh do Admin chọn công bố. */
+/** Spec 12.2/PUB-10: trang "Giáo viên và chuyên gia" là trang vinh danh do Admin chọn công bố. */
 return new class extends Migration
 {
     public function up(): void
