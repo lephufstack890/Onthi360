@@ -97,18 +97,6 @@
                     </div>
                 </div>
 
-                {{-- SỬA 27/8 (3 — "thiếu 1 cái upload file pdf nữa có 4 lần upload á"): content_pdf
-                     (nội dung chính, thay cho khối "Học liệu" cây chương/mục đã bỏ) + 1 tài
-                     nguyên phụ. Tất cả đều tuỳ chọn, để trống cũng tạo được tài liệu bình
-                     thường. SỬA 31/8 ("ZIP bài tập" — nhập nhiều bài, chấm kiểu thi online): đã
-                     bỏ ô "File ZIP bài tập" (1 file duy nhất) ở đây — sau khi tạo tài liệu,
-                     thêm bài tập ở mục "🧪 Bài tập đính kèm" ngay trang chi tiết tài liệu.
-                     SỬA 4/9 (khách yêu cầu: "chỗ tài nguyên đính kèm bỏ Học liệu (ảnh động/
-                     audio) này đi tại vì có thêm học liệu bên dưới rồi không cần này nữa"): đã
-                     bỏ ô "media" (Học liệu ảnh động/audio) khỏi form tạo — trùng chức năng với
-                     mục "📂 Học liệu theo chương/phần/đề" mới ở trang chi tiết tài liệu (sau khi
-                     tạo xong), hỗ trợ nhiều tệp và gắn đúng chương/phần/đề, xem admin/content/
-                     materials/create.blade.php. --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>

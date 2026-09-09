@@ -3,14 +3,6 @@
 @section('title', 'Thêm bài tập thủ công')
 @section('page-title', 'Thêm bài tập thủ công')
 
-{{--
-    SỬA 4/9 (khách yêu cầu "vừa thêm được từ ZIP và thêm thủ công nữa") — form nhập tay CHO
-    TÀI LIỆU này, phỏng theo đúng cấu trúc form "Tạo câu hỏi" ở Kho câu hỏi chung (admin/
-    content/questions/create.blade.php) — chỉ hỗ trợ 3 dạng đã có sẵn ô nhập tay (Trắc
-    nghiệm/Điền khuyết/Lập trình), KHÔNG có "Nhiều phần" (composite, chỉ tạo được qua ZIP,
-    xem ContentService::productExerciseManualCreateFormData()). Lưu xong -> Published NGAY
-    (khác luồng ZIP phải qua bước Nháp -> Sửa -> Lưu), vì mọi thứ đã nhập đủ trong 1 form.
---}}
 @section('content')
     @php
         $types = $types ?? [];

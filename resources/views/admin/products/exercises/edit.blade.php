@@ -3,13 +3,6 @@
 @section('title', 'Sửa bài tập')
 @section('page-title', 'Sửa bài tập')
 
-{{--
-    SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — form riêng, ĐƠN GIẢN HƠN NHIỀU so với màn Sửa
-    câu hỏi Kho chung (admin/content/questions/edit.blade.php): chỉ cho sửa Tiêu đề/Điểm/Tag —
-    test case + tệp đính kèm hiện READ-ONLY ở cột bên phải (xem lý do ở
-    ContentService::productExerciseSave()). CHỈ Admin vào được màn này (route cùng nhóm
-    middleware role:admin,super_admin với admin.products.*).
---}}
 @section('content')
     @php
         $allTags = $allTags ?? collect();
@@ -18,15 +11,9 @@
         $timeLimitMs = $config['time_limit_ms'] ?? 1000;
         $memoryLimitMb = $config['memory_limit_mb'] ?? 256;
         $zipAttachments = $exercise->metadata['attachments'] ?? [];
-        // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu/nhiều môn) — bài tập giờ có thể là
-        // 1 trong 4 dạng ZIP hỗ trợ (coding/mcq/fill_blank/composite, xem QuestionType) — panel
-        // "Xem trước (chỉ đọc)" bên dưới hiện đúng theo TỪNG dạng thay vì luôn giả định Lập
-        // trình như trước.
         $exerciseType = $exercise->type->value;
         $zipAssets = $exercise->metadata['assets'] ?? [];
         $isDraft = $isDraft ?? false;
-        // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — dropdown chọn chương/phần/đề, ẩn hẳn nếu
-        // tài liệu loại Khóa học (không dùng khái niệm này) hoặc chưa có mục nào.
         $chapters = $chapters ?? [];
         $chapterLabel = $product->chapterLabel();
     @endphp

@@ -15,14 +15,8 @@
         $meta = $statusMeta[$product->status->value] ?? ['label' => $product->status->value, 'tone' => 'neutral'];
         $accessRightRows = $accessRightRows ?? [];
         $accessRightCount = $accessRightCount ?? 0;
-        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): $materialsTree — xem
-        // App\Services\Admin\ProductService::buildMaterialsTree().
         $materialsTree = $materialsTree ?? [];
-        // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — danh sách bài tập, xem
-        // App\Services\Admin\ContentService::productExercisesFor().
         $exercises = $exercises ?? [];
-        // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — $chapterLabel null (Khóa học) = ẩn cả 2
-        // khối "Chương/Phần/Đề" và "Học liệu theo ..." bên dưới, xem ProductType::chapterLabel().
         $chapterLabel = $product->chapterLabel();
         $chapters = $chapters ?? [];
         $materialsList = $materialsList ?? [];
@@ -92,20 +86,9 @@
                 @endif
             </div>
 
-            {{-- SỬA 27/8 (2 — "bỏ mục học liệu thuộc sản phẩm đi"): đã bỏ khối "Học liệu thuộc
-                 sản phẩm" (cây chương/mục PDF cũ) ở đây theo yêu cầu — quản lý học liệu (nếu
-                 còn cần) vẫn còn nguyên ở admin.content.materials.* (route/controller/service
-                 KHÔNG bị xoá, chỉ bỏ lối vào từ trang này). SỬA 27/8 ("4 file đính kèm sản
-                 phẩm") — 3 tài nguyên dưới đây upload/thay qua nút "Sửa tài liệu" (cùng form,
-                 xem admin/products/edit.blade.php). --}}
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📎</span> Tài nguyên đính kèm</h2>
                 @php
-                    // SỬA 31/8 — "ZIP bài tập" (1 file duy nhất) không còn upload MỚI được qua
-                    // form Sửa nữa (xem mục "🧪 Bài tập đính kèm" bên dưới) — chỉ còn hiện ở đây
-                    // NẾU tài liệu này có file cũ từ trước, để không mất khả năng xem/tải dữ
-                    // liệu đã có (route access.resource, kind=exercise vẫn hoạt động bình
-                    // thường). Tài liệu mới sẽ không bao giờ có dòng này.
                     $extraResources = [
                         ['label' => 'File PDF', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name],
                         ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
@@ -115,12 +98,6 @@
                             'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
                         ];
                     }
-                    // SỬA 4/9 (khách yêu cầu: "chỗ xem cũng vậy, bỏ mục Học liệu (ảnh động/
-                    // audio) Chưa có đi") — cùng nguyên tắc như "ZIP bài tập (cũ)" ở trên: ô
-                    // upload MỚI đã bỏ khỏi form Tạo/Sửa (trùng chức năng với mục "📂 Học liệu
-                    // theo chương/phần/đề" bên dưới), nên ở đây cũng CHỈ hiện dòng này nếu tài
-                    // liệu có sẵn file "media" CŨ từ trước — không hiện dòng "Chưa có" gây rối
-                    // mắt cho tài liệu mới/không có file.
                     if ($product->media_path) {
                         $extraResources[] = [
                             'label' => 'Học liệu (ảnh động/audio, cũ)', 'path' => $product->media_path, 'name' => $product->media_original_name,
@@ -142,11 +119,6 @@
                 <a href="{{ route('admin.products.edit', $product->id) }}" class="text-sm text-rose-600 font-medium mt-3 inline-block">Thêm/thay file ›</a>
             </div>
 
-            {{-- SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề" — "nếu loại sách thì thêm chương, loại
-                 chuyên đề là thêm phần, loại bộ đề thì thêm đề, field chỉ cần title") — tái
-                 dùng Material (type=chapter) có sẵn, KHÔNG hiện với tài liệu loại Khóa học (xem
-                 ProductType::chapterLabel(), ContentService::productChapter*()). Đây là mục
-                 lục nội bộ để gắn bài tập/học liệu vào đúng chỗ — không phải nội dung để đọc. --}}
             @if ($chapterLabel)
                 <div class="bg-white rounded-2xl border border-slate-200 p-5" x-data="{ editing: null }">
                     <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -206,13 +178,6 @@
                 </div>
             @endif
 
-            {{-- SỬA 31/8 ("ZIP bài tập" — nhập bằng ZIP, không giới hạn số lượng, chấm kiểu thi
-                 online khi học sinh làm) + SỬA 4/9 (khách yêu cầu "vừa thêm được từ ZIP và
-                 thêm thủ công nữa"): xem App\Services\Admin\ContentService::productExercise*()
-                 + Admin\ProductExerciseController. CHỈ Admin quản lý mục này (route cùng nhóm
-                 middleware role:admin,super_admin với admin.products.* — routes/web.php) —
-                 giáo viên KHÔNG có nút thêm/sửa/xoá; học sinh/giáo viên "Làm bài" ở trang "Tài
-                 liệu của tôi" (student/teacher materials/mine.blade.php). --}}
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
                     <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>🧪</span> Bài tập đính kèm</h2>
@@ -274,10 +239,6 @@
                 @endif
             </div>
 
-            {{-- SỬA 4/9 (khách yêu cầu "chỗ thêm file học liệu thì cho chọn chương/phần/đề") —
-                 liệt kê học liệu THẬT (PDF/audio/ảnh, khác bản thân mục lục ở trên), xem
-                 ContentService::productMaterialsFor(). Cùng lý do ẩn với khối "Chương/Phần/Đề"
-                 — tài liệu loại Khóa học không dùng khái niệm này. --}}
             @if ($chapterLabel)
                 <div class="bg-white rounded-2xl border border-slate-200 p-5">
                     <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -320,8 +281,6 @@
                 </div>
             @endif
 
-            {{-- Note họp 13/8 mục 2: "Có danh sách các quyền được cấp, cần danh sách phê
-                 duyệt hoặc là xem đã thanh toán lúc nào khi người ta mua sản phẩm". --}}
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>🔑</span> Quyền đã cấp cho tài liệu này</h2>
@@ -332,11 +291,6 @@
                     <x-empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
                 @else
                     <div class="overflow-x-auto">
-                        {{-- SỬA 4/9 (khách yêu cầu: "trạng thái sắp hết hạn hiển thị sai + không
-                             cần chia ra cho nó nằm bên phải") — gộp 2 cột "Trạng thái"/"Hiệu
-                             lực" cũ làm 1: badge trạng thái + ngày hiệu lực nằm chung 1 ô, thay
-                             vì tách "Hiệu lực" thành cột riêng ở xa bên phải. Ngưỡng "Sắp hết
-                             hạn" đã sửa lại 5 ngày (xem ProductService::expiryStatus()). --}}
                         <x-data-table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
                             @foreach ($accessRightRows as $row)
                                 <tr class="hover:bg-slate-50">
