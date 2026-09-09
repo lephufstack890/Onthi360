@@ -2,25 +2,12 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
         ['label' => 'Lớp học', 'route' => 'teacher.classes.index', 'icon' => '🏫'],
-        // SỬA 28/8 (2 — "bên giáo viên cũng xem tài liệu giống như học sinh, chỉ khác được
-        // xem thêm file hướng dẫn"): "Tài liệu của tôi" — sản phẩm ĐÃ MUA, xem thêm được PDF
-        // hướng dẫn (học sinh thì không) — xem App\Services\Student\LibraryService.
         ['label' => 'Tài liệu', 'route' => 'teacher.library.index', 'icon' => '📖'],
-        // SỬA 8/9 (4) (khách: "Bài tập & Đề đổi thành Luyện tập") — CHỈ đổi nhãn hiển thị,
-        // route/controller/quyền giữ nguyên teacher.assessments.*
-        // SỬA 8/9 (5) (khách: "ẩn màn Luyện tập bên giáo viên, sau tôi kêu mở thì mở") — mục menu
-        // chỉ hiện khi bật cờ; xem config/features.php và Teacher\AssessmentController
-        // ::abortIfPracticeScreenHidden(). KHÔNG xoá dòng này.
         ...(config('features.teacher_practice_screen', false)
             ? [['label' => 'Luyện tập', 'route' => 'teacher.assessments.index', 'icon' => '🧾']]
             : []),
-        // SỬA 18/8 (đề PDF, 16/8 mục 1.2 "Admin hoặc giáo viên" tải đề lẻ) — tách hẳn khỏi
-        // "Luyện tập" ở trên (mục đổi tên từ "Bài tập & Đề" ngày 8/9 — đó là Bài giao cũ,
-        // chọn Question rời).
         ['label' => 'Đề PDF của tôi', 'route' => 'teacher.papers.index', 'icon' => '📄'],
         ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => '❓'],
-        // SỬA 24/8 — khách yêu cầu: giáo viên cố vấn/đồng hành chỉ thêm/sửa kỳ thi (vòng)
-        // trong cuộc thi có sẵn, không sửa cuộc thi (xem Teacher\CompetitionController).
         ['label' => 'Cuộc thi', 'route' => 'teacher.competitions.index', 'icon' => '🏆'],
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => '📈'],
         ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => '📅'],
@@ -40,11 +27,6 @@
 </div>
 
 @php
-    // Vài mục (Lịch, Thông báo, Hồ sơ) tạm trỏ lại route của mục khác vì
-    // chưa có trang riêng -- nếu so khớp route như bình thường thì 2-3 mục sẽ
-    // cùng sáng "active" một lúc, gây rối. Chỉ mục ĐẦU TIÊN khai báo cho mỗi
-    // route mới được tính là "chủ" của route đó và được phép sáng active;
-    // các mục trỏ tạm theo sau sẽ không bao giờ tự sáng lên.
     $primaryRoutes = [];
 @endphp
 @foreach ($items as $item)

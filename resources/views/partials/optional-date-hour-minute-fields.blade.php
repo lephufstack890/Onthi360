@@ -1,15 +1,3 @@
-{{--
-  Mốc thời gian tùy chọn (Mở lúc / Đóng lúc) cho Bài tập & Đề (8.4). Để trống Ngày = không
-  giới hạn mốc thời gian đó.
-
-  LỊCH SỬ BUG: bản đầu dùng <input type="date"> (native), thử cả có x-model lẫn không có
-  x-model — CẢ HAI đều bị trình duyệt thật của người dùng gửi lên "" (không giới hạn) dù đã
-  chọn ngày, dù test bằng Playwright .fill() lại luôn thành công (không tái hiện được lỗi
-  trong môi trường giả lập). Vì không thể xác nhận chắc chắn nguyên nhân native input, bỏ
-  hẳn <input type="date">, thay bằng 3 dropdown Ngày/Tháng/Năm — cùng kiểu <select> đã xác
-  nhận hoạt động đúng 100% qua log server ở Giờ/Phút. Dropdown không có rủi ro tương tác
-  native-widget nên đây là hướng chắc chắn nhất.
---}}
 <div x-data="{
         day: '{{ old($prefix.'_day', '') }}',
         month: '{{ old($prefix.'_month', now()->format('m')) }}',

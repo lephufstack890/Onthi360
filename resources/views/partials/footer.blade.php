@@ -1,4 +1,3 @@
-{{-- Footer công khai: cam kết, FAQ rút gọn, liên hệ, chính sách (12.1 mục 9). --}}
 <footer class="bg-white border-t border-slate-200 mt-16">
     <div class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm text-slate-500">
         <div>

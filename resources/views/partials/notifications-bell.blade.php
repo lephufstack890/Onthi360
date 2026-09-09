@@ -1,9 +1,3 @@
-{{--
-  Chuông thông báo dùng CHUNG mọi vai trò. Dữ liệu thật ($bellItems/$bellUnreadCount/
-  $bellViewAllRoute) do View Composer trong App\Providers\AppServiceProvider bơm vào
-  (nguồn: App\Services\NotificationService, kênh 'database' của Illuminate Notifications)
-  — không cần sửa từng Controller vì bell được include ở layouts.app cho mọi role.
---}}
 @php
     $bellItems = $bellItems ?? [];
     $bellUnreadCount = $bellUnreadCount ?? 0;

@@ -1,10 +1,3 @@
-{{--
-  Dropdown Hồ sơ / Đăng xuất — dùng chung cho mọi layout (layouts.app @include).
-  "Hồ sơ" trỏ theo vai trò hiện có trang thật: student.profile (học sinh) hoặc
-  admin.profile.show (admin/super_admin). Vai trò chưa có trang hồ sơ riêng
-  (giáo viên/phụ huynh) thì ẩn mục này đi, tránh link 404 — bổ sung route khi
-  trang tương ứng được xây.
---}}
 @auth
     @php
         $authUser = auth()->user();

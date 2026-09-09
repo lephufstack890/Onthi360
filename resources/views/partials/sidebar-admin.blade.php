@@ -1,14 +1,3 @@
-{{--
-  Sidebar admin/editor độc lập (4.2), đúng 12 mục nav quy định trong BA spec.
-  Editor (note họp 13/8, mục 5) chỉ có route thật tới "Nội dung" + "Tài khoản"
-  (routes/web.php: nhóm role:admin,super_admin,editor) — nên với Editor thuần
-  (không kiêm admin/super_admin), danh sách nav được thu gọn còn đúng 2 mục để
-  tránh hiện link dẫn tới trang họ sẽ bị 403 khi bấm vào.
-
-  SỬA 4/9 (khách yêu cầu: "Tên sản phẩm & quyền đổi lại thành tài liệu ... đổi tên thôi
-  nha logic không ảnh hưởng") — CHỈ đổi $items['label'] hiển thị ở đây, route/controller/
-  tên cột CSDL vẫn giữ "products"/"Product" y nguyên (xem admin.products.* ở routes/web.php).
---}}
 @php
     $items = [
         ['label' => 'Tổng quan', 'route' => 'admin.dashboard', 'icon' => '🏠'],
@@ -26,7 +15,6 @@
         ['label' => 'Tài khoản', 'route' => 'admin.profile.show', 'icon' => '👤', 'editorOk' => true],
     ];
     $currentUser = auth()->user();
-    // 3.1: "Cấu hình hệ thống tối cao" chỉ dành cho Super Admin, không phải Admin thường.
     $isSuperAdmin = $currentUser?->hasRole(\App\Models\Role::SUPER_ADMIN) ?? false;
     $isPureEditor = ($currentUser?->hasRole(\App\Models\Role::EDITOR) ?? false)
         && ! ($currentUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) ?? false);

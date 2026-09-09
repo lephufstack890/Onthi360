@@ -11,8 +11,6 @@
                 .then(function (editor) {
                     var form = el.closest('form');
                     if (form) {
-                        // CKEditor 5 không tự đồng bộ ngược vào textarea gốc khi gõ —
-                        // phải gọi updateSourceElement() trước khi form submit thật.
                         form.addEventListener('submit', function () { editor.updateSourceElement(); });
                     }
                 })

@@ -7,7 +7,6 @@
         $competitions = $competitions ?? [];
     @endphp
 
-    {{-- Hero giới thiệu --}}
     <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-rose-900 text-white">
         <div class="max-w-7xl mx-auto px-4 py-14 lg:py-20">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-rose-200 text-xs font-medium mb-4">🏆 Sân đấu học thuật</span>
@@ -25,27 +24,10 @@
                 <a href="{{ route('competitions.show', $c['id']) }}" class="group block rounded-2xl bg-white border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                     <div class="aspect-[16/9] bg-slate-100 overflow-hidden relative">
                         <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($c['title']) }}/480/270" alt="" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                        {{-- TẠM ẨN 24/8: Khách hiện không cần hiện Trạng thái ở đây (đang thừa)
-                             — comment lại (KHÔNG xoá), $c['statusTone']/statusLabel vẫn còn
-                             dùng bên dưới (khối đếm ngược "Còn X ngày"/"Đang mở").
-                        <div class="absolute top-3 left-3"><x-status-badge :tone="$c['statusTone']">{{ $c['statusLabel'] }}</x-status-badge></div>
-                        --}}
                     </div>
                     <div class="p-5">
                         <p class="text-xs font-medium text-rose-600 uppercase tracking-wide">{{ $c['typeLabel'] }}</p>
                         <h3 class="font-semibold text-slate-800 mt-1 line-clamp-2">{{ $c['title'] }}</h3>
-                        {{-- TẠM ẨN 24/8: Khách hiện không cần hiện ngày Bắt đầu/Kết thúc ở đây
-                             (đang thừa) — comment lại (KHÔNG xoá) để sau này cần dùng lại thì
-                             chỉ cần bỏ comment.
-                        <p class="text-sm text-slate-500 mt-2">
-                            🗓
-                            @if ($c['startsAt'] && $c['endsAt'])
-                                {{ $c['startsAt']->format('d/m') }} – {{ $c['endsAt']->format('d/m/Y') }}
-                            @else
-                                Chưa đặt lịch
-                            @endif
-                        </p>
-                        --}}
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
                             <span>👥 {{ number_format($c['participants']) }} người tham gia</span>
                             @if ($c['statusLabel'] === 'Sắp diễn ra' && $c['startCountdown'])

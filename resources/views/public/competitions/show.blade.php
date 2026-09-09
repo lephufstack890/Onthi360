@@ -20,19 +20,11 @@
     <div class="max-w-5xl mx-auto px-4 pt-6">
         <a href="{{ route('competitions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Cuộc thi</a>
 
-        {{-- Hero: ảnh + gradient tối + nội dung đều nằm TRONG cùng 1 khối rounded/overflow-hidden
-             cố định chiều cao — tránh dùng margin âm kéo nội dung ra ngoài khối ảnh (từng gây
-             lỗi phần nền/gradient bị "dính" chồng lên layout bên dưới khi tiêu đề dài 2 dòng). --}}
         <div class="rounded-3xl overflow-hidden relative mt-3 mb-8 shadow-sm">
             <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($competition->title) }}/1200/480" alt="" class="w-full h-56 lg:h-72 object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/35 to-transparent"></div>
             <div class="absolute inset-x-0 bottom-0 p-6 lg:p-8 text-white">
                 <div class="flex flex-wrap items-center gap-2">
-                    {{-- TẠM ẨN 24/8: Khách hiện không cần hiện Trạng thái ở đây (đang thừa) —
-                         comment lại (KHÔNG xoá), $statusTone/$statusLabel không dùng chỗ nào
-                         khác trong file này nên không ảnh hưởng gì.
-                    <x-status-badge :tone="$statusTone">{{ $statusLabel }}</x-status-badge>
-                    --}}
                     <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 text-white text-xs font-medium">{{ $competition->type->value === 'contest' ? '🏆 Cuộc thi' : '📊 Khảo sát' }}</span>
                     @if ($competition->isExternallyOrganized())
                         <x-status-badge tone="warning">Tổ chức bởi {{ $competition->organizer_name }}</x-status-badge>
@@ -41,24 +33,11 @@
 
                 <h1 class="text-2xl lg:text-3xl font-semibold mt-2 leading-tight">{{ $competition->title }}</h1>
 
-                {{-- TẠM ẨN 24/8: Khách hiện không cần hiện ngày Bắt đầu/Kết thúc ở đây (đang
-                     thừa) — comment lại (KHÔNG xoá) để sau này cần dùng lại thì chỉ cần bỏ
-                     comment, không phải viết lại từ đầu.
-                <p class="text-slate-200 mt-1.5 inline-flex items-center gap-1.5 text-sm">
-                    <span>🗓</span>
-                    @if ($competition->starts_at && $competition->ends_at)
-                        {{ $competition->starts_at->format('d/m/Y H:i') }} – {{ $competition->ends_at->format('d/m/Y H:i') }}
-                    @else
-                        Chưa đặt lịch
-                    @endif
-                </p>
-                --}}
             </div>
         </div>
     </div>
 
     <div class="max-w-5xl mx-auto px-4 pb-14">
-        {{-- Dải số liệu nhanh: đếm ngược (nếu còn), số người tham gia, thời lượng --}}
         <div class="grid grid-cols-1 {{ $countdownText ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }} gap-4 mb-8">
             @if ($countdownText)
                 <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">

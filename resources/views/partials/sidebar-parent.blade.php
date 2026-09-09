@@ -1,8 +1,4 @@
 @php
-    // "Con của tôi"/"Lịch & Điểm danh"/"Kết quả & Tiến độ" đều có thể kết thúc ở CÙNG 1 route
-    // parent.children.show (khi phụ huynh chỉ có 1 con đã xác minh, Parent\ScheduleController/
-    // ResultController tự chuyển thẳng vào tab tương ứng thay vì ở lại route riêng của chúng)
-    // — nên không thể chỉ so khớp tên route như các sidebar khác, phải xét thêm query "tab".
     $onChildShow = request()->routeIs('parent.children.show');
     $currentTab = $onChildShow ? request()->query('tab', 'overview') : null;
 

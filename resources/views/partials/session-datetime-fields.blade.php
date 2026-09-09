@@ -1,14 +1,3 @@
-{{--
-  Cặp trường Bắt đầu/Kết thúc dùng chung cho form tạo buổi học (teacher.schedule.*).
-  Ngày dùng <input type="date"> (native, ổn định). Giờ dùng 2 dropdown Giờ/Phút gộp
-  chung 1 khung viền (thay vì <input type="time"> — widget giờ gốc trình duyệt, đặc
-  biệt Safari, khó bấm/chọn). Khối "Bắt đầu"/"Kết thúc" tô màu xanh/đỏ nhạt riêng để dễ
-  phân biệt bằng mắt.
-  PHẢI include bên trong 1 <form x-data="{ startsDate: '...', endsDate: '...' }"> (giá trị
-  khởi tạo lấy từ old() ở nơi include) để tính năng tự điền ngày kết thúc theo ngày bắt đầu
-  hoạt động (chỉ điền khi ngày kết thúc còn trống) và để không bị Alpine ghi đè mất giá trị
-  cũ khi submit lỗi validation.
---}}
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
     <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
         <p class="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-1">🟢 Bắt đầu</p>

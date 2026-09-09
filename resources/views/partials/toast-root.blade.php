@@ -1,15 +1,3 @@
-{{--
-  Toast container dùng chung cho toàn bộ hệ thống — thay cho các banner màu inline
-  (session('status')/session('warning')/lỗi validate) từng trang trước đây.
-  Include ở layouts/app.blade.php và layouts/guest.blade.php, ngay trước </body>.
-
-  Cách 1 view con phát 1 toast: @include('partials.toast-flash', ['type' => 'success', 'message' => '...'])
-  Cách JS phát toast (VD sau 1 hành động AJAX nếu sau này cần): window.toast('success', 'Đã lưu.')
-
-  window.__flashToasts được khởi tạo TRƯỚC (xem layouts/app.blade.php và layouts/guest.blade.php,
-  ngay đầu <head>) để các script toast-flash chạy trước khi Alpine (defer) load vẫn push được
-  vào mảng, không bị lỗi "undefined" hay mất toast do thứ tự script.
---}}
 <div
     x-data="{
         toasts: [],
