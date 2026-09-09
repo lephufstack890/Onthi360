@@ -3,6 +3,7 @@
 namespace App\Services\Teacher;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\ContentStatus;
 use App\Enums\SessionResourceType;
 use App\Models\Attendance;
 use App\Models\ClassRoom;
@@ -208,9 +209,16 @@ class ScheduleService
             'title' => $r->displayTitle(),
             'url' => $r->url,
             'note' => $r->note,
+            // SỬA 9/9 (5) — đề còn Nháp thì học sinh bấm vào sẽ bị chặn (xem AttemptService::
+            // publishedActivityClassRoomIdFor()), nên báo ngay cho giáo viên ở đây thay vì để
+            // học sinh gặp lỗi rồi mới biết.
+            'needsPublish' => $r->type === SessionResourceType::Assessment
+                && $r->assessment !== null
+                && $r->assessment->status !== ContentStatus::Published,
         ];
 
-        $allResources = $this->sessionResources->forClassSession($session->id);
+        // load('assessment') để kiểm tra trạng thái phát hành mà không bắn N+1 truy vấn.
+        $allResources = $this->sessionResources->forClassSession($session->id)->load('assessment');
         $byActivity = $allResources->groupBy('activity_id');
 
         $activities = $session->activities()->get()->map(fn (SessionActivity $a) => [

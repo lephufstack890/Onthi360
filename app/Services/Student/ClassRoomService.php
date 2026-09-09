@@ -293,6 +293,14 @@ class ClassRoomService
                     'type' => $r->type->value,
                     'typeLabel' => $r->type->label(),
                     'title' => $r->displayTitle(),
+                    // SỬA 9/9 (5) — id đề để dựng nút "Làm bài"; chỉ có với tài nguyên là đề, và
+                    // chỉ khi đề ĐÃ PHÁT HÀNH (đề nháp bấm vào sẽ bị server chặn, xem
+                    // AttemptService::publishedActivityClassRoomIdFor()).
+                    'assessmentId' => $r->assessment_id !== null
+                        && $r->assessment !== null
+                        && $r->assessment->status === \App\Enums\ContentStatus::Published
+                            ? $r->assessment_id
+                            : null,
                 ])->values()->all(),
             ])->values()->all(),
         ];

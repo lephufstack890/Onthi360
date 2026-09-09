@@ -141,28 +141,13 @@
                                                 <x-status-badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-status-badge>
                                             </div>
 
-                                            {{-- SỬA 9/9 (4) — hoạt động giáo viên ĐÃ PHÁT cho buổi này.
-                                                 Hoạt động đang soạn không bao giờ tới đây (đã lọc ở
-                                                 Student\ClassRoomService bằng scopePublished()). --}}
+                                            {{-- SỬA 9/9 (5) — ô lịch chỉ hiện SỐ hoạt động cho gọn;
+                                                 danh sách đầy đủ + nút Làm bài nằm ở khu "Hoạt động
+                                                 buổi học" ngay dưới bảng, rộng rãi dễ bấm hơn. --}}
                                             @if (! empty($s['activities']))
-                                                <div class="mt-2 pt-2 border-t border-slate-200/70 space-y-1.5">
-                                                    @foreach ($s['activities'] as $activity)
-                                                        <div class="rounded-lg bg-white border border-violet-100 p-1.5">
-                                                            <p class="text-[11px] font-semibold text-violet-700 leading-tight flex items-center gap-1">
-                                                                <span>🧩</span>
-                                                                <span class="truncate" title="{{ $activity['title'] }}">{{ $activity['title'] }}</span>
-                                                            </p>
-                                                            @if (! empty($activity['note']))
-                                                                <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">{{ $activity['note'] }}</p>
-                                                            @endif
-                                                            @foreach ($activity['resources'] as $res)
-                                                                <p class="text-[10px] text-slate-600 mt-0.5 truncate leading-tight" title="{{ $res['title'] }}">
-                                                                    🧾 {{ $res['title'] }}
-                                                                </p>
-                                                            @endforeach
-                                                        </div>
-                                                    @endforeach
-                                                </div>
+                                                <p class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">
+                                                    🧩 {{ count($s['activities']) }} hoạt động
+                                                </p>
                                             @endif
                                         </div>
                                     @empty
@@ -174,6 +159,84 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        {{-- ═══════════ HOẠT ĐỘNG BUỔI HỌC ═══════════
+             SỬA 9/9 (5) (khách: "học sinh thấy được hoạt động, thiết kế UI thân thiện dễ nhìn, và
+             học sinh có thể click vào làm được đề trong hoạt động"). Chỉ hiện hoạt động giáo viên
+             ĐÃ BẤM PHÁT (lọc từ Student\ClassRoomService bằng scopePublished()). --}}
+        @php
+            $activityDays = collect($days)
+                ->flatMap(fn ($day) => collect($day['sessions'])
+                    ->filter(fn ($s) => ! empty($s['activities']))
+                    ->map(fn ($s) => $s + ['dayLabel' => $day['label'] ?? '', 'isToday' => $day['isToday'] ?? false])
+                    ->all())
+                ->values();
+        @endphp
+
+        <div class="mt-6">
+            <div class="flex items-center gap-2.5 mb-3">
+                <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center text-lg">🧩</span>
+                <div>
+                    <h3 class="font-semibold text-slate-800">Hoạt động buổi học</h3>
+                    <p class="text-xs text-slate-400">Bài giao thầy cô đã phát cho tuần này — bấm để làm ngay.</p>
+                </div>
+            </div>
+
+            @forelse ($activityDays as $sess)
+                <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-3">
+                    <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100">
+                        <span class="text-sm font-semibold text-slate-700">{{ $sess['topic'] ?: 'Buổi học' }}</span>
+                        <span class="text-xs text-slate-400">
+                            {{ $sess['startsAt']?->format('d/m/Y') }} · {{ $sess['timeRangeLabel'] }}
+                        </span>
+                        @if ($sess['isToday'])
+                            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 text-[10px] font-bold">Hôm nay</span>
+                        @endif
+                    </div>
+
+                    <div class="p-4 space-y-3">
+                        @foreach ($sess['activities'] as $activity)
+                            <div class="rounded-xl border border-violet-100 bg-violet-50/40 p-3">
+                                <p class="text-sm font-bold text-violet-800 flex items-center gap-1.5">
+                                    <span>🧩</span> {{ $activity['title'] }}
+                                </p>
+                                @if (! empty($activity['note']))
+                                    <p class="text-xs text-slate-500 mt-0.5">{{ $activity['note'] }}</p>
+                                @endif
+
+                                <div class="mt-2.5 space-y-2">
+                                    @forelse ($activity['resources'] as $res)
+                                        <div class="flex flex-wrap items-center gap-3 rounded-lg bg-white border border-slate-200 px-3 py-2.5">
+                                            <span class="text-lg shrink-0">🧾</span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-medium text-slate-700 truncate" title="{{ $res['title'] }}">{{ $res['title'] }}</p>
+                                                <p class="text-[11px] text-slate-400">{{ $res['typeLabel'] }}</p>
+                                            </div>
+                                            @if (! empty($res['assessmentId']))
+                                                <a href="{{ route('student.assessment.take', $res['assessmentId']) }}"
+                                                   class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold shadow-sm hover:bg-rose-700 transition">
+                                                    ▶ Làm bài
+                                                </a>
+                                            @else
+                                                <span class="shrink-0 text-[11px] text-slate-400 italic">Thầy cô chưa mở làm bài</span>
+                                            @endif
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-slate-400">Hoạt động này chưa có bài nào.</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @empty
+                <div class="rounded-2xl border-2 border-dashed border-slate-200 py-10 text-center">
+                    <p class="text-3xl mb-2">🌤️</p>
+                    <p class="text-sm text-slate-500">Tuần này chưa có hoạt động nào được phát.</p>
+                    <p class="text-xs text-slate-400 mt-1">Khi thầy cô phát hoạt động, bài giao sẽ hiện ở đây để em làm.</p>
+                </div>
+            @endforelse
         </div>
     @elseif ($tab === 'materials')
         {{-- SỬA 31/8 (khách yêu cầu — "chi tiết lớp có tab Học liệu để xem TRONG lớp thôi,

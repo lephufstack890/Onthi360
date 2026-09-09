@@ -8,6 +8,7 @@ use App\Enums\AttemptStatus;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\CompetitionStatus;
+use App\Enums\ContentStatus;
 use App\Enums\QuestionType;
 use App\Enums\VerdictStatus;
 use App\Models\Assessment;
@@ -18,6 +19,7 @@ use App\Models\Competition;
 use App\Models\CompetitionExam;
 use App\Models\JudgeSubmission;
 use App\Models\Question;
+use App\Models\SessionResource;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptAnswerRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
@@ -85,7 +87,10 @@ class AttemptService
 
         $this->assertResubmissionAllowed($user, $assessment, $competitionContext);
 
-        $classRoomId = $assignment?->class_room_id;
+        // SỬA 9/9 (5) — đề mở qua hoạt động buổi học không có Assignment nhưng vẫn thuộc 1 lớp
+        // cụ thể (xem publishedActivityClassRoomIdFor()), gắn vào để thầy cô còn tra được bài làm
+        // theo lớp.
+        $classRoomId = $assignment?->class_room_id ?? ($competitionContext['classRoomId'] ?? null);
 
         $attempt = $this->attempts->create([
             'user_id' => $user->id,
@@ -100,7 +105,9 @@ class AttemptService
             'is_provisional' => true,
         ]);
 
-        if ($classRoomId !== null) {
+        // Tự điểm danh CHỈ áp dụng cho bài giao qua lớp như trước. Mở đề từ hoạt động buổi học
+        // thì KHÔNG tự điểm danh: học sinh có thể làm bài ở nhà sau buổi học, đánh dấu có mặt là sai.
+        if ($assignment !== null && $classRoomId !== null) {
             $this->autoCheckIn($user, $classRoomId);
         }
 
@@ -253,7 +260,9 @@ class AttemptService
      */
     private function assertMaterialAccessible(User $user, Assessment $assessment, ?Assignment $assignment): array
     {
-        $noCompetitionContext = ['competitionId' => null, 'competitionExamId' => null];
+        // SỬA 9/9 (5) — thêm 'classRoomId' vào ngữ cảnh trả về: đề mở qua HOẠT ĐỘNG buổi học
+        // (không có Assignment) vẫn cần biết thuộc lớp nào để bài làm gắn đúng lớp.
+        $noCompetitionContext = ['competitionId' => null, 'competitionExamId' => null, 'classRoomId' => null];
 
         if ($assessment->type === AssessmentType::Practice) {
             return $noCompetitionContext;
@@ -266,7 +275,7 @@ class AttemptService
                 throw ValidationException::withMessages(['attempt' => $decision['message']]);
             }
 
-            return ['competitionId' => $decision['competitionId'], 'competitionExamId' => $decision['competitionExamId']];
+            return ['competitionId' => $decision['competitionId'], 'competitionExamId' => $decision['competitionExamId'], 'classRoomId' => null];
         }
         // $decision === null: đề này chưa được cuộc thi/kỳ thi nào tham chiếu tới — rơi xuống
         // kiểm tra Assignment/Material bên dưới như 1 đề PDF thường.
@@ -275,11 +284,22 @@ class AttemptService
             return $noCompetitionContext;
         }
 
+        // SỬA 9/9 (5) (khách: "học sinh có thể click vào làm được đề trong hoạt động") — đề nằm
+        // trong 1 HOẠT ĐỘNG ĐÃ PHÁT của buổi học thuộc lớp mà học sinh này đang học chính là một
+        // đường được phép làm bài: giáo viên đã chủ động bấm ▶ phát cho đúng lớp đó. Kiểm tra
+        // NGAY TẠI ĐÂY (tầng server) chứ không dựa vào việc giao diện có hiện nút hay không —
+        // học sinh biết assessment_id vẫn có thể gọi thẳng route làm bài.
+        $activityClassRoomId = $this->publishedActivityClassRoomIdFor($user, $assessment);
+
+        if ($activityClassRoomId !== null) {
+            return ['competitionId' => null, 'competitionExamId' => null, 'classRoomId' => $activityClassRoomId];
+        }
+
         $material = $assessment->materials()->first();
 
         if ($material === null) {
             throw ValidationException::withMessages([
-                'attempt' => 'Đề này chưa được giao qua lớp và chưa gắn vào học liệu để mở bán/kích hoạt — bạn chưa có quyền làm đề này.',
+                'attempt' => 'Đề này chưa được giao qua lớp, chưa nằm trong hoạt động buổi học nào đã phát, và cũng chưa gắn vào học liệu để mở bán/kích hoạt — bạn chưa có quyền làm đề này.',
             ]);
         }
 
@@ -290,6 +310,35 @@ class AttemptService
         }
 
         return $noCompetitionContext;
+    }
+
+    /**
+     * SỬA 9/9 (5) — trả về class_room_id nếu đề $assessment đang nằm trong 1 hoạt động ĐÃ PHÁT
+     * (session_activities.published_at khác null) của một buổi học thuộc lớp mà $user đang là
+     * học sinh ĐANG HỌC (class_enrollments.status = 'active'); ngược lại trả null.
+     *
+     * Hoạt động chưa phát KHÔNG tính — đó chính là ý nghĩa của nút ▶ bên giáo viên.
+     */
+    private function publishedActivityClassRoomIdFor(User $user, Assessment $assessment): ?int
+    {
+        // Đề còn Nháp/Lưu trữ thì KHÔNG mở đường này: đề nháp có thể còn thiếu đáp án, cho học
+        // sinh làm là chấm sai. Giáo viên phải Phát hành đề trước (cùng luật với mọi đường khác).
+        if ($assessment->status !== ContentStatus::Published) {
+            return null;
+        }
+
+        $row = SessionResource::query()
+            ->join('session_activities', 'session_activities.id', '=', 'session_resources.activity_id')
+            ->join('class_sessions', 'class_sessions.id', '=', 'session_resources.class_session_id')
+            ->join('class_enrollments', 'class_enrollments.class_room_id', '=', 'class_sessions.class_room_id')
+            ->where('session_resources.assessment_id', $assessment->id)
+            ->whereNotNull('session_activities.published_at')
+            ->where('class_enrollments.student_id', $user->id)
+            ->where('class_enrollments.status', 'active')
+            ->select('class_sessions.class_room_id')
+            ->first();
+
+        return $row !== null ? (int) $row->class_room_id : null;
     }
 
     /**

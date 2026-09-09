@@ -190,7 +190,16 @@
                                 <span class="text-base shrink-0">{{ $resourceIcons[$res['type']] ?? '📄' }}</span>
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm text-slate-700 truncate">{{ $res['title'] }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $res['typeLabel'] }}</p>
+                                    <p class="text-[11px] text-slate-400">
+                                        {{ $res['typeLabel'] }}
+                                        {{-- SỬA 9/9 (5) — đề còn Nháp thì học sinh bấm "Làm bài" sẽ bị
+                                             chặn ở server, báo trước cho giáo viên ngay tại đây. --}}
+                                        @if (! empty($res['needsPublish']))
+                                            <span class="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">
+                                                ⚠ Đề chưa phát hành — học sinh chưa làm được
+                                            </span>
+                                        @endif
+                                    </p>
                                 </div>
                                 <form method="POST" action="{{ route('teacher.schedule.resources.delete', [$session->id, $res['id']]) }}" class="shrink-0">
                                     @csrf
