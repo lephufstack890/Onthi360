@@ -49,12 +49,29 @@
         </div>
     @endif
 
-    <div x-data="answerKeysForm({{ $answerKeys->map(fn ($k) => [
-            'question_no' => $k->question_no,
-            'question_type' => $k->question_type->value,
-            'correct_answer' => $k->correct_answer,
-            'points' => $k->points,
-        ])->values()->toJson() }})" class="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+    @php
+        // SỬA 9/9 — "Câu nhiều ý" lưu theo cấu trúc từng ý; form sửa tay dùng chuỗi
+        // "a:A-b:Đ-c:123" nên chuyển sẵn ở đây (dùng chung hàm với lúc đọc file Excel).
+        $seedAnswerKeys = $answerKeys->map(function ($k) {
+            $row = [
+                'question_no' => $k->question_no,
+                'question_type' => $k->question_type->value,
+                'correct_answer' => $k->correct_answer,
+                'points' => $k->points,
+            ];
+
+            if ($k->question_type === \App\Enums\AnswerSheetQuestionType::MultiPart && is_array($k->correct_answer)) {
+                $row['correct_answer_text'] = \App\Support\AnswerKeySheet::multiPartToText($k->correct_answer);
+            } elseif ($k->question_type === \App\Enums\AnswerSheetQuestionType::MultiPart && is_string($k->correct_answer)) {
+                // Đề lưu trước bản sửa lỗi giữ nguyên chuỗi "a:A-b:Đ-c:123".
+                $row['correct_answer_text'] = $k->correct_answer;
+            }
+
+            return $row;
+        })->values()->all();
+    @endphp
+
+    <div x-data="answerKeysForm(@js($seedAnswerKeys))" class="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
         <form method="POST" action="{{ route('admin.content.assessments.pdf.update', $assessment->id) }}" enctype="multipart/form-data" class="space-y-5">
             @csrf
             @method('PUT')
@@ -102,70 +119,156 @@
                 <p class="text-xs text-slate-400 mt-2">Tối đa {{ number_format(\App\Services\Admin\ContentService::maxPdfKb() / 1024) }} MB mỗi tệp.</p>
             </div>
 
+            {{-- ═══════════ ĐÁP ÁN ĐÚNG TỪNG CÂU ═══════════
+                 SỬA 9/9 — dựng lại khối này cho khớp bản bên giáo viên (khách: "thiết kế cho đẹp nha"): thanh công
+                 cụ gọn 1 hàng, mỗi câu là 1 thẻ có số câu nổi bật + chip màu theo dạng, ô nhập đáp
+                 án đổi theo dạng. Đồng thời hỗ trợ ĐỦ 5 dạng của phiếu đáp án (thêm "Đúng/Sai" cả
+                 câu và "Câu nhiều ý" — xem App\Enums\AnswerSheetQuestionType). --}}
             <div class="border-t border-slate-100 pt-5">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>✅</span> Đáp án đúng từng câu</h2>
-                    <button type="button" @click="addRow()" class="text-sm text-rose-600 font-medium">+ Thêm câu</button>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">✅</span>
+                            Đáp án đúng từng câu
+                        </h2>
+                        <span class="px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-xs font-bold">
+                            Tổng số câu: <span x-text="rows.length"></span>
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold">
+                            Tổng điểm: <span x-text="totalPoints"></span>
+                        </span>
+                    </div>
+
+                    {{-- <div class="flex flex-wrap items-center gap-2">
+
+                        <button type="button" @click="addRow()"
+                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition">
+                            + Thêm câu
+                        </button>
+                    </div> --}}
                 </div>
 
                 <template x-if="rows.length === 0">
-                    <p class="text-sm text-slate-400 py-3">Chưa có câu nào — bấm "+ Thêm câu" để nhập đáp án.</p>
+                    <div class="rounded-2xl border-2 border-dashed border-slate-200 py-10 text-center">
+                        <p class="text-3xl mb-2">📝</p>
+                        <p class="text-sm text-slate-500">Chưa có câu nào.</p>
+                        <p class="text-xs text-slate-400 mt-1">Bấm <strong>+ Thêm câu</strong> để nhập đáp án.</p>
+                    </div>
                 </template>
 
-                <div class="space-y-3">
+                <div class="space-y-2">
                     <template x-for="(row, index) in rows" :key="index">
-                        <div class="rounded-xl border border-slate-200 p-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs text-slate-500 mb-1">Câu số</label>
-                                <input type="number" min="1" :name="`answer_keys[${index}][question_no]`" x-model="row.question_no" required
-                                       class="w-full rounded-lg border border-slate-200 text-sm p-2">
-                            </div>
-                            <div class="sm:col-span-3">
-                                <label class="block text-xs text-slate-500 mb-1">Dạng câu</label>
+                        <div class="rounded-2xl border border-slate-200 bg-white hover:border-rose-200 transition p-3">
+                            <div class="flex flex-wrap items-center gap-3">
+                                {{-- Số câu --}}
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center">Câu</span>
+                                    <input type="number" min="1" :name="`answer_keys[${index}][question_no]`" x-model="row.question_no" required
+                                           class="w-16 rounded-lg border border-slate-200 text-sm font-semibold text-center p-2">
+                                </div>
+
+                                {{-- Dạng câu --}}
                                 <select :name="`answer_keys[${index}][question_type]`" x-model="row.question_type" required
-                                        class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                                        class="w-52 shrink-0 rounded-lg border border-slate-200 text-sm p-2 bg-white">
                                     @foreach ($answerSheetTypes as $value => $label)
                                         <option value="{{ $value }}">{{ $label }}</option>
                                     @endforeach
                                 </select>
-                            </div>
-                            <div class="sm:col-span-5">
-                                <label class="block text-xs text-slate-500 mb-1">Đáp án đúng</label>
 
-                                <template x-if="row.question_type === 'single_choice'">
-                                    <input type="text" maxlength="1" :name="`answer_keys[${index}][correct_answer]`" x-model="row.correct_answer_single"
-                                           placeholder="A / B / C / D" class="w-full rounded-lg border border-slate-200 text-sm p-2 uppercase">
-                                </template>
+                                {{-- Ô đáp án — đổi theo dạng đang chọn --}}
+                                <div class="flex-1 min-w-[220px]">
+                                    {{-- SỬA 9/9 (2) — LỖI ĐÃ SỬA (khách báo: "lưu đề PDF + đáp án... đáp án
+                                         lưu sai"): bản trước dùng <input type="radio"> vừa gắn x-model vừa
+                                         gắn :value động. Alpine đọc el.value để tính trạng thái chọn TRƯỚC
+                                         khi :value kịp gán, nên ô nào cũng thấy value rỗng: đáp án đã lưu
+                                         không hiện đúng ô đang chọn, và giá trị gửi lên bị rỗng/lệch.
+                                         Giờ bỏ hẳn radio: 1 input ẩn DUY NHẤT mang giá trị thật của dòng,
+                                         các nút chỉ việc gán vào model — gửi lên luôn đúng bằng giá trị
+                                         đang thấy trên màn hình. Cùng cách mà "Đúng/Sai 4 ý" bên dưới đã
+                                         dùng từ trước và vẫn chạy đúng. --}}
+                                    <template x-if="row.question_type === 'single_choice'">
+                                        <div class="flex gap-1.5">
+                                            <input type="hidden" :name="`answer_keys[${index}][correct_answer]`" :value="row.correct_answer_single">
+                                            <template x-for="letter in ['A', 'B', 'C', 'D']" :key="letter">
+                                                <button type="button" @click="row.correct_answer_single = letter"
+                                                        class="px-3.5 py-2 rounded-lg border text-sm font-semibold transition"
+                                                        :class="row.correct_answer_single === letter ? 'border-sky-400 bg-sky-50 text-sky-600' : 'border-slate-200 text-slate-500 hover:border-sky-200'"
+                                                        x-text="letter"></button>
+                                            </template>
+                                        </div>
+                                    </template>
 
-                                <template x-if="row.question_type === 'short_answer'">
-                                    <input type="text" :name="`answer_keys[${index}][correct_answer]`" x-model="row.correct_answer_short"
-                                           placeholder="Ví dụ: 12.5" class="w-full rounded-lg border border-slate-200 text-sm p-2">
-                                </template>
+                                    <template x-if="row.question_type === 'true_false'">
+                                        <div class="flex gap-2">
+                                            <input type="hidden" :name="`answer_keys[${index}][correct_answer]`" :value="row.correct_answer_bool">
+                                            <button type="button" @click="row.correct_answer_bool = '1'"
+                                                    class="px-4 py-2 rounded-lg border text-sm font-semibold transition"
+                                                    :class="row.correct_answer_bool === '1' ? 'border-emerald-400 bg-emerald-50 text-emerald-600' : 'border-slate-200 text-slate-500 hover:border-emerald-200'">
+                                                Đúng
+                                            </button>
+                                            <button type="button" @click="row.correct_answer_bool = '0'"
+                                                    class="px-4 py-2 rounded-lg border text-sm font-semibold transition"
+                                                    :class="row.correct_answer_bool === '0' ? 'border-rose-400 bg-rose-50 text-rose-600' : 'border-slate-200 text-slate-500 hover:border-rose-200'">
+                                                Sai
+                                            </button>
+                                        </div>
+                                    </template>
 
-                                <template x-if="row.question_type === 'true_false_group'">
-                                    <div class="flex items-center gap-3">
-                                        <template x-for="part in ['a', 'b', 'c', 'd']" :key="part">
-                                            <label class="flex items-center gap-1 text-xs text-slate-600">
-                                                <input type="hidden" :name="`answer_keys[${index}][correct_answer][${part}]`" :value="row.correct_answer_group[part] ? 1 : 0">
-                                                <input type="checkbox" x-model="row.correct_answer_group[part]">
-                                                <span x-text="part.toUpperCase()"></span>
-                                            </label>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                            <div class="sm:col-span-1">
-                                <label class="block text-xs text-slate-500 mb-1">Điểm</label>
-                                <input type="number" min="0" :name="`answer_keys[${index}][points]`" x-model="row.points"
-                                       class="w-full rounded-lg border border-slate-200 text-sm p-2">
-                            </div>
-                            <div class="sm:col-span-1 flex sm:justify-end pt-5">
-                                <button type="button" @click="rows.splice(index, 1)" class="text-xs text-rose-500 hover:text-rose-700">Xoá</button>
+                                    <template x-if="row.question_type === 'true_false_group'">
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="part in ['a', 'b', 'c', 'd']" :key="part">
+                                                <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                                    <span class="text-xs font-bold text-slate-400 uppercase" x-text="part"></span>
+                                                    <input type="hidden" :name="`answer_keys[${index}][correct_answer][${part}]`" :value="row.correct_answer_group[part] ? 1 : 0">
+                                                    <button type="button" @click="row.correct_answer_group[part] = !row.correct_answer_group[part]"
+                                                            class="px-2 py-0.5 rounded-md text-xs font-bold transition"
+                                                            :class="row.correct_answer_group[part] ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-500'"
+                                                            x-text="row.correct_answer_group[part] ? 'Đúng' : 'Sai'"></button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="row.question_type === 'short_answer'">
+                                        <input type="text" :name="`answer_keys[${index}][correct_answer]`" x-model="row.correct_answer_short"
+                                               placeholder="Ví dụ: 12.5"
+                                               class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                                    </template>
+
+                                    {{-- Câu nhiều ý: nhập bằng CHUỖI đúng cú pháp của file Excel để 2
+                                         đường nhập (tay/Excel) dùng chung một bộ đọc duy nhất — xem
+                                         App\Support\AnswerKeySheet::normalizeFormAnswer(). --}}
+                                    <template x-if="row.question_type === 'multi_part'">
+                                        <div>
+                                            <input type="text" :name="`answer_keys[${index}][correct_answer]`" x-model="row.correct_answer_multi"
+                                                   placeholder="a:A-b:Đ-c:123"
+                                                   class="w-full rounded-lg border border-slate-200 text-sm p-2 font-mono">
+                                            <p class="text-[11px] text-slate-400 mt-1">Mỗi ý ghi <code>tên ý:đáp án</code>, cách nhau bằng “-”. Đ/S = Đúng/Sai · A,B,C,D = trắc nghiệm · số = trả lời ngắn.</p>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                {{-- Điểm --}}
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <input type="number" min="0" :name="`answer_keys[${index}][points]`" x-model="row.points"
+                                           class="w-16 rounded-lg border border-slate-200 text-sm text-center p-2">
+                                    <span class="text-xs text-slate-400">điểm</span>
+                                </div>
+
+                                <button type="button" @click="rows.splice(index, 1)"
+                                        class="w-9 h-9 shrink-0 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition" title="Xoá câu này">✕</button>
                             </div>
                         </div>
                     </template>
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Đáp án nhập trực tiếp trên form — không hỗ trợ nhập bằng Excel/CSV.</p>
+
+                <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+                    5 dạng câu: <strong>Trắc nghiệm</strong> (A/B/C/D) ·
+                    <strong>Đúng/Sai</strong> · <strong>Đúng/Sai 4 ý</strong> ·
+                    <strong>Trả lời ngắn</strong> (một số) ·
+                    <strong>Câu nhiều ý</strong> (ghi "a:A-b:Đ-c:123").
+                    Nút tải/nhập bằng Excel hiện có ở màn "Đề PDF của tôi" bên giáo viên.
+                </p>
             </div>
 
             <div class="flex gap-3 pt-2 border-t border-slate-100">
@@ -299,8 +402,14 @@
                         points: r.points,
                         correct_answer_single: r.question_type === 'single_choice' ? (r.correct_answer || '') : '',
                         correct_answer_short: r.question_type === 'short_answer' ? (r.correct_answer || '') : '',
+                        // SỬA 9/9 — 2 dạng mới: Đúng/Sai cả câu ('1'/'0') và Câu nhiều ý (chuỗi
+                        // "a:A-b:Đ-c:123", xem App\Support\AnswerKeySheet).
+                        // Number(): đề lưu trước bản sửa lỗi có giá trị là CHUỖI "1"/"0" — dùng
+                        // thẳng r.correct_answer thì chuỗi "0" vẫn là truthy nên mở lại thành "Đúng".
+                        correct_answer_bool: r.question_type === 'true_false' ? (Number(r.correct_answer) ? '1' : '0') : '',
+                        correct_answer_multi: r.question_type === 'multi_part' ? (r.correct_answer_text || '') : '',
                         correct_answer_group: r.question_type === 'true_false_group'
-                            ? { a: !!r.correct_answer?.a, b: !!r.correct_answer?.b, c: !!r.correct_answer?.c, d: !!r.correct_answer?.d }
+                            ? { a: !!Number(r.correct_answer?.a), b: !!Number(r.correct_answer?.b), c: !!Number(r.correct_answer?.c), d: !!Number(r.correct_answer?.d) }
                             : { a: false, b: false, c: false, d: false },
                     })),
                     addRow() {
@@ -311,6 +420,8 @@
                             points: 0,
                             correct_answer_single: '',
                             correct_answer_short: '',
+                            correct_answer_bool: '',
+                            correct_answer_multi: '',
                             correct_answer_group: { a: false, b: false, c: false, d: false },
                         });
                     },

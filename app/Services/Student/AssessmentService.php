@@ -2,6 +2,7 @@
 
 namespace App\Services\Student;
 
+use App\Enums\AnswerSheetQuestionType;
 use App\Enums\PublishAnswerRule;
 use App\Models\Assessment;
 use App\Models\Assignment;
@@ -137,6 +138,17 @@ class AssessmentService
                 'points' => $answerKey->points,
                 'submittedAnswer' => $existing?->submitted_answer,
                 'answered' => $existing !== null,
+                // SỬA 9/9 (dạng "Câu nhiều ý") — màn làm bài cần biết câu này có những ý nào và
+                // MỖI Ý nhập kiểu gì để dựng đúng ô trả lời. CHỈ trả tên ý + kiểu ý; TUYỆT ĐỐI
+                // không đưa 'value' (đáp án đúng) ra màn học sinh.
+                'parts' => $answerKey->question_type === AnswerSheetQuestionType::MultiPart
+                    ? collect((array) $answerKey->correct_answer)
+                        ->map(fn ($spec, $part) => [
+                            'part' => (string) $part,
+                            'type' => is_array($spec) ? ($spec['type'] ?? AnswerSheetQuestionType::ShortAnswer->value) : AnswerSheetQuestionType::ShortAnswer->value,
+                        ])
+                        ->values()->all()
+                    : [],
             ];
         })->values()->all();
 

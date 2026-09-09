@@ -39,14 +39,69 @@ class AssessmentAnswerKey extends Model
         }
 
         return match ($this->question_type) {
-            AnswerSheetQuestionType::SingleChoice => is_string($submitted)
-                && strtoupper(trim($submitted)) === strtoupper(trim((string) $this->correct_answer)),
+            AnswerSheetQuestionType::SingleChoice => self::singleChoiceMatches($submitted, $this->correct_answer),
+            // SỬA 9/9 — cả câu chỉ Đúng hoặc Sai; bài nộp đã được PdfAttemptService ép về bool thật.
+            AnswerSheetQuestionType::TrueFalse => is_bool($submitted)
+                && $submitted === (bool) $this->correct_answer,
             AnswerSheetQuestionType::TrueFalseGroup => is_array($submitted)
                 && $this->trueFalseGroupMatches($submitted),
-            AnswerSheetQuestionType::ShortAnswer => is_numeric($submitted)
-                && is_numeric($this->correct_answer)
-                && (float) $submitted === (float) $this->correct_answer,
+            AnswerSheetQuestionType::ShortAnswer => self::shortAnswerMatches($submitted, $this->correct_answer),
+            // SỬA 9/9 — câu nhiều ý: ĐÚNG TOÀN BỘ mới được tính điểm, cùng quy ước với
+            // TrueFalseGroup đang dùng (hệ thống chưa có chấm điểm thành phần cho 1 câu).
+            AnswerSheetQuestionType::MultiPart => is_array($submitted)
+                && $this->multiPartMatches($submitted),
         };
+    }
+
+    /** So khớp 1 ý/1 câu dạng trắc nghiệm — không phân biệt hoa thường và khoảng trắng thừa. */
+    private static function singleChoiceMatches(mixed $submitted, mixed $expected): bool
+    {
+        return (is_string($submitted) || is_numeric($submitted))
+            && strtoupper(trim((string) $submitted)) === strtoupper(trim((string) $expected));
+    }
+
+    /** So khớp 1 ý/1 câu trả lời ngắn — so bằng GIÁ TRỊ SỐ nên "12" và "12.0" cùng đúng. */
+    private static function shortAnswerMatches(mixed $submitted, mixed $expected): bool
+    {
+        return is_numeric($submitted)
+            && is_numeric($expected)
+            && (float) $submitted === (float) $expected;
+    }
+
+    /**
+     * SỬA 9/9 — câu nhiều ý: mỗi ý có KIỂU riêng lưu ngay trong đáp án đúng
+     * ({"a":{"type":"single_choice","value":"A"}, …}), nên phải so từng ý theo đúng kiểu của nó.
+     * Thiếu ý nào, thừa ý nào, hay sai 1 ý -> cả câu sai.
+     *
+     * @param  array<string, mixed>  $submitted  {"a":"A","b":true,"c":"123"}
+     */
+    private function multiPartMatches(array $submitted): bool
+    {
+        $expected = (array) $this->correct_answer;
+
+        if ($expected === [] || array_keys($submitted) !== array_keys($expected)) {
+            return false;
+        }
+
+        foreach ($expected as $part => $spec) {
+            $type = is_array($spec) ? ($spec['type'] ?? null) : null;
+            $value = is_array($spec) ? ($spec['value'] ?? null) : $spec;
+            $given = $submitted[$part] ?? null;
+
+            $ok = match ($type) {
+                AnswerSheetQuestionType::SingleChoice->value => self::singleChoiceMatches($given, $value),
+                AnswerSheetQuestionType::TrueFalse->value => is_bool($given) && $given === (bool) $value,
+                AnswerSheetQuestionType::ShortAnswer->value => self::shortAnswerMatches($given, $value),
+                // Kiểu lạ (dữ liệu cũ/hỏng) -> KHÔNG đoán bừa là đúng.
+                default => false,
+            };
+
+            if (! $ok) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function trueFalseGroupMatches(array $submitted): bool
@@ -58,7 +113,11 @@ class AssessmentAnswerKey extends Model
         }
 
         foreach ($expected as $key => $value) {
-            if (($submitted[$key] ?? null) !== $value) {
+            // SỬA 9/9 (3) — so sánh sau khi ép về bool ở CẢ HAI phía. Đề lưu TRƯỚC bản sửa lỗi
+            // "$row + [...]" ở Controller có correct_answer là chuỗi "1"/"0" chứ không phải
+            // true/false; so sánh !== theo kiểu sẽ làm mọi bài làm của những đề cũ đó đều bị chấm
+            // sai. Ép bool ở đây chữa luôn dữ liệu cũ mà không cần chạy lệnh sửa CSDL.
+            if ((bool) ($submitted[$key] ?? null) !== (bool) $value) {
                 return false;
             }
         }

@@ -7,6 +7,8 @@ use App\Models\AssessmentCodingItem;
 use App\Models\AssessmentCodingTestCase;
 use App\Enums\AnswerSheetQuestionType;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
+use App\Support\AnswerKeySheet;
+use App\Support\SimpleXlsx;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -36,9 +38,55 @@ class PdfAssessmentEditingService
         private readonly AssessmentRepositoryInterface $assessments,
     ) {}
 
+    // SỬA 9/9 (khách: "thêm nút tải file Excel mẫu" + "nút upload file Excel đáp án") — tệp đáp
+    // án chỉ là bảng vài chục dòng, 2MB đã quá dư; đặt trần thấp để tránh ai đó tải nhầm file nặng.
+    private const MAX_ANSWER_SHEET_KB = 2048;
+
     public static function maxPdfKb(): int
     {
         return self::MAX_PDF_KB;
+    }
+
+    public static function maxAnswerSheetKb(): int
+    {
+        return self::MAX_ANSWER_SHEET_KB;
+    }
+
+    /**
+     * SỬA 9/9 — nội dung nhị phân tệp Excel MẪU để giáo viên tải về điền (xem App\Support\
+     * AnswerKeySheet::templateXlsx() để biết cấu trúc cột và các dạng câu được chấp nhận).
+     */
+    public function answerKeyTemplateXlsx(): string
+    {
+        return AnswerKeySheet::templateXlsx();
+    }
+
+    /**
+     * SỬA 9/9 — đọc tệp Excel đáp án giáo viên tải lên thành các dòng đáp án ĐÚNG CẤU TRÚC mà
+     * update() bên dưới nhận. CỐ Ý chỉ đọc và trả về, KHÔNG tự lưu: nhập từ tệp là thao tác dễ
+     * sai (nhầm file, nhầm mã đề, lệch số câu) nên phải đổ ra form cho giáo viên nhìn lại rồi
+     * mới bấm "Lưu đề PDF + đáp án" — đúng như luồng nhập tay đang có.
+     *
+     * @return array<int, array{question_no:int, question_type:string, correct_answer:mixed, points:int}>
+     *
+     * @throws ValidationException nếu tệp không mở được hoặc có dòng sai dữ liệu (nêu rõ từng dòng).
+     */
+    public function parseAnswerKeySheet(UploadedFile $file): array
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ($extension !== 'xlsx') {
+            throw ValidationException::withMessages([
+                'answer_sheet' => 'Chỉ nhận tệp .xlsx (Excel 2007 trở lên). Tệp .xls đời cũ hãy mở bằng Excel rồi "Lưu thành" .xlsx.',
+            ]);
+        }
+
+        try {
+            $rows = SimpleXlsx::readRows($file->getRealPath());
+        } catch (\RuntimeException $e) {
+            throw ValidationException::withMessages(['answer_sheet' => $e->getMessage()]);
+        }
+
+        return AnswerKeySheet::parse($rows);
     }
 
     /** Dữ liệu cho màn "Quản lý đề PDF" — dùng chung cả 2 nơi gọi vào. */
@@ -50,11 +98,11 @@ class PdfAssessmentEditingService
             'assessment' => $assessment,
             'answerKeys' => $assessment->answerKeys,
             'codingItems' => $assessment->codingItems,
-            'answerSheetTypes' => [
-                AnswerSheetQuestionType::SingleChoice->value => AnswerSheetQuestionType::SingleChoice->label(),
-                AnswerSheetQuestionType::TrueFalseGroup->value => AnswerSheetQuestionType::TrueFalseGroup->label(),
-                AnswerSheetQuestionType::ShortAnswer->value => AnswerSheetQuestionType::ShortAnswer->label(),
-            ],
+            // SỬA 9/9 — lấy thẳng toàn bộ enum thay vì liệt kê tay 3 dạng: thêm dạng mới
+            // (Đúng/Sai cả câu, Câu nhiều ý) là dropdown tự có, không phải nhớ sửa ở đây.
+            'answerSheetTypes' => collect(AnswerSheetQuestionType::cases())
+                ->mapWithKeys(fn (AnswerSheetQuestionType $t) => [$t->value => $t->icon().' '.$t->label()])
+                ->all(),
             'publishDecision' => $this->publishGuard->canPublish($assessment),
         ];
     }

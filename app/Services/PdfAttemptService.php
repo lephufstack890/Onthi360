@@ -131,10 +131,62 @@ class PdfAttemptService
         return match ($answerKey->question_type) {
             AnswerSheetQuestionType::SingleChoice => is_string($raw) || is_numeric($raw) ? strtoupper(trim((string) $raw)) : $raw,
             AnswerSheetQuestionType::ShortAnswer => is_string($raw) || is_numeric($raw) ? trim((string) $raw) : $raw,
+            // SỬA 9/9 — Đúng/Sai cả câu: form HTML gửi lên "1"/"0", ép về bool thật cùng lý do
+            // với true_false_group ngay bên dưới (AssessmentAnswerKey::isCorrect so sánh ===).
+            AnswerSheetQuestionType::TrueFalse => self::toBool($raw),
             AnswerSheetQuestionType::TrueFalseGroup => is_array($raw)
                 ? collect($raw)->mapWithKeys(fn ($v, $k) => [$k => (bool) ((int) $v)])->all()
                 : $raw,
+            // SỬA 9/9 — câu nhiều ý: mỗi ý một kiểu, phải chuẩn hoá theo ĐÚNG kiểu khai trong
+            // đáp án đúng, nếu không ý Đúng/Sai sẽ còn là chuỗi "1" và so sánh === luôn sai.
+            AnswerSheetQuestionType::MultiPart => is_array($raw)
+                ? self::normalizeMultiPart($answerKey, $raw)
+                : $raw,
         };
+    }
+
+    /** "1"/1/"true"/true -> true; còn lại -> false. Dùng cho cả dạng Đúng/Sai và ý Đúng/Sai. */
+    private static function toBool(mixed $raw): bool
+    {
+        if (is_bool($raw)) {
+            return $raw;
+        }
+
+        // mb_strtolower: strtolower() KHÔNG hạ được chữ "Đ" (nhiều byte) nên "Đ" sẽ không khớp
+        // 'đ' trong danh sách dưới đây.
+        $value = mb_strtolower(trim((string) $raw));
+
+        return in_array($value, ['1', 'true', 'dung', 'đúng', 'đ', 'd', 't'], true);
+    }
+
+    /**
+     * SỬA 9/9 — chuẩn hoá bài làm của câu nhiều ý theo kiểu từng ý khai trong
+     * AssessmentAnswerKey::correct_answer. Ý nào không có trong đáp án đúng thì BỎ, để mảng khoá
+     * của bài nộp khớp đúng mảng khoá đáp án (isCorrect so sánh array_keys).
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private static function normalizeMultiPart(AssessmentAnswerKey $answerKey, array $raw): array
+    {
+        $expected = (array) $answerKey->correct_answer;
+        $out = [];
+
+        foreach ($expected as $part => $spec) {
+            if (! array_key_exists($part, $raw)) {
+                continue;
+            }
+
+            $value = $raw[$part];
+            $out[$part] = match (is_array($spec) ? ($spec['type'] ?? null) : null) {
+                AnswerSheetQuestionType::SingleChoice->value => strtoupper(trim((string) $value)),
+                AnswerSheetQuestionType::TrueFalse->value => self::toBool($value),
+                AnswerSheetQuestionType::ShortAnswer->value => trim((string) $value),
+                default => $value,
+            };
+        }
+
+        return $out;
     }
 
     /**

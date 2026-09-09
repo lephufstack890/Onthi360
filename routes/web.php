@@ -218,6 +218,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('papers/bulk/multi', [TeacherAssessmentController::class, 'papersBulkMulti'])->name('papers.bulk.multi');
         Route::get('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfEdit'])->name('papers.pdf.edit');
         Route::put('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfUpdate'])->name('papers.pdf.update');
+        // SỬA 9/9 (khách: "thêm nút tải file Excel mẫu về để điền" + "nút upload file Excel đáp
+        // án") — 2 route phụ trợ cho khối "Đáp án đúng từng câu" ở màn Quản lý đề PDF. Nhập tệp
+        // CHỈ đổ dữ liệu ra form, việc ghi vẫn qua papers.pdf.update ở trên.
+        Route::get('papers/{assessment}/answer-keys/template', [TeacherAssessmentController::class, 'papersAnswerKeysTemplate'])->name('papers.answer-keys.template');
+        Route::post('papers/{assessment}/answer-keys/import', [TeacherAssessmentController::class, 'papersAnswerKeysImport'])->name('papers.answer-keys.import');
         Route::post('papers/{assessment}/coding-items', [TeacherAssessmentController::class, 'papersCodingItemsStore'])->name('papers.coding-items.store');
         Route::put('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsUpdate'])->name('papers.coding-items.update');
         Route::delete('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsDestroy'])->name('papers.coding-items.destroy');

@@ -11,6 +11,7 @@ use App\Models\Question;
 use App\Models\Tag;
 use App\Services\Admin\ContentService;
 use App\Services\Admin\DocumentImportService;
+use App\Support\AnswerKeySheet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -728,7 +729,7 @@ class ContentController extends Controller
             'solution_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
             'answer_keys' => ['nullable', 'array'],
             'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
-            'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false_group,short_answer'],
+            'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false,true_false_group,short_answer,multi_part'],
             'answer_keys.*.correct_answer' => ['required_with:answer_keys'],
             'answer_keys.*.points' => ['nullable', 'integer', 'min:0'],
         ], [], [
@@ -737,8 +738,21 @@ class ContentController extends Controller
             'solution_pdf' => 'Tệp PDF lời giải',
         ]);
 
+        // SỬA 9/9 (3) — LỖI CŨ (khách báo: "dạng đúng/sai, đúng sai 4 ý, câu nhiều ý không lưu
+        // được"): chỗ này viết `$row + [...]`. Toán tử "+" của PHP CHỈ thêm khoá còn THIẾU, không
+        // ghi đè khoá đã có — mà $row đã có sẵn 'correct_answer' từ form, nên giá trị đã chuẩn hoá
+        // bị vứt đi, thứ lưu xuống là giá trị thô của form:
+        //   · Đúng/Sai 4 ý  -> lưu ["a"=>"1","b"=>"0"…] (chuỗi) thay vì true/false: mở lại thấy cả
+        //     4 ý đều "Đúng" (chuỗi "0" vẫn là truthy) và chấm bài không bao giờ khớp;
+        //   · Câu nhiều ý   -> lưu nguyên chuỗi "a:A-b:Đ-c:123" thay vì cấu trúc từng ý: mở lại ô
+        //     nhập trống trơn;
+        //   · Đúng/Sai      -> lưu chuỗi "1"/"0" thay vì bool.
+        // Trắc nghiệm và Trả lời ngắn không lộ lỗi vì giá trị thô vốn đã đúng dạng cần lưu.
+        // array_replace() ghi đè đúng khoá 'correct_answer'.
         $answerKeyRows = array_map(
-            fn (array $row) => $row + ['correct_answer' => $this->normalizeAnswerSheetValue($row['question_type'], $row['correct_answer'])],
+            fn (array $row) => array_replace($row, [
+                'correct_answer' => AnswerKeySheet::normalizeFormAnswer($row['question_type'], $row['correct_answer']),
+            ]),
             $data['answer_keys'] ?? [],
         );
 
@@ -760,17 +774,6 @@ class ContentController extends Controller
      * checkbox qua field ẩn ("1"/"0" dạng chuỗi) phải đổi thành bool thật, nếu không phép so
      * sánh !== trong trueFalseGroupMatches() sẽ luôn sai kiểu dù đúng giá trị.
      */
-    private function normalizeAnswerSheetValue(string $questionType, mixed $raw): mixed
-    {
-        return match ($questionType) {
-            'single_choice' => strtoupper(trim((string) $raw)),
-            'short_answer' => trim((string) $raw),
-            'true_false_group' => collect((array) $raw)->mapWithKeys(
-                fn ($v, $k) => [$k => (bool) ((int) $v)]
-            )->all(),
-            default => $raw,
-        };
-    }
 
     /** admin.content.assessments.coding-items.store — thêm 1 bài lập trình con vào đề PDF. */
     public function assessmentsCodingItemsStore(Request $request, Assessment $assessment): RedirectResponse

@@ -8,7 +8,9 @@ use App\Models\AssessmentCodingItem;
 use App\Services\PdfAssessmentEditingService;
 use App\Services\Teacher\AssessmentService;
 use App\Services\Teacher\DocumentImportService;
+use App\Support\AnswerKeySheet;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -331,6 +333,41 @@ class AssessmentController extends Controller
             ->with('bulkCreatedCount', $created->count());
     }
 
+    /**
+     * SỬA 9/9 (khách: "thêm 1 button để tải file excel mẫu về để điền") — tải tệp Excel mẫu.
+     * Vẫn qua findOwned() dù nội dung tệp giống nhau cho mọi đề: giữ đúng ranh giới "chỉ giáo
+     * viên sở hữu mới thao tác được trên đề này", và để đặt tên tệp theo mã đề cho dễ tìm.
+     */
+    public function papersAnswerKeysTemplate(int $assessment): Response
+    {
+        $paper = $this->assessmentService->findOwned(Auth::user(), $assessment);
+
+        return response($this->assessmentService->paperAnswerKeyTemplateXlsx())
+            ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->header('Content-Disposition', 'attachment; filename="'.AnswerKeySheet::templateFilename($paper->exam_code).'"');
+    }
+
+    /**
+     * SỬA 9/9 (khách: "thêm 1 button để upload file excel đáp án") — đọc tệp rồi ĐỔ NGƯỢC ra form
+     * qua session, KHÔNG ghi thẳng vào CSDL: giáo viên nhìn lại số câu/đáp án rồi mới bấm "Lưu đề
+     * PDF + đáp án" (nút lưu vẫn là nơi duy nhất ghi dữ liệu, xem papersPdfUpdate()).
+     */
+    public function papersAnswerKeysImport(Request $request, int $assessment): RedirectResponse
+    {
+        $paper = $this->assessmentService->findOwned(Auth::user(), $assessment);
+
+        $request->validate([
+            'answer_sheet' => ['required', 'file', 'max:'.PdfAssessmentEditingService::maxAnswerSheetKb()],
+        ], [], ['answer_sheet' => 'Tệp Excel đáp án']);
+
+        $rows = $this->assessmentService->paperParseAnswerKeySheet($request->file('answer_sheet'));
+
+        return redirect()->route('teacher.papers.pdf.edit', $paper->id)
+            ->with('status', 'answer-sheet-imported')
+            ->with('importedAnswerKeysCount', count($rows))
+            ->with('importedAnswerKeys', $rows);
+    }
+
     /** teacher.papers.pdf.edit — màn cấu hình PDF + đáp án + bài lập trình con (chỉ đề của chính giáo viên). */
     public function papersPdfEdit(int $assessment): View
     {
@@ -351,7 +388,7 @@ class AssessmentController extends Controller
             'solution_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
             'answer_keys' => ['nullable', 'array'],
             'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
-            'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false_group,short_answer'],
+            'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false,true_false_group,short_answer,multi_part'],
             'answer_keys.*.correct_answer' => ['required_with:answer_keys'],
             'answer_keys.*.points' => ['nullable', 'integer', 'min:0'],
         ], [], [
@@ -360,8 +397,21 @@ class AssessmentController extends Controller
             'solution_pdf' => 'Tệp PDF lời giải',
         ]);
 
+        // SỬA 9/9 (3) — LỖI CŨ (khách báo: "dạng đúng/sai, đúng sai 4 ý, câu nhiều ý không lưu
+        // được"): chỗ này viết `$row + [...]`. Toán tử "+" của PHP CHỈ thêm khoá còn THIẾU, không
+        // ghi đè khoá đã có — mà $row đã có sẵn 'correct_answer' từ form, nên giá trị đã chuẩn hoá
+        // bị vứt đi, thứ lưu xuống là giá trị thô của form:
+        //   · Đúng/Sai 4 ý  -> lưu ["a"=>"1","b"=>"0"…] (chuỗi) thay vì true/false: mở lại thấy cả
+        //     4 ý đều "Đúng" (chuỗi "0" vẫn là truthy) và chấm bài không bao giờ khớp;
+        //   · Câu nhiều ý   -> lưu nguyên chuỗi "a:A-b:Đ-c:123" thay vì cấu trúc từng ý: mở lại ô
+        //     nhập trống trơn;
+        //   · Đúng/Sai      -> lưu chuỗi "1"/"0" thay vì bool.
+        // Trắc nghiệm và Trả lời ngắn không lộ lỗi vì giá trị thô vốn đã đúng dạng cần lưu.
+        // array_replace() ghi đè đúng khoá 'correct_answer'.
         $answerKeyRows = array_map(
-            fn (array $row) => $row + ['correct_answer' => $this->normalizeAnswerSheetValue($row['question_type'], $row['correct_answer'])],
+            fn (array $row) => array_replace($row, [
+                'correct_answer' => AnswerKeySheet::normalizeFormAnswer($row['question_type'], $row['correct_answer']),
+            ]),
             $data['answer_keys'] ?? [],
         );
 
@@ -377,17 +427,6 @@ class AssessmentController extends Controller
     }
 
     /** Cùng cách chuẩn hoá true_false_group với AdminContentController — xem docblock ở đó. */
-    private function normalizeAnswerSheetValue(string $questionType, mixed $raw): mixed
-    {
-        return match ($questionType) {
-            'single_choice' => strtoupper(trim((string) $raw)),
-            'short_answer' => trim((string) $raw),
-            'true_false_group' => collect((array) $raw)->mapWithKeys(
-                fn ($v, $k) => [$k => (bool) ((int) $v)]
-            )->all(),
-            default => $raw,
-        };
-    }
 
     public function papersCodingItemsStore(Request $request, int $assessment): RedirectResponse
     {

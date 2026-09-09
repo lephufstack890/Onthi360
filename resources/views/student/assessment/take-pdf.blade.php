@@ -11,11 +11,11 @@
         $maxAttempts = $assessmentModel->resubmission_policy['max_attempts'] ?? null;
         $resubmissionNote = $maxAttempts ? 'Nộp lại tối đa '.$maxAttempts.' lần' : 'Không giới hạn số lần nộp lại';
         $totalCount = count($answerRows) + count($codingRows);
-        $typeMeta = [
-            'single_choice' => ['label' => 'Trắc nghiệm 1 đáp án', 'icon' => '🔤'],
-            'true_false_group' => ['label' => 'Đúng/Sai từng ý', 'icon' => '✅'],
-            'short_answer' => ['label' => 'Trả lời ngắn', 'icon' => '✏️'],
-        ];
+        // SỬA 9/9 — lấy thẳng nhãn/biểu tượng từ enum để màn làm bài và màn soạn đáp án không
+        // bao giờ lệch tên dạng câu (trước đây chép tay 3 dòng ở đây, thêm dạng mới là quên).
+        $typeMeta = collect(\App\Enums\AnswerSheetQuestionType::cases())
+            ->mapWithKeys(fn ($t) => [$t->value => ['label' => $t->label(), 'icon' => $t->icon()]])
+            ->all();
     @endphp
 
     <style>[x-cloak] { display: none !important; }</style>
@@ -161,6 +161,74 @@
                                                     Sai
                                                 </label>
                                             </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @elseif ($row['type'] === 'true_false')
+                                {{-- SỬA 9/9 — dạng Đúng/Sai cả câu (khác "Đúng/Sai 4 ý" ở trên). --}}
+                                <div class="flex gap-2">
+                                    {{-- Lớp CSS phải viết NGUYÊN VĂN trong tệp: Tailwind quét chuỗi tĩnh,
+                                         ghép chuỗi kiểu "border-{$tone}-400" sẽ không được sinh ra. --}}
+                                    @foreach ([
+                                        ['1', 'Đúng', 'has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50'],
+                                        ['0', 'Sai', 'has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50'],
+                                    ] as [$value, $label, $checkedClass])
+                                        <label class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 cursor-pointer text-sm text-slate-700 {{ $checkedClass }} transition-colors">
+                                            <input type="radio" name="answers[answer_keys][{{ $row['answerKeyId'] }}]" value="{{ $value }}"
+                                                   :disabled="expired"
+                                                   @checked($row['submittedAnswer'] === ($value === '1'))
+                                                   @change="onAnswerKey({{ $row['answerKeyId'] }}, $event.target.value, true)">
+                                            {{ $label }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @elseif ($row['type'] === 'multi_part')
+                                {{-- SỬA 9/9 — câu nhiều ý: mỗi ý một kiểu nhập riêng, danh sách ý và
+                                     kiểu do đáp án đúng quy định (Student\AssessmentService trả về
+                                     'parts', KHÔNG kèm giá trị đúng). --}}
+                                @php
+                                    $submittedParts = is_array($row['submittedAnswer']) ? $row['submittedAnswer'] : [];
+                                    $initialParts = collect($row['parts'])
+                                        ->mapWithKeys(fn ($p) => [$p['part'] => $submittedParts[$p['part']] ?? null])
+                                        ->all();
+                                @endphp
+                                <div class="space-y-2" x-data="{ vals: @js($initialParts) }">
+                                    @foreach ($row['parts'] as $p)
+                                        @php $part = $p['part']; @endphp
+                                        <div class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-xl border border-slate-200">
+                                            <span class="text-sm font-medium text-slate-600 w-10 shrink-0">Ý {{ strtoupper($part) }}</span>
+
+                                            @if ($p['type'] === 'single_choice')
+                                                <div class="flex gap-1.5">
+                                                    @foreach (['A', 'B', 'C', 'D'] as $letter)
+                                                        <label class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50">
+                                                            <input type="radio" class="hidden" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="{{ $letter }}"
+                                                                   :disabled="expired"
+                                                                   @checked(($submittedParts[$part] ?? null) === $letter)
+                                                                   @change="vals['{{ $part }}'] = '{{ $letter }}'; onAnswerKey({{ $row['answerKeyId'] }}, vals, true)">
+                                                            {{ $letter }}
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @elseif ($p['type'] === 'true_false')
+                                                <div class="flex gap-2">
+                                                    @foreach ([['1', 'Đúng'], ['0', 'Sai']] as [$value, $label])
+                                                        <label class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
+                                                            <input type="radio" class="hidden" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="{{ $value }}"
+                                                                   :disabled="expired"
+                                                                   @checked(($submittedParts[$part] ?? null) === ($value === '1'))
+                                                                   @change="vals['{{ $part }}'] = '{{ $value }}'; onAnswerKey({{ $row['answerKeyId'] }}, vals, true)">
+                                                            {{ $label }}
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <input type="text" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]"
+                                                       value="{{ $submittedParts[$part] ?? '' }}" placeholder="Nhập số…"
+                                                       :disabled="expired"
+                                                       @input.debounce.700ms="vals['{{ $part }}'] = $event.target.value; onAnswerKey({{ $row['answerKeyId'] }}, vals, true)"
+                                                       class="flex-1 min-w-[120px] rounded-lg border border-slate-200 text-sm p-2 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 disabled:bg-slate-50">
+                                            @endif
                                         </div>
                                     @endforeach
                                 </div>

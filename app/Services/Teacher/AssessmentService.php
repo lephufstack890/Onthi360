@@ -472,6 +472,23 @@ class AssessmentService
         return $this->pdfEditing->update($assessment, $data, $answerKeyRows, $pdf, $solutionPdf);
     }
 
+    /** SỬA 9/9 — tệp Excel mẫu để giáo viên tải về điền đáp án (xem PdfAssessmentEditingService). */
+    public function paperAnswerKeyTemplateXlsx(): string
+    {
+        return $this->pdfEditing->answerKeyTemplateXlsx();
+    }
+
+    /**
+     * SỬA 9/9 — đọc tệp Excel đáp án giáo viên tải lên. Trả về các dòng đáp án để ĐỔ RA FORM cho
+     * giáo viên soát lại; việc lưu vẫn do paperPdfUpdate() làm khi bấm nút Lưu.
+     *
+     * @return array<int, array{question_no:int, question_type:string, correct_answer:mixed, points:int}>
+     */
+    public function paperParseAnswerKeySheet(UploadedFile $file): array
+    {
+        return $this->pdfEditing->parseAnswerKeySheet($file);
+    }
+
     public function paperCodingItemStore(Assessment $assessment, array $data): AssessmentCodingItem
     {
         return $this->pdfEditing->codingItemStore($assessment, $data);
