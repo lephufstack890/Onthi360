@@ -35,9 +35,9 @@
                 <a href="{{ route('admin.content.assessments.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo đề/bộ bài</a>
                 {{-- SỬA 19/8 (Giai đoạn 3 — "Bộ đề"): tạo nhiều đề PDF cùng lúc, khác hẳn nút
                      "+ Tạo đề/bộ bài" ở trên (tạo TỪNG đề trống 1 lần). --}}
-                <a href="{{ route('admin.content.assessments.bulk.create') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải bộ đề (nhiều đề PDF)</a>
+                {{-- <a href="{{ route('admin.content.assessments.bulk.create') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Tải bộ đề (nhiều đề PDF)</a> --}}
             @endif
-            <a href="{{ route('admin.content.questions.import') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Nhập đề (Word/PDF/OCR)</a>
+            {{-- <a href="{{ route('admin.content.questions.import') }}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Nhập đề (Word/PDF/OCR)</a> --}}
         </x-slot:actions>
     </x-page-header>
 

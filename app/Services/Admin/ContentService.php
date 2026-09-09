@@ -240,7 +240,7 @@ class ContentService
         $tabs = [
             ['label' => 'Câu hỏi (Kho chung + Giáo viên)', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
             ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
-            ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
+            // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
         ];
 

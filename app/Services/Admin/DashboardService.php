@@ -34,7 +34,7 @@ class DashboardService
             // TODO: "quyền dạy sắp hết hạn" cần công thức ngưỡng ngày thật — tạm để 0 cho tới khi thống nhất ngưỡng.
             ['label' => 'Quyền dạy sắp hết hạn (7 ngày)', 'value' => 0, 'tone' => 'danger', 'href' => route('admin.access-rights.index')],
             ['label' => 'Tổng người dùng', 'value' => number_format($this->users->count()), 'tone' => 'neutral', 'href' => route('admin.users.index')],
-            ['label' => 'Câu hỏi chờ rà soát (OCR)', 'value' => $this->draftQuestions->countPendingReview(), 'tone' => 'warning', 'href' => route('admin.content.index', ['tab' => 'drafts'])],
+            // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'value' => $this->draftQuestions->countPendingReview(), 'tone' => 'warning', 'href' => route('admin.content.index', ['tab' => 'drafts'])],
         ];
 
         $activity = $this->auditLogs->latestWithActor(10)->map(fn ($log) => [
