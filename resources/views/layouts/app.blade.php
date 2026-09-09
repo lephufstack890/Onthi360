@@ -6,6 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Ôn Thi 360')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- SỬA 9/9 (7) — layouts/guest.blade.php đã có luật này, layouts/app thì chưa: thiếu nó
+         thì x-cloak vô tác dụng, các khối chỉ hiện khi có điều kiện (x-show) bị NHÁY hiện ra
+         một nhịp trước khi Alpine kịp khởi động. --}}
+    <style>[x-cloak] { display: none !important; }</style>
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>

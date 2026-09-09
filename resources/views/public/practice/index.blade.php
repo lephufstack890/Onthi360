@@ -6,12 +6,14 @@
     @php
         $items = $items ?? [];
         $canTakeDirectly = $canTakeDirectly ?? false;
-        $allTags = $allTags ?? collect();
-        $practiceQuestionsCount = $practiceQuestionsCount ?? 0;
+        // SỬA 9/9 (7) — dữ liệu bộ lọc lấy CHUNG với màn học sinh (App\Support\PracticeFilters).
+        $practiceTypes = $practiceTypes ?? [];
+        $practiceTags = $practiceTags ?? [];
+        $practiceTotal = $practiceTotal ?? 0;
         $cardAccent = fn (bool $hasCoding) => $hasCoding
             ? ['tone' => 'amber', 'bar' => 'from-amber-400 to-amber-300']
             : ['tone' => 'emerald', 'bar' => 'from-emerald-400 to-emerald-300'];
-        $selectedTagIds = collect(old('tag_ids', []))->map(fn ($v) => (string) $v);
+        $selectedTagIds = array_map('intval', (array) old('tag_ids', []));
     @endphp
 
     {{-- SỬA 24/8 — khách chốt: trang này không còn tập trung vào "làm theo đề gồm nhiều câu
@@ -46,14 +48,14 @@
                 <div class="rounded-2xl bg-white shadow-sm border border-white p-4 lg:p-5 flex items-center gap-3">
                     <x-icon-tile emoji="📚" tone="emerald" />
                     <div>
-                        <p class="text-xl lg:text-2xl font-bold text-slate-800">{{ $practiceQuestionsCount }}+</p>
+                        <p class="text-xl lg:text-2xl font-bold text-slate-800">{{ number_format($practiceTotal) }}+</p>
                         <p class="text-xs text-slate-400">câu hỏi có thể luyện</p>
                     </div>
                 </div>
                 <div class="rounded-2xl bg-white shadow-sm border border-white p-4 lg:p-5 flex items-center gap-3">
                     <x-icon-tile emoji="🏷️" tone="sky" />
                     <div>
-                        <p class="text-xl lg:text-2xl font-bold text-slate-800">{{ $allTags->count() }}</p>
+                        <p class="text-xl lg:text-2xl font-bold text-slate-800">{{ count($practiceTags) }}</p>
                         <p class="text-xs text-slate-400">chuyên đề để chọn</p>
                     </div>
                 </div>
@@ -106,73 +108,116 @@
                 <p class="text-sm text-slate-500 mt-1">Chọn bộ lọc bên dưới — không chọn gì cũng luyện được, hệ thống lấy toàn bộ Kho chung.</p>
             </div>
 
+            {{-- SỬA 9/9 (7) (khách: "trang luyện tập ngoài public cũng vậy sửa giúp tôi nha") —
+                 dựng lại bộ lọc y như màn học sinh: 2 bước (dạng câu → chuyên đề), thẻ dạng câu
+                 có SỐ CÂU thật, dạng nào 0 câu thì mờ và không bấm được, và chuyên đề CHỈ hiện
+                 những cái thật sự có câu ở dạng đang chọn (Alpine practiceSetup — xem
+                 partials/practice-setup-script.blade.php, dùng chung 2 màn). --}}
             <form method="{{ $canTakeDirectly ? 'POST' : 'GET' }}"
                   action="{{ $canTakeDirectly ? route('student.practiceByQuestion.start') : route('student.practiceByQuestion.setup') }}"
-                  x-data="{ tagCount: {{ $selectedTagIds->count() }} }"
+                  x-data="practiceSetup(@js($practiceTags), '{{ old('type', '') }}', @js($selectedTagIds))"
                   class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 lg:p-8 space-y-8">
                 @if ($canTakeDirectly)
                     @csrf
                 @endif
 
+                {{-- ── Bước 1: dạng câu ── --}}
                 <div>
-                    <p class="text-sm font-semibold text-slate-700 mb-3">Dạng câu hỏi</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-                        @foreach ([
-                            ['value' => '', 'label' => 'Tất cả', 'desc' => 'Trộn chung mọi dạng câu hỏi', 'icon' => '🌈', 'tone' => 'violet'],
-                            ['value' => 'mcq', 'label' => 'Trắc nghiệm', 'desc' => 'Chọn 1 đáp án đúng trong các lựa chọn', 'icon' => '🔤', 'tone' => 'sky'],
-                            ['value' => 'fill_blank', 'label' => 'Điền đáp án', 'desc' => 'Tự gõ câu trả lời của mình', 'icon' => '✏️', 'tone' => 'amber'],
-                            ['value' => 'coding', 'label' => 'Lập trình', 'desc' => 'Viết code — chưa chấm tự động, chỉ ghi nhận bài làm', 'icon' => '💻', 'tone' => 'rose'],
-                        ] as $tf)
-                            <label class="group relative flex flex-col gap-3 rounded-2xl border-2 border-slate-200 p-4 lg:p-5 cursor-pointer transition-all hover:border-rose-200 hover:shadow-md has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50 has-[:checked]:shadow-md">
-                                <input type="radio" name="type" value="{{ $tf['value'] }}" class="hidden" @checked(old('type', '') === $tf['value'])>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 text-xs font-bold flex items-center justify-center">1</span>
+                        <p class="text-sm font-semibold text-slate-700">Chọn dạng câu hỏi</p>
+                    </div>
+
+                    <input type="hidden" name="type" :value="type">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+                        <button type="button" @click="setType('')"
+                                class="group flex flex-col gap-3 rounded-2xl border-2 p-4 lg:p-5 text-left transition-all hover:shadow-md"
+                                :class="type === '' ? 'border-rose-500 bg-rose-50 shadow-md' : 'border-slate-200 hover:border-rose-200'">
+                            <div class="flex items-center justify-between">
+                                <x-icon-tile emoji="🌈" tone="violet" />
+                                <span class="w-5 h-5 rounded-full border-2 flex items-center justify-center text-white text-[10px] transition-colors"
+                                      :class="type === '' ? 'border-rose-500 bg-rose-500' : 'border-slate-300'">
+                                    <span x-show="type === ''">✓</span>
+                                </span>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-slate-800">Tất cả</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Trộn chung mọi dạng câu hỏi</p>
+                                <p class="text-xs font-bold text-rose-600 mt-1.5">{{ number_format($practiceTotal) }} câu</p>
+                            </div>
+                        </button>
+
+                        @foreach ($practiceTypes as $tf)
+                            <button type="button" @click="setType('{{ $tf['value'] }}')"
+                                    @disabled($tf['count'] === 0)
+                                    class="group flex flex-col gap-3 rounded-2xl border-2 p-4 lg:p-5 text-left transition-all hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                                    :class="type === '{{ $tf['value'] }}' ? 'border-rose-500 bg-rose-50 shadow-md' : 'border-slate-200 hover:border-rose-200'">
                                 <div class="flex items-center justify-between">
-                                    <x-icon-tile :emoji="$tf['icon']" :tone="$tf['tone']" />
-                                    <span class="w-5 h-5 rounded-full border-2 border-slate-300 group-has-[:checked]:border-rose-500 group-has-[:checked]:bg-rose-500 flex items-center justify-center text-white text-[10px] transition-colors">
-                                        <span class="hidden group-has-[:checked]:inline">✓</span>
+                                    <x-icon-tile :emoji="$tf['icon']" tone="sky" />
+                                    <span class="w-5 h-5 rounded-full border-2 flex items-center justify-center text-white text-[10px] transition-colors"
+                                          :class="type === '{{ $tf['value'] }}' ? 'border-rose-500 bg-rose-500' : 'border-slate-300'">
+                                        <span x-show="type === '{{ $tf['value'] }}'">✓</span>
                                     </span>
                                 </div>
                                 <div>
                                     <p class="font-semibold text-slate-800">{{ $tf['label'] }}</p>
                                     <p class="text-xs text-slate-500 mt-0.5">{{ $tf['desc'] }}</p>
+                                    <p class="text-xs font-bold mt-1.5 {{ $tf['count'] > 0 ? 'text-rose-600' : 'text-slate-400' }}">
+                                        {{ $tf['count'] > 0 ? number_format($tf['count']).' câu' : 'chưa có câu nào' }}
+                                    </p>
                                 </div>
-                            </label>
+                            </button>
                         @endforeach
                     </div>
                 </div>
 
+                {{-- ── Bước 2: chuyên đề ── --}}
                 <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <p class="text-sm font-semibold text-slate-700">Chuyên đề <span class="font-normal text-slate-400">(bỏ trống = tất cả)</span></p>
-                        <template x-if="tagCount > 0">
-                            <button type="button"
-                                    @click="$el.closest('form').querySelectorAll('input[name=&quot;tag_ids[]&quot;]').forEach(el => el.checked = false); tagCount = 0"
-                                    class="text-xs font-medium text-rose-600 hover:text-rose-700">
-                                Đã chọn <span x-text="tagCount"></span> chuyên đề — Xoá lọc
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-sky-100 text-sky-600 text-xs font-bold flex items-center justify-center">2</span>
+                            <p class="text-sm font-semibold text-slate-700">Chọn chuyên đề <span class="font-normal text-slate-400">(bỏ trống = tất cả)</span></p>
+                        </div>
+                        <button type="button" x-show="selected.length > 0" x-cloak @click="selected = []"
+                                class="text-xs font-medium text-rose-600 hover:text-rose-700">
+                            Đã chọn <span x-text="selected.length"></span> chuyên đề — Xoá lọc
+                        </button>
+                    </div>
+
+                    <template x-if="visibleTags.length === 0">
+                        <p class="text-sm text-slate-400">Dạng câu này chưa có chuyên đề riêng — cứ bỏ trống, hệ thống lấy toàn bộ câu của dạng đang chọn.</p>
+                    </template>
+
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="tag in visibleTags" :key="tag.id">
+                            <button type="button" @click="toggle(tag.id)"
+                                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-sm border transition"
+                                    :class="selected.includes(tag.id) ? 'bg-sky-50 border-sky-300 text-sky-700 font-semibold' : 'border-slate-200 text-slate-600 hover:border-sky-200'">
+                                <span x-text="tag.name"></span>
+                                <span class="text-[11px] px-1.5 py-0.5 rounded-full"
+                                      :class="selected.includes(tag.id) ? 'bg-sky-200/70 text-sky-800' : 'bg-slate-100 text-slate-500'"
+                                      x-text="countFor(tag)"></span>
                             </button>
                         </template>
                     </div>
-                    @if ($allTags->isNotEmpty())
-                        <div class="flex flex-wrap gap-2">
-                            @foreach ($allTags as $tagOption)
-                                <label class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm border border-slate-200 text-slate-600 has-[:checked]:bg-sky-50 has-[:checked]:border-sky-300 has-[:checked]:text-sky-700 transition cursor-pointer">
-                                    <input type="checkbox" name="tag_ids[]" value="{{ $tagOption->id }}"
-                                           @checked($selectedTagIds->contains((string) $tagOption->id))
-                                           @change="tagCount = $el.closest('form').querySelectorAll('input[name=&quot;tag_ids[]&quot;]:checked').length">
-                                    {{ $tagOption->name }}
-                                </label>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-sm text-slate-400">Chưa có chuyên đề nào — bỏ trống để luyện toàn bộ câu hỏi Kho chung.</p>
-                    @endif
+
+                    {{-- Giá trị thật gửi lên server — dựng từ danh sách đang chọn, không phụ thuộc nút bấm. --}}
+                    <template x-for="id in selected" :key="'input-' + id">
+                        <input type="hidden" name="tag_ids[]" :value="id">
+                    </template>
                 </div>
 
                 <div class="rounded-xl bg-sky-50 border border-sky-100 p-3.5 text-xs text-sky-700">
-                    Luyện câu Trắc nghiệm/Điền đáp án/Lập trình đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện. Riêng câu Lập trình chưa có chấm tự động nên chỉ ghi nhận bài làm, không báo đúng/sai.
+                    Luyện câu đã phát hành (Kho chung + kho giáo viên) — không tính vào lịch sử làm bài, không giới hạn số lần luyện. Riêng câu Lập trình chưa có chấm tự động nên chỉ ghi nhận bài làm, không báo đúng/sai.
                 </div>
 
                 <div class="flex flex-col items-center gap-2 pt-1">
-                    <button type="submit" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-rose-600 text-white font-semibold text-base shadow-sm hover:bg-rose-700 transition-colors">
+                    <p class="text-sm text-slate-500">
+                        Sẽ luyện <span class="font-bold text-slate-800" x-text="matchCount"></span> câu<span x-show="type !== ''" x-cloak> dạng <span class="font-semibold text-slate-700" x-text="typeLabel"></span></span><span x-show="selected.length > 0" x-cloak> · <span x-text="selected.length"></span> chuyên đề</span>
+                    </p>
+                    <button type="submit" :disabled="matchCount === 0"
+                            class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-rose-600 text-white font-semibold text-base shadow-sm hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         {{ $canTakeDirectly ? 'Bắt đầu luyện ›' : 'Đăng nhập để bắt đầu luyện ›' }}
                     </button>
                     @unless ($canTakeDirectly)
@@ -247,4 +292,8 @@
         </div>
         --}}
     </div>
+
+    @push('scripts')
+        @include('partials.practice-setup-script')
+    @endpush
 @endsection

@@ -20,6 +20,22 @@ interface TagRepositoryInterface extends BaseRepositoryInterface
      */
     public function allWithPracticeQuestions(): Collection;
 
+    /**
+     * SỬA 9/9 (6) (khách: "khi lọc dạng câu hỏi thì nó sẽ hiển thị chuyên đề thuộc dạng đó cho
+     * đúng") — số câu LUYỆN ĐƯỢC của từng chuyên đề, TÁCH THEO TỪNG DẠNG câu hỏi. Màn chọn lọc
+     * dùng số này để: (1) chỉ hiện chuyên đề thật sự có câu ở dạng đang chọn, (2) hiện luôn số
+     * câu để học sinh biết chọn cái nào có bài mà làm.
+     *
+     * Điều kiện đếm phải TRÙNG KHỚP QuestionRepositoryInterface::idsForPractice() — lệch một
+     * điều kiện là giao diện mời chọn xong bấm vào lại báo "không tìm thấy câu hỏi".
+     *
+     * @return array<int, array{name: string, counts: array<string, int>, total: int}> keyed theo tag id
+     */
+    public function practiceCountsByType(): array;
+
+    /** SỬA 9/9 (6) — tổng số câu luyện được theo từng dạng (tính cả câu KHÔNG gắn chuyên đề nào). */
+    public function practiceTotalsByType(): array;
+
     /** Trả về Tag có sẵn (khớp tên, không phân biệt hoa/thường) hoặc tạo mới nếu chưa có. */
     public function findOrCreateByName(string $name): Tag;
 }

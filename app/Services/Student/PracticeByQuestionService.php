@@ -7,6 +7,7 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\CodeJudgingService;
 use App\Services\QuestionGrader;
+use App\Support\PracticeFilters;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Throwable;
@@ -21,9 +22,21 @@ class PracticeByQuestionService
         private readonly CodeJudgingService $codeJudging,
     ) {}
 
+    /**
+     * SỬA 9/9 (6) (khách: "hiển thị cho đầy đủ dạng câu hỏi, với khi lọc dạng câu hỏi thì nó sẽ
+     * hiển thị chuyên đề thuộc dạng đó cho đúng").
+     *
+     * Trước đây chỉ trả về danh sách chuyên đề PHẲNG, không kèm dạng câu — nên màn chọn lọc:
+     *   · thiếu hẳn dạng "Lập trình" dù idsForPractice() vẫn luyện được dạng này;
+     *   · mời chọn chuyên đề không có câu nào ở dạng đang chọn, bấm vào là báo "không tìm thấy".
+     * Giờ trả kèm SỐ CÂU theo từng dạng cho từng chuyên đề, để màn chọn lọc ẩn/hiện đúng và
+     * hiện luôn số câu. Đếm bằng đúng điều kiện của idsForPractice() (xem TagRepository).
+     */
     public function setupData(): array
     {
-        return ['allTags' => $this->tags->allWithPracticeQuestions()];
+        // SỬA 9/9 (7) — dời phần dựng dữ liệu bộ lọc sang App\Support\PracticeFilters để màn
+        // công khai (Public\PracticeService) dùng CHUNG, tránh 2 màn lệch logic lọc như trước.
+        return PracticeFilters::options($this->tags);
     }
 
     /**

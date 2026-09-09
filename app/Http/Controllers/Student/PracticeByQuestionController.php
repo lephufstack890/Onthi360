@@ -67,7 +67,10 @@ class PracticeByQuestionController extends Controller
         $data = $request->validate([
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer'],
-            'type' => ['nullable', 'in:mcq,fill_blank,coding'],
+            // SỬA 9/9 (6) — LỖI CŨ: danh sách này thiếu 'composite' trong khi setup() ở trên đã
+            // có và idsForPractice() cũng luyện được dạng đó — học sinh chọn "Câu nhiều phần" rồi
+            // bấm Bắt đầu là bị chặn ở validation, không bao giờ luyện được dạng này.
+            'type' => ['nullable', 'in:mcq,fill_blank,coding,composite'],
         ]);
 
         $started = $this->service->start($data['tag_ids'] ?? [], $data['type'] ?? null);

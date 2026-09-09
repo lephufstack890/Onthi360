@@ -10,38 +10,69 @@ class TagRepository extends EloquentRepository implements TagRepositoryInterface
 {
     protected string $modelClass = Tag::class;
 
+    private const PRACTICE_TYPES = ['mcq', 'fill_blank', 'coding', 'composite'];
+
     public function allOrderedByName(): Collection
     {
         return $this->query()->orderBy('name')->get();
     }
 
-    /**
-     * SỬA 24/8 — xem docblock ở TagRepositoryInterface::allWithPracticeQuestions(). Cùng điều
-     * kiện với QuestionRepository::idsForPractice(null, []) (đã phát hành, type mcq/fill_blank/
-     * coding) nhưng lọc theo phía Tag qua whereHas('questions', ...) — KHÔNG lọc theo
-     * $type/$tagIds cụ thể ở đây vì đây là danh sách "còn chọn được" hiển thị SẴN cho người
-     * dùng trước khi họ bấm lọc, không phải kết quả của 1 lượt lọc.
-     * SỬA 24/8 (v2) — khách chốt: bỏ điều kiện owner_type='shared' — câu hỏi giáo viên đã phát
-     * hành cũng tính, không chỉ Kho chung (khớp QuestionRepository::idsForPractice() bản mới).
-     * SỬA 24/8 (v4) — khách chốt: thêm dạng 'coding' vào luôn, khớp idsForPractice() bản mới.
-     */
     public function allWithPracticeQuestions(): Collection
     {
         return $this->query()
             ->whereHas('questions', function ($q) {
-                // SỬA 31/8 (2) — thêm 'composite', khớp QuestionRepository::idsForPractice() bản mới.
                 $q->where('status', 'published')
-                    ->whereIn('type', ['mcq', 'fill_blank', 'coding', 'composite']);
+                    ->whereNull('product_id')
+                    ->whereIn('type', self::PRACTICE_TYPES);
             })
             ->orderBy('name')
             ->get();
     }
 
-    /**
-     * firstOrCreate() dựa vào collation mặc định của cột 'name' (utf8mb4_unicode_ci — không
-     * phân biệt hoa/thường) để tự khớp "đại số" với "Đại Số" đã có sẵn, tránh tự sinh thêm
-     * tag gần trùng chỉ vì khác cách viết hoa — KHÔNG tự viết thêm điều kiện LOWER() ở đây.
-     */
+    public function practiceCountsByType(): array
+    {
+        $rows = \Illuminate\Support\Facades\DB::table('question_tag')
+            ->join('questions', 'questions.id', '=', 'question_tag.question_id')
+            ->join('tags', 'tags.id', '=', 'question_tag.tag_id')
+            ->where('questions.status', 'published')
+            ->whereNull('questions.product_id')
+            ->whereIn('questions.type', self::PRACTICE_TYPES)
+            ->whereNull('questions.deleted_at')
+            ->groupBy('tags.id', 'tags.name', 'questions.type')
+            ->select('tags.id', 'tags.name', 'questions.type', \Illuminate\Support\Facades\DB::raw('COUNT(*) as aggregate'))
+            ->orderBy('tags.name')
+            ->get();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $out[$id] ??= ['name' => $row->name, 'counts' => array_fill_keys(self::PRACTICE_TYPES, 0), 'total' => 0];
+            $out[$id]['counts'][$row->type] = (int) $row->aggregate;
+            $out[$id]['total'] += (int) $row->aggregate;
+        }
+
+        return $out;
+    }
+
+    public function practiceTotalsByType(): array
+    {
+        $rows = \Illuminate\Support\Facades\DB::table('questions')
+            ->where('status', 'published')
+            ->whereNull('product_id')
+            ->whereNull('deleted_at')
+            ->whereIn('type', self::PRACTICE_TYPES)
+            ->groupBy('type')
+            ->select('type', \Illuminate\Support\Facades\DB::raw('COUNT(*) as aggregate'))
+            ->get();
+
+        $out = array_fill_keys(self::PRACTICE_TYPES, 0);
+        foreach ($rows as $row) {
+            $out[$row->type] = (int) $row->aggregate;
+        }
+
+        return $out;
+    }
+
     public function findOrCreateByName(string $name): Tag
     {
         return Tag::firstOrCreate(['name' => trim($name)]);
