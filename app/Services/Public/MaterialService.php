@@ -140,9 +140,20 @@ class MaterialService
      * published+public, không lộ loại "course") ở một chỗ thứ hai. Không tính "Tic xanh" ở
      * đây (khối chỉ là teaser dẫn sang materials.index/show — nơi có tick thật).
      */
-    public function featuredData(int $limit = 4): array
+    /**
+     * SỬA 9/9 (11) (khách: "chỗ trang chủ đoạn này chuyển tab k dc") — thêm tham số $type để
+     * trang chủ lấy được tài liệu nổi bật RIÊNG cho từng tab Sách / Chuyên đề / Bộ đề. Bỏ
+     * trống $type thì giữ nguyên hành vi cũ (gộp chung cả 3 loại).
+     */
+    public function featuredData(int $limit = 4, ?ProductType $type = null): array
     {
-        $products = $this->baseQuery()->latest()->limit($limit)->get();
+        $query = $this->baseQuery();
+
+        if ($type !== null) {
+            $query->where('type', $type->value);
+        }
+
+        $products = $query->latest()->limit($limit)->get();
 
         $representativeIdByProductId = $this->representativeMaterialIds($products->pluck('id')->all());
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());

@@ -49,6 +49,14 @@ class HomeService
             // "nổi bật" (khóa học vừa phát hành gần đây nhất).
             'featuredCourses' => array_slice($this->courseService->indexData(null)['courses'], 0, self::FEATURED_LIMIT),
             'featuredMaterials' => $this->materialService->featuredData(self::FEATURED_LIMIT),
+            // SỬA 9/9 (11) — 3 tab "Tài liệu nổi bật" ở trang chủ đổi qua lại NGAY TẠI CHỖ
+            // (không tải lại trang), nên phải nạp sẵn cả 3 nhóm. Mỗi nhóm tối đa FEATURED_LIMIT
+            // thẻ, cùng luật lọc với trang Tài liệu (đã phát hành + công khai).
+            'featuredMaterialsByType' => [
+                'sach' => $this->materialService->featuredData(self::FEATURED_LIMIT, \App\Enums\ProductType::Book),
+                'chuyen-de' => $this->materialService->featuredData(self::FEATURED_LIMIT, \App\Enums\ProductType::Topic),
+                'de-thi' => $this->materialService->featuredData(self::FEATURED_LIMIT, \App\Enums\ProductType::Exam),
+            ],
             'upcomingCompetitions' => $this->competitionService->upcomingData(self::UPCOMING_COMPETITIONS_LIMIT),
             'featuredTeachers' => $this->teacherService->featuredData(self::FEATURED_LIMIT),
             'faqs' => $this->faqs(),

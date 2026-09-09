@@ -102,28 +102,48 @@
             ['title' => 'Hệ thống & cuộc thi', 'desc' => 'Học liệu chuẩn, đấu trường uy tín', 'img' => 'aud-5.png', 'url' => route('competitions.index')],
         ];
 
-        // ── Tài liệu nổi bật: dữ liệu thật nếu có, không thì 4 thẻ mẫu của bản thiết kế ──
-        $books = [];
-        foreach (array_slice($featuredMaterials, 0, 4) as $i => $m) {
-            $books[] = [
+        // ── Tài liệu nổi bật ──
+        // SỬA 9/9 (11) (khách: "chỗ trang chủ đoạn này chuyển tab k dc") — 3 tab Sách/Chuyên đề/
+        // Bộ đề trước đây là 3 THẺ LINK sang trang Tài liệu (bấm là rời trang chủ, nên nhìn như
+        // "không chuyển được"), lại còn trỏ ?tab=bo-de không tồn tại (đúng phải là de-thi).
+        // Giờ nạp sẵn cả 3 nhóm rồi đổi qua lại ngay tại chỗ bằng Alpine.
+        $featuredMaterialsByType = $featuredMaterialsByType ?? [];
+        $sampleBooks = [
+            ['title' => 'Lập trình căn bản với Python', 'tag' => 'Dành cho học sinh 6–10', 'pages' => '320 trang', 'highlight' => 'Nhiều bài tập minh họa', 'image' => asset('assets/book-img-1.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
+            ['title' => 'Chuyên đề Cấu trúc dữ liệu và giải thuật', 'tag' => 'Dành cho HSG lớp 10–12', 'pages' => '200 trang', 'highlight' => 'Bài tập nâng cao', 'image' => asset('assets/book-img-2.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
+            ['title' => 'Tuyển tập đề thi HSG Tin học các tỉnh', 'tag' => 'Cập nhật 2020 – 2025', 'pages' => '500+ đề thi', 'highlight' => 'Có lời giải chi tiết', 'image' => asset('assets/book-img-3.png'), 'btnText' => 'Xem chi tiết', 'btnStyle' => 'bg-[#FDBA74] hover:bg-amber-400 text-amber-950 font-bold', 'url' => route('materials.index')],
+            ['title' => 'Bộ đề ôn thi vào lớp 10 chuyên Tin', 'tag' => 'Theo cấu trúc mới nhất', 'pages' => '300 đề luyện tập', 'highlight' => 'Có đáp án và lời giải', 'image' => asset('assets/book-img-4.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
+        ];
+
+        $toBookCard = function (array $m, int $i): array {
+            return [
                 'title' => $m['title'],
                 'tag' => $m['badge'] ?? 'Công khai',
                 'pages' => $m['meta'] ?? 'Miễn phí',
                 'highlight' => ($m['count'] ?? 0) > 0 ? number_format($m['count']).' đánh giá' : 'Biên soạn bởi giáo viên',
-                'image' => $m['image'] ?: asset('assets/book-img-'.($i + 1).'.png'),
+                'image' => $m['image'] ?: asset('assets/book-img-'.($i % 4 + 1).'.png'),
                 'btnText' => 'Xem tài liệu',
                 'btnStyle' => $i === 2 ? 'bg-[#FDBA74] hover:bg-amber-400 text-amber-950 font-bold' : 'bg-[#38BDF8] hover:bg-sky-500 text-white',
                 'url' => route('materials.show', $m['id']),
             ];
+        };
+
+        $materialTabs = [];
+        foreach ([['sach', 'Sách'], ['chuyen-de', 'Chuyên đề'], ['de-thi', 'Bộ đề']] as [$key, $label]) {
+            $items = [];
+            foreach (array_slice($featuredMaterialsByType[$key] ?? [], 0, 4) as $i => $m) {
+                $items[] = $toBookCard($m, $i);
+            }
+            $materialTabs[] = ['key' => $key, 'label' => $label, 'items' => $items, 'href' => route('materials.index', ['tab' => $key])];
         }
-        if ($books === []) {
-            $books = [
-                ['title' => 'Lập trình căn bản với Python', 'tag' => 'Dành cho học sinh 6–10', 'pages' => '320 trang', 'highlight' => 'Nhiều bài tập minh họa', 'image' => asset('assets/book-img-1.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
-                ['title' => 'Chuyên đề Cấu trúc dữ liệu và giải thuật', 'tag' => 'Dành cho HSG lớp 10–12', 'pages' => '200 trang', 'highlight' => 'Bài tập nâng cao', 'image' => asset('assets/book-img-2.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
-                ['title' => 'Tuyển tập đề thi HSG Tin học các tỉnh', 'tag' => 'Cập nhật 2020 – 2025', 'pages' => '500+ đề thi', 'highlight' => 'Có lời giải chi tiết', 'image' => asset('assets/book-img-3.png'), 'btnText' => 'Xem chi tiết', 'btnStyle' => 'bg-[#FDBA74] hover:bg-amber-400 text-amber-950 font-bold', 'url' => route('materials.index')],
-                ['title' => 'Bộ đề ôn thi vào lớp 10 chuyên Tin', 'tag' => 'Theo cấu trúc mới nhất', 'pages' => '300 đề luyện tập', 'highlight' => 'Có đáp án và lời giải', 'image' => asset('assets/book-img-4.png'), 'btnText' => 'Xem tài liệu', 'btnStyle' => 'bg-[#38BDF8] hover:bg-sky-500 text-white', 'url' => route('materials.index')],
-            ];
+
+        // Chưa có tài liệu nào được phát hành -> hiện 4 thẻ mẫu ở tab đầu để bố cục không trống.
+        $hasAnyMaterial = collect($materialTabs)->contains(fn ($t) => $t['items'] !== []);
+        if (! $hasAnyMaterial) {
+            $materialTabs[0]['items'] = $sampleBooks;
         }
+        // Mở sẵn tab đầu tiên CÓ tài liệu, tránh vào trang thấy ngay một tab rỗng.
+        $defaultMaterialTab = collect($materialTabs)->firstWhere(fn ($t) => $t['items'] !== [])['key'] ?? 'sach';
 
         // ── Cuộc thi ──
         $competitionCards = [];
@@ -559,7 +579,7 @@
         </div>
 
         {{-- ═══ 4. TÀI LIỆU NỔI BẬT ═══ --}}
-        <section id="materials" class="mt-6 bg-white rounded-3xl p-5 sm:p-6 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
+        <section id="materials" x-data="{ tab: @js($defaultMaterialTab) }" class="mt-6 bg-white rounded-3xl p-5 sm:p-6 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm shadow-2xs"><x-lucide name="file-text" class="w-5 h-5 text-white" /></div>
@@ -571,37 +591,54 @@
 
                 <div class="flex items-center gap-2.5">
                     <div class="inline-flex bg-slate-100 p-1 rounded-xl text-xs sm:text-sm font-medium">
-                        @foreach ([['Sách', 'sach'], ['Chuyên đề', 'chuyen-de'], ['Bộ đề', 'bo-de']] as $i => $tab)
-                            <a href="{{ route('materials.index', ['tab' => $tab[1]]) }}"
-                               class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all cursor-pointer {{ $i === 0 ? 'bg-blue-600 text-white shadow-2xs font-bold' : 'text-slate-600 hover:text-blue-600' }}">{{ $tab[0] }}</a>
+                        @foreach ($materialTabs as $tab)
+                            <button type="button" @click="tab = @js($tab['key'])"
+                                    class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all cursor-pointer"
+                                    :class="tab === @js($tab['key']) ? 'bg-blue-600 text-white shadow-2xs font-bold' : 'text-slate-600 hover:text-blue-600'">{{ $tab['label'] }}</button>
                         @endforeach
                     </div>
-                    <a href="{{ route('materials.index') }}" class="text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 ml-1">Xem tất cả →</a>
+                    {{-- "Xem tất cả" bám theo tab đang mở, sang đúng tab đó ở trang Tài liệu. --}}
+                    @foreach ($materialTabs as $tab)
+                        <a href="{{ $tab['href'] }}" x-show="tab === @js($tab['key'])" x-cloak
+                           class="text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 ml-1">Xem tất cả →</a>
+                    @endforeach
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                @foreach ($books as $b)
-                    <div class="bg-white rounded-2xl border border-sky-100 p-3.5 flex flex-row items-center gap-3.5 hover:shadow-md hover:border-sky-200 transition-all duration-200 group">
-                        <div class="w-[38%] shrink-0 h-36 flex items-center justify-center">
-                            <img src="{{ $b['image'] }}" alt="{{ $b['title'] }}" class="h-full object-contain group-hover:scale-106 transition-transform duration-200">
+            @foreach ($materialTabs as $tab)
+                <div x-show="tab === @js($tab['key'])" x-cloak>
+                    @if ($tab['items'] === [])
+                        <div class="rounded-2xl border-2 border-dashed border-sky-100 py-12 text-center">
+                            <p class="text-3xl mb-2">📚</p>
+                            <p class="text-sm text-slate-500">Mục <strong>{{ $tab['label'] }}</strong> chưa có tài liệu nào được phát hành.</p>
+                            <a href="{{ $tab['href'] }}" class="inline-block mt-2 text-xs font-bold text-blue-600 hover:text-blue-700">Xem trang Tài liệu →</a>
                         </div>
-                        <div class="w-[62%] flex flex-col justify-between h-full text-left">
-                            <div>
-                                <h4 class="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2 mb-2">{{ $b['title'] }}</h4>
-                                <div class="flex flex-col gap-1 text-xs text-slate-500 mb-3">
-                                    <div class="flex items-center gap-1.5"><span class="text-blue-500 text-xs">👤</span><span class="truncate">{{ $b['tag'] }}</span></div>
-                                    <div class="flex items-center gap-1.5"><span class="text-blue-500 text-xs">📄</span><span>{{ $b['pages'] }}</span></div>
-                                    <div class="flex items-center gap-1.5"><span class="text-amber-500 text-xs">💡</span><span class="truncate">{{ $b['highlight'] }}</span></div>
+                    @else
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                            @foreach ($tab['items'] as $b)
+                                <div class="bg-white rounded-2xl border border-sky-100 p-3.5 flex flex-row items-center gap-3.5 hover:shadow-md hover:border-sky-200 transition-all duration-200 group">
+                                    <div class="w-[38%] shrink-0 h-36 flex items-center justify-center">
+                                        <img src="{{ $b['image'] }}" alt="{{ $b['title'] }}" class="h-full object-contain group-hover:scale-106 transition-transform duration-200">
+                                    </div>
+                                    <div class="w-[62%] flex flex-col justify-between h-full text-left">
+                                        <div>
+                                            <h4 class="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2 mb-2">{{ $b['title'] }}</h4>
+                                            <div class="flex flex-col gap-1 text-xs text-slate-500 mb-3">
+                                                <div class="flex items-center gap-1.5"><span class="text-blue-500 text-xs">👤</span><span class="truncate">{{ $b['tag'] }}</span></div>
+                                                <div class="flex items-center gap-1.5"><span class="text-blue-500 text-xs">📄</span><span>{{ $b['pages'] }}</span></div>
+                                                <div class="flex items-center gap-1.5"><span class="text-amber-500 text-xs">💡</span><span class="truncate">{{ $b['highlight'] }}</span></div>
+                                            </div>
+                                        </div>
+                                        <a href="{{ $b['url'] }}" class="w-full py-2 px-3 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs {{ $b['btnStyle'] }}">
+                                            <span>{{ $b['btnText'] }}</span><span class="font-bold">→</span>
+                                        </a>
+                                    </div>
                                 </div>
-                            </div>
-                            <a href="{{ $b['url'] }}" class="w-full py-2 px-3 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs {{ $b['btnStyle'] }}">
-                                <span>{{ $b['btnText'] }}</span><span class="font-bold">→</span>
-                            </a>
+                            @endforeach
                         </div>
-                    </div>
-                @endforeach
-            </div>
+                    @endif
+                </div>
+            @endforeach
         </section>
 
         {{-- ═══ 5. CUỘC THI | CÂU CHUYỆN ĐỒNG HÀNH ═══ --}}
