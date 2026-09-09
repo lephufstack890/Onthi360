@@ -182,7 +182,8 @@ class ScheduleService
                 'status' => $record?->status?->value ?? 'present',
                 'source' => $record?->source?->value ?? 'manual',
                 'note' => $record?->note ?? Attendance::DEFAULT_NOTE,
-                'needsMorePractice' => $record?->needs_more_practice ?? false,
+                // SỬA 9/9 (12) — ô chữ tự do thay cho ô tick cũ (xem migration đổi kiểu cột).
+                'needsMorePractice' => $record?->needs_more_practice_note ?? '',
             ];
         })->values()->all();
 
@@ -461,7 +462,8 @@ class ScheduleService
                 'status' => $status,
                 'recorded_by' => $teacher->id,
                 'note' => $notes[$studentId] ?? null,
-                'needs_more_practice' => (bool) ($needsMorePractice[$studentId] ?? false),
+                // Ghi nguyên câu giáo viên nhập; để trống thì lưu null cho sạch dữ liệu.
+                'needs_more_practice_note' => trim((string) ($needsMorePractice[$studentId] ?? '')) ?: null,
             ];
 
             $record = $existing->get($studentId);

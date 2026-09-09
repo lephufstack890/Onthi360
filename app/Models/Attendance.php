@@ -14,13 +14,12 @@ class Attendance extends Model
     public const DEFAULT_NOTE = 'Học tập tích cực, tiếp thu tốt trong buổi học.';
 
     protected $fillable = [
-        'class_session_id', 'student_id', 'status', 'source', 'note', 'needs_more_practice', 'recorded_by',
+        'class_session_id', 'student_id', 'status', 'source', 'note', 'needs_more_practice_note', 'recorded_by',
     ];
 
     protected $casts = [
         'status' => AttendanceStatus::class,
         'source' => AttendanceSource::class,
-        'needs_more_practice' => 'boolean',
     ];
 
     public function classSession(): BelongsTo

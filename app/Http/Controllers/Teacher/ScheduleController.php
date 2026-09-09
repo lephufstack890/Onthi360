@@ -65,7 +65,9 @@ class ScheduleController extends Controller
             'status.*' => ['string', 'in:present,absent,excused,late'],
             'note' => ['nullable', 'array'],
             'note.*' => ['nullable', 'string', 'max:1000'],
+            // SỬA 9/9 (12) — trước là mảng checkbox (chỉ có/không), giờ là mảng CHỮ giáo viên nhập.
             'needs_more_practice' => ['nullable', 'array'],
+            'needs_more_practice.*' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $this->scheduleService->saveAttendance(

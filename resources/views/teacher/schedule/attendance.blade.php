@@ -65,8 +65,13 @@
                         <textarea name="note[{{ $r['studentId'] }}]" rows="2"
                                   class="w-48 rounded-lg border border-slate-200 text-xs p-2 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">{{ $r['note'] }}</textarea>
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <input type="checkbox" name="needs_more_practice[{{ $r['studentId'] }}]" value="1" @checked($r['needsMorePractice']) class="accent-amber-500 w-4 h-4">
+                    {{-- SỬA 9/9 (12) (khách: "Em cần học thêm đừng để dạng check mà để dạng nhập
+                         như Nhận xét") — đổi ô tick thành ô nhập chữ để thầy/cô ghi rõ em cần
+                         bổ sung phần nào, thay vì chỉ đánh dấu có/không. --}}
+                    <td class="px-4 py-3">
+                        <textarea name="needs_more_practice[{{ $r['studentId'] }}]" rows="2" maxlength="1000"
+                                  placeholder="VD: cần ôn lại vòng lặp for, làm thêm bài mảng 1 chiều…"
+                                  class="w-48 rounded-lg border border-slate-200 text-xs p-2 hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition">{{ $r['needsMorePractice'] }}</textarea>
                     </td>
                 </tr>
             @empty
