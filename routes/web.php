@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
@@ -88,9 +89,39 @@ Route::get('/thong-tin/chinh-sach/{slug}', [PublicInfoController::class, 'policy
 
 Route::middleware(['guest'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    // Giới hạn số lần thử đăng nhập theo IP — chống dò mật khẩu bằng máy.
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+
+    /*
+     * SỬA 11/9 — luồng đăng ký 3 bước theo source giao diện khách gửi. 3 route dưới đây được
+     * giao diện gọi bằng fetch ở bước 2 (xác minh mã 6 số); bản thân việc tạo tài khoản vẫn
+     * đi qua đúng POST /register ở trên. Xem App\Services\Auth\RegistrationService.
+     */
+    Route::post('/register/gui-ma', [AuthController::class, 'sendRegistrationCode'])
+        ->middleware('throttle:6,1')
+        ->name('register.sendCode');
+    Route::post('/register/gui-lai-ma', [AuthController::class, 'resendRegistrationCode'])
+        ->middleware('throttle:6,1')
+        ->name('register.resendCode');
+    Route::post('/register/xac-minh', [AuthController::class, 'verifyRegistrationCode'])
+        ->middleware('throttle:12,1')
+        ->name('register.verifyCode');
+
+    /*
+     * SỬA 11/9 — QUÊN/ĐẶT LẠI MẬT KHẨU: trước đây hệ thống KHÔNG có luồng này, người quên mật
+     * khẩu không tự lấy lại được tài khoản. Dùng Password broker sẵn có của Laravel
+     * (bảng password_reset_tokens đã có từ migration gốc).
+     */
+    Route::get('/quen-mat-khau', [PasswordResetController::class, 'showRequest'])->name('password.request');
+    Route::post('/quen-mat-khau', [PasswordResetController::class, 'sendLink'])
+        ->middleware('throttle:5,1')
+        ->name('password.email');
+    Route::get('/dat-lai-mat-khau/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset');
+    Route::post('/dat-lai-mat-khau', [PasswordResetController::class, 'update'])
+        ->middleware('throttle:5,1')
+        ->name('password.update');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');

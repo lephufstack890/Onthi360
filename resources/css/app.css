@@ -110,6 +110,24 @@
   letter-spacing: -0.004em;
 }
 
+/* Form đăng nhập/đăng ký dùng cỡ chữ thao tác 12px để label và liên kết
+ * không bị chìm trên nền sáng, đồng thời vẫn nhỏ hơn tiêu đề form. */
+.auth-eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.auth-form-label {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.auth-form-helper,
+.auth-form-action {
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
 /* Footer cần cỡ chữ nhỉnh hơn card vì nằm ở cuối trang và có nhiều liên kết. */
 .type-footer-heading {
   font-size: 0.875rem;
