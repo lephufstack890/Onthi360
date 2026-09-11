@@ -30,6 +30,8 @@ Thumbs.db
 # công cụ hỗ trợ) — lỡ git add nhầm nhiều lần trước đây (app/Services/Admin,
 # app/Services/Teacher, resources/views/admin/content) nên chặn hẳn ở đây để không lặp lại.
 _to_delete_*
+# Thư mục tạm khi cần bỏ file mà môi trường không xoá trực tiếp được — không đưa lên git.
+/_to_delete
 *_5_bak
 *_5_bak[0-9]
 *.bak

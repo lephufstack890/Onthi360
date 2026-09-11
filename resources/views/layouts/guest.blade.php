@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @include('partials.seo')
-    {{-- SỬA 9/9 (10) — đổi font sang Plus Jakarta Sans theo đúng source giao diện khách gửi
-         (education/index.html + src/index.css). Lớp .font-onthi giữ nguyên tên để các trang
-         công khai cũ không phải sửa, chỉ đổi bộ chữ bên trong. --}}
+    {{-- Bộ chữ lấy đúng theo source giao diện khách (education-main/index.html):
+         Be Vietnam Pro cho toàn trang, Dancing Script cho câu trích của giáo viên. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@500;600;700&family=Plus+Jakarta+Sans:wght@300..800&display=swap" rel="stylesheet">
     <style>
-        .font-onthi, body { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .font-onthi, body { font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .font-script { font-family: 'Dancing Script', cursive; }
         [x-cloak] { display: none !important; }
-        /* Thanh cuộn ngang ẩn — dùng cho dải tab/nút trượt ngang trên mobile (source dùng .no-scrollbar) */
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         html, body { overflow-x: hidden; width: 100%; }

@@ -2,9 +2,17 @@
 
 namespace App\Services\Public;
 
+use App\Models\Role;
+use App\Models\User;
+use App\Repositories\Contracts\AssignmentRepositoryInterface;
+use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
+use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
+use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
+use App\Repositories\Contracts\ParentLinkRepositoryInterface;
+use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 
@@ -38,6 +46,12 @@ class HomeService
         private readonly ClassEnrollmentRepositoryInterface $classEnrollments,
         private readonly TeacherProfileRepositoryInterface $teacherProfiles,
         private readonly RatingSummaryRepositoryInterface $ratingSummaries,
+        private readonly LeaderboardEntryRepositoryInterface $leaderboardEntries,
+        private readonly CompetitionRepositoryInterface $competitionsRepo,
+        private readonly ProductRepositoryInterface $productsRepo,
+        private readonly AssignmentRepositoryInterface $assignments,
+        private readonly AttemptRepositoryInterface $attempts,
+        private readonly ParentLinkRepositoryInterface $parentLinks,
     ) {}
 
     public function indexData(): array
@@ -60,6 +74,12 @@ class HomeService
             'upcomingCompetitions' => $this->competitionService->upcomingData(self::UPCOMING_COMPETITIONS_LIMIT),
             'featuredTeachers' => $this->teacherService->featuredData(self::FEATURED_LIMIT),
             'faqs' => $this->faqs(),
+            // SỬA 11/9 — dựng lại trang chủ theo source giao diện khách (education-main).
+            // 3 khối dưới đây trước là dữ liệu minh hoạ cứng trong bản mẫu React; ở đây lấy
+            // thẳng từ cơ sở dữ liệu thật.
+            'systemNotices' => $this->systemNotices(),
+            'topStudents' => $this->topStudents(),
+            'learningSpace' => $this->learningSpace(auth()->user()),
         ];
     }
 
@@ -108,6 +128,262 @@ class HomeService
             ['value' => $this->countLabel($publishedCourses + $activeClassRooms), 'label' => 'Khóa học & lớp'],
             ['value' => $platformAverage !== null ? number_format($platformAverage, 1).'/5' : '—', 'label' => 'Đánh giá trung bình'],
         ];
+    }
+
+    /**
+     * [HOME-01] Thanh thông báo hệ thống — bản mẫu React để 3 tin cứng; ở đây lấy đúng 3
+     * "tin đáng chú ý" từ dữ liệu thật: cuộc thi sắp diễn ra gần nhất, tài liệu mới phát
+     * hành nhất, khoá học mới phát hành nhất. Thiếu nguồn nào thì bỏ tin đó, hết sạch thì
+     * trả về 1 tin giới thiệu trung tính (thanh vẫn cân đối, không hiện khung trống).
+     *
+     * @return array<int, array{category:string,message:string,surfaceClass:string,borderClass:string,accentClass:string,categoryClass:string,iconClass:string,href:string}>
+     */
+    private function systemNotices(): array
+    {
+        $notices = [];
+
+        $competition = $this->competitionsRepo->query()
+            ->where('status', '!=', \App\Enums\CompetitionStatus::Archived->value)
+            ->whereNotNull('starts_at')
+            ->where('starts_at', '>', now())
+            ->orderBy('starts_at')
+            ->first();
+
+        if ($competition !== null) {
+            $notices[] = [
+                'category' => 'Kỳ thi',
+                'message' => $competition->title.' — bắt đầu lúc '.$competition->starts_at->format('H:i \n\g\à\y d/m/Y').'. Hãy chuẩn bị thật tốt!',
+                'surfaceClass' => 'from-[#FFF9E6] via-[#FCFBF5] to-[#F1F7FC]',
+                'borderClass' => 'border-amber-200/80',
+                'accentClass' => 'bg-amber-300',
+                'categoryClass' => 'border-amber-200 bg-amber-50 text-amber-800',
+                'iconClass' => 'text-amber-500',
+                'href' => route('competitions.show', $competition->id),
+            ];
+        }
+
+        $material = $this->productsRepo->query()
+            ->where('status', 'published')
+            ->where('visibility', 'public')
+            ->where('type', '!=', \App\Enums\ProductType::Course->value)
+            ->latest()
+            ->first();
+
+        if ($material !== null) {
+            $notices[] = [
+                'category' => 'Học liệu mới',
+                'message' => 'Tài liệu mới: “'.$material->title.'” đã có trong kho học liệu.',
+                'surfaceClass' => 'from-[#EEF9F5] via-[#F8FCFB] to-[#F2F7FD]',
+                'borderClass' => 'border-emerald-200/80',
+                'accentClass' => 'bg-emerald-400',
+                'categoryClass' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                'iconClass' => 'text-emerald-500',
+                'href' => route('materials.show', $material->id),
+            ];
+        }
+
+        $course = $this->courses->query()->where('status', 'published')->latest()->first();
+
+        if ($course !== null) {
+            $notices[] = [
+                'category' => 'Lớp học',
+                'message' => 'Khoá học “'.$course->title.'” đang mở lớp. Xem lịch để không bỏ lỡ buổi học.',
+                'surfaceClass' => 'from-[#EFF8FF] via-[#F7FBFE] to-[#F2F8F6]',
+                'borderClass' => 'border-sky-200/80',
+                'accentClass' => 'bg-sky-400',
+                'categoryClass' => 'border-sky-200 bg-sky-50 text-sky-800',
+                'iconClass' => 'text-sky-500',
+                'href' => route('courses.show', $course->id),
+            ];
+        }
+
+        if ($notices === []) {
+            $notices[] = [
+                'category' => 'Giới thiệu',
+                'message' => 'Chào mừng bạn đến với Ôn Thi 360 — học cùng mục tiêu, vươn xa ước mơ.',
+                'surfaceClass' => 'from-[#EFF8FF] via-[#F7FBFE] to-[#F2F8F6]',
+                'borderClass' => 'border-sky-200/80',
+                'accentClass' => 'bg-sky-400',
+                'categoryClass' => 'border-sky-200 bg-sky-50 text-sky-800',
+                'iconClass' => 'text-sky-500',
+                'href' => route('info.index'),
+            ];
+        }
+
+        return $notices;
+    }
+
+    /**
+     * [HOME-07] "Top xuất sắc" — lấy từ bảng xếp hạng THẬT của cuộc thi đã công bố gần nhất.
+     * Tên người học được ẩn danh y hệt App\Services\Public\LeaderboardService (bảo vệ dữ liệu
+     * trẻ em: chưa có cột "đồng ý hiển thị công khai" nên áp dụng cho mọi người, không ngoại
+     * lệ) — trang chủ KHÔNG được lộ nhiều hơn trang Bảng xếp hạng.
+     *
+     * @return array{title:?string, rows: array<int, array{rank:int,name:string,score:float}>}
+     */
+    private function topStudents(): array
+    {
+        $competition = $this->competitionsRepo->query()
+            ->where('status', 'published')
+            ->withCount('leaderboardEntries')
+            ->having('leaderboard_entries_count', '>', 0)
+            ->latest('publish_result_at')
+            ->first();
+
+        if ($competition === null) {
+            return ['title' => null, 'rows' => []];
+        }
+
+        $rows = $this->leaderboardEntries->entriesForCompetition($competition->id)
+            ->take(5)
+            ->map(fn ($e) => [
+                'rank' => (int) $e->rank,
+                'name' => 'Học viên đã xác thực',
+                'score' => (float) $e->score,
+            ])
+            ->values()
+            ->all();
+
+        return ['title' => $competition->title, 'rows' => $rows];
+    }
+
+    /**
+     * [HOME-06] "Không gian học tập" — bản mẫu React để số liệu cứng theo 3 vai trò; ở đây
+     * tính từ dữ liệu thật của CHÍNH người đang đăng nhập. Khách chưa đăng nhập trả về
+     * ['guest' => true] để view hiện đúng khối mời đăng nhập của bản mẫu.
+     *
+     * Mọi con số đều đếm trực tiếp, không ước lượng: không có dữ liệu thì hiện 0 chứ không
+     * bịa ra một tỉ lệ đẹp.
+     */
+    private function learningSpace(?User $viewer): array
+    {
+        if ($viewer === null) {
+            return ['guest' => true];
+        }
+
+        if ($viewer->hasRole(Role::TEACHER)) {
+            $classRoomIds = $this->classRooms->query()
+                ->whereHas('teachers', fn ($q) => $q->where('users.id', $viewer->id))
+                ->where('status', 'active')
+                ->pluck('id');
+
+            $studentCount = $this->classEnrollments->query()
+                ->whereIn('class_room_id', $classRoomIds)
+                ->where('status', 'active')
+                ->distinct()
+                ->count('student_id');
+
+            $assignmentCount = $this->assignments->query()->whereIn('class_room_id', $classRoomIds)->count();
+            $waitingGrade = $this->attempts->query()
+                ->whereIn('class_room_id', $classRoomIds)
+                ->whereNotNull('submitted_at')
+                ->where('is_provisional', true)
+                ->count();
+
+            return [
+                'guest' => false,
+                'roleLabel' => 'Giáo viên',
+                'progressLabel' => 'Bài đã chấm xong',
+                'progress' => $this->percent($this->attempts->query()->whereIn('class_room_id', $classRoomIds)->whereNotNull('submitted_at')->where('is_provisional', false)->count(), $this->attempts->query()->whereIn('class_room_id', $classRoomIds)->whereNotNull('submitted_at')->count()),
+                'nextLabel' => 'Cần theo dõi',
+                'nextTitle' => $waitingGrade > 0 ? $waitingGrade.' bài đang chờ chấm xong' : 'Không còn bài nào chờ chấm',
+                'nextMeta' => $classRoomIds->count().' lớp đang dạy',
+                'nextHref' => route('teacher.classes.index'),
+                'stats' => [
+                    ['value' => (string) $classRoomIds->count(), 'label' => 'Lớp đang dạy', 'valueClass' => 'text-[#3E79A4]'],
+                    ['value' => (string) $studentCount, 'label' => 'Học sinh', 'valueClass' => 'text-[#3B9374]'],
+                    ['value' => (string) $assignmentCount, 'label' => 'Bài đã giao', 'valueClass' => 'text-[#AF7C32]'],
+                ],
+            ];
+        }
+
+        if ($viewer->hasRole(Role::PARENT)) {
+            $childIds = $this->parentLinks->query()->where('parent_user_id', $viewer->id)->where('status', 'verified')->pluck('student_user_id');
+
+            $submitted = $this->attempts->query()->whereIn('user_id', $childIds)->whereNotNull('submitted_at')->count();
+            $classCount = $this->classEnrollments->query()
+                ->whereIn('student_id', $childIds)
+                ->where('status', 'active')
+                ->distinct()
+                ->count('class_room_id');
+            $weekCount = $this->attempts->query()
+                ->whereIn('user_id', $childIds)
+                ->whereNotNull('submitted_at')
+                ->where('submitted_at', '>=', now()->subDays(7))
+                ->count();
+
+            return [
+                'guest' => false,
+                'roleLabel' => 'Phụ huynh',
+                'progressLabel' => 'Bài đã nộp trong 7 ngày',
+                'progress' => $this->percent($weekCount, max($submitted, 1)),
+                'nextLabel' => 'Cần đồng hành',
+                'nextTitle' => $weekCount > 0 ? 'Các con đã nộp '.$weekCount.' bài trong tuần' : 'Tuần này chưa có bài nộp mới',
+                'nextMeta' => $childIds->count().' học sinh đang theo dõi',
+                'nextHref' => route('dashboard'),
+                'stats' => [
+                    ['value' => (string) $childIds->count(), 'label' => 'Con đang theo dõi', 'valueClass' => 'text-[#3E79A4]'],
+                    ['value' => (string) $classCount, 'label' => 'Lớp đang học', 'valueClass' => 'text-[#3B9374]'],
+                    ['value' => (string) $weekCount, 'label' => 'Bài tuần này', 'valueClass' => 'text-[#AF7C32]'],
+                ],
+            ];
+        }
+
+        // Mặc định: góc nhìn học sinh.
+        $classRoomIds = $this->classEnrollments->query()
+            ->where('student_id', $viewer->id)
+            ->where('status', 'active')
+            ->pluck('class_room_id');
+
+        $assignedTotal = $this->assignments->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->where('status', 'published')
+            ->count();
+
+        $doneTotal = $this->attempts->query()
+            ->where('user_id', $viewer->id)
+            ->whereNotNull('submitted_at')
+            ->whereNotNull('assignment_id')
+            ->distinct()
+            ->count('assignment_id');
+
+        $inProgress = $this->attempts->query()
+            ->where('user_id', $viewer->id)
+            ->whereNull('submitted_at')
+            ->count();
+
+        $nextAssignment = $this->assignments->query()
+            ->whereIn('class_room_id', $classRoomIds)
+            ->where('status', 'published')
+            ->whereNotNull('due_at')
+            ->where('due_at', '>', now())
+            ->with('assessment')
+            ->orderBy('due_at')
+            ->first();
+
+        return [
+            'guest' => false,
+            'roleLabel' => 'Học sinh',
+            'progressLabel' => 'Tiến độ tổng thể',
+            'progress' => $this->percent($doneTotal, $assignedTotal),
+            'nextLabel' => 'Tiếp tục học',
+            'nextTitle' => $nextAssignment?->assessment?->title ?? 'Chưa có bài nào sắp đến hạn',
+            'nextMeta' => $nextAssignment?->due_at !== null
+                ? 'Hạn nộp '.$nextAssignment->due_at->format('H:i d/m/Y')
+                : 'Xem toàn bộ bài tập trong khu học tập',
+            'nextHref' => route('dashboard'),
+            'stats' => [
+                ['value' => (string) $doneTotal, 'label' => 'Bài đã xong', 'valueClass' => 'text-[#3E79A4]'],
+                ['value' => (string) $inProgress, 'label' => 'Đang làm', 'valueClass' => 'text-[#3B9374]'],
+                ['value' => (string) max($assignedTotal - $doneTotal, 0), 'label' => 'Chưa làm', 'valueClass' => 'text-[#AF7C32]'],
+            ],
+        ];
+    }
+
+    /** Tỉ lệ phần trăm làm tròn, mẫu số 0 thì trả 0 (không chia cho 0, không hiện "NaN%"). */
+    private function percent(int $done, int $total): int
+    {
+        return $total > 0 ? (int) round($done / $total * 100) : 0;
     }
 
     /**

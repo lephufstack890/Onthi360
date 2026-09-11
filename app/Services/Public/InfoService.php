@@ -40,6 +40,22 @@ class InfoService
             'highlights' => $this->highlights(),
             'reasons' => $this->reasons(),
             'contact' => $this->contact(),
+            // SỬA 11/9 — giao diện mới (education-main/src/components/InfoPage.jsx) có khối FAQ
+            // riêng cạnh form hỗ trợ. Nội dung là mô tả CÁCH HỆ THỐNG NÀY thực sự hoạt động
+            // (kích hoạt mã, chấm bài OJ, mở lớp, phụ huynh theo dõi) — văn bản tĩnh giống
+            // HomeService::faqs(), không phải dữ liệu nghiệp vụ cần truy vấn.
+            'supportFaqs' => $this->supportFaqs(),
+        ];
+    }
+
+    /** @return array<int, array{q: string, a: string}> */
+    private function supportFaqs(): array
+    {
+        return [
+            ['q' => 'Làm thế nào để kích hoạt mã khóa học hoặc sách?', 'a' => 'Mở menu tài khoản ở góc phải thanh tiêu đề rồi chọn "Nhập mã kích hoạt quyền", nhập mã được cấp và bấm Kích hoạt. Quyền học được mở ngay sau khi mã hợp lệ; nếu mã đã dùng hoặc hết hạn, hệ thống nêu rõ lý do.'],
+            ['q' => 'Hệ thống chấm bài Online Judge hoạt động như thế nào?', 'a' => 'Bài lập trình được chấm bằng bộ test và luật chấm đã định sẵn cho từng câu: mã nguồn được biên dịch, chạy qua các bộ test ẩn rồi trả kết quả. Trắc nghiệm và điền đáp án được chấm ngay theo đáp án đã cấu hình, nên điểm hiện gần như tức thì.'],
+            ['q' => 'Giáo viên mở lớp và giao đề cho học sinh như thế nào?', 'a' => 'Giáo viên đăng ký hồ sơ và chờ quản trị viên duyệt trước khi mở lớp. Sau khi được duyệt, giáo viên tạo lớp, gắn học liệu còn quyền dạy, rồi giao bài kiểm tra kèm thời điểm mở và hạn nộp cho từng lớp.'],
+            ['q' => 'Phụ huynh theo dõi việc học của con ra sao?', 'a' => 'Phụ huynh dùng mã liên kết do chính học sinh cấp để kết nối tài khoản. Sau khi liên kết được xác thực, phụ huynh xem được lịch học, điểm danh, số bài đã nộp và tiến độ của con — không tài khoản phụ huynh nào khác thấy được dữ liệu đó.'],
         ];
     }
 

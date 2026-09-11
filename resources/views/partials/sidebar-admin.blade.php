@@ -2,7 +2,7 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'admin.dashboard', 'icon' => '🏠'],
         ['label' => 'Người dùng', 'route' => 'admin.users.index', 'icon' => '👥', 'also' => ['admin.users.show', 'admin.teacher-approvals.index', 'admin.teacher-approvals.show']],
-        ['label' => 'Nội dung', 'route' => 'admin.content.index', 'icon' => '🗂️', 'also' => ['admin.content.show'], 'editorOk' => true],
+        ['label' => 'Kho câu hỏi và đề', 'route' => 'admin.content.index', 'icon' => '🗂️', 'also' => ['admin.content.show'], 'editorOk' => true],
         ['label' => 'Khóa & Lớp', 'route' => 'admin.courses.index', 'icon' => '🏫'],
         ['label' => 'Tài liệu', 'route' => 'admin.products.index', 'icon' => '🎫', 'also' => ['admin.products.show', 'admin.access-rights.index']],
         ['label' => 'Đơn hàng', 'route' => 'admin.orders.index', 'icon' => '🧾', 'also' => ['admin.orders.show']],

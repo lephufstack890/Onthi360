@@ -56,19 +56,40 @@ class MaterialService
             ['label' => '📝 Bộ đề', 'href' => route('materials.index', ['tab' => 'de-thi']), 'active' => $tab === 'de-thi', 'count' => $counts['de-thi']],
         ];
 
-        $products = $this->baseQuery()->where('type', $type->value)->latest()->limit(40)->get();
+        // SỬA 11/9 — giao diện mới (education-main/src/components/MaterialsPage.jsx) đổi 3 tab
+        // NGAY TẠI CHỖ (không tải lại trang), nên phải nạp sẵn cả 3 nhóm. Toàn bộ vẫn đi qua
+        // baseQuery()/mapCard() nên luật lọc (đã phát hành + công khai, không lộ loại "course")
+        // chỉ khai báo đúng 1 chỗ.
+        $allProducts = $this->baseQuery()
+            ->whereIn('type', array_map(fn ($t) => $t->value, array_values(self::TABS)))
+            ->latest()
+            ->limit(120)
+            ->get();
 
         // 1 câu truy vấn duy nhất cho material gốc đại diện + rating của TẤT CẢ sản phẩm
         // trong trang — tránh N+1 (mỗi sản phẩm 2 câu) khi có nhiều tài liệu.
-        $representativeIdByProductId = $this->representativeMaterialIds($products->pluck('id')->all());
+        $productIds = $allProducts->pluck('id')->all();
+        $representativeIdByProductId = $this->representativeMaterialIds($productIds);
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());
-        $ownedProductIds = $this->ownedProductIds($viewer, $products->pluck('id')->all());
+        $ownedProductIds = $this->ownedProductIds($viewer, $productIds);
+        $pageCounts = $this->materialCounts($productIds);
+
+        $cards = $allProducts->map(
+            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, $ownedProductIds, $pageCounts)
+        );
+
+        $groups = [];
+        foreach (self::TABS as $key => $productType) {
+            $groups[$key] = $cards->where('type', $productType->value)->values()->all();
+        }
 
         return [
             'tabs' => $tabs,
-            'materials' => $products->map(
-                fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, $ownedProductIds)
-            )->all(),
+            'materials' => $groups[$tab] ?? $groups['sach'],
+            // 3 nhóm nạp sẵn cho giao diện mới; 'materials' ở trên giữ nguyên để không phá
+            // bất kỳ chỗ nào đang dùng khoá cũ.
+            'materialGroups' => $groups,
+            'activeTab' => $tab,
         ];
     }
 
@@ -159,7 +180,7 @@ class MaterialService
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());
 
         return $products->map(
-            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, collect())
+            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, collect(), collect())
         )->all();
     }
 
@@ -172,7 +193,7 @@ class MaterialService
             ->where('type', '!=', ProductType::Course->value);
     }
 
-    private function mapCard(Product $product, ?int $representativeMaterialId, Collection $ratingsByMaterialId, Collection $ownedProductIds): array
+    private function mapCard(Product $product, ?int $representativeMaterialId, Collection $ratingsByMaterialId, Collection $ownedProductIds, ?Collection $pageCounts = null): array
     {
         $summary = $representativeMaterialId !== null ? $ratingsByMaterialId->get($representativeMaterialId) : null;
 
@@ -183,8 +204,19 @@ class MaterialService
 
         [$badgeLabel, $badgeTone] = $product->price > 0 ? ['Cần kích hoạt', 'warning'] : ['Công khai', 'info'];
 
+        // Nhãn ngắn góc trên ảnh bìa: ưu tiên chuyên đề, rồi khối, rồi môn — đều là cột thật.
+        $tagLabel = $product->topic ?: ($product->grade ? 'Dành cho '.$product->grade : ($product->subject ?: 'Học liệu'));
+
+        $unitCount = (int) ($pageCounts?->get($product->id) ?? 0);
+        $unitLabel = match ($product->type->value ?? (string) $product->type) {
+            'exam' => $unitCount > 0 ? $unitCount.' đề' : 'Đang cập nhật',
+            'topic' => $unitCount > 0 ? $unitCount.' phần' : 'Đang cập nhật',
+            default => $unitCount > 0 ? $unitCount.' chương' : 'Đang cập nhật',
+        };
+
         return [
             'id' => $product->id,
+            'type' => $product->type->value ?? (string) $product->type,
             'title' => $product->title,
             'meta' => $priceLabel,
             'average' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
@@ -193,7 +225,38 @@ class MaterialService
             'tone' => $badgeTone,
             'owned' => $ownedProductIds->contains($product->id),
             'image' => $this->coverUrl($product),
+            // ── các trường bổ sung cho thẻ tài liệu của giao diện mới ──
+            'tag' => $tagLabel,
+            'unitLabel' => $unitLabel,
+            'highlight' => $product->description,
+            'author' => $product->owner?->name ?: 'Tổ chuyên môn Ôn Thi 360',
+            'priceSoft' => $product->price > 0 ? number_format($product->price).'đ' : 'Miễn phí',
+            'hasPrintOption' => (bool) $product->has_print_option,
+            'durationMonths' => $product->duration_months,
+            'href' => route('materials.show', $product->id),
+            'checkoutHref' => route('access.checkout', $product->id),
         ];
+    }
+
+    /**
+     * Số đơn vị nội dung CẤP 1 (chương/phần/đề) của từng sản phẩm — đúng 1 câu GROUP BY cho
+     * cả trang, dùng làm nhãn "50 đề thi / 12 chương" trên thẻ. Không suy đoán số trang PDF.
+     *
+     * @param  array<int, int>  $productIds
+     * @return Collection<int, int> keyed theo product_id
+     */
+    private function materialCounts(array $productIds): Collection
+    {
+        if ($productIds === []) {
+            return collect();
+        }
+
+        return Material::query()
+            ->selectRaw('product_id, COUNT(*) as total')
+            ->whereIn('product_id', $productIds)
+            ->whereNull('parent_id')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
     }
 
     /**

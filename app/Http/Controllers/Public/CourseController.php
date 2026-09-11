@@ -13,7 +13,7 @@ class CourseController extends Controller
 
     public function index(Request $request): View
     {
-        return view('public.courses.index', $this->courseService->indexData($request->query('subject')));
+        return view('public.courses.index', $this->courseService->indexData($request->query('subject'), $request->user()));
     }
 
     public function show(Request $request, int $course): View

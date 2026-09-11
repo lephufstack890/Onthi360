@@ -27,23 +27,14 @@ class ContentController extends Controller
         private DocumentImportService $documentImportService,
     ) {}
 
-    /** admin.content.index (ADM-03) — 6.2/6.4/6.5. */
     public function index(Request $request): View
     {
         $tab = $request->query('tab', 'questions');
 
-        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): tab "Học liệu" đã bỏ khỏi Nội dung —
-        // link/bookmark cũ ?tab=materials được đưa về tab mặc định thay vì hiện bảng cũ đã
-        // không còn lối vào từ giao diện nữa (thêm/sửa/xoá học liệu giờ làm ở trang chi tiết
-        // từng sản phẩm, xem ProductController::show()).
         if ($tab === 'materials') {
             return redirect()->route('admin.content.index', ['tab' => 'questions']);
         }
 
-        // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — bộ lọc của tab "Câu hỏi" đi qua query
-        // string để admin bookmark/chia sẻ được đúng khung nhìn đang xem (vd ?tab=questions&
-        // subject=TOAN&grade=6). Không validate cứng ở đây: giá trị lạ được ContentService/
-        // SubjectCatalog bỏ qua, tệ nhất là ra danh sách rỗng chứ không lỗi 422 giữa lúc lọc.
         $filters = [
             'subject' => $request->query('subject') ?: null,
             'grade' => $request->query('grade') ?: null,
@@ -164,17 +155,9 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', $material->id)->with('status', 'material-archived');
     }
 
-    /**
-     * admin.content.materials.destroy (25/8, SỬA 25/8 (7)) — "thêm tính năng xóa cho admin":
-     * XÓA THẬT bản ghi + file PDF liên quan (khác materialsArchive() ở trên, vốn chỉ đổi
-     * status) — xem ContentService::materialDelete(). Không thể khôi phục.
-     */
     public function materialsDestroy(Material $material): RedirectResponse
     {
-        // SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): lấy product_id TRƯỚC khi xoá — sau
-        // materialDelete() bản ghi (và có thể cả các bài con) đã mất, không đọc lại được nữa.
-        // Quay về đúng trang sản phẩm thay vì tab "Học liệu" đã bỏ (xem ContentService::
-        // materialDelete()).
+       
         $productId = $material->product_id;
 
         $this->contentService->materialDelete($material);
@@ -182,16 +165,6 @@ class ContentController extends Controller
         return redirect()->route('admin.products.show', $productId)->with('status', 'material-deleted');
     }
 
-    // ================= Học liệu — "tải bài hàng loạt" qua ZIP (25/8) =================
-    // Xem App\Services\Admin\ContentService::materialsBulkImportFromZip() — mỗi tệp .pdf ở gốc
-    // ZIP tạo thành 1 Material, mã bài lấy thẳng từ tên tệp. Bài nào cần sửa lại (tên/mã/PDF)
-    // thì vào materialsEdit như bình thường sau khi nhập xong (đã hỗ trợ sửa, xem materialsUpdate()).
-
-    /**
-     * admin.content.materials.bulk.create — chọn sản phẩm + loại + trạng thái áp dụng chung, rồi tải 1 ZIP.
-     * SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền") — ?product_id= khi vào từ nút "+ Tải hàng
-     * loạt (ZIP)" ở trang chi tiết 1 sản phẩm, để form tự điền sẵn.
-     */
     public function materialsBulkImportCreate(Request $request): View
     {
         $productId = $request->integer('product_id') ?: null;
@@ -204,8 +177,6 @@ class ContentController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'parent_id' => ['nullable', 'integer', 'exists:materials,id'],
-            // Cố ý KHÔNG cho 'assessment_ref' ở đây — loại đó chỉ tham chiếu 1 Assessment có sẵn,
-            // không có PDF riêng (xem ContentService::materialsBulkImportFormData()).
             'type' => ['required', 'string', 'in:chapter,section'],
             'status' => ['required', 'string', 'in:draft,pending_review,published,archived'],
             'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxBulkMaterialZipKb()],
@@ -573,15 +544,6 @@ class ContentController extends Controller
         return view('admin.content.assessments.edit', $this->contentService->assessmentEditFormData($assessment));
     }
 
-    /**
-     * SỬA 18/8: trước đây trang chi tiết đề (admin.content.show) chỉ để lại 1 dòng TODO
-     * "danh sách câu hỏi trong đề — quản lý ở màn soạn đề của giáo viên" — nhưng đề do ADMIN
-     * tạo (owner_type=shared, vd "Đề thi quốc gia") thì KHÔNG giáo viên nào sở hữu để vào màn
-     * soạn đề (teacher.assessments.create chỉ cho giáo viên soạn đề CỦA CHÍNH HỌ, không có màn
-     * sửa đề đã tạo), nên các đề admin tự tạo không cách nào gắn câu hỏi được — đúng lỗi anh
-     * gặp ("chọn đề đâu???" ở màn Sửa đề/bộ bài). Thêm 2 route/2 hàm này để admin tự chọn câu
-     * hỏi (từ toàn bộ Kho chung + kho riêng từng giáo viên — admin xem được hết) ngay tại đây.
-     */
     public function assessmentsItemsEdit(Assessment $assessment): View
     {
         return view('admin.content.assessments.items', $this->contentService->assessmentItemsFormData($assessment));

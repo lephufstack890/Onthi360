@@ -35,11 +35,17 @@ class CourseService
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
-    public function indexData(?string $subject): array
+    public function indexData(?string $subject, ?User $viewer = null): array
     {
+        // SỬA 11/9 — thẻ lớp học ở giao diện mới (education-main/src/components/CoursesPage.jsx)
+        // cần thêm: mã lớp, sĩ số, giáo viên phụ trách và trợ giảng. Nạp sẵn trong CÙNG 1 câu
+        // truy vấn quan hệ (withCount + with) để không sinh N+1 khi danh mục có nhiều khóa.
         $query = $this->courses->query()
             ->where('status', 'published')
-            ->with(['classRooms' => fn ($q) => $q->where('status', 'active')->select('id', 'course_id')]);
+            ->with(['classRooms' => fn ($q) => $q->where('status', 'active')
+                ->select('id', 'course_id', 'code', 'name')
+                ->withCount('students')
+                ->with(['teachers:id,name'])]);
 
         if (filled($subject)) {
             $query->where('subject', $subject);
@@ -60,10 +66,29 @@ class CourseService
             ->pluck('subject')
             ->all();
 
+        // "Vào học" chỉ hiện khi HỌC SINH ĐANG XEM thật sự còn ghi danh active ở 1 lớp của khóa
+        // — cùng luật với showData() bên dưới, không suy ra từ mỗi auth()->check().
+        $myClassRoomIds = ($viewer !== null && $viewer->hasRole(Role::STUDENT))
+            ? $this->classEnrollments->query()
+                ->where('student_id', $viewer->id)
+                ->where('status', 'active')
+                ->pluck('class_room_id')
+                ->all()
+            : [];
+
         return [
-            'courses' => $courses->map(fn (Course $c) => $this->mapCourseCard($c, $ratingsByClassRoomId))->all(),
+            'courses' => $courses->map(fn (Course $c) => $this->mapCourseCard($c, $ratingsByClassRoomId, $myClassRoomIds))->all(),
             'subjects' => $subjects,
             'activeSubject' => $subject,
+            // Khối lớp có thật trong dữ liệu — dải lọc "Khối lớp" của giao diện mới dựng từ đây,
+            // không phải danh sách cứng, nên không bao giờ lọc ra 0 kết quả một cách vô nghĩa.
+            'grades' => $this->courses->query()
+                ->where('status', 'published')
+                ->whereNotNull('grade')
+                ->distinct()
+                ->orderBy('grade')
+                ->pluck('grade')
+                ->all(),
         ];
     }
 
@@ -109,7 +134,7 @@ class CourseService
         ];
     }
 
-    private function mapCourseCard(Course $course, Collection $ratingsByClassRoomId): array
+    private function mapCourseCard(Course $course, Collection $ratingsByClassRoomId, array $myClassRoomIds = []): array
     {
         $classRoomIds = $course->classRooms->pluck('id')->all();
         [$average, $count] = $this->aggregate($classRoomIds, $ratingsByClassRoomId);
@@ -120,12 +145,38 @@ class CourseService
             $course->grade,
         ]);
 
+        $firstClassRoom = $course->classRooms->first();
+        $teachers = $firstClassRoom?->teachers ?? collect();
+        $studentCount = (int) $course->classRooms->sum('students_count');
+
+        // "Vào học" khi học sinh đã ở trong 1 lớp của khóa; "Đã đóng" khi khóa chưa mở lớp nào
+        // đang hoạt động; còn lại là "Đăng ký học". Không có trạng thái nào được suy đoán thêm.
+        $enrollmentStatus = 'Đăng ký học';
+        if ($classRoomIds === []) {
+            $enrollmentStatus = 'Đã đóng';
+        } elseif (array_intersect($classRoomIds, $myClassRoomIds) !== []) {
+            $enrollmentStatus = 'Vào học';
+        }
+
         return [
             'id' => $course->id,
             'title' => $course->title,
             'meta' => implode(' · ', $metaParts),
             'average' => $average,
             'count' => $count,
+            // ── các trường bổ sung cho thẻ lớp học của giao diện mới ──
+            'subtitle' => $course->description,
+            'subject' => $course->subject,
+            'grade' => $course->grade,
+            'image' => $course->cover_image_path ? asset('storage/'.$course->cover_image_path) : null,
+            'classCount' => count($classRoomIds),
+            'classCode' => $firstClassRoom?->code,
+            'className' => $firstClassRoom?->name,
+            'studentCount' => $studentCount,
+            'teacherName' => $teachers->first()?->name,
+            'assistantNames' => $teachers->skip(1)->pluck('name')->values()->all(),
+            'enrollmentStatus' => $enrollmentStatus,
+            'href' => route('courses.show', $course->id),
         ];
     }
 

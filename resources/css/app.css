@@ -1,1 +1,152 @@
 @import 'tailwindcss';
+
+/*
+ * NỀN TẢNG CHỮ — chép từ source giao diện khách (education-main/src/index.css).
+ * Font sans của Tailwind phải trỏ đúng Be Vietnam Pro; nếu không lớp `font-sans`
+ * sẽ ghi đè font thương hiệu bằng font hệ thống của trình duyệt.
+ */
+@theme {
+  --font-sans: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+:root {
+  --type-ink-heading: #123b68;
+  --type-ink-body: #536d86;
+  --type-ink-meta: #71869a;
+  --type-ink-action: #126f91;
+}
+
+@layer base {
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1a3865;
+    letter-spacing: 0;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.018em;
+    color: var(--type-ink-heading);
+  }
+}
+
+/*
+ * THANG CHỮ TRANG CHỦ
+ * display 42 → hero 18 → section 15/16 → card 12 → body 12 → meta 10.
+ * Chỉ nội dung phụ mới dùng 10px; không dùng chữ nhỏ hơn 10px.
+ */
+.type-hero-brand {
+  font-size: clamp(2rem, 3vw, 2.625rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.type-hero-title {
+  font-size: clamp(0.9375rem, 1.25vw, 1.125rem);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.018em;
+}
+
+.type-section-title {
+  font-size: clamp(0.875rem, 1.05vw, 1rem);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.016em;
+  color: var(--type-ink-heading);
+}
+
+.type-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+  color: var(--type-ink-heading);
+}
+
+.type-card-title-compact {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.006em;
+  color: var(--type-ink-heading);
+}
+
+.type-body {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0;
+  color: var(--type-ink-body);
+}
+
+.type-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.type-meta {
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  color: var(--type-ink-meta);
+}
+
+.type-action {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.004em;
+}
+
+/* Footer cần cỡ chữ nhỉnh hơn card vì nằm ở cuối trang và có nhiều liên kết. */
+.type-footer-heading {
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--type-ink-heading);
+}
+
+.type-footer-link {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+.type-footer-meta {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+/* Thanh cuộn ngang ẩn — dùng cho dải tab/nút trượt ngang trên mobile */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+[x-cloak] { display: none !important; }
+
+/* Người dùng giảm chuyển động vẫn giữ được trạng thái và nội dung, chỉ bỏ hiệu ứng dư thừa. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

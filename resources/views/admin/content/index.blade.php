@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Nội dung')
-@section('page-title', 'Nội dung')
+@section('title', 'Kho câu hỏi và đề')
+@section('page-title', 'Kho câu hỏi và đề')
 
 @section('content')
     @php
@@ -23,12 +23,8 @@
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     @endphp
 
-    <x-page-header title="🗂️ Nội dung" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
+    <x-page-header title="🗂️ Kho câu hỏi và đề" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
         <x-slot:actions>
-            {{-- SỬA 26/8 ("gộp Học liệu vào Sản phẩm & quyền"): trước đây có 2 nút tạo/tải
-                 hàng loạt Học liệu ở đây (tab riêng) — giờ thêm học liệu làm NGAY trong trang
-                 chi tiết từng sản phẩm (admin/products/show.blade.php), không còn ở Nội dung
-                 nữa, xem ContentService::indexData()/ProductService::showData(). --}}
             @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">+ Tạo câu hỏi</a>
             @elseif ($tab === 'assessments')
@@ -64,9 +60,6 @@
 
     <x-tabs :tabs="$tabs" />
 
-    {{-- SỬA 8/9 (3) (khách: "kho câu hỏi... để một đống câu hỏi như này không ổn") — thanh phân
-         loại của tab Câu hỏi. Dùng form GET (không phải POST/ajax) để mọi khung nhìn đều có URL
-         riêng, bookmark/gửi cho nhau được: ?tab=questions&subject=TOAN&grade=6. --}}
     @if ($isQuestions)
         <div class="bg-white rounded-2xl border border-slate-200 p-4 mb-4 space-y-3">
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
