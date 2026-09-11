@@ -1,186 +1,317 @@
 @extends('layouts.guest')
 
-@section('title', 'Bảng xếp hạng')
-@section('meta-description', 'Bảng xếp hạng Ôn Thi 360 — thành tích của học sinh qua các cuộc thi và bài luyện tập, cập nhật liên tục theo từng đợt.')
+@section('title', 'Bảng xếp hạng & Đại sảnh Danh vọng')
+@section('meta-description', 'Bảng xếp hạng Ôn Thi 360 — vinh danh học viên theo từng cuộc thi đã công bố, tính từ điểm thi và số câu làm đúng, cập nhật theo thời điểm chấm.')
 
 @section('content')
-    @php
-        $boards = $boards ?? [];
-        $entries = $entries ?? [];
-        $yourEntry = $yourEntry ?? null;
-        $rankingRule = $rankingRule ?? [];
-        $totalEntries = $totalEntries ?? 0;
-        $examTabs = $examTabs ?? [];
-        $selectedExamId = $selectedExamId ?? null;
-        $medals = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
-        $top3 = array_slice($entries, 0, 3);
-        $rest = array_slice($entries, 3);
-        $topScore = $entries[0]['score'] ?? 1;
-        $hasRankingRule = ($rankingRule['scoring_note'] ?? '') !== '' || ($rankingRule['penalty_note'] ?? '') !== '' || ($rankingRule['tie_break_note'] ?? '') !== '';
-    @endphp
+{{-- ═══════════════ [LEADERBOARD] MÀN BẢNG XẾP HẠNG ═══════════════
+     SỬA 11/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
+     education-main/src/components/LeaderboardPage.jsx.
+     Bố cục/class chép nguyên; React state đổi sang Alpine; mọi nút gắn link thật.
 
-    {{-- Hero --}}
-    <div class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950 to-amber-900 text-white">
-        <div class="absolute -top-16 -left-16 w-72 h-72 rounded-full bg-amber-400/10 blur-3xl" aria-hidden="true"></div>
-        <div class="absolute -bottom-24 -right-10 w-80 h-80 rounded-full bg-purple-400/10 blur-3xl" aria-hidden="true"></div>
+     Dữ liệu lấy từ cơ sở dữ liệu (App\Services\Public\LeaderboardService::indexData):
+       · dải phạm vi  <- $boards (cuộc thi ĐÃ CÔNG BỐ có bảng xếp hạng) + $examTabs (kỳ thi con)
+       · bục vinh danh<- 3 hạng đầu của $entries
+       · bảng xếp hạng<- $entries (hạng, điểm, số câu làm đúng, thời điểm chấm)
+       · "Vị trí của bạn" <- $yourEntry / $totalEntries
 
-        <div class="max-w-5xl mx-auto px-4 py-14 lg:py-16 text-center relative">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-200 text-xs font-medium mb-4">🏆 Bảng xếp hạng</span>
-            <h1 class="text-2xl lg:text-3xl font-semibold">{{ $selected->title ?? 'Chưa có bảng xếp hạng nào được công bố' }}</h1>
-            @if ($selected)
-                <div class="flex flex-wrap items-center justify-center gap-2 mt-4 text-sm">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-slate-200">👥 {{ number_format($totalEntries) }} người tham gia</span>
-                    @if ($updatedAt)
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-slate-200">🕐 Cập nhật {{ $updatedAt->diffForHumans() }}</span>
-                    @endif
+     KHÁC bản mẫu ở 3 chỗ, đều là chủ ý chứ không phải thiếu sót:
+       · Bản mẫu có 4 phạm vi cứng (Toàn thời gian / Tháng này / Cuộc thi gần nhất / Lớp của
+         tôi). Hệ thống KHÔNG có bảng xếp hạng toàn thời gian hay theo tháng — leaderboard_entries
+         luôn gắn với 1 cuộc thi/kỳ thi cụ thể — nên dải phạm vi dựng từ các cuộc thi có thật.
+       · Cột "Trường" và "Chuỗi N ngày" không có nguồn dữ liệu; thay bằng "Kỳ thi" và thời
+         điểm chấm — đều là cột thật của bảng.
+       · Ô "Ẩn danh tên học sinh" của bản mẫu bật/tắt được. Ở đây ẩn danh là BẮT BUỘC (bảo vệ
+         dữ liệu trẻ em — chưa có cột "đồng ý hiển thị công khai"), nên ô này khoá ở trạng thái
+         bật; riêng dòng của chính người đang đăng nhập mới hiện tên thật. --}}
+@php
+    $boards = $boards ?? [];
+    $entries = $entries ?? [];
+    $examTabs = $examTabs ?? [];
+    $selected = $selected ?? null;
+    $selectedExamId = $selectedExamId ?? null;
+    $totalEntries = $totalEntries ?? 0;
+    $yourEntry = $yourEntry ?? null;
+    $rankingRule = $rankingRule ?? [];
+    $updatedAt = $updatedAt ?? null;
+    $scopeLabel = $scopeLabel ?? null;
+
+    // Ảnh đại diện ẩn danh — xoay vòng 5 ảnh của bản mẫu theo hạng, ổn định giữa các lần tải.
+    $rankAvatars = ['rank-avatar-1.png', 'rank-avatar-2.png', 'rank-avatar-3.png', 'rank-avatar-4.png', 'rank-avatar-5.png'];
+    $avatarFor = fn (int $rank) => asset('assets/'.$rankAvatars[max(0, $rank - 1) % count($rankAvatars)]);
+
+    // 3 hạng đầu lên bục, phần còn lại xuống bảng — đúng cách bản mẫu chia.
+    $podium = array_slice($entries, 0, 3);
+    $rest = array_slice($entries, 3);
+
+    // Huy hiệu theo hạng: dữ liệu thật duy nhất có ở đây là THỨ HẠNG, nên nhãn suy từ hạng
+    // chứ không bịa ra cấp bậc mà hệ thống không có.
+    $badgeFor = fn (int $rank) => $rank === 1 ? 'Quán quân' : ($rank === 2 ? 'Á quân' : 'Hạng ba');
+
+    // Hàng dữ liệu đưa sang Alpine để tìm kiếm ngay tại chỗ.
+    $rows = [];
+    foreach ($rest as $e) {
+        $rows[] = [
+            'rank' => $e['rank'],
+            'search' => mb_strtolower('#'.$e['rank'].' '.$e['name'].' '.(string) $scopeLabel),
+        ];
+    }
+@endphp
+
+<div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
+<div x-data="onthiLeaderboardPage({{ Js::from(['rows' => $rows]) }})" class="flex flex-col gap-4">
+
+    {{-- ══════ 1. HERO ══════ --}}
+    <section class="relative overflow-hidden rounded-2xl border border-sky-200/90 bg-gradient-to-r from-[#0B4F86] via-[#166A9B] to-[#2B93BA] p-5 text-white shadow-[0_8px_24px_rgba(0,100,220,0.08)] sm:p-6">
+        <img src="{{ asset('assets/hero-leaderboard.jpg') }}" alt=""
+             class="pointer-events-none absolute inset-0 h-full w-full object-cover object-right opacity-25 mix-blend-overlay">
+
+        <div class="relative z-10 flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-center">
+            <div class="max-w-2xl">
+                <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-bold text-amber-950">
+                    <x-lucide name="sparkles" class="h-3.5 w-3.5" />Vinh danh Top Coder toàn quốc
                 </div>
-            @endif
-        </div>
-    </div>
-
-    <div class="max-w-5xl mx-auto px-4 py-10 lg:py-14">
-        {{-- Bộ chọn cuộc thi — phạm vi thật (11.2), thay cho bộ lọc thời gian giả trước đây --}}
-        @if (count($boards) > 1)
-            <div class="flex flex-wrap justify-center gap-2 mb-4 text-sm">
-                @foreach ($boards as $b)
-                    <a href="{{ route('leaderboard.index', ['competition' => $b['id']]) }}"
-                       class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selected && $selected->id === $b['id'] ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
-                        {{ $b['title'] }}
-                    </a>
-                @endforeach
+                <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Bảng xếp hạng &amp; Đại sảnh Danh vọng</h1>
+                <p class="mt-2 max-w-2xl text-xs leading-relaxed text-sky-100 sm:text-sm">
+                    Xếp hạng được tính từ điểm bài thi và số câu làm đúng của mỗi cuộc thi đã công bố kết quả.
+                    Mỗi nỗ lực đều có một vị trí xứng đáng.
+                </p>
+                <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-sky-100">
+                    <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5">
+                        <x-lucide name="users" class="h-3.5 w-3.5 text-sky-200" />{{ number_format($totalEntries) }} lượt xếp hạng
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5">
+                        <x-lucide name="calendar-days" class="h-3.5 w-3.5 text-amber-300" />
+                        {{ $updatedAt ? 'Chấm lúc '.\Illuminate\Support\Carbon::parse($updatedAt)->format('H:i d/m/Y') : 'Chưa có mốc chấm' }}
+                    </span>
+                </div>
             </div>
-        @endif
 
-        {{-- Bộ chọn kỳ thi (Tổng cuộc thi / từng kỳ thi) — chỉ hiện khi cuộc thi đang chọn có kỳ thi. --}}
-        @if ($selected && count($examTabs) > 0)
-            <div class="flex flex-wrap justify-center gap-2 mb-10 text-sm">
+            {{-- "Vị trí của bạn" — số thật của người đang đăng nhập; khách thấy lời mời đăng nhập --}}
+            <div class="w-full max-w-sm rounded-2xl border border-white/20 bg-white/10 p-3.5 shadow-xl backdrop-blur-md lg:w-72">
+                @auth
+                    @if ($yourEntry)
+                        <div class="flex items-center gap-3">
+                            <img src="{{ $avatarFor((int) $yourEntry['rank']) }}" alt="" class="h-12 w-12 shrink-0 rounded-full border-2 border-amber-300 object-cover">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
+                                <p class="mt-0.5 text-lg font-black text-white">#{{ $yourEntry['rank'] }} <span class="text-xs font-medium text-sky-200">/ {{ number_format($totalEntries) }}</span></p>
+                                <p class="truncate text-[11px] text-sky-100">{{ auth()->user()->name }} · {{ rtrim(rtrim(number_format($yourEntry['score'], 2, '.', ''), '0'), '.') }} điểm</p>
+                            </div>
+                            <x-lucide name="award" class="h-6 w-6 text-amber-300" />
+                        </div>
+                    @else
+                        <div class="flex items-center gap-3">
+                            <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-sky-100">
+                                <x-lucide name="target" class="h-5 w-5" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
+                                <p class="mt-0.5 text-sm font-bold text-white">Chưa có trong bảng này</p>
+                                <a href="{{ route('competitions.index') }}" class="text-[11px] text-sky-100 underline underline-offset-2 hover:text-white">Tham gia một cuộc thi →</a>
+                            </div>
+                        </div>
+                    @endif
+                @else
+                    <div class="flex items-center gap-3">
+                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-sky-100">
+                            <x-lucide name="lock-keyhole" class="h-5 w-5" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
+                            <p class="mt-0.5 text-sm font-bold text-white">Đăng nhập để xem</p>
+                            <a href="{{ route('login') }}" class="text-[11px] text-sky-100 underline underline-offset-2 hover:text-white">Đăng nhập ngay →</a>
+                        </div>
+                    </div>
+                @endauth
+            </div>
+        </div>
+    </section>
+
+    {{-- ══════ 2. PHẠM VI & TÌM KIẾM ══════ --}}
+    <section class="rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-wrap items-center gap-1.5">
+                @forelse ($boards as $b)
+                    @php $isActive = $selected && $selected->id === $b['id']; @endphp
+                    <a href="{{ route('leaderboard.index', ['competition' => $b['id']]) }}"
+                       aria-current="{{ $isActive ? 'page' : 'false' }}"
+                       class="inline-flex min-h-10 items-center rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-colors {{ $isActive ? 'bg-[#0066CC] text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50' }}">
+                        {{ $b['title'] }}
+                        <span class="ml-1.5 rounded-full px-1.5 text-[10px] {{ $isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500' }}">{{ $b['participants'] }}</span>
+                    </a>
+                @empty
+                    <span class="text-[11px] text-slate-400">Chưa có cuộc thi nào công bố kết quả.</span>
+                @endforelse
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <label class="relative block">
+                    <x-lucide name="search" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input x-model="query" placeholder="Tìm theo hạng hoặc kỳ thi" aria-label="Tìm theo hạng hoặc kỳ thi"
+                           class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100 sm:w-56">
+                </label>
+                <label class="flex min-h-10 items-center gap-2 text-[11px] font-bold text-slate-600"
+                       title="Bảng xếp hạng công khai luôn ẩn danh để bảo vệ dữ liệu học sinh — không thể tắt.">
+                    <input type="checkbox" checked disabled class="h-4 w-4 accent-blue-600">
+                    Ẩn danh tên học sinh
+                    <x-lucide name="lock" class="h-3 w-3 text-slate-400" />
+                </label>
+            </div>
+        </div>
+
+        {{-- Dải kỳ thi con của cuộc thi đang xem — chỉ hiện khi cuộc thi có nhiều kỳ --}}
+        @if (count($examTabs) > 0 && $selected)
+            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+                <span class="text-[11px] font-bold text-slate-500">Kỳ thi:</span>
                 <a href="{{ route('leaderboard.index', ['competition' => $selected->id]) }}"
-                   class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selectedExamId === null ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
-                    Tổng cuộc thi
+                   class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === null ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-sky-50' }}">
+                    Tổng hợp
                 </a>
                 @foreach ($examTabs as $tab)
                     <a href="{{ route('leaderboard.index', ['competition' => $selected->id, 'exam' => $tab['id']]) }}"
-                       class="px-3.5 py-1.5 rounded-full font-medium transition {{ $selectedExamId === $tab['id'] ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:border-slate-300' }}">
+                       class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === $tab['id'] ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-sky-50' }}">
                         {{ $tab['title'] }}
                     </a>
                 @endforeach
             </div>
         @endif
 
-        @if ($selected === null)
-            <div class="max-w-lg mx-auto">
-                <x-empty-state title="Chưa có bảng xếp hạng nào được công bố" description="Kết quả sẽ hiển thị ở đây khi cuộc thi hoàn tất và admin công bố xếp hạng (11.2)." />
-            </div>
-        @else
-            {{-- Công thức điểm / penalty / đồng điểm --}}
-            @if ($hasRankingRule)
-                <div class="rounded-2xl bg-white border border-slate-200 p-4 mb-8 text-sm text-slate-600 space-y-1">
-                    @if ($rankingRule['scoring_note'] ?? null)
-                        <p><span class="text-slate-400">Công thức điểm:</span> {{ $rankingRule['scoring_note'] }}</p>
-                    @endif
-                    @if ($rankingRule['penalty_note'] ?? null)
-                        <p><span class="text-slate-400">Penalty:</span> {{ $rankingRule['penalty_note'] }}</p>
-                    @endif
-                    @if ($rankingRule['tie_break_note'] ?? null)
-                        <p><span class="text-slate-400">Đồng điểm:</span> {{ $rankingRule['tie_break_note'] }}</p>
-                    @endif
-                </div>
-            @endif
-
-            {{-- Hạng của bạn --}}
-            @auth
-                @if ($yourEntry)
-                    <div class="rounded-2xl bg-white border-2 border-rose-100 p-4 mb-8 flex items-center gap-4 flex-wrap shadow-sm">
-                        <div class="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-xl font-semibold text-rose-600 shrink-0">#{{ $yourEntry['rank'] }}</div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-slate-700">Hạng của bạn</p>
-                            <p class="text-xs text-slate-400">{{ number_format($yourEntry['score'], 2) }} điểm</p>
-                        </div>
-                        <a href="{{ route('student.practice.index') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0 hover:bg-rose-700 transition">Luyện thêm để lên hạng</a>
-                    </div>
+        <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+            <span class="inline-flex items-center gap-1.5">
+                <x-lucide name="bar-chart" class="h-3.5 w-3.5 text-sky-600" />Đang xem: <strong class="text-slate-700">{{ $scopeLabel ?: 'Chưa chọn' }}</strong>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+                <x-lucide name="check-circle" class="h-3.5 w-3.5 text-emerald-600" />
+                @if (!empty($rankingRule['description']))
+                    {{ $rankingRule['description'] }}
                 @else
-                    <div class="rounded-2xl bg-white border border-dashed border-slate-300 p-4 mb-8 flex items-center gap-4 flex-wrap">
-                        <span class="text-2xl">👀</span>
-                        <p class="text-sm text-slate-500 flex-1 min-w-[200px]">Bạn chưa có trong bảng xếp hạng này — tham gia cuộc thi để xuất hiện ở đây.</p>
-                        <a href="{{ route('competitions.index') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0 hover:bg-rose-700 transition">Xem cuộc thi</a>
-                    </div>
+                    Điểm tính theo thể lệ đã công bố của cuộc thi
                 @endif
-            @else
-                <div class="rounded-2xl bg-white border border-dashed border-slate-300 p-4 mb-8 flex items-center gap-4 flex-wrap">
-                    <span class="text-2xl">🔒</span>
-                    <p class="text-sm text-slate-500 flex-1 min-w-[200px]">Đăng nhập để xem hạng của chính bạn nếu bạn đã tham gia cuộc thi này.</p>
-                    <a href="{{ route('login') }}" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0 hover:bg-rose-700 transition">Đăng nhập</a>
-                </div>
-            @endauth
+            </span>
+        </div>
+    </section>
 
-            {{-- Podium top 3 --}}
-            @if (count($top3) > 0)
-                <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-10 items-end">
-                    @foreach ($top3 as $e)
-                        @php
-                            $isFirst = $e['rank'] === 1;
-                            $order = $e['rank'] === 1 ? 'order-2' : ($e['rank'] === 2 ? 'order-1' : 'order-3');
-                            $ring = $e['isYou'] ? 'ring-4 ring-rose-300' : ($e['rank'] === 1 ? 'ring-4 ring-amber-300' : ($e['rank'] === 2 ? 'ring-4 ring-slate-200' : 'ring-4 ring-orange-200'));
-                            $pad = $isFirst ? 'pt-8 pb-6' : 'pt-5 pb-5';
-                        @endphp
-                        <div class="{{ $order }} rounded-2xl bg-white border border-slate-200 px-3 sm:px-5 {{ $pad }} text-center relative {{ $isFirst ? 'shadow-xl border-amber-200 sm:-translate-y-4' : 'shadow-sm' }}">
-                            @if ($isFirst)
-                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-2xl">👑</span>
+    {{-- ══════ 3. HALL OF FAME — BA VỊ TRÍ DẪN ĐẦU ══════ --}}
+    @if (count($podium) > 0)
+        <section class="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-amber-50 p-4 shadow-[0_8px_24px_rgba(0,100,220,0.06)] sm:p-5">
+            <div class="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">Hall of Fame</p>
+                    <h2 class="mt-1 text-lg font-bold text-[#0B3C78]">Ba vị trí dẫn đầu</h2>
+                </div>
+                <p class="text-[11px] text-slate-500">Tôn vinh thành tích nổi bật trong {{ $scopeLabel ?: 'cuộc thi này' }}</p>
+            </div>
+
+            <div class="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
+                @foreach ($podium as $person)
+                    @php
+                        $rank = (int) $person['rank'];
+                        $winner = $rank === 1;
+                        $order = $rank === 2 ? 'order-2 md:order-1' : ($rank === 3 ? 'order-3' : 'order-1 md:order-2');
+                        $shell = $winner
+                            ? 'order-1 min-h-64 border-amber-300 bg-gradient-to-b from-amber-100 via-amber-50 to-white shadow-[0_12px_30px_rgba(245,158,11,0.18)] md:order-2'
+                            : 'min-h-56 border-sky-100 bg-white text-[#0B3C78] shadow-[0_8px_24px_rgba(0,100,220,0.08)] '.$order;
+                        $rankStyle = $winner ? 'bg-amber-400 text-amber-950' : ($rank === 2 ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-800');
+                    @endphp
+                    <article class="relative flex flex-col items-center justify-end rounded-2xl border p-4 text-center transition-transform hover:-translate-y-1 {{ $shell }}">
+                        <div class="absolute -top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-black shadow-sm {{ $rankStyle }}">
+                            @if ($winner)
+                                <x-lucide name="trophy" class="h-4 w-4" />
+                            @else
+                                {{ $rank }}
                             @endif
-                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full mx-auto mb-2 flex items-center justify-center text-2xl bg-slate-100 {{ $ring }}">👤</div>
-                            <p class="text-xl sm:text-2xl mb-1">{{ $medals[$e['rank']] ?? '' }}</p>
-                            <p class="font-medium text-slate-700 text-xs sm:text-sm truncate">{{ $e['name'] }}{{ $e['isYou'] ? ' (Bạn)' : '' }}</p>
-                            <p class="text-base sm:text-lg font-semibold text-slate-800 mt-1">{{ number_format($e['score'], 2) }}<span class="text-xs text-slate-400 font-normal"> đ</span></p>
                         </div>
-                    @endforeach
-                </div>
-            @endif
+                        <img src="{{ $avatarFor($rank) }}" alt="Avatar của {{ $person['name'] }}"
+                             class="shrink-0 rounded-full object-cover {{ $winner ? 'h-20 w-20 border-4 border-amber-400 shadow-lg' : 'h-16 w-16 border-4 border-white/20 shadow-md' }}">
+                        <span class="mt-2 rounded-md px-2 py-1 text-[10px] font-bold {{ $winner ? 'bg-amber-200 text-amber-900' : 'bg-sky-50 text-sky-700' }}">{{ $badgeFor($rank) }}</span>
+                        <h3 class="mt-2 text-sm font-bold text-[#0B3C78]">{{ $person['name'] }}</h3>
+                        <p class="mt-0.5 text-[11px] text-slate-500">{{ $scopeLabel }}</p>
+                        <div class="mt-3 flex items-center gap-2 text-xs font-black {{ $winner ? 'text-amber-800' : 'text-sky-700' }}">
+                            <span>{{ rtrim(rtrim(number_format($person['score'], 2, '.', ''), '0'), '.') }} điểm</span>
+                            <span>•</span>
+                            <span>{{ $person['acCount'] }} câu đúng</span>
+                        </div>
+                        <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+                            <x-lucide name="clock" class="h-3.5 w-3.5 text-orange-400" />
+                            {{ $person['computedAt'] ? 'Chấm '.\Illuminate\Support\Carbon::parse($person['computedAt'])->format('d/m/Y') : 'Chưa có mốc chấm' }}
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
-            {{--
-                Danh sách còn lại (hạng 4 trở đi) — SỬA 19/8 (báo cáo thật của Admin: "trang
-                rõ ràng có hiện Top 3/Hạng của bạn ở trên mà bên dưới vẫn hiện 'Chưa có dữ liệu
-                xếp hạng', k hiểu"): $rest = array_slice($entries, 3) — khi TOÀN BỘ cuộc thi có
-                từ 1-3 người tham gia, $rest LUÔN rỗng (mọi người đã hiện đủ ở bục Top 3 phía
-                trên rồi, không có ai "hạng 4 trở đi" cả) — đây là chuyện BÌNH THƯỜNG, không
-                phải "chưa có dữ liệu". Trước đây @forelse/@empty không phân biệt được 2 trường
-                hợp "chỉ còn thiếu người hạng 4+" (bình thường) và "cuộc thi này thật sự chưa có
-                ai xếp hạng" (thật sự trống) — cả 2 đều hiện chung 1 câu gây hiểu lầm. Giờ: chỉ
-                hiện khối này (và câu "Chưa có dữ liệu xếp hạng.") khi $entries RỖNG HOÀN TOÀN
-                (trên thực tế khó xảy ra ở đây vì indexData() đã lọc leaderboard_entries_count
-                > 0 từ đầu — chỉ còn là lớp phòng vệ); có 1-3 người thì Top 3 ở trên đã đủ, ẩn
-                hẳn khối này, không hiện thêm câu nào gây rối.
-            --}}
-            @if (count($rest) > 0)
-                <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-                    @foreach ($rest as $e)
-                        <div class="flex items-center gap-3 px-4 py-3 {{ $e['isYou'] ? 'bg-rose-50/60' : 'hover:bg-slate-50' }} transition">
-                            <span class="w-6 text-sm font-semibold text-slate-400 shrink-0">{{ $e['rank'] }}</span>
-                            <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm shrink-0">👤</span>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm text-slate-700 truncate">{{ $e['name'] }}{{ $e['isYou'] ? ' (Bạn)' : '' }}</p>
-                                <div class="h-1.5 rounded-full bg-slate-100 mt-1.5 max-w-[140px] overflow-hidden">
-                                    <div class="h-full rounded-full bg-gradient-to-r from-rose-400 to-amber-400" style="width: {{ max(6, round($e['score'] / max($topScore, 1) * 100)) }}%"></div>
+    {{-- ══════ 4. DANH SÁCH XẾP HẠNG ══════ --}}
+    @if (count($entries) === 0)
+        <section class="rounded-2xl border border-dashed border-sky-200 bg-white p-10 text-center">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                <x-lucide name="bar-chart" class="h-6 w-6" />
+            </div>
+            <h2 class="mt-3 text-sm font-bold text-slate-800">Chưa có bảng xếp hạng nào được công bố</h2>
+            <p class="mt-1 text-xs text-slate-500">Bảng xếp hạng chỉ hiện sau khi ban tổ chức công bố kết quả cuộc thi.</p>
+            <a href="{{ route('competitions.index') }}" class="mt-4 inline-block text-[11px] font-bold text-[#126F91] hover:underline">Xem lịch cuộc thi →</a>
+        </section>
+    @else
+        <section class="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_4px_16px_rgba(0,100,220,0.05)]">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.1em] text-sky-700">Ranking</p>
+                    <h2 class="mt-1 text-lg font-bold text-[#0B3C78]">Danh sách xếp hạng</h2>
+                </div>
+                <div class="hidden items-center gap-1.5 text-[11px] text-slate-400 sm:flex">
+                    <x-lucide name="target" class="h-3.5 w-3.5 text-sky-500" />Top {{ min($totalEntries, 50) }} được vinh danh
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <div class="min-w-[720px] divide-y divide-slate-100">
+                    <div class="grid grid-cols-[56px_minmax(250px,1fr)_190px_110px_100px] bg-[#F8FBFE] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 sm:px-5">
+                        <span>Hạng</span><span>Học viên</span><span>Kỳ thi</span><span>Câu làm đúng</span><span class="text-right">Tổng điểm</span>
+                    </div>
+
+                    @foreach ($rest as $person)
+                        <div x-show="matches({{ $person['rank'] }})" x-cloak
+                             class="grid min-h-16 grid-cols-[56px_minmax(250px,1fr)_190px_110px_100px] items-center px-4 py-2.5 text-xs transition-colors hover:bg-sky-50/60 sm:px-5 {{ !empty($person['isYou']) ? 'bg-sky-50/80' : '' }}">
+                            <span class="font-bold text-slate-500">#{{ $person['rank'] }}</span>
+                            <div class="flex min-w-0 items-center gap-2.5">
+                                <img src="{{ $avatarFor((int) $person['rank']) }}" alt="Avatar của {{ $person['name'] }}"
+                                     class="h-9 w-9 shrink-0 rounded-full border border-sky-100 bg-sky-50 object-cover">
+                                <div class="min-w-0">
+                                    <p class="truncate font-bold text-slate-800">
+                                        {{ $person['name'] }}
+                                        @if (!empty($person['isYou']))
+                                            <span class="ml-1 rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">Bạn</span>
+                                        @endif
+                                    </p>
+                                    <p class="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                                        <x-lucide name="clock" class="h-3 w-3 text-orange-400" />
+                                        {{ $person['computedAt'] ? \Illuminate\Support\Carbon::parse($person['computedAt'])->format('H:i d/m/Y') : 'Chưa có mốc chấm' }}
+                                    </p>
                                 </div>
                             </div>
-                            <span class="text-sm font-semibold text-slate-700 shrink-0 w-20 text-right">{{ number_format($e['score'], 2) }} đ</span>
+                            <span class="truncate pr-3 text-slate-600">{{ $scopeLabel }}</span>
+                            <span class="font-bold text-emerald-600">{{ $person['acCount'] }} câu</span>
+                            <span class="text-right font-black text-[#0B3C78]">{{ rtrim(rtrim(number_format($person['score'], 2, '.', ''), '0'), '.') }}</span>
                         </div>
                     @endforeach
-                </div>
-            @elseif (count($entries) === 0)
-                <div class="bg-white rounded-2xl border border-slate-200">
-                    <div class="px-4 py-8 text-center text-slate-400 text-sm">Chưa có dữ liệu xếp hạng.</div>
-                </div>
-            @endif
 
-            @if ($totalEntries > count($entries))
-                <p class="text-xs text-slate-400 text-center mt-3">Hiển thị top {{ count($entries) }}/{{ number_format($totalEntries) }} — bảng đầy đủ do admin quản lý.</p>
-            @endif
-
-            {{-- Bảo vệ dữ liệu trẻ em --}}
-            <div class="rounded-2xl bg-slate-50 border border-slate-200 p-4 mt-6 flex items-start gap-3">
-                <x-icon-tile emoji="🔒" tone="violet" />
-                <p class="text-sm text-slate-500 leading-relaxed">Tên và ảnh đại diện trên bảng xếp hạng luôn được ẩn danh mặc định để bảo vệ dữ liệu học sinh dưới 18 tuổi (11.2) — thứ tự và điểm số là thật, chỉ danh tính được che.</p>
+                    <div x-show="visibleCount === 0" x-cloak class="px-5 py-10 text-center text-xs text-slate-500">
+                        Không tìm thấy hạng hoặc kỳ thi phù hợp.
+                    </div>
+                </div>
             </div>
-        @endif
-    </div>
+
+            <div class="flex items-center gap-2 border-t border-slate-100 px-4 py-3 text-[11px] text-slate-400 sm:px-5">
+                <x-lucide name="award" class="h-3.5 w-3.5 text-amber-500" />
+                Dữ liệu tổng hợp từ các cuộc thi đã công bố kết quả; tên học viên được ẩn danh để bảo vệ dữ liệu học sinh.
+            </div>
+        </section>
+    @endif
+</div>
+</div>
 @endsection
+
+@push('scripts')
+    @include('partials.leaderboard-page-script')
+@endpush

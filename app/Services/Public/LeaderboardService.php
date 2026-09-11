@@ -57,9 +57,12 @@ class LeaderboardService
      */
     public function indexData(?int $competitionId, ?int $examId, ?User $viewer): array
     {
+        // SỬA 11/9 — con số cạnh tên cuộc thi phải ĐÚNG bằng số dòng bảng tổng hợp hiển thị bên
+        // dưới. Trước đây withCount() đếm CẢ dòng scope=competition_exam (bảng riêng của từng kỳ
+        // thi con) nên chip ghi "2" trong khi bảng chỉ có 1 dòng — người xem tưởng thiếu dữ liệu.
         $publicCompetitions = $this->competitions->query()
             ->where('status', 'published')
-            ->withCount('leaderboardEntries')
+            ->withCount(['leaderboardEntries' => fn ($q) => $q->where('scope', 'competition')])
             ->having('leaderboard_entries_count', '>', 0)
             ->latest('publish_result_at')
             ->get();
