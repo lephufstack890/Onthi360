@@ -58,11 +58,13 @@
          chắn hiển thị được. Trình duyệt khác vẫn ưu tiên SVG ở dòng dưới (nét ở mọi cỡ). --}}
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}?v={{ $seoIconVersion }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16.png') }}?v={{ $seoIconVersion }}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset('favicon-48.png') }}?v={{ $seoIconVersion }}">
     <link rel="icon" type="image/png" sizes="96x96" href="{{ asset('favicon-96.png') }}?v={{ $seoIconVersion }}">
     <link rel="icon" href="{{ asset('favicon.svg') }}?v={{ $seoIconVersion }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}?v={{ $seoIconVersion }}">
     <link rel="manifest" href="{{ asset('site.webmanifest') }}?v={{ $seoIconVersion }}">
-    <meta name="theme-color" content="#3b8ef7">
+    {{-- SỬA 11/9 — đổi theo đúng source giao diện khách gửi (education-main/index.html). --}}
+    <meta name="theme-color" content="#126F91">
 
 @if (! $seoPrivate && request()->routeIs('home'))
     {{-- Dữ liệu có cấu trúc: giúp Google hiểu đây là 1 tổ chức giáo dục và gắn được tên/logo

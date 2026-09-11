@@ -72,7 +72,11 @@ class AuthController extends Controller
         // "Mỗi học sinh chỉ được đăng nhập trên 1 máy" (note họp 13/8, mục 7).
         $this->authService->enforceSingleDeviceForStudents($user, $request->session()->getId());
 
-        return redirect()->intended(route('dashboard'));
+        // SỬA 11/9 (khách chốt) — đăng nhập xong về TRANG CHỦ CÔNG KHAI, không vào thẳng khu
+        // học tập nữa. Vẫn giữ intended() để trường hợp người dùng bấm vào 1 trang cần đăng
+        // nhập rồi bị đẩy sang /login thì đăng nhập xong quay lại đúng trang đó — chỉ đổi
+        // đích MẶC ĐỊNH (khi không có trang nào đang chờ) từ dashboard sang trang chủ.
+        return redirect()->intended(route('home'));
     }
 
     public function showRegister(): View
