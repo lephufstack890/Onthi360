@@ -13,7 +13,7 @@
 
     <a href="{{ route('admin.products.show', $product->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại {{ $product->title }}</a>
 
-    <x-admin.page-header title="Thêm bài tập thủ công" icon="pencil" :subtitle="$product->title" />
+    <x-ws.page-header title="Thêm bài tập thủ công" icon="pencil" :subtitle="$product->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -33,11 +33,11 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại bài tập</label>
-                        <x-admin.select id="type" name="type" x-model="type" required>
+                        <x-ws.select id="type" name="type" x-model="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', 'mcq') === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -115,12 +115,12 @@
                 @if ($chapterLabel && ! empty($chapters))
                     <div>
                         <label class="block text-[13px] text-slate-600 mb-1" for="material_id">Thuộc {{ mb_strtolower($chapterLabel) }}</label>
-                        <x-admin.select id="material_id" name="material_id">
+                        <x-ws.select id="material_id" name="material_id">
                             <option value="">— Chưa gắn {{ mb_strtolower($chapterLabel) }} —</option>
                             @foreach ($chapters as $c)
                                 <option value="{{ $c['id'] }}" @selected((string) old('material_id') === (string) $c['id'])>{{ $c['title'] }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 @endif
 

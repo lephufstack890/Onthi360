@@ -10,9 +10,9 @@
         $maxAttempts = $assessmentModel->resubmission_policy['max_attempts'] ?? null;
         $resubmissionNote = $maxAttempts ? 'Nộp lại tối đa '.$maxAttempts.' lần' : 'Không giới hạn số lần nộp lại';
         $typeMeta = [
-            'mcq' => ['label' => 'Trắc nghiệm', 'icon' => '🔤'],
-            'fill_blank' => ['label' => 'Điền đáp án', 'icon' => '✏️'],
-            'coding' => ['label' => 'Lập trình', 'icon' => '💻'],
+            'mcq' => ['label' => 'Trắc nghiệm', 'icon' => 'text-cursor-input'],
+            'fill_blank' => ['label' => 'Điền đáp án', 'icon' => 'pencil'],
+            'coding' => ['label' => 'Lập trình', 'icon' => 'code-2'],
         ];
     @endphp
 
@@ -44,12 +44,12 @@
              ứng, phòng khi học sinh vẫn cố bấm/gõ trong lúc form đang tự nộp. --}}
         <div x-cloak x-show="expired" x-transition.opacity
              class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl">
                 <div class="text-4xl mb-3">⏰</div>
                 <h2 class="text-lg font-semibold text-slate-800">Đã hết giờ làm bài</h2>
-                <p class="text-sm text-slate-500 mt-2">Bài làm của bạn đang được tự động nộp, vui lòng đợi trong giây lát...</p>
+                <p class="text-[13px] text-slate-500 mt-2">Bài làm của bạn đang được tự động nộp, vui lòng đợi trong giây lát...</p>
                 <div class="mt-4 flex justify-center">
-                    <span class="inline-block w-6 h-6 border-2 border-rose-200 border-t-rose-600 rounded-full animate-spin"></span>
+                    <span class="inline-block w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
                 </div>
             </div>
         </div>
@@ -57,9 +57,9 @@
         {{-- Modal xác nhận nộp bài — thay cho confirm() mặc định của trình duyệt cho thân thiện hơn. --}}
         <div x-cloak x-show="confirmOpen" x-transition.opacity
              class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4" @keydown.escape.window="confirmOpen = false">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl">
                 <h2 class="text-base font-semibold text-slate-800">Nộp bài ngay?</h2>
-                <p class="text-sm text-slate-500 mt-2">
+                <p class="text-[13px] text-slate-500 mt-2">
                     Bạn đã trả lời <span x-text="answeredCount()"></span>/{{ count($questions) }} câu.
                     <template x-if="answeredCount() < {{ count($questions) }}">
                         <span class="text-amber-600">Vẫn còn câu chưa trả lời.</span>
@@ -67,8 +67,8 @@
                     Sau khi nộp sẽ không thể sửa lại câu trả lời.
                 </p>
                 <div class="flex gap-3 mt-5">
-                    <button type="button" @click="confirmOpen = false" class="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Làm tiếp</button>
-                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Nộp bài</button>
+                    <button type="button" @click="confirmOpen = false" class="flex-1 px-4 py-2 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium">Làm tiếp</button>
+                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Nộp bài</button>
                 </div>
             </div>
         </div>
@@ -77,7 +77,7 @@
             @csrf
 
             {{-- Header sticky: tên đề, tiến độ, đồng hồ, trạng thái tự lưu, nộp bài --}}
-            <div class="sticky top-0 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 py-3 bg-white/90 backdrop-blur border-b border-slate-200 mb-6">
+            <div class="sticky top-0 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 py-3 bg-white/90 backdrop-blur border-b border-sky-100 mb-6">
                 <div class="flex items-center justify-between gap-4 flex-wrap">
                     <div class="min-w-0">
                         <h1 class="font-medium text-slate-800 truncate">{{ $assessmentTitle }}</h1>
@@ -90,46 +90,46 @@
                     </div>
                     <div class="flex items-center gap-3">
                         <template x-if="deadlineAt !== null">
-                            <div class="px-3 py-1.5 rounded-lg text-sm font-semibold tabular-nums transition-colors"
+                            <div class="px-3 py-1.5 rounded-xl text-[13px] font-semibold tabular-nums transition-colors"
                                  :class="{
-                                     'bg-rose-50 text-rose-600': tone === 'normal',
+                                     'bg-blue-50 text-blue-600': tone === 'normal',
                                      'bg-amber-100 text-amber-700': tone === 'warning',
-                                     'bg-rose-600 text-white animate-pulse': tone === 'danger',
+                                     'bg-blue-600 text-white animate-pulse': tone === 'danger',
                                  }">
                                 ⏱ <span x-text="remainingLabel"></span>
                             </div>
                         </template>
                         <button type="button" @click="confirmOpen = true" :disabled="expired || submitting"
-                                class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium disabled:opacity-50">
+                                class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 disabled:opacity-50">
                             Nộp bài
                         </button>
                     </div>
                 </div>
                 {{-- Thanh tiến độ số câu đã trả lời — cập nhật thời gian thực theo answeredMap, không cần reload trang. --}}
                 <div class="mt-2.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div class="h-full bg-rose-500 transition-all duration-300" :style="`width: ${(answeredCount() / {{ max(count($questions), 1) }}) * 100}%`"></div>
+                    <div class="h-full bg-blue-500 transition-all duration-300" :style="`width: ${(answeredCount() / {{ max(count($questions), 1) }}) * 100}%`"></div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {{-- Điều hướng câu --}}
                 <div class="lg:col-span-1 order-2 lg:order-1">
-                    <div class="bg-white rounded-2xl border border-slate-200 p-4 sticky top-28">
+                    <div class="bg-white rounded-3xl border border-sky-100 p-4 sticky top-28">
                         <p class="text-xs text-slate-400 mb-3">
                             <span x-text="answeredCount()"></span>/{{ count($questions) }} câu đã trả lời · Hỗn hợp trắc nghiệm/điền đáp án/lập trình
                         </p>
                         <div class="grid grid-cols-5 lg:grid-cols-4 gap-2">
                             @foreach ($questions as $q)
                                 <a href="#question-{{ $q['no'] }}"
-                                   class="w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors"
-                                   :class="answeredMap[{{ $q['questionId'] }}] ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-500 border-slate-200'">
+                                   class="w-9 h-9 flex items-center justify-center rounded-xl border text-[13px] font-medium transition-colors"
+                                   :class="answeredMap[{{ $q['questionId'] }}] ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-500 border-sky-100'">
                                     {{ $q['no'] }}
                                 </a>
                             @endforeach
                         </div>
                         <div class="mt-4 space-y-1.5 text-xs text-slate-500">
                             <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-200 inline-block"></span> Đã trả lời</div>
-                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-white border border-slate-200 inline-block"></span> Chưa trả lời</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-white border border-sky-100 inline-block"></span> Chưa trả lời</div>
                         </div>
                     </div>
                 </div>
@@ -137,12 +137,12 @@
                 {{-- Danh sách câu hỏi --}}
                 <div class="lg:col-span-3 order-1 lg:order-2 space-y-5">
                     @foreach ($questions as $q)
-                        @php $meta = $typeMeta[$q['type']] ?? ['label' => $q['type'], 'icon' => '📝']; @endphp
-                        <div id="question-{{ $q['no'] }}" class="bg-white rounded-2xl border border-slate-200 p-6 scroll-mt-28">
+                        @php $meta = $typeMeta[$q['type']] ?? ['label' => $q['type'], 'icon' => 'pen-line']; @endphp
+                        <div id="question-{{ $q['no'] }}" class="bg-white rounded-3xl border border-sky-100 p-6 scroll-mt-28">
                             <div class="flex items-center justify-between mb-4 gap-2">
-                                <x-status-badge tone="info">
-                                    {{ $meta['icon'] }} Câu {{ $q['no'] }} · {{ $meta['label'] }} · {{ $q['points'] }} điểm
-                                </x-status-badge>
+                                <x-ws.badge tone="info">
+                                    <x-lucide :name="$meta['icon']" class="inline h-3.5 w-3.5 align-[-2px]" /> Câu {{ $q['no'] }} · {{ $meta['label'] }} · {{ $q['points'] }} điểm
+                                </x-ws.badge>
                                 <span x-show="answeredMap[{{ $q['questionId'] }}]" x-cloak class="text-xs font-medium text-emerald-600">Đã lưu ✓</span>
                             </div>
 
@@ -154,13 +154,13 @@
                                      sang {!! !!} + <div> (không dùng <p> bọc ngoài vì nội dung
                                      bên trong đã có thể tự chứa <p> khác, lồng <p> trong <p> là
                                      HTML không hợp lệ) để hiển thị đúng định dạng đã soạn. --}}
-                                <div class="rich-content text-sm text-slate-500 mb-4">{!! $q['body'] !!}</div>
+                                <div class="rich-content text-[13px] text-slate-500 mb-4">{!! $q['body'] !!}</div>
                             @endif
 
                             @if ($q['type'] === 'mcq')
                                 <div class="space-y-2">
                                     @foreach ($q['options'] as $i => $opt)
-                                        <label class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 hover:border-rose-300 cursor-pointer text-sm text-slate-700 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50 transition-colors">
+                                        <label class="flex items-center gap-3 px-4 py-3 rounded-xl border border-sky-100 hover:border-blue-300 cursor-pointer text-[13px] text-slate-700 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50 transition-colors">
                                             <input type="radio" name="answers[{{ $q['questionId'] }}][selected_option]" value="{{ $i }}"
                                                    :disabled="expired"
                                                    @checked((string) $q['selectedOption'] === (string) $i)
@@ -174,19 +174,19 @@
                                        placeholder="Nhập đáp án..."
                                        :disabled="expired"
                                        @input.debounce.700ms="onAnswer({{ $q['questionId'] }}, { text: $event.target.value }, $event.target.value.trim() !== '')"
-                                       class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition disabled:bg-slate-50 disabled:text-slate-400">
+                                       class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition disabled:bg-slate-50 disabled:text-slate-400">
                             @else
                                 <div class="space-y-2" x-data="{ language: @js($q['language'] ?? 'cpp'), code: @js($q['codeSource'] ?? '') }">
                                     <input type="text" name="answers[{{ $q['questionId'] }}][language]" x-model="language"
                                            placeholder="Ngôn ngữ (vd cpp, python, java)"
                                            :disabled="expired"
                                            @input.debounce.700ms="onAnswer({{ $q['questionId'] }}, { code_source: code, language }, code.trim() !== '')"
-                                           class="w-full rounded-lg border border-slate-200 text-sm p-2.5 disabled:bg-slate-50 disabled:text-slate-400">
+                                           class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 disabled:bg-slate-50 disabled:text-slate-400">
                                     <textarea name="answers[{{ $q['questionId'] }}][code_source]" x-model="code" rows="10"
                                               placeholder="Viết code ở đây..."
                                               :disabled="expired"
                                               @input.debounce.700ms="onAnswer({{ $q['questionId'] }}, { code_source: code, language }, code.trim() !== '')"
-                                              class="w-full rounded-lg border border-slate-200 text-sm p-2.5 font-mono disabled:bg-slate-50 disabled:text-slate-400"></textarea>
+                                              class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 font-mono disabled:bg-slate-50 disabled:text-slate-400"></textarea>
                                     <p class="text-xs text-slate-400">Bài nộp sẽ ở trạng thái "Đang chấm" — hệ thống chấm code tự động chưa nối vào ở phiên bản này.</p>
                                 </div>
                             @endif

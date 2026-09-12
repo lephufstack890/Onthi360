@@ -17,7 +17,7 @@
 
     <a href="{{ route('admin.teacher-approvals.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại hàng đợi</a>
 
-    <x-admin.page-header :title="$profile->user->name ?? ''" :subtitle="($profile->user->email ?? '').(($profile->subjects[0] ?? null) ? ' · '.$profile->subjects[0] : '')" />
+    <x-ws.page-header :title="$profile->user->name ?? ''" :subtitle="($profile->user->email ?? '').(($profile->subjects[0] ?? null) ? ' · '.$profile->subjects[0] : '')" />
 
     @php
         $statusMessage = match (session('status')) {
@@ -40,7 +40,7 @@
         <div class="lg:col-span-2 bg-white rounded-3xl border border-sky-100 p-5 space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="font-medium text-slate-700">Trạng thái hiện tại</h2>
-                <x-admin.badge :tone="$statusTone">{{ $status?->label() ?? '' }}</x-admin.badge>
+                <x-ws.badge :tone="$statusTone">{{ $status?->label() ?? '' }}</x-ws.badge>
             </div>
 
             @if ($profile->rejection_reason)

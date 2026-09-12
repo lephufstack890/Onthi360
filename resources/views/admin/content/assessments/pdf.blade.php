@@ -22,14 +22,14 @@
 
     <a href="{{ route('admin.content.show', $assessment->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Quản lý đề PDF" icon="scroll-text" :subtitle="$assessment->title">
+    <x-ws.page-header title="Quản lý đề PDF" icon="scroll-text" :subtitle="$assessment->title">
         <x-slot:actions>
             <a href="{{ route('admin.content.materials.create', ['assessment_id' => $assessment->id]) }}"
                class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">
                 🔗 Gắn vào học liệu để bán
             </a>
         </x-slot:actions>
-    </x-admin.page-header>
+    </x-ws.page-header>
 
     @if ($pdfStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $pdfStatusMessage])

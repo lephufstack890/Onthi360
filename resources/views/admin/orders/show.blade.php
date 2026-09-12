@@ -24,7 +24,7 @@
 
     <a href="{{ route('admin.orders.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Đơn hàng</a>
 
-    <x-admin.page-header :title="'🧾 Đơn #OD-'.$orderModel->id" :subtitle="'Người mua: '.($orderModel->buyer->name ?? '').' · Phạm vi quyền: '.$scopeLabel" />
+    <x-ws.page-header :title="'🧾 Đơn #OD-'.$orderModel->id" :subtitle="'Người mua: '.($orderModel->buyer->name ?? '').' · Phạm vi quyền: '.$scopeLabel" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

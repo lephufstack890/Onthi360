@@ -1,6 +1,3 @@
-{{-- Bảng dữ liệu — cùng ngôn ngữ với bảng trong source: chữ nhỏ, đầu bảng chữ hoa xám nhạt,
-     mỗi dòng ngăn bằng đường kẻ mảnh, có sọc chẵn/lẻ cho dễ dò mắt.
-     Dùng y như x-data-table cũ: <x-admin.table :columns="[...]"> <tr>...</tr> </x-admin.table> --}}
 @props(['columns' => [], 'minWidth' => 'min-w-[720px]'])
 <div class="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)]">
     <div class="overflow-x-auto">

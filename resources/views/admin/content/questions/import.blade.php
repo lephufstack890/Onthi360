@@ -11,7 +11,7 @@
 
     <a href="{{ route('admin.content.index', ['tab' => 'drafts']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Nội dung</a>
 
-    <x-admin.page-header title="Nhập đề — Kho chung" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4). Câu tách ra sẽ vào Kho chung (6.5), không phải kho riêng của giáo viên." />
+    <x-ws.page-header title="Nhập đề — Kho chung" subtitle="Giảm thao tác nhập tay — không thay thế bước kiểm duyệt chuyên môn và không tự phát hành (6.4). Câu tách ra sẽ vào Kho chung (6.5), không phải kho riêng của giáo viên." />
 
     @if (session('status') === 'import-failed')
         @include('partials.toast-flash', ['type' => 'error', 'message' => 'Xử lý tệp thất bại: '.session('importError', 'Lỗi không rõ.')])
@@ -49,15 +49,15 @@
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4">
                 <div class="flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
-                        <x-admin.icon-tile emoji="📄" tone="sky" />
+                        <x-ws.icon-tile emoji="📄" tone="sky" />
                         <div>
                             <p class="text-[13px] font-medium text-slate-700">{{ $d['name'] }}</p>
                             <p class="text-xs text-slate-400">Người tải lên: {{ $d['uploader'] }}</p>
-                            <div class="w-48 mt-1"><x-admin.progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
+                            <div class="w-48 mt-1"><x-ws.progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
                         </div>
                     </div>
                     <div class="text-right">
-                        <x-admin.badge :tone="$d['tone']">{{ $d['status'] }}</x-admin.badge>
+                        <x-ws.badge :tone="$d['tone']">{{ $d['status'] }}</x-ws.badge>
                         @if ($d['reviewable'])
                             <a href="{{ route('admin.content.questions.reviewDraft', ['document' => $d['id']]) }}" class="block mt-1 text-[13px] text-blue-600 font-medium">Rà soát ngay ›</a>
                         @endif
@@ -68,7 +68,7 @@
                 @endif
             </div>
         @empty
-            <x-admin.empty-state title="Chưa có tệp nào đang xử lý" description="Tải Word/PDF lên ở trên để bắt đầu." />
+            <x-ws.empty-state title="Chưa có tệp nào đang xử lý" description="Tải Word/PDF lên ở trên để bắt đầu." />
         @endforelse
     </div>
 

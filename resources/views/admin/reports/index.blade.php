@@ -12,49 +12,49 @@
         $userStats = $userStats ?? [];
     @endphp
 
-    <x-admin.page-header title="Báo cáo vận hành" icon="scroll-text" subtitle="Số liệu vận hành cơ bản cho P0; báo cáo thương mại sâu/chiến dịch thuộc P1, ngoài phạm vi trang này (2.3)." />
+    <x-ws.page-header title="Báo cáo vận hành" icon="scroll-text" subtitle="Số liệu vận hành cơ bản cho P0; báo cáo thương mại sâu/chiến dịch thuộc P1, ngoài phạm vi trang này (2.3)." />
 
     <div class="space-y-6">
         <div>
             <h2 class="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Đơn hàng</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <x-admin.stat label="Chờ duyệt" :value="$orderStats['pendingApproval'] ?? 0" tone="warning" />
-                <x-admin.stat label="Đã hoàn tất" :value="$orderStats['completed'] ?? 0" tone="success" />
-                <x-admin.stat label="Từ chối / Huỷ" :value="$orderStats['rejectedOrCanceled'] ?? 0" tone="danger" />
+                <x-ws.stat label="Chờ duyệt" :value="$orderStats['pendingApproval'] ?? 0" tone="warning" />
+                <x-ws.stat label="Đã hoàn tất" :value="$orderStats['completed'] ?? 0" tone="success" />
+                <x-ws.stat label="Từ chối / Huỷ" :value="$orderStats['rejectedOrCanceled'] ?? 0" tone="danger" />
             </div>
         </div>
 
         <div>
             <h2 class="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Mã kích hoạt</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <x-admin.stat label="Chưa dùng" :value="$activationStats['unused'] ?? 0" />
-                <x-admin.stat label="Đã kích hoạt" :value="$activationStats['activated'] ?? 0" tone="success" />
-                <x-admin.stat label="Đã thu hồi" :value="$activationStats['revoked'] ?? 0" tone="danger" />
+                <x-ws.stat label="Chưa dùng" :value="$activationStats['unused'] ?? 0" />
+                <x-ws.stat label="Đã kích hoạt" :value="$activationStats['activated'] ?? 0" tone="success" />
+                <x-ws.stat label="Đã thu hồi" :value="$activationStats['revoked'] ?? 0" tone="danger" />
             </div>
         </div>
 
         <div>
             <h2 class="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Đánh giá</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <x-admin.stat label="Chờ kiểm duyệt" :value="$reviewStats['pendingModeration'] ?? 0" tone="warning" />
-                <x-admin.stat label="Đã công bố" :value="$reviewStats['published'] ?? 0" tone="success" />
+                <x-ws.stat label="Chờ kiểm duyệt" :value="$reviewStats['pendingModeration'] ?? 0" tone="warning" />
+                <x-ws.stat label="Đã công bố" :value="$reviewStats['published'] ?? 0" tone="success" />
             </div>
         </div>
 
         <div>
             <h2 class="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Cuộc thi</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <x-admin.stat label="Đang diễn ra" :value="$competitionStats['ongoing'] ?? 0" />
-                <x-admin.stat label="Chờ công bố kết quả" :value="$competitionStats['pendingPublish'] ?? 0" tone="warning" />
+                <x-ws.stat label="Đang diễn ra" :value="$competitionStats['ongoing'] ?? 0" />
+                <x-ws.stat label="Chờ công bố kết quả" :value="$competitionStats['pendingPublish'] ?? 0" tone="warning" />
             </div>
         </div>
 
         <div>
             <h2 class="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Người dùng theo vai trò</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <x-admin.stat label="Học viên" :value="$userStats['students'] ?? 0" />
-                <x-admin.stat label="Giáo viên" :value="$userStats['teachers'] ?? 0" />
-                <x-admin.stat label="Phụ huynh" :value="$userStats['parents'] ?? 0" />
+                <x-ws.stat label="Học viên" :value="$userStats['students'] ?? 0" />
+                <x-ws.stat label="Giáo viên" :value="$userStats['teachers'] ?? 0" />
+                <x-ws.stat label="Phụ huynh" :value="$userStats['parents'] ?? 0" />
             </div>
         </div>
     </div>

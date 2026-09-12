@@ -19,7 +19,7 @@
 
     <a href="{{ route('admin.content.show', $question->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Sửa câu hỏi" icon="pencil" :subtitle="$question->code.' · '.$question->title" />
+    <x-ws.page-header title="Sửa câu hỏi" icon="pencil" :subtitle="$question->code.' · '.$question->title" />
 
     @if ($hasBeenAttempted)
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 text-[13px] text-amber-800 flex items-start gap-2">
@@ -81,21 +81,21 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="subject">Môn học</label>
-                        <x-admin.select id="subject" name="subject">
+                        <x-ws.select id="subject" name="subject">
                             <option value="">— Chưa phân loại —</option>
                             @foreach ($subjects as $code => $label)
                                 <option value="{{ $code }}" @selected(old('subject', $question->subject) === $code)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-admin.select id="grade" name="grade">
+                        <x-ws.select id="grade" name="grade">
                             <option value="">— Chưa gán —</option>
                             @foreach ($grades as $g)
                                 <option value="{{ $g }}" @selected((string) old('grade', $question->grade) === (string) $g)>Lớp {{ $g }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -162,11 +162,11 @@
                 </div>
                 <div>
                     <label class="block text-[13px] text-slate-600 mb-1" for="visibility">Hiển thị</label>
-                    <x-admin.select id="visibility" name="visibility" required>
+                    <x-ws.select id="visibility" name="visibility" required>
                         @foreach ($visibilities as $value => $label)
                             <option value="{{ $value }}" @selected(old('visibility', $question->visibility->value) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
                      hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem

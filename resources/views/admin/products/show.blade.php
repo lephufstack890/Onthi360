@@ -55,11 +55,11 @@
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-start justify-between gap-4 flex-wrap">
         <div class="flex items-start gap-4">
-            <x-admin.icon-tile emoji="🎫" tone="rose" />
+            <x-ws.icon-tile emoji="🎫" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $product->title }}</h1>
-                    <x-admin.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-admin.badge>
+                    <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>
                 </div>
                 <p class="text-[13px] text-slate-500">
                     {{ $typeLabels[$product->type->value] ?? $product->type->value }}
@@ -140,7 +140,7 @@
                     </form>
 
                     @if (empty($chapters))
-                        <x-admin.empty-state :title="'Chưa có '.mb_strtolower($chapterLabel).' nào'" description="Thêm mục đầu tiên ở ô trên để bắt đầu gắn bài tập/học liệu." />
+                        <x-ws.empty-state :title="'Chưa có '.mb_strtolower($chapterLabel).' nào'" description="Thêm mục đầu tiên ở ô trên để bắt đầu gắn bài tập/học liệu." />
                     @else
                         <div class="divide-y divide-slate-100">
                             @foreach ($chapters as $c)
@@ -205,7 +205,7 @@
                 </div>
 
                 @if (empty($exercises))
-                    <x-admin.empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP hoặc soạn thủ công ở ô trên để bắt đầu." />
+                    <x-ws.empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP hoặc soạn thủ công ở ô trên để bắt đầu." />
                 @else
                     <div class="divide-y divide-slate-100">
                         @foreach ($exercises as $ex)
@@ -256,7 +256,7 @@
                     </a>
 
                     @if (empty($materialsList))
-                        <x-admin.empty-state title="Chưa có học liệu nào" description="Thêm học liệu đầu tiên ở nút trên." />
+                        <x-ws.empty-state title="Chưa có học liệu nào" description="Thêm học liệu đầu tiên ở nút trên." />
                     @else
                         <div class="divide-y divide-slate-100">
                             @foreach ($materialsList as $m)
@@ -271,7 +271,7 @@
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-3 shrink-0">
-                                        <x-admin.badge :tone="$m['statusTone']">{{ $m['statusLabel'] }}</x-admin.badge>
+                                        <x-ws.badge :tone="$m['statusTone']">{{ $m['statusLabel'] }}</x-ws.badge>
                                         <a href="{{ route('admin.content.materials.edit', $m['id']) }}" class="text-[13px] text-blue-600 font-medium">Sửa</a>
                                     </div>
                                 </div>
@@ -288,16 +288,16 @@
                 </div>
 
                 @if (empty($accessRightRows))
-                    <x-admin.empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
+                    <x-ws.empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
                 @else
                     <div class="overflow-x-auto">
-                        <x-admin.table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
+                        <x-ws.table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
                             @foreach ($accessRightRows as $row)
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-4 py-3 text-[13px] text-slate-700">{{ $row['userName'] }}</td>
                                     <td class="px-4 py-3 text-[13px] text-slate-600">{{ $row['scopeLabel'] }}</td>
                                     <td class="px-4 py-3">
-                                        <x-admin.badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-admin.badge>
+                                        <x-ws.badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-ws.badge>
                                         <p class="text-xs text-slate-400 mt-1">
                                             {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
                                         </p>
@@ -318,7 +318,7 @@
                                     </td>
                                 </tr>
                             @endforeach
-                        </x-admin.table>
+                        </x-ws.table>
                     </div>
                 @endif
             </div>

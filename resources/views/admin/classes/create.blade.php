@@ -9,7 +9,7 @@
     <a href="{{ route('admin.courses.show', $course->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại {{ $course->title }}</a>
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-center gap-4 flex-wrap">
-        <x-admin.icon-tile emoji="🏫" tone="sky" />
+        <x-ws.icon-tile emoji="🏫" tone="sky" />
         <div>
             <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Tạo lớp thuộc "{{ $course->title }}"</h1>
             <p class="text-[13px] text-slate-500 mt-1">Lớp là nơi tổ chức lịch, giáo viên và học sinh thật — khóa học chỉ là khung nội dung (8.1).</p>
@@ -47,21 +47,21 @@
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="teacher_id">Giáo viên phụ trách</label>
-                <x-admin.select id="teacher_id" name="teacher_id" icon="👩‍🏫">
+                <x-ws.select id="teacher_id" name="teacher_id" icon="👩‍🏫">
                     <option value="">— Chưa phân công —</option>
                     @foreach ($teachers as $t)
                         <option value="{{ $t['id'] }}" @selected((string) old('teacher_id') === (string) $t['id'])>{{ $t['name'] }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
                 <p class="text-xs text-slate-400 mt-1">Chỉ hiện giáo viên đã được Admin duyệt (3.3).</p>
             </div>
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                <x-admin.select id="status" name="status" required>
+                <x-ws.select id="status" name="status" required>
                     <option value="active" @selected(old('status', 'active') === 'active')>Đang học</option>
                     <option value="archived" @selected(old('status') === 'archived')>Lưu trữ</option>
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             <div class="flex gap-3 pt-2">

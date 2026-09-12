@@ -15,7 +15,7 @@
 
     <a href="{{ route('admin.content.show', $material->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Sửa học liệu" icon="pencil" :subtitle="$material->title" />
+    <x-ws.page-header title="Sửa học liệu" icon="pencil" :subtitle="$material->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -54,12 +54,12 @@
             <div x-show="chapterLabel" x-cloak>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="parent_id_picker" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
                 <template x-if="chapters.length > 0">
-                    <x-admin.select id="parent_id_picker" x-model="selectedParentId">
+                    <x-ws.select id="parent_id_picker" x-model="selectedParentId">
                         <option value="">— Chưa gắn —</option>
                         <template x-for="c in chapters" :key="c.id">
                             <option :value="String(c.id)" x-text="c.title"></option>
                         </template>
-                    </x-admin.select>
+                    </x-ws.select>
                 </template>
                 <template x-if="chapters.length === 0">
                     <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2"
@@ -79,12 +79,12 @@
 
             <div x-show="type === 'assessment_ref'" x-cloak>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
-                <x-admin.select id="assessment_id" name="assessment_id">
+                <x-ws.select id="assessment_id" name="assessment_id">
                     <option value="">— Chọn đề/bộ bài —</option>
                     @foreach ($assessments as $a)
                         <option value="{{ $a->id }}" @selected((string) old('assessment_id', $material->assessment_id) === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             {{--

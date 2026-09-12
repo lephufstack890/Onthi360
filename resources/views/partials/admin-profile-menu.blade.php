@@ -14,7 +14,7 @@
     <div class="relative" x-data="{ open: false }" @click.outside="open = false">
         <button type="button" @click="open = !open" :aria-expanded="open"
                 class="flex min-h-9 items-center gap-2 rounded-xl border border-transparent px-1.5 py-1 text-xs font-bold text-slate-600 transition-colors hover:border-sky-100 hover:bg-sky-50">
-            <x-admin.avatar :name="$authUser->name ?? ''" size="sm" />
+            <x-ws.avatar :name="$authUser->name ?? ''" size="sm" />
             <span class="hidden max-w-[140px] truncate sm:inline">{{ $authUser->name }}</span>
             <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform" ::class="open ? 'rotate-180' : ''" />
         </button>

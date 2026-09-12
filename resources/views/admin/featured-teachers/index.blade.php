@@ -9,15 +9,15 @@
         $teachers = $teachers ?? [];
     @endphp
 
-    <x-admin.page-header title="Giáo viên và chuyên gia" icon="trophy" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
+    <x-ws.page-header title="Giáo viên và chuyên gia" icon="trophy" subtitle="Chỉ hiển thị dữ liệu thật/có phép; không lộ số điện thoại cá nhân (12.2)." />
 
     @if (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'featured' ? 'Đã vinh danh giáo viên.' : 'Đã bỏ vinh danh giáo viên.'])
     @endif
 
-    <x-admin.tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
-    <x-admin.table :columns="['Giáo viên', 'Môn', 'Thành tích công bố', 'Đang vinh danh', '']">
+    <x-ws.table :columns="['Giáo viên', 'Môn', 'Thành tích công bố', 'Đang vinh danh', '']">
         @forelse ($teachers as $t)
             <tr x-data="{ editing: false }">
                 <td class="px-4 py-3 font-medium text-slate-700 align-top">{{ $t['name'] }}</td>
@@ -26,7 +26,7 @@
                     <span class="line-clamp-2">{{ $t['achievement'] ?: '—' }}</span>
                 </td>
                 <td class="px-4 py-3 align-top">
-                    <x-admin.badge :tone="$t['featured'] ? 'success' : 'neutral'">{{ $t['featured'] ? 'Đang hiển thị' : 'Chưa chọn' }}</x-admin.badge>
+                    <x-ws.badge :tone="$t['featured'] ? 'success' : 'neutral'">{{ $t['featured'] ? 'Đang hiển thị' : 'Chưa chọn' }}</x-ws.badge>
                 </td>
                 <td class="px-4 py-3 text-right align-top">
                     @if ($t['featured'])
@@ -52,5 +52,5 @@
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có giáo viên nào được duyệt.</td></tr>
         @endforelse
-    </x-admin.table>
+    </x-ws.table>
 @endsection

@@ -25,7 +25,7 @@
 
     <a href="{{ route('admin.reviews.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Đánh giá</a>
 
-    <x-admin.page-header :title="$targetLabel" :subtitle="'Người viết: '.($reviewModel->reviewer->name ?? '')" />
+    <x-ws.page-header :title="$targetLabel" :subtitle="'Người viết: '.($reviewModel->reviewer->name ?? '')" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">

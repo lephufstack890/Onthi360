@@ -12,7 +12,7 @@
 
     <a href="{{ route('admin.users.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại danh sách người dùng</a>
 
-    <x-admin.page-header title="Thêm người dùng" icon="plus" subtitle="Tạo tài khoản trực tiếp và gán vai trò ngay — khác với tự đăng ký công khai (chỉ chọn được học sinh/giáo viên/phụ huynh)." />
+    <x-ws.page-header title="Thêm người dùng" icon="plus" subtitle="Tạo tài khoản trực tiếp và gán vai trò ngay — khác với tự đăng ký công khai (chỉ chọn được học sinh/giáo viên/phụ huynh)." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -44,21 +44,21 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="province">Tỉnh/thành (tùy chọn)</label>
-                        <x-admin.select id="province" name="province">
+                        <x-ws.select id="province" name="province">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($provinceOptions as $p)
                                 <option value="{{ $p }}" @selected(old('province') === $p)>{{ $p }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="region">Khu vực (tùy chọn)</label>
-                        <x-admin.select id="region" name="region">
+                        <x-ws.select id="region" name="region">
                             <option value="">— Chưa chọn —</option>
                             @foreach ($regionOptions as $value => $label)
                                 <option value="{{ $value }}" @selected(old('region') === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -108,11 +108,11 @@
         <div class="bg-white rounded-3xl border border-sky-100 p-6 space-y-4">
             <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="sparkles" class="h-4 w-4" /></span> Cần biết</h3>
             <div class="flex items-start gap-3">
-                <x-admin.icon-tile emoji="🔑" tone="sky" />
+                <x-ws.icon-tile emoji="🔑" tone="sky" />
                 <p class="text-[13px] text-slate-500">Tài khoản tạo ở đây có trạng thái "Hoạt động" ngay — người dùng đăng nhập được bằng email/mật khẩu vừa đặt.</p>
             </div>
             <div class="flex items-start gap-3">
-                <x-admin.icon-tile emoji="🧾" tone="violet" />
+                <x-ws.icon-tile emoji="🧾" tone="violet" />
                 <p class="text-[13px] text-slate-500">Việc tạo tài khoản và gán vai trò được ghi vào audit log (16 mục 4).</p>
             </div>
         </div>

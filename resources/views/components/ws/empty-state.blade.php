@@ -15,6 +15,6 @@
         <p class="mt-1 text-xs text-slate-500">{{ $description }}</p>
     @endif
     @if ($actionLabel)
-        <x-admin.btn :href="$actionHref ?? '#'" variant="primary" class="mt-4">{{ $actionLabel }}</x-admin.btn>
+        <x-ws.btn :href="$actionHref ?? '#'" variant="primary" class="mt-4">{{ $actionLabel }}</x-ws.btn>
     @endif
 </div>

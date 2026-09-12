@@ -15,21 +15,21 @@
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻', 'composite' => '🧩'];
     @endphp
 
-    <div class="rounded-3xl bg-gradient-to-br from-violet-100 via-white to-sky-50 p-6 lg:p-8 mb-6 flex items-center justify-between flex-wrap gap-4">
+    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-start gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">❓</div>
+            <div class="w-14 h-14 rounded-3xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">❓</div>
             <div>
                 <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Kho câu hỏi của tôi</h1>
-                <p class="text-sm text-slate-500 mt-1">Kho riêng chỉ bạn tạo/sửa/sử dụng — có thể xem thêm Kho chung của hệ thống ở tab riêng, nhưng không sửa được (6.5).</p>
+                <p class="text-[13px] text-slate-500 mt-1">Kho riêng chỉ bạn tạo/sửa/sử dụng — có thể xem thêm Kho chung của hệ thống ở tab riêng, nhưng không sửa được (6.5).</p>
             </div>
         </div>
         <div class="flex items-center gap-3 shrink-0">
-            <a href="{{ route('teacher.assessments.import') }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">+ Nhập đề (Word/PDF/OCR)</a>
-            <a href="{{ route('teacher.questions.create') }}" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm">+ Tạo câu hỏi</a>
+            <a href="{{ route('teacher.assessments.import') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">+ Nhập đề (Word/PDF/OCR)</a>
+            <a href="{{ route('teacher.questions.create') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">+ Tạo câu hỏi</a>
         </div>
     </div>
 
-    <x-tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
     @if (session('status') === 'question-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu nháp câu hỏi.'])
@@ -41,19 +41,19 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu trữ câu hỏi.'])
     @endif
 
-    <x-data-table :columns="['Tên câu hỏi', 'Loại', 'Trạng thái', '']">
+    <x-ws.table :columns="['Tên câu hỏi', 'Loại', 'Trạng thái', '']">
         @forelse ($questions as $q)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-700">
                     <span class="mr-2">{{ $typeIcons[$q['typeValue'] ?? ''] ?? '❓' }}</span>{{ $q['title'] }}
                 </td>
                 <td class="px-4 py-3 text-slate-500">{{ $q['type'] }}</td>
-                <td class="px-4 py-3"><x-status-badge :tone="$q['tone']">{{ $q['status'] }}</x-status-badge></td>
+                <td class="px-4 py-3"><x-ws.badge :tone="$q['tone']">{{ $q['status'] }}</x-ws.badge></td>
                 <td class="px-4 py-3 text-right space-x-3">
                     @if ($q['readOnly'] ?? false)
                         <span class="text-xs text-slate-400">Thuộc Kho chung — chỉ Admin/Editor sửa được (6.5).</span>
                     @else
-                        <a href="{{ route('teacher.questions.edit', $q['id']) }}" class="text-rose-600 font-medium">Sửa</a>
+                        <a href="{{ route('teacher.questions.edit', $q['id']) }}" class="text-blue-600 font-medium">Sửa</a>
                         @if ($q['canPublish'])
                             <form method="POST" action="{{ route('teacher.questions.publish', $q['id']) }}" class="inline">
                                 @csrf
@@ -72,6 +72,6 @@
         @empty
             <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có câu hỏi nào trong kho của bạn.</td></tr>
         @endforelse
-    </x-data-table>
-    <x-pagination-note :shown="count($questions)" :total="$total" />
+    </x-ws.table>
+    <x-ws.pagination-note :shown="count($questions)" :total="$total" />
 @endsection

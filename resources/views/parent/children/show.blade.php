@@ -21,30 +21,30 @@
         $nextSessionLabel = isset($nextSession) && $nextSession ? $nextSession->starts_at->format('d/m H:i') : 'Chưa có buổi học sắp tới';
     @endphp
 
-    <a href="{{ route('parent.children.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Con của tôi</a>
+    <a href="{{ route('parent.children.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Con của tôi</a>
 
-    <div class="rounded-3xl bg-gradient-to-br from-violet-50 via-white to-rose-50 border border-slate-200 p-6 mb-6 flex items-center justify-between flex-wrap gap-4">
+    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 mb-4 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-violet-200 to-rose-100 flex items-center justify-center font-medium text-slate-700 text-lg">{{ mb_substr($child->name ?? 'H', 0, 1) }}</div>
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-sky-200 to-blue-100 flex items-center justify-center font-medium text-slate-700 text-lg">{{ mb_substr($child->name ?? 'H', 0, 1) }}</div>
             <div>
                 <h1 class="text-lg font-semibold text-slate-800">{{ $child->name ?? '' }}</h1>
-                <p class="text-sm text-slate-500">Lớp {{ $className }}{{ $courseTitle ? ' · '.$courseTitle : '' }}</p>
+                <p class="text-[13px] text-slate-500">Lớp {{ $className }}{{ $courseTitle ? ' · '.$courseTitle : '' }}</p>
             </div>
         </div>
-        <div class="w-40"><x-progress-bar :percent="$overallPercent ?? 0" label="Tiến độ lớp" tone="brand" /></div>
+        <div class="w-40"><x-ws.progress-bar :percent="$overallPercent ?? 0" label="Tiến độ lớp" tone="brand" /></div>
     </div>
 
-    <x-tabs :tabs="$tabsData" />
+    <x-ws.tabs :tabs="$tabsData" />
 
     @if ($tab === 'schedule')
-        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <table class="w-full text-sm">
+        <div class="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)]">
+            <table class="w-full text-[13px]">
                 <thead class="bg-slate-50 text-left text-slate-500"><tr><th class="px-4 py-3">Buổi học</th><th class="px-4 py-3">Trạng thái</th></tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($attendance as $a)
                         <tr>
                             <td class="px-4 py-3 text-slate-700">{{ $a['date'] }}</td>
-                            <td class="px-4 py-3"><x-status-badge :tone="$a['tone']">{{ $a['status'] }}</x-status-badge></td>
+                            <td class="px-4 py-3"><x-ws.badge :tone="$a['tone']">{{ $a['status'] }}</x-ws.badge></td>
                         </tr>
                     @empty
                         <tr><td colspan="2" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu điểm danh.</td></tr>
@@ -53,37 +53,37 @@
             </table>
         </div>
     @elseif ($tab === 'results')
-        <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] divide-y divide-slate-100">
             @forelse ($results as $r)
                 <div class="flex items-center justify-between p-4">
                     <div>
-                        <p class="text-sm text-slate-700">{{ $r['title'] }}</p>
+                        <p class="text-[13px] text-slate-700">{{ $r['title'] }}</p>
                         <p class="text-xs text-slate-400">{{ $r['time'] }}</p>
                     </div>
-                    <x-status-badge :tone="$r['tone']">{{ $r['score'] }}</x-status-badge>
+                    <x-ws.badge :tone="$r['tone']">{{ $r['score'] }}</x-ws.badge>
                 </div>
             @empty
-                <div class="p-8"><x-empty-state title="Chưa có kết quả nào" /></div>
+                <div class="p-8"><x-ws.empty-state title="Chưa có kết quả nào" /></div>
             @endforelse
         </div>
     @elseif ($tab === 'review')
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
             @if ($classRoom)
-                <p class="text-sm text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi con tham gia ít nhất 2 buổi. Không đánh giá thay chuyên môn của con.</p>
-                <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}" class="text-sm text-rose-600 font-medium">Viết đánh giá lớp ›</a>
+                <p class="text-[13px] text-slate-500 mb-3">Bạn đủ điều kiện đánh giá lớp này sau khi con tham gia ít nhất 2 buổi. Không đánh giá thay chuyên môn của con.</p>
+                <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}" class="text-[13px] text-blue-600 font-medium">Viết đánh giá lớp ›</a>
             @else
-                <p class="text-sm text-slate-400">Con chưa có lớp đang học để đánh giá.</p>
+                <p class="text-[13px] text-slate-400">Con chưa có lớp đang học để đánh giá.</p>
             @endif
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Buổi học tới</h3>
-                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
+                <p class="text-[13px] text-slate-500">{{ $nextSessionLabel }}</p>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Điểm danh gần đây</h3>
-                <p class="text-sm text-slate-500">Xem chi tiết ở tab "Lịch & Điểm danh".</p>
+                <p class="text-[13px] text-slate-500">Xem chi tiết ở tab "Lịch & Điểm danh".</p>
             </div>
         </div>
     @endif

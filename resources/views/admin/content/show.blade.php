@@ -65,20 +65,20 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-admin.page-header :title="$item['title']" :subtitle="$typeLabel">
+    <x-ws.page-header :title="$item['title']" :subtitle="$typeLabel">
         @if ($editRoute)
             <x-slot:actions>
                 <a href="{{ $editRoute }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">✏️ Sửa</a>
             </x-slot:actions>
         @endif
-    </x-admin.page-header>
+    </x-ws.page-header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-5">
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-medium text-slate-700">Trạng thái hiện tại</h2>
-                    <x-admin.badge :tone="$item['tone']">{{ $item['status'] }}</x-admin.badge>
+                    <x-ws.badge :tone="$item['tone']">{{ $item['status'] }}</x-ws.badge>
                 </div>
 
                 @if ($hasBeenAttempted)
@@ -162,7 +162,7 @@
                     </div>
 
                     @if ($model->items->isEmpty())
-                        <x-admin.empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
+                        <x-ws.empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
                     @else
                         <div class="divide-y divide-slate-100">
                             @foreach ($model->items as $it)

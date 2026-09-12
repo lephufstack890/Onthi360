@@ -17,7 +17,7 @@
         'danger' => 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100',
         'ghost' => 'border border-sky-100 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50',
         'soft' => 'border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100',
-        // Trên nền banner xanh của x-admin.page-header
+        // Trên nền banner xanh của x-ws.page-header
         'onhero' => 'bg-white text-blue-700 shadow-sm hover:bg-sky-50',
         'onhero-ghost' => 'border border-white/35 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20',
     ];

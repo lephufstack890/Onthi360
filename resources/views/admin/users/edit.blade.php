@@ -11,7 +11,7 @@
 
     <a href="{{ route('admin.users.show', $userModel->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Sửa người dùng" icon="pencil" :subtitle="$userModel->name" />
+    <x-ws.page-header title="Sửa người dùng" icon="pencil" :subtitle="$userModel->name" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -43,30 +43,30 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="province">Tỉnh/thành</label>
-                    <x-admin.select id="province" name="province">
+                    <x-ws.select id="province" name="province">
                         <option value="">— Chưa chọn —</option>
                         @foreach ($provinceOptions as $p)
                             <option value="{{ $p }}" @selected(old('province', $userModel->province) === $p)>{{ $p }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="region">Khu vực</label>
-                    <x-admin.select id="region" name="region">
+                    <x-ws.select id="region" name="region">
                         <option value="">— Chưa chọn —</option>
                         @foreach ($regionOptions as $value => $label)
                             <option value="{{ $value }}" @selected(old('region', $userModel->region) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
             </div>
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái tài khoản</label>
-                <x-admin.select id="status" name="status" x-model="status" required>
+                <x-ws.select id="status" name="status" x-model="status" required>
                     <option value="active" @selected(old('status', $userModel->status) === 'active')>Hoạt động</option>
                     <option value="suspended" @selected(old('status', $userModel->status) === 'suspended')>Tạm khóa</option>
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             <div x-show="status === 'suspended'" x-cloak>

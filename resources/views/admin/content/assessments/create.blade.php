@@ -8,7 +8,7 @@
 
     <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Nội dung</a>
 
-    <x-admin.page-header title="Tạo đề/bộ bài" icon="scroll-text" subtitle="Chỉ tạo thông tin chung của đề — nội dung (câu hỏi rời hoặc PDF + đáp án) hoàn thiện ở màn sau khi lưu." />
+    <x-ws.page-header title="Tạo đề/bộ bài" icon="scroll-text" subtitle="Chỉ tạo thông tin chung của đề — nội dung (câu hỏi rời hoặc PDF + đáp án) hoàn thiện ở màn sau khi lưu." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -34,11 +34,11 @@
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại</label>
                     @php $defaultType = array_key_first($types); @endphp
-                    <x-admin.select id="type" name="type" required>
+                    <x-ws.select id="type" name="type" required>
                         @foreach ($types as $value => $label)
                             <option value="{{ $value }}" @selected(old('type', $defaultType) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                     <p class="text-[11px] text-slate-400 mt-1">
                         @if (array_key_exists('practice', $types))
                             "Luyện tập" = câu hỏi rời · Còn lại = PDF + đáp án.
@@ -63,11 +63,11 @@
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="publish_answer_rule">Hiện đáp án</label>
-                    <x-admin.select id="publish_answer_rule" name="publish_answer_rule" required>
+                    <x-ws.select id="publish_answer_rule" name="publish_answer_rule" required>
                         @foreach ($publishAnswerRules as $value => $label)
                             <option value="{{ $value }}" @selected(old('publish_answer_rule', 'never') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
             </div>
 

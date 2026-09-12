@@ -8,7 +8,7 @@
 
     <a href="{{ route('admin.content.show', $assessment->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Sửa đề/bộ bài" icon="pencil" :subtitle="$assessment->title" />
+    <x-ws.page-header title="Sửa đề/bộ bài" icon="pencil" :subtitle="$assessment->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -47,11 +47,11 @@
                             <span class="text-xs text-slate-400">(loại này đang ẩn — giữ nguyên, không đổi được ở đây)</span>
                         </p>
                     @else
-                        <x-admin.select id="type" name="type" required>
+                        <x-ws.select id="type" name="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $assessment->type->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     @endif
                 </div>
                 <div>
@@ -69,11 +69,11 @@
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="publish_answer_rule">Hiện đáp án</label>
-                    <x-admin.select id="publish_answer_rule" name="publish_answer_rule" required>
+                    <x-ws.select id="publish_answer_rule" name="publish_answer_rule" required>
                         @foreach ($publishAnswerRules as $value => $label)
                             <option value="{{ $value }}" @selected(old('publish_answer_rule', $assessment->publish_answer_rule->value) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
             </div>
 

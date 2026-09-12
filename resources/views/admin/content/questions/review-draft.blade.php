@@ -13,7 +13,7 @@
 
     <a href="{{ route('admin.content.questions.import') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Nhập đề</a>
 
-    <x-admin.page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả trích xuất/OCR là bản nháp — phải rà soát và xác nhận trước khi chuyển vào Kho chung (6.4, 6.5)." />
+    <x-ws.page-header title="Rà soát: {{ $documentLabel }}" subtitle="Kết quả trích xuất/OCR là bản nháp — phải rà soát và xác nhận trước khi chuyển vào Kho chung (6.4, 6.5)." />
 
     @if (session('status') === 'draft-added')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm câu thủ công — điền nội dung bên dưới.'])
@@ -66,9 +66,9 @@
                         <span class="text-xs font-medium text-slate-500">Câu {{ $d['no'] }}</span>
                         <div class="flex items-center gap-2">
                             @if ($d['promoted'])
-                                <x-admin.badge tone="success">✓ Đã vào Kho chung</x-admin.badge>
+                                <x-ws.badge tone="success">✓ Đã vào Kho chung</x-ws.badge>
                             @endif
-                            <x-admin.badge :tone="$d['tone']">Độ tin cậy: {{ $d['confidence'] }}</x-admin.badge>
+                            <x-ws.badge :tone="$d['tone']">Độ tin cậy: {{ $d['confidence'] }}</x-ws.badge>
                         </div>
                     </div>
 
@@ -182,7 +182,7 @@
                     @endif
                 </div>
             @empty
-                <x-admin.empty-state title="Không có câu nào cần rà soát" description="Chọn một tệp đang 'Cần rà soát' từ trang Nhập đề." />
+                <x-ws.empty-state title="Không có câu nào cần rà soát" description="Chọn một tệp đang 'Cần rà soát' từ trang Nhập đề." />
             @endforelse
 
             @if ($document)

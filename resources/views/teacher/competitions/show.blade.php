@@ -22,19 +22,19 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <a href="{{ route('teacher.competitions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Cuộc thi</a>
+    <a href="{{ route('teacher.competitions.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Cuộc thi</a>
 
-    <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4 flex items-start justify-between gap-4 flex-wrap">
         <div class="flex items-start gap-4">
-            <x-icon-tile emoji="🏆" tone="rose" />
+            <x-ws.icon-tile icon="trophy" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->title }}</h1>
                     @if ($competition->isExternallyOrganized())
-                        <x-status-badge tone="warning">Bên ngoài tổ chức</x-status-badge>
+                        <x-ws.badge tone="warning">Bên ngoài tổ chức</x-ws.badge>
                     @endif
                 </div>
-                <p class="text-sm text-slate-500">{{ $competition->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát' }}</p>
+                <p class="text-[13px] text-slate-500">{{ $competition->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát' }}</p>
             </div>
         </div>
         {{-- Giáo viên KHÔNG có nút "Sửa cuộc thi" — chỉ Admin mới sửa được thông tin cuộc thi
@@ -43,20 +43,20 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Thể lệ</h2>
-                <p class="text-sm text-slate-600 whitespace-pre-line">{{ $competition->rules ?: '— Chưa nhập —' }}</p>
+                <p class="text-[13px] text-slate-600 whitespace-pre-line">{{ $competition->rules ?: '— Chưa nhập —' }}</p>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Đề/bộ bài tham chiếu (11.1)</h2>
-                <p class="text-sm text-slate-600">{{ $competition->assessment->title ?? '— Không gắn đề —' }}</p>
+                <p class="text-[13px] text-slate-600">{{ $competition->assessment->title ?? '— Không gắn đề —' }}</p>
             </div>
 
             {{-- Kỳ thi (vòng) bên trong cuộc thi — giáo viên (cố vấn) được thêm/sửa/xoá ở đây,
                  giống hệt Admin — chỉ khác: không có nút "Tính tổng từ các kỳ thi" (giữ nguyên
                  phạm vi khách yêu cầu: chỉ thêm/sửa kỳ thi). --}}
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h2 class="font-medium text-slate-700">Kỳ thi ({{ count($exams) }})</h2>
                 </div>
@@ -66,7 +66,7 @@
                         <details class="py-3 group">
                             <summary class="flex items-center justify-between gap-2 cursor-pointer list-none">
                                 <div class="min-w-0">
-                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $exam['title'] }}</p>
+                                    <p class="text-[13px] font-medium text-slate-700 truncate">{{ $exam['title'] }}</p>
                                     <p class="text-xs text-slate-400">{{ $exam['assessmentTitle'] }} · {{ $exam['entriesCount'] }} lượt xếp hạng</p>
                                 </div>
                                 <span class="text-xs text-slate-400 shrink-0">Sửa ▾</span>
@@ -78,15 +78,15 @@
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs text-slate-500 mb-1">Tên kỳ thi (để trống sẽ dùng tên đề)</label>
                                         <input type="text" name="title" value="{{ $exam['hasCustomTitle'] ? $exam['title'] : '' }}" maxlength="255"
-                                               class="w-full rounded-lg border border-slate-200 text-sm p-2">
+                                               class="admin-input">
                                     </div>
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs text-slate-500 mb-1">Đề tham chiếu</label>
-                                        <x-select name="assessment_id" required>
+                                        <x-ws.select name="assessment_id" required>
                                             @foreach ($assessmentOptions as $opt)
                                                 <option value="{{ $opt->id }}" @selected($opt->id === $exam['assessmentId'])>{{ $opt->title }}</option>
                                             @endforeach
-                                        </x-select>
+                                        </x-ws.select>
                                     </div>
                                     <x-date-time-fields name="starts_at" label="Bắt đầu"
                                                          :dayValue="$exam['startsAt']?->format('d')"
@@ -101,7 +101,7 @@
                                                          :hourValue="$exam['endsAt']?->format('H')"
                                                          :minuteValue="$exam['endsAt']?->format('i')" />
                                     <div class="sm:col-span-2 flex items-center gap-2">
-                                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">Lưu</button>
+                                        <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Lưu</button>
                                     </div>
                                 </form>
                                 @if ($exam['entriesCount'] === 0)
@@ -109,7 +109,7 @@
                                           onsubmit="return confirm('Xoá kỳ thi này?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-xs text-rose-500 hover:text-rose-700">Xoá kỳ thi</button>
+                                        <button type="submit" class="text-xs font-bold text-blue-600 transition-colors hover:text-blue-700">Xoá kỳ thi</button>
                                     </form>
                                 @else
                                     <p class="text-xs text-slate-400">Đã có dữ liệu xếp hạng — không thể xoá trực tiếp.</p>
@@ -117,39 +117,39 @@
                             </div>
                         </details>
                     @empty
-                        <p class="text-sm text-slate-400 py-2">Chưa có kỳ thi nào — thêm kỳ thi đầu tiên bên dưới.</p>
+                        <p class="text-[13px] text-slate-400 py-2">Chưa có kỳ thi nào — thêm kỳ thi đầu tiên bên dưới.</p>
                     @endforelse
                 </div>
 
-                <form method="POST" action="{{ route('teacher.competitions.exams.store', $competition->id) }}" class="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+                <form method="POST" action="{{ route('teacher.competitions.exams.store', $competition->id) }}" class="rounded-xl bg-slate-50 border border-sky-100 p-4 space-y-2">
                     @csrf
                     <p class="text-xs font-medium text-slate-500 mb-1">+ Thêm kỳ thi mới</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div class="sm:col-span-2">
                             <label class="block text-xs text-slate-500 mb-1">Tên kỳ thi (để trống sẽ dùng tên đề)</label>
                             <input type="text" name="title" maxlength="255" placeholder="VD: Vòng 1"
-                                   class="w-full rounded-lg border border-slate-200 text-sm p-2 bg-white">
+                                   class="w-full rounded-xl border border-sky-100 text-[13px] p-2 bg-white">
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs text-slate-500 mb-1">Đề tham chiếu</label>
-                            <x-select name="assessment_id" required>
+                            <x-ws.select name="assessment_id" required>
                                 <option value="">— Chọn đề —</option>
                                 @foreach ($assessmentOptions as $opt)
                                     <option value="{{ $opt->id }}">{{ $opt->title }}</option>
                                 @endforeach
-                            </x-select>
+                            </x-ws.select>
                         </div>
                         <x-date-time-fields name="starts_at" label="Bắt đầu" />
                         <x-date-time-fields name="ends_at" label="Kết thúc" />
                     </div>
-                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium">+ Thêm kỳ thi</button>
+                    <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">+ Thêm kỳ thi</button>
                 </form>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Đơn vị tổ chức</h2>
                 @if ($competition->isExternallyOrganized())
-                    <p class="text-sm text-slate-600 mb-3"><span class="text-slate-400">Tổ chức bởi:</span> {{ $competition->organizer_name ?: '— Chưa nêu —' }}</p>
+                    <p class="text-[13px] text-slate-600 mb-3"><span class="text-slate-400">Tổ chức bởi:</span> {{ $competition->organizer_name ?: '— Chưa nêu —' }}</p>
                     <p class="text-xs text-slate-400 mb-1">Giáo viên cố vấn/đồng hành (tăng uy tín):</p>
                     @if ($competition->advisors->isNotEmpty())
                         <ul class="flex flex-wrap gap-2">
@@ -158,16 +158,16 @@
                             @endforeach
                         </ul>
                     @else
-                        <p class="text-sm text-slate-400">— Chưa có giáo viên cố vấn —</p>
+                        <p class="text-[13px] text-slate-400">— Chưa có giáo viên cố vấn —</p>
                     @endif
                 @else
-                    <p class="text-sm text-slate-600">Nội bộ (nền tảng tự tổ chức) — không bắt buộc cố vấn.</p>
+                    <p class="text-[13px] text-slate-600">Nội bộ (nền tảng tự tổ chức) — không bắt buộc cố vấn.</p>
                 @endif
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Quy tắc bảng xếp hạng (11.2)</h2>
-                <div class="space-y-1 text-sm text-slate-600">
+                <div class="space-y-1 text-[13px] text-slate-600">
                     <p><span class="text-slate-400">Công thức điểm / kỳ tính:</span> {{ $rankingRule['scoring_note'] ?? '— Chưa nêu —' }}</p>
                     <p><span class="text-slate-400">Penalty:</span> {{ $rankingRule['penalty_note'] ?? '— Chưa nêu —' }}</p>
                     <p><span class="text-slate-400">Đồng điểm:</span> {{ $rankingRule['tie_break_note'] ?? '— Chưa nêu —' }}</p>
@@ -176,7 +176,7 @@
         </div>
 
         <div class="space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm">
+            <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px]">
                 <h2 class="font-medium text-slate-700 mb-2">Bảng xếp hạng</h2>
                 <p class="text-slate-600">{{ $competition->leaderboard_entries_count }} lượt xếp hạng tổng đã ghi nhận.</p>
             </div>

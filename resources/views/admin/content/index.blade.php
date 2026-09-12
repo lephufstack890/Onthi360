@@ -23,7 +23,7 @@
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     @endphp
 
-    <x-admin.page-header title="Kho câu hỏi và đề" icon="library" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
+    <x-ws.page-header title="Kho câu hỏi và đề" icon="library" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
         <x-slot:actions>
             @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>
@@ -35,7 +35,7 @@
             @endif
             {{-- <a href="{{ route('admin.content.questions.import') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">+ Nhập đề (Word/PDF/OCR)</a> --}}
         </x-slot:actions>
-    </x-admin.page-header>
+    </x-ws.page-header>
 
     @if (session('status') === 'assessments-bulk-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo '.session('bulkCreatedCount').' đề PDF — vào từng đề để nhập đáp án.'])
@@ -58,7 +58,7 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-admin.tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
     @if ($isQuestions)
         <div class="bg-white rounded-3xl border border-sky-100 p-4 mb-4 space-y-3">
@@ -91,41 +91,41 @@
                 <input type="hidden" name="tab" value="questions">
                 <div class="min-w-[150px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-subject">Môn học</label>
-                    <x-admin.select id="filter-subject" name="subject">
+                    <x-ws.select id="filter-subject" name="subject">
                         <option value="">Tất cả môn</option>
                         @foreach ($subjectOptions as $code => $label)
                             <option value="{{ $code }}" @selected(($filters['subject'] ?? null) === $code)>{{ $label }}</option>
                         @endforeach
                         <option value="none" @selected(($filters['subject'] ?? null) === 'none')>Chưa phân loại</option>
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div class="min-w-[120px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-grade">Khối lớp</label>
-                    <x-admin.select id="filter-grade" name="grade">
+                    <x-ws.select id="filter-grade" name="grade">
                         <option value="">Tất cả khối</option>
                         @foreach ($gradeOptions as $g)
                             <option value="{{ $g }}" @selected((string) ($filters['grade'] ?? '') === (string) $g)>Lớp {{ $g }}</option>
                         @endforeach
                         <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div class="min-w-[150px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-type">Dạng câu</label>
-                    <x-admin.select id="filter-type" name="type">
+                    <x-ws.select id="filter-type" name="type">
                         <option value="">Tất cả dạng</option>
                         @foreach ($questionTypeOptions as $value => $label)
                             <option value="{{ $value }}" @selected(($filters['type'] ?? null) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div class="min-w-[140px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-status">Trạng thái</label>
-                    <x-admin.select id="filter-status" name="status">
+                    <x-ws.select id="filter-status" name="status">
                         <option value="">Tất cả trạng thái</option>
                         @foreach ($statusOptions as $value => $label)
                             <option value="{{ $value }}" @selected(($filters['status'] ?? null) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-q">Tìm theo tên hoặc mã</label>
@@ -147,15 +147,15 @@
                 <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4">
                     <div class="flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
-                            <x-admin.icon-tile emoji="📄" tone="sky" />
+                            <x-ws.icon-tile emoji="📄" tone="sky" />
                             <div>
                                 <p class="text-[13px] font-medium text-slate-700">{{ $d['name'] }}</p>
                                 <p class="text-xs text-slate-400">Người tải lên: {{ $d['uploader'] }}</p>
-                                <div class="w-48 mt-1"><x-admin.progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
+                                <div class="w-48 mt-1"><x-ws.progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <x-admin.badge :tone="$d['tone']">{{ $d['status'] }}</x-admin.badge>
+                            <x-ws.badge :tone="$d['tone']">{{ $d['status'] }}</x-ws.badge>
                             @if ($d['reviewable'])
                                 <a href="{{ route('admin.content.questions.reviewDraft', ['document' => $d['id']]) }}" class="block mt-1 text-[13px] text-blue-600 font-medium">Rà soát ngay ›</a>
                             @endif
@@ -166,7 +166,7 @@
                     @endif
                 </div>
             @empty
-                <x-admin.empty-state
+                <x-ws.empty-state
                     title="Không có tài liệu nào đang chờ rà soát"
                     description="Kết quả OCR không tự phát hành — bấm &quot;+ Nhập đề (Word/PDF/OCR)&quot; ở trên để tải Word/PDF lên (6.4)."
                     actionLabel="+ Nhập đề (Word/PDF/OCR)"
@@ -218,7 +218,7 @@
     @else
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm 2 cột Môn/Khối (và mã câu hỏi dưới tên) để nhìn
              bảng là biết ngay câu nào chưa phân loại; các tab khác giữ nguyên bộ cột cũ. --}}
-        <x-admin.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
+        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">
@@ -239,7 +239,7 @@
                     @endif
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
-                    <td class="px-4 py-3"><x-admin.badge :tone="$r['tone']">{{ $r['status'] }}</x-admin.badge></td>
+                    <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
                     <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
                         <a href="{{ route('admin.content.show', $r['id']) }}" class="text-blue-600 font-medium">Xem</a>
                         {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
@@ -268,7 +268,7 @@
                     {{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc — thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Chưa có dữ liệu.' }}
                 </td></tr>
             @endforelse
-        </x-admin.table>
-        <x-admin.pagination-note :shown="count($rows)" :total="$total" />
+        </x-ws.table>
+        <x-ws.pagination-note :shown="count($rows)" :total="$total" />
     @endif
 @endsection

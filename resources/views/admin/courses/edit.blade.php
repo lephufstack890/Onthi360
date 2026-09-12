@@ -12,7 +12,7 @@
     <a href="{{ route('admin.courses.show', $course->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết khóa học</a>
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-center gap-4 flex-wrap">
-        <x-admin.icon-tile emoji="✏️" tone="rose" />
+        <x-ws.icon-tile emoji="✏️" tone="rose" />
         <div>
             <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Sửa khóa học</h1>
             <p class="text-[13px] text-slate-500 mt-1">Đường dẫn công khai <span class="font-medium">/khoa-hoc/{{ $course->slug }}</span> được giữ nguyên khi sửa (không đổi slug).</p>
@@ -42,12 +42,12 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-admin.select id="grade" name="grade" icon="🎓">
+                        <x-ws.select id="grade" name="grade" icon="🎓">
                             <option value="">— Không chỉ định —</option>
                             @foreach ($grades as $g)
                                 <option value="{{ $g }}" @selected(old('grade', $course->grade) === $g)>{{ $g }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -59,11 +59,11 @@
 
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                    <x-admin.select id="status" name="status" required>
+                    <x-ws.select id="status" name="status" required>
                         @foreach ($statuses as $value => $label)
                             <option value="{{ $value }}" @selected(old('status', $course->status->value) === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
 
                 <div class="flex gap-3 pt-2">

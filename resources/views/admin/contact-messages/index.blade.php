@@ -9,15 +9,15 @@
         $messages = $messages ?? [];
     @endphp
 
-    <x-admin.page-header title="Tin nhắn liên hệ" icon="mail" subtitle="Tin nhắn khách gửi từ form Liên hệ ở trang Thông tin công khai." />
+    <x-ws.page-header title="Tin nhắn liên hệ" icon="mail" subtitle="Tin nhắn khách gửi từ form Liên hệ ở trang Thông tin công khai." />
 
     @if (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đánh dấu tin nhắn là đã xử lý.'])
     @endif
 
-    <x-admin.tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
-    <x-admin.table :columns="['Người gửi', 'Nội dung', 'Thời gian', 'Trạng thái', '']">
+    <x-ws.table :columns="['Người gửi', 'Nội dung', 'Thời gian', 'Trạng thái', '']">
         @forelse ($messages as $m)
             <tr>
                 <td class="px-4 py-3 align-top">
@@ -29,9 +29,9 @@
                 </td>
                 <td class="px-4 py-3 text-slate-400 text-xs align-top">{{ $m['created_at'] }}</td>
                 <td class="px-4 py-3 align-top">
-                    <x-admin.badge :tone="$m['resolved'] ? 'success' : 'warning'">
+                    <x-ws.badge :tone="$m['resolved'] ? 'success' : 'warning'">
                         {{ $m['resolved'] ? 'Đã xử lý'.($m['handled_by'] ? ' — '.$m['handled_by'] : '') : 'Mới' }}
-                    </x-admin.badge>
+                    </x-ws.badge>
                 </td>
                 <td class="px-4 py-3 text-right align-top">
                     @unless ($m['resolved'])
@@ -45,5 +45,5 @@
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có tin nhắn liên hệ nào.</td></tr>
         @endforelse
-    </x-admin.table>
+    </x-ws.table>
 @endsection

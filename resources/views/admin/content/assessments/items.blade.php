@@ -13,7 +13,7 @@
 
     <a href="{{ route('admin.content.show', $assessment->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Chọn câu hỏi" icon="clipboard-list" :subtitle="$assessment->title" />
+    <x-ws.page-header title="Chọn câu hỏi" icon="clipboard-list" :subtitle="$assessment->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -30,7 +30,7 @@
             </div>
 
             @if (empty($questions))
-                <x-admin.empty-state title="Kho câu hỏi đang trống" description="Tạo câu hỏi trước khi gắn vào đề này." actionLabel="Tạo câu hỏi" :actionHref="route('admin.content.questions.create')" />
+                <x-ws.empty-state title="Kho câu hỏi đang trống" description="Tạo câu hỏi trước khi gắn vào đề này." actionLabel="Tạo câu hỏi" :actionHref="route('admin.content.questions.create')" />
             @else
                 <div class="divide-y divide-slate-100 max-h-[32rem] overflow-y-auto">
                     @foreach ($questions as $q)

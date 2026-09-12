@@ -30,51 +30,51 @@
         $ratingDistributionTotal = array_sum($ratingDistribution) ?: 1;
     @endphp
 
-    <a href="{{ route('student.courses.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Khóa học của tôi</a>
+    <a href="{{ route('student.courses.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Khóa học của tôi</a>
 
     {{-- Header lớp --}}
-    <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 border border-slate-200 p-6 mb-6">
+    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex items-start gap-4">
-                <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🏫</div>
+                <div class="w-14 h-14 rounded-3xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🏫</div>
                 <div>
                     <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
                     <h1 class="text-xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
-                    <p class="text-sm text-slate-500 mt-1">{{ $teacherLabel }} · {{ $nextSessionLabel }}</p>
+                    <p class="text-[13px] text-slate-500 mt-1">{{ $teacherLabel }} · {{ $nextSessionLabel }}</p>
                     <div class="mt-2"><x-rating-summary :average="$ratingAverage" :count="$ratingCount" /></div>
                 </div>
             </div>
             <div class="w-40">
-                <x-progress-bar :percent="$overallPercent" label="Tiến độ chung" tone="brand" />
+                <x-ws.progress-bar :percent="$overallPercent" label="Tiến độ chung" tone="brand" />
             </div>
         </div>
     </div>
 
-    <x-tabs :tabs="$tabsData" />
+    <x-ws.tabs :tabs="$tabsData" />
 
     @if ($tab === 'roadmap')
         <div class="space-y-6">
             @forelse ($roadmap as $chap)
                 <div>
                     <h3 class="font-medium text-slate-700 mb-3">{{ $chap['chapter'] }}</h3>
-                    <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+                    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] divide-y divide-slate-100">
                         @foreach ($chap['items'] as $item)
                             <div class="flex items-center justify-between p-4">
                                 <div class="flex items-center gap-3">
-                                    <x-icon-tile emoji="{{ $item['type'] === 'coding' ? '💻' : '📝' }}" tone="{{ $item['tone'] === 'neutral' ? 'amber' : 'sky' }}" />
+                                    <x-ws.icon-tile emoji="{{ $item['type'] === 'coding' ? '💻' : '📝' }}" tone="{{ $item['tone'] === 'neutral' ? 'amber' : 'sky' }}" />
                                     <div>
-                                        <p class="text-sm font-medium text-slate-700">{{ $item['title'] }}</p>
-                                        <p class="text-xs text-slate-400">{{ $item['type'] }} · <x-status-badge :tone="$item['tone']">{{ $item['status'] }}</x-status-badge></p>
+                                        <p class="text-[13px] font-medium text-slate-700">{{ $item['title'] }}</p>
+                                        <p class="text-xs text-slate-400">{{ $item['type'] }} · <x-ws.badge :tone="$item['tone']">{{ $item['status'] }}</x-ws.badge></p>
                                         @if (! empty($item['shiftLabel']))
-                                            <p class="text-xs text-amber-600 mt-0.5">🕐 {{ $item['shiftLabel'] }} (chia ca thi chống nghẽn)</p>
+                                            <p class="text-xs text-amber-600 mt-0.5"><x-lucide name="clock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $item['shiftLabel'] }} (chia ca thi chống nghẽn)</p>
                                         @endif
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     @if ($item['status'] === 'Giáo viên chưa mở')
-                                        <span class="text-xs text-slate-400">🔒 Giáo viên chưa mở nội dung này</span>
+                                        <span class="text-xs text-slate-400"><x-lucide name="lock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Giáo viên chưa mở nội dung này</span>
                                     @else
-                                        <a href="{{ route('student.practice.index') }}" class="text-sm font-medium text-rose-600">
+                                        <a href="{{ route('student.practice.index') }}" class="text-[13px] font-medium text-blue-600">
                                             {{ $item['result'] === 'Chưa làm' ? 'Làm bài ›' : 'Xem lại ›' }}
                                         </a>
                                         @if ($item['result'] && $item['result'] !== 'Chưa làm')
@@ -87,7 +87,7 @@
                     </div>
                 </div>
             @empty
-                <x-empty-state title="Lớp chưa có bài tập nào" description="Giáo viên chưa giao bài tập cho lớp này." />
+                <x-ws.empty-state title="Lớp chưa có bài tập nào" description="Giáo viên chưa giao bài tập cho lớp này." />
             @endforelse
         </div>
     @elseif ($tab === 'schedule')
@@ -100,26 +100,26 @@
         <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div class="flex items-center gap-2">
                 <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule', 'week' => $weekOffset - 1]) }}"
-                   class="w-9 h-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần trước">‹</a>
-                <p class="text-sm font-medium text-slate-700 min-w-[160px] text-center">
+                   class="w-9 h-9 rounded-xl border border-sky-100 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần trước">‹</a>
+                <p class="text-[13px] font-medium text-slate-700 min-w-[160px] text-center">
                     {{ $weekStart->format('d/m') }} – {{ $weekEnd->format('d/m/Y') }}
                 </p>
                 <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule', 'week' => $weekOffset + 1]) }}"
-                   class="w-9 h-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần sau">›</a>
+                   class="w-9 h-9 rounded-xl border border-sky-100 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần sau">›</a>
             </div>
             @if ($weekOffset !== 0)
-                <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule']) }}" class="text-sm text-rose-600 font-medium">Về tuần này</a>
+                <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule']) }}" class="text-[13px] text-blue-600 font-medium">Về tuần này</a>
             @endif
         </div>
 
-        <div class="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+        <div class="bg-white rounded-3xl border border-sky-100 overflow-x-auto">
             <table class="w-full border-collapse min-w-[980px] table-fixed">
                 <thead>
                     <tr>
                         @foreach ($days as $day)
-                            <th class="w-[14.2857%] align-top border-b border-slate-200 {{ ! $loop->last ? 'border-r' : '' }} p-3 text-left {{ $day['isToday'] ? 'bg-rose-50' : 'bg-slate-50' }}">
-                                <p class="text-xs font-semibold uppercase tracking-wide {{ $day['isToday'] ? 'text-rose-600' : 'text-slate-500' }}">{{ $day['label'] }}</p>
-                                <p class="text-sm font-medium text-slate-700">{{ $day['date']->format('d/m') }}</p>
+                            <th class="w-[14.2857%] align-top border-b border-sky-100 {{ ! $loop->last ? 'border-r' : '' }} p-3 text-left {{ $day['isToday'] ? 'bg-blue-50' : 'bg-slate-50' }}">
+                                <p class="text-xs font-semibold uppercase tracking-wide {{ $day['isToday'] ? 'text-blue-600' : 'text-slate-500' }}">{{ $day['label'] }}</p>
+                                <p class="text-[13px] font-medium text-slate-700">{{ $day['date']->format('d/m') }}</p>
                             </th>
                         @endforeach
                     </tr>
@@ -127,18 +127,18 @@
                 <tbody>
                     <tr>
                         @foreach ($days as $day)
-                            <td class="align-top border-slate-200 {{ ! $loop->last ? 'border-r' : '' }} p-2 {{ $day['isToday'] ? 'bg-rose-50/30' : '' }}">
+                            <td class="align-top border-sky-100 {{ ! $loop->last ? 'border-r' : '' }} p-2 {{ $day['isToday'] ? 'bg-blue-50/30' : '' }}">
                                 <div class="space-y-2">
                                     @forelse ($day['sessions'] as $s)
                                         <div class="rounded-xl bg-slate-50 border border-slate-100 p-2.5">
                                             <p class="text-xs font-semibold text-slate-700 truncate" title="{{ $s['topic'] }}">{{ $s['topic'] ?? 'Buổi học' }}</p>
                                             @if (! empty($s['location']))
-                                                <p class="text-xs text-slate-400 truncate" title="{{ $s['location'] }}">📍 {{ $s['location'] }}</p>
+                                                <p class="text-xs text-slate-400 truncate" title="{{ $s['location'] }}"><x-lucide name="map-pin" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $s['location'] }}</p>
                                             @endif
-                                            <p class="text-xs text-slate-400 mt-1">🕐 {{ $s['timeRangeLabel'] }}</p>
+                                            <p class="text-xs text-slate-400 mt-1"><x-lucide name="clock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $s['timeRangeLabel'] }}</p>
                                             <div class="flex flex-wrap items-center gap-1 mt-1.5">
-                                                <x-status-badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-status-badge>
-                                                <x-status-badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-status-badge>
+                                                <x-ws.badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-ws.badge>
+                                                <x-ws.badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-ws.badge>
                                             </div>
 
                                             {{-- SỬA 9/9 (5) — ô lịch chỉ hiện SỐ hoạt động cho gọn;
@@ -146,7 +146,7 @@
                                                  buổi học" ngay dưới bảng, rộng rãi dễ bấm hơn. --}}
                                             @if (! empty($s['activities']))
                                                 <p class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">
-                                                    🧩 {{ count($s['activities']) }} hoạt động
+                                                    <x-lucide name="layers" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ count($s['activities']) }} hoạt động
                                                 </p>
                                             @endif
                                         </div>
@@ -176,7 +176,7 @@
 
         <div class="mt-6">
             <div class="flex items-center gap-2.5 mb-3">
-                <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center text-lg">🧩</span>
+                <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center text-lg"><x-lucide name="layers" class="h-4 w-4" /></span>
                 <div>
                     <h3 class="font-semibold text-slate-800">Hoạt động buổi học</h3>
                     <p class="text-xs text-slate-400">Bài giao thầy cô đã phát cho tuần này — bấm để làm ngay.</p>
@@ -184,22 +184,22 @@
             </div>
 
             @forelse ($activityDays as $sess)
-                <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-3">
+                <div class="rounded-3xl border border-sky-100 bg-white overflow-hidden mb-3">
                     <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                        <span class="text-sm font-semibold text-slate-700">{{ $sess['topic'] ?: 'Buổi học' }}</span>
+                        <span class="text-[13px] font-semibold text-slate-700">{{ $sess['topic'] ?: 'Buổi học' }}</span>
                         <span class="text-xs text-slate-400">
                             {{ $sess['startsAt']?->format('d/m/Y') }} · {{ $sess['timeRangeLabel'] }}
                         </span>
                         @if ($sess['isToday'])
-                            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 text-[10px] font-bold">Hôm nay</span>
+                            <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold">Hôm nay</span>
                         @endif
                     </div>
 
                     <div class="p-4 space-y-3">
                         @foreach ($sess['activities'] as $activity)
                             <div class="rounded-xl border border-violet-100 bg-violet-50/40 p-3">
-                                <p class="text-sm font-bold text-violet-800 flex items-center gap-1.5">
-                                    <span>🧩</span> {{ $activity['title'] }}
+                                <p class="text-[13px] font-bold text-violet-800 flex items-center gap-1.5">
+                                    <span><x-lucide name="layers" class="h-4 w-4" /></span> {{ $activity['title'] }}
                                 </p>
                                 @if (! empty($activity['note']))
                                     <p class="text-xs text-slate-500 mt-0.5">{{ $activity['note'] }}</p>
@@ -207,15 +207,15 @@
 
                                 <div class="mt-2.5 space-y-2">
                                     @forelse ($activity['resources'] as $res)
-                                        <div class="flex flex-wrap items-center gap-3 rounded-lg bg-white border border-slate-200 px-3 py-2.5">
-                                            <span class="text-lg shrink-0">🧾</span>
+                                        <div class="flex flex-wrap items-center gap-3 rounded-xl bg-white border border-sky-100 px-3 py-2.5">
+                                            <span class="text-lg shrink-0"><x-lucide name="file-check-2" class="h-4 w-4" /></span>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-sm font-medium text-slate-700 truncate" title="{{ $res['title'] }}">{{ $res['title'] }}</p>
+                                                <p class="text-[13px] font-medium text-slate-700 truncate" title="{{ $res['title'] }}">{{ $res['title'] }}</p>
                                                 <p class="text-[11px] text-slate-400">{{ $res['typeLabel'] }}</p>
                                             </div>
                                             @if (! empty($res['assessmentId']))
                                                 <a href="{{ route('student.assessment.take', $res['assessmentId']) }}"
-                                                   class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold shadow-sm hover:bg-rose-700 transition">
+                                                   class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-[13px] font-semibold shadow-sm hover:bg-blue-700 transition">
                                                     ▶ Làm bài
                                                 </a>
                                             @else
@@ -231,9 +231,9 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-2xl border-2 border-dashed border-slate-200 py-10 text-center">
+                <div class="rounded-3xl border-2 border-dashed border-sky-100 py-10 text-center">
                     <p class="text-3xl mb-2">🌤️</p>
-                    <p class="text-sm text-slate-500">Tuần này chưa có hoạt động nào được phát.</p>
+                    <p class="text-[13px] text-slate-500">Tuần này chưa có hoạt động nào được phát.</p>
                     <p class="text-xs text-slate-400 mt-1">Khi thầy cô phát hoạt động, bài giao sẽ hiện ở đây để em làm.</p>
                 </div>
             @endforelse
@@ -249,18 +249,18 @@
              không phải học 2 cách trình bày khác nhau cho cùng 1 loại dữ liệu. --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             @forelse ($materials as $p)
-                <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                     <div class="flex items-start gap-3">
-                        <div class="w-12 h-14 rounded-lg overflow-hidden shrink-0 bg-gradient-to-br from-rose-100 to-sky-50 flex items-center justify-center">
+                        <div class="w-12 h-14 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-sky-100 to-blue-50 flex items-center justify-center">
                             @if ($p['coverPath'])
                                 <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
                             @else
-                                <span class="text-lg">📘</span>
+                                <span class="text-lg"><x-lucide name="book-open" class="h-4 w-4" /></span>
                             @endif
                         </div>
                         <div class="min-w-0">
                             <h3 class="font-medium text-slate-800 leading-snug">{{ $p['title'] }}</h3>
-                            <span class="inline-flex mt-1"><x-status-badge tone="success">Đang dùng ở lớp này</x-status-badge></span>
+                            <span class="inline-flex mt-1"><x-ws.badge tone="success">Đang dùng ở lớp này</x-ws.badge></span>
                         </div>
                     </div>
 
@@ -270,7 +270,7 @@
                             <div class="space-y-2">
                                 @foreach ($p['resources'] as $res)
                                     <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener"
-                                       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:border-rose-200 hover:text-rose-600 transition">
+                                       class="flex items-center gap-2 px-3 py-2 rounded-xl border border-sky-100 text-[13px] text-slate-600 hover:border-blue-200 hover:text-blue-600 transition">
                                         <span>{{ $res['icon'] }}</span> {{ $res['label'] }}
                                     </a>
                                 @endforeach
@@ -280,12 +280,12 @@
 
                     @if (count($p['exercises']) > 0)
                         <div class="mt-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">🧪 Bài tập</p>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"><x-lucide name="layers" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Bài tập</p>
                             <div class="space-y-2">
                                 @foreach ($p['exercises'] as $ex)
-                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-sky-100">
                                         <div class="min-w-0">
-                                            <p class="text-sm text-slate-700 truncate">{{ $ex['title'] }}</p>
+                                            <p class="text-[13px] text-slate-700 truncate">{{ $ex['title'] }}</p>
                                             <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
                                         </div>
                                         <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
@@ -297,7 +297,7 @@
                                                  của lớp này — request()->getRequestUri() mới là path+query tương đối
                                                  đúng, quay lại ĐÚNG tab Học liệu của ĐÚNG lớp này. --}}
                                             <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
-                                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition">Làm bài ›</button>
+                                            <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 hover:bg-blue-700 transition">Làm bài ›</button>
                                         </form>
                                     </div>
                                 @endforeach
@@ -307,11 +307,11 @@
                     @endif
 
                     @if (count($p['resources']) === 0 && count($p['exercises']) === 0)
-                        <p class="text-sm text-slate-400 mt-4">Chưa có tài nguyên/bài tập nào cho học liệu này.</p>
+                        <p class="text-[13px] text-slate-400 mt-4">Chưa có tài nguyên/bài tập nào cho học liệu này.</p>
                     @endif
                 </div>
             @empty
-                <div class="col-span-full"><x-empty-state title="Lớp chưa gắn học liệu nào" description="Giáo viên sẽ gắn sách/chuyên đề/bộ đề vào lớp khi cần — mục này sẽ hiện ra ngay khi có." /></div>
+                <div class="col-span-full"><x-ws.empty-state title="Lớp chưa gắn học liệu nào" description="Giáo viên sẽ gắn sách/chuyên đề/bộ đề vào lớp khi cần — mục này sẽ hiện ra ngay khi có." /></div>
             @endforelse
         </div>
     @elseif ($tab === 'reviews')
@@ -322,7 +322,7 @@
              $ratingDistribution là SỐ LƯỢT theo từng mức sao (không phải % — xem
              Admin\ReviewService::recomputeRatingSummary()), nên phải tự quy đổi ra % ở view
              này để vẽ thanh phân phối đúng tỉ lệ. --}}
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 mb-4">
+        <div class="bg-white rounded-3xl border border-sky-100 p-6 mb-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div class="flex flex-col items-center justify-center text-center sm:border-r sm:border-slate-100">
                     @if ($ratingCount >= 5)
@@ -346,40 +346,39 @@
         </div>
 
         <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
-            <p class="text-sm text-slate-500">Bạn đủ điều kiện đánh giá lớp này sau khi tham gia 2 buổi.</p>
+            <p class="text-[13px] text-slate-500">Bạn đủ điều kiện đánh giá lớp này sau khi tham gia 2 buổi.</p>
             <a href="{{ route('reviews.form', ['type' => 'class', 'id' => $classRoom->id]) }}"
-               class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0">Viết đánh giá ›</a>
+               class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Viết đánh giá ›</a>
         </div>
 
         <div class="space-y-4">
             @forelse ($reviews as $r)
                 @php $reviewStars = (int) round($r->overall_rating); @endphp
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                     <div class="flex items-start gap-3">
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode($r->reviewer->name ?? 'Học viên') }}&background=e0f2fe&color=0369a1&size=64&bold=true"
-                             alt="{{ $r->reviewer->name ?? 'Học viên' }}" class="w-9 h-9 rounded-full shrink-0">
+                        <x-ws.avatar :name="$r->reviewer->name ?? 'Học viên'" size="md" />
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center justify-between gap-2 flex-wrap">
-                                <p class="text-sm font-medium text-slate-700">{{ $r->reviewer->name ?? 'Học viên' }}</p>
+                                <p class="text-[13px] font-medium text-slate-700">{{ $r->reviewer->name ?? 'Học viên' }}</p>
                                 <p class="text-xs text-slate-400 shrink-0">{{ $r->published_at?->diffForHumans() }}</p>
                             </div>
-                            <p class="text-amber-500 text-sm mt-0.5" aria-label="{{ $reviewStars }} trên 5 sao">
+                            <p class="text-amber-500 text-[13px] mt-0.5" aria-label="{{ $reviewStars }} trên 5 sao">
                                 {{ str_repeat('★', $reviewStars) }}{{ str_repeat('☆', 5 - $reviewStars) }}
                             </p>
                             @if (! empty($r->comment))
-                                <p class="text-sm text-slate-600 mt-2">{{ $r->comment }}</p>
+                                <p class="text-[13px] text-slate-600 mt-2">{{ $r->comment }}</p>
                             @endif
                             @if (! empty($r->admin_reply))
                                 <div class="mt-3 rounded-xl bg-slate-50 border border-slate-100 p-3">
-                                    <p class="text-xs font-medium text-slate-500 mb-1">💬 Phản hồi từ Ban quản trị</p>
-                                    <p class="text-sm text-slate-600">{{ $r->admin_reply }}</p>
+                                    <p class="text-xs font-medium text-slate-500 mb-1"><x-lucide name="message-circle" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Phản hồi từ Ban quản trị</p>
+                                    <p class="text-[13px] text-slate-600">{{ $r->admin_reply }}</p>
                                 </div>
                             @endif
                         </div>
                     </div>
                 </div>
             @empty
-                <x-empty-state title="Chưa có đánh giá nào cho lớp này" description="Hãy là người đầu tiên chia sẻ trải nghiệm sau khi tham gia lớp." />
+                <x-ws.empty-state title="Chưa có đánh giá nào cho lớp này" description="Hãy là người đầu tiên chia sẻ trải nghiệm sau khi tham gia lớp." />
             @endforelse
         </div>
     @elseif ($tab === 'notifications')
@@ -387,46 +386,44 @@
              notifications") — SAI, vì hạ tầng thông báo đã có thật (dùng chung với chuông
              toàn cục + student.notifications). Giờ lọc đúng thông báo trỏ về lớp NÀY, xem
              App\Services\Student\ClassRoomService::notificationsForClass(). --}}
-        <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] divide-y divide-slate-100">
             @forelse ($notifications as $n)
-                <div class="flex items-start gap-3 p-4 {{ ! $n['read'] ? 'bg-rose-50/40' : '' }}">
-                    <x-icon-tile :emoji="$n['icon']" :tone="$n['tone']" />
+                <div class="flex items-start gap-3 p-4 {{ ! $n['read'] ? 'bg-blue-50/40' : '' }}">
+                    <x-ws.icon-tile :emoji="$n['icon']" :tone="$n['tone']" />
                     <div class="flex-1">
-                        <p class="text-sm text-slate-700">{{ $n['text'] }}</p>
+                        <p class="text-[13px] text-slate-700">{{ $n['text'] }}</p>
                         <p class="text-xs text-slate-400 mt-1">{{ $n['time'] }}</p>
                     </div>
                     @if (! $n['read'])
-                        <span class="w-2 h-2 rounded-full bg-rose-500 mt-2"></span>
+                        <span class="w-2 h-2 rounded-full bg-blue-500 mt-2"></span>
                     @endif
                 </div>
             @empty
                 <div class="p-8">
-                    <x-empty-state title="Chưa có thông báo nào cho lớp này" description="Thông báo về bài mới mở, lịch đổi hoặc thông báo từ giáo viên của lớp này sẽ hiện ở đây." />
+                    <x-ws.empty-state title="Chưa có thông báo nào cho lớp này" description="Thông báo về bài mới mở, lịch đổi hoặc thông báo từ giáo viên của lớp này sẽ hiện ở đây." />
                 </div>
             @endforelse
         </div>
     @elseif ($tab === 'members')
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-3">Giáo viên</h3>
                 <div class="space-y-2.5">
                     @foreach ($teachers as $t)
                         <div class="flex items-center gap-3">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($t->name) }}&background=e11d48&color=ffffff&size=64&bold=true"
-                                 alt="{{ $t->name }}" class="w-8 h-8 rounded-full shrink-0">
-                            <p class="text-sm text-slate-600">{{ $t->name }} <span class="text-xs text-slate-400">({{ $t->pivot->role ?? 'main' }})</span></p>
+                            <x-ws.avatar :name="$t->name" size="sm" />
+                            <p class="text-[13px] text-slate-600">{{ $t->name }} <span class="text-xs text-slate-400">({{ $t->pivot->role ?? 'main' }})</span></p>
                         </div>
                     @endforeach
                 </div>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-3">Học sinh ({{ $students->count() }})</h3>
                 <div class="space-y-2.5 max-h-64 overflow-y-auto">
                     @foreach ($students as $s)
                         <div class="flex items-center gap-3">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($s->name) }}&background=e0f2fe&color=0369a1&size=64&bold=true"
-                                 alt="{{ $s->name }}" class="w-8 h-8 rounded-full shrink-0">
-                            <p class="text-sm text-slate-600">{{ $s->name }}</p>
+                            <x-ws.avatar :name="$s->name" size="sm" />
+                            <p class="text-[13px] text-slate-600">{{ $s->name }}</p>
                         </div>
                     @endforeach
                 </div>
@@ -434,13 +431,13 @@
         </div>
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
-                <p class="text-sm text-slate-500">{{ $nextSessionLabel }}</p>
+                <p class="text-[13px] text-slate-500">{{ $nextSessionLabel }}</p>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-2">Tiến độ tổng quan</h3>
-                <x-progress-bar :percent="$overallPercent" tone="brand" />
+                <x-ws.progress-bar :percent="$overallPercent" tone="brand" />
             </div>
         </div>
     @endif

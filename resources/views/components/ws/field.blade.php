@@ -1,6 +1,6 @@
 {{-- Một ô nhập trong biểu mẫu: nhãn + nội dung + gợi ý + lỗi.
 
-     Cách dùng: bọc x-admin.field quanh thẻ input/textarea/x-admin.select của bạn, truyền
+     Cách dùng: bọc x-ws.field quanh thẻ input/textarea/x-ws.select của bạn, truyền
      label và name (name dùng để tự in lỗi kiểm tra dữ liệu của đúng trường đó).
 
      Lớp CSS chuẩn cho thẻ input/textarea đặt ở .admin-input (resources/css/app.css) để các

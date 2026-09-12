@@ -10,23 +10,23 @@
         $reviews = $reviews ?? [];
     @endphp
 
-    <x-admin.page-header title="Kiểm duyệt đánh giá" icon="star" subtitle="Chỉ công bố review có sao tổng; có thể ẩn nhận xét không phù hợp mà vẫn công bố sao (9.4)." />
+    <x-ws.page-header title="Kiểm duyệt đánh giá" icon="star" subtitle="Chỉ công bố review có sao tổng; có thể ẩn nhận xét không phù hợp mà vẫn công bố sao (9.4)." />
 
-    <x-admin.tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
-    <x-admin.table :columns="['Đối tượng', 'Người viết', 'Sao', 'Trích đoạn', 'Trạng thái', '']">
+    <x-ws.table :columns="['Đối tượng', 'Người viết', 'Sao', 'Trích đoạn', 'Trạng thái', '']">
         @forelse ($reviews as $r)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $r['target'] }}</td>
                 <td class="px-4 py-3 text-slate-500">
                     <div class="flex items-center gap-2.5">
-                        <x-admin.avatar :name="$r['author']" size="sm" />
+                        <x-ws.avatar :name="$r['author']" size="sm" />
                         <span>{{ $r['author'] }}</span>
                     </div>
                 </td>
                 <td class="px-4 py-3 text-amber-500">{{ str_repeat('★', $r['rating']) }}</td>
                 <td class="px-4 py-3 text-slate-500 max-w-xs truncate">{{ $r['excerpt'] }}</td>
-                <td class="px-4 py-3"><x-admin.badge :tone="$r['tone']">{{ $r['status'] }}</x-admin.badge></td>
+                <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
                 <td class="px-4 py-3 text-right">
                     <a href="{{ route('admin.reviews.show', $r['id']) }}" class="text-blue-600 font-medium">Xem</a>
                 </td>
@@ -34,5 +34,5 @@
         @empty
             <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Không có đánh giá nào ở trạng thái này.</td></tr>
         @endforelse
-    </x-admin.table>
+    </x-ws.table>
 @endsection

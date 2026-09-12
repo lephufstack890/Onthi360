@@ -12,7 +12,7 @@
         $tokenTopups = $tokenTopups ?? [];
     @endphp
 
-    <x-admin.page-header title="Đơn hàng" icon="file-check-2" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log." />
+    <x-ws.page-header title="Đơn hàng" icon="file-check-2" subtitle="Duyệt/từ chối phải ghi lý do; mọi thay đổi ghi audit log." />
 
     @if (session('status') === 'topup-approved')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã duyệt — đã cộng token cho học sinh.'])
@@ -23,21 +23,21 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-admin.tabs :tabs="$tabs" />
+    <x-ws.tabs :tabs="$tabs" />
 
-    <x-admin.table :columns="['Mã đơn', 'Người mua', 'Sản phẩm', 'Tổng tiền', 'Trạng thái', '']">
+    <x-ws.table :columns="['Mã đơn', 'Người mua', 'Sản phẩm', 'Tổng tiền', 'Trạng thái', '']">
         @forelse ($orders as $o)
             <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">#OD-{{ $o['id'] }}</td>
                 <td class="px-4 py-3 text-slate-500">
                     <div class="flex items-center gap-2.5">
-                        <x-admin.avatar :name="$o['buyer']" size="sm" />
+                        <x-ws.avatar :name="$o['buyer']" size="sm" />
                         <span>{{ $o['buyer'] }}</span>
                     </div>
                 </td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['items'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['total'] }}</td>
-                <td class="px-4 py-3"><x-admin.badge :tone="$o['tone']">{{ $o['status'] }}</x-admin.badge></td>
+                <td class="px-4 py-3"><x-ws.badge :tone="$o['tone']">{{ $o['status'] }}</x-ws.badge></td>
                 <td class="px-4 py-3 text-right">
                     <a href="{{ route('admin.orders.show', $o['id']) }}" class="text-blue-600 font-medium">Xem</a>
                 </td>
@@ -45,20 +45,20 @@
         @empty
             <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Chưa có đơn hàng nào.</td></tr>
         @endforelse
-    </x-admin.table>
-    <x-admin.pagination-note :shown="count($orders)" :total="$total" />
+    </x-ws.table>
+    <x-ws.pagination-note :shown="count($orders)" :total="$total" />
 
     <div class="mt-8">
         <h2 class="text-base font-semibold text-slate-700 mb-1">💳 Yêu cầu nạp token</h2>
         <p class="text-xs text-slate-400 mb-3">Đối soát đúng số tiền + nội dung chuyển khoản (mã CK) trên sao kê ngân hàng trước khi duyệt (note họp 13/8, mục 7-8).</p>
 
-        <x-admin.table :columns="['Học sinh', 'Số tiền', 'Mã CK', 'Trạng thái', '']">
+        <x-ws.table :columns="['Học sinh', 'Số tiền', 'Mã CK', 'Trạng thái', '']">
             @forelse ($tokenTopups as $t)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">{{ $t['user'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $t['amount'] }}</td>
                     <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{ $t['transferCode'] }}</td>
-                    <td class="px-4 py-3"><x-admin.badge :tone="$t['tone']">{{ $t['status'] }}</x-admin.badge></td>
+                    <td class="px-4 py-3"><x-ws.badge :tone="$t['tone']">{{ $t['status'] }}</x-ws.badge></td>
                     <td class="px-4 py-3 text-right">
                         @if ($t['isPending'])
                             <div x-data="{ open: false }" class="inline-block text-left">
@@ -84,6 +84,6 @@
             @empty
                 <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có yêu cầu nạp token nào.</td></tr>
             @endforelse
-        </x-admin.table>
+        </x-ws.table>
     </div>
 @endsection

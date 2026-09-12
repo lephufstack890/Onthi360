@@ -9,12 +9,12 @@
         $activity = $activity ?? [];
     @endphp
 
-    <x-admin.page-header title="Tổng quan" icon="layout-dashboard" subtitle="Số liệu vận hành theo thời gian thực (2.1, 16 mục 9)." />
+    <x-ws.page-header title="Tổng quan" icon="layout-dashboard" subtitle="Số liệu vận hành theo thời gian thực (2.1, 16 mục 9)." />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         @foreach ($stats as $s)
             <a href="{{ $s['href'] }}" class="block">
-                <x-admin.stat :label="$s['label']" :value="$s['value']" :tone="$s['tone']" />
+                <x-ws.stat :label="$s['label']" :value="$s['value']" :tone="$s['tone']" />
             </a>
         @endforeach
     </div>

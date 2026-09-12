@@ -1,45 +1,43 @@
+{{-- Menu trái khu Giáo viên.
+     SỬA 12/9 — CHỈ ĐỔI GIAO DIỆN: giữ nguyên 100% danh sách mục, route, cờ tính năng
+     (config('features.teacher_practice_screen')) và cách xác định mục đang mở của bản cũ.
+     Thay emoji bằng icon lucide và dùng chung khung partials/workspace-nav. --}}
 @php
     $items = [
-        ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
-        ['label' => 'Lớp học', 'route' => 'teacher.classes.index', 'icon' => '🏫'],
-        ['label' => 'Tài liệu', 'route' => 'teacher.library.index', 'icon' => '📖'],
+        ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => 'layout-dashboard'],
+        ['label' => 'Lớp học', 'route' => 'teacher.classes.index', 'icon' => 'graduation-cap'],
+        ['label' => 'Tài liệu', 'route' => 'teacher.library.index', 'icon' => 'book-open'],
         ...(config('features.teacher_practice_screen', false)
-            ? [['label' => 'Luyện tập', 'route' => 'teacher.assessments.index', 'icon' => '🧾']]
+            ? [['label' => 'Luyện tập', 'route' => 'teacher.assessments.index', 'icon' => 'notebook-pen']]
             : []),
-        ['label' => 'Đề PDF của tôi', 'route' => 'teacher.papers.index', 'icon' => '📄'],
-        ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => '❓'],
-        ['label' => 'Cuộc thi', 'route' => 'teacher.competitions.index', 'icon' => '🏆'],
-        ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => '📈'],
-        ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => '📅'],
-        ['label' => 'Thông báo', 'route' => 'teacher.notifications.index', 'icon' => '🔔'],
-        ['label' => 'Hồ sơ', 'route' => 'teacher.profile.show', 'icon' => '👤'],
+        ['label' => 'Đề PDF của tôi', 'route' => 'teacher.papers.index', 'icon' => 'scroll-text'],
+        ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => 'library'],
+        ['label' => 'Cuộc thi', 'route' => 'teacher.competitions.index', 'icon' => 'trophy'],
+        ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => 'trending-up'],
+        ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => 'calendar-days'],
+        ['label' => 'Thông báo', 'route' => 'teacher.notifications.index', 'icon' => 'message-square-text'],
+        ['label' => 'Hồ sơ', 'route' => 'teacher.profile.show', 'icon' => 'user-cog'],
     ];
-    $teacherName = auth()->user()->name ?? 'Giáo viên';
-@endphp
 
-<div class="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-rose-50/60">
-    <img src="https://ui-avatars.com/api/?name={{ urlencode($teacherName) }}&background=e11d48&color=ffffff&size=64&bold=true"
-         alt="{{ $teacherName }}" class="w-9 h-9 rounded-full shrink-0">
-    <div class="min-w-0">
-        <p class="text-sm font-semibold text-slate-700 truncate">{{ $teacherName }}</p>
-        <p class="text-xs text-slate-400">Giáo viên</p>
-    </div>
-</div>
-
-@php
+    // Giữ nguyên luật cũ: route trùng nhau thì chỉ mục ĐẦU TIÊN được tính là đang mở.
     $primaryRoutes = [];
-@endphp
-@foreach ($items as $item)
-    @php
-        $isPrimaryForRoute = !in_array($item['route'], $primaryRoutes, true);
+    $navItems = [];
+    foreach ($items as $item) {
+        $isPrimaryForRoute = ! in_array($item['route'], $primaryRoutes, true);
         if ($isPrimaryForRoute) {
             $primaryRoutes[] = $item['route'];
         }
-        $isActive = $isPrimaryForRoute && request()->routeIs($item['route']);
-    @endphp
-    <a href="{{ route($item['route']) }}"
-       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium border-l-4 {{ $isActive ? 'bg-rose-50 text-rose-600 border-rose-500' : 'text-slate-600 border-transparent hover:bg-rose-50 hover:text-rose-600' }}">
-        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-base {{ $isActive ? 'bg-white' : 'bg-slate-50' }}">{{ $item['icon'] }}</span>
-        <span>{{ $item['label'] }}</span>
-    </a>
-@endforeach
+        $navItems[] = [
+            'label' => $item['label'],
+            'icon' => $item['icon'],
+            'href' => route($item['route']),
+            'active' => $isPrimaryForRoute && request()->routeIs($item['route']),
+        ];
+    }
+@endphp
+
+@include('partials.workspace-nav', [
+    'items' => $navItems,
+    'wsUserName' => auth()->user()->name ?? 'Giáo viên',
+    'wsRoleLabel' => 'Giáo viên',
+])

@@ -42,7 +42,7 @@
 
     <a href="{{ $backHref }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">{{ $backLabel }}</a>
 
-    <x-admin.page-header title="Tạo học liệu" icon="package" subtitle="Học liệu là chương/bài/mục thuộc một sản phẩm (sách, chuyên đề, đề thi, khóa học) — 6.5." />
+    <x-ws.page-header title="Tạo học liệu" icon="package" subtitle="Học liệu là chương/bài/mục thuộc một sản phẩm (sách, chuyên đề, đề thi, khóa học) — 6.5." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -77,12 +77,12 @@
             <template x-if="!lockProduct">
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
-                    <x-admin.select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
+                    <x-ws.select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
                         <option value="">— Chọn sản phẩm —</option>
                         @foreach ($products as $p)
                             <option value="{{ $p['id'] }}" @selected((string) old('product_id', $selectedProductId) === (string) $p['id'])>{{ $p['title'] }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
             </template>
             <template x-if="lockProduct">
@@ -96,12 +96,12 @@
             <div x-show="chapterLabel" x-cloak>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="parent_id" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
                 <template x-if="chapters.length > 0">
-                    <x-admin.select id="parent_id" name="parent_id" x-model="selectedParentId">
+                    <x-ws.select id="parent_id" name="parent_id" x-model="selectedParentId">
                         <option value="">— Chưa gắn —</option>
                         <template x-for="c in chapters" :key="c.id">
                             <option :value="String(c.id)" x-text="c.title"></option>
                         </template>
-                    </x-admin.select>
+                    </x-ws.select>
                 </template>
                 <template x-if="chapters.length === 0">
                     <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2"
@@ -121,12 +121,12 @@
 
             <div x-show="type === 'assessment_ref'" x-cloak>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
-                <x-admin.select id="assessment_id" name="assessment_id">
+                <x-ws.select id="assessment_id" name="assessment_id">
                     <option value="">— Chọn đề/bộ bài —</option>
                     @foreach ($assessments as $a)
                         <option value="{{ $a->id }}" @selected((string) $defaultAssessmentId === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             {{--

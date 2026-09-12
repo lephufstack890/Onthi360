@@ -29,13 +29,13 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-page-header title="Con của tôi" subtitle="Chỉ hiển thị học sinh đã liên kết và xác minh — không thể tìm kiếm học sinh khác (10.3)." />
+    <x-ws.page-header title="Con của tôi" subtitle="Chỉ hiển thị học sinh đã liên kết và xác minh — không thể tìm kiếm học sinh khác (10.3)." />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         @forelse ($children as $c)
-            <a href="{{ route('parent.children.show', $c['id']) }}" class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition block">
+            <a href="{{ route('parent.children.show', $c['id']) }}" class="rounded-3xl bg-white border border-sky-100 p-5 hover:shadow-md transition block">
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-violet-200 to-rose-100 flex items-center justify-center font-medium text-slate-700">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-200 to-blue-100 flex items-center justify-center font-medium text-slate-700">
                         {{ mb_substr($c['name'], 0, 1) }}
                     </div>
                     <div>
@@ -43,24 +43,24 @@
                         <p class="text-xs text-slate-400">Lớp {{ $c['class'] }}</p>
                     </div>
                 </div>
-                <x-status-badge :tone="$c['tone']">{{ $c['status'] }}</x-status-badge>
+                <x-ws.badge :tone="$c['tone']">{{ $c['status'] }}</x-ws.badge>
             </a>
         @empty
             <div class="col-span-full">
-                <x-empty-state title="Chưa liên kết con nào" description="Gửi yêu cầu liên kết bằng email của con ở bên dưới, hoặc yêu cầu giáo viên/admin hỗ trợ xác minh." />
+                <x-ws.empty-state title="Chưa liên kết con nào" description="Gửi yêu cầu liên kết bằng email của con ở bên dưới, hoặc yêu cầu giáo viên/admin hỗ trợ xác minh." />
             </div>
         @endforelse
     </div>
 
     {{-- Form gửi yêu cầu liên kết --}}
-    <div class="mt-6 bg-white rounded-2xl border border-slate-200 p-5 max-w-md">
+    <div class="mt-6 bg-white rounded-3xl border border-sky-100 p-5 max-w-md">
         <h3 class="font-medium text-slate-700 mb-3">Gửi yêu cầu liên kết</h3>
         <form method="POST" action="{{ route('parent.children.linkRequest') }}" class="flex gap-2">
             @csrf
             <input type="email" name="student_email" required maxlength="255" value="{{ old('student_email') }}"
-                   class="flex-1 rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition"
+                   class="flex-1 rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition"
                    placeholder="Email của con">
-            <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium shrink-0 hover:bg-rose-700 transition">Gửi yêu cầu</button>
+            <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0 hover:bg-blue-700 transition">Gửi yêu cầu</button>
         </form>
         <p class="text-xs text-slate-400 mt-2">Yêu cầu cần được admin xác minh trước khi bạn xem được dữ liệu của con.</p>
     </div>

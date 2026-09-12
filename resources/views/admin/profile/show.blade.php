@@ -20,14 +20,14 @@
             <div class="bg-white rounded-3xl border border-sky-100 overflow-hidden sticky top-24">
                 <div class="h-16 bg-gradient-to-br from-slate-800 to-slate-600"></div>
                 <div class="px-6 pb-6 text-center">
-                    <x-admin.avatar :name="$user->name ?? 'Admin'" size="xl" class="-mt-10 mx-auto border-4 border-white shadow-md" />
+                    <x-ws.avatar :name="$user->name ?? 'Admin'" size="xl" class="-mt-10 mx-auto border-4 border-white shadow-md" />
                     <h2 class="font-semibold text-slate-800 mt-3">{{ $user->name ?? 'Admin' }}</h2>
                     <p class="text-[13px] text-slate-400">{{ $user->email ?? '' }}</p>
                     <div class="flex items-center justify-center gap-1.5 flex-wrap mt-3">
                         @forelse (($user->roles ?? collect()) as $role)
-                            <x-admin.badge tone="info">{{ $role->label ?? $role->name }}</x-admin.badge>
+                            <x-ws.badge tone="info">{{ $role->label ?? $role->name }}</x-ws.badge>
                         @empty
-                            <x-admin.badge tone="neutral">Chưa gán vai trò</x-admin.badge>
+                            <x-ws.badge tone="neutral">Chưa gán vai trò</x-ws.badge>
                         @endforelse
                     </div>
                 </div>

@@ -18,9 +18,9 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-admin.page-header title="Mã kích hoạt" icon="ticket" subtitle="Thời hạn quyền bắt đầu tại thời điểm kích hoạt mã hợp lệ, không phải lúc đặt đơn" />
+    <x-ws.page-header title="Mã kích hoạt" icon="ticket" subtitle="Thời hạn quyền bắt đầu tại thời điểm kích hoạt mã hợp lệ, không phải lúc đặt đơn" />
 
-    <x-admin.table :columns="['Mã', 'Đơn liên quan', 'Phạm vi', 'Trạng thái', '']">
+    <x-ws.table :columns="['Mã', 'Đơn liên quan', 'Phạm vi', 'Trạng thái', '']">
         @forelse ($codes as $c)
             <tr>
                 <td class="px-4 py-3 font-mono text-slate-700">{{ $c['code'] }}</td>
@@ -32,7 +32,7 @@
                     @endif
                 </td>
                 <td class="px-4 py-3 text-slate-500">{{ $c['scope'] }}</td>
-                <td class="px-4 py-3"><x-admin.badge :tone="$c['tone']">{{ $c['status'] }}</x-admin.badge></td>
+                <td class="px-4 py-3"><x-ws.badge :tone="$c['tone']">{{ $c['status'] }}</x-ws.badge></td>
                 <td class="px-4 py-3 text-right">
                     @if ($c['canRevoke'])
                         <div x-data="{ open: false, reason: '' }" class="inline-block text-left">
@@ -51,5 +51,5 @@
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có mã kích hoạt nào.</td></tr>
         @endforelse
-    </x-admin.table>
+    </x-ws.table>
 @endsection

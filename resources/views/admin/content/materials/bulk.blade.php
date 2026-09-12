@@ -15,7 +15,7 @@
 
     <a href="{{ $backHref }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">{{ $backLabel }}</a>
 
-    <x-admin.page-header title="Tải bài hàng loạt" icon="library" subtitle="Tải 1 gói ZIP chứa nhiều tệp PDF — mỗi tệp = 1 bài, tên tệp sẽ dùng làm mã bài. Áp dụng cho Sách, Chuyên đề, Đề thi (đều là 1 sản phẩm gồm nhiều bài)." />
+    <x-ws.page-header title="Tải bài hàng loạt" icon="library" subtitle="Tải 1 gói ZIP chứa nhiều tệp PDF — mỗi tệp = 1 bài, tên tệp sẽ dùng làm mã bài. Áp dụng cho Sách, Chuyên đề, Đề thi (đều là 1 sản phẩm gồm nhiều bài)." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -27,41 +27,41 @@
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm (Sách/Chuyên đề/Đề thi)</label>
-                <x-admin.select id="product_id" name="product_id" required>
+                <x-ws.select id="product_id" name="product_id" required>
                     <option value="">— Chọn sản phẩm —</option>
                     @foreach ($products as $p)
                         <option value="{{ $p->id }}" @selected((string) old('product_id', $selectedProductId) === (string) $p->id)>{{ $p->title }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại (áp dụng cho mọi bài trong gói)</label>
-                    <x-admin.select id="type" name="type" required>
+                    <x-ws.select id="type" name="type" required>
                         @foreach ($types as $value => $label)
                             <option value="{{ $value }}" @selected(old('type', 'section') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái (áp dụng cho mọi bài trong gói)</label>
-                    <x-admin.select id="status" name="status" required>
+                    <x-ws.select id="status" name="status" required>
                         @foreach ($statuses as $value => $label)
                             <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
             </div>
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="parent_id">Thuộc mục cha (tùy chọn, áp dụng cho mọi bài trong gói)</label>
-                <x-admin.select id="parent_id" name="parent_id">
+                <x-ws.select id="parent_id" name="parent_id">
                     <option value="">— Không có, mỗi bài là 1 mục gốc —</option>
                     @foreach ($parents as $par)
                         <option value="{{ $par['id'] }}" @selected((string) old('parent_id') === (string) $par['id'])>{{ $par['label'] }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
             </div>
 
             <div class="border-t border-slate-100 pt-5">

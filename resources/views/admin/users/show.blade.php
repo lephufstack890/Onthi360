@@ -32,11 +32,11 @@
 
     <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div class="flex items-center gap-4">
-            <x-admin.avatar :name="$userModel->name" size="lg" />
+            <x-ws.avatar :name="$userModel->name" size="lg" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $userModel->name }}</h1>
-                    <x-admin.badge :tone="$userModel->status === 'active' ? 'success' : 'danger'">{{ $userModel->status === 'active' ? 'Hoạt động' : 'Tạm khóa' }}</x-admin.badge>
+                    <x-ws.badge :tone="$userModel->status === 'active' ? 'success' : 'danger'">{{ $userModel->status === 'active' ? 'Hoạt động' : 'Tạm khóa' }}</x-ws.badge>
                 </div>
                 <p class="text-[13px] text-slate-500 mt-1">{{ $userModel->email }} @if($userModel->phone) · {{ $userModel->phone }} @endif</p>
             </div>
@@ -96,7 +96,7 @@
             @if ($userModel->teacherProfile)
                 <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                     <h2 class="font-medium text-slate-700 mb-3">👩‍🏫 Hồ sơ giáo viên</h2>
-                    <p class="text-[13px] text-slate-500 mb-2">Trạng thái duyệt: <x-admin.badge :tone="$userModel->teacherProfile->approval_status->value === 'approved' ? 'success' : ($userModel->teacherProfile->approval_status->value === 'pending' ? 'warning' : 'danger')">{{ $userModel->teacherProfile->approval_status->label() }}</x-admin.badge></p>
+                    <p class="text-[13px] text-slate-500 mb-2">Trạng thái duyệt: <x-ws.badge :tone="$userModel->teacherProfile->approval_status->value === 'approved' ? 'success' : ($userModel->teacherProfile->approval_status->value === 'pending' ? 'warning' : 'danger')">{{ $userModel->teacherProfile->approval_status->label() }}</x-ws.badge></p>
                     @if ($userModel->teacherProfile->subjects)
                         <p class="text-[13px] text-slate-500 mb-1">Môn dạy: {{ implode(', ', $userModel->teacherProfile->subjects) }}</p>
                     @endif
@@ -115,7 +115,7 @@
                         @forelse ($studentEnrollments as $e)
                             <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 text-[13px]">
                                 <span class="text-slate-700">{{ $e->classRoom->name ?? '—' }} <span class="text-slate-400">({{ $e->classRoom->course->title ?? '' }})</span></span>
-                                <x-admin.badge :tone="$e->status === 'active' ? 'success' : 'neutral'">{{ $e->status === 'active' ? 'Đang học' : $e->status }}</x-admin.badge>
+                                <x-ws.badge :tone="$e->status === 'active' ? 'success' : 'neutral'">{{ $e->status === 'active' ? 'Đang học' : $e->status }}</x-ws.badge>
                             </div>
                         @empty
                             <p class="text-[13px] text-slate-400">Chưa tham gia lớp nào.</p>
@@ -127,7 +127,7 @@
                             <div class="rounded-xl bg-slate-50 text-[13px] p-3">
                                 <div class="flex items-center justify-between">
                                     <span class="text-slate-700">{{ $link->parent->name ?? '—' }}</span>
-                                    <x-admin.badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-admin.badge>
+                                    <x-ws.badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-ws.badge>
                                 </div>
                                 @if ($link->status->value === 'pending')
                                     @include('admin.users._parent-link-actions', ['link' => $link])
@@ -149,7 +149,7 @@
                             <div class="rounded-xl bg-slate-50 text-[13px] p-3">
                                 <div class="flex items-center justify-between">
                                     <a href="{{ route('admin.users.show', $link->student_user_id) }}" class="text-slate-700 hover:text-blue-600">{{ $link->student->name ?? '—' }}</a>
-                                    <x-admin.badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-admin.badge>
+                                    <x-ws.badge :tone="$link->status->value === 'verified' ? 'success' : ($link->status->value === 'pending' ? 'warning' : 'danger')">{{ $link->status->value }}</x-ws.badge>
                                 </div>
                                 @if ($link->status->value === 'pending')
                                     @include('admin.users._parent-link-actions', ['link' => $link])

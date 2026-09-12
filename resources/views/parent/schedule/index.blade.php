@@ -16,13 +16,13 @@
         $children = $children ?? [];
     @endphp
 
-    <x-page-header title="Lịch & Điểm danh" subtitle="Chọn con để xem lịch học và điểm danh chi tiết." />
+    <x-ws.page-header title="Lịch & Điểm danh" subtitle="Chọn con để xem lịch học và điểm danh chi tiết." />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         @forelse ($children as $c)
-            <a href="{{ route('parent.children.show', ['child' => $c['id'], 'tab' => 'schedule']) }}" class="rounded-2xl bg-white border border-slate-200 p-5 hover:shadow-md transition block">
+            <a href="{{ route('parent.children.show', ['child' => $c['id'], 'tab' => 'schedule']) }}" class="rounded-3xl bg-white border border-sky-100 p-5 hover:shadow-md transition block">
                 <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-violet-200 to-rose-100 flex items-center justify-center font-medium text-slate-700">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-200 to-blue-100 flex items-center justify-center font-medium text-slate-700">
                         {{ mb_substr($c['name'], 0, 1) }}
                     </div>
                     <div>
@@ -33,7 +33,7 @@
             </a>
         @empty
             <div class="col-span-full">
-                <x-empty-state title="Chưa có con đã xác minh" description="Liên kết và chờ admin xác minh con trước để xem lịch học, điểm danh." actionLabel="Con của tôi" :actionHref="route('parent.children.index')" />
+                <x-ws.empty-state title="Chưa có con đã xác minh" description="Liên kết và chờ admin xác minh con trước để xem lịch học, điểm danh." actionLabel="Con của tôi" :actionHref="route('parent.children.index')" />
             </div>
         @endforelse
     </div>

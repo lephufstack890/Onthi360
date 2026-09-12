@@ -11,7 +11,7 @@
 
     <a href="{{ route('admin.competitions.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Cuộc thi</a>
 
-    <x-admin.page-header title="Tạo cuộc thi" icon="trophy" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện (11.1)." />
+    <x-ws.page-header title="Tạo cuộc thi" icon="trophy" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện (11.1)." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -29,11 +29,11 @@
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại</label>
-                    <x-admin.select id="type" name="type" required>
+                    <x-ws.select id="type" name="type" required>
                         @foreach ($types as $value => $label)
                             <option value="{{ $value }}" @selected(old('type', 'contest') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                     <p class="text-xs text-slate-400 mt-1">Khảo sát = loại sự kiện không thi đua (11.1).</p>
                 </div>
             </div>
@@ -42,11 +42,11 @@
                 <p class="text-[13px] font-medium text-amber-700">Đơn vị tổ chức</p>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1" for="organizer_type">Cuộc thi do ai tổ chức?</label>
-                    <x-admin.select id="organizer_type" name="organizer_type" x-model="organizerType" required>
+                    <x-ws.select id="organizer_type" name="organizer_type" x-model="organizerType" required>
                         @foreach ($organizerTypes as $value => $label)
                             <option value="{{ $value }}" @selected(old('organizer_type', 'internal') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
                 <div x-show="organizerType === 'external'" x-cloak>
                     <label class="block text-xs text-slate-500 mb-1" for="organizer_name">Tên đơn vị tổ chức</label>
@@ -70,12 +70,12 @@
 
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu (tùy chọn)</label>
-                <x-admin.select id="assessment_id" name="assessment_id">
+                <x-ws.select id="assessment_id" name="assessment_id">
                     <option value="">— Không gắn đề —</option>
                     @foreach ($assessmentOptions as $a)
                         <option value="{{ $a->id }}" @selected((string) old('assessment_id') === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
-                </x-admin.select>
+                </x-ws.select>
                 <p class="text-xs text-slate-400 mt-1">Đề vẫn thuộc Tài liệu — cuộc thi chỉ tham chiếu, không tạo bản sao đề (11.1).</p>
             </div>
 

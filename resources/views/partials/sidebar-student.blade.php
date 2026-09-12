@@ -1,33 +1,29 @@
+{{-- Menu trái khu Học sinh.
+     SỬA 12/9 — CHỈ ĐỔI GIAO DIỆN: giữ nguyên 100% danh sách mục và route của bản cũ. --}}
 @php
     $items = [
-        ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => '🏠'],
-        ['label' => 'Khóa học', 'route' => 'student.courses.index', 'icon' => '📚'],
-        ['label' => 'Thời khoá biểu', 'route' => 'student.schedule.index', 'icon' => '🗓️'],
-        ['label' => 'Luyện tập', 'route' => 'student.practice.index', 'icon' => '📝'],
-        ['label' => 'Tài liệu', 'route' => 'student.library.index', 'icon' => '📖'],
-        ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => '🏆'],
-        ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => '📊'],
-        ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => '💳'],
-        ['label' => 'Thông báo', 'route' => 'student.notifications', 'icon' => '🔔'],
-        ['label' => 'Hồ sơ', 'route' => 'student.profile', 'icon' => '👤'],
+        ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => 'layout-dashboard'],
+        ['label' => 'Khóa học', 'route' => 'student.courses.index', 'icon' => 'book-open'],
+        ['label' => 'Thời khoá biểu', 'route' => 'student.schedule.index', 'icon' => 'calendar-days'],
+        ['label' => 'Luyện tập', 'route' => 'student.practice.index', 'icon' => 'notebook-pen'],
+        ['label' => 'Tài liệu', 'route' => 'student.library.index', 'icon' => 'library'],
+        ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => 'trophy'],
+        ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'bar-chart-3'],
+        ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => 'wallet-cards'],
+        ['label' => 'Thông báo', 'route' => 'student.notifications', 'icon' => 'message-square-text'],
+        ['label' => 'Hồ sơ', 'route' => 'student.profile', 'icon' => 'user-cog'],
     ];
-    $studentName = auth()->user()->name ?? 'Học sinh';
+
+    $navItems = array_map(fn ($item) => [
+        'label' => $item['label'],
+        'icon' => $item['icon'],
+        'href' => route($item['route']),
+        'active' => request()->routeIs($item['route']),
+    ], $items);
 @endphp
 
-<div class="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-rose-50/60">
-    <img src="https://ui-avatars.com/api/?name={{ urlencode($studentName) }}&background=e11d48&color=ffffff&size=64&bold=true"
-         alt="{{ $studentName }}" class="w-9 h-9 rounded-full shrink-0">
-    <div class="min-w-0">
-        <p class="text-sm font-semibold text-slate-700 truncate">{{ $studentName }}</p>
-        <p class="text-xs text-slate-400">Học sinh</p>
-    </div>
-</div>
-
-@foreach ($items as $item)
-    @php $isActive = request()->routeIs($item['route']); @endphp
-    <a href="{{ route($item['route']) }}"
-       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium border-l-4 {{ $isActive ? 'bg-rose-50 text-rose-600 border-rose-500' : 'text-slate-600 border-transparent hover:bg-rose-50 hover:text-rose-600' }}">
-        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-base {{ $isActive ? 'bg-white' : 'bg-slate-50' }}">{{ $item['icon'] }}</span>
-        <span>{{ $item['label'] }}</span>
-    </a>
-@endforeach
+@include('partials.workspace-nav', [
+    'items' => $navItems,
+    'wsUserName' => auth()->user()->name ?? 'Học sinh',
+    'wsRoleLabel' => 'Học sinh',
+])

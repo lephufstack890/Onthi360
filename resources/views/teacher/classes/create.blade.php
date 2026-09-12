@@ -8,13 +8,13 @@
         $courses = $courses ?? [];
     @endphp
 
-    <a href="{{ route('teacher.classes.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Lớp học</a>
+    <a href="{{ route('teacher.classes.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Lớp học</a>
 
-    <div class="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-rose-50 p-6 lg:p-8 mb-6 flex items-center gap-4 flex-wrap">
-        <x-icon-tile emoji="🏫" tone="rose" />
+    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4 flex items-center gap-4 flex-wrap">
+        <x-ws.icon-tile icon="graduation-cap" tone="rose" />
         <div>
             <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Tạo lớp mới</h1>
-            <p class="text-sm text-slate-500 mt-1">Bạn sẽ tự động là giáo viên chính của lớp này ngay sau khi tạo (7.2).</p>
+            <p class="text-[13px] text-slate-500 mt-1">Bạn sẽ tự động là giáo viên chính của lớp này ngay sau khi tạo (7.2).</p>
         </div>
     </div>
 
@@ -23,71 +23,71 @@
     @endif
 
     @if (empty($courses))
-        <x-empty-state title="Chưa có khóa học nào để chọn"
+        <x-ws.empty-state title="Chưa có khóa học nào để chọn"
                         description="Cần Admin tạo khóa học (đã phát hành) trước khi giáo viên tạo lớp thuộc khóa đó." />
     @else
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
+            <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
                 <form method="POST" action="{{ route('teacher.classes.store') }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="course_id">Khóa học</label>
-                        <x-select id="course_id" name="course_id" required icon="📚">
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="course_id">Khóa học</label>
+                        <x-ws.select id="course_id" name="course_id" required icon="📚">
                             <option value="">— Chọn khóa học —</option>
                             @foreach ($courses as $course)
                                 <option value="{{ $course['id'] }}" @selected(old('course_id') == $course['id'])>{{ $course['title'] }}</option>
                             @endforeach
-                        </x-select>
+                        </x-ws.select>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1" for="code">Mã lớp</label>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="code">Mã lớp</label>
                             <input id="code" name="code" type="text" value="{{ old('code') }}" required maxlength="40"
-                                   placeholder="Ví dụ: 10CT-2026" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                                   placeholder="Ví dụ: 10CT-2026" class="admin-input">
                             <p class="text-xs text-slate-400 mt-1">Mã lớp phải là duy nhất trong toàn hệ thống.</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1" for="name">Tên lớp</label>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="name">Tên lớp</label>
                             <input id="name" name="name" type="text" value="{{ old('name') }}" required maxlength="255"
-                                   placeholder="Ví dụ: Luyện thi vào 10 Chuyên Tin — Ca tối" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                                   placeholder="Ví dụ: Luyện thi vào 10 Chuyên Tin — Ca tối" class="admin-input">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="schedule_note">Lịch học (ghi chú hiển thị, không bắt buộc)</label>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="schedule_note">Lịch học (ghi chú hiển thị, không bắt buộc)</label>
                         <input id="schedule_note" name="schedule_note" type="text" value="{{ old('schedule_note') }}" maxlength="500"
-                               placeholder="Ví dụ: Thứ 3 & Thứ 5, 18h00–19h30" class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                               placeholder="Ví dụ: Thứ 3 & Thứ 5, 18h00–19h30" class="admin-input">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                        <x-select id="status" name="status" required>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
+                        <x-ws.select id="status" name="status" required>
                             <option value="active" @selected(old('status', 'active') === 'active')>Đang hoạt động</option>
                             <option value="archived" @selected(old('status') === 'archived')>Lưu trữ</option>
-                        </x-select>
+                        </x-ws.select>
                     </div>
 
                     <div class="flex gap-3 pt-2">
-                        <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium">Tạo lớp</button>
-                        <a href="{{ route('teacher.classes.index') }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Huỷ</a>
+                        <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Tạo lớp</button>
+                        <a href="{{ route('teacher.classes.index') }}" class="px-5 py-2.5 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium">Huỷ</a>
                     </div>
                 </form>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-                <h3 class="font-medium text-slate-700 flex items-center gap-2"><span>💡</span> Cần biết</h3>
+            <div class="bg-white rounded-3xl border border-sky-100 p-6 space-y-4">
+                <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="sparkles" class="h-4 w-4" /></span> Cần biết</h3>
                 <div class="flex items-start gap-3">
-                    <x-icon-tile emoji="🔑" tone="sky" />
-                    <p class="text-sm text-slate-500">Bạn tự động là giáo viên chính của lớp — có thể mời thêm giáo viên đồng phụ trách sau khi tạo.</p>
+                    <x-ws.icon-tile emoji="🔑" tone="sky" />
+                    <p class="text-[13px] text-slate-500">Bạn tự động là giáo viên chính của lớp — có thể mời thêm giáo viên đồng phụ trách sau khi tạo.</p>
                 </div>
                 <div class="flex items-start gap-3">
-                    <x-icon-tile emoji="🔤" tone="violet" />
-                    <p class="text-sm text-slate-500">Mã lớp là duy nhất toàn hệ thống, nên dùng quy ước dễ nhận (VD: khối-năm học).</p>
+                    <x-ws.icon-tile icon="text-cursor-input" tone="violet" />
+                    <p class="text-[13px] text-slate-500">Mã lớp là duy nhất toàn hệ thống, nên dùng quy ước dễ nhận (VD: khối-năm học).</p>
                 </div>
                 <div class="flex items-start gap-3">
-                    <x-icon-tile emoji="📅" tone="amber" />
-                    <p class="text-sm text-slate-500">Lịch học ở đây chỉ là ghi chú hiển thị — lịch buổi học chi tiết quản lý ở tab Lịch/Điểm danh sau khi tạo lớp.</p>
+                    <x-ws.icon-tile icon="calendar-days" tone="amber" />
+                    <p class="text-[13px] text-slate-500">Lịch học ở đây chỉ là ghi chú hiển thị — lịch buổi học chi tiết quản lý ở tab Lịch/Điểm danh sau khi tạo lớp.</p>
                 </div>
             </div>
         </div>

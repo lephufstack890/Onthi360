@@ -10,17 +10,17 @@
 
     <a href="{{ route('admin.users.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Người dùng</a>
 
-    <x-admin.page-header title="Hàng đợi duyệt giáo viên" icon="users" subtitle="Chỉ giáo viên Đã được duyệt mới mua/kích hoạt quyền dạy và gắn học liệu riêng tư vào lớp (3.3)." />
+    <x-ws.page-header title="Hàng đợi duyệt giáo viên" icon="users" subtitle="Chỉ giáo viên Đã được duyệt mới mua/kích hoạt quyền dạy và gắn học liệu riêng tư vào lớp (3.3)." />
 
     @if (empty($pending))
-        <x-admin.empty-state title="Không có hồ sơ chờ duyệt" description="Mọi hồ sơ giáo viên đã được xử lý." />
+        <x-ws.empty-state title="Không có hồ sơ chờ duyệt" description="Mọi hồ sơ giáo viên đã được xử lý." />
     @else
-        <x-admin.table :columns="['Họ tên', 'Email', 'Môn/chuyên môn', 'Ngày nộp', '']">
+        <x-ws.table :columns="['Họ tên', 'Email', 'Môn/chuyên môn', 'Ngày nộp', '']">
             @foreach ($pending as $p)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">
                         <div class="flex items-center gap-3">
-                            <x-admin.avatar :name="$p['name']" size="sm" />
+                            <x-ws.avatar :name="$p['name']" size="sm" />
                             <span>{{ $p['name'] }}</span>
                         </div>
                     </td>
@@ -32,6 +32,6 @@
                     </td>
                 </tr>
             @endforeach
-        </x-admin.table>
+        </x-ws.table>
     @endif
 @endsection

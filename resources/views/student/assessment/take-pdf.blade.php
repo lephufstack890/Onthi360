@@ -38,12 +38,12 @@
              ứng, phòng khi học sinh vẫn cố bấm/gõ trong lúc form đang tự nộp. --}}
         <div x-cloak x-show="expired" x-transition.opacity
              class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl">
                 <div class="text-4xl mb-3">⏰</div>
                 <h2 class="text-lg font-semibold text-slate-800">Đã hết giờ làm bài</h2>
-                <p class="text-sm text-slate-500 mt-2">Bài làm của bạn đang được tự động nộp, vui lòng đợi trong giây lát...</p>
+                <p class="text-[13px] text-slate-500 mt-2">Bài làm của bạn đang được tự động nộp, vui lòng đợi trong giây lát...</p>
                 <div class="mt-4 flex justify-center">
-                    <span class="inline-block w-6 h-6 border-2 border-rose-200 border-t-rose-600 rounded-full animate-spin"></span>
+                    <span class="inline-block w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
                 </div>
             </div>
         </div>
@@ -51,9 +51,9 @@
         {{-- Modal xác nhận nộp bài --}}
         <div x-cloak x-show="confirmOpen" x-transition.opacity
              class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4" @keydown.escape.window="confirmOpen = false">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl">
                 <h2 class="text-base font-semibold text-slate-800">Nộp bài ngay?</h2>
-                <p class="text-sm text-slate-500 mt-2">
+                <p class="text-[13px] text-slate-500 mt-2">
                     Bạn đã trả lời <span x-text="answeredCount()"></span>/{{ $totalCount }} câu.
                     <template x-if="answeredCount() < {{ max($totalCount, 1) }}">
                         <span class="text-amber-600">Vẫn còn câu chưa trả lời.</span>
@@ -61,8 +61,8 @@
                     Sau khi nộp sẽ không thể sửa lại câu trả lời.
                 </p>
                 <div class="flex gap-3 mt-5">
-                    <button type="button" @click="confirmOpen = false" class="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Làm tiếp</button>
-                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Nộp bài</button>
+                    <button type="button" @click="confirmOpen = false" class="flex-1 px-4 py-2 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium">Làm tiếp</button>
+                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Nộp bài</button>
                 </div>
             </div>
         </div>
@@ -71,7 +71,7 @@
             @csrf
 
             {{-- Header sticky: tên đề, tiến độ, đồng hồ, trạng thái tự lưu, nộp bài --}}
-            <div class="sticky top-0 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 py-3 bg-white/90 backdrop-blur border-b border-slate-200 mb-6">
+            <div class="sticky top-0 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 py-3 bg-white/90 backdrop-blur border-b border-sky-100 mb-6">
                 <div class="flex items-center justify-between gap-4 flex-wrap">
                     <div class="min-w-0">
                         <h1 class="font-medium text-slate-800 truncate">{{ $assessmentTitle }}</h1>
@@ -84,30 +84,30 @@
                     </div>
                     <div class="flex items-center gap-3">
                         <template x-if="deadlineAt !== null">
-                            <div class="px-3 py-1.5 rounded-lg text-sm font-semibold tabular-nums transition-colors"
+                            <div class="px-3 py-1.5 rounded-xl text-[13px] font-semibold tabular-nums transition-colors"
                                  :class="{
-                                     'bg-rose-50 text-rose-600': tone === 'normal',
+                                     'bg-blue-50 text-blue-600': tone === 'normal',
                                      'bg-amber-100 text-amber-700': tone === 'warning',
-                                     'bg-rose-600 text-white animate-pulse': tone === 'danger',
+                                     'bg-blue-600 text-white animate-pulse': tone === 'danger',
                                  }">
                                 ⏱ <span x-text="remainingLabel"></span>
                             </div>
                         </template>
                         <button type="button" @click="confirmOpen = true" :disabled="expired || submitting"
-                                class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium disabled:opacity-50">
+                                class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 disabled:opacity-50">
                             Nộp bài
                         </button>
                     </div>
                 </div>
                 <div class="mt-2.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div class="h-full bg-rose-500 transition-all duration-300" :style="`width: ${(answeredCount() / {{ max($totalCount, 1) }}) * 100}%`"></div>
+                    <div class="h-full bg-blue-500 transition-all duration-300" :style="`width: ${(answeredCount() / {{ max($totalCount, 1) }}) * 100}%`"></div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Nửa trái: xem đề PDF --}}
                 <div class="order-1">
-                    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden sticky top-28" style="height: calc(100vh - 8rem);">
+                    <div class="bg-white rounded-3xl border border-sky-100 overflow-hidden sticky top-28" style="height: calc(100vh - 8rem);">
                         <iframe src="{{ $pdfUrl }}" title="Đề thi PDF" class="w-full h-full"></iframe>
                     </div>
                 </div>
@@ -119,19 +119,19 @@
                     </p>
 
                     @foreach ($answerRows as $row)
-                        @php $meta = $typeMeta[$row['type']] ?? ['label' => $row['type'], 'icon' => '📝']; @endphp
-                        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                        @php $meta = $typeMeta[$row['type']] ?? ['label' => $row['type'], 'icon' => 'pen-line']; @endphp
+                        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                             <div class="flex items-center justify-between mb-3 gap-2">
-                                <x-status-badge tone="info">
-                                    {{ $meta['icon'] }} Câu {{ $row['no'] }} · {{ $meta['label'] }} · {{ $row['points'] }} điểm
-                                </x-status-badge>
+                                <x-ws.badge tone="info">
+                                    <x-lucide :name="$meta['icon']" class="inline h-3.5 w-3.5 align-[-2px]" /> Câu {{ $row['no'] }} · {{ $meta['label'] }} · {{ $row['points'] }} điểm
+                                </x-ws.badge>
                                 <span x-show="answeredAnswerMap[{{ $row['answerKeyId'] }}]" x-cloak class="text-xs font-medium text-emerald-600">Đã lưu ✓</span>
                             </div>
 
                             @if ($row['type'] === 'single_choice')
                                 <div class="grid grid-cols-4 gap-2">
                                     @foreach (['A', 'B', 'C', 'D'] as $letter)
-                                        <label class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 hover:border-rose-300 cursor-pointer text-sm text-slate-700 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50 transition-colors">
+                                        <label class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-sky-100 hover:border-blue-300 cursor-pointer text-[13px] text-slate-700 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50 transition-colors">
                                             <input type="radio" name="answers[answer_keys][{{ $row['answerKeyId'] }}]" value="{{ $letter }}"
                                                    :disabled="expired"
                                                    @checked($row['submittedAnswer'] === $letter)
@@ -143,17 +143,17 @@
                             @elseif ($row['type'] === 'true_false_group')
                                 <div class="space-y-2" x-data="{ parts: @js(collect(['a', 'b', 'c', 'd'])->mapWithKeys(fn ($p) => [$p => $row['submittedAnswer'][$p] ?? null])->all()) }">
                                     @foreach (['a', 'b', 'c', 'd'] as $part)
-                                        <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-slate-200">
-                                            <span class="text-sm text-slate-600">Ý {{ strtoupper($part) }}</span>
+                                        <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-sky-100">
+                                            <span class="text-[13px] text-slate-600">Ý {{ strtoupper($part) }}</span>
                                             <div class="flex gap-2">
-                                                <label class="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-slate-200 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50 cursor-pointer">
+                                                <label class="flex items-center gap-1 text-xs px-2.5 py-1 rounded-xl border border-sky-100 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50 cursor-pointer">
                                                     <input type="radio" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="1"
                                                            :disabled="expired"
                                                            :checked="parts.{{ $part }} === true"
                                                            @change="parts.{{ $part }} = true; onAnswerKey({{ $row['answerKeyId'] }}, parts, true)">
                                                     Đúng
                                                 </label>
-                                                <label class="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-slate-200 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50 cursor-pointer">
+                                                <label class="flex items-center gap-1 text-xs px-2.5 py-1 rounded-xl border border-sky-100 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50 cursor-pointer">
                                                     <input type="radio" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="0"
                                                            :disabled="expired"
                                                            :checked="parts.{{ $part }} === false"
@@ -173,7 +173,7 @@
                                         ['1', 'Đúng', 'has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50'],
                                         ['0', 'Sai', 'has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50'],
                                     ] as [$value, $label, $checkedClass])
-                                        <label class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 cursor-pointer text-sm text-slate-700 {{ $checkedClass }} transition-colors">
+                                        <label class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-sky-100 cursor-pointer text-[13px] text-slate-700 {{ $checkedClass }} transition-colors">
                                             <input type="radio" name="answers[answer_keys][{{ $row['answerKeyId'] }}]" value="{{ $value }}"
                                                    :disabled="expired"
                                                    @checked($row['submittedAnswer'] === ($value === '1'))
@@ -195,13 +195,13 @@
                                 <div class="space-y-2" x-data="{ vals: @js($initialParts) }">
                                     @foreach ($row['parts'] as $p)
                                         @php $part = $p['part']; @endphp
-                                        <div class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-xl border border-slate-200">
-                                            <span class="text-sm font-medium text-slate-600 w-10 shrink-0">Ý {{ strtoupper($part) }}</span>
+                                        <div class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-xl border border-sky-100">
+                                            <span class="text-[13px] font-medium text-slate-600 w-10 shrink-0">Ý {{ strtoupper($part) }}</span>
 
                                             @if ($p['type'] === 'single_choice')
                                                 <div class="flex gap-1.5">
                                                     @foreach (['A', 'B', 'C', 'D'] as $letter)
-                                                        <label class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50">
+                                                        <label class="px-3 py-1.5 rounded-xl border border-sky-100 text-xs cursor-pointer has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
                                                             <input type="radio" class="hidden" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="{{ $letter }}"
                                                                    :disabled="expired"
                                                                    @checked(($submittedParts[$part] ?? null) === $letter)
@@ -213,7 +213,7 @@
                                             @elseif ($p['type'] === 'true_false')
                                                 <div class="flex gap-2">
                                                     @foreach ([['1', 'Đúng'], ['0', 'Sai']] as [$value, $label])
-                                                        <label class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
+                                                        <label class="px-3 py-1.5 rounded-xl border border-sky-100 text-xs cursor-pointer has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
                                                             <input type="radio" class="hidden" name="answers[answer_keys][{{ $row['answerKeyId'] }}][{{ $part }}]" value="{{ $value }}"
                                                                    :disabled="expired"
                                                                    @checked(($submittedParts[$part] ?? null) === ($value === '1'))
@@ -227,7 +227,7 @@
                                                        value="{{ $submittedParts[$part] ?? '' }}" placeholder="Nhập số…"
                                                        :disabled="expired"
                                                        @input.debounce.700ms="vals['{{ $part }}'] = $event.target.value; onAnswerKey({{ $row['answerKeyId'] }}, vals, true)"
-                                                       class="flex-1 min-w-[120px] rounded-lg border border-slate-200 text-sm p-2 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 disabled:bg-slate-50">
+                                                       class="flex-1 min-w-[120px] rounded-xl border border-sky-100 text-[13px] p-2 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 disabled:bg-slate-50">
                                             @endif
                                         </div>
                                     @endforeach
@@ -237,28 +237,28 @@
                                        placeholder="Nhập đáp án (số)..."
                                        :disabled="expired"
                                        @input.debounce.700ms="onAnswerKey({{ $row['answerKeyId'] }}, $event.target.value, $event.target.value.trim() !== '')"
-                                       class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition disabled:bg-slate-50 disabled:text-slate-400">
+                                       class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition disabled:bg-slate-50 disabled:text-slate-400">
                             @endif
                         </div>
                     @endforeach
 
                     @foreach ($codingRows as $row)
-                        <div class="bg-white rounded-2xl border border-slate-200 p-5"
+                        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5"
                              x-data="{ language: @js($row['language'] ?? ($row['allowedLanguages'][0] ?? 'cpp')), code: @js($row['codeSource'] ?? '') }">
                             <div class="flex items-center justify-between mb-3 gap-2">
-                                <x-status-badge tone="info">
-                                    💻 {{ $row['code'] }} · {{ $row['title'] }} · {{ $row['points'] }} điểm
+                                <x-ws.badge tone="info">
+                                    <x-lucide name="code-2" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $row['code'] }} · {{ $row['title'] }} · {{ $row['points'] }} điểm
                                     @if ($row['pdfPage'])
                                         · Trang {{ $row['pdfPage'] }}
                                     @endif
-                                </x-status-badge>
+                                </x-ws.badge>
                                 <span x-show="answeredCodingMap[{{ $row['codingItemId'] }}]" x-cloak class="text-xs font-medium text-emerald-600">Đã lưu ✓</span>
                             </div>
 
                             <select name="answers[coding_items][{{ $row['codingItemId'] }}][language]" x-model="language"
                                     :disabled="expired"
                                     @change="onCodingItem({{ $row['codingItemId'] }}, { code_source: code, language }, code.trim() !== '')"
-                                    class="w-full rounded-lg border border-slate-200 text-sm p-2.5 mb-2 disabled:bg-slate-50 disabled:text-slate-400">
+                                    class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 mb-2 disabled:bg-slate-50 disabled:text-slate-400">
                                 @foreach (($row['allowedLanguages'] ?: ['cpp', 'python']) as $lang)
                                     <option value="{{ $lang }}">{{ $lang }}</option>
                                 @endforeach
@@ -267,7 +267,7 @@
                                       placeholder="Viết code ở đây..."
                                       :disabled="expired"
                                       @input.debounce.700ms="onCodingItem({{ $row['codingItemId'] }}, { code_source: code, language }, code.trim() !== '')"
-                                      class="w-full rounded-lg border border-slate-200 text-sm p-2.5 font-mono disabled:bg-slate-50 disabled:text-slate-400"></textarea>
+                                      class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 font-mono disabled:bg-slate-50 disabled:text-slate-400"></textarea>
                             <p class="text-xs text-slate-400 mt-2">Bài nộp sẽ ở trạng thái "Đang chấm" — hệ thống chấm code tự động chưa nối vào ở phiên bản này.</p>
                         </div>
                     @endforeach

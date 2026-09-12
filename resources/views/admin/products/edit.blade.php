@@ -8,7 +8,7 @@
 
     <a href="{{ route('admin.products.show', $product->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-admin.page-header title="Sửa tài liệu" icon="pencil" :subtitle="$product->title" />
+    <x-ws.page-header title="Sửa tài liệu" icon="pencil" :subtitle="$product->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
@@ -27,11 +27,11 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại tài liệu</label>
-                        <x-admin.select id="type" name="type" required>
+                        <x-ws.select id="type" name="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $product->type->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -56,12 +56,12 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-admin.select id="grade" name="grade" icon="🎓">
+                        <x-ws.select id="grade" name="grade" icon="🎓">
                             <option value="">— Không chỉ định —</option>
                             @foreach ($grades ?? [] as $g)
                                 <option value="{{ $g }}" @selected(old('grade', $product->grade) === $g)>{{ $g }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="topic">Chuyên đề</label>
@@ -125,19 +125,19 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="visibility">Hiển thị</label>
-                        <x-admin.select id="visibility" name="visibility" required>
+                        <x-ws.select id="visibility" name="visibility" required>
                             @foreach ($visibilities as $value => $label)
                                 <option value="{{ $value }}" @selected(old('visibility', $product->visibility->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                        <x-admin.select id="status" name="status" required>
+                        <x-ws.select id="status" name="status" required>
                             @foreach ($statuses as $value => $label)
                                 <option value="{{ $value }}" @selected(old('status', $product->status->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 

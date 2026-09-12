@@ -40,16 +40,16 @@
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-start justify-between gap-4 flex-wrap">
         <div class="flex items-start gap-4">
-            <x-admin.icon-tile emoji="🏆" tone="rose" />
+            <x-ws.icon-tile emoji="🏆" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->title }}</h1>
                     {{-- TẠM ẨN 24/8: Khách hiện không cần hiện Trạng thái ở đây (đang thừa) —
                          comment lại (KHÔNG xoá), $meta vẫn tính ở phần khai báo đầu file, chỉ không hiện.
-                    <x-admin.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-admin.badge>
+                    <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>
                     --}}
                     @if ($competition->isExternallyOrganized())
-                        <x-admin.badge tone="warning">Bên ngoài tổ chức</x-admin.badge>
+                        <x-ws.badge tone="warning">Bên ngoài tổ chức</x-ws.badge>
                     @endif
                 </div>
                 <p class="text-[13px] text-slate-500">{{ $competition->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát' }}</p>
@@ -105,11 +105,11 @@
                                     </div>
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs text-slate-500 mb-1">Đề tham chiếu</label>
-                                        <x-admin.select name="assessment_id" required>
+                                        <x-ws.select name="assessment_id" required>
                                             @foreach ($assessmentOptions as $opt)
                                                 <option value="{{ $opt->id }}" @selected($opt->id === $exam['assessmentId'])>{{ $opt->title }}</option>
                                             @endforeach
-                                        </x-admin.select>
+                                        </x-ws.select>
                                     </div>
                                     <x-date-time-fields name="starts_at" label="Bắt đầu"
                                                          :dayValue="$exam['startsAt']?->format('d')"
@@ -156,12 +156,12 @@
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs text-slate-500 mb-1">Đề tham chiếu</label>
-                            <x-admin.select name="assessment_id" required>
+                            <x-ws.select name="assessment_id" required>
                                 <option value="">— Chọn đề —</option>
                                 @foreach ($assessmentOptions as $opt)
                                     <option value="{{ $opt->id }}">{{ $opt->title }}</option>
                                 @endforeach
-                            </x-admin.select>
+                            </x-ws.select>
                         </div>
                         <x-date-time-fields name="starts_at" label="Bắt đầu" />
                         <x-date-time-fields name="ends_at" label="Kết thúc" />

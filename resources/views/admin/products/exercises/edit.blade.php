@@ -20,7 +20,7 @@
 
     <a href="{{ route('admin.products.show', $product->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại {{ $product->title }}</a>
 
-    <x-admin.page-header title="Sửa bài tập" icon="layers" :subtitle="$product->title" />
+    <x-ws.page-header title="Sửa bài tập" icon="layers" :subtitle="$product->title" />
 
     @if ($isDraft)
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 mb-6 text-[13px] text-sky-800 flex items-start gap-2">
@@ -59,12 +59,12 @@
                 @if ($chapterLabel && ! empty($chapters))
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="material_id">Thuộc {{ mb_strtolower($chapterLabel) }}</label>
-                        <x-admin.select id="material_id" name="material_id">
+                        <x-ws.select id="material_id" name="material_id">
                             <option value="">— Chưa gắn {{ mb_strtolower($chapterLabel) }} —</option>
                             @foreach ($chapters as $c)
                                 <option value="{{ $c['id'] }}" @selected((string) old('material_id', $exercise->material_id) === (string) $c['id'])>{{ $c['title'] }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 @endif
 

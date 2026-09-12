@@ -10,11 +10,11 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'access-granted' ? 'Đã cấp quyền truy cập.' : 'Đã thu hồi quyền, đã ghi lý do.'])
     @endif
 
-    <x-admin.page-header :title="$right->user->name ?? ''" :subtitle="($right->user->email ?? '').' · '.($right->product->title ?? '')">
+    <x-ws.page-header :title="$right->user->name ?? ''" :subtitle="($right->user->email ?? '').' · '.($right->product->title ?? '')">
         <x-slot:actions>
-            <x-admin.badge :tone="$tone">{{ $statusLabel }}</x-admin.badge>
+            <x-ws.badge :tone="$tone">{{ $statusLabel }}</x-ws.badge>
         </x-slot:actions>
-    </x-admin.page-header>
+    </x-ws.page-header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-white rounded-3xl border border-sky-100 p-5 space-y-3 text-[13px]">

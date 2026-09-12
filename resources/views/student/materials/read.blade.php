@@ -168,7 +168,7 @@
         <div class="reader-topbar">
             <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
                 <div class="min-w-0">
-                    <a href="{{ route('materials.show', $material->product_id) }}" class="text-xs text-slate-400 hover:text-rose-600 inline-flex items-center gap-1 transition">‹ {{ $material->product->title ?? 'tài liệu' }}</a>
+                    <a href="{{ route('materials.show', $material->product_id) }}" class="text-xs text-slate-400 hover:text-blue-600 inline-flex items-center gap-1 transition">‹ {{ $material->product->title ?? 'tài liệu' }}</a>
                     <div class="flex items-center gap-2 mt-0.5">
                         <h1 class="font-semibold text-slate-800 truncate text-base">{{ $material->title }}</h1>
                     </div>
@@ -183,7 +183,7 @@
         </div>
 
         <div class="reader-scroll-area">
-            <p class="text-xs text-slate-400 text-center mb-5 select-none">🔒 Nội dung chỉ xem trên web — không hỗ trợ tải về hoặc in trực tiếp.</p>
+            <p class="text-xs text-slate-400 text-center mb-5 select-none"><x-lucide name="lock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Nội dung chỉ xem trên web — không hỗ trợ tải về hoặc in trực tiếp.</p>
 
             <div
                 id="material-pdf-viewer"
@@ -191,8 +191,8 @@
                 data-watermark="{{ $watermarkText }}"
                 class="select-none"
             >
-                <div class="flex items-center justify-center py-16 text-sm text-slate-400">
-                    <span class="inline-block w-5 h-5 border-2 border-rose-200 border-t-rose-600 rounded-full animate-spin mr-2"></span>
+                <div class="flex items-center justify-center py-16 text-[13px] text-slate-400">
+                    <span class="inline-block w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mr-2"></span>
                     Đang tải nội dung…
                 </div>
             </div>
@@ -252,7 +252,7 @@
                 pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/legacy/build/pdf.min.mjs');
             } catch (err) {
                 console.error('Không tải được thư viện pdf.js:', err);
-                container.innerHTML = '<p class="text-center text-sm text-rose-500 py-10">Không tải được thư viện đọc PDF — vui lòng kiểm tra kết nối mạng rồi tải lại trang.</p>';
+                container.innerHTML = '<p class="text-center text-[13px] text-blue-500 py-10">Không tải được thư viện đọc PDF — vui lòng kiểm tra kết nối mạng rồi tải lại trang.</p>';
                 return;
             }
 
@@ -473,7 +473,7 @@
                 })
                 .catch(function (err) {
                     console.error('Không tải được tài liệu PDF:', err);
-                    container.innerHTML = '<p class="text-center text-sm text-rose-500 py-10">Không tải được nội dung bài học. Vui lòng thử lại sau.</p>';
+                    container.innerHTML = '<p class="text-center text-[13px] text-blue-500 py-10">Không tải được nội dung bài học. Vui lòng thử lại sau.</p>';
                 });
         })();
     </script>

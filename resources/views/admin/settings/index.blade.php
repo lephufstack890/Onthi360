@@ -4,7 +4,7 @@
 @section('page-title', 'Cấu hình')
 
 @section('content')
-    <x-admin.page-header title="Cấu hình hệ thống" icon="settings" subtitle="Chỉ Super Admin có toàn quyền cấu hình role, chính sách và tích hợp (3.1)." />
+    <x-ws.page-header title="Cấu hình hệ thống" icon="settings" subtitle="Chỉ Super Admin có toàn quyền cấu hình role, chính sách và tích hợp (3.1)." />
 
     @if (session('status') === 'settings-rating-threshold-updated')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu ngưỡng xếp hạng.'])
@@ -38,10 +38,10 @@
         <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="flex items-center gap-3">
-                    <x-admin.icon-tile emoji="⭐" tone="amber" />
+                    <x-ws.icon-tile emoji="⭐" tone="amber" />
                     <h2 class="font-medium text-slate-700">Chính sách đánh giá</h2>
                 </div>
-                <x-admin.badge tone="success">Đã cấu hình</x-admin.badge>
+                <x-ws.badge tone="success">Đã cấu hình</x-ws.badge>
             </div>
             <p class="text-[13px] text-slate-500 leading-relaxed mb-3">Ngưỡng số review tối thiểu để công bố xếp hạng (9.5, 18.8) — điều chỉnh không cần release code.</p>
 
@@ -66,10 +66,10 @@
         <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="flex items-center gap-3">
-                    <x-admin.icon-tile emoji="💳" tone="emerald" />
+                    <x-ws.icon-tile emoji="💳" tone="emerald" />
                     <h2 class="font-medium text-slate-700">Tích hợp thanh toán</h2>
                 </div>
-                <x-admin.badge :tone="($walletBankInfo['accountNo'] ?? null) ? 'success' : 'neutral'">{{ ($walletBankInfo['accountNo'] ?? null) ? 'Đã cấu hình' : 'Chưa cấu hình' }}</x-admin.badge>
+                <x-ws.badge :tone="($walletBankInfo['accountNo'] ?? null) ? 'success' : 'neutral'">{{ ($walletBankInfo['accountNo'] ?? null) ? 'Đã cấu hình' : 'Chưa cấu hình' }}</x-ws.badge>
             </div>
             <p class="text-[13px] text-slate-500 leading-relaxed mb-3">Thông tin ngân hàng nhận chuyển khoản nạp token — hiện kèm mã QR VietQR cho học sinh ở trang Ví token (note họp 13/8, mục 7-8).</p>
 
@@ -113,10 +113,10 @@
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="flex items-center gap-3">
-                        <x-admin.icon-tile :emoji="$g['emoji']" :tone="$g['tone']" />
+                        <x-ws.icon-tile :emoji="$g['emoji']" :tone="$g['tone']" />
                         <h2 class="font-medium text-slate-700">{{ $g['title'] }}</h2>
                     </div>
-                    <x-admin.badge tone="neutral">Chưa cấu hình</x-admin.badge>
+                    <x-ws.badge tone="neutral">Chưa cấu hình</x-ws.badge>
                 </div>
                 <p class="text-[13px] text-slate-500 leading-relaxed mb-3">{{ $g['desc'] }}</p>
                 <ul class="space-y-1.5 mb-4">

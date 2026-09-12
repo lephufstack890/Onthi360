@@ -11,7 +11,7 @@
 
     <a href="{{ route('admin.ranking.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Bảng xếp hạng</a>
 
-    <x-admin.page-header :title="'📊 '.$scopeLabel" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1)." />
+    <x-ws.page-header :title="'📊 '.$scopeLabel" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1)." />
 
     @if ($competitionId)
         <div class="mb-4">
@@ -24,7 +24,7 @@
             Cuộc thi đang ở trạng thái "Chờ công bố" — rank tạm không được hiển thị theo quy chế (11.2).
         </div>
     @else
-        <x-admin.table :columns="['Hạng', 'Người dự thi', 'Điểm', 'Chuyên đề']">
+        <x-ws.table :columns="['Hạng', 'Người dự thi', 'Điểm', 'Chuyên đề']">
             @forelse ($entries as $e)
                 <tr>
                     <td class="px-4 py-3 font-semibold text-slate-700">#{{ $e['rank'] }}</td>
@@ -35,6 +35,6 @@
             @empty
                 <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có người xếp hạng nào.</td></tr>
             @endforelse
-        </x-admin.table>
+        </x-ws.table>
     @endif
 @endsection

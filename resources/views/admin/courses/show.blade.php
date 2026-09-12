@@ -32,11 +32,11 @@
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-start justify-between gap-4 flex-wrap">
         <div class="flex items-start gap-4">
-            <x-admin.icon-tile emoji="🏫" tone="rose" />
+            <x-ws.icon-tile emoji="🏫" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $course->title }}</h1>
-                    <x-admin.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-admin.badge>
+                    <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>
                 </div>
                 <p class="text-[13px] text-slate-500">
                     @if ($course->subject) {{ $course->subject }} @endif
@@ -58,8 +58,8 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <x-admin.stat label="Lớp đang triển khai" :value="$classRooms->count()" tone="info" />
-        <x-admin.stat label="Tổng học sinh" :value="$totalStudents" tone="success" />
+        <x-ws.stat label="Lớp đang triển khai" :value="$classRooms->count()" tone="info" />
+        <x-ws.stat label="Tổng học sinh" :value="$totalStudents" tone="success" />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,15 +81,15 @@
                 <div class="space-y-2">
                     @forelse ($classRooms as $c)
                         <a href="{{ route('admin.classes.edit', $c['id']) }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
-                            <x-admin.icon-tile emoji="🏫" tone="sky" />
+                            <x-ws.icon-tile emoji="🏫" tone="sky" />
                             <div class="flex-1 min-w-0">
                                 <p class="text-[13px] font-medium text-slate-700">{{ $c['name'] }} <span class="text-slate-400 font-normal">({{ $c['code'] }})</span></p>
                                 <p class="text-xs text-slate-400">{{ $c['teacher'] ? 'GV '.$c['teacher'] : 'Chưa phân công giáo viên' }} · {{ $c['students'] }} học sinh</p>
                             </div>
-                            <x-admin.badge :tone="$c['status'] === 'active' ? 'success' : 'neutral'">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</x-admin.badge>
+                            <x-ws.badge :tone="$c['status'] === 'active' ? 'success' : 'neutral'">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</x-ws.badge>
                         </a>
                     @empty
-                        <x-admin.empty-state title="Chưa có lớp nào thuộc khóa này" description="Bấm '+ Tạo lớp' để mở lớp đầu tiên, hoặc giáo viên đã được duyệt có thể tự tạo lớp và chọn khóa học này (3.3, 8.1)." />
+                        <x-ws.empty-state title="Chưa có lớp nào thuộc khóa này" description="Bấm '+ Tạo lớp' để mở lớp đầu tiên, hoặc giáo viên đã được duyệt có thể tự tạo lớp và chọn khóa học này (3.3, 8.1)." />
                     @endforelse
                 </div>
             </div>

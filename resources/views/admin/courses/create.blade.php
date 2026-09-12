@@ -12,7 +12,7 @@
     <a href="{{ route('admin.courses.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Khóa & Lớp</a>
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-center gap-4 flex-wrap">
-        <x-admin.icon-tile emoji="🏫" tone="rose" />
+        <x-ws.icon-tile emoji="🏫" tone="rose" />
         <div>
             <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Tạo khóa học mới</h1>
             <p class="text-[13px] text-slate-500 mt-1">Khóa học là "khung" nội dung — lớp học (lịch, giáo viên, học sinh) sẽ được tạo riêng và gắn vào khóa này sau (8.1).</p>
@@ -43,12 +43,12 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-admin.select id="grade" name="grade" icon="🎓">
+                        <x-ws.select id="grade" name="grade" icon="🎓">
                             <option value="">— Không chỉ định —</option>
                             @foreach ($grades as $g)
                                 <option value="{{ $g }}" @selected(old('grade') === $g)>{{ $g }}</option>
                             @endforeach
-                        </x-admin.select>
+                        </x-ws.select>
                     </div>
                 </div>
 
@@ -64,11 +64,11 @@
 
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                    <x-admin.select id="status" name="status" required>
+                    <x-ws.select id="status" name="status" required>
                         @foreach ($statuses as $value => $label)
                             <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
                         @endforeach
-                    </x-admin.select>
+                    </x-ws.select>
                 </div>
 
                 <div class="flex gap-3 pt-2">
@@ -81,15 +81,15 @@
         <div class="bg-white rounded-3xl border border-sky-100 p-6 space-y-4">
             <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="sparkles" class="h-4 w-4" /></span> Cần biết</h3>
             <div class="flex items-start gap-3">
-                <x-admin.icon-tile emoji="🧭" tone="sky" />
+                <x-ws.icon-tile emoji="🧭" tone="sky" />
                 <p class="text-[13px] text-slate-500">Khóa học chỉ là khung nội dung — sau khi tạo, giáo viên (đã được duyệt) sẽ tạo lớp thuộc khóa này để dạy thật (3.3, 8.1).</p>
             </div>
             <div class="flex items-start gap-3">
-                <x-admin.icon-tile emoji="📝" tone="violet" />
+                <x-ws.icon-tile emoji="📝" tone="violet" />
                 <p class="text-[13px] text-slate-500">Đường dẫn (slug) hiển thị công khai được tự sinh từ tên khóa học, không cần tự nhập.</p>
             </div>
             <div class="flex items-start gap-3">
-                <x-admin.icon-tile emoji="👁️" tone="amber" />
+                <x-ws.icon-tile emoji="👁️" tone="amber" />
                 <p class="text-[13px] text-slate-500">Chọn "Bản nháp" nếu chưa muốn hiển thị công khai — có thể xuất bản sau khi kiểm tra lại nội dung.</p>
             </div>
         </div>

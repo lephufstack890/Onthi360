@@ -10,7 +10,7 @@
 
     <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại danh sách đề</a>
 
-    <x-admin.page-header title="Tải bộ đề PDF" icon="book-open" subtitle="Tạo nhiều đề PDF cùng lúc — đáp án vẫn cần nhập tay sau khi tạo ở từng đề." />
+    <x-ws.page-header title="Tải bộ đề PDF" icon="book-open" subtitle="Tạo nhiều đề PDF cùng lúc — đáp án vẫn cần nhập tay sau khi tạo ở từng đề." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
