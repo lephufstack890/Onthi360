@@ -1,6 +1,12 @@
-# Ôn Thi 360 — robots.txt (SỬA 9/9: khách yêu cầu tối ưu SEO)
-# LƯU Ý: nếu tên miền thật KHÁC onthi360.edu.vn thì sửa lại dòng "Sitemap:" ở cuối file —
-# địa chỉ sitemap bắt buộc phải ghi đầy đủ (https://ten-mien-that/sitemap.xml).
+# Ôn Thi 360 — robots.txt
+# SỬA 12/9: đồng bộ với source khách gửi (education-main/public/robots.txt + src/seo.js).
+#
+# TÊN MIỀN: source khai SITE_URL = https://tinhoc.onthi360.edu.vn nên dòng "Sitemap:" ở cuối
+# file ghi theo đúng tên miền đó. Nếu chạy trên tên miền khác thì sửa lại DUY NHẤT dòng đó —
+# địa chỉ sitemap bắt buộc phải là địa chỉ tuyệt đối, đầy đủ https://
+#
+# Nhớ đặt APP_URL trong .env trên máy chủ thật khớp với tên miền này, vì các địa chỉ bên trong
+# sitemap.xml do Laravel sinh ra từ APP_URL.
 
 User-agent: *
 Allow: /
@@ -8,6 +14,8 @@ Allow: /
 # Khu vực phải đăng nhập — không có nội dung cho người tìm kiếm, chặn để bot khỏi tốn lượt quét
 Disallow: /login
 Disallow: /register
+Disallow: /quen-mat-khau
+Disallow: /dat-lai-mat-khau
 Disallow: /dashboard
 Disallow: /admin/
 Disallow: /teacher/
@@ -17,4 +25,12 @@ Disallow: /danh-gia/
 Disallow: /quyen/
 Disallow: /vi/
 
-Sitemap: https://onthi360.edu.vn/sitemap.xml
+# Chặn địa chỉ có tham số lọc/tìm kiếm: cùng một nội dung nhưng vô số biến thể địa chỉ, để bot
+# quét hết thì tốn lượt quét mà Google lại chấm là nội dung trùng lặp.
+Disallow: /*?q=
+Disallow: /*?page=
+Disallow: /*?subject=
+Disallow: /*?competition=
+Disallow: /*?exam=
+
+Sitemap: https://tinhoc.onthi360.edu.vn/sitemap.xml

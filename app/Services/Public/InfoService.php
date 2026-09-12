@@ -112,6 +112,17 @@ class InfoService
     }
 
     /** @return array<int, array{slug: string, title: string, desc: string}> */
+    /**
+     * SỬA 12/9 — danh sách slug chính sách, để sitemap (Public\SitemapController) và các nơi
+     * khác đọc CHUNG một nguồn thay vì chép cứng 3 slug ở nhiều chỗ rồi lệch nhau.
+     *
+     * @return array<int, string>
+     */
+    public function policySlugs(): array
+    {
+        return array_column($this->policies(), 'slug');
+    }
+
     private function policies(): array
     {
         return [

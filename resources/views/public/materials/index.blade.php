@@ -20,8 +20,8 @@
 
     $tabMeta = [
         'sach' => ['label' => 'Sách giáo trình', 'icon' => 'book-open', 'tone' => 'text-[#2D7FA3]'],
-        'chuyen-de' => ['label' => 'Chuyên đề thuật toán', 'icon' => 'sparkles', 'tone' => 'text-[#786BB1]'],
-        'de-thi' => ['label' => 'Tuyển tập đề thi', 'icon' => 'award', 'tone' => 'text-[#AF7C32]'],
+        'chuyen-de' => ['label' => 'Chuyên đề', 'icon' => 'sparkles', 'tone' => 'text-[#786BB1]'],
+        'de-thi' => ['label' => 'Bộ đề', 'icon' => 'award', 'tone' => 'text-[#AF7C32]'],
     ];
 
     // Hàng dữ liệu đưa sang Alpine để lọc/phân trang/mở hộp chi tiết ngay tại chỗ.
