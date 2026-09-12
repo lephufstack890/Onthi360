@@ -6,12 +6,26 @@
     // file icon là đường dẫn tự đổi, trình duyệt buộc phải tải bản mới — khỏi phải nhớ sửa tay.
     $seoIconVersion = @filemtime(public_path('favicon.svg')) ?: '3';
 
-    $seoPageTitle = trim((string) $__env->yieldContent('title'));
+    /*
+     * SỬA 12/9 — sửa lỗi tiêu đề tab hiện "Cuộc thi &amp; Đấu trường 360" thay vì "Cuộc thi &".
+     *
+     * Nguyên nhân: dạng @section('title', 'chuỗi') được Laravel escape SẴN ở tầng view
+     * (ManagesLayouts::startSection() gọi e($content) khi truyền chuỗi), nên yieldContent()
+     * trả về "Cuộc thi &amp; ...". Xuống dưới lại in bằng {{ }} nên bị escape lần thứ hai
+     * thành "&amp;amp;" — trình duyệt hiển thị đúng chữ "&amp;".
+     *
+     * Cách xử lý: giải mã đúng MỘT lần ngay tại đây, rồi vẫn để {{ }} escape lại bình thường
+     * khi in ra. Làm ở đây (chỗ duy nhất) nên mọi trang cùng được sửa, không phải đi bỏ dấu
+     * "&" khỏi từng tiêu đề. Dấu nháy, dấu < > trong tiêu đề vẫn được escape an toàn.
+     */
+    $seoDecode = fn (string $value) => html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    $seoPageTitle = $seoDecode(trim((string) $__env->yieldContent('title')));
     $seoTitle = ($seoPageTitle !== '' && $seoPageTitle !== $seoSite)
         ? $seoPageTitle.' — '.$seoSite
         : $seoSite.' — Học và luyện thi trực tuyến';
 
-    $seoDescription = trim((string) $__env->yieldContent('meta-description'));
+    $seoDescription = $seoDecode(trim((string) $__env->yieldContent('meta-description')));
     if ($seoDescription === '') {
         $seoDescription = 'Ôn Thi 360 — nền tảng học và luyện thi trực tuyến: khoá học theo môn và khối lớp, kho tài liệu, luyện tập theo từng câu hỏi biết đúng/sai ngay, cuộc thi và bảng xếp hạng.';
     }

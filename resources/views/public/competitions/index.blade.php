@@ -4,33 +4,10 @@
 @section('meta-description', 'Cuộc thi lập trình và khảo sát năng lực trên Ôn Thi 360 — lịch từng vòng thi, điểm cao nhất, Top 5 và cách vào phòng thi.')
 
 @section('content')
-{{-- ═══════════════ [CONTEST] MÀN CUỘC THI ═══════════════
-     SỬA 12/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
-     education-main/src/components/ContestsPage.jsx.
-     Bố cục/class chép nguyên; React state đổi sang Alpine; mọi nút gắn link thật.
-
-     Dữ liệu lấy từ cơ sở dữ liệu (App\Services\Public\CompetitionService::indexData):
-       · thẻ cuộc thi   <- bảng competitions (trạng thái tự tính theo giờ thật)
-       · dải vòng thi   <- bảng competition_exams (mỗi vòng có giờ riêng)
-       · điểm cao nhất  <- MAX(leaderboard_entries.score) của đúng vòng đó
-       · Top 5          <- leaderboard_entries scope=competition (đã xếp hạng)
-       · "Đã tham gia"  <- attempts đã nộp của chính người đang xem
-       · đếm ngược      <- starts_at/ends_at thật, Alpine chạy đồng hồ tại chỗ
-
-     KHÁC bản mẫu ở 3 chỗ, đều là chủ ý và đã báo khách:
-       · Bản mẫu có luồng "gửi đăng ký → BTC duyệt → vào phòng thi". Hệ thống KHÔNG có bảng
-         đăng ký/duyệt nào; vào thi là vào thẳng đề tham chiếu khi đang trong khung giờ của
-         vòng. Dải 3 bước giữ nguyên hình dáng nhưng đổi thành 3 bước CÓ THẬT:
-         Đăng nhập → Vào phòng thi → Xem kết quả.
-       · Ô "Giải thưởng" không có cột tương ứng; thay bằng mốc công bố kết quả — thông tin
-         thật mà người thi quan tâm đúng ở vị trí đó.
-       · Tên trong Top 5 ẩn danh giống bảng xếp hạng công khai (bảo vệ dữ liệu học sinh);
-         chỉ dòng của chính người đang đăng nhập mới hiện tên thật. --}}
 @php
     $competitions = $competitions ?? [];
     $heroPanel = $heroPanel ?? ['eyebrow' => 'Lịch thi', 'deadline' => null, 'note' => 'Chưa có sự kiện nào đang mở'];
 
-    // Bộ lọc của bản mẫu — giữ nguyên 5 mục, đều lọc được bằng dữ liệu thật.
     $contestFilters = [
         ['id' => 'all', 'label' => 'Tất cả sự kiện'],
         ['id' => 'ongoing', 'label' => 'Đang diễn ra 🔥'],
@@ -39,7 +16,6 @@
         ['id' => 'surveys', 'label' => 'Khảo sát năng lực'],
     ];
 
-    // Dữ liệu đưa sang Alpine để lọc/phân trang/mở hộp chi tiết ngay tại chỗ (không tải lại trang).
     $contestRows = [];
     foreach ($competitions as $c) {
         $contestRows[] = [
@@ -81,21 +57,21 @@
         </div>
     </div>
 
-    {{-- ══════ 2. BỘ LỌC ══════ --}}
-    <div class="flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            @foreach ($contestFilters as $f)
-                <button type="button" :aria-pressed="activeTab === '{{ $f['id'] }}'" @click="setTab('{{ $f['id'] }}')"
-                        class="min-h-10 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all"
-                        :class="activeTab === '{{ $f['id'] }}' ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'">
-                    {{ $f['label'] }}
-                </button>
-            @endforeach
+    @if (false)
+        <div class="flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                @foreach ($contestFilters as $f)
+                    <button type="button" :aria-pressed="activeTab === '{{ $f['id'] }}'" @click="setTab('{{ $f['id'] }}')"
+                            class="min-h-10 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all"
+                            :class="activeTab === '{{ $f['id'] }}' ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'">
+                        {{ $f['label'] }}
+                    </button>
+                @endforeach
+            </div>
+            <span class="hidden shrink-0 text-[10px] font-bold text-slate-400 sm:block"><span x-text="matchedIds.length">{{ count($competitions) }}</span> sự kiện</span>
         </div>
-        <span class="hidden shrink-0 text-[10px] font-bold text-slate-400 sm:block"><span x-text="matchedIds.length">{{ count($competitions) }}</span> sự kiện</span>
-    </div>
+    @endif
 
-    {{-- ══════ 3. LƯỚI THẺ CUỘC THI ══════ --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         @foreach ($competitions as $c)
             <article x-show="isVisible({{ $c['id'] }})" x-cloak
@@ -184,18 +160,11 @@
         <x-lucide name="trophy" class="mx-auto h-9 w-9 text-sky-300" />
         <h2 class="mt-3 text-sm font-black text-slate-800">Chưa có sự kiện ở trạng thái này</h2>
         <p class="mt-1 text-xs text-slate-500">Hãy quay lại sau hoặc xem tất cả sự kiện đang công bố.</p>
-        <button type="button" @click="setTab('all')" class="mt-4 text-xs font-bold text-blue-600">Xem tất cả</button>
+        @if (false)
+            <button type="button" @click="setTab('all')" class="mt-4 text-xs font-bold text-blue-600">Xem tất cả</button>
+        @endif
     </div>
 
-    {{-- ══════ 6. HỘP CHI TIẾT CUỘC THI ══════
-         Bản mẫu mở modal; dữ liệu của modal đã được nạp sẵn ở trên nên bấm mở là hiện ngay,
-         không gọi thêm truy vấn. Nút trong hộp dẫn sang trang thể lệ / phòng thi / bảng xếp
-         hạng thật. --}}
-    {{-- SỬA 12/9 (2) — hộp thoại được ĐƯA THẲNG RA <body> bằng x-teleport. Nếu để nguyên tại
-         chỗ, nó nằm trong thẻ gốc của trang; bất kỳ hiệu ứng/bộ lọc nào trên các thẻ cha (kể
-         cả animation) đều tạo "stacking context" mới, khiến hộp fixed inset-0 bị co lại theo
-         thẻ cha và thanh header vẽ đè lên. Teleport ra body thì hộp luôn phủ đúng màn hình,
-         không phụ thuộc bố cục trang. --}}
     @foreach ($competitions as $c)
         <template x-teleport="body">
         <div x-show="openId === {{ $c['id'] }}" x-cloak
