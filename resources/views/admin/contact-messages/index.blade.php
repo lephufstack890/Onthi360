@@ -9,15 +9,15 @@
         $messages = $messages ?? [];
     @endphp
 
-    <x-page-header title="✉️ Tin nhắn liên hệ" subtitle="Tin nhắn khách gửi từ form Liên hệ ở trang Thông tin công khai." />
+    <x-admin.page-header title="Tin nhắn liên hệ" icon="mail" subtitle="Tin nhắn khách gửi từ form Liên hệ ở trang Thông tin công khai." />
 
     @if (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đánh dấu tin nhắn là đã xử lý.'])
     @endif
 
-    <x-tabs :tabs="$tabs" />
+    <x-admin.tabs :tabs="$tabs" />
 
-    <x-data-table :columns="['Người gửi', 'Nội dung', 'Thời gian', 'Trạng thái', '']">
+    <x-admin.table :columns="['Người gửi', 'Nội dung', 'Thời gian', 'Trạng thái', '']">
         @forelse ($messages as $m)
             <tr>
                 <td class="px-4 py-3 align-top">
@@ -29,15 +29,15 @@
                 </td>
                 <td class="px-4 py-3 text-slate-400 text-xs align-top">{{ $m['created_at'] }}</td>
                 <td class="px-4 py-3 align-top">
-                    <x-status-badge :tone="$m['resolved'] ? 'success' : 'warning'">
+                    <x-admin.badge :tone="$m['resolved'] ? 'success' : 'warning'">
                         {{ $m['resolved'] ? 'Đã xử lý'.($m['handled_by'] ? ' — '.$m['handled_by'] : '') : 'Mới' }}
-                    </x-status-badge>
+                    </x-admin.badge>
                 </td>
                 <td class="px-4 py-3 text-right align-top">
                     @unless ($m['resolved'])
                         <form method="POST" action="{{ route('admin.contact-messages.resolve', $m['id']) }}">
                             @csrf
-                            <button type="submit" class="text-rose-600 font-medium">Đánh dấu đã xử lý</button>
+                            <button type="submit" class="text-blue-600 font-medium">Đánh dấu đã xử lý</button>
                         </form>
                     @endunless
                 </td>
@@ -45,5 +45,5 @@
         @empty
             <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Chưa có tin nhắn liên hệ nào.</td></tr>
         @endforelse
-    </x-data-table>
+    </x-admin.table>
 @endsection

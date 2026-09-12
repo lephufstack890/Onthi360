@@ -202,3 +202,52 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-fadeIn { animation: none; }
 }
+
+/*
+ * ═══════════ KHU QUẢN TRỊ ═══════════
+ * SỬA 12/9 (dựng lại UI trang quản trị) — gom class dùng lặp của biểu mẫu quản trị về một
+ * chỗ. Mỗi ô nhập trong 50+ màn admin đều cần đúng một bộ class dài giống nhau; viết tay ở
+ * từng chỗ là chắc chắn sẽ lệch nhau dần. View chỉ cần class="admin-input".
+ */
+.admin-typography {
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+.admin-input,
+.admin-typography input[type="text"]:not([class*="rounded"]),
+.admin-typography input[type="email"]:not([class*="rounded"]),
+.admin-typography input[type="number"]:not([class*="rounded"]),
+.admin-typography input[type="password"]:not([class*="rounded"]),
+.admin-typography input[type="date"]:not([class*="rounded"]),
+.admin-typography input[type="datetime-local"]:not([class*="rounded"]),
+.admin-typography input[type="url"]:not([class*="rounded"]),
+.admin-typography textarea:not([class*="rounded"]) {
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid #E0F0F7;
+  background-color: #fff;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #1a3865;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-input::placeholder,
+.admin-typography textarea::placeholder { color: #94a3b8; }
+
+.admin-input:hover,
+.admin-typography textarea:not([class*="rounded"]):hover { border-color: #BFE0EE; }
+
+.admin-input:focus,
+.admin-typography textarea:not([class*="rounded"]):focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+.admin-typography textarea:not([class*="rounded"]) { min-height: 5rem; line-height: 1.6; }
+
+/* Ô nhập đang báo lỗi kiểm tra dữ liệu. */
+.admin-input.is-invalid { border-color: #fda4af; }

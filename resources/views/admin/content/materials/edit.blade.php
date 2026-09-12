@@ -13,15 +13,15 @@
         $chapterLabelByProduct = $chapterLabelByProduct ?? [];
     @endphp
 
-    <a href="{{ route('admin.content.show', $material->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
+    <a href="{{ route('admin.content.show', $material->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-page-header title="✏️ Sửa học liệu" :subtitle="$material->title" />
+    <x-admin.page-header title="Sửa học liệu" icon="pencil" :subtitle="$material->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6"
+    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6"
          x-data="{
             type: '{{ old('type', $material->type) }}',
             productId: '{{ old('product_id', $material->product_id) }}',
@@ -52,17 +52,17 @@
             <input type="hidden" name="product_id" value="{{ old('product_id', $material->product_id) }}">
 
             <div x-show="chapterLabel" x-cloak>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="parent_id_picker" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
+                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="parent_id_picker" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
                 <template x-if="chapters.length > 0">
-                    <x-select id="parent_id_picker" x-model="selectedParentId">
+                    <x-admin.select id="parent_id_picker" x-model="selectedParentId">
                         <option value="">— Chưa gắn —</option>
                         <template x-for="c in chapters" :key="c.id">
                             <option :value="String(c.id)" x-text="c.title"></option>
                         </template>
-                    </x-select>
+                    </x-admin.select>
                 </template>
                 <template x-if="chapters.length === 0">
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2"
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2"
                        x-text="'Tài liệu này chưa có ' + (chapterLabel || '').toLowerCase() + ' nào — vào trang tài liệu để tạo trước.'"></p>
                 </template>
             </div>
@@ -78,13 +78,13 @@
             <input type="hidden" name="code" value="{{ old('code', $material->code) }}">
 
             <div x-show="type === 'assessment_ref'" x-cloak>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
-                <x-select id="assessment_id" name="assessment_id">
+                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
+                <x-admin.select id="assessment_id" name="assessment_id">
                     <option value="">— Chọn đề/bộ bài —</option>
                     @foreach ($assessments as $a)
                         <option value="{{ $a->id }}" @selected((string) old('assessment_id', $material->assessment_id) === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
-                </x-select>
+                </x-admin.select>
             </div>
 
             {{--
@@ -94,7 +94,7 @@
             --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">📄 Tệp PDF (tùy chọn)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="pdf">📄 Tệp PDF (tùy chọn)</label>
                     @if ($material->pdf_path)
                         <p class="text-xs text-slate-500 mb-1.5">
                             📄 Đã có tệp: <span class="font-medium text-slate-600">{{ $material->pdf_original_name ?: basename($material->pdf_path) }}</span>
@@ -102,10 +102,10 @@
                         </p>
                     @endif
                     <input id="pdf" name="pdf" type="file" accept="application/pdf" x-ref="pdf" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
                     @if ($material->audio_path)
                         <p class="text-xs text-slate-500 mb-1.5">
                             🔊 Đã có tệp: <span class="font-medium text-slate-600">{{ $material->audio_original_name ?: basename($material->audio_path) }}</span>
@@ -113,11 +113,11 @@
                         </p>
                     @endif
                     <input id="audio" name="audio" type="file" accept="audio/*" x-ref="audio" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                     <p class="text-xs text-slate-400 mt-1">mp3/wav/ogg/m4a/aac — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialAudioKb() / 1024) }}MB.</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
                     @if ($material->image_path)
                         <p class="text-xs text-slate-500 mb-1.5">
                             🖼️ Đã có tệp: <span class="font-medium text-slate-600">{{ $material->image_original_name ?: basename($material->image_path) }}</span>
@@ -125,14 +125,14 @@
                         </p>
                     @endif
                     <input id="image" name="image" type="file" accept="image/*" x-ref="image" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                     <p class="text-xs text-slate-400 mt-1">jpg/png/gif/webp — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialImageKb() / 1024) }}MB.</p>
                 </div>
             </div>
 
             <div class="flex gap-3 pt-2">
-                <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Lưu thay đổi</button>
-                <a href="{{ route('admin.content.show', $material->id) }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
+                <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>
+                <a href="{{ route('admin.content.show', $material->id) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
             </div>
         </form>
     </div>

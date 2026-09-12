@@ -16,55 +16,55 @@
         $computedStatusValue = $competition->computedStatus()->value;
     @endphp
 
-    <a href="{{ route('admin.competitions.show', $competition->id) }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại chi tiết</a>
+    <a href="{{ route('admin.competitions.show', $competition->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
-    <x-page-header title="✏️ Sửa cuộc thi" :subtitle="$competition->title" />
+    <x-admin.page-header title="Sửa cuộc thi" icon="pencil" :subtitle="$competition->title" />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
+        <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
             <form method="POST" action="{{ route('admin.competitions.update', $competition->id) }}" class="space-y-4"
                   x-data="{ organizerType: '{{ old('organizer_type', $competition->organizer_type->value) }}' }">
                 @csrf
                 @method('PUT')
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="title">Tên cuộc thi</label>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên cuộc thi</label>
                         <input id="title" name="title" type="text" value="{{ old('title', $competition->title) }}" required maxlength="255"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                               class="admin-input">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1" for="type">Loại</label>
-                        <x-select id="type" name="type" required>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại</label>
+                        <x-admin.select id="type" name="type" required>
                             @foreach ($types as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $competition->type->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-select>
+                        </x-admin.select>
                     </div>
                 </div>
 
-                <div class="rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-3">
-                    <p class="text-sm font-medium text-amber-700">Đơn vị tổ chức</p>
+                <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 space-y-3">
+                    <p class="text-[13px] font-medium text-amber-700">Đơn vị tổ chức</p>
                     <div>
                         <label class="block text-xs text-slate-500 mb-1" for="organizer_type">Cuộc thi do ai tổ chức?</label>
-                        <x-select id="organizer_type" name="organizer_type" x-model="organizerType" required>
+                        <x-admin.select id="organizer_type" name="organizer_type" x-model="organizerType" required>
                             @foreach ($organizerTypes as $value => $label)
                                 <option value="{{ $value }}" @selected(old('organizer_type', $competition->organizer_type->value) === $value)>{{ $label }}</option>
                             @endforeach
-                        </x-select>
+                        </x-admin.select>
                     </div>
                     <div x-show="organizerType === 'external'" x-cloak>
                         <label class="block text-xs text-slate-500 mb-1" for="organizer_name">Tên đơn vị tổ chức</label>
                         <input id="organizer_name" name="organizer_name" type="text" value="{{ old('organizer_name', $competition->organizer_name) }}" maxlength="255"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                               class="admin-input">
 
                         <label class="block text-xs text-slate-500 mb-1 mt-3">Giáo viên cố vấn/đồng hành (bắt buộc ≥1 — tăng uy tín cho cuộc thi bên ngoài)</label>
-                        <div class="max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 space-y-1">
+                        <div class="max-h-40 overflow-y-auto rounded-xl border border-sky-100 bg-white p-2 space-y-1">
                             @forelse ($teacherOptions as $t)
-                                <label class="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-amber-50 cursor-pointer">
+                                <label class="flex items-center gap-2 text-[13px] px-2 py-1 rounded hover:bg-amber-50 cursor-pointer">
                                     <input type="checkbox" name="advisor_teacher_ids[]" value="{{ $t['id'] }}" @checked(in_array($t['id'], old('advisor_teacher_ids', $selectedAdvisorIds)))>
                                     {{ $t['name'] }}
                                 </label>
@@ -76,19 +76,19 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu (tùy chọn)</label>
-                    <x-select id="assessment_id" name="assessment_id">
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu (tùy chọn)</label>
+                    <x-admin.select id="assessment_id" name="assessment_id">
                         <option value="">— Không gắn đề —</option>
                         @foreach ($assessmentOptions as $a)
                             <option value="{{ $a->id }}" @selected((string) old('assessment_id', $competition->assessment_id) === (string) $a->id)>{{ $a->title }}</option>
                         @endforeach
-                    </x-select>
+                    </x-admin.select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="rules">Thể lệ</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="rules">Thể lệ</label>
                     <textarea id="rules" name="rules" rows="4" maxlength="5000"
-                              class="w-full rounded-lg border border-slate-200 text-sm p-2.5 hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">{{ old('rules', $competition->rules) }}</textarea>
+                              class="admin-input">{{ old('rules', $competition->rules) }}</textarea>
                 </div>
 
                 {{--
@@ -121,56 +121,56 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Trạng thái</label>
-                    <p class="text-sm text-slate-700">{{ $statusLabels[$computedStatusValue] ?? $computedStatusValue }}</p>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1">Trạng thái</label>
+                    <p class="text-[13px] text-slate-700">{{ $statusLabels[$computedStatusValue] ?? $computedStatusValue }}</p>
                     <p class="text-xs text-slate-400 mt-1">🔄 Tự tính theo lịch Bắt đầu/Kết thúc/Công bố kết quả — không chọn tay. Muốn "Lưu trữ" thì dùng nút riêng ở trang chi tiết.</p>
                 </div>
                 --}}
 
-                <div class="rounded-lg bg-sky-50 border border-sky-100 p-4 space-y-3">
-                    <p class="text-sm font-medium text-sky-700">Quy tắc bảng xếp hạng (11.2)</p>
+                <div class="rounded-xl bg-sky-50 border border-sky-100 p-4 space-y-3">
+                    <p class="text-[13px] font-medium text-sky-700">Quy tắc bảng xếp hạng (11.2)</p>
                     <div>
                         <label class="block text-xs text-slate-500 mb-1" for="scoring_note">Công thức điểm / kỳ tính</label>
                         <input id="scoring_note" name="scoring_note" type="text" value="{{ old('scoring_note', $rankingRule['scoring_note'] ?? '') }}" maxlength="500"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                               class="admin-input">
                     </div>
                     <div>
                         <label class="block text-xs text-slate-500 mb-1" for="penalty_note">Penalty</label>
                         <input id="penalty_note" name="penalty_note" type="text" value="{{ old('penalty_note', $rankingRule['penalty_note'] ?? '') }}" maxlength="500"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                               class="admin-input">
                     </div>
                     <div>
                         <label class="block text-xs text-slate-500 mb-1" for="tie_break_note">Quy tắc đồng điểm</label>
                         <input id="tie_break_note" name="tie_break_note" type="text" value="{{ old('tie_break_note', $rankingRule['tie_break_note'] ?? '') }}" maxlength="500"
-                               class="w-full rounded-lg border border-slate-200 text-sm p-2.5">
+                               class="admin-input">
                     </div>
                 </div>
 
                 <div class="flex gap-3 pt-2">
-                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Lưu thay đổi</button>
-                    <a href="{{ route('admin.competitions.show', $competition->id) }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
+                    <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>
+                    <a href="{{ route('admin.competitions.show', $competition->id) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
                 </div>
             </form>
         </div>
 
-        <div class="bg-white rounded-2xl border border-rose-200 p-6 space-y-3">
+        <div class="bg-white rounded-3xl border border-blue-200 p-6 space-y-3">
             @if ($competition->status->value === 'archived')
                 {{-- SỬA 19/8: "Lưu trữ" trước đây là hành động MỘT CHIỀU tuyệt đối — bấm nhầm là
                      kẹt cứng, sửa lại Bắt đầu/Kết thúc phía trên cũng KHÔNG có tác dụng đổi
                      trạng thái nữa (xem docblock CompetitionService::unarchive()). Giờ thêm nút
                      này để tự mở lại được, không cần sửa DB tay. --}}
-                <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>🗄️</span> Đã lưu trữ</h3>
-                <p class="text-sm text-slate-500">Cuộc thi đang ở trạng thái "Lưu trữ" — sửa Bắt đầu/Kết thúc ở form bên trên sẽ KHÔNG tự đổi trạng thái, phải bấm "Bỏ lưu trữ" trước.</p>
+                <h3 class="flex items-center gap-2 text-[13px] font-bold text-blue-700"><span><x-lucide name="library" class="h-4 w-4" /></span> Đã lưu trữ</h3>
+                <p class="text-[13px] text-slate-500">Cuộc thi đang ở trạng thái "Lưu trữ" — sửa Bắt đầu/Kết thúc ở form bên trên sẽ KHÔNG tự đổi trạng thái, phải bấm "Bỏ lưu trữ" trước.</p>
                 <form method="POST" action="{{ route('admin.competitions.unarchive', $competition->id) }}">
                     @csrf
-                    <button type="submit" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium">Bỏ lưu trữ (tính lại trạng thái theo giờ)</button>
+                    <button type="submit" class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white text-[13px] font-medium">Bỏ lưu trữ (tính lại trạng thái theo giờ)</button>
                 </form>
             @else
-                <h3 class="font-medium text-rose-700 flex items-center gap-2"><span>🗄️</span> Lưu trữ cuộc thi</h3>
-                <p class="text-sm text-slate-500">Không xóa dữ liệu — chỉ chuyển trạng thái "Lưu trữ" (11.1), khớp bước cuối vòng đời cuộc thi. Sau khi lưu trữ, sửa lại ngày giờ sẽ KHÔNG tự mở lại — phải bấm "Bỏ lưu trữ".</p>
+                <h3 class="flex items-center gap-2 text-[13px] font-bold text-blue-700"><span><x-lucide name="library" class="h-4 w-4" /></span> Lưu trữ cuộc thi</h3>
+                <p class="text-[13px] text-slate-500">Không xóa dữ liệu — chỉ chuyển trạng thái "Lưu trữ" (11.1), khớp bước cuối vòng đời cuộc thi. Sau khi lưu trữ, sửa lại ngày giờ sẽ KHÔNG tự mở lại — phải bấm "Bỏ lưu trữ".</p>
                 <form method="POST" action="{{ route('admin.competitions.archive', $competition->id) }}" onsubmit="return confirm('Xác nhận lưu trữ cuộc thi này?');">
                     @csrf
-                    <button type="submit" class="w-full px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium">Lưu trữ cuộc thi</button>
+                    <button type="submit" class="w-full inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Lưu trữ cuộc thi</button>
                 </form>
             @endif
         </div>

@@ -22,15 +22,15 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <a href="{{ route('admin.orders.index') }}" class="text-sm text-slate-500 mb-4 inline-block">‹ Quay lại Đơn hàng</a>
+    <a href="{{ route('admin.orders.index') }}" class="text-[13px] text-slate-500 mb-4 inline-block">‹ Quay lại Đơn hàng</a>
 
-    <x-page-header :title="'🧾 Đơn #OD-'.$orderModel->id" :subtitle="'Người mua: '.($orderModel->buyer->name ?? '').' · Phạm vi quyền: '.$scopeLabel" />
+    <x-admin.page-header :title="'🧾 Đơn #OD-'.$orderModel->id" :subtitle="'Người mua: '.($orderModel->buyer->name ?? '').' · Phạm vi quyền: '.$scopeLabel" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-4">Sản phẩm trong đơn</h2>
-                <table class="w-full text-sm">
+                <table class="w-full text-[13px]">
                     <tbody class="divide-y divide-slate-100">
                         @foreach ($orderModel->items as $it)
                             <tr>
@@ -42,30 +42,30 @@
                     </tbody>
                 </table>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Phương thức thanh toán</h2>
-                <p class="text-sm text-slate-500">{{ $methodLabel }}</p>
+                <p class="text-[13px] text-slate-500">{{ $methodLabel }}</p>
                 {{-- TODO: hiển thị chứng từ chuyển khoản nếu có tải lên --}}
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
             <h2 class="font-medium text-slate-700 mb-4">Quyết định</h2>
             @if ($canDecide)
                 <div class="space-y-3">
                     <form method="POST" action="{{ route('admin.orders.approve', $orderModel->id) }}" onsubmit="return confirm('Xác nhận duyệt đơn này? Hệ thống sẽ tự sinh mã kích hoạt cho từng sản phẩm.');">
                         @csrf
-                        <button type="submit" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium">Duyệt & cấp mã</button>
+                        <button type="submit" class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white text-[13px] font-medium">Duyệt & cấp mã</button>
                     </form>
                     <form method="POST" action="{{ route('admin.orders.reject', $orderModel->id) }}" class="space-y-2" x-data="{ reason: '' }">
                         @csrf
-                        <label class="block text-sm text-slate-600 mb-1">Lý do từ chối (bắt buộc)</label>
-                        <textarea name="reason" x-model="reason" rows="3" required class="w-full rounded-lg border border-slate-200 text-sm p-2" placeholder="Nêu rõ lý do từ chối..."></textarea>
-                        <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-lg border border-rose-300 text-rose-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Từ chối có lý do</button>
+                        <label class="block text-[13px] text-slate-600 mb-1">Lý do từ chối (bắt buộc)</label>
+                        <textarea name="reason" x-model="reason" rows="3" required class="admin-input" placeholder="Nêu rõ lý do từ chối..."></textarea>
+                        <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-xl border border-blue-300 text-blue-600 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">Từ chối có lý do</button>
                     </form>
                 </div>
             @else
-                <p class="text-sm text-slate-400">Đơn này không còn ở trạng thái chờ duyệt (hoặc thanh toán qua VNPAY, chưa hỗ trợ duyệt thủ công) — không có quyết định nào để thao tác thêm.</p>
+                <p class="text-[13px] text-slate-400">Đơn này không còn ở trạng thái chờ duyệt (hoặc thanh toán qua VNPAY, chưa hỗ trợ duyệt thủ công) — không có quyết định nào để thao tác thêm.</p>
             @endif
         </div>
     </div>

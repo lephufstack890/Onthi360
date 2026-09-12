@@ -44,7 +44,7 @@
         };
     @endphp
 
-    <a href="{{ $backHref }}" class="text-sm text-slate-500 mb-4 inline-block">{{ $backLabel }}</a>
+    <a href="{{ $backHref }}" class="text-[13px] text-slate-500 mb-4 inline-block">{{ $backLabel }}</a>
 
     @php
         $contentStatusMessage = match (session('status')) {
@@ -65,30 +65,30 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-page-header :title="$item['title']" :subtitle="$typeLabel">
+    <x-admin.page-header :title="$item['title']" :subtitle="$typeLabel">
         @if ($editRoute)
             <x-slot:actions>
-                <a href="{{ $editRoute }}" class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">✏️ Sửa</a>
+                <a href="{{ $editRoute }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">✏️ Sửa</a>
             </x-slot:actions>
         @endif
-    </x-page-header>
+    </x-admin.page-header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-5">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-medium text-slate-700">Trạng thái hiện tại</h2>
-                    <x-status-badge :tone="$item['tone']">{{ $item['status'] }}</x-status-badge>
+                    <x-admin.badge :tone="$item['tone']">{{ $item['status'] }}</x-admin.badge>
                 </div>
 
                 @if ($hasBeenAttempted)
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-2">Đã có học sinh làm câu này — sửa nội dung sẽ tạo phiên bản mới thay vì sửa trực tiếp (6.2).</p>
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-2 mb-2">Đã có học sinh làm câu này — sửa nội dung sẽ tạo phiên bản mới thay vì sửa trực tiếp (6.2).</p>
                 @endif
 
                 @if (!empty($publishErrors))
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <p class="text-sm font-medium text-amber-800 mb-2">Chưa thể phát hành — còn thiếu:</p>
-                        <ul class="list-disc list-inside text-sm text-amber-700 space-y-1">
+                        <p class="text-[13px] font-medium text-amber-800 mb-2">Chưa thể phát hành — còn thiếu:</p>
+                        <ul class="list-disc list-inside text-[13px] text-amber-700 space-y-1">
                             @foreach ($publishErrors as $err)
                                 <li>{{ $err }}</li>
                             @endforeach
@@ -98,46 +98,46 @@
             </div>
 
             @if ($type === 'question' && $model)
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                    <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📝</span> Nội dung đề bài</h2>
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
+                    <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="pen-line" class="h-4 w-4" /></span> Nội dung đề bài</h2>
                     {{-- SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — hiện Môn/Khối ngay dòng
                          thông tin để trang chi tiết khớp với cột mới ở danh sách; sửa lại ở nút
                          Sửa (2 ô Môn học/Khối lớp). --}}
                     <p class="text-xs text-slate-400 mb-2">Mã: {{ $model->code }} · Môn: {{ $model->subjectLabel() }} · Khối: {{ $model->gradeLabel() }} · Điểm: {{ $model->points }} · Phiên bản: v{{ $model->version }}</p>
-                    <div class="rich-content text-sm text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
+                    <div class="rich-content text-[13px] text-slate-600 leading-relaxed">{!! $model->body ?: '<span class="text-slate-400">Chưa có nội dung.</span>' !!}</div>
                 </div>
             @elseif ($type === 'assessment' && $model && $model->isPdfMode())
                 {{-- SỬA 18/8 (đề PDF + phiếu đáp án, 16/8 mục 1.2): content_mode=pdf_answer_sheet
                      không có Question nào để liệt kê — thay bằng tóm tắt PDF/mã đề/đáp án/bài
                      lập trình + nút sang màn cấu hình riêng (admin.content.assessments.pdf.edit). --}}
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px] text-slate-500 space-y-1">
                     <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
                     <p>Thời gian làm bài: {{ $model->duration_minutes ? $model->duration_minutes.' phút' : 'Không giới hạn' }}</p>
                     <p>Mã đề: {{ $model->exam_code ?: '— chưa đặt' }}</p>
                 </div>
 
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📄</span> Đề PDF + phiếu đáp án</h2>
-                        <a href="{{ route('admin.content.assessments.pdf.edit', $model->id) }}" class="text-sm text-rose-600 font-medium">Quản lý đề PDF ›</a>
+                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="scroll-text" class="h-4 w-4" /></span> Đề PDF + phiếu đáp án</h2>
+                        <a href="{{ route('admin.content.assessments.pdf.edit', $model->id) }}" class="text-[13px] text-blue-600 font-medium">Quản lý đề PDF ›</a>
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                         <div class="rounded-xl bg-slate-50 p-3">
                             <p class="text-xs text-slate-400">File PDF đề</p>
-                            <p class="text-sm font-medium {{ $model->pdf_path ? 'text-emerald-600' : 'text-amber-600' }}">{{ $model->pdf_path ? 'Đã tải' : 'Chưa tải' }}</p>
+                            <p class="text-[13px] font-medium {{ $model->pdf_path ? 'text-emerald-600' : 'text-amber-600' }}">{{ $model->pdf_path ? 'Đã tải' : 'Chưa tải' }}</p>
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3">
                             <p class="text-xs text-slate-400">PDF lời giải</p>
-                            <p class="text-sm font-medium {{ $model->solution_pdf_path ? 'text-emerald-600' : 'text-slate-400' }}">{{ $model->solution_pdf_path ? 'Đã tải' : 'Chưa có' }}</p>
+                            <p class="text-[13px] font-medium {{ $model->solution_pdf_path ? 'text-emerald-600' : 'text-slate-400' }}">{{ $model->solution_pdf_path ? 'Đã tải' : 'Chưa có' }}</p>
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3">
                             <p class="text-xs text-slate-400">Câu đáp án</p>
-                            <p class="text-sm font-medium text-slate-700">{{ $model->answerKeys->count() }}</p>
+                            <p class="text-[13px] font-medium text-slate-700">{{ $model->answerKeys->count() }}</p>
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3">
                             <p class="text-xs text-slate-400">Bài lập trình</p>
-                            <p class="text-sm font-medium text-slate-700">{{ $model->codingItems->count() }}</p>
+                            <p class="text-[13px] font-medium text-slate-700">{{ $model->codingItems->count() }}</p>
                         </div>
                     </div>
 
@@ -147,7 +147,7 @@
                 </div>
             @elseif ($type === 'assessment' && $model)
                 @php $assessmentTypeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻']; @endphp
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px] text-slate-500 space-y-1">
                     <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
                     <p>Thời gian làm bài: {{ $model->duration_minutes ? $model->duration_minutes.' phút' : 'Không giới hạn' }}</p>
                 </div>
@@ -155,21 +155,21 @@
                 {{-- SỬA 18/8: trước đây chỗ này chỉ có 1 dòng TODO, click "Xem" không thấy câu hỏi
                      nào trong đề — nay hiện đúng danh sách câu hỏi thật ($model->items, đã eager-load
                      items.question ở ContentService::showData()) + nút sang màn "Chọn câu hỏi". --}}
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span>📋</span> Câu hỏi trong đề ({{ $model->items->count() }})</h2>
-                        <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="text-sm text-rose-600 font-medium">Quản lý câu hỏi ›</a>
+                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="clipboard-list" class="h-4 w-4" /></span> Câu hỏi trong đề ({{ $model->items->count() }})</h2>
+                        <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="text-[13px] text-blue-600 font-medium">Quản lý câu hỏi ›</a>
                     </div>
 
                     @if ($model->items->isEmpty())
-                        <x-empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
+                        <x-admin.empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
                     @else
                         <div class="divide-y divide-slate-100">
                             @foreach ($model->items as $it)
                                 <div class="flex items-center justify-between py-2.5 gap-3">
                                     <div class="flex items-center gap-2 min-w-0">
                                         <span class="text-base shrink-0">{{ $assessmentTypeIcons[$it->question?->type?->value] ?? '❓' }}</span>
-                                        <p class="text-sm text-slate-700 truncate">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
+                                        <p class="text-[13px] text-slate-700 truncate">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
                                     </div>
                                     <span class="text-xs text-slate-400 shrink-0">{{ $it->effectivePoints() }} điểm</span>
                                 </div>
@@ -178,26 +178,26 @@
                     @endif
                 </div>
             @elseif ($type === 'material' && $model)
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-500 space-y-1">
+                <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px] text-slate-500 space-y-1">
                     <p>Thuộc sản phẩm: {{ $model->product->title ?? '—' }}</p>
                     <p>Loại: {{ ['chapter' => 'Chương', 'section' => 'Bài/Mục', 'assessment_ref' => 'Tham chiếu đề/bộ bài'][$model->type] ?? $model->type }}</p>
                 </div>
             @else
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Không tìm thấy nội dung phù hợp.</p>
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
+                    <p class="text-[13px] text-slate-500">Không tìm thấy nội dung phù hợp.</p>
                 </div>
             @endif
         </div>
 
         @if ($type)
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+            <div class="bg-white rounded-3xl border border-sky-100 p-5 space-y-3">
                 <h3 class="font-medium text-slate-700 mb-1">Hành động</h3>
 
                 @if ($statusValue !== 'published')
                     <form method="POST" action="{{ $publishRoute }}">
                         @csrf
                         <button type="submit" @disabled(!empty($publishErrors))
-                                class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">
                             Phát hành
                         </button>
                     </form>
@@ -208,8 +208,8 @@
                         <p class="text-xs text-slate-500 pt-2">Trả về nháp (bắt buộc nêu lý do, 10.4):</p>
                         <form method="POST" action="{{ $rejectRoute }}" class="space-y-2">
                             @csrf
-                            <textarea name="reason" x-model="reason" rows="2" required class="w-full rounded-lg border border-slate-200 text-sm p-2" placeholder="Lý do..."></textarea>
-                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-lg border border-amber-300 text-amber-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Trả về nháp</button>
+                            <textarea name="reason" x-model="reason" rows="2" required class="admin-input" placeholder="Lý do..."></textarea>
+                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-xl border border-amber-300 text-amber-700 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">Trả về nháp</button>
                         </form>
                     </div>
                 @endif
@@ -219,8 +219,8 @@
                         <p class="text-xs text-slate-500 pt-2">Lưu trữ (bắt buộc nêu lý do, 10.4):</p>
                         <form method="POST" action="{{ $archiveRoute }}" class="space-y-2">
                             @csrf
-                            <textarea name="reason" x-model="reason" rows="2" required class="w-full rounded-lg border border-slate-200 text-sm p-2" placeholder="Lý do..."></textarea>
-                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-lg border border-rose-300 text-rose-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Lưu trữ</button>
+                            <textarea name="reason" x-model="reason" rows="2" required class="admin-input" placeholder="Lý do..."></textarea>
+                            <button type="submit" :disabled="reason.trim().length === 0" class="w-full px-4 py-2 rounded-xl border border-blue-300 text-blue-600 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">Lưu trữ</button>
                         </form>
                     </div>
                 @endif

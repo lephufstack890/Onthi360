@@ -40,15 +40,15 @@
         $defaultTitle = old('title', 'Học liệu '.now()->format('d/m/Y H:i'));
     @endphp
 
-    <a href="{{ $backHref }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">{{ $backLabel }}</a>
+    <a href="{{ $backHref }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">{{ $backLabel }}</a>
 
-    <x-page-header title="📦 Tạo học liệu" subtitle="Học liệu là chương/bài/mục thuộc một sản phẩm (sách, chuyên đề, đề thi, khóa học) — 6.5." />
+    <x-admin.page-header title="Tạo học liệu" icon="package" subtitle="Học liệu là chương/bài/mục thuộc một sản phẩm (sách, chuyên đề, đề thi, khóa học) — 6.5." />
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6"
+    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6"
          x-data="{
             type: '{{ $defaultType }}',
             productId: '{{ old('product_id', $selectedProductId) }}',
@@ -76,13 +76,13 @@
                  trang 1 sản phẩm cụ thể — trường hợp thường gặp), nên không cần phản ứng động. --}}
             <template x-if="!lockProduct">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
-                    <x-select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="product_id">Thuộc sản phẩm</label>
+                    <x-admin.select id="product_id" name="product_id" required x-model="productId" @change="selectedParentId = ''">
                         <option value="">— Chọn sản phẩm —</option>
                         @foreach ($products as $p)
                             <option value="{{ $p['id'] }}" @selected((string) old('product_id', $selectedProductId) === (string) $p['id'])>{{ $p['title'] }}</option>
                         @endforeach
-                    </x-select>
+                    </x-admin.select>
                 </div>
             </template>
             <template x-if="lockProduct">
@@ -94,17 +94,17 @@
                  đề — không hiện với Khóa học, xem ProductType::chapterLabel()). Nhãn field tự
                  đổi theo loại sản phẩm: "Thuộc chương"/"Thuộc phần"/"Thuộc đề". --}}
             <div x-show="chapterLabel" x-cloak>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="parent_id" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
+                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="parent_id" x-text="'Thuộc ' + (chapterLabel || '').toLowerCase()"></label>
                 <template x-if="chapters.length > 0">
-                    <x-select id="parent_id" name="parent_id" x-model="selectedParentId">
+                    <x-admin.select id="parent_id" name="parent_id" x-model="selectedParentId">
                         <option value="">— Chưa gắn —</option>
                         <template x-for="c in chapters" :key="c.id">
                             <option :value="String(c.id)" x-text="c.title"></option>
                         </template>
-                    </x-select>
+                    </x-admin.select>
                 </template>
                 <template x-if="chapters.length === 0">
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2"
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2"
                        x-text="'Tài liệu này chưa có ' + (chapterLabel || '').toLowerCase() + ' nào — vào trang tài liệu để tạo trước.'"></p>
                 </template>
             </div>
@@ -120,13 +120,13 @@
             <input type="hidden" name="title" value="{{ $defaultTitle }}" x-ref="titleInput">
 
             <div x-show="type === 'assessment_ref'" x-cloak>
-                <label class="block text-sm font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
-                <x-select id="assessment_id" name="assessment_id">
+                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu</label>
+                <x-admin.select id="assessment_id" name="assessment_id">
                     <option value="">— Chọn đề/bộ bài —</option>
                     @foreach ($assessments as $a)
                         <option value="{{ $a->id }}" @selected((string) $defaultAssessmentId === (string) $a->id)>{{ $a->title }}</option>
                     @endforeach
-                </x-select>
+                </x-admin.select>
             </div>
 
             {{--
@@ -139,27 +139,27 @@
             --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="pdf">📄 Tệp PDF (tùy chọn)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="pdf">📄 Tệp PDF (tùy chọn)</label>
                     <input id="pdf" name="pdf" type="file" accept="application/pdf" x-ref="pdf" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="audio">🔊 Tệp audio (tùy chọn)</label>
                     <input id="audio" name="audio" type="file" accept="audio/*" x-ref="audio" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                     <p class="text-xs text-slate-400 mt-1">mp3/wav/ogg/m4a/aac — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialAudioKb() / 1024) }}MB.</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="image">🖼️ Tệp ảnh (tùy chọn, hỗ trợ GIF động)</label>
                     <input id="image" name="image" type="file" accept="image/*" x-ref="image" @change="updateTitleFromFiles()"
-                           class="w-full rounded-lg border border-slate-200 text-sm p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-600 file:px-3 file:py-1 file:text-sm hover:border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-300 transition">
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700">
                     <p class="text-xs text-slate-400 mt-1">jpg/png/gif/webp — tối đa {{ number_format(\App\Services\Admin\ContentService::maxMaterialImageKb() / 1024) }}MB.</p>
                 </div>
             </div>
 
             <div class="flex gap-3 pt-2">
-                <button type="submit" class="px-5 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium shadow-sm hover:bg-rose-700 transition">Tạo học liệu</button>
-                <a href="{{ $backHref }}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-rose-200 hover:text-rose-600 transition">Huỷ</a>
+                <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo học liệu</button>
+                <a href="{{ $backHref }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
             </div>
         </form>
     </div>

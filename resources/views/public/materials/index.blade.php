@@ -32,7 +32,6 @@
                 'id' => $m['id'],
                 'tab' => $key,
                 'search' => mb_strtolower(trim($m['title'].' '.($m['tag'] ?? '').' '.($m['highlight'] ?? '').' '.($m['author'] ?? ''))),
-                // Dữ liệu hiện trong hộp chi tiết — lấy đúng từ thẻ, không gọi thêm truy vấn.
                 'title' => $m['title'],
                 'tag' => $m['tag'] ?? '',
                 'author' => $m['author'] ?? '',
