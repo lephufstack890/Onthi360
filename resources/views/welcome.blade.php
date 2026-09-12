@@ -124,12 +124,36 @@
         ['step' => '5. Thi & Đánh giá', 'desc' => 'Cuộc thi, đánh giá phát năng lực', 'img' => asset('assets/step-5.png'), 'href' => route('competitions.index')],
     ];
 
-    // [HOME-10] 3 câu chuyện đồng hành — nội dung thiết kế của bản mẫu.
-    $testimonials = [
-        ['quote' => '“ Nhờ Ôn Thi 360, mình tự tin hơn rất nhiều trong học tập và đạt kết quả tốt ở kỳ thi HSG cấp tỉnh. Nền tảng giúp mình có lộ trình rõ ràng và bài tập chất lượng. ”', 'author' => 'Nguyễn Hà Phương', 'role' => 'Học sinh lớp 12', 'banner' => asset('assets/testi-banner-1.png'), 'avatar' => asset('assets/testi-av-1.png')],
-        ['quote' => '“ Tôi rất yên tâm khi con học tại Ôn Thi 360. Con tiến bộ rõ rệt, chúng tôi có thể theo dõi tiến độ và nhận được sự hỗ trợ tận tình từ đội ngũ giáo viên. ”', 'author' => 'Chị Trần Thị Mai', 'role' => 'Phụ huynh học sinh', 'banner' => asset('assets/testi-banner-2.png'), 'avatar' => asset('assets/testi-av-2.png')],
-        ['quote' => '“ Ôn Thi 360 là nền tảng hữu ích, giúp học sinh tiếp cận kiến thức Tin học một cách hệ thống, hiện đại và hiệu quả. ”', 'author' => 'Thầy Lê Minh Đức', 'role' => 'Giáo viên Tin học', 'banner' => asset('assets/testi-banner-3.png'), 'avatar' => asset('assets/testi-av-3.png')],
-    ];
+    /*
+     * [HOME-10] Câu chuyện đồng hành.
+     *
+     * SỬA 12/9 (khách yêu cầu "đăng ở trang quản trị xong hiện ở trang chủ") — nội dung này
+     * giờ do Admin đăng (Quản trị → Câu chuyện đồng hành), lấy qua HomeService::testimonials().
+     *
+     * SỬA 13/9 (khách yêu cầu "trang chủ public lấy dữ liệu từ CSDL đổ ra") — khối này
+     * bây giờ CHỈ đổ dữ liệu thật từ bảng testimonials. Không còn bất kỳ câu chuyện nào viết cứng
+     * trong giao diện nữa.
+     *
+     * Quản trị chưa bật câu chuyện nào thì ẨN HẴN cả khối, KHÔNG lùi về câu mẫu. Lý do: đây là
+     * lời chứng thực của người học — để một câu bịa nằm trên trang công khai vừa mất niềm tin của
+     * phụ huynh, vừa rủi ro với Google. Thà thiếu một khối còn hơn đăng lời không có thật.
+     *
+     * Bộ 3 câu mẫu của bản thiết kế được GIỮ LẠI bên dưới nhưng TẮT (cờ $homeTestimonialFallback
+     * = false) — không xoá, để khi nào cần xem thử bố cục thì đổi cờ thành true là có lại.
+     */
+    $testimonials = $testimonials ?? [];
+
+    // Cờ xem thử bố cục bằng câu mẫu — MẶC ĐỊNH TẮT, xem ghi chú ở trên.
+    $homeTestimonialFallback = false;
+    $testimonialsAreSamples = $homeTestimonialFallback && count($testimonials) === 0;
+
+    if ($testimonialsAreSamples) {
+        $testimonials = [
+            ['quote' => '“ Nhờ Ôn Thi 360, mình tự tin hơn rất nhiều trong học tập và đạt kết quả tốt ở kỳ thi HSG cấp tỉnh. Nền tảng giúp mình có lộ trình rõ ràng và bài tập chất lượng. ”', 'author' => 'Nguyễn Hà Phương', 'role' => 'Học sinh lớp 12', 'banner' => asset('assets/testi-banner-1.png'), 'avatar' => asset('assets/testi-av-1.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+            ['quote' => '“ Tôi rất yên tâm khi con học tại Ôn Thi 360. Con tiến bộ rõ rệt, chúng tôi có thể theo dõi tiến độ và nhận được sự hỗ trợ tận tình từ đội ngũ giáo viên. ”', 'author' => 'Chị Trần Thị Mai', 'role' => 'Phụ huynh học sinh', 'banner' => asset('assets/testi-banner-2.png'), 'avatar' => asset('assets/testi-av-2.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+            ['quote' => '“ Ôn Thi 360 là nền tảng hữu ích, giúp học sinh tiếp cận kiến thức Tin học một cách hệ thống, hiện đại và hiệu quả. ”', 'author' => 'Thầy Lê Minh Đức', 'role' => 'Giáo viên Tin học', 'banner' => asset('assets/testi-banner-3.png'), 'avatar' => asset('assets/testi-av-3.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+        ];
+    }
 
     // [HOME-02A] Menu trái — cùng bộ mục với header, dẫn sang link thật.
     $homeSideNav = [
@@ -138,7 +162,7 @@
         ['label' => 'Luyện tập', 'route' => 'practice.index', 'icon' => 'code'],
         ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => 'file-text'],
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => 'trophy'],
-        ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'bar-chart'],
+        ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'bar-chart-2'],
         ['label' => 'Giáo viên & chuyên gia', 'route' => 'teachers.index', 'icon' => 'users'],
         ['label' => 'Thông tin', 'route' => 'info.index', 'icon' => 'info'],
     ];
@@ -775,7 +799,11 @@
             </section>
         </aside>
 
-        {{-- ══════ [HOME-10] CÂU CHUYỆN ĐỒNG HÀNH ══════ --}}
+        {{-- ══════ [HOME-10] CÂU CHUYỆN ĐỒNG HÀNH ══════
+             Dữ liệu lấy từ CSDL (Quản trị → Câu chuyện đồng hành). Chưa bật câu nào thì ẩn cả khối. --}}
+        @if (count($testimonials) > 0)
+        @include('partials.seo-testimonials', ['testimonials' => $testimonials])
+
         <section id="testimonials" class="lg:col-span-2 bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-3">
@@ -795,12 +823,19 @@
                     @foreach ($testimonials as $t)
                         <div class="bg-[#F8FBFE] rounded-2xl border border-sky-100/80 overflow-hidden flex flex-col justify-between hover:shadow-md transition-all">
                             <div class="w-full h-22 sm:h-24 overflow-hidden">
-                                <img src="{{ $t['banner'] }}" alt="{{ $t['author'] }}" class="w-full h-full object-cover">
+                                <img src="{{ $t['banner'] }}" alt="Câu chuyện của {{ $t['author'] }} — {{ $t['role'] }}" loading="lazy" decoding="async" class="w-full h-full object-cover">
                             </div>
                             <div class="p-2.5 flex-1 flex flex-col justify-between bg-white m-1.5 rounded-xl border border-sky-50 shadow-2xs">
                                 <p class="type-body mb-2 line-clamp-3 italic text-slate-600">{{ $t['quote'] }}</p>
+                                @if (! empty($t['rating']))
+                                    <div class="mb-1.5 flex items-center gap-0.5" aria-label="{{ $t['rating'] }} trên 5 sao">
+                                        @for ($star = 1; $star <= 5; $star++)
+                                            <x-lucide name="star" class="h-3 w-3 {{ $star <= $t['rating'] ? 'fill-amber-400 text-amber-500' : 'text-slate-200' }}" />
+                                        @endfor
+                                    </div>
+                                @endif
                                 <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-                                    <img src="{{ $t['avatar'] }}" alt="{{ $t['author'] }}" class="w-6.5 h-6.5 rounded-full object-cover border border-sky-200 shadow-2xs">
+                                    <img src="{{ $t['avatar'] }}" alt="Ảnh {{ $t['author'] }} — {{ $t['role'] }}" loading="lazy" decoding="async" class="w-6.5 h-6.5 rounded-full object-cover border border-sky-200 shadow-2xs">
                                     <div class="overflow-hidden text-left">
                                         <p class="type-card-title truncate">{{ $t['author'] }}</p>
                                         <p class="type-meta mt-0.5 truncate text-slate-400">{{ $t['role'] }}</p>
@@ -832,6 +867,7 @@
                 </div>
             </div>
         </section>
+        @endif
 
         {{-- ══════ [HOME-11] HỖ TRỢ TOÀN CHIỀU NGANG ══════ --}}
         <div id="support" class="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">

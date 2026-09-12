@@ -15,6 +15,7 @@ use App\Repositories\Contracts\ParentLinkRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
+use App\Repositories\Contracts\TestimonialRepositoryInterface;
 
 /**
  * home (PUB-01/02, 12.1: hero → lộ trình → năng lực chấm → khóa/tài liệu nổi bật → cuộc thi
@@ -52,6 +53,8 @@ class HomeService
         private readonly AssignmentRepositoryInterface $assignments,
         private readonly AttemptRepositoryInterface $attempts,
         private readonly ParentLinkRepositoryInterface $parentLinks,
+        // SỬA 12/9 — khối [HOME-10] "Câu chuyện đồng hành" giờ lấy từ CSDL, do Admin đăng.
+        private readonly TestimonialRepositoryInterface $testimonialsRepo,
     ) {}
 
     public function indexData(): array
@@ -79,6 +82,7 @@ class HomeService
             // thẳng từ cơ sở dữ liệu thật.
             'systemNotices' => $this->systemNotices(),
             'topStudents' => $this->topStudents(),
+            'testimonials' => $this->testimonials(),
             'learningSpace' => $this->learningSpace(auth()->user()),
         ];
     }
@@ -221,6 +225,50 @@ class HomeService
      *
      * @return array{title:?string, rows: array<int, array{rank:int,name:string,score:float}>}
      */
+    /**
+     * [HOME-10] "Câu chuyện đồng hành" — trước đây ghi cứng trong welcome.blade.php, giờ do
+     * Admin đăng ở Quản trị → Câu chuyện đồng hành.
+     *
+     * Trả về MẢNG RỖNG khi chưa có câu chuyện nào được bật hiển thị; view tự lùi về 3 câu mẫu
+     * của bộ giao diện để khối không bị trống (xem welcome.blade.php).
+     *
+     * Khoá 'verified' quyết định câu chuyện đó có được gắn schema.org/Review gửi Google hay
+     * không — xem partials/seo-testimonials.blade.php.
+     */
+    private function testimonials(): array
+    {
+        /*
+         * Chặn lỗi lúc TRIỂN KHAI: mã nguồn mới lên máy chủ trước, `php artisan migrate` chạy
+         * sau — trong khoảng giữa đó bảng testimonials chưa tồn tại. Không có lớp chặn này thì
+         * TRANG CHỦ CÔNG KHAI sẽ lỗi 500 cho mọi khách vào xem. Chưa có bảng thì coi như chưa
+         * có câu chuyện nào, view tự lùi về 3 câu mẫu của bộ giao diện.
+         * Kết quả được nhớ trong 1 lần chạy để không hỏi lược đồ CSDL nhiều lần mỗi trang.
+         */
+        static $tableExists = null;
+
+        if ($tableExists === null) {
+            $tableExists = \Illuminate\Support\Facades\Schema::hasTable('testimonials');
+        }
+
+        if (! $tableExists) {
+            return [];
+        }
+
+        return $this->testimonialsRepo
+            ->publishedForHome(\App\Services\Admin\TestimonialService::HOME_LIMIT)
+            ->map(fn ($t) => [
+                'quote' => $t->quote,
+                'author' => $t->author_name,
+                'role' => trim($t->author_role.($t->author_org ? ' · '.$t->author_org : ''), ' ·'),
+                'avatar' => $t->avatarUrl(),
+                'banner' => $t->bannerUrl(),
+                'rating' => $t->rating,
+                'verified' => $t->isVerified(),
+                'publishedAt' => $t->published_at?->toDateString(),
+            ])
+            ->all();
+    }
+
     private function topStudents(): array
     {
         $competition = $this->competitionsRepo->query()

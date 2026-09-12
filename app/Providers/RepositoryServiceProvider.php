@@ -35,6 +35,7 @@ use App\Repositories\Contracts\SessionResourceRepositoryInterface;
 use App\Repositories\Contracts\SystemSettingRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
+use App\Repositories\Contracts\TestimonialRepositoryInterface;
 use App\Repositories\Contracts\TokenTopupRepositoryInterface;
 use App\Repositories\Contracts\UploadedDocumentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -71,6 +72,7 @@ use App\Repositories\Eloquent\SessionResourceRepository;
 use App\Repositories\Eloquent\SystemSettingRepository;
 use App\Repositories\Eloquent\TagRepository;
 use App\Repositories\Eloquent\TeacherProfileRepository;
+use App\Repositories\Eloquent\TestimonialRepository;
 use App\Repositories\Eloquent\TokenTopupRepository;
 use App\Repositories\Eloquent\UploadedDocumentRepository;
 use App\Repositories\Eloquent\UserRepository;
@@ -105,6 +107,7 @@ class RepositoryServiceProvider extends ServiceProvider
         ParentLinkRepositoryInterface::class => ParentLinkRepository::class,
         PermissionRepositoryInterface::class => PermissionRepository::class,
         TeacherProfileRepositoryInterface::class => TeacherProfileRepository::class,
+        TestimonialRepositoryInterface::class => TestimonialRepository::class,
         AttendanceRepositoryInterface::class => AttendanceRepository::class,
         ReviewRepositoryInterface::class => ReviewRepository::class,
         ReviewReportRepositoryInterface::class => ReviewReportRepository::class,

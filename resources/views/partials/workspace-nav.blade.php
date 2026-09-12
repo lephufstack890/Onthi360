@@ -4,6 +4,8 @@
      Bên gọi truyền vào:
        $items        mảng ['label','icon','href','active'] — DO TỪNG SIDEBAR TỰ DỰNG, giữ
                      nguyên route và điều kiện "đang mở" vốn có của khu đó.
+                     Thêm khoá 'badge' (số) thì hiện viên số việc tồn bên phải nhãn; khu nào
+                     không truyền thì không đổi gì.
        $wsNavTitle   nhãn nhỏ phía trên ("Không gian học tập"...)
        $wsUserName / $wsRoleLabel  hiển thị ở đầu thẻ
        $wsNavCompact true khi nhúng vào ngăn kéo của màn hình nhỏ
@@ -35,7 +37,11 @@
                @if ($item['active']) aria-current="page" @endif
                class="flex min-h-11 w-full shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 {{ $item['active'] ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-600 hover:bg-sky-50 hover:text-blue-700' }}">
                 <x-lucide :name="$item['icon']" class="h-4 w-4 shrink-0" />
-                <span class="min-w-0 truncate">{{ $item['label'] }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ $item['label'] }}</span>
+                @if (($item['badge'] ?? 0) > 0)
+                    <span aria-label="{{ $item['badge'] }} việc chưa xử lý"
+                          class="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-black leading-none {{ $item['active'] ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-700' }}">{{ $item['badge'] > 99 ? '99+' : $item['badge'] }}</span>
+                @endif
             </a>
         @endforeach
     </nav>

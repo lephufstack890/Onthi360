@@ -51,7 +51,7 @@ class ReviewService
             ['label' => 'Chờ kiểm duyệt', 'href' => route('admin.reviews.index'), 'active' => $tab === 'pending', 'count' => $counts['pending']],
             ['label' => 'Đã báo cáo', 'href' => route('admin.reviews.index', ['tab' => 'reported']), 'active' => $tab === 'reported', 'count' => $counts['reported']],
             ['label' => 'Đã công bố', 'href' => route('admin.reviews.index', ['tab' => 'published']), 'active' => $tab === 'published', 'count' => $counts['published']],
-            ['label' => 'Tin nhắn liên hệ', 'href' => route('admin.contact-messages.index'), 'active' => false, 'count' => $this->contactMessages->countNew()],
+            ['label' => 'Yêu cầu hỗ trợ', 'href' => route('admin.contact-messages.index'), 'active' => false, 'count' => $this->contactMessages->countNew()],
         ];
 
         $query = $this->reviews->query()->with('reviewer');

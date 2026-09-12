@@ -53,6 +53,7 @@ use App\Http\Controllers\Admin\ContentController as AdminContentController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FeaturedTeacherController as AdminFeaturedTeacherController;
+use App\Http\Controllers\Admin\TestimonialController as AdminTestimonialController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductChapterController as AdminProductChapterController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
@@ -430,7 +431,15 @@ Route::middleware(['auth'])->group(function () {
         Route::post('reviews/{review}/reply', [AdminReviewController::class, 'reply'])->name('reviews.reply');
         Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
 
+        /*
+         * Yêu cầu hỗ trợ gửi từ form ở trang Thông tin công khai.
+         * CHỈ QUẢN TRỊ VIÊN đọc được — nhóm này đang ở trong middleware role:admin,super_admin
+         * nên tài khoản biên tập / giáo viên / học sinh gõ thẳng địa chỉ cũng bị chặn.
+         */
         Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
+        Route::post('contact-messages/{contactMessage}/status', [AdminContactMessageController::class, 'updateStatus'])->name('contact-messages.status');
+        Route::post('contact-messages/{contactMessage}/note', [AdminContactMessageController::class, 'note'])->name('contact-messages.note');
+        // Đường dẫn cũ, giữ lại cho liên kết/dấu trang đã lưu.
         Route::post('contact-messages/{contactMessage}/resolve', [AdminContactMessageController::class, 'resolve'])->name('contact-messages.resolve');
 
         Route::get('competitions', [AdminCompetitionController::class, 'index'])->name('competitions.index');
@@ -445,6 +454,15 @@ Route::middleware(['auth'])->group(function () {
         Route::put('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
         Route::delete('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
         Route::post('competitions/{competition}/recompute-aggregate', [AdminCompetitionController::class, 'recomputeAggregate'])->name('competitions.recompute-aggregate');
+        // SỬA 12/9 — khối "Câu chuyện đồng hành" của trang chủ ([HOME-10]) giờ do Admin đăng.
+        Route::get('testimonials', [AdminTestimonialController::class, 'index'])->name('testimonials.index');
+        Route::get('testimonials/create', [AdminTestimonialController::class, 'create'])->name('testimonials.create');
+        Route::post('testimonials', [AdminTestimonialController::class, 'store'])->name('testimonials.store');
+        Route::get('testimonials/{testimonial}/edit', [AdminTestimonialController::class, 'edit'])->name('testimonials.edit');
+        Route::put('testimonials/{testimonial}', [AdminTestimonialController::class, 'update'])->name('testimonials.update');
+        Route::post('testimonials/{testimonial}/toggle', [AdminTestimonialController::class, 'togglePublish'])->name('testimonials.toggle');
+        Route::delete('testimonials/{testimonial}', [AdminTestimonialController::class, 'destroy'])->name('testimonials.destroy');
+
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');

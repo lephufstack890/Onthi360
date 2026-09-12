@@ -125,8 +125,16 @@
                     <x-lucide name="check-circle" class="mx-auto mb-2 h-10 w-10 text-emerald-500" />
                     <h4 class="text-sm font-bold text-slate-800">Đã gửi yêu cầu thành công!</h4>
                     <p class="mt-1 text-xs text-slate-500">Chuyên viên hỗ trợ sẽ liên hệ với bạn ngay.</p>
+                    {{-- Mã phiếu — để hai bên nhắc tới cùng một yêu cầu khi gọi lại hoặc trả lời email. --}}
+                    @if (session('contact-ticket'))
+                        <p class="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-[#F0F6FC] px-3 py-1.5 text-[11px] text-slate-600">
+                            <x-lucide name="ticket" class="h-3.5 w-3.5 text-sky-600" />
+                            Mã phiếu của bạn: <strong class="font-bold tracking-wide text-[#0B3C78]">{{ session('contact-ticket') }}</strong>
+                        </p>
+                        <p class="mt-1.5 text-[11px] text-slate-400">Giữ lại mã này để tiện tra cứu khi liên hệ lại.</p>
+                    @endif
                     <button type="button" @click="resend = true" x-show="!resend"
-                            class="mt-3 text-[11px] font-bold text-[#126F91] hover:underline">Gửi thêm một yêu cầu khác</button>
+                            class="mt-3 block w-full text-[11px] font-bold text-[#126F91] hover:underline">Gửi thêm một yêu cầu khác</button>
                 </div>
             @endif
 
@@ -151,6 +159,31 @@
                     @error('email') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- SỬA 13/9 — thêm số điện thoại và loại yêu cầu. Phụ huynh phần lớn chỉ tiện
+                     nghe máy, còn loại yêu cầu giúp bộ phận hỗ trợ lọc và chuyển đúng người
+                     thay vì phải đọc hết mới biết việc của ai. --}}
+                <div>
+                    <label for="contact-phone" class="mb-1 block text-[11px] font-bold text-slate-700">
+                        Số điện thoại <span class="font-medium text-slate-400">(không bắt buộc)</span>
+                    </label>
+                    <input id="contact-phone" name="phone" type="tel" maxlength="30" inputmode="tel"
+                           value="{{ old('phone') }}" placeholder="09xx xxx xxx"
+                           class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('phone') ? 'border-rose-300' : 'border-sky-200' }}">
+                    @error('phone') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="contact-topic" class="mb-1 block text-[11px] font-bold text-slate-700">Loại yêu cầu</label>
+                    <select id="contact-topic" name="topic"
+                            class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('topic') ? 'border-rose-300' : 'border-sky-200' }}">
+                        <option value="">— Chọn để chúng tôi chuyển đúng bộ phận —</option>
+                        @foreach (\App\Enums\SupportTopic::options() as $topicValue => $topicLabel)
+                            <option value="{{ $topicValue }}" @selected(old('topic') === $topicValue)>{{ $topicLabel }}</option>
+                        @endforeach
+                    </select>
+                    @error('topic') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                </div>
+
                 <div>
                     <label for="contact-message" class="mb-1 block text-[11px] font-bold text-slate-700">Nội dung cần hỗ trợ</label>
                     <textarea id="contact-message" name="message" rows="3" required maxlength="2000"
@@ -159,11 +192,24 @@
                     @error('message') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- Bẫy máy gửi rác: ẩn khỏi mắt người và khỏi trình đọc màn hình, người thật
+                     không bao giờ điền. Máy điền hết mọi ô nên sẽ tự lộ — xem ContactController.
+                     Cách này thay cho CAPTCHA, vốn vừa phiền vừa khó với học sinh nhỏ tuổi. --}}
+                <div class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                    <label for="contact-website">Để trống ô này</label>
+                    <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off" value="">
+                </div>
+
                 <button type="submit"
                         class="flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-[11px] font-bold text-white shadow-sm transition-colors hover:bg-[#0F5F7A]">
                     <x-lucide name="send" class="w-3.5 h-3.5" />
                     <span>Gửi yêu cầu hỗ trợ</span>
                 </button>
+
+                <p class="text-[10px] leading-relaxed text-slate-400">
+                    Thông tin bạn gửi chỉ dùng để liên hệ hỗ trợ và <strong class="font-bold">chỉ quản trị viên đọc được</strong>,
+                    không hiển thị ở bất kỳ trang công khai nào.
+                </p>
             </form>
 
             {{-- Kênh liên hệ chính thức — dữ liệu thật từ InfoService::contact() --}}
