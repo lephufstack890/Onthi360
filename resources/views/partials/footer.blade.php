@@ -41,7 +41,7 @@
                 <ul class="type-footer-link flex flex-col gap-1.5 text-slate-600">
                     <li><a href="{{ route('practice.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Dành cho học sinh</a></li>
                     <li><a href="{{ route('info.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Dành cho phụ huynh</a></li>
-                    <li><a href="{{ route('teachers.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Giáo viên &amp; chuyên gia</a></li>
+                    <li><a href="{{ route('teachers.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Giáo viên & chuyên gia</a></li>
                     <li><a href="{{ route('leaderboard.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Bảng xếp hạng</a></li>
                 </ul>
             </div>
@@ -53,7 +53,7 @@
                     <li><a href="{{ route('info.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Giới thiệu Ôn Thi 360</a></li>
                     <li><a href="{{ route('access.activate') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Hướng dẫn kích hoạt mã</a></li>
                     <li><a href="{{ route('info.policies.show', 'dieu-khoan') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Chính sách bản quyền</a></li>
-                    <li><a href="{{ route('info.index') }}#lien-he" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Liên hệ &amp; Hỗ trợ</a></li>
+                    <li><a href="{{ route('info.index') }}#lien-he" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Liên hệ & Hỗ trợ</a></li>
                 </ul>
             </div>
         </div>

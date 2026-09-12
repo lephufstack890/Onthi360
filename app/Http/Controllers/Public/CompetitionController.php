@@ -14,7 +14,7 @@ class CompetitionController extends Controller
 
     public function index(Request $request): View
     {
-        return view('public.competitions.index', $this->competitionService->indexData());
+        return view('public.competitions.index', $this->competitionService->indexData(Auth::user()));
     }
 
     public function show(Request $request, int $competition): View

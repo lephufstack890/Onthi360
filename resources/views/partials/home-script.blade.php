@@ -1,6 +1,10 @@
 <script>
     function onthiHomePage(config) {
         return {
+            // [HOME-06A] vai trò đang xem (chỉ có tác dụng khi người dùng giữ nhiều vai trò).
+            activeRole: config.activeRole || 'student',
+            heroImages: config.heroImages || [],
+            heroAlts: config.heroAlts || [],
             reduce: false,
             timers: [],
 

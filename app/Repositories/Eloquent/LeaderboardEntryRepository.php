@@ -47,4 +47,40 @@ class LeaderboardEntryRepository extends EloquentRepository implements Leaderboa
             ->orderBy('rank')
             ->get();
     }
+
+    /** Xem LeaderboardEntryRepositoryInterface::statsForCompetitionExams(). */
+    public function statsForCompetitionExams(array $competitionExamIds): Collection
+    {
+        if ($competitionExamIds === []) {
+            return new Collection();
+        }
+
+        return $this->query()
+            ->where('scope', 'competition_exam')
+            ->whereIn('competition_exam_id', $competitionExamIds)
+            ->selectRaw('competition_exam_id, MAX(score) as max_score, COUNT(*) as participants')
+            ->groupBy('competition_exam_id')
+            ->get();
+    }
+
+    /**
+     * Xem LeaderboardEntryRepositoryInterface::entriesForCompetitions().
+     * `rank` là từ khoá của MySQL 8 nên phải bọc backtick khi xếp thứ tự bằng SQL thô; dòng
+     * chưa được chấm hạng (rank NULL) đẩy xuống cuối thay vì lên đầu như mặc định của MySQL.
+     */
+    public function entriesForCompetitions(array $competitionIds): Collection
+    {
+        if ($competitionIds === []) {
+            return new Collection();
+        }
+
+        return $this->query()
+            ->with('user:id,name')
+            ->where('scope', 'competition')
+            ->whereIn('competition_id', $competitionIds)
+            ->orderByRaw('`rank` IS NULL')
+            ->orderBy('rank')
+            ->orderByDesc('score')
+            ->get();
+    }
 }

@@ -53,10 +53,10 @@
         <div class="relative z-10 max-w-2xl">
             <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-bold text-amber-950 shadow-sm">
                 <x-lucide name="info" class="w-3.5 h-3.5" />
-                <span>Trung tâm Trợ giúp &amp; Thông tin Chính thức</span>
+                <span>Trung tâm Trợ giúp & Thông tin Chính thức</span>
             </div>
 
-            <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Thông tin &amp; Hỗ trợ Kỹ thuật 24/7</h1>
+            <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Thông tin & Hỗ trợ Kỹ thuật 24/7</h1>
 
             <p class="mt-2 max-w-2xl text-xs leading-relaxed text-sky-100 sm:text-sm">
                 Giải đáp mọi thắc mắc về khóa học, kích hoạt mã bản quyền, hệ thống chấm bài Online Judge và hỗ trợ học viên.

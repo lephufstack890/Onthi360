@@ -9,6 +9,7 @@ use App\Models\Question;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
+use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Support\PracticeFilters;
 
@@ -30,6 +31,8 @@ class PracticeService
     public function __construct(
         private AssessmentRepositoryInterface $assessments,
         private TagRepositoryInterface $tags,
+        // SỬA 12/9 — thẻ đề có thêm khối "Tiến độ của bạn" (theo source mới), lấy từ attempts thật.
+        private AttemptRepositoryInterface $attempts,
     ) {}
 
     /** practice.index — kho bài luyện tập công khai; CTA khác nhau theo việc đã đăng nhập là học sinh hay chưa. */
@@ -49,14 +52,48 @@ class PracticeService
         // làm, không phải bấm vào mới biết đề có code hay không.
         $codingAssessmentIds = $this->assessmentIdsWithCoding($assessments->pluck('id')->all());
 
-        $items = $assessments->map(fn ($a) => [
-            'id' => $a->id,
-            'title' => $a->title,
-            'itemsCount' => $a->items_count,
-            'totalPoints' => $a->total_points,
-            'durationMinutes' => $a->duration_minutes,
-            'hasCoding' => $codingAssessmentIds->contains($a->id),
-        ])->all();
+        /*
+         * SỬA 12/9 — source mới thêm khối "Tiến độ của bạn" trên thẻ đề. Dữ liệu thật: điểm
+         * cao nhất người này từng đạt ở đề đó / tổng điểm đề. Chưa đăng nhập hoặc chưa từng
+         * làm thì để trạng thái "Chưa làm" (0%) chứ không bịa số.
+         */
+        $progressByAssessment = $viewer !== null
+            ? $this->attempts->progressForUserAndAssessments($viewer->id, $assessments->pluck('id')->all())->keyBy('assessment_id')
+            : collect();
+
+        $items = $assessments->map(function ($a) use ($codingAssessmentIds, $progressByAssessment) {
+            $row = $progressByAssessment->get($a->id);
+            $best = $row !== null && $row->best_score !== null ? (float) $row->best_score : null;
+            $total = (float) ($a->total_points ?: 0);
+            $submitted = $row !== null ? (int) $row->submitted_count : 0;
+            $inProgress = $row !== null && (int) $row->in_progress_count > 0;
+
+            if ($submitted > 0) {
+                $progressStatus = 'done';
+                $progress = $best !== null && $total > 0 ? (int) round(min(100, max(0, $best / $total * 100))) : 100;
+                $progressLabel = $best !== null ? 'Đã nộp · '.rtrim(rtrim(number_format($best, 2, ',', ''), '0'), ',').' điểm' : 'Đã nộp';
+            } elseif ($inProgress) {
+                $progressStatus = 'doing';
+                $progress = 35; // đang làm dở, chưa có điểm để quy ra phần trăm
+                $progressLabel = 'Đang làm dở';
+            } else {
+                $progressStatus = 'open';
+                $progress = 0;
+                $progressLabel = 'Chưa làm';
+            }
+
+            return [
+                'id' => $a->id,
+                'title' => $a->title,
+                'itemsCount' => $a->items_count,
+                'totalPoints' => $a->total_points,
+                'durationMinutes' => $a->duration_minutes,
+                'hasCoding' => $codingAssessmentIds->contains($a->id),
+                'progressStatus' => $progressStatus,
+                'progress' => $progress,
+                'progressLabel' => $progressLabel,
+            ];
+        })->all();
 
         // SỬA 9/9 (7) (khách: "trang luyện tập ngoài public cũng vậy sửa giúp tôi nha") —
         // bộ lọc "Luyện tập theo câu" của trang công khai giờ lấy CHUNG một nguồn với màn học
@@ -178,6 +215,13 @@ class PracticeService
                 'topicLabel' => $q->tags->first()?->name ?? 'Chưa gắn chuyên đề',
                 'difficulty' => $difficultyKey,
                 'difficultyLevel' => $difficultyLevel,
+                // SỬA 12/9 — source mới in NHÃN độ khó dưới dãy sao thay vì số điểm.
+                'difficultyLabel' => match ($difficultyKey) {
+                    'easy' => 'Dễ',
+                    'medium' => 'Trung bình',
+                    'hard' => 'Khó',
+                    default => 'Cực khó',
+                },
                 'points' => (int) $q->points,
                 'timeLimit' => isset($limits['time_ms']) ? round($limits['time_ms'] / 1000, 1).'s' : '—',
                 'memoryLimit' => isset($limits['memory_mb']) ? $limits['memory_mb'].'MB' : '—',

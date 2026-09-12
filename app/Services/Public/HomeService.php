@@ -240,6 +240,10 @@ class HomeService
                 'rank' => (int) $e->rank,
                 'name' => 'Học viên đã xác thực',
                 'score' => (float) $e->score,
+                // SỬA 12/9 — source mới thêm ảnh đại diện vào từng dòng xếp hạng. Tên vẫn ẩn
+                // danh (bảo vệ dữ liệu học sinh) nên ảnh dùng bộ avatar trung tính của bản mẫu,
+                // xoay theo thứ hạng để mỗi hạng luôn ra cùng một ảnh.
+                'avatar' => asset('assets/rank-avatar-'.((max(1, (int) $e->rank) - 1) % 5 + 1).'.png'),
             ])
             ->values()
             ->all();
@@ -261,7 +265,55 @@ class HomeService
             return ['guest' => true];
         }
 
+        /*
+         * SỬA 12/9 — source mới thêm dải chọn vai trò [HOME-06A] ngay trên thanh tiến độ
+         * (bản mẫu cho đổi tuỳ ý vì là demo). Trên web thật KHÔNG thể cho xem số liệu của vai
+         * trò mình không có, nên dải này CHỈ hiện khi người đang đăng nhập thật sự giữ từ 2
+         * vai trò trở lên (ví dụ vừa là giáo viên vừa là phụ huynh) — mỗi tab là số liệu thật
+         * của đúng vai trò đó. Giữ 1 vai trò thì vẫn hiện đúng một nhãn như trước.
+         */
+        $panels = [];
+
+        if ($viewer->hasRole(Role::STUDENT)) {
+            $panels['student'] = $this->studentPanel($viewer);
+        }
+
+        if ($viewer->hasRole(Role::PARENT)) {
+            $panels['parent'] = $this->parentPanel($viewer);
+        }
+
         if ($viewer->hasRole(Role::TEACHER)) {
+            $panels['teacher'] = $this->teacherPanel($viewer);
+        }
+
+        // Không khớp vai trò nào ở trên (quản trị, biên tập...) thì vẫn hiện góc nhìn học sinh
+        // như trước đây, để khối không bị trống.
+        if ($panels === []) {
+            $panels['student'] = $this->studentPanel($viewer);
+        }
+
+        $defaultRole = array_key_first($panels);
+        $active = $panels[$defaultRole];
+
+        return $active + [
+            'guest' => false,
+            'panels' => $panels,
+            'defaultRole' => $defaultRole,
+            'multiRole' => count($panels) > 1,
+        ];
+    }
+
+    /** Nhãn + biểu tượng của từng tab vai trò — khớp bảng của source (JOURNEY_ROLE_VIEWS). */
+    private const ROLE_VIEW_META = [
+        'student' => ['label' => 'Học sinh', 'icon' => 'graduation-cap', 'iconClass' => 'text-[#2D7FA3]'],
+        'parent' => ['label' => 'Phụ huynh', 'icon' => 'heart', 'iconClass' => 'text-[#4C88A1]'],
+        'teacher' => ['label' => 'Giáo viên', 'icon' => 'users', 'iconClass' => 'text-[#5B77A8]'],
+    ];
+
+    /** Góc nhìn giáo viên — số liệu thật của các lớp người này đang dạy. */
+    private function teacherPanel(User $viewer): array
+    {
+        {
             $classRoomIds = $this->classRooms->query()
                 ->whereHas('teachers', fn ($q) => $q->where('users.id', $viewer->id))
                 ->where('status', 'active')
@@ -280,7 +332,19 @@ class HomeService
                 ->where('is_provisional', true)
                 ->count();
 
+            $classContexts = $this->classRooms->query()
+                ->whereIn('id', $classRoomIds)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($room) => ['label' => $room->name, 'href' => route('teacher.classes.index')])
+                ->all();
+
             return [
+                'roleKey' => 'teacher',
+                'roleIcon' => self::ROLE_VIEW_META['teacher']['icon'],
+                'roleIconClass' => self::ROLE_VIEW_META['teacher']['iconClass'],
+                'contextLabel' => 'Lớp đang quản lý',
+                'contexts' => $classContexts,
                 'guest' => false,
                 'roleLabel' => 'Giáo viên',
                 'progressLabel' => 'Bài đã chấm xong',
@@ -296,8 +360,12 @@ class HomeService
                 ],
             ];
         }
+    }
 
-        if ($viewer->hasRole(Role::PARENT)) {
+    /** Góc nhìn phụ huynh — số liệu thật của các con đã liên kết và được xác minh. */
+    private function parentPanel(User $viewer): array
+    {
+        {
             $childIds = $this->parentLinks->query()->where('parent_user_id', $viewer->id)->where('status', 'verified')->pluck('student_user_id');
 
             $submitted = $this->attempts->query()->whereIn('user_id', $childIds)->whereNotNull('submitted_at')->count();
@@ -312,7 +380,21 @@ class HomeService
                 ->where('submitted_at', '>=', now()->subDays(7))
                 ->count();
 
+            // Tên các con — đọc thẳng từ bảng users theo đúng danh sách đã liên kết & xác minh
+            // ở trên (HomeService chưa có repo người dùng riêng, và đây là truy vấn đọc đơn giản).
+            $childContexts = \App\Models\User::query()
+                ->whereIn('id', $childIds)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($child) => ['label' => $child->name, 'href' => route('dashboard')])
+                ->all();
+
             return [
+                'roleKey' => 'parent',
+                'roleIcon' => self::ROLE_VIEW_META['parent']['icon'],
+                'roleIconClass' => self::ROLE_VIEW_META['parent']['iconClass'],
+                'contextLabel' => 'Con đang theo dõi',
+                'contexts' => $childContexts,
                 'guest' => false,
                 'roleLabel' => 'Phụ huynh',
                 'progressLabel' => 'Bài đã nộp trong 7 ngày',
@@ -328,8 +410,11 @@ class HomeService
                 ],
             ];
         }
+    }
 
-        // Mặc định: góc nhìn học sinh.
+    /** Góc nhìn học sinh — mặc định, cũng dùng cho vai trò không có bảng riêng. */
+    private function studentPanel(User $viewer): array
+    {
         $classRoomIds = $this->classEnrollments->query()
             ->where('student_id', $viewer->id)
             ->where('status', 'active')
@@ -362,6 +447,11 @@ class HomeService
             ->first();
 
         return [
+            'roleKey' => 'student',
+            'roleIcon' => self::ROLE_VIEW_META['student']['icon'],
+            'roleIconClass' => self::ROLE_VIEW_META['student']['iconClass'],
+            'contextLabel' => null,
+            'contexts' => [],
             'guest' => false,
             'roleLabel' => 'Học sinh',
             'progressLabel' => 'Tiến độ tổng thể',

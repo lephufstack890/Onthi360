@@ -67,7 +67,7 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiPracticePage({{ Js::from(['problems' => $problemRows, 'exams' => $examRows, 'problemPageSize' => 5, 'examPageSize' => 4]) }})" class="flex flex-col gap-4">
+<div x-data="onthiPracticePage({{ Js::from(['problems' => $problemRows, 'exams' => $examRows, 'problemPageSize' => 5, 'examPageSize' => 4]) }})" class="flex flex-col gap-4 animate-fadeIn">
 
     {{-- ══════ [PRACTICE-01] HERO LUYỆN TẬP ══════ --}}
     <div class="relative overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-r from-[#0B3C78] via-[#0050A0] to-[#188DB0] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] sm:p-6 lg:p-7">
@@ -81,7 +81,7 @@
                     <span>Đấu trường Luyện tập Online Judge 24/7</span>
                 </div>
 
-                <h1 class="text-2xl font-black leading-tight tracking-tight text-white sm:text-2xl">Kho bài tập Thuật toán &amp; Lập trình</h1>
+                <h1 class="text-2xl font-black leading-tight tracking-tight text-white sm:text-2xl">Kho bài tập Thuật toán & Lập trình</h1>
 
                 <p class="mt-2 max-w-xl text-xs leading-5 text-sky-100 sm:text-sm sm:leading-6">
                     {{ number_format($practiceTotal) }} câu hỏi bám sát đề thi HSG Quốc gia, Tuyển sinh 10 Chuyên Tin
@@ -169,7 +169,7 @@
             <div class="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center">
                 <div class="relative flex-1">
                     <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71869A]" />
-                    <input type="text" aria-label="Tìm kiếm bài tập" placeholder="Tìm theo tên bài hoặc mã bài..."
+                    <input type="text" aria-label="Tìm kiếm bài tập" placeholder="Tìm theo tên bài hoặc mã bài (VD: DP_LIS)..."
                            x-model="searchQuery"
                            class="min-h-11 w-full rounded-xl border border-[#D5E3E9] bg-[#F8FAFB] py-2 pl-10 pr-4 text-[13px] font-medium text-[#183D5E] placeholder:text-[#8193A3] focus:border-[#2D7FA3] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#DDF1F6]">
                 </div>
@@ -181,7 +181,7 @@
                                 class="inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
                                 :class="selectedDifficulty === @js($d['id']) ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : '{{ $d['color'] }} hover:brightness-[.98]'">
                             @if ($d['icon'])
-                                <x-lucide :name="$d['icon']" class="h-3.5 w-3.5" />
+                                <x-lucide :name="$d['icon']" class="h-3.5 w-3.5" ::class="selectedDifficulty === @js($d['id']) ? 'text-white' : ''" />
                             @endif
                             {{ $d['label'] }}
                         </button>
@@ -215,9 +215,9 @@
 
         {{-- [PRACTICE-04] DANH SÁCH BÀI --}}
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)]">
-            <div class="hidden bg-[#F8FAFB] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#71869A] lg:grid lg:grid-cols-[88px_1fr_180px_120px_132px_148px]">
+            <div class="hidden bg-[#F8FAFB] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#71869A] lg:grid lg:grid-cols-[120px_1fr_180px_120px_132px_148px]">
                 <span>Trạng thái</span>
-                <span>Tên bài tập &amp; Mã</span>
+                <span>Tên bài tập & Mã</span>
                 <span>Chuyên đề</span>
                 <span>Độ khó</span>
                 <span>Tỷ lệ AC</span>
@@ -238,24 +238,24 @@
                 @endphp
                 <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
                      :style="'order:' + visibleProblemIds.indexOf({{ $prob['id'] }})"
-                     class="grid grid-cols-[52px_minmax(0,1fr)] gap-x-3 gap-y-2 border-l-2 border-transparent p-3.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-5 lg:grid-cols-[88px_1fr_180px_120px_132px_148px] lg:items-center lg:gap-3">
+                     class="grid grid-cols-[52px_minmax(0,1fr)] gap-x-3 gap-y-2 border-l-2 border-transparent p-3.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-5 lg:grid-cols-[120px_1fr_180px_120px_132px_148px] lg:items-center lg:gap-3">
 
                     {{-- Trạng thái --}}
                     <div class="row-span-3 flex items-start justify-center pt-0.5 lg:row-span-1 lg:justify-start lg:pt-0">
                         @if ($prob['status'] === 'ac')
                             <div class="flex flex-col items-center gap-1 lg:items-start">
-                                <span class="grid h-11 w-11 place-items-center rounded-2xl border-2 border-[#8BD5B4] bg-gradient-to-br from-[#DFF8EC] to-[#EFF9F5] text-[#188B67] shadow-[0_5px_12px_rgba(59,147,116,0.18)]"><x-lucide name="check-circle" class="h-5 w-5" /></span>
-                                <span class="text-[11px] font-extrabold text-[#188B67]">AC</span>
+                                <span class="grid h-11 w-11 place-items-center rounded-2xl bg-[#2F8A6B] text-white shadow-[0_5px_12px_rgba(47,138,107,0.22)]"><x-lucide name="check-circle-2" class="h-5 w-5" /></span>
+                                <span class="text-[11px] font-extrabold text-[#237052]">AC</span>
                             </div>
                         @elseif ($prob['status'] === 'doing')
                             <div class="flex flex-col items-center gap-1 lg:items-start">
-                                <span class="grid h-11 w-11 place-items-center rounded-2xl border-2 border-[#E7C674] bg-gradient-to-br from-[#FFF0C4] to-[#FFF7E3] text-[#A96D09] shadow-[0_5px_12px_rgba(211,154,62,0.2)]"><x-lucide name="clock" class="h-5 w-5" /></span>
-                                <span class="text-[11px] font-extrabold text-[#A96D09]">Đang làm</span>
+                                <span class="grid h-11 w-11 place-items-center rounded-2xl bg-[#C46F2C] text-white shadow-[0_5px_12px_rgba(196,111,44,0.22)]"><x-lucide name="clock" class="h-5 w-5" /></span>
+                                <span class="text-[11px] font-extrabold text-[#9A681B]">Đang làm</span>
                             </div>
                         @else
                             <div class="flex flex-col items-center gap-1 lg:items-start">
-                                <span class="grid h-11 w-11 place-items-center rounded-2xl border-2 border-[#BFD4E6] bg-gradient-to-br from-[#EAF2FA] to-[#F5F8FA] text-[#4B7EA7] shadow-[0_5px_12px_rgba(75,126,167,0.14)]"><x-lucide name="circle" class="h-5 w-5" /></span>
-                                <span class="text-[11px] font-extrabold text-[#4B7EA7]">Chưa nộp</span>
+                                <span class="grid h-11 w-11 place-items-center rounded-2xl bg-[#B97A36] text-white shadow-[0_5px_12px_rgba(185,122,54,0.2)]"><x-lucide name="circle" class="h-5 w-5" /></span>
+                                <span class="text-[11px] font-extrabold text-[#A16B31]">Chưa nộp</span>
                             </div>
                         @endif
                     </div>
@@ -288,7 +288,7 @@
                                 @endfor
                                 <span class="ml-1 text-[10px] font-bold text-[#71869A]">{{ $prob['difficultyLevel'] }}/5</span>
                             </div>
-                            <span class="text-[10px] font-semibold text-[#71869A]">{{ $prob['points'] }} điểm</span>
+                            <span class="text-[10px] font-semibold text-[#71869A]">{{ $prob['difficultyLabel'] ?? 'Trung bình' }}</span>
                         </div>
 
                         <div class="min-w-[132px]">
@@ -300,7 +300,7 @@
                                 <div class="h-full rounded-full bg-[#2F8A6B] transition-all" style="width: {{ $prob['acRate'] }}%"></div>
                             </div>
                             <p class="mt-1 text-[9px] text-[#8A9BAD]">{{ number_format($prob['acceptedCount']) }}/{{ number_format($prob['submissionCount']) }} lượt toàn hệ thống</p>
-                            <p class="mt-0.5 text-[10px] font-semibold text-[#536D86]">Bạn đã nộp {{ $prob['userSubmissions'] }} lần</p>
+                            <p class="mt-1.5 inline-flex rounded-lg bg-[#FFF0E4] px-2 py-1 text-[10px] font-extrabold text-[#B65D26]">{{ $prob['userSubmissions'] > 0 ? 'Đã làm '.$prob['userSubmissions'].' lần' : 'Chưa làm' }}</p>
                         </div>
                     </div>
 
@@ -353,11 +353,11 @@
         <div class="flex flex-col gap-3 rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)] md:flex-row md:items-center md:justify-between">
             <div class="relative min-w-0 flex-1">
                 <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71869A]" />
-                <input type="text" aria-label="Tìm kiếm đề thi" placeholder="Tìm đề thi theo tên..." x-model="searchQuery"
+                <input type="text" aria-label="Tìm kiếm đề thi" placeholder="Tìm đề thi theo tên hoặc mã đề..." x-model="searchQuery"
                        class="min-h-10 w-full rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] py-2 pl-10 pr-4 text-xs text-slate-800 placeholder:text-[#8A9BAD] focus:border-[#9DC8D7] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
             </div>
             <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                @foreach ([['all', 'Tất cả đề'], ['coding', 'Có bài lập trình'], ['quiz', 'Trắc nghiệm & điền đáp án']] as [$key, $label])
+                @foreach ([['all', 'Tất cả đề thi'], ['coding', 'Có bài lập trình'], ['quiz', 'Trắc nghiệm & điền đáp án']] as [$key, $label])
                     <button type="button" @click="setExamType(@js($key))" :aria-pressed="selectedExamType === @js($key)"
                             class="min-h-9 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-bold transition"
                             :class="selectedExamType === @js($key) ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-[#DDEAF0] bg-[#F8FAFB] text-[#536D86] hover:border-[#C9DFE8] hover:bg-white'">{{ $label }}</button>
@@ -396,7 +396,7 @@
             </div>
             <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
                 <div class="flex items-center gap-2">
-                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#FFF7E3] text-[#B68032]"><x-lucide name="code-2" class="h-4 w-4" /></span>
+                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#FFF7E3] text-[#B68032]"><x-lucide name="clock" class="h-4 w-4" /></span>
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-wide text-[#71869A]">Có bài lập trình</p>
                         <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examCoding }}</p>
@@ -470,6 +470,20 @@
                                 <x-lucide name="trending-up" class="mx-auto h-3.5 w-3.5 text-[#3B9374]" />
                                 <p class="mt-0.5 text-[11px] font-bold text-[#536D86]">{{ $exam['totalPoints'] ?: '—' }}</p>
                                 <p class="text-[9px] text-[#8A9BAD]">Tổng điểm</p>
+                            </div>
+                        </div>
+
+                        {{-- SỬA 12/9 — khối "Tiến độ của bạn" theo source mới; số liệu từ attempts thật của chính người đang xem. --}}
+                        @php
+                            $progressTone = $exam['progressStatus'] === 'open' ? '#126F91' : ($exam['progressStatus'] === 'doing' ? '#B68032' : '#2F8A6B');
+                        @endphp
+                        <div class="mt-2.5">
+                            <div class="flex items-center justify-between gap-2 text-[10px]">
+                                <span class="font-bold text-[#536D86]">Tiến độ của bạn</span>
+                                <span class="font-bold" style="color: {{ $progressTone }}">{{ $exam['progressLabel'] }}</span>
+                            </div>
+                            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-[#EAF0F3]">
+                                <div class="h-full rounded-full" style="width: {{ $exam['progress'] }}%; background-color: {{ $progressTone }}"></div>
                             </div>
                         </div>
 

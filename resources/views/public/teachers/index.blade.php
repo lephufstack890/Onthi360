@@ -56,10 +56,10 @@
         <div class="relative z-10 max-w-2xl">
             <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-bold text-amber-950 shadow-sm">
                 <x-lucide name="graduation-cap" class="w-3.5 h-3.5" />
-                <span>Đội ngũ Giảng viên &amp; Chuyên gia Tiêu biểu</span>
+                <span>Đội ngũ Giảng viên & Chuyên gia Tiêu biểu</span>
             </div>
 
-            <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Giáo viên &amp; Chuyên gia Hàng đầu</h1>
+            <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Giáo viên & Chuyên gia Hàng đầu</h1>
 
             <p class="mt-2 max-w-2xl text-xs leading-relaxed text-sky-100 sm:text-sm">
                 Quy tụ các nhà giáo ưu tú, huấn luyện viên Olympic Tin học và tác giả của những bộ sách chuyên khảo uy tín nhất Việt Nam.
@@ -143,7 +143,7 @@
 
                     <button type="button" @click="openProfile({{ $t['id'] }})"
                             class="flex min-h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-[11px] font-bold text-white shadow-sm transition-colors hover:bg-[#0F5F7A]">
-                        <span>Xem hồ sơ &amp; lớp phụ trách</span>
+                        <span>Xem hồ sơ & lớp phụ trách</span>
                         <x-lucide name="chevron-right" class="w-3.5 h-3.5" />
                     </button>
                 </div>

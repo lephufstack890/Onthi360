@@ -150,44 +150,51 @@
         'pathCount' => count($learningSteps),
         'grades' => ['Lớp 10', 'Lớp 9', 'Lớp 11', 'Lớp 12'],
         'goals' => array_column($heroSlides, 'defaultGoal'),
+        // SỬA 12/9 — vai trò đang xem ở khối [HOME-06A]; mặc định là vai trò chính của người
+        // đang đăng nhập (khách thì không dùng tới).
+        'activeRole' => $learningSpace['defaultRole'] ?? 'student',
+        // Ảnh nền hero — chỉ tải ảnh của slide đang xem (xem [HOME-03]).
+        'heroImages' => array_column($heroSlides, 'bgImage'),
+        'heroAlts' => array_map(fn ($slide) => $slide['subtitle'].'. '.$slide['description'], $heroSlides),
     ];
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiHomePage({{ Js::from($homeState) }})" class="home-typography flex flex-col gap-4 sm:gap-5">
+<div x-data="onthiHomePage({{ Js::from($homeState) }})" class="home-typography flex flex-col gap-4 sm:gap-5 animate-fadeIn">
 
-    {{-- ══════ [HOME-01] THANH THÔNG BÁO HỆ THỐNG ══════ --}}
+    {{-- ══════ [HOME-01] THANH THÔNG BÁO HỆ THỐNG ══════
+         SỬA 12/9 — source mới đổi hẳn tông: nền xanh đặc #285B78, chữ trắng, vạch vàng cố
+         định bên trái và viên phân loại cố định (không còn đổi màu theo từng loại tin nữa). --}}
     @if (count($systemNotices) > 0)
         <div @mouseenter="noticePaused = true" @mouseleave="noticePaused = false"
+             @focusin="noticePaused = true" @focusout="noticePaused = false"
              aria-label="Thông báo hệ thống"
-             class="relative overflow-hidden rounded-2xl px-3.5 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between shadow-[0_2px_6px_rgba(0,0,0,0.02)] transition-colors duration-500 bg-gradient-to-r border border-sky-200/80">
+             class="relative flex items-center justify-between overflow-hidden rounded-2xl border border-[#4A7890] bg-[#285B78] px-3.5 py-2.5 text-white shadow-[0_3px_10px_rgba(40,91,120,0.13)] transition-colors duration-500 sm:px-5 sm:py-3">
             <div class="flex items-center gap-2 sm:gap-3 overflow-hidden text-xs sm:text-[13px] min-w-0">
-                @foreach ($systemNotices as $i => $n)
-                    <span x-show="noticeIndex === {{ $i }}" x-cloak class="absolute left-0 top-2 bottom-2 w-1 rounded-r-full {{ $n['accentClass'] }} transition-colors duration-500" aria-hidden="true"></span>
-                @endforeach
-                <span class="text-amber-500 flex h-5 w-5 shrink-0 items-center justify-center animate-pulse" aria-hidden="true">
+                <span class="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-amber-300" aria-hidden="true"></span>
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center text-amber-300 animate-pulse" aria-hidden="true">
                     <x-lucide name="bell" class="h-4 w-4" />
                 </span>
-                <span class="font-bold text-amber-800 shrink-0 text-xs sm:text-sm">Thông báo hệ thống</span>
-                <span class="text-slate-300">|</span>
+                <span class="shrink-0 text-xs font-bold text-white sm:text-sm">Thông báo hệ thống</span>
+                <span class="text-sky-200">|</span>
                 @foreach ($systemNotices as $i => $n)
                     <span x-show="noticeIndex === {{ $i }}" x-cloak
-                          class="hidden sm:inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-bold leading-tight {{ $n['categoryClass'] }}">{{ $n['category'] }}</span>
+                          class="hidden shrink-0 items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold leading-tight text-sky-50 animate-fadeIn sm:inline-flex">{{ $n['category'] }}</span>
                 @endforeach
                 @foreach ($systemNotices as $i => $n)
                     <a x-show="noticeIndex === {{ $i }}" x-cloak href="{{ $n['href'] }}" aria-live="polite"
-                       class="min-w-0 text-slate-700 truncate font-medium text-xs sm:text-sm hover:text-blue-700">{{ $n['message'] }}</a>
+                       class="min-w-0 truncate text-xs font-medium text-white animate-fadeIn hover:underline sm:text-sm">{{ $n['message'] }}</a>
                 @endforeach
             </div>
-            <div class="flex items-center gap-1 sm:gap-2 text-slate-400 shrink-0 ml-2">
+            <div class="ml-2 flex shrink-0 items-center gap-1 text-sky-200 sm:gap-2">
                 <button type="button" aria-label="Thông báo trước" @click="prevNotice()"
-                        class="p-1 hover:text-blue-600 hover:bg-white rounded-full transition-colors cursor-pointer">
+                        class="cursor-pointer rounded-full p-1 transition-colors hover:bg-white/15 hover:text-white">
                     <x-lucide name="chevron-left" class="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-                <span class="hidden sm:inline text-[10px] font-semibold text-slate-400 tabular-nums min-w-7 text-center"
+                <span class="hidden min-w-7 text-center text-[10px] font-semibold tabular-nums text-sky-200 sm:inline"
                       x-text="(noticeIndex + 1) + '/' + noticeCount"></span>
                 <button type="button" aria-label="Thông báo tiếp theo" @click="nextNotice()"
-                        class="p-1 hover:text-blue-600 hover:bg-white rounded-full transition-colors cursor-pointer">
+                        class="cursor-pointer rounded-full p-1 transition-colors hover:bg-white/15 hover:text-white">
                     <x-lucide name="chevron-right" class="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
             </div>
@@ -261,12 +268,15 @@
 
             {{-- ══════ [HOME-03] HERO ══════ --}}
             <section id="hero" @mouseenter="slidePaused = true" @mouseleave="slidePaused = false"
-                     class="relative rounded-3xl border border-sky-200/90 shadow-[0_12px_40px_rgba(0,100,220,0.09)] overflow-hidden p-4 sm:p-6 lg:p-7 min-h-[340px] sm:min-h-[380px] lg:min-h-[390px] flex flex-col justify-between">
-                @foreach ($heroSlides as $i => $slide)
-                    <img src="{{ $slide['bgImage'] }}" alt="{{ $slide['subtitle'] }}. {{ $slide['description'] }}"
-                         class="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none z-0 transition-opacity duration-700 ease-in-out"
-                         :class="slideIndex === {{ $i }} ? 'opacity-100 scale-100' : 'opacity-0 scale-105'">
-                @endforeach
+                     @focusin="slidePaused = true" @focusout="slidePaused = false"
+                     class="relative rounded-3xl border border-sky-200/90 shadow-[0_12px_40px_rgba(0,100,220,0.09)] overflow-hidden p-4 sm:p-6 lg:p-7 min-h-[340px] sm:min-h-[380px] lg:min-h-[390px] flex flex-col justify-between group/hero">
+                {{-- SỬA 12/9 — source mới CHỈ tải ảnh nền của slide đang hiển thị (trước đây in cả 4
+                     ảnh chồng lên nhau rồi mờ dần). Dùng ĐÚNG MỘT thẻ ảnh và đổi src theo slide —
+                     giống cách bản mẫu remount ảnh bằng key. Nhẹ hơn hẳn ở lần mở trang đầu tiên. --}}
+                <img :src="heroImages[slideIndex]" :alt="heroAlts[slideIndex]"
+                     src="{{ $heroSlides[0]['bgImage'] }}" alt="{{ $heroSlides[0]['subtitle'] }}. {{ $heroSlides[0]['description'] }}"
+                     loading="eager" decoding="async" fetchpriority="high"
+                     class="absolute inset-0 z-0 h-full w-full object-cover object-right pointer-events-none select-none">
 
                 <div class="absolute inset-0 z-0 pointer-events-none bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_72%,rgba(255,255,255,0.3)_100%)] sm:bg-gradient-to-r sm:from-white/95 sm:via-white/70 sm:to-transparent"></div>
 
@@ -292,7 +302,7 @@
                              :class="slideIndex === {{ $i }} ? 'visible opacity-100' : 'invisible pointer-events-none opacity-0'">
                             <div class="flex min-w-0 items-center gap-2">
                                 <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shadow-2xs {{ $slide['tagStyle'] }}">{{ $slide['tag'] }}</span>
-                                <span class="hidden min-w-0 truncate text-[10px] font-medium text-slate-400 2xl:inline">• Lộ trình chuẩn quốc gia &amp; quốc tế</span>
+                                <span class="hidden min-w-0 truncate text-[10px] font-medium text-slate-400 2xl:inline">• Lộ trình chuẩn quốc gia & quốc tế</span>
                             </div>
 
                             <div class="flex items-center gap-2">
@@ -377,13 +387,13 @@
 
                 <div class="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <button type="button" @click="cycleGoal()" aria-label="Đổi mục tiêu học"
-                            class="group flex h-[42px] min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#DFEAEE] bg-[#F8FAFB] px-2.5 text-left transition-all hover:border-[#C6E0E6] hover:bg-[#F3F8F9]">
+                            class="group flex min-h-[42px] h-auto min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#DFEAEE] bg-[#F8FAFB] px-2.5 py-2 text-left transition-all hover:border-[#C6E0E6] hover:bg-[#F3F8F9]">
                         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E7F5F6] text-[#23869B]">
                             <x-lucide name="target" class="h-3.5 w-3.5" />
                         </span>
                         <span class="min-w-0 flex-1">
                             <span class="block text-[10px] font-semibold leading-none text-[#71869A]">Mục tiêu</span>
-                            <span class="mt-1 block truncate text-xs sm:text-[13px] font-semibold leading-none text-[#123B68]" x-text="goal"></span>
+                            <span class="mt-1 block whitespace-normal break-words text-xs sm:text-[13px] font-semibold leading-tight text-[#123B68]" x-text="goal"></span>
                         </span>
                         <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
                     </button>
@@ -434,7 +444,7 @@
                                x-show="slotOf(visibleCourses, {{ $i }}) !== null"
                                :class="offsetClass(slotOf(visibleCourses, {{ $i }}))"
                                :style="'order:' + (slotOf(visibleCourses, {{ $i }}) ?? 0)"
-                               class="group block overflow-hidden rounded-2xl border bg-gradient-to-b {{ $program['bgClass'] }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
+                               class="group block animate-fadeIn overflow-hidden rounded-2xl border bg-gradient-to-b {{ $program['bgClass'] }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
                                 <div class="relative h-[104px] overflow-hidden border-b border-white/70 bg-white/35">
                                     <img src="{{ $program['image'] }}" alt="{{ $program['title'] }}"
                                          class="h-full w-full object-contain p-0.5 transition-transform duration-300 group-hover:scale-[1.025]">
@@ -470,7 +480,7 @@
                                x-show="slotOf(visiblePaths, {{ $i }}) !== null"
                                :class="offsetClass(slotOf(visiblePaths, {{ $i }}))"
                                :style="'order:' + (slotOf(visiblePaths, {{ $i }}) ?? 0)"
-                               class="group relative block h-[188px] overflow-hidden rounded-2xl border border-[#DDEAF2] bg-[#F8FBFD] text-left transition-all hover:-translate-y-0.5 hover:border-[#B8DFE8] hover:bg-[#F3FAFC] hover:shadow-sm cursor-pointer">
+                               class="group relative block h-[188px] animate-fadeIn overflow-hidden rounded-2xl border border-[#DDEAF2] bg-[#F8FBFD] text-left transition-all hover:-translate-y-0.5 hover:border-[#B8DFE8] hover:bg-[#F3FAFC] hover:shadow-sm cursor-pointer">
                                 <div class="relative flex h-[104px] items-center justify-center overflow-hidden border-b border-white bg-gradient-to-br from-[#F3FAFC] to-[#E7F3F7]">
                                     <img src="{{ $step['img'] }}" alt="{{ $step['step'] }}"
                                          class="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.025]">
@@ -504,12 +514,31 @@
                 <div class="flex items-center justify-between mb-2.5">
                     <div class="flex items-center gap-1.5 xl:gap-2">
                         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#CFE6EC] bg-[#EAF5F8] text-[#2D7FA3]">
-                            <x-lucide name="bar-chart" class="h-4 w-4" />
+                            <x-lucide name="bar-chart-2" class="h-4 w-4" />
                         </span>
                         <h4 class="type-card-title text-slate-800">Không gian học tập</h4>
                     </div>
                     @if (empty($learningSpace['guest']))
-                        <span class="type-label bg-[#F5F8FA] border border-[#DCE8ED] rounded-xl px-2 py-0.5 flex items-center gap-1 text-[#536D7E]">{{ $learningSpace['roleLabel'] }}</span>
+                        {{-- SỬA 12/9 — source mới đổi nhãn vai trò thành hộp chọn ngữ cảnh. Ở đây chỉ
+                             hiện hộp chọn khi CÓ THẬT nhiều lựa chọn (phụ huynh nhiều con / giáo viên
+                             nhiều lớp); chọn xong đi thẳng sang trang của lựa chọn đó. --}}
+                        @foreach (($learningSpace['panels'] ?? []) as $roleKey => $panel)
+                            @if (count($panel['contexts'] ?? []) > 1)
+                                <div x-show="activeRole === '{{ $roleKey }}'" x-cloak class="relative max-w-[132px]">
+                                    <label for="journey-context-{{ $roleKey }}" class="sr-only">{{ $panel['contextLabel'] }}</label>
+                                    <select id="journey-context-{{ $roleKey }}" @change="if ($event.target.value) window.location.href = $event.target.value"
+                                            class="type-label w-full appearance-none rounded-xl border border-[#DCE8ED] bg-[#F5F8FA] py-1 pl-2 pr-6 text-[#536D7E] outline-none transition-colors hover:bg-[#EEF5F7] focus:border-[#A9D2DF]">
+                                        @foreach ($panel['contexts'] as $ctx)
+                                            <option value="{{ $ctx['href'] }}">{{ $ctx['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-lucide name="chevron-down" class="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+                                </div>
+                            @else
+                                <span x-show="activeRole === '{{ $roleKey }}'" x-cloak
+                                      class="type-label bg-[#F5F8FA] border border-[#DCE8ED] rounded-xl px-2 py-0.5 flex items-center gap-1 text-[#536D7E]">{{ $panel['roleLabel'] }}</span>
+                            @endif
+                        @endforeach
                     @endif
                 </div>
 
@@ -527,37 +556,60 @@
                         </a>
                     </div>
                 @else
-                    {{-- Thanh tiến độ --}}
-                    <div class="mb-2.5">
-                        <div class="flex justify-between text-xs font-bold mb-1">
-                            <span class="text-[#2E718F]">{{ $learningSpace['progressLabel'] }}</span>
-                            <span class="text-[#2E718F]">{{ $learningSpace['progress'] }}%</span>
+                    {{-- ══════ [HOME-06A] BỘ CHỌN VAI TRÒ ══════
+                         SỬA 12/9 — khối mới của source. Chỉ hiện khi người đang đăng nhập thật sự
+                         giữ từ 2 vai trò trở lên; mỗi tab là SỐ LIỆU THẬT của đúng vai trò đó, không
+                         phải bản xem thử. Giữ 1 vai trò thì khối này không xuất hiện. --}}
+                    @if (! empty($learningSpace['multiRole']))
+                        <div role="tablist" aria-label="Vai trò xem hành trình học" class="mb-3 grid {{ count($learningSpace['panels']) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-2xl bg-[#F3F7F9] p-1">
+                            @foreach ($learningSpace['panels'] as $roleKey => $panel)
+                                <button type="button" role="tab" :aria-selected="activeRole === '{{ $roleKey }}'"
+                                        @click="activeRole = '{{ $roleKey }}'"
+                                        class="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 text-[10px] font-bold transition-all"
+                                        :class="activeRole === '{{ $roleKey }}' ? 'bg-white text-[#245B7A] shadow-[0_2px_7px_rgba(64,105,125,0.12)]' : 'text-[#78909E] hover:bg-white/70 hover:text-[#39728B]'">
+                                    <x-lucide :name="$panel['roleIcon']" class="h-3.5 w-3.5 shrink-0"
+                                              ::class="activeRole === '{{ $roleKey }}' ? '{{ $panel['roleIconClass'] }}' : 'text-[#9AB0BA]'" />
+                                    <span class="truncate">{{ $panel['roleLabel'] }}</span>
+                                </button>
+                            @endforeach
                         </div>
-                        <div class="w-full bg-[#E8F0F3] rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-gradient-to-r from-[#6CC7C4] to-[#3EA7B2] h-1.5 rounded-full transition-[width] duration-500" style="width: {{ $learningSpace['progress'] }}%"></div>
-                        </div>
-                    </div>
+                    @endif
 
-                    {{-- [HOME-06B] Thẻ hành động --}}
-                    <a href="{{ $learningSpace['nextHref'] }}"
-                       class="bg-[#F5FAFB] border border-[#DCECEF] rounded-2xl p-2 xl:p-2.5 mb-2.5 flex items-center justify-between cursor-pointer hover:border-[#C5E1E7] transition-colors">
-                        <span class="overflow-hidden block">
-                            <span class="type-meta font-bold text-[#2E7E94] uppercase tracking-wide block">{{ $learningSpace['nextLabel'] }}</span>
-                            <span class="type-card-title truncate mt-0.5 block">{{ $learningSpace['nextTitle'] }}</span>
-                            <span class="type-meta mt-0.5 text-slate-500 truncate block">{{ $learningSpace['nextMeta'] }}</span>
-                        </span>
-                        <x-lucide name="chevron-right" class="w-4 h-4 text-[#6F9CAC] shrink-0 ml-1.5" />
-                    </a>
-
-                    {{-- [HOME-06C] Chỉ số tóm tắt --}}
-                    <div class="grid grid-cols-3 gap-1.5 text-center">
-                        @foreach ($learningSpace['stats'] as $stat)
-                            <div class="bg-[#F8FAFB] rounded-xl p-1.5 xl:p-2 border border-[#E7EDF0]">
-                                <p class="text-base xl:text-lg font-extrabold leading-tight {{ $stat['valueClass'] }}">{{ $stat['value'] }}</p>
-                                <p class="type-meta mt-0.5 text-slate-500 truncate">{{ $stat['label'] }}</p>
+                    @foreach ($learningSpace['panels'] as $roleKey => $panel)
+                        <div x-show="activeRole === '{{ $roleKey }}'" @if (! $loop->first) x-cloak @endif>
+                            {{-- Thanh tiến độ --}}
+                            <div class="mb-2.5">
+                                <div class="flex justify-between text-xs font-bold mb-1">
+                                    <span class="text-[#2E718F]">{{ $panel['progressLabel'] }}</span>
+                                    <span class="text-[#2E718F]">{{ $panel['progress'] }}%</span>
+                                </div>
+                                <div class="w-full bg-[#E8F0F3] rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-[#6CC7C4] to-[#3EA7B2] h-1.5 rounded-full transition-[width] duration-500" style="width: {{ $panel['progress'] }}%"></div>
+                                </div>
                             </div>
-                        @endforeach
-                    </div>
+
+                            {{-- [HOME-06B] Thẻ hành động --}}
+                            <a href="{{ $panel['nextHref'] }}"
+                               class="bg-[#F5FAFB] border border-[#DCECEF] rounded-2xl p-2 xl:p-2.5 mb-2.5 flex items-center justify-between cursor-pointer hover:border-[#C5E1E7] transition-colors">
+                                <span class="overflow-hidden block">
+                                    <span class="type-meta font-bold text-[#2E7E94] uppercase tracking-wide block">{{ $panel['nextLabel'] }}</span>
+                                    <span class="type-card-title truncate mt-0.5 block">{{ $panel['nextTitle'] }}</span>
+                                    <span class="type-meta mt-0.5 text-slate-500 truncate block">{{ $panel['nextMeta'] }}</span>
+                                </span>
+                                <x-lucide name="chevron-right" class="w-4 h-4 text-[#6F9CAC] shrink-0 ml-1.5" />
+                            </a>
+
+                            {{-- [HOME-06C] Chỉ số tóm tắt --}}
+                            <div class="grid grid-cols-3 gap-1.5 text-center">
+                                @foreach ($panel['stats'] as $stat)
+                                    <div class="bg-[#F8FAFB] rounded-xl p-1.5 xl:p-2 border border-[#E7EDF0]">
+                                        <p class="text-base xl:text-lg font-extrabold leading-tight {{ $stat['valueClass'] }}">{{ $stat['value'] }}</p>
+                                        <p class="type-meta mt-0.5 text-slate-500 truncate">{{ $stat['label'] }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
                 @endif
             </div>
 
@@ -597,9 +649,14 @@
                                    class="flex items-center justify-between py-1 px-1.5 rounded-xl hover:bg-sky-50 transition-colors text-xs cursor-pointer">
                                     <span class="flex items-center gap-2 min-w-0">
                                         <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-extrabold {{ $rankClass }}">{{ $st['rank'] }}</span>
-                                        <span class="font-semibold text-slate-800 truncate max-w-[140px]">{{ $st['name'] }}</span>
+                                        <img src="{{ $st['avatar'] }}" alt="" decoding="async"
+                                             class="w-7 h-7 rounded-full border border-sky-200 object-cover shadow-2xs">
+                                        <span class="font-semibold text-slate-800 truncate max-w-[100px]">{{ $st['name'] }}</span>
                                     </span>
-                                    <span class="text-xs font-bold text-[#2E6FA7] shrink-0">{{ rtrim(rtrim(number_format($st['score'], 2, '.', ''), '0'), '.') }}</span>
+                                    <span class="flex items-center gap-2 shrink-0">
+                                        <span class="text-[10px] text-slate-400">điểm</span>
+                                        <span class="text-xs font-bold text-[#2E6FA7]">{{ rtrim(rtrim(number_format($st['score'], 2, '.', ''), '0'), '.') }}</span>
+                                    </span>
                                 </a>
                             @endforeach
                         </div>
@@ -673,7 +730,7 @@
                             <x-lucide name="trophy" class="w-4 h-4" />
                         </div>
                         <div class="min-w-0">
-                            <h3 class="type-card-title">Cuộc thi &amp; khảo sát</h3>
+                            <h3 class="type-card-title">Cuộc thi & khảo sát</h3>
                             <p class="type-meta mt-0.5 truncate text-slate-500">Sự kiện đang và sắp diễn ra</p>
                         </div>
                     </div>
@@ -833,7 +890,7 @@
                         <div class="flex flex-col gap-1.5 my-2.5 text-xs font-semibold text-slate-800">
                             @foreach (['Tư vấn lộ trình học phù hợp', 'Hỗ trợ kỹ thuật, giải đáp thắc mắc', 'Đồng hành cùng học sinh và phụ huynh'] as $line)
                                 <div class="flex items-center gap-2 bg-white/50 sm:bg-transparent px-2 sm:px-0 py-0.5 sm:py-0 rounded-xl">
-                                    <x-lucide name="check-circle" class="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                    <x-lucide name="check-circle-2" class="w-3.5 h-3.5 text-emerald-500 fill-emerald-100 shrink-0" />
                                     <span>{{ $line }}</span>
                                 </div>
                             @endforeach

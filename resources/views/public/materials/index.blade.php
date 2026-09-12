@@ -64,10 +64,10 @@
         <div class="relative z-10 max-w-2xl">
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-amber-950 mb-3 shadow-sm">
                 <x-lucide name="shield-check" class="w-3.5 h-3.5" />
-                <span>Kho học liệu &amp; Sách giáo trình có bản quyền</span>
+                <span>Kho học liệu & Sách giáo trình có bản quyền</span>
             </div>
 
-            <h1 class="text-2xl font-black tracking-tight text-white leading-tight">Tài liệu, Giáo trình &amp; Bộ đề thi</h1>
+            <h1 class="text-2xl font-black tracking-tight text-white leading-tight">Tài liệu, Giáo trình & Bộ đề thi</h1>
 
             <p class="text-xs sm:text-sm text-sky-100 mt-2 leading-relaxed">
                 Hệ thống sách giáo trình, chuyên đề giải thuật và bộ đề thi chuẩn hóa được biên soạn công phu
@@ -80,7 +80,7 @@
                     <x-lucide name="key-round" class="w-4 h-4" />
                     <span>Kích hoạt mã sách / tài liệu</span>
                 </a>
-                <span class="text-xs text-sky-100 font-medium">Hỗ trợ bản mềm PDF tương tác &amp; Bản in giao tận nhà</span>
+                <span class="text-xs text-sky-100 font-medium">Hỗ trợ bản mềm PDF tương tác & Bản in giao tận nhà</span>
             </div>
         </div>
 
@@ -89,7 +89,7 @@
             <div class="grid grid-cols-2 gap-3 mt-3">
                 <div class="bg-white/10 rounded-2xl p-2.5">
                     <p class="text-2xl font-black text-white">{{ number_format($totalMaterials) }}</p>
-                    <p class="text-[10px] text-sky-200 mt-0.5">Đầu sách &amp; Chuyên đề</p>
+                    <p class="text-[10px] text-sky-200 mt-0.5">Đầu sách & Chuyên đề</p>
                 </div>
                 <div class="bg-white/10 rounded-2xl p-2.5">
                     <p class="text-2xl font-black text-amber-300">{{ $ownedCount }}</p>
@@ -248,7 +248,7 @@
 
                     <div class="bg-[#F8FBFE] p-3.5 rounded-2xl border border-sky-100 text-xs space-y-2 mb-4">
                         <div class="flex justify-between">
-                            <span class="text-slate-500">Bản mềm (Đọc &amp; Chấm bài trên web):</span>
+                            <span class="text-slate-500">Bản mềm (Đọc & Chấm bài trên web):</span>
                             <strong class="text-blue-600" x-text="selected.priceSoft"></strong>
                         </div>
                         <div class="flex justify-between" x-show="selected.hasPrintOption">

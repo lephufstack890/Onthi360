@@ -68,7 +68,7 @@
             <div class="max-w-2xl">
                 <div class="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-bold text-sky-50 backdrop-blur">
                     <x-lucide name="sparkles" class="w-3.5 h-3.5" />
-                    <span>Chương trình đào tạo chuẩn Chuyên &amp; HSG</span>
+                    <span>Chương trình đào tạo chuẩn Chuyên & HSG</span>
                 </div>
 
                 <h1 class="text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">Lớp học Tin học 360</h1>

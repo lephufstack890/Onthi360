@@ -29,6 +29,8 @@
   body {
     font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #1a3865;
+    /* SỬA 12/9 — bổ sung đúng nền của source (education-main/src/index.css). */
+    background-color: #f4f8fc;
     letter-spacing: 0;
   }
   h1, h2, h3, h4, h5, h6 {
@@ -167,4 +169,36 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * SỬA 12/9 — source mới gắn class .animate-fadeIn ở gốc mọi trang và một số thẻ. Bản source
+ * không định nghĩa hiệu ứng này ở đâu (class rỗng), nên ở đây định nghĩa nhẹ nhàng đúng ý đồ:
+ * nội dung hiện lên mềm thay vì nhảy vào. Người bật "giảm chuyển động" trong hệ điều hành thì
+ * tắt hẳn (khối @media bên dưới đã có sẵn quy tắc chung, thêm ở đây cho rõ ràng).
+ */
+/*
+ * LƯU Ý QUAN TRỌNG — hiệu ứng này CHỈ được đổi opacity, TUYỆT ĐỐI không dùng transform.
+ * Lần đầu viết có thêm translateY(4px) và đã gây lỗi thật: phần tử nào đang chạy animation
+ * có transform sẽ trở thành "containing block" cho mọi con position:fixed bên trong nó. Vì
+ * class này nằm ở thẻ gốc của trang, hộp thoại "Chi tiết cuộc thi" (fixed inset-0) bị co lại
+ * bằng đúng một cột hẹp của trang thay vì phủ kín màn hình.
+ *
+ * Cũng vì lý do đó, fill-mode phải là "backwards" chứ KHÔNG phải "both": với "both" thì sau
+ * khi chạy xong animation vẫn ở trạng thái đang-áp-giá-trị, nên element giữ luôn một
+ * stacking context riêng vĩnh viễn — hậu quả là z-index của hộp thoại chỉ so bên trong thẻ
+ * gốc của trang, và thanh header (z-50) vẽ đè lên hộp thoại (z-70). "backwards" chỉ áp giá
+ * trị đầu trước khi chạy, xong là thôi.
+ */
+@keyframes onthiFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: onthiFadeIn 260ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn { animation: none; }
 }

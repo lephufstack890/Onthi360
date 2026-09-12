@@ -9,7 +9,9 @@ use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
+use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Cuộc thi công khai (PUB-08, 11.1 "Menu Cuộc thi": lịch, thể lệ, đề/bộ bài, quy tắc công
@@ -35,13 +37,295 @@ class CompetitionService
     public function __construct(
         private CompetitionRepositoryInterface $competitions,
         private AttemptRepositoryInterface $attempts,
+        // SUA 12/9 - man Cuoc thi moi can diem cao nhat tung vong + Top 5 tong hop.
+        private LeaderboardEntryRepositoryInterface $leaderboardEntries,
     ) {}
 
-    /** competitions.index — danh sách cuộc thi/khảo sát công khai. */
-    public function indexData(): array
+    /**
+     * competitions.index — danh sách cuộc thi/khảo sát công khai.
+     *
+     * SỬA 12/9 — dựng lại màn Cuộc thi theo ĐÚNG source giao diện khách gửi
+     * (education-main/src/components/ContestsPage.jsx). Bản mẫu chạy trên dữ liệu giả; ở đây
+     * mọi con số đều lấy từ DB thật:
+     *   · "các vòng thi"     -> competition_exams (đã có sẵn, mỗi vòng tự có giờ riêng)
+     *   · "điểm cao nhất"    -> MAX(leaderboard_entries.score) của ĐÚNG vòng đó
+     *   · "Top 5 thủ khoa"   -> leaderboard_entries scope=competition, đã xếp hạng
+     *   · "số người tham gia"-> đếm leaderboard_entries scope=competition
+     *   · "Đã tham gia"      -> attempts đã nộp của chính người đang xem
+     *
+     * KHÁC bản mẫu ở 1 điểm lớn, theo đúng yêu cầu khách (UI nào chưa khớp logic cũ thì sửa
+     * UI cho khớp logic): bản mẫu có luồng "gửi đăng ký -> BTC duyệt -> vào phòng thi", nhưng
+     * hệ thống KHÔNG có bảng đăng ký/duyệt nào cả — vào thi là vào thẳng đề tham chiếu khi
+     * đang trong khung giờ của vòng (xem showData()). Vì vậy dải 3 bước được giữ nguyên hình
+     * dáng nhưng đổi thành 3 bước CÓ THẬT: Đăng nhập -> Vào phòng thi -> Xem kết quả.
+     *
+     * Tên học viên trong Top 5 được ẩn danh y như bảng xếp hạng công khai (bảo vệ dữ liệu
+     * trẻ em) — chỉ chính người đang đăng nhập mới thấy tên mình.
+     */
+    public function indexData(?User $viewer = null): array
     {
+        $competitions = $this->competitions->query()
+            // Đề "cấu trúc" đếm số câu ở assessment_items; đề PDF (content_mode =
+            // pdf_answer_sheet) không có items mà đếm theo phiếu đáp án — đếm cả hai rồi lấy
+            // cái nào có, để không hiện "0 câu" với đề PDF.
+            ->with(['examSittings.assessment' => fn ($q) => $q->withCount(['items', 'answerKeys'])])
+            // Chỉ đếm dòng xếp hạng TỔNG (scope=competition); nếu đếm cả scope=competition_exam
+            // thì cuộc thi nhiều vòng sẽ hiện số người gấp đôi/gấp ba số người thật.
+            ->withCount(['leaderboardEntries' => fn ($q) => $q->where('scope', 'competition')])
+            ->latest('starts_at')
+            ->limit(30)
+            ->get();
+
+        $examIds = $competitions->flatMap(fn (Competition $c) => $c->examSittings->pluck('id'))->all();
+        $competitionIds = $competitions->pluck('id')->all();
+
+        // Điểm cao nhất + số lượt của TỪNG vòng, gộp 1 truy vấn cho tất cả vòng của cả trang.
+        $examStats = $this->leaderboardEntries->statsForCompetitionExams($examIds)->keyBy('competition_exam_id');
+
+        // Top 5 mỗi cuộc thi — lấy 1 lần rồi nhóm ở PHP (danh sách công khai tối đa 30 cuộc thi).
+        $topByCompetition = $this->leaderboardEntries->entriesForCompetitions($competitionIds)->groupBy('competition_id');
+
+        $submittedCompetitionIds = $viewer !== null
+            ? $this->attempts->submittedCompetitionIdsForUser($viewer->id, $competitionIds)
+            : [];
+        $submittedExamIds = $viewer !== null
+            ? $this->attempts->submittedCompetitionExamIdsForUser($viewer->id, $examIds)
+            : [];
+
+        $isStudent = $viewer !== null && $viewer->hasRole(Role::STUDENT);
+
+        $cards = $competitions->map(fn (Competition $c) => $this->mapContestCard(
+            $c,
+            $examStats,
+            $topByCompetition->get($c->id),
+            $viewer,
+            $isStudent,
+            in_array($c->id, $submittedCompetitionIds, true),
+            $submittedExamIds,
+        ))->all();
+
         return [
-            'competitions' => $this->competitions->withLeaderboardCounts(30)->map(fn ($c) => $this->mapCard($c))->all(),
+            'competitions' => $cards,
+            'heroPanel' => $this->heroPanel($cards),
+            'viewerName' => $viewer?->name,
+        ];
+    }
+
+    /**
+     * Ô đếm ngược ở góc phải banner. Bản mẫu ghi cứng "02 : 45 : 18"; ở đây lấy mốc giờ THẬT:
+     * ưu tiên cuộc thi đang diễn ra (đếm tới giờ đóng), không có thì lấy cuộc thi sắp mở gần
+     * nhất (đếm tới giờ mở). deadline trả về dạng timestamp để Alpine tự chạy đồng hồ; null
+     * nghĩa là không có gì để đếm (view hiện dấu "—" thay vì số 0 gây hiểu lầm).
+     */
+    private function heroPanel(array $cards): array
+    {
+        $ongoing = null;
+        $upcoming = null;
+
+        foreach ($cards as $card) {
+            if ($card['statusValue'] === 'ongoing' && $card['endsAtTimestamp'] !== null && $ongoing === null) {
+                $ongoing = $card;
+            }
+
+            if ($card['statusValue'] === 'upcoming' && $card['startsAtTimestamp'] !== null) {
+                if ($upcoming === null || $card['startsAtTimestamp'] < $upcoming['startsAtTimestamp']) {
+                    $upcoming = $card;
+                }
+            }
+        }
+
+        if ($ongoing !== null) {
+            return [
+                'eyebrow' => 'Đang mở · còn lại',
+                'deadline' => $ongoing['endsAtTimestamp'],
+                'note' => Str::limit($ongoing['title'], 42),
+            ];
+        }
+
+        if ($upcoming !== null) {
+            return [
+                'eyebrow' => 'Sắp mở sau',
+                'deadline' => $upcoming['startsAtTimestamp'],
+                'note' => Str::limit($upcoming['title'], 42),
+            ];
+        }
+
+        return [
+            'eyebrow' => 'Lịch thi',
+            'deadline' => null,
+            'note' => 'Chưa có sự kiện nào đang mở',
+        ];
+    }
+
+    /** Nhãn + màu badge trạng thái, khớp bảng màu của source (ContestsPage.jsx statusStyle). */
+    private const CARD_STATUS_STYLE = [
+        'upcoming' => ['label' => 'Sắp diễn ra', 'style' => 'bg-amber-100 text-amber-800 border-amber-300'],
+        'ongoing' => ['label' => 'Đang diễn ra 🔥', 'style' => 'bg-emerald-100 text-emerald-800 border-emerald-300'],
+        'pending_publish' => ['label' => 'Chờ công bố kết quả', 'style' => 'bg-violet-100 text-violet-800 border-violet-300'],
+        'published' => ['label' => 'Đã công bố', 'style' => 'bg-blue-100 text-blue-800 border-blue-300'],
+        'archived' => ['label' => 'Lưu trữ', 'style' => 'bg-slate-100 text-slate-700 border-slate-300'],
+    ];
+
+    /**
+     * 1 thẻ cuộc thi cho màn danh sách + dữ liệu cho hộp chi tiết (bản mẫu mở modal, nên toàn
+     * bộ số liệu của modal được nạp sẵn ở đây, không gọi thêm truy vấn khi bấm xem).
+     */
+    private function mapContestCard(
+        Competition $c,
+        \Illuminate\Support\Collection $examStats,
+        ?\Illuminate\Support\Collection $topEntries,
+        ?User $viewer,
+        bool $isStudent,
+        bool $hasSubmitted,
+        array $submittedExamIds,
+    ): array {
+        $statusValue = $c->computedStatus()->value;
+        $meta = self::CARD_STATUS_STYLE[$statusValue] ?? ['label' => $statusValue, 'style' => 'bg-slate-100 text-slate-700 border-slate-300'];
+        $isSurvey = $c->type->value !== 'contest';
+
+        // ── Các vòng thi ───────────────────────────────────────────────────
+        $rounds = [];
+        $order = 0;
+        foreach ($c->examSittings as $exam) {
+            $order++;
+            $examStatus = $exam->computedStatus();
+            $stat = $examStats->get($exam->id);
+
+            $rounds[] = [
+                'id' => $exam->id,
+                'order' => $order,
+                'label' => $exam->displayTitle(),
+                'shortLabel' => $exam->title ?: 'Vòng '.$order,
+                'date' => $exam->starts_at?->format('d/m/Y') ?? 'Chưa xếp lịch',
+                // Bản mẫu dùng 3 trạng thái completed|current|upcoming — map thẳng từ giờ thật của vòng.
+                'status' => $examStatus === 'ended' ? 'completed' : ($examStatus === 'ongoing' ? 'current' : 'upcoming'),
+                'maxScore' => $stat !== null ? (float) $stat->max_score : null,
+                'participants' => $stat !== null ? (int) $stat->participants : 0,
+                'assessmentId' => $exam->assessment_id,
+                'durationMinutes' => $exam->assessment?->duration_minutes,
+                'problemsCount' => max((int) ($exam->assessment?->items_count ?? 0), (int) ($exam->assessment?->answer_keys_count ?? 0)),
+                'totalPoints' => $exam->assessment?->total_points,
+                'alreadyAttempted' => in_array($exam->id, $submittedExamIds, true),
+                'canJoin' => $isStudent
+                    && $exam->assessment_id !== null
+                    && $examStatus === 'ongoing'
+                    && ! in_array($exam->id, $submittedExamIds, true),
+            ];
+        }
+
+        // Vòng "đang xem": ưu tiên vòng đang diễn ra, rồi vòng sắp tới, cuối cùng là vòng cuối.
+        $currentRound = null;
+        foreach ($rounds as $r) {
+            if ($r['status'] === 'current') { $currentRound = $r; break; }
+        }
+        if ($currentRound === null) {
+            foreach ($rounds as $r) {
+                if ($r['status'] === 'upcoming') { $currentRound = $r; break; }
+            }
+        }
+        if ($currentRound === null && $rounds !== []) {
+            $currentRound = $rounds[array_key_last($rounds)];
+        }
+
+        $completedRounds = count(array_filter($rounds, fn ($r) => $r['status'] === 'completed'));
+
+        // ── Top 5 (ẩn danh, trừ chính người đang xem) ───────────────────────
+        $topFive = [];
+        $index = 0;
+        foreach (($topEntries ?? collect())->take(5) as $entry) {
+            $isViewer = $viewer !== null && (int) $entry->user_id === (int) $viewer->id;
+            $topFive[] = [
+                'rank' => $entry->rank ?? ($index + 1),
+                // Ẩn danh giống bảng xếp hạng công khai — không có cột "đồng ý hiện tên" nên
+                // mặc định là bảo vệ dữ liệu học viên (đa số là trẻ dưới 18 tuổi).
+                'name' => $isViewer ? ($entry->user->name ?? 'Bạn') : 'Học viên đã xác thực',
+                'isViewer' => $isViewer,
+                'note' => $entry->computed_at?->format('d/m/Y') ?? '',
+                'score' => (float) $entry->score,
+                'avatar' => asset('assets/rank-avatar-'.(($index % 5) + 1).'.png'),
+            ];
+            $index++;
+        }
+
+        // ── Nút hành động chính ────────────────────────────────────────────
+        $joinRound = null;
+        foreach ($rounds as $r) {
+            if ($r['canJoin']) { $joinRound = $r; break; }
+        }
+
+        if ($viewer === null) {
+            $cta = ['label' => 'Đăng nhập để vào thi', 'href' => route('login'), 'icon' => 'shield-check', 'tone' => 'primary'];
+        } elseif ($joinRound !== null) {
+            $cta = ['label' => 'Vào phòng thi', 'href' => route('student.assessment.take', $joinRound['assessmentId']), 'icon' => 'play', 'tone' => 'go'];
+        } elseif ($hasSubmitted || $statusValue === 'published') {
+            $cta = ['label' => 'Xem bảng xếp hạng', 'href' => route('leaderboard.index', ['competition' => $c->id]), 'icon' => 'bar-chart-3', 'tone' => 'primary'];
+        } else {
+            $cta = ['label' => 'Xem thể lệ cuộc thi', 'href' => route('competitions.show', $c->id), 'icon' => 'info', 'tone' => 'muted'];
+        }
+
+        // Nhãn "đã/chưa tham gia" ở chân thẻ — chỉ 2 trạng thái thật (không có bước BTC duyệt).
+        if ($hasSubmitted) {
+            $participationLabel = 'Đã tham gia';
+            $participationStyle = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            $cardStyle = 'border-emerald-300 bg-emerald-50/70 shadow-[0_4px_18px_rgba(55,125,95,0.12)]';
+        } elseif ($joinRound !== null) {
+            $participationLabel = 'Đang mở cho bạn';
+            $participationStyle = 'text-amber-700 bg-amber-50 border-amber-200';
+            $cardStyle = 'border-amber-300 bg-amber-50/70 shadow-[0_4px_18px_rgba(180,130,30,0.10)]';
+        } else {
+            $participationLabel = $viewer === null ? 'Chưa đăng nhập' : 'Chưa tham gia';
+            $participationStyle = 'text-slate-500 bg-slate-50 border-slate-200';
+            $cardStyle = 'border-sky-100 bg-white shadow-[0_2px_12px_rgba(0,100,220,0.06)]';
+        }
+
+        $durationMinutes = $currentRound['durationMinutes'] ?? null;
+
+        return [
+            'id' => $c->id,
+            'title' => $c->title,
+            'type' => $c->type->value,
+            'typeLabel' => $isSurvey ? 'Khảo sát' : 'Cuộc thi',
+            'statusValue' => $statusValue,
+            'statusLabel' => $meta['label'],
+            'statusStyle' => $meta['style'],
+            // Không có cột ảnh cho cuộc thi — dùng đúng bộ ảnh của source, chia đều theo id để
+            // mỗi cuộc thi luôn ra cùng một ảnh (không đổi mỗi lần tải trang).
+            'image' => asset('assets/contest-img-'.(($c->id % 3) + 1).'.png'),
+            // Bản mẫu ghi "🏆 Đấu trường cấp Tỉnh" (dữ liệu giả) — ở đây lấy đơn vị tổ chức thật.
+            'tag' => $c->isExternallyOrganized() && $c->organizer_name
+                ? '🤝 '.Str::limit($c->organizer_name, 28)
+                : ($isSurvey ? '📊 Khảo sát năng lực' : '🏆 Do Ôn Thi 360 tổ chức'),
+            'editionLabel' => $c->starts_at !== null ? 'Mùa '.$c->starts_at->format('Y') : 'Chưa xếp lịch',
+            'roundLabel' => count($rounds) > 1
+                ? count($rounds).' vòng thi'
+                : ($currentRound['label'] ?? 'Chưa gắn đề'),
+            'duration' => $durationMinutes !== null ? $durationMinutes.' phút' : 'Không giới hạn',
+            'problemsCount' => $currentRound['problemsCount'] ?? 0,
+            'participants' => (int) $c->leaderboard_entries_count,
+            // Ô "Giải thưởng" của bản mẫu không có cột tương ứng; thay bằng mốc công bố kết
+            // quả — thông tin thật mà người thi quan tâm đúng ở vị trí đó.
+            'awardLabel' => $c->publish_result_at !== null
+                ? 'Công bố kết quả '.$c->publish_result_at->format('H:i d/m/Y')
+                : 'Kết quả công bố ngay khi kết thúc',
+            'deadlineLabel' => $c->ends_at !== null ? $c->ends_at->format('H:i d/m/Y') : 'Không giới hạn',
+            'startsAtLabel' => $c->starts_at !== null ? $c->starts_at->format('H:i d/m/Y') : 'Chưa xếp lịch',
+            'startsAtTimestamp' => $c->starts_at?->getTimestamp(),
+            'endsAtTimestamp' => $c->ends_at?->getTimestamp(),
+            'organizerLabel' => $c->isExternallyOrganized()
+                ? ($c->organizer_name ?: 'Đơn vị ngoài')
+                : 'Ôn Thi 360',
+            'rounds' => $rounds,
+            'currentRound' => $currentRound,
+            'completedRounds' => $completedRounds,
+            'topFive' => $topFive,
+            'participated' => $hasSubmitted,
+            'participationLabel' => $participationLabel,
+            'participationStyle' => $participationStyle,
+            'cardStyle' => $cardStyle,
+            'cta' => $cta,
+            'canJoinNow' => $joinRound !== null,
+            'href' => route('competitions.show', $c->id),
+            'leaderboardHref' => route('leaderboard.index', ['competition' => $c->id]),
         ];
     }
 

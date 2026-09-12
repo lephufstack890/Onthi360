@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @include('partials.seo')
-    {{-- Bộ chữ lấy đúng theo source giao diện khách (education-main/index.html):
-         Be Vietnam Pro cho toàn trang, Dancing Script cho câu trích của giáo viên. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@500;600;700&family=Plus+Jakarta+Sans:wght@300..800&display=swap" rel="stylesheet">
@@ -21,7 +19,7 @@
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
-<body class="font-onthi bg-[#EEF5FC] text-slate-800 antialiased min-h-screen selection:bg-blue-100">
+<body class="font-onthi bg-[#F4F8FC] text-slate-800 antialiased min-h-screen selection:bg-blue-100">
     @include('partials.nav-public')
 
     <main>
