@@ -7,6 +7,8 @@
             rows: config.rows,
             pageSize: config.pageSize,
             activateHref: config.activateHref,
+            // SỬA 14/9 — nơi đọc tài liệu đã mua, tuỳ vai trò; null thì rơi về trang chi tiết.
+            readNowHref: config.readNowHref,
             activeTab: config.activeTab,
             searchQuery: '',
             pageIndex: 1,

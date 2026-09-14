@@ -303,7 +303,9 @@
                                 <x-lucide :name="$btnIcon" class="h-3.5 w-3.5" />
                             </span>
                         @else
-                            <a href="{{ $course['href'] }}"
+                            {{-- SỬA 14/9 — "Vào học" đi thẳng vào lớp của học sinh; các trạng
+                                 thái khác vẫn mở trang giới thiệu khoá như cũ. --}}
+                            <a href="{{ $course['ctaHref'] ?? $course['href'] }}"
                                class="flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-extrabold transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98] {{ $btnClass }}">
                                 <span>{{ $status }}</span>
                                 <x-lucide :name="$btnIcon" class="h-3.5 w-3.5" />

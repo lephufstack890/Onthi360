@@ -151,12 +151,27 @@ class CourseService
 
         // "Vào học" khi học sinh đã ở trong 1 lớp của khóa; "Đã đóng" khi khóa chưa mở lớp nào
         // đang hoạt động; còn lại là "Đăng ký học". Không có trạng thái nào được suy đoán thêm.
+        $myEnrolledInThisCourse = array_values(array_intersect($classRoomIds, $myClassRoomIds));
+
         $enrollmentStatus = 'Đăng ký học';
         if ($classRoomIds === []) {
             $enrollmentStatus = 'Đã đóng';
-        } elseif (array_intersect($classRoomIds, $myClassRoomIds) !== []) {
+        } elseif ($myEnrolledInThisCourse !== []) {
             $enrollmentStatus = 'Vào học';
         }
+
+        /*
+         * SỬA 14/9 (khách yêu cầu "bấm Vào học thì vào thẳng lớp luôn") — đường dẫn cho NÚT
+         * trên thẻ. Chỉ khác 'href' đúng ở trạng thái "Vào học": học sinh đã ở trong lớp rồi
+         * thì bắt xem lại trang giới thiệu khoá là thừa một cú bấm.
+         * Đang học nhiều lớp cùng một khoá thì không tự chọn hộ — đưa về danh sách lớp của
+         * học sinh để tự vào đúng lớp muốn học (cùng luật với showData()).
+         */
+        $ctaHref = match (true) {
+            $enrollmentStatus !== 'Vào học' => route('courses.show', $course->id),
+            count($myEnrolledInThisCourse) === 1 => route('student.classes.show', $myEnrolledInThisCourse[0]),
+            default => route('student.courses.index'),
+        };
 
         return [
             'id' => $course->id,
@@ -177,6 +192,7 @@ class CourseService
             'assistantNames' => $teachers->skip(1)->pluck('name')->values()->all(),
             'enrollmentStatus' => $enrollmentStatus,
             'href' => route('courses.show', $course->id),
+            'ctaHref' => $ctaHref,
         ];
     }
 

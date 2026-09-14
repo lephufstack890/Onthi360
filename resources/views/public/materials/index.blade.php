@@ -53,7 +53,20 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiMaterialsPage({{ Js::from(['rows' => $materialRows, 'pageSize' => 4, 'activeTab' => $activeTab, 'activateHref' => route('access.activate')]) }})" class="flex flex-col gap-5">
+@php
+    /*
+     * SỬA 14/9 (khách yêu cầu "bấm Vào đọc ngay thì vào thẳng /student/tai-lieu-cua-toi") —
+     * Đích đến phải theo vai trò: khu "Tài liệu của tôi" của học sinh nằm sau middleware
+     * role:student, giáo viên bấm vào sẽ ăn 403. Giáo viên có khu riêng của mình; vai trò
+     * khác thì giữ nguyên hành vi cũ là mở trang chi tiết tài liệu.
+     */
+    $readNowHref = match (true) {
+        (bool) auth()->user()?->hasRole(\App\Models\Role::STUDENT) => route('student.library.index'),
+        (bool) auth()->user()?->hasRole(\App\Models\Role::TEACHER) => route('teacher.library.index'),
+        default => null,
+    };
+@endphp
+<div x-data="onthiMaterialsPage({{ Js::from(['rows' => $materialRows, 'pageSize' => 4, 'activeTab' => $activeTab, 'activateHref' => route('access.activate'), 'readNowHref' => $readNowHref]) }})" class="flex flex-col gap-5">
 
     {{-- ══════ 1. HERO TÀI LIỆU ══════ --}}
     <div class="relative rounded-3xl overflow-hidden border border-sky-200/90 shadow-[0_10px_35px_rgba(0,100,220,0.08)] bg-gradient-to-r from-[#0B3C78] via-[#0284C7] to-[#38BDF8] p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
@@ -269,7 +282,7 @@
                         <a :href="activateHref" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs cursor-pointer">Nhập mã kích hoạt có sẵn</a>
                         <a :href="selected.checkoutHref" x-show="!selected.owned"
                            class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md cursor-pointer">Mua quyền học ngay →</a>
-                        <a :href="selected.href" x-show="selected.owned"
+                        <a :href="readNowHref || selected.href" x-show="selected.owned"
                            class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer">Vào đọc ngay →</a>
                     </div>
                 </div>
