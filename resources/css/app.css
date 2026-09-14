@@ -230,7 +230,8 @@
   border: 1px solid #E0F0F7;
   background-color: #fff;
   padding: 0.625rem 0.875rem;
-  font-size: 0.75rem;
+  /* SỬA 14/9 — nâng cỡ chữ khu làm việc, xem khối "CỠ CHỮ KHU LÀM VIỆC" ở cuối tệp. */
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #1a3865;
   outline: none;
@@ -454,4 +455,41 @@
   [data-section='HOME-RIGHT-SIDEBAR'] {
     width: 360px;
   }
+}
+
+
+/*
+ * ═══════ CỠ CHỮ KHU LÀM VIỆC — SỬA 14/9 ═══════
+ * Khách phản hồi chữ trong khu Quản trị / Giáo viên / Học sinh / Phụ huynh hơi nhỏ.
+ *
+ * Cách làm: nâng mỗi bậc chữ lên đúng 1px thay vì sửa tay hơn 1500 chỗ dùng class Tailwind
+ * trong các view — vừa nhanh, vừa không sót chỗ nào, vừa không đụng tới logic.
+ *
+ * Phạm vi: CHỈ trong .admin-typography (class đặt ở <body> của layouts/workspace.blade.php,
+ * dùng chung cho cả 4 khu). Các trang công khai giữ nguyên cỡ chữ theo bản thiết kế gốc.
+ *
+ * Không đụng tới text-base / text-lg / text-xl: đó là số liệu lớn và tiêu đề, vốn đã đủ to;
+ * nâng thêm dễ vỡ bố cục các ô thống kê.
+ *
+ * Viết bằng bộ chọn thuộc tính [class~="..."] để đè được utility của Tailwind mà không cần
+ * !important — CSS thường nằm ngoài @layer nên luôn thắng utility trong layer.
+ */
+.admin-typography [class~="text-[9px]"] { font-size: 0.625rem; }
+.admin-typography [class~="text-[10px]"] { font-size: 0.6875rem; }
+.admin-typography [class~="text-[10.5px]"] { font-size: 0.71875rem; }
+.admin-typography [class~="text-[11px]"] { font-size: 0.75rem; }
+.admin-typography [class~="text-[11.5px]"] { font-size: 0.78125rem; }
+.admin-typography [class~="text-[12px]"] { font-size: 0.8125rem; }
+.admin-typography [class~="text-[13px]"] { font-size: 0.875rem; }
+.admin-typography [class~="text-[13.5px]"] { font-size: 0.90625rem; }
+
+/* text-xs và text-sm của Tailwind kèm sẵn line-height, nên nâng cả hai cho chữ khỏi bí. */
+.admin-typography [class~="text-xs"] {
+  font-size: 0.8125rem;
+  line-height: 1.15rem;
+}
+
+.admin-typography [class~="text-sm"] {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
 }
