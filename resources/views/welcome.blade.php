@@ -226,10 +226,14 @@
     @endif
 
     {{-- ══════ [HOME-LAYOUT] LƯỚI CHÍNH 3 CỘT ══════ --}}
-    <div class="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] xl:grid-cols-[240px_1fr_310px] 2xl:grid-cols-[260px_1fr_360px] gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6 items-start">
+    <div data-section="HOME-MAIN-GRID" class="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] xl:grid-cols-[240px_1fr_310px] 2xl:grid-cols-[260px_1fr_360px] gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6 items-start">
+        {{-- SỬA 14/9 — source mới bọc cột trái + cột giữa vào một lưới con, còn cột phải được
+             ghim tuyệt đối, để khối [HOME-06D] và [HOME-10] nằm gọn bên dưới hai cột đó. Các
+             quy tắc CSS của source bám theo thuộc tính data-section nên phải giữ đúng tên. --}}
+        <div class="home-left-center-grid">
 
         {{-- ══════ [HOME-02] MENU TRÁI ══════ --}}
-        <aside class="hidden lg:flex flex-col gap-3.5 xl:gap-4 shrink-0">
+        <aside data-section="HOME-02-LEFT-SIDEBAR" class="hidden lg:flex flex-col gap-3.5 xl:gap-4 shrink-0">
             {{-- [HOME-02A] Danh sách điều hướng --}}
             <div class="bg-white rounded-3xl p-3 border border-sky-100 shadow-[0_2px_8px_rgba(0,100,220,0.04)] flex flex-col gap-1.5">
                 @foreach ($homeSideNav as $item)
@@ -250,7 +254,7 @@
             </a>
 
             {{-- [HOME-02C] Thẻ giáo viên tiêu biểu --}}
-            <a href="{{ route('teachers.index') }}"
+            <a data-section="HOME-02C-TEACHER-CARD" href="{{ route('teachers.index') }}"
                class="relative block min-h-[190px] xl:min-h-[205px] overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-br from-white via-[#F3FAFF] to-[#E4F3FF] p-3.5 shadow-[0_8px_24px_rgba(0,100,220,0.09)] transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_12px_30px_rgba(0,100,220,0.14)] cursor-pointer group">
                 <span class="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-200/35 blur-sm transition-transform duration-500 group-hover:scale-125"></span>
                 <span class="absolute -bottom-10 -left-8 h-24 w-24 rounded-full bg-blue-100/60 blur-md"></span>
@@ -288,7 +292,7 @@
         </aside>
 
         {{-- ══════ [HOME-CENTER] CỘT GIỮA ══════ --}}
-        <main class="flex flex-col gap-4 sm:gap-5 min-w-0">
+        <main data-section="HOME-CENTER-CONTENT" class="flex flex-col gap-4 sm:gap-5 min-w-0">
 
             {{-- ══════ [HOME-03] HERO ══════ --}}
             <section id="hero" @mouseenter="slidePaused = true" @mouseleave="slidePaused = false"
@@ -530,8 +534,10 @@
             </div>
         </main>
 
+        </div>{{-- hết .home-left-center-grid --}}
+
         {{-- ══════ [HOME-RIGHT] SIDEBAR PHẢI ══════ --}}
-        <aside id="leaderboard" class="flex flex-col gap-3.5 xl:gap-4 lg:row-span-2">
+        <aside id="leaderboard" data-section="HOME-RIGHT-SIDEBAR" class="flex flex-col gap-3.5 xl:gap-4 lg:row-span-2">
 
             {{-- ══════ [HOME-06] KHÔNG GIAN HỌC TẬP ══════ --}}
             <div class="bg-white rounded-3xl p-3.5 xl:p-4 border border-[#DDEAF0] shadow-[0_4px_16px_rgba(52,91,120,0.045)]">
@@ -709,7 +715,7 @@
             </div>
 
             {{-- ══════ [HOME-08] TÀI LIỆU NỔI BẬT ══════ --}}
-            <section id="materials" class="bg-white rounded-3xl p-3.5 xl:p-4 border border-[#DDEAF0] shadow-[0_4px_16px_rgba(52,91,120,0.045)]">
+            <section id="materials" data-section="HOME-08-FEATURED-MATERIALS" class="bg-white rounded-3xl p-3.5 xl:p-4 border border-[#DDEAF0] shadow-[0_4px_16px_rgba(52,91,120,0.045)]">
                 <div class="flex items-center justify-between gap-2 mb-3">
                     <div class="flex items-center gap-2 min-w-0">
                         <div class="w-8 h-8 rounded-xl border border-[#D5E6EF] bg-[#EAF3F8] flex items-center justify-center text-[#3A77A2] shrink-0">
@@ -799,6 +805,29 @@
             </section>
         </aside>
 
+        {{-- SỬA 14/9 — source mới gom [HOME-06D] và [HOME-10] vào một cột dưới, rộng đúng
+             bằng cột trái + cột giữa. --}}
+        <div class="parent-lower-stack">
+
+        {{-- ══════ [HOME-06D] PHẦN MỀM CHO PHỤ HUYNH ══════
+             Khối mới của source: dải giới thiệu phần mềm quản lý máy tính khi con học online.
+             Đường tải là trang ngoài do khách chỉ định trong source (PARENT_SOFTWARE_DOWNLOAD_URL);
+             đổi địa chỉ thì sửa đúng một dòng $parentSoftwareUrl bên dưới. --}}
+        @php $parentSoftwareUrl = 'https://chocon.net/download'; @endphp
+        <section data-section="HOME-06D-PARENT-SOFTWARE" class="parent-software-wide">
+            <div class="parent-software-wide__intro">
+                <p class="type-meta">Dành cho phụ huynh</p>
+                <h3 class="type-section-title">Quản lý máy tính khi con học online</h3>
+                <p class="type-body">Giữ đúng giờ học và không gian học an toàn cho con.</p>
+            </div>
+            <div class="parent-software-wide__action">
+                <p class="type-meta">Cài đặt nhanh cho máy của con</p>
+                <a href="{{ $parentSoftwareUrl }}" target="_blank" rel="noopener noreferrer"
+                   class="parent-software-wide__link">Tải Chocon Desktop</a>
+                <p class="parent-software-wide__meta">Windows &amp; macOS · Trang tải chính thức</p>
+            </div>
+        </section>
+
         {{-- ══════ [HOME-10] CÂU CHUYỆN ĐỒNG HÀNH ══════
              Dữ liệu lấy từ CSDL (Quản trị → Câu chuyện đồng hành). Chưa bật câu nào thì ẩn cả khối. --}}
         @if (count($testimonials) > 0)
@@ -868,6 +897,8 @@
             </div>
         </section>
         @endif
+
+        </div>{{-- hết .parent-lower-stack --}}
 
         {{-- ══════ [HOME-11] HỖ TRỢ TOÀN CHIỀU NGANG ══════ --}}
         <div id="support" class="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
