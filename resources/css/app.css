@@ -373,29 +373,13 @@
     gap: 0.75rem;
   }
 
-  /*
-   * SỬA 14/9 (khách yêu cầu "cho full ra, đừng để khoảng trống") — source để dải dưới chỉ
-   * rộng bằng cột trái + giữa, nên bên phải hở một mảng trắng ngay dưới sidebar. Ở đây cho
-   * hàng 'lower' trải hết cả hai cột.
-   *
-   * Kèm theo đó phải TRẢ SIDEBAR PHẢI VỀ DÒNG CHẢY BÌNH THƯỜNG (source ghim position:absolute).
-   * Lý do: sidebar ghim tuyệt đối thì không tính vào chiều cao hàng trên, nên khi hàng dưới
-   * trải hết chiều ngang, hôm nào sidebar cao hơn cột giữa là nó đè lên khối câu chuyện đồng
-   * hành. Để trong lưới thì chiều cao hàng trên luôn bằng phần cao nhất — vừa hết khoảng
-   * trống, vừa không bao giờ chồng lên nhau.
-   */
   [data-section='HOME-MAIN-GRID'] {
     position: relative;
     grid-template-columns: minmax(0, 1fr) 280px;
     grid-template-areas:
-      'content side'
-      'lower lower';
+      'content .'
+      'lower .';
     align-items: start;
-  }
-
-  /* Hàng hỗ trợ [HOME-11] trải hết chiều ngang, không đẻ thêm cột ngầm. */
-  [data-section='HOME-MAIN-GRID'] > #support {
-    grid-column: 1 / -1;
   }
 
   .home-left-center-grid {
@@ -427,12 +411,14 @@
 
   .parent-lower-stack {
     grid-area: lower;
+    grid-column: auto;
   }
 
   [data-section='HOME-RIGHT-SIDEBAR'] {
-    grid-area: side;
-    position: static;
-    width: auto;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 280px;
   }
 }
 
@@ -449,6 +435,10 @@
     grid-template-columns: 240px minmax(0, 1fr);
     gap: 1.25rem;
   }
+
+  [data-section='HOME-RIGHT-SIDEBAR'] {
+    width: 310px;
+  }
 }
 
 @media (min-width: 1536px) {
@@ -459,5 +449,9 @@
   .home-left-center-grid {
     grid-template-columns: 260px minmax(0, 1fr);
     gap: 1.5rem;
+  }
+
+  [data-section='HOME-RIGHT-SIDEBAR'] {
+    width: 360px;
   }
 }
