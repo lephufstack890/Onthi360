@@ -86,6 +86,21 @@
             <p class="ml-1 min-w-0 flex-1 truncate text-[13px] font-bold text-[#0B3C78] sm:text-sm">@yield('page-title')</p>
 
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                {{-- SỬA 14/9 — số dư ví token đặt ngay cạnh chuông cho đập vào mắt, bấm vào là
+                     sang thẳng Ví token. Đọc trực tiếp cột users.token_balance (đúng thứ
+                     WalletService::balanceFor trả về) nên không sinh thêm truy vấn nào. --}}
+                @php $wsTokenBalance = (int) (auth()->user()?->token_balance ?? 0); @endphp
+                <a href="{{ route('wallet.index') }}"
+                   title="Ví token — số dư {{ number_format($wsTokenBalance) }} token"
+                   aria-label="Ví token, số dư {{ number_format($wsTokenBalance) }} token"
+                   class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 py-1 pl-1.5 pr-2.5 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100">
+                    <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                        <x-lucide name="wallet-cards" class="h-3 w-3" />
+                    </span>
+                    <span class="text-[12px] font-black leading-none tabular-nums">{{ number_format($wsTokenBalance) }}</span>
+                    <span class="hidden text-[10px] font-bold uppercase tracking-wide text-emerald-600 sm:inline">token</span>
+                </a>
+
                 @include('partials.admin-role-switcher')
                 @include('partials.admin-notifications-bell')
                 @include('partials.admin-profile-menu')

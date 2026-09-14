@@ -16,6 +16,8 @@
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => 'trending-up'],
         ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => 'calendar-days'],
         ['label' => 'Thông báo', 'route' => 'teacher.notifications.index', 'icon' => 'message-square-text'],
+        // SỬA 14/9 — khu Giáo viên cũng có ví token, cùng route với khu Học sinh.
+        ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => 'wallet-cards'],
         ['label' => 'Hồ sơ', 'route' => 'teacher.profile.show', 'icon' => 'user-cog'],
     ];
 
