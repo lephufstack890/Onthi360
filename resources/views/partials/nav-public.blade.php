@@ -30,6 +30,22 @@
             : ($headerUser->hasRole(\App\Models\Role::STUDENT) ? 'Học sinh' : 'Thành viên')));
         $headerSub = $headerUser->email;
     }
+
+    /*
+     * SỬA 14/9 — nút vào khu làm việc đổi chữ theo vai trò, vì "Vào khu học tập" hiện ra cho
+     * cả giáo viên lẫn quản trị thì sai nghĩa. Chỉ đổi nhãn/icon/đích đến, không đụng quyền:
+     * ai vào được khu nào vẫn do middleware role quyết định như cũ.
+     */
+    $headerEntry = match (true) {
+        (bool) $headerUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)
+            => ['label' => 'Vào trang quản trị', 'icon' => 'layout-dashboard', 'route' => 'admin.dashboard'],
+        (bool) $headerUser?->hasRole(\App\Models\Role::TEACHER)
+            => ['label' => 'Vào khu dạy học', 'icon' => 'notebook-pen', 'route' => 'dashboard'],
+        (bool) $headerUser?->hasRole(\App\Models\Role::PARENT)
+            => ['label' => 'Tình hình học tập của con', 'icon' => 'trending-up', 'route' => 'dashboard'],
+        default
+            => ['label' => 'Vào khu học tập', 'icon' => 'graduation-cap', 'route' => 'dashboard'],
+    };
 @endphp
 
 <header x-data="{ mobileNavOpen: false, notificationOpen: false, roleDropdownOpen: false, closeTimer: null,
@@ -149,21 +165,26 @@
 
                     <div class="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-col gap-1.5">
                         @auth
-                            <a href="{{ route('dashboard') }}"
+                            <a href="{{ route($headerEntry['route']) }}"
                                class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                <x-lucide name="graduation-cap" class="w-4 h-4 text-blue-600" />
-                                <span>Vào khu học tập</span>
+                                <x-lucide :name="$headerEntry['icon']" class="w-4 h-4 shrink-0 text-blue-600" />
+                                <span class="min-w-0 leading-snug">{{ $headerEntry['label'] }}</span>
                             </a>
-                            <a href="{{ route('access.myAccess') }}"
-                               class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                <x-lucide name="shield-check" class="w-4 h-4 text-slate-500" />
-                                <span>Quyền của tôi</span>
-                            </a>
-                            <a href="{{ route('access.activate') }}"
-                               class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                <x-lucide name="key-round" class="w-4 h-4 text-amber-600" />
-                                <span>Nhập mã kích hoạt quyền</span>
-                            </a>
+                            {{-- SỬA 14/9 (khách yêu cầu) — quản trị viên đã full quyền, không cần
+                                 "Quyền của tôi" và "Nhập mã kích hoạt". ẨN CHỨ KHÔNG XOÁ: bỏ
+                                 điều kiện là hiện lại y như cũ. --}}
+                            @unless ($headerUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN))
+                                <a href="{{ route('access.myAccess') }}"
+                                   class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                    <x-lucide name="shield-check" class="w-4 h-4 text-slate-500" />
+                                    <span>Quyền của tôi</span>
+                                </a>
+                                <a href="{{ route('access.activate') }}"
+                                   class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                    <x-lucide name="key-round" class="w-4 h-4 text-amber-600" />
+                                    <span>Nhập mã kích hoạt quyền</span>
+                                </a>
+                            @endunless
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit"

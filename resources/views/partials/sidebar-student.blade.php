@@ -10,6 +10,8 @@
         ['label' => 'Cuộc thi', 'route' => 'competitions.index', 'icon' => 'trophy'],
         ['label' => 'Bảng xếp hạng', 'route' => 'leaderboard.index', 'icon' => 'bar-chart-3'],
         ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => 'wallet-cards'],
+        // SỬA 14/9 — đưa thẳng vào menu cho khỏi phải chui vào menu tài khoản mới bấm được.
+        ['label' => 'Mã kích hoạt', 'route' => 'access.activate', 'icon' => 'key-round'],
         ['label' => 'Thông báo', 'route' => 'student.notifications', 'icon' => 'message-square-text'],
         ['label' => 'Hồ sơ', 'route' => 'student.profile', 'icon' => 'user-cog'],
     ];

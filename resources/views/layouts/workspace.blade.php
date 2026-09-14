@@ -89,7 +89,14 @@
                 {{-- SỬA 14/9 — số dư ví token đặt ngay cạnh chuông cho đập vào mắt, bấm vào là
                      sang thẳng Ví token. Đọc trực tiếp cột users.token_balance (đúng thứ
                      WalletService::balanceFor trả về) nên không sinh thêm truy vấn nào. --}}
-                @php $wsTokenBalance = (int) (auth()->user()?->token_balance ?? 0); @endphp
+                {{-- SỬA 14/9 (khách yêu cầu) — quản trị viên đã full quyền, không mua bán gì
+                     nên ẩn viên số dư với vai trò này. ẨN CHỨ KHÔNG XOÁ: bỏ điều kiện là hiện
+                     lại như cũ. --}}
+                @php
+                    $wsTokenBalance = (int) (auth()->user()?->token_balance ?? 0);
+                    $wsShowWallet = ! (auth()->user()?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) ?? false);
+                @endphp
+                @if ($wsShowWallet)
                 <a href="{{ route('wallet.index') }}"
                    title="Ví token — số dư {{ number_format($wsTokenBalance) }} token"
                    aria-label="Ví token, số dư {{ number_format($wsTokenBalance) }} token"
@@ -100,6 +107,7 @@
                     <span class="text-[12px] font-black leading-none tabular-nums">{{ number_format($wsTokenBalance) }}</span>
                     <span class="hidden text-[10px] font-bold uppercase tracking-wide text-emerald-600 sm:inline">token</span>
                 </a>
+                @endif
 
                 @include('partials.admin-role-switcher')
                 @include('partials.admin-notifications-bell')
