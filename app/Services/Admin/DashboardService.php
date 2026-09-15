@@ -9,7 +9,6 @@ use App\Repositories\Contracts\OrderRepositoryInterface;
 use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
-use App\Enums\OrderStatus;
 
 /**
  * Gom số liệu vận hành cho admin.dashboard (ADM-01, 2.1, 16 mục 9).
@@ -41,7 +40,9 @@ class DashboardService
     {
         return [
             'teachers' => $this->teacherProfiles->countPending(),
-            'orders' => $this->orders->countByStatuses([OrderStatus::PendingApproval]),
+            // SỬA 15/9 — dùng CHUNG hằng với viên số cạnh mục menu "Đơn hàng" thay vì tự
+            // liệt kê trạng thái ở đây, để 2 chỗ không bao giờ hiện 2 con số khác nhau.
+            'orders' => $this->orders->countByStatuses(OrderService::AWAITING_APPROVAL_STATUSES),
             'reviews' => $this->reviews->countPendingModeration(),
             'support' => $this->contactMessages->countNew(),
         ];

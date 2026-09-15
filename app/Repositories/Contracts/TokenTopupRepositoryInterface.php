@@ -11,4 +11,7 @@ interface TokenTopupRepositoryInterface extends BaseRepositoryInterface
 
     /** admin.orders.index — yêu cầu "Chờ duyệt" lên đầu, rồi tới các yêu cầu đã xử lý gần đây. */
     public function pendingAndRecent(int $limit = 20): Collection;
+
+    /** Số yêu cầu nạp token đang chờ duyệt — cho viên số cạnh mục menu "Đơn hàng". */
+    public function countPending(): int;
 }

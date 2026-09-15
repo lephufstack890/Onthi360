@@ -21,6 +21,26 @@ class OrderService
 {
     private const PENDING_STATUSES = [OrderStatus::Created, OrderStatus::PendingPayment, OrderStatus::PendingApproval];
 
+    /*
+     * SỬA 15/9 (khách: "chỗ đơn hàng hiển thị số như yêu cầu hỗ trợ để biết ai nạp tiền còn vô
+     * mà duyệt") — đơn ĐÃ chuyển tiền và đang chờ quản trị viên xác nhận, tức việc thật sự cần
+     * có người vào bấm duyệt. Khai public vì DÙNG CHUNG cho 2 nơi: viên số cạnh mục menu "Đơn
+     * hàng" (resources/views/partials/sidebar-admin.blade.php) và ô "Đơn hàng chờ duyệt" ở bảng
+     * điều khiển (DashboardService::pendingCounts). Để chung một hằng thay vì mỗi nơi tự liệt kê
+     * trạng thái, nếu không sớm muộn 2 màn hiện 2 con số khác nhau cho cùng một hàng chờ.
+     *
+     * CỐ Ý HẸP HƠN tab "Chờ duyệt" (self::PENDING_STATUSES): tab đó gộp thêm Created và
+     * PendingPayment — đơn mới tạo / chưa thanh toán, KHÔNG có gì để duyệt vì người mua còn chưa
+     * trả tiền. Nên viên số thường nhỏ hơn con số trên tab, đó là đúng chứ không phải lệch.
+     */
+    public const AWAITING_APPROVAL_STATUSES = [OrderStatus::PendingApproval];
+
+    /** Số đơn đang chờ tay quản trị viên duyệt — xem AWAITING_APPROVAL_STATUSES. */
+    public function awaitingApprovalCount(): int
+    {
+        return $this->orders->countByStatuses(self::AWAITING_APPROVAL_STATUSES);
+    }
+
     private const DONE_STATUSES = [OrderStatus::Approved, OrderStatus::Completed];
 
     private const REJECTED_STATUSES = [OrderStatus::Rejected, OrderStatus::Canceled, OrderStatus::Refunded];

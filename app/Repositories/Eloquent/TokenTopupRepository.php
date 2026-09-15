@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Enums\TokenTopupStatus;
 use App\Models\TokenTopup;
 use App\Repositories\Contracts\TokenTopupRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -27,5 +28,10 @@ class TokenTopupRepository extends EloquentRepository implements TokenTopupRepos
             ->latest()
             ->limit($limit)
             ->get();
+    }
+
+    public function countPending(): int
+    {
+        return $this->query()->where('status', TokenTopupStatus::Pending->value)->count();
     }
 }

@@ -168,6 +168,18 @@ class WalletService
     }
 
     /** admin.orders.index — "Chờ duyệt" lên trước, rồi tới các yêu cầu đã xử lý gần đây. */
+    /*
+     * SỬA 15/9 (khách: "để biết được ai nạp tiền còn vô mà duyệt") — số yêu cầu nạp token đang
+     * chờ duyệt, cho viên số đỏ cạnh mục menu "Đơn hàng". Đây mới ĐÚNG là "nạp tiền": người học
+     * chuyển khoản để đổi lấy token, quản trị viên phải đối chiếu sao kê rồi bấm duyệt thì token
+     * mới được cộng (xem approveTopup). Khác với đơn mua hàng — 2 hàng chờ riêng nhưng cùng nằm
+     * trên màn admin.orders.index nên viên số cộng cả hai.
+     */
+    public function pendingTopupCount(): int
+    {
+        return $this->topups->countPending();
+    }
+
     public function pendingAndRecentForAdmin(int $limit = 20): array
     {
         return $this->topups->pendingAndRecent($limit)->map(fn (TokenTopup $t) => [
