@@ -91,13 +91,22 @@ class HomeService
             'learningSpace' => $this->learningSpace(auth()->user()),
             /*
              * B2 — [HOME-04] "Chọn mục tiêu hoặc lộ trình": ba ô chọn thu hẹp dần.
-             * Nạp NGUYÊN danh sách lộ trình đang hiển thị vào trang rồi lọc tại chỗ, nên đổi
-             * lựa chọn không tải lại trang và không bao giờ hiện một khối lớp hay mục tiêu
-             * không có lộ trình nào đứng sau.
+             * B5 — [HOME-05B] thay 5 bước viết cứng bằng lộ trình thật.
+             *
+             * SỬA 15/9 — khách tạm dừng phần lộ trình công khai nên 2 khoá này trả về RỖNG,
+             * và welcome.blade.php tự quay về đúng bản gốc: [HOME-05B] hiện lại 5 thẻ giới
+             * thiệu viết cứng, [HOME-04] hiện lại nút "Xem lộ trình" tĩnh trỏ sang Lớp học.
+             *
+             * Để nguyên 2 dòng gọi service (chỉ bọc trong công tắc) chứ không xoá — bật
+             * PUBLIC_ENABLED lên true là trang chủ có lại lộ trình thật ngay, không phải viết
+             * lại gì. Khi tắt thì cũng KHÔNG chạy truy vấn nào cho lộ trình.
              */
-            'pathPicker' => $this->learningPathService->pickerPayload(),
-            // B5 — [HOME-05B] thay 5 bước viết cứng bằng lộ trình thật.
-            'learningPathCards' => $this->learningPathService->homeStrip(self::FEATURED_LIMIT),
+            'pathPicker' => LearningPathService::PUBLIC_ENABLED
+                ? $this->learningPathService->pickerPayload()
+                : ['paths' => [], 'grades' => [], 'indexHref' => route('courses.index'), 'showLanguage' => false],
+            'learningPathCards' => LearningPathService::PUBLIC_ENABLED
+                ? $this->learningPathService->homeStrip(self::FEATURED_LIMIT)
+                : [],
         ];
     }
 

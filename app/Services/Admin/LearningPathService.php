@@ -40,6 +40,21 @@ class LearningPathService
      */
     public const SHOW_LANGUAGE = false;
 
+    /**
+     * Có hiện mục "Lộ trình" trên menu trái của khu Quản trị hay không.
+     *
+     * SỬA 15/9 (khách: "trong admin ẩn mục lộ trình đi") — TẮT, sau khi khách chốt quay lại
+     * cách bán cũ "khoá học có các lớp học". ẨN CHỨ KHÔNG XOÁ, và cố ý CHỈ ẨN MỤC MENU:
+     * các route admin.learning-paths.* vẫn chạy bình thường nên vẫn vào được bằng đường dẫn
+     * /admin/learning-paths khi cần xem lại hay soạn tiếp, và dữ liệu lộ trình đã nhập không
+     * bị ảnh hưởng gì.
+     *
+     * Đổi thành true là mục menu hiện lại ngay — xem partials/sidebar-admin.blade.php.
+     * Phần lộ trình ở TRANG CÔNG KHAI là công tắc riêng, xem
+     * App\Services\Public\LearningPathService::PUBLIC_ENABLED.
+     */
+    public const SHOW_ADMIN_MENU = false;
+
     /** Nơi cất ảnh lộ trình — cùng đĩa 'public' với ảnh của các khu khác. */
     private const DISK = 'public';
     private const DIR = 'learning-paths';

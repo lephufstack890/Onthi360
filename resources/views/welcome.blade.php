@@ -131,15 +131,30 @@
     $learningPathCards = $learningPathCards ?? [];
     $stepFallbackImages = ['step-1.png', 'step-2.png', 'step-3.png', 'step-4.png', 'step-5.png'];
 
-    $learningSteps = [];
-    foreach ($learningPathCards as $i => $card) {
-        $learningSteps[] = [
-            'step' => ($i + 1).'. '.$card['title'],
-            'desc' => $card['goal'] ?: ($card['gradeLabel'].' · '.$card['stepCount'].' bậc'),
-            'meta' => $card['gradeLabel'].' · '.$card['stepCount'].' bậc'.($card['totalSessions'] > 0 ? ' · '.$card['totalSessions'].' buổi' : ''),
-            'img' => $card['coverUrl'] ?: asset('assets/'.$stepFallbackImages[$i % count($stepFallbackImages)]),
-            'href' => $card['href'],
+    if (! \App\Services\Public\LearningPathService::PUBLIC_ENABLED) {
+        /*
+         * SỬA 15/9 (khách đổi ý, tạm dừng phần lộ trình công khai) — TRẢ VỀ ĐÚNG 5 THẺ CỦA
+         * BẢN THIẾT KẾ GỐC, nguyên văn từng chữ và từng đường dẫn như trước khi làm lộ trình.
+         * Không xoá nhánh đổ lộ trình thật ở dưới: bật công tắc lên là dùng lại ngay.
+         */
+        $learningSteps = [
+            ['step' => '1. Lựa chọn mục tiêu', 'desc' => 'Chọn mục tiêu lớp phù hợp', 'img' => asset('assets/step-1.png'), 'href' => route('courses.index')],
+            ['step' => '2. Chọn lộ trình phù hợp', 'desc' => 'Học theo năng lực & mục tiêu', 'img' => asset('assets/step-2.png'), 'href' => route('courses.index')],
+            ['step' => '3. Luyện tập & học liệu', 'desc' => 'Bài tập, giáo trình, chuyên đề', 'img' => asset('assets/step-3.png'), 'href' => route('practice.index')],
+            ['step' => '4. Lớp học & giáo viên', 'desc' => 'Học cùng giáo viên, nhận hỗ trợ', 'img' => asset('assets/step-4.png'), 'href' => route('teachers.index')],
+            ['step' => '5. Thi & Đánh giá', 'desc' => 'Cuộc thi, đánh giá phát năng lực', 'img' => asset('assets/step-5.png'), 'href' => route('competitions.index')],
         ];
+    } else {
+        $learningSteps = [];
+        foreach ($learningPathCards as $i => $card) {
+            $learningSteps[] = [
+                'step' => ($i + 1).'. '.$card['title'],
+                'desc' => $card['goal'] ?: ($card['gradeLabel'].' · '.$card['stepCount'].' bậc'),
+                'meta' => $card['gradeLabel'].' · '.$card['stepCount'].' bậc'.($card['totalSessions'] > 0 ? ' · '.$card['totalSessions'].' buổi' : ''),
+                'img' => $card['coverUrl'] ?: asset('assets/'.$stepFallbackImages[$i % count($stepFallbackImages)]),
+                'href' => $card['href'],
+            ];
+        }
     }
 
     /*
@@ -174,8 +189,9 @@
     }
 
     // [HOME-02A] Menu trái — cùng bộ mục với header, dẫn sang link thật.
-    // Công tắc mục "Lộ trình" trên thanh menu — xem ghi chú ngay dưới.
-    $showLearningPathMenu = false;
+    // Mục "Lộ trình" chỉ hiện khi phần lộ trình công khai được bật — cùng công tắc với
+    // thanh menu trên cùng (partials/nav-public), không khai báo rời để 2 chỗ khỏi lệch nhau.
+    $showLearningPathMenu = \App\Services\Public\LearningPathService::PUBLIC_ENABLED;
 
     $homeSideNav = [
         ['label' => 'Trang chủ', 'route' => 'home', 'icon' => 'home'],
@@ -474,9 +490,14 @@
                         <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
                     </button>
 
-                    <a href="{{ route('courses.index') }}" :href="pickerHref"
+                    {{-- SỬA 15/9 — công tắc lộ trình đang tắt nên nút quay về ĐÚNG BẢN GỐC:
+                         liên kết tĩnh sang trang Lớp học, chữ cố định "Xem lộ trình". Bật công
+                         tắc thì 2 thuộc tính Alpine (:href / x-text) gắn lại và nút chạy theo
+                         lựa chọn của người dùng như đã làm. --}}
+                    <a href="{{ route('courses.index') }}"
+                       @if (\App\Services\Public\LearningPathService::PUBLIC_ENABLED) :href="pickerHref" @endif
                        class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#ECD78F] bg-[#FFF4C7] px-4 text-xs font-bold text-[#765C18] shadow-[0_2px_7px_rgba(183,143,37,0.09)] transition-all hover:border-[#DFC56F] hover:bg-[#FFEDAA] active:scale-[0.98]">
-                        <span x-text="pickerLabel">Xem lộ trình</span>
+                        <span @if (\App\Services\Public\LearningPathService::PUBLIC_ENABLED) x-text="pickerLabel" @endif>Xem lộ trình</span>
                         <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                     </a>
                 </div>
@@ -574,7 +595,7 @@
                                 </div>
                                 <div class="flex h-[84px] min-w-0 flex-col px-3 py-2.5">
                                     <h5 class="text-[13.5px] font-bold leading-snug text-[#123B68] line-clamp-1">{{ $step['step'] }}</h5>
-                                    <p class="mt-1 line-clamp-1 text-[11px] font-normal leading-[1.45] text-[#536D86]">{{ $step['desc'] }}</p>
+                                    <p class="mt-1 line-clamp-2 text-[11px] font-normal leading-[1.45] text-[#536D86]">{{ $step['desc'] }}</p>
                                     @if (! empty($step['meta']))
                                         <p class="mt-auto text-[10px] font-bold uppercase tracking-wide text-[#2D7FA3]">{{ $step['meta'] }}</p>
                                     @endif

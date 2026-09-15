@@ -21,6 +21,14 @@
         $isEnrolledInThisCourse = count($myClassRoomIdsInThisCourse) > 0;
 
         // B6/C2 (15/9) — dải bậc trong lộ trình + nút mua thật.
+        //
+        // SỬA 15/9 (khách đổi ý, tạm dừng lộ trình công khai) — Public\CourseService::showData()
+        // KHÔNG còn trả 'pathStrips' nữa, nên $pathStrips luôn rỗng và KHỐI B6 bên dưới không
+        // bao giờ hiện. Cố ý GIỮ NGUYÊN mã khối B6: bật lại chỉ cần trả khoá đó về trong
+        // showData() (xem App\Services\Public\LearningPathService::PUBLIC_ENABLED).
+        //
+        // Ngược lại, 'buyHref'/'priceLabel'/'chooseClassHref' (KHỐI C — mua khoá rồi chọn lớp)
+        // VẪN được trả về và vẫn chạy: phần đó không dính gì tới lộ trình.
         $pathStrips = $pathStrips ?? [];
         $mainStrip = $pathStrips[0] ?? null;
         $buyHref = $buyHref ?? null;

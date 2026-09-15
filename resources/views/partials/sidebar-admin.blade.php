@@ -7,9 +7,16 @@
         ['label' => 'Tổng quan', 'route' => 'admin.dashboard', 'icon' => 'layout-dashboard'],
         ['label' => 'Người dùng', 'route' => 'admin.users.index', 'icon' => 'users', 'also' => ['admin.users.show', 'admin.teacher-approvals.index', 'admin.teacher-approvals.show']],
         ['label' => 'Kho câu hỏi và đề', 'route' => 'admin.content.index', 'icon' => 'library', 'also' => ['admin.content.show'], 'editorOk' => true],
-        // SỬA 15/9 — Lộ trình là cấp trên của Khoá học nên đứng ngay trước.
-        ['label' => 'Lộ trình', 'route' => 'admin.learning-paths.index', 'icon' => 'route',
-            'also' => ['admin.learning-paths.create', 'admin.learning-paths.edit', 'admin.learning-paths.steps']],
+        /*
+         * SỬA 15/9 — Lộ trình là cấp trên của Khoá học nên đứng ngay trước.
+         * Cùng ngày, khách chốt quay lại cách bán cũ nên mục này ĐANG ẨN. Ẩn chứ không xoá:
+         * đổi Admin\LearningPathService::SHOW_ADMIN_MENU thành true là hiện lại đúng chỗ cũ.
+         * Route vẫn sống, vào thẳng /admin/learning-paths vẫn quản lý được như thường.
+         */
+        ...(\App\Services\Admin\LearningPathService::SHOW_ADMIN_MENU ? [
+            ['label' => 'Lộ trình', 'route' => 'admin.learning-paths.index', 'icon' => 'route',
+                'also' => ['admin.learning-paths.create', 'admin.learning-paths.edit', 'admin.learning-paths.steps']],
+        ] : []),
         ['label' => 'Khóa & Lớp', 'route' => 'admin.courses.index', 'icon' => 'graduation-cap'],
         ['label' => 'Tài liệu', 'route' => 'admin.products.index', 'icon' => 'wallet-cards', 'also' => ['admin.products.show', 'admin.access-rights.index']],
         // SỬA 15/9 (khách: "để biết được ai nạp tiền còn vô mà duyệt") — 'badge' => tên hàng

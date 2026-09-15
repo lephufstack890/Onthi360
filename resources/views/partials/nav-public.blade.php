@@ -6,16 +6,17 @@
        · chuông                 -> thông báo thật ($bellItems)
      Ảnh nằm ở public/assets/ (chép từ source). --}}
 @php
-    // Công tắc mục "Lộ trình" trên thanh menu — xem ghi chú ngay dưới.
-    $showLearningPathMenu = false;
+    // Mục "Lộ trình" chỉ hiện khi phần lộ trình công khai được bật — xem ghi chú ngay dưới.
+    $showLearningPathMenu = \App\Services\Public\LearningPathService::PUBLIC_ENABLED;
 
     $publicNavItems = [
         ['label' => 'Trang chủ', 'route' => 'home', 'icon' => 'home'],
         /*
-         * SỬA 15/9 (khách yêu cầu "trên header ẩn menu lộ trình đi nha") — ẨN mục "Lộ trình"
-         * khỏi thanh menu. ẨN CHỨ KHÔNG XOÁ: đổi cờ dưới thành true là hiện lại ngay.
-         * Trang /lo-trinh vẫn chạy bình thường và vẫn nằm trong chân trang + sitemap, chỉ là
-         * không chiếm một ô trên thanh menu.
+         * SỬA 15/9 — ẨN mục "Lộ trình" khỏi thanh menu. Ban đầu chỉ là "ẩn cho đỡ chật menu",
+         * giờ là do khách tạm dừng hẳn phần lộ trình công khai nên cờ lấy thẳng từ công tắc
+         * chung App\Services\Public\LearningPathService::PUBLIC_ENABLED — bật lại một chỗ là
+         * menu, chân trang, sitemap và trang chủ cùng hiện lại, không phải đi sửa từng file.
+         * ẨN CHỨ KHÔNG XOÁ.
          */
         ...($showLearningPathMenu ? [['label' => 'Lộ trình', 'route' => 'learningPaths.index', 'icon' => 'route']] : []),
         ['label' => 'Lớp học', 'route' => 'courses.index', 'icon' => 'book-open'],

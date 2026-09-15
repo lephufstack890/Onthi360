@@ -28,6 +28,44 @@ use Illuminate\Support\Collection;
  */
 class LearningPathService
 {
+    /*
+     * ══════ CÔNG TẮC TOÀN BỘ PHẦN LỘ TRÌNH CÔNG KHAI ══════
+     *
+     * SỬA 15/9 — khách đổi ý: tạm KHÔNG bán/giới thiệu theo lộ trình nữa, quay lại cách cũ
+     * "khoá học chứa các lớp học". Đặt false để TẮT mọi lối vào lộ trình ở phía người dùng:
+     *
+     *   · 2 trang /lo-trinh và /lo-trinh/{slug}  -> trả 404 (Public\LearningPathController)
+     *   · mục "Lộ trình" trên thanh menu          -> ẩn (partials/nav-public, welcome)
+     *   · liên kết "Lộ trình học" ở chân trang    -> ẩn (partials/footer)
+     *   · sitemap.xml                             -> không liệt kê (Public\SitemapController)
+     *   · khối [HOME-05B] ở trang chủ             -> quay về 5 thẻ giới thiệu như bản gốc
+     *   · ba ô chọn [HOME-04] ở trang chủ         -> quay về nút "Xem lộ trình" tĩnh như cũ
+     *
+     * ẨN CHỨ KHÔNG XOÁ — đúng yêu cầu "sau này dùng thì mở ra". TOÀN BỘ mã lộ trình vẫn còn
+     * nguyên: service này, Public\LearningPathController, 2 view public/learning-paths/*, và
+     * cả khu quản trị Lộ trình (admin/learning-paths/*) vẫn chạy bình thường để quản trị viên
+     * tiếp tục soạn nội dung. Bật lại: đổi đúng MỘT dòng dưới đây thành true.
+     *
+     * ── BA FILE KHÔNG NẰM SAU CÔNG TẮC NÀY ──
+     * Trang Lớp học công khai và ba ô chọn ở trang chủ bị lộ trình viết đè lên gần như toàn
+     * bộ, không tách được bằng một câu if. Ba file dưới đây đã được TRẢ NGUYÊN VỀ BẢN GỐC
+     * bằng git (commit 2dd210c, 15/9 10:02 — ngay trước khi bắt đầu làm lộ trình công khai):
+     *
+     *     resources/views/public/courses/index.blade.php
+     *     resources/views/partials/courses-script.blade.php
+     *     resources/views/partials/home-script.blade.php
+     *
+     * Bản có lộ trình của ba file đó KHÔNG MẤT, nằm nguyên trong commit 7184796. Muốn bật lại
+     * đầy đủ thì ngoài việc đổi hằng dưới thành true, chạy thêm:
+     *
+     *     git checkout 7184796 -- resources/views/public/courses/index.blade.php \
+     *         resources/views/partials/courses-script.blade.php \
+     *         resources/views/partials/home-script.blade.php
+     *
+     * và mở lại tham số ?lo-trinh= trong Public\CourseController::index (cũng ở commit đó).
+     */
+    public const PUBLIC_ENABLED = false;
+
     public function __construct(
         private readonly LearningPathRepositoryInterface $paths,
         private readonly ClassEnrollmentRepositoryInterface $classEnrollments,

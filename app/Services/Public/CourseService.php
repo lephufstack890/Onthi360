@@ -6,8 +6,6 @@ use App\Enums\ReviewTargetType;
 use App\Models\Course;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\AccessRight;
-use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
@@ -34,14 +32,10 @@ class CourseService
         private CourseRepositoryInterface $courses,
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ClassEnrollmentRepositoryInterface $classEnrollments,
-        // B6 (15/9) — dải "Bậc 2/6 của lộ trình ..." ở đầu trang chi tiết khoá học.
-        private LearningPathService $learningPaths,
-        // SỬA 15/9 — nút trên thẻ khoá phải biết người xem ĐÃ CÓ QUYỀN học khoá đó chưa.
-        private AccessRightRepositoryInterface $accessRights,
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
-    public function indexData(?string $subject, ?User $viewer = null, ?int $learningPathId = null): array
+    public function indexData(?string $subject, ?User $viewer = null): array
     {
         // SỬA 11/9 — thẻ lớp học ở giao diện mới (education-main/src/components/CoursesPage.jsx)
         // cần thêm: mã lớp, sĩ số, giáo viên phụ trách và trợ giảng. Nạp sẵn trong CÙNG 1 câu
@@ -52,11 +46,6 @@ class CourseService
                 ->select('id', 'course_id', 'code', 'name')
                 ->withCount('students')
                 ->with(['teachers:id,name'])]);
-
-        // C1 — giá bán nằm ở sản phẩm gắn với khoá. Nạp sẵn để không sinh N+1 khi vẽ nút.
-        if (Course::supportsProduct()) {
-            $query->with('product:id,price');
-        }
 
         if (filled($subject)) {
             $query->where('subject', $subject);
@@ -87,44 +76,19 @@ class CourseService
                 ->all()
             : [];
 
-        /*
-         * Các sản phẩm người xem ĐANG CÒN QUYỀN. Lấy một lần cho cả trang rồi so trong bộ
-         * nhớ — hỏi từng khoá một thì mỗi thẻ là một truy vấn.
-         */
-        $myActiveProductIds = $viewer !== null
-            ? $this->accessRights->forUserWithProduct($viewer->id)
-                ->filter(fn (AccessRight $ar) => $ar->isCurrentlyActive())
-                ->pluck('product_id')
-                ->map(fn ($id) => (int) $id)
-                ->unique()
-                ->all()
-            : [];
-
         return [
-            'courses' => $courses->map(fn (Course $c) => $this->mapCourseCard($c, $ratingsByClassRoomId, $myClassRoomIds, $myActiveProductIds))->all(),
-            // Đếm cho đúng: trang liệt kê KHOÁ HỌC, mỗi khoá có nhiều lớp.
-            'totalOpenClasses' => $courses->sum(fn (Course $c) => $c->classRooms->count()),
+            'courses' => $courses->map(fn (Course $c) => $this->mapCourseCard($c, $ratingsByClassRoomId, $myClassRoomIds))->all(),
             'subjects' => $subjects,
             'activeSubject' => $subject,
-            /*
-             * SỬA 15/9 — dải lọc "Khối lớp" giờ SINH TỪ LỘ TRÌNH, không từ cột courses.grade.
-             * Trang này liệt kê lộ trình, nên khối nào không có lộ trình thì đừng mời người ta
-             * bấm vào; ngược lại lộ trình "Khối 6–8" phải ra đủ Lớp 6, 7, 8 kể cả khi không
-             * khoá nào ghi "Lớp 7".
-             * Xem App\Services\Public\LearningPathService::gradeOptions().
-             */
-            'grades' => $this->learningPaths->gradeOptions(),
-            /*
-             * B7 (15/9, khách nói thẳng "người ta chọn lớp theo lộ trình") — bộ lọc theo lộ
-             * trình bên cạnh lọc môn và lọc khối đang có.
-             *
-             * Trả về từng lộ trình kèm DANH SÁCH ID KHOÁ HỌC của nó, để trang lọc ngay tại
-             * chỗ bằng id khoá — người dùng đổi lộ trình không phải tải lại trang. Lộ trình
-             * chưa xếp bậc nào bị loại sẵn trong service, không để lọc ra danh sách rỗng.
-             */
-            'learningPathFilters' => $this->learningPaths->filterOptions(),
-            // Lộ trình chọn sẵn từ ?lo-trinh= trên đường dẫn (null = không lọc).
-            'activeLearningPath' => $learningPathId,
+            // Khối lớp có thật trong dữ liệu — dải lọc "Khối lớp" của giao diện mới dựng từ đây,
+            // không phải danh sách cứng, nên không bao giờ lọc ra 0 kết quả một cách vô nghĩa.
+            'grades' => $this->courses->query()
+                ->where('status', 'published')
+                ->whereNotNull('grade')
+                ->distinct()
+                ->orderBy('grade')
+                ->pluck('grade')
+                ->all(),
         ];
     }
 
@@ -168,15 +132,14 @@ class CourseService
             'isStudent' => $isStudent,
             'myClassRoomIdsInThisCourse' => $myClassRoomIdsInThisCourse,
             /*
-             * B6 — khoá này là bậc mấy của lộ trình nào.
-             * Là DANH SÁCH chứ không phải một, vì một khoá dùng lại được ở nhiều lộ trình
-             * (xem migration create_learning_path_course_table). Trang in dải đầu tiên và
-             * nêu số lộ trình còn lại.
-             */
-            'pathStrips' => $this->learningPaths->stripsForCourse($course),
-            /*
-             * C2 — nút mua khoá học. Null khi khoá chưa gắn sản phẩm hoặc sản phẩm chưa có
-             * giá: lúc đó trang giữ nguyên lối vào bằng mã lớp như trước.
+             * KHỐI C (mua khoá học) — GIỮ LẠI khi gỡ lộ trình công khai ngày 15/9.
+             *
+             * Phần này không dính gì tới lộ trình: nó chỉ trả lời "khoá này có bán không, mua
+             * xong chọn lớp ở đâu" — đúng thứ khách muốn giữ ("trong khoá học có các lớp học").
+             *
+             * 'buyHref' null khi khoá chưa gắn sản phẩm HOẶC sản phẩm chưa điền giá. Lúc đó
+             * trang chi tiết khoá tự quay về lối vào bằng mã lớp y như trước, không hiện nút
+             * mua nào — xem public/courses/show.blade.php.
              */
             'buyHref' => $course->isPurchasable() ? route('access.checkout', $course->product_id) : null,
             'priceLabel' => $course->isPurchasable() ? number_format((int) $course->learningPrice()).'đ' : null,
@@ -184,109 +147,43 @@ class CourseService
         ];
     }
 
-    /**
-     * Một thẻ trên trang /khoa-hoc.
-     *
-     * ── SỬA 15/9: trang này liệt kê KHOÁ HỌC, không phải lớp ──
-     * Cấu trúc hệ thống là Lộ trình → Khoá học → Lớp học. Mỗi thẻ ở đây là một KHOÁ, bên
-     * trong có nhiều lớp. Bản cũ lấy lớp ĐẦU TIÊN rồi in "Mã lớp · X" và tên giáo viên của
-     * riêng lớp đó như thể là của cả khoá — khoá có ba lớp thì hai lớp còn lại biến mất, còn
-     * người đọc thì tưởng khoá chỉ có một lớp và ghi nhầm mã. Giờ trả về DANH SÁCH lớp đang
-     * mở để giao diện liệt kê đủ.
-     *
-     * ── Nút bấm bám đúng khối C (bán khoá học) ──
-     * Trước chỉ có ba trạng thái đoán từ việc đã ghi danh hay chưa. Giờ đã có sản phẩm, giá
-     * và màn tự chọn lớp nên nút phải nói đúng việc tiếp theo của từng người:
-     *   đã ở trong lớp        -> Vào học
-     *   có quyền, còn lớp mở  -> Chọn lớp   (không bắt mua lại)
-     *   có quyền, chưa có lớp -> báo chưa mở lớp
-     *   chưa có quyền, bán được -> Đăng ký kèm giá
-     *   chưa gắn sản phẩm     -> Xem khoá học (vào bằng mã lớp như trước)
-     *
-     * @param  list<int>  $myClassRoomIds     lớp người xem đang học
-     * @param  list<int>  $myActiveProductIds sản phẩm người xem còn quyền
-     */
-    private function mapCourseCard(
-        Course $course,
-        Collection $ratingsByClassRoomId,
-        array $myClassRoomIds = [],
-        array $myActiveProductIds = [],
-    ): array {
+    private function mapCourseCard(Course $course, Collection $ratingsByClassRoomId, array $myClassRoomIds = []): array
+    {
         $classRoomIds = $course->classRooms->pluck('id')->all();
         [$average, $count] = $this->aggregate($classRoomIds, $ratingsByClassRoomId);
 
-        $classCount = count($classRoomIds);
-        $studentCount = (int) $course->classRooms->sum('students_count');
-
         $metaParts = array_filter([
-            $classCount > 0 ? $classCount.' lớp đang mở' : 'Chưa có lớp mở',
+            count($classRoomIds) > 0 ? count($classRoomIds).' lớp đang triển khai' : 'Chưa có lớp triển khai',
             $course->subject,
             $course->grade,
         ]);
 
-        // Danh sách lớp đang mở — đủ cả, không chỉ lớp đầu tiên.
-        $classes = $course->classRooms->map(fn ($classRoom) => [
-            'id' => $classRoom->id,
-            'code' => $classRoom->code,
-            'name' => $classRoom->name,
-            'studentsCount' => (int) $classRoom->students_count,
-            'teachers' => $classRoom->teachers->pluck('name')->values()->all(),
-            'isMember' => in_array($classRoom->id, $myClassRoomIds, true),
-        ])->values()->all();
+        $firstClassRoom = $course->classRooms->first();
+        $teachers = $firstClassRoom?->teachers ?? collect();
+        $studentCount = (int) $course->classRooms->sum('students_count');
 
-        // Giáo viên của KHOÁ = gộp giáo viên của mọi lớp, bỏ trùng.
-        $teacherNames = $course->classRooms
-            ->flatMap(fn ($classRoom) => $classRoom->teachers->pluck('name'))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
+        // "Vào học" khi học sinh đã ở trong 1 lớp của khóa; "Đã đóng" khi khóa chưa mở lớp nào
+        // đang hoạt động; còn lại là "Đăng ký học". Không có trạng thái nào được suy đoán thêm.
         $myEnrolledInThisCourse = array_values(array_intersect($classRoomIds, $myClassRoomIds));
-        $hasRight = $course->product_id !== null && in_array((int) $course->product_id, $myActiveProductIds, true);
+
+        $enrollmentStatus = 'Đăng ký học';
+        if ($classRoomIds === []) {
+            $enrollmentStatus = 'Đã đóng';
+        } elseif ($myEnrolledInThisCourse !== []) {
+            $enrollmentStatus = 'Vào học';
+        }
 
         /*
-         * Một chỗ duy nhất quyết định nút: nhãn, đường dẫn và kiểu hiển thị đi cùng nhau.
-         * Tách ra ba chỗ thì sớm muộn nhãn nói một đằng, link dẫn một nẻo.
+         * SỬA 14/9 (khách yêu cầu "bấm Vào học thì vào thẳng lớp luôn") — đường dẫn cho NÚT
+         * trên thẻ. Chỉ khác 'href' đúng ở trạng thái "Vào học": học sinh đã ở trong lớp rồi
+         * thì bắt xem lại trang giới thiệu khoá là thừa một cú bấm.
+         * Đang học nhiều lớp cùng một khoá thì không tự chọn hộ — đưa về danh sách lớp của
+         * học sinh để tự vào đúng lớp muốn học (cùng luật với showData()).
          */
-        $cta = match (true) {
-            // Đã học rồi thì vào thẳng lớp; học nhiều lớp cùng khoá thì để tự chọn.
-            count($myEnrolledInThisCourse) === 1 => [
-                'label' => 'Vào học',
-                'href' => route('student.classes.show', $myEnrolledInThisCourse[0]),
-                'tone' => 'go',
-            ],
-            count($myEnrolledInThisCourse) > 1 => [
-                'label' => 'Vào học',
-                'href' => route('student.courses.index'),
-                'tone' => 'go',
-            ],
-            // Đã mua rồi: việc tiếp theo là chọn lớp, KHÔNG phải mua lại.
-            $hasRight && $classCount > 0 => [
-                'label' => 'Chọn lớp',
-                'href' => route('access.chooseClass', $course->id),
-                'tone' => 'go',
-            ],
-            $hasRight => [
-                'label' => 'Chờ mở lớp',
-                'href' => route('courses.show', $course->id),
-                'tone' => 'muted',
-            ],
-            $classCount === 0 => [
-                'label' => 'Chưa mở lớp',
-                'href' => route('courses.show', $course->id),
-                'tone' => 'muted',
-            ],
-            $course->isPurchasable() => [
-                'label' => 'Đăng ký · '.number_format((int) $course->learningPrice()).'đ',
-                'href' => route('access.checkout', $course->product_id),
-                'tone' => 'buy',
-            ],
-            default => [
-                'label' => 'Xem khoá học',
-                'href' => route('courses.show', $course->id),
-                'tone' => 'primary',
-            ],
+        $ctaHref = match (true) {
+            $enrollmentStatus !== 'Vào học' => route('courses.show', $course->id),
+            count($myEnrolledInThisCourse) === 1 => route('student.classes.show', $myEnrolledInThisCourse[0]),
+            default => route('student.courses.index'),
         };
 
         return [
@@ -295,21 +192,20 @@ class CourseService
             'meta' => implode(' · ', $metaParts),
             'average' => $average,
             'count' => $count,
+            // ── các trường bổ sung cho thẻ lớp học của giao diện mới ──
             'subtitle' => $course->description,
             'subject' => $course->subject,
             'grade' => $course->grade,
             'image' => $course->cover_image_path ? asset('storage/'.$course->cover_image_path) : null,
-            'classCount' => $classCount,
-            'classes' => $classes,
+            'classCount' => count($classRoomIds),
+            'classCode' => $firstClassRoom?->code,
+            'className' => $firstClassRoom?->name,
             'studentCount' => $studentCount,
-            'teacherNames' => $teacherNames,
-            // Số buổi theo chương trình — con số thật, thay hai dòng "Trực tuyến" và
-            // "Có chấm bài tự động" viết cứng trong bản cũ (mọi thẻ đều giống hệt nhau).
-            'sessionCount' => (int) $course->session_count,
-            'priceLabel' => $course->isPurchasable() ? number_format((int) $course->learningPrice()).'đ' : null,
-            'hasRight' => $hasRight,
+            'teacherName' => $teachers->first()?->name,
+            'assistantNames' => $teachers->skip(1)->pluck('name')->values()->all(),
+            'enrollmentStatus' => $enrollmentStatus,
             'href' => route('courses.show', $course->id),
-            'cta' => $cta,
+            'ctaHref' => $ctaHref,
         ];
     }
 

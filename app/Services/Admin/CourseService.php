@@ -18,6 +18,30 @@ use Illuminate\Validation\ValidationException;
  */
 class CourseService
 {
+    /*
+     * ══════ HAI CÔNG TẮC KHỐI TRONG FORM THÊM/SỬA KHOÁ HỌC ══════
+     *
+     * SỬA 15/9 (khách: "ẩn Thông tin bậc trong lộ trình đi, ẩn Bán khoá học này luôn") —
+     * ẩn 2 khối đó khỏi màn Thêm và Sửa khoá học. ẨN CHỨ KHÔNG XOÁ: đổi thành true là hiện lại.
+     *
+     * ── VÌ SAO KHÔNG CHỈ BỌC @if Ở VIEW LÀ XONG ──
+     * Ẩn ô nhập thì trình duyệt không gửi các trường đó lên nữa. Mà store()/update() bên dưới
+     * ghi thẳng 'level_code' => $data['level_code'] ?? null — tức là MỖI LẦN quản trị bấm Lưu
+     * một khoá học (dù chỉ sửa cái tiêu đề), 5 cột level_code, level_subtitle, outcome,
+     * session_count, product_id sẽ bị ghi đè thành NULL. Dữ liệu bậc và sản phẩm bán khoá mà
+     * khách đã nhập sẽ mất sạch một cách âm thầm, đúng thứ "ẩn chứ không xoá" phải tránh.
+     *
+     * Nên 2 công tắc này điều khiển CẢ view LẪN phần ghi dữ liệu: khi tắt, levelAttributes()
+     * và productAttribute() trả về mảng rỗng, các cột đó không nằm trong câu UPDATE nên giá
+     * trị cũ trong cơ sở dữ liệu được giữ nguyên vẹn.
+     *
+     * Dùng ở: resources/views/partials/course-level-fields.blade.php (2 khối giao diện) và
+     * store()/update() ngay trong lớp này.
+     */
+    public const SHOW_LEVEL_FIELDS = false;
+
+    public const SHOW_SELLING_FIELDS = false;
+
     public function __construct(
         private CourseRepositoryInterface $courses,
         private ClassRoomRepositoryInterface $classRooms,
@@ -134,13 +158,9 @@ class CourseService
              * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
              * Để trống hoàn toàn bình thường: khoá lẻ không thuộc lộ trình nào vẫn chạy y như
              * trước. Xem migration add_level_fields_to_courses_table.
+             * Khối đang ẩn -> levelAttributes() trả rỗng, 4 cột giữ nguyên giá trị cũ.
              */
-            'level_code' => $data['level_code'] ?? null,
-            'level_subtitle' => $data['level_subtitle'] ?? null,
-            'outcome' => $data['outcome'] ?? null,
-            'session_count' => ($data['session_count'] ?? null) !== null && $data['session_count'] !== ''
-                ? (int) $data['session_count']
-                : null,
+            ...$this->levelAttributes($data),
             'created_by' => $creator->id,
             // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
             ...$this->productAttribute($data),
@@ -178,13 +198,9 @@ class CourseService
              * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
              * Để trống hoàn toàn bình thường: khoá lẻ không thuộc lộ trình nào vẫn chạy y như
              * trước. Xem migration add_level_fields_to_courses_table.
+             * Khối đang ẩn -> levelAttributes() trả rỗng, 4 cột giữ nguyên giá trị cũ.
              */
-            'level_code' => $data['level_code'] ?? null,
-            'level_subtitle' => $data['level_subtitle'] ?? null,
-            'outcome' => $data['outcome'] ?? null,
-            'session_count' => ($data['session_count'] ?? null) !== null && $data['session_count'] !== ''
-                ? (int) $data['session_count']
-                : null,
+            ...$this->levelAttributes($data),
             // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
             ...$this->productAttribute($data),
         ]);
@@ -200,6 +216,12 @@ class CourseService
      */
     private function courseProducts(): array
     {
+        // Khối "Bán khoá học này" đang ẩn -> không cần danh sách sản phẩm, khỏi chạy truy vấn
+        // thừa mỗi lần mở màn Thêm/Sửa khoá học. Xem self::SHOW_SELLING_FIELDS.
+        if (! self::SHOW_SELLING_FIELDS) {
+            return [];
+        }
+
         return Product::query()
             ->where('type', \App\Enums\ProductType::Course->value)
             ->orderBy('title')
@@ -208,6 +230,30 @@ class CourseService
                 $p->id => $p->title.' — '.number_format((int) $p->price).'đ',
             ])
             ->all();
+    }
+
+    /**
+     * Cặp [cột => giá trị] cho khối "Thông tin bậc trong lộ trình".
+     *
+     * Trả về MẢNG RỖNG khi khối đang ẩn, để 4 cột bậc không nằm trong câu INSERT/UPDATE và
+     * giữ nguyên giá trị cũ — xem ghi chú dài ở self::SHOW_LEVEL_FIELDS.
+     *
+     * @return array<string, string|int|null>
+     */
+    private function levelAttributes(array $data): array
+    {
+        if (! self::SHOW_LEVEL_FIELDS) {
+            return [];
+        }
+
+        $sessionCount = $data['session_count'] ?? null;
+
+        return [
+            'level_code' => $data['level_code'] ?? null,
+            'level_subtitle' => $data['level_subtitle'] ?? null,
+            'outcome' => $data['outcome'] ?? null,
+            'session_count' => ($sessionCount !== null && $sessionCount !== '') ? (int) $sessionCount : null,
+        ];
     }
 
     /**
@@ -223,6 +269,12 @@ class CourseService
      */
     private function productAttribute(array $data): array
     {
+        // Khối "Bán khoá học này" đang ẩn -> không đụng tới cột product_id, giữ nguyên giá trị
+        // cũ trong CSDL. Xem ghi chú ở self::SHOW_SELLING_FIELDS.
+        if (! self::SHOW_SELLING_FIELDS) {
+            return [];
+        }
+
         if (! Course::supportsProduct()) {
             return [];
         }

@@ -87,7 +87,8 @@ class SitemapController extends Controller
      * Đổi số này khi sửa CẤU TRÚC sitemap (thêm/bớt loại trang) để buộc dựng lại ngay, khỏi
      * phải chờ hết hạn đệm hay xoá cache thủ công.
      */
-    private const STRUCTURE_VERSION = 4;
+    // 5 (15/9) — rút trang Lộ trình ra khỏi sitemap khi công tắc PUBLIC_ENABLED tắt.
+    private const STRUCTURE_VERSION = 5;
 
     public function index(): Response
     {
@@ -118,7 +119,19 @@ class SitemapController extends Controller
         $urls = [];
 
         // ── 1. Tám trang công khai (bám đúng source seo.js) ──────────────────
-        foreach (self::SECTION_PAGES as $page) {
+        /*
+         * SỬA 15/9 — khách tạm dừng phần lộ trình công khai. Trang /lo-trinh đang trả 404 nên
+         * PHẢI rút khỏi sitemap: khai báo với Google một địa chỉ 404 là cách nhanh nhất để bị
+         * đánh tụt độ tin cậy của cả sitemap. Bật lại công tắc thì dòng này tự có lại.
+         * Xem App\Services\Public\LearningPathService::PUBLIC_ENABLED.
+         */
+        $sectionPages = array_values(array_filter(
+            self::SECTION_PAGES,
+            fn (array $page) => \App\Services\Public\LearningPathService::PUBLIC_ENABLED
+                || $page['route'] !== 'learningPaths.index',
+        ));
+
+        foreach ($sectionPages as $page) {
             $urls[] = [
                 'loc' => route($page['route']),
                 'lastmod' => $page['lastmod'] !== null ? ($lastmods[$page['lastmod']] ?? null) : null,
@@ -149,14 +162,17 @@ class SitemapController extends Controller
 
         // B8 — từng lộ trình. Địa chỉ theo slug nên link chia sẻ ra ngoài không đổi khi quản
         // trị sửa tên lộ trình (slug chỉ sinh một lần lúc tạo).
-        LearningPath::query()
-            ->where('status', 'published')
-            ->select('slug', 'updated_at')
-            ->orderByDesc('updated_at')
-            ->limit(self::DETAIL_LIMIT)
-            ->each(function (LearningPath $p) use (&$urls) {
-                $urls[] = ['loc' => route('learningPaths.show', $p->slug), 'lastmod' => $p->updated_at, 'priority' => 0.8, 'changefreq' => 'weekly'];
-            });
+        // SỬA 15/9 — bỏ qua khi phần lộ trình công khai đang tắt, cùng lý do với khối trên.
+        if (\App\Services\Public\LearningPathService::PUBLIC_ENABLED) {
+            LearningPath::query()
+                ->where('status', 'published')
+                ->select('slug', 'updated_at')
+                ->orderByDesc('updated_at')
+                ->limit(self::DETAIL_LIMIT)
+                ->each(function (LearningPath $p) use (&$urls) {
+                    $urls[] = ['loc' => route('learningPaths.show', $p->slug), 'lastmod' => $p->updated_at, 'priority' => 0.8, 'changefreq' => 'weekly'];
+                });
+        }
 
         Product::query()
             ->where('status', 'published')

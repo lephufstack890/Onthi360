@@ -1,4 +1,18 @@
-{{-- A10 · Bốn trường "bậc" của khoá học, dùng chung cho màn Thêm và Sửa khoá học.
+{{-- SỬA 15/9 — CẢ HAI KHỐI TRONG FILE NÀY ĐANG ẨN theo yêu cầu của khách
+     ("ẩn Thông tin bậc trong lộ trình đi, ẩn Bán khoá học này luôn"):
+
+       · Khối 1 "Thông tin bậc trong lộ trình" -> Admin\CourseService::SHOW_LEVEL_FIELDS
+       · Khối 2 "Bán khoá học này"             -> Admin\CourseService::SHOW_SELLING_FIELDS
+
+     ẨN CHỨ KHÔNG XOÁ — đổi hằng tương ứng thành true là hiện lại nguyên vẹn.
+
+     QUAN TRỌNG: hai hằng đó KHÔNG chỉ điều khiển giao diện. Ẩn ô nhập thì trình duyệt không
+     gửi trường lên nữa, mà store()/update() trước đây ghi thẳng `?? null` — tức mỗi lần lưu
+     một khoá học sẽ xoá trắng 5 cột level_code/level_subtitle/outcome/session_count/product_id
+     mà khách đã nhập. Vì vậy chính hai hằng đó cũng chặn luôn phần ghi dữ liệu, xem
+     CourseService::levelAttributes() và productAttribute(). Đừng bọc @if ở đây mà quên chỗ đó.
+
+     A10 · Bốn trường "bậc" của khoá học, dùng chung cho màn Thêm và Sửa khoá học.
 
      Chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình (Lộ trình → Khoá học → Lớp học).
      Khoá lẻ để trống hết vẫn chạy bình thường như trước.
@@ -11,6 +25,7 @@
     $selectedProductId = (string) old('product_id', $course->product_id ?? '');
 @endphp
 
+@if (\App\Services\Admin\CourseService::SHOW_LEVEL_FIELDS)
 <div class="rounded-2xl border border-sky-100 bg-[#F8FBFE] p-3.5">
     <div class="mb-3 flex items-start gap-2.5">
         <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-sky-100 bg-white text-blue-600">
@@ -59,7 +74,9 @@
     </div>
 
 </div>
+@endif
 
+@if (\App\Services\Admin\CourseService::SHOW_SELLING_FIELDS)
 {{-- ══════ C1 · Sản phẩm bán khoá học ══════
      Khoá học không có cột giá riêng. Nó trỏ sang một sản phẩm loại "Khóa học", để việc mua
      đi đúng con đường Sản phẩm → Đơn hàng → Mã kích hoạt → Quyền đã chạy sẵn cho sách và
@@ -134,3 +151,4 @@
         </div>
     @endif
 </div>
+@endif
