@@ -11,7 +11,9 @@ use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\LearningPathRepositoryInterface;
 use App\Support\LearningPathPalette;
 use App\Support\LearningPathReadiness;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +28,22 @@ use Illuminate\Validation\ValidationException;
  */
 class LearningPathService
 {
+    /**
+     * Có hiện ô "Ngôn ngữ lập trình" hay không.
+     *
+     * SỬA 15/9 (khách yêu cầu) — TẮT. Lộ trình sau này còn dùng cho Toán, Văn và các môn
+     * khác, lúc đó ngôn ngữ lập trình không còn nghĩa gì nên bỏ khỏi cả biểu mẫu lẫn danh
+     * sách. Dữ liệu cũ (Python/C++ của 5 lộ trình Tin học) vẫn nằm nguyên trong CSDL.
+     *
+     * Đây là CÔNG TẮC DUY NHẤT: đổi thành true là ô nhập và cột trong danh sách hiện lại,
+     * không phải sửa view.
+     */
+    public const SHOW_LANGUAGE = false;
+
+    /** Nơi cất ảnh lộ trình — cùng đĩa 'public' với ảnh của các khu khác. */
+    private const DISK = 'public';
+    private const DIR = 'learning-paths';
+
     public function __construct(
         private readonly LearningPathRepositoryInterface $paths,
         private readonly CourseRepositoryInterface $courses,
@@ -107,10 +125,18 @@ class LearningPathService
         ];
     }
 
-    public function store(?User $actor, array $data): LearningPath
+    public function store(?User $actor, array $data, ?UploadedFile $cover = null, ?UploadedFile $shareImage = null): LearningPath
     {
         $attributes = $this->attributesFrom($data);
         $attributes['created_by'] = $actor?->id;
+
+        if ($cover !== null) {
+            $attributes['cover_image_path'] = $cover->store(self::DIR, self::DISK);
+        }
+
+        if ($shareImage !== null) {
+            $attributes['share_image_path'] = $shareImage->store(self::DIR, self::DISK);
+        }
         $attributes['sort_order'] = $data['sort_order'] ?? ($this->paths->maxSortOrder() + 1);
         // Lộ trình mới luôn bắt đầu ở bản nháp — chưa có bậc nào thì không thể đăng được.
         $attributes['status'] = ContentStatus::Draft->value;
@@ -118,9 +144,39 @@ class LearningPathService
         return LearningPath::create($attributes);
     }
 
-    public function update(LearningPath $path, array $data): LearningPath
+    public function update(LearningPath $path, array $data, ?UploadedFile $cover = null, ?UploadedFile $shareImage = null): LearningPath
     {
-        $path->update($this->attributesFrom($data));
+        $attributes = $this->attributesFrom($data);
+
+        // Tải ảnh mới thì xoá ảnh cũ để không tồn rác trong storage.
+        if ($cover !== null) {
+            $this->forgetFile($path->cover_image_path);
+            $attributes['cover_image_path'] = $cover->store(self::DIR, self::DISK);
+        }
+
+        if ($shareImage !== null) {
+            $this->forgetFile($path->share_image_path);
+            $attributes['share_image_path'] = $shareImage->store(self::DIR, self::DISK);
+        }
+
+        // Ô đánh dấu "gỡ ảnh" — cho phép quay về không có ảnh, không phải tải ảnh khác đè lên.
+        if (! empty($data['remove_cover'])) {
+            $this->forgetFile($path->cover_image_path);
+            $attributes['cover_image_path'] = null;
+        }
+
+        if (! empty($data['remove_share_image'])) {
+            $this->forgetFile($path->share_image_path);
+            $attributes['share_image_path'] = null;
+        }
+
+        // Ô ngôn ngữ đang tắt nên biểu mẫu không gửi trường này lên — giữ nguyên giá trị cũ
+        // thay vì xoá trắng dữ liệu của 5 lộ trình Tin học đã có.
+        if (! array_key_exists('language', $data)) {
+            unset($attributes['language']);
+        }
+
+        $path->update($attributes);
 
         return $path;
     }
@@ -207,6 +263,41 @@ class LearningPathService
 
     // ───────────────────────────── nội bộ ─────────────────────────────
 
+    /**
+     * Đánh số lại các bậc liên tục từ 1.
+     *
+     * Gọi sau khi GỠ một bậc: nếu không đánh lại thì thứ tự còn hổng số (1, 2, 4...) — chạy
+     * vẫn đúng vì màn hình xếp theo sort_order, nhưng dữ liệu nhìn rất khó hiểu và dễ sai
+     * khi sau này có chỗ khác đọc thẳng cột này (ví dụ "Bậc 2/6" ngoài trang công khai).
+     *
+     * Quan hệ courses() đã sắp sẵn theo learning_path_course.sort_order nên chỉ việc đánh
+     * lại từ 1 theo đúng thứ tự đang có.
+     */
+    private function renumber(LearningPath $path): void
+    {
+        $ids = $path->courses()->pluck('courses.id')->all();
+
+        DB::transaction(function () use ($path, $ids) {
+            $position = 1;
+
+            foreach ($ids as $courseId) {
+                $path->courses()->updateExistingPivot((int) $courseId, ['sort_order' => $position]);
+                $position++;
+            }
+        });
+
+        // Bỏ bộ nhớ đệm quan hệ để lần đọc ngay sau đó lấy đúng thứ tự vừa ghi.
+        $path->unsetRelation('courses');
+    }
+
+    /** Xoá một tệp ảnh cũ nếu còn. Bỏ qua im lặng khi tệp đã biến mất. */
+    private function forgetFile(?string $path): void
+    {
+        if ($path !== null && $path !== '' && Storage::disk(self::DISK)->exists($path)) {
+            Storage::disk(self::DISK)->delete($path);
+        }
+    }
+
     private function row(LearningPath $path): array
     {
         $issues = LearningPathReadiness::check($path);
@@ -227,6 +318,7 @@ class LearningPathService
             'statusLabel' => $this->statuses()[$status->value] ?? $status->value,
             'statusTone' => $this->statusTone($status),
             'published' => $status === ContentStatus::Published,
+            'coverUrl' => $path->coverUrl(),
             'issueCount' => count($issues),
             'hasBlocker' => ! LearningPathReadiness::canPublish($path),
             'editHref' => route('admin.learning-paths.edit', $path->id),
@@ -254,7 +346,7 @@ class LearningPathService
             'description' => $data['description'] ?? null,
             'grade_from' => $gradeFrom,
             'grade_to' => $gradeTo,
-            'language' => $data['language'],
+            'language' => $data['language'] ?? null,
             'goal_label' => $data['goal_label'],
             'sessions_per_week' => (int) ($data['sessions_per_week'] ?? 2),
             'hours_per_session' => (float) ($data['hours_per_session'] ?? 2),

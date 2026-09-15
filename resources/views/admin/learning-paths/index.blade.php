@@ -44,14 +44,20 @@
                       description="Tạo lộ trình đầu tiên, sau đó xếp các khoá học thành từng bậc."
                       action-label="Thêm lộ trình" :action-href="route('admin.learning-paths.create')" />
 @else
-    <x-ws.table :columns="['Lộ trình', 'Khối & ngôn ngữ', 'Mục tiêu', 'Quy mô', 'Trạng thái', '']" min-width="min-w-[1040px]">
+    {{-- SỬA 15/9 — cột "Ngôn ngữ" ẩn theo yêu cầu khách, xem LearningPathService::SHOW_LANGUAGE. --}}
+    <x-ws.table :columns="['Lộ trình', 'Khối lớp', 'Mục tiêu', 'Quy mô', 'Trạng thái', '']" min-width="min-w-[1040px]">
         @foreach ($paths as $p)
             <tr>
                 <td class="px-4 py-3">
                     <div class="flex min-w-0 items-center gap-2.5">
-                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-sky-100 bg-[#F8FBFE] text-blue-600">
-                            <x-lucide name="route" class="h-4 w-4" />
-                        </span>
+                        @if ($p['coverUrl'])
+                            <img src="{{ $p['coverUrl'] }}" alt="" loading="lazy" decoding="async"
+                                 class="h-9 w-14 shrink-0 rounded-lg border border-sky-100 object-cover">
+                        @else
+                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-sky-100 bg-[#F8FBFE] text-blue-600">
+                                <x-lucide name="route" class="h-4 w-4" />
+                            </span>
+                        @endif
                         <div class="min-w-0">
                             <p class="truncate text-[13px] font-bold text-slate-800">{{ $p['title'] }}</p>
                             @if ($p['brand'])
@@ -64,7 +70,9 @@
                 <td class="px-4 py-3">
                     <span class="inline-flex flex-col gap-1">
                         <x-ws.badge tone="neutral">{{ $p['gradeLabel'] }}</x-ws.badge>
-                        <x-ws.badge :tone="$p['languageTone']">{{ $p['language'] }}</x-ws.badge>
+                        @if (\App\Services\Admin\LearningPathService::SHOW_LANGUAGE)
+                            <x-ws.badge :tone="$p['languageTone']">{{ $p['language'] }}</x-ws.badge>
+                        @endif
                     </span>
                 </td>
 

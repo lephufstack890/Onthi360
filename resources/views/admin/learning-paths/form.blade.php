@@ -17,7 +17,7 @@
     @endif
 </x-ws.page-header>
 
-<form method="POST" action="{{ $action }}" class="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
+<form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
     @csrf
     @if ($editing)
         @method('PUT')
@@ -69,6 +69,62 @@
                           placeholder="Hiểu cách máy tính giải quyết vấn đề&#10;Viết được chương trình Python nhỏ&#10;Hình thành thói quen tự học">{{ $outcomesText }}</textarea>
             </x-ws.field>
         </x-ws.card>
+
+        {{-- THÊM 15/9 (khách yêu cầu) — chọn thumbnail khi thêm/sửa lộ trình.
+             Hai ảnh có vai trò khác nhau, cố ý tách riêng:
+             · Ảnh lộ trình (cover): hiện ở danh sách quản trị và thẻ lộ trình ngoài trang công khai.
+             · Ảnh chia sẻ (share): chỉ dùng khi dán link lên Zalo/Facebook.
+             Trang lộ trình công khai vẫn dựng thang bậc bằng HTML theo dữ liệu, KHÔNG dùng ảnh,
+             để sửa số buổi là thang tự đổi mà không phải nhờ thiết kế vẽ lại. --}}
+        <x-ws.card title="Ảnh lộ trình" icon="image">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-ws.field label="Ảnh đại diện (thumbnail)" name="cover"
+                            hint="Ngang, nên 16:9. JPG/PNG/WEBP, tối đa 4MB. Bỏ trống thì dùng ảnh mặc định của giao diện.">
+                    @if ($editing && $path->coverUrl())
+                        <img src="{{ $path->coverUrl() }}" alt=""
+                             class="mb-2 h-20 w-full max-w-[220px] rounded-xl border border-sky-100 object-cover">
+                    @else
+                        <div class="mb-2 flex h-20 w-full max-w-[220px] items-center justify-center rounded-xl border border-dashed border-sky-200 bg-sky-50/60 text-sky-300">
+                            <x-lucide name="image" class="h-6 w-6" />
+                        </div>
+                    @endif
+
+                    <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp"
+                           class="admin-input file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
+
+                    @if ($editing && $path->coverUrl())
+                        <label class="mt-2 flex items-center gap-2 text-[11px] font-semibold text-rose-600">
+                            <input type="checkbox" name="remove_cover" value="1"
+                                   class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600">
+                            Gỡ ảnh hiện tại
+                        </label>
+                    @endif
+                </x-ws.field>
+
+                <x-ws.field label="Ảnh chia sẻ (tuỳ chọn)" name="share_image"
+                            hint="Ảnh hiện khi dán link lên Zalo/Facebook. Tối đa 8MB.">
+                    @if ($editing && $path->shareImageUrl())
+                        <img src="{{ $path->shareImageUrl() }}" alt=""
+                             class="mb-2 h-20 w-full max-w-[220px] rounded-xl border border-sky-100 object-cover">
+                    @else
+                        <div class="mb-2 flex h-20 w-full max-w-[220px] items-center justify-center rounded-xl border border-dashed border-sky-200 bg-sky-50/60 text-sky-300">
+                            <x-lucide name="share-2" class="h-6 w-6" />
+                        </div>
+                    @endif
+
+                    <input id="share_image" name="share_image" type="file" accept="image/jpeg,image/png,image/webp"
+                           class="admin-input file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
+
+                    @if ($editing && $path->shareImageUrl())
+                        <label class="mt-2 flex items-center gap-2 text-[11px] font-semibold text-rose-600">
+                            <input type="checkbox" name="remove_share_image" value="1"
+                                   class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600">
+                            Gỡ ảnh hiện tại
+                        </label>
+                    @endif
+                </x-ws.field>
+            </div>
+        </x-ws.card>
     </div>
 
     <div class="space-y-4">
@@ -88,13 +144,18 @@
                 </div>
                 <p class="-mt-2 text-[11px] text-slate-400">Cùng một số ở hai ô nghĩa là lộ trình chỉ dành cho một lớp.</p>
 
-                <x-ws.field label="Ngôn ngữ" name="language" required>
-                    <x-ws.select id="language" name="language">
-                        @foreach ($languages as $value => $label)
-                            <option value="{{ $value }}" @selected(old('language', $path->language->value ?? 'python') === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </x-ws.field>
+                {{-- SỬA 15/9 (khách yêu cầu) — ẨN ô "Ngôn ngữ lập trình": lộ trình sau này còn
+                     dùng cho Toán, Văn và các môn khác. ẨN CHỨ KHÔNG XOÁ — bật lại bằng cách
+                     đổi App\Services\Admin\LearningPathService::SHOW_LANGUAGE thành true. --}}
+                @if (\App\Services\Admin\LearningPathService::SHOW_LANGUAGE)
+                    <x-ws.field label="Ngôn ngữ" name="language">
+                        <x-ws.select id="language" name="language">
+                            @foreach ($languages as $value => $label)
+                                <option value="{{ $value }}" @selected(old('language', $path->language->value ?? 'python') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </x-ws.select>
+                    </x-ws.field>
+                @endif
             </div>
         </x-ws.card>
 

@@ -130,6 +130,26 @@ class LearningPath extends Model
         return $this->sessions_per_week.' buổi/tuần · '.$hours.' giờ/buổi';
     }
 
+    /**
+     * Ảnh thu nhỏ của lộ trình (thumbnail) — dùng ở danh sách quản trị và thẻ lộ trình ngoài
+     * trang công khai. Chưa tải ảnh thì trả null để nơi gọi tự quyết định hiện gì thay thế.
+     */
+    public function coverUrl(): ?string
+    {
+        return $this->cover_image_path ? asset('storage/'.$this->cover_image_path) : null;
+    }
+
+    /**
+     * Ảnh dùng khi chia sẻ lên mạng xã hội (ảnh thang bậc vẽ sẵn của khách).
+     *
+     * KHÔNG phải nội dung chính của trang: trang công khai dựng lại thang bậc bằng HTML theo
+     * dữ liệu để khách sửa số buổi là thang tự đổi, khỏi nhờ thiết kế vẽ lại ảnh.
+     */
+    public function shareImageUrl(): ?string
+    {
+        return $this->share_image_path ? asset('storage/'.$this->share_image_path) : null;
+    }
+
     /** @return list<string> */
     public function outcomeList(): array
     {

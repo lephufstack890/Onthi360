@@ -18,6 +18,14 @@
     $blockers = array_values(array_filter($issues, fn ($i) => $i['level'] === \App\Support\LearningPathReadiness::BLOCK));
     $warnings = array_values(array_filter($issues, fn ($i) => $i['level'] === \App\Support\LearningPathReadiness::WARN));
     $canPublish = count($blockers) === 0;
+
+    // Ô ngôn ngữ đang tắt (xem LearningPathService::SHOW_LANGUAGE) nên bỏ luôn khỏi phụ đề,
+    // tránh hiện dấu "—" vô nghĩa với các lộ trình không thuộc môn Tin học.
+    $pathSubtitle = implode(' · ', array_filter([
+        $path->gradeLabel(),
+        \App\Services\Admin\LearningPathService::SHOW_LANGUAGE ? $path->languageLabel() : null,
+        $path->goal_label,
+    ]));
 @endphp
 
 @if (session('status') === 'path-created')
@@ -38,7 +46,7 @@
 
 <x-ws.page-header :title="$path->title" icon="route"
                   :back="route('admin.learning-paths.index')" back-label="Danh sách lộ trình"
-                  :subtitle="$path->gradeLabel().' · '.$path->languageLabel().' · '.$path->goal_label">
+                  :subtitle="$pathSubtitle">
     <x-slot:actions>
         <x-ws.btn :href="route('admin.learning-paths.edit', $path->id)" variant="onhero-ghost" icon="pencil">Sửa thông tin</x-ws.btn>
     </x-slot:actions>
@@ -122,110 +130,131 @@
     @endif
 
     {{-- ══════ Danh sách bậc ══════ --}}
+    {{-- SỬA 15/9 — BỎ <x-slot:default>.
+         Laravel gán <x-slot:tên> vào biến $tên, mà x-ws.card lại in ra {{ $slot }}. Dùng
+         <x-slot:default> tức là đẩy hết nội dung vào $default rồi bỏ quên -> thân thẻ rỗng,
+         danh sách bậc không hiện ra được. Nội dung mặc định phải viết thẳng, không bọc slot. --}}
     <x-ws.card title="Các bậc của lộ trình" icon="list">
-        <x-slot:default>
-            @if (count($steps) === 0)
-                <div class="rounded-2xl border border-dashed border-sky-200 bg-[#F8FBFE] p-8 text-center">
-                    <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white text-sky-600 shadow-2xs">
-                        <x-lucide name="list" class="h-6 w-6" />
-                    </span>
-                    <p class="mt-3 text-sm font-bold text-slate-800">Lộ trình chưa có bậc nào</p>
-                    <p class="mt-1 text-xs text-slate-500">Chọn một khoá học ở khung bên dưới để thêm bậc đầu tiên.</p>
-                </div>
-            @else
-                <p class="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <x-lucide name="grip-vertical" class="h-3.5 w-3.5" />
-                    Kéo thả để đổi thứ tự, hoặc dùng nút lên/xuống. Đổi xong nhớ bấm “Lưu thứ tự”.
-                </p>
+        @if (count($steps) === 0)
+            <div class="rounded-2xl border border-dashed border-sky-200 bg-[#F8FBFE] p-8 text-center">
+                <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white text-sky-600 shadow-2xs">
+                    <x-lucide name="list" class="h-6 w-6" />
+                </span>
+                <p class="mt-3 text-sm font-bold text-slate-800">Lộ trình chưa có bậc nào</p>
+                <p class="mt-1 text-xs text-slate-500">Chọn một khoá học ở khung bên dưới để thêm bậc đầu tiên.</p>
+            </div>
+        @else
+            <p class="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+                <x-lucide name="grip-vertical" class="h-3.5 w-3.5" />
+                Kéo thả để đổi thứ tự, hoặc dùng nút lên/xuống. Đổi xong nhớ bấm “Lưu thứ tự”.
+                Bấm “Gỡ bậc” để bỏ một bậc khỏi lộ trình — khoá học và các lớp bên trong vẫn còn nguyên.
+            </p>
 
-                <div class="space-y-2">
-                    <template x-for="(step, index) in steps" :key="step.id">
-                        <div draggable="true"
-                             @dragstart="onDragStart(index)"
-                             @dragover.prevent
-                             @drop.prevent="onDrop(index)"
-                             class="flex items-stretch gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md"
-                             :style="'border-color:' + colorAt(index).ring">
+            <div class="space-y-2">
+                <template x-for="(step, index) in steps" :key="step.id">
+                    <div draggable="true"
+                         @dragstart="onDragStart(index)"
+                         @dragover.prevent
+                         @drop.prevent="onDrop(index)"
+                         class="flex items-stretch gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md"
+                         :style="'border-color:' + colorAt(index).ring">
 
-                            {{-- Số bậc + màu theo vị trí --}}
-                            <div class="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-white"
-                                 :style="'background:' + colorAt(index).solid">
-                                <span class="text-[15px] font-black leading-none" x-text="index + 1"></span>
-                                <x-lucide name="grip-vertical" class="h-3.5 w-3.5 opacity-70" />
+                        {{-- Số bậc + màu theo vị trí --}}
+                        <div class="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-white"
+                             :style="'background:' + colorAt(index).solid">
+                            <span class="text-[15px] font-black leading-none" x-text="index + 1"></span>
+                            <x-lucide name="grip-vertical" class="h-3.5 w-3.5 opacity-70" />
+                        </div>
+
+                        {{-- Thông tin bậc --}}
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
+                                      :style="'background:' + colorAt(index).soft + ';color:' + colorAt(index).ink"
+                                      x-text="step.levelCode || 'CHƯA ĐẶT MÃ BẬC'"></span>
+                                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400" x-text="step.levelSubtitle"></span>
                             </div>
+                            <p class="mt-1 truncate text-[13px] font-bold text-slate-800" x-text="step.title"></p>
+                            <p class="mt-0.5 truncate text-[11px] italic text-slate-500" x-text="step.outcome || 'Chưa có câu kết quả'"></p>
 
-                            {{-- Thông tin bậc --}}
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
-                                          :style="'background:' + colorAt(index).soft + ';color:' + colorAt(index).ink"
-                                          x-text="step.levelCode || 'CHƯA ĐẶT MÃ BẬC'"></span>
-                                    <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400" x-text="step.levelSubtitle"></span>
-                                </div>
-                                <p class="mt-1 truncate text-[13px] font-bold text-slate-800" x-text="step.title"></p>
-                                <p class="mt-0.5 truncate text-[11px] italic text-slate-500" x-text="step.outcome || 'Chưa có câu kết quả'"></p>
-
-                                <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                                    <span class="inline-flex items-center gap-1 font-bold"
-                                          :class="step.sessionCount > 0 ? 'text-slate-600' : 'text-rose-600'">
-                                        <x-lucide name="calendar-days" class="h-3 w-3" />
-                                        <span x-text="step.sessionCount > 0 ? step.sessionCount + ' buổi' : 'Chưa có số buổi'"></span>
-                                    </span>
-                                    <span class="inline-flex items-center gap-1"
-                                          :class="step.openClassCount > 0 ? 'text-slate-400' : 'text-amber-600 font-bold'">
-                                        <x-lucide name="school" class="h-3 w-3" />
-                                        <span x-text="step.openClassCount > 0 ? step.openClassCount + ' lớp đang mở' : 'Chưa có lớp nào mở'"></span>
-                                    </span>
-                                </div>
-                            </div>
-
-                            {{-- Thao tác --}}
-                            <div class="flex shrink-0 flex-col items-end justify-between gap-1.5">
-                                <div class="flex items-center gap-1">
-                                    <button type="button" @click="moveUp(index)" :disabled="index === 0" aria-label="Đưa bậc lên trên"
-                                            class="grid h-7 w-7 place-items-center rounded-lg border border-sky-100 bg-white text-slate-500 transition-colors hover:bg-sky-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-30">
-                                        <x-lucide name="arrow-up" class="h-3.5 w-3.5" />
-                                    </button>
-                                    <button type="button" @click="moveDown(index)" :disabled="index === steps.length - 1" aria-label="Đưa bậc xuống dưới"
-                                            class="grid h-7 w-7 place-items-center rounded-lg border border-sky-100 bg-white text-slate-500 transition-colors hover:bg-sky-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-30">
-                                        <x-lucide name="arrow-down" class="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
-
-                                <div class="flex items-center gap-1.5">
-                                    <a :href="step.editHref"
-                                       class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-100">
-                                        Sửa khoá
-                                    </a>
-                                    <form method="POST" action="{{ route('admin.learning-paths.steps.detach', $path->id) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <input type="hidden" name="course_id" :value="step.id">
-                                        <button type="submit" aria-label="Gỡ bậc khỏi lộ trình"
-                                                class="grid h-8 w-8 place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100">
-                                            <x-lucide name="x" class="h-3.5 w-3.5" />
-                                        </button>
-                                    </form>
-                                </div>
+                            <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                                <span class="inline-flex items-center gap-1 font-bold"
+                                      :class="step.sessionCount > 0 ? 'text-slate-600' : 'text-rose-600'">
+                                    <x-lucide name="calendar-days" class="h-3 w-3" />
+                                    <span x-text="step.sessionCount > 0 ? step.sessionCount + ' buổi' : 'Chưa có số buổi'"></span>
+                                </span>
+                                <span class="inline-flex items-center gap-1"
+                                      :class="step.openClassCount > 0 ? 'text-slate-400' : 'text-amber-600 font-bold'">
+                                    <x-lucide name="school" class="h-3 w-3" />
+                                    <span x-text="step.openClassCount > 0 ? step.openClassCount + ' lớp đang mở' : 'Chưa có lớp nào mở'"></span>
+                                </span>
                             </div>
                         </div>
-                    </template>
-                </div>
 
-                {{-- Lưu thứ tự — gửi bằng form thường, không gọi API ngầm. --}}
-                <form method="POST" action="{{ route('admin.learning-paths.steps.reorder', $path->id) }}"
-                      class="mt-3 flex flex-wrap items-center gap-2">
-                    @csrf
-                    <template x-for="step in steps" :key="'order-' + step.id">
-                        <input type="hidden" name="order[]" :value="step.id">
-                    </template>
-                    <x-ws.btn type="submit" variant="primary" icon="save">Lưu thứ tự</x-ws.btn>
-                    <span x-show="dirty" x-cloak class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600">
-                        <x-lucide name="alert-triangle" class="h-3.5 w-3.5" />Thứ tự đã đổi nhưng chưa lưu
-                    </span>
-                </form>
-            @endif
-        </x-slot:default>
+                        {{-- Thao tác.
+                             SỬA 15/9 (khách yêu cầu) — nút "Gỡ bậc" ghi rõ chữ thay vì dấu X nhỏ,
+                             và hỏi lại ngay tại dòng trước khi gỡ. Cố ý KHÔNG dùng hộp thoại
+                             confirm() của trình duyệt: nó chặn cả trang và không theo được giao
+                             diện chung. --}}
+                        <div class="flex shrink-0 flex-col items-end justify-between gap-1.5" x-data="{ confirming: false }">
+                            <div class="flex items-center gap-1">
+                                <button type="button" @click="moveUp(index)" :disabled="index === 0" aria-label="Đưa bậc lên trên"
+                                        class="grid h-7 w-7 place-items-center rounded-lg border border-sky-100 bg-white text-slate-500 transition-colors hover:bg-sky-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-30">
+                                    <x-lucide name="arrow-up" class="h-3.5 w-3.5" />
+                                </button>
+                                <button type="button" @click="moveDown(index)" :disabled="index === steps.length - 1" aria-label="Đưa bậc xuống dưới"
+                                        class="grid h-7 w-7 place-items-center rounded-lg border border-sky-100 bg-white text-slate-500 transition-colors hover:bg-sky-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-30">
+                                    <x-lucide name="arrow-down" class="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+
+                            {{-- Trạng thái thường --}}
+                            <div class="flex items-center gap-1.5" x-show="! confirming">
+                                <a :href="step.editHref"
+                                   class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                                    <x-lucide name="pencil" class="h-3 w-3" />Sửa khoá
+                                </a>
+                                <button type="button" @click="confirming = true" aria-label="Gỡ bậc khỏi lộ trình"
+                                        class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 text-[11px] font-bold text-rose-600 transition-colors hover:bg-rose-100">
+                                    <x-lucide name="trash-2" class="h-3 w-3" />Gỡ bậc
+                                </button>
+                            </div>
+
+                            {{-- Hỏi lại trước khi gỡ --}}
+                            <div x-show="confirming" x-cloak class="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2 py-1.5">
+                                <span class="text-[10px] font-bold leading-tight text-rose-700">Gỡ bậc này?<br>Khoá học vẫn còn.</span>
+                                <form method="POST" action="{{ route('admin.learning-paths.steps.detach', $path->id) }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <input type="hidden" name="course_id" :value="step.id">
+                                    <button type="submit"
+                                            class="inline-flex min-h-7 items-center rounded-lg bg-rose-600 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700">
+                                        Gỡ
+                                    </button>
+                                </form>
+                                <button type="button" @click="confirming = false"
+                                        class="inline-flex min-h-7 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-50">
+                                    Huỷ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Lưu thứ tự — gửi bằng form thường, không gọi API ngầm. --}}
+            <form method="POST" action="{{ route('admin.learning-paths.steps.reorder', $path->id) }}"
+                  class="mt-3 flex flex-wrap items-center gap-2">
+                @csrf
+                <template x-for="step in steps" :key="'order-' + step.id">
+                    <input type="hidden" name="order[]" :value="step.id">
+                </template>
+                <x-ws.btn type="submit" variant="primary" icon="save">Lưu thứ tự</x-ws.btn>
+                <span x-show="dirty" x-cloak class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                    <x-lucide name="alert-triangle" class="h-3.5 w-3.5" />Thứ tự đã đổi nhưng chưa lưu
+                </span>
+        </form>
+        @endif
     </x-ws.card>
 
     {{-- ══════ Thêm bậc ══════ --}}

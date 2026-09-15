@@ -39,7 +39,12 @@ class LearningPathController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $path = $this->learningPaths->store(Auth::user(), $this->validated($request));
+        $path = $this->learningPaths->store(
+            Auth::user(),
+            $this->validated($request),
+            $request->file('cover'),
+            $request->file('share_image'),
+        );
 
         // Tạo xong đi thẳng sang màn xếp bậc — lộ trình chưa có bậc thì chưa dùng được.
         return redirect()->route('admin.learning-paths.steps', $path->id)
@@ -53,7 +58,12 @@ class LearningPathController extends Controller
 
     public function update(Request $request, LearningPath $learningPath): RedirectResponse
     {
-        $this->learningPaths->update($learningPath, $this->validated($request, $learningPath));
+        $this->learningPaths->update(
+            $learningPath,
+            $this->validated($request, $learningPath),
+            $request->file('cover'),
+            $request->file('share_image'),
+        );
 
         return redirect()->route('admin.learning-paths.edit', $learningPath->id)
             ->with('status', 'path-updated');
@@ -148,16 +158,28 @@ class LearningPathController extends Controller
             // Hệ thống phục vụ học sinh lớp 1–12; để khoảng rộng cho chắc.
             'grade_from' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_to' => ['required', 'integer', 'min:1', 'max:12'],
-            'language' => ['required', Rule::in(array_keys(PathLanguage::options()))],
+            // Ô ngôn ngữ đang ẩn (xem LearningPathService::SHOW_LANGUAGE) nên không bắt buộc;
+            // vẫn kiểm tra giá trị hợp lệ phòng khi bật lại.
+            'language' => ['nullable', Rule::in(array_keys(PathLanguage::options()))],
             'goal_label' => ['required', 'string', 'max:255'],
             'sessions_per_week' => ['required', 'integer', 'min:1', 'max:14'],
             'hours_per_session' => ['required', 'numeric', 'min:0.5', 'max:8'],
             'outcomes' => ['nullable', 'string', 'max:1000'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            // Anh dai dien lo trinh: dung o danh sach quan tri va the lo trinh ngoai trang cong khai.
+            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Anh chia se mang xa hoi: khong phai noi dung chinh cua trang, chi de dat khi chia se.
+            'share_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+            'remove_cover' => ['nullable', 'boolean'],
+            'remove_share_image' => ['nullable', 'boolean'],
         ], [
             'grade_from.required' => 'Nhập lớp bắt đầu của khối (ví dụ 6).',
             'grade_to.required' => 'Nhập lớp kết thúc của khối (ví dụ 8).',
             'goal_label.required' => 'Nhập mục tiêu đích, ví dụ "HSG lớp 9 · Thi tuyển sinh 10 Chuyên Tin".',
+            'cover.image' => 'Ảnh lộ trình phải là tệp ảnh (JPG, PNG hoặc WEBP).',
+            'cover.max' => 'Ảnh lộ trình tối đa 4MB.',
+            'share_image.image' => 'Ảnh chia sẻ phải là tệp ảnh (JPG, PNG hoặc WEBP).',
+            'share_image.max' => 'Ảnh chia sẻ tối đa 8MB.',
         ]);
     }
 }
