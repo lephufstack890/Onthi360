@@ -652,7 +652,16 @@
                          giữ từ 2 vai trò trở lên; mỗi tab là SỐ LIỆU THẬT của đúng vai trò đó, không
                          phải bản xem thử. Giữ 1 vai trò thì khối này không xuất hiện. --}}
                     @if (! empty($learningSpace['multiRole']))
-                        <div role="tablist" aria-label="Vai trò xem hành trình học" class="mb-3 grid {{ count($learningSpace['panels']) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-2xl bg-[#F3F7F9] p-1">
+                        @php
+                            // Số tab tối đa giờ là 4 (quản trị + học sinh + phụ huynh + giáo viên),
+                            // trước chỉ tính tới 3 nên 4 vai trò sẽ tràn hàng.
+                            $wsTabCols = match (count($learningSpace['panels'])) {
+                                3 => 'grid-cols-3',
+                                default => 'grid-cols-2',
+                            };
+                        @endphp
+                        <div role="tablist" aria-label="Vai trò xem hành trình học"
+                             class="mb-3 grid {{ $wsTabCols }} gap-1 rounded-2xl bg-[#F3F7F9] p-1">
                             @foreach ($learningSpace['panels'] as $roleKey => $panel)
                                 <button type="button" role="tab" :aria-selected="activeRole === '{{ $roleKey }}'"
                                         @click="activeRole = '{{ $roleKey }}'"
@@ -668,7 +677,21 @@
 
                     @foreach ($learningSpace['panels'] as $roleKey => $panel)
                         <div x-show="activeRole === '{{ $roleKey }}'" @if (! $loop->first) x-cloak @endif>
-                            {{-- Thanh tiến độ --}}
+                            {{-- Thanh tiến độ.
+                                 SỬA 15/9 — bảng nào không có "tiến độ" nào có nghĩa (vai trò quản
+                                 trị) thì tắt hẳn thanh này và thay bằng một dòng tóm tắt. Thà bỏ
+                                 trống còn hơn bịa ra một phần trăm không ai giải thích được. --}}
+                            @if (($panel['showProgress'] ?? true) === false)
+                                @php $summaryOk = ($panel['summaryTone'] ?? 'ok') === 'ok'; @endphp
+                                <div class="mb-2.5 flex items-center justify-between gap-2 rounded-2xl border px-3 py-2
+                                            {{ $summaryOk ? 'border-[#CDE9DC] bg-[#F1FAF6]' : 'border-[#F3DCC5] bg-[#FFF6EC]' }}">
+                                    <span class="flex items-center gap-1.5 text-[11px] font-bold {{ $summaryOk ? 'text-[#2C7D5F]' : 'text-[#A9591F]' }}">
+                                        <x-lucide :name="$summaryOk ? 'check-circle' : 'alert-triangle'" class="h-3.5 w-3.5 shrink-0" />
+                                        {{ $panel['summaryLabel'] }}
+                                    </span>
+                                    <span class="shrink-0 text-[13px] font-black {{ $summaryOk ? 'text-[#2C7D5F]' : 'text-[#A9591F]' }}">{{ $panel['summaryValue'] }}</span>
+                                </div>
+                            @else
                             <div class="mb-2.5">
                                 <div class="flex justify-between text-xs font-bold mb-1">
                                     <span class="text-[#2E718F]">{{ $panel['progressLabel'] }}</span>
@@ -678,6 +701,7 @@
                                     <div class="bg-gradient-to-r from-[#6CC7C4] to-[#3EA7B2] h-1.5 rounded-full transition-[width] duration-500" style="width: {{ $panel['progress'] }}%"></div>
                                 </div>
                             </div>
+                            @endif
 
                             {{-- [HOME-06B] Thẻ hành động --}}
                             <a href="{{ $panel['nextHref'] }}"

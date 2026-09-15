@@ -57,6 +57,9 @@ class HomeService
         private readonly TestimonialRepositoryInterface $testimonialsRepo,
         // B2/B5 (15/9) — khối [HOME-04] ba ô chọn và khối [HOME-05B] lấy lộ trình thật.
         private readonly LearningPathService $learningPathService,
+        // SỬA 15/9 — bảng "Không gian học tập" cho vai trò quản trị. Dùng lại đúng bộ đếm của
+        // bảng điều khiển quản trị, không viết lại truy vấn (xem DashboardService::pendingCounts).
+        private readonly \App\Services\Admin\DashboardService $adminDashboard,
     ) {}
 
     public function indexData(): array
@@ -345,10 +348,56 @@ class HomeService
             $panels['teacher'] = $this->teacherPanel($viewer);
         }
 
-        // Không khớp vai trò nào ở trên (quản trị, biên tập...) thì vẫn hiện góc nhìn học sinh
-        // như trước đây, để khối không bị trống.
+        /*
+         * SỬA 15/9 — QUẢN TRỊ có bảng riêng.
+         *
+         * Trước đây quản trị rơi vào nhánh dự phòng và bị hiện góc nhìn HỌC SINH: "Tiến độ
+         * tổng thể 0%", "Chưa có bài nào sắp đến hạn", ba ô 0/0/0. Đúng về kỹ thuật (quản trị
+         * không ghi danh lớp nào nên số nào cũng bằng 0) nhưng vô nghĩa với người xem, lại
+         * trông như hệ thống hỏng. Quản trị quan tâm HÀNG CHỜ VẬN HÀNH: đơn chờ duyệt, phiếu
+         * hỗ trợ mới, giáo viên chờ duyệt, đánh giá chờ kiểm.
+         */
+        if ($viewer->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
+            $panels['admin'] = $this->adminPanel();
+        }
+
+        // Vai trò khác không có bảng riêng (biên tập...) thì vẫn hiện góc nhìn học sinh như
+        // trước đây, để khối không bị trống.
         if ($panels === []) {
             $panels['student'] = $this->studentPanel($viewer);
+        }
+
+        /*
+         * Quản trị mà kiêm cả vai trò khác thì để bảng quản trị lên trước: đăng nhập bằng tài
+         * khoản quản trị thì việc cần làm là việc vận hành, không phải bài tập của chính mình.
+         */
+        if (isset($panels['admin']) && count($panels) > 1) {
+            $panels = ['admin' => $panels['admin']] + $panels;
+        }
+
+        /*
+         * Mỗi bảng phải có ĐỦ bộ khoá giao diện đọc tới.
+         *
+         * Giao diện đang che bằng một câu @if: bảng nào tắt thanh tiến độ thì đọc nhóm khoá
+         * 'summary*', bảng nào bật thì đọc 'progress*'. Đúng, nhưng chỉ cần một bảng mới sau
+         * này quên một khoá là trang chủ vỡ ngay lúc chạy — mà trang chủ là trang ai cũng
+         * thấy. Trám sẵn giá trị mặc định ở đây thì thiếu khoá chỉ còn là hiển thị chưa đẹp,
+         * không phải lỗi trắng trang.
+         */
+        $defaults = [
+            'showProgress' => true,
+            'progressLabel' => 'Tiến độ tổng thể',
+            'progress' => 0,
+            'summaryLabel' => '',
+            'summaryValue' => '',
+            'summaryTone' => 'ok',
+            'contextLabel' => '',
+            'contexts' => [],
+            'stats' => [],
+        ];
+
+        foreach ($panels as $key => $panel) {
+            $panels[$key] = $panel + $defaults;
         }
 
         $defaultRole = array_key_first($panels);
@@ -367,7 +416,68 @@ class HomeService
         'student' => ['label' => 'Học sinh', 'icon' => 'graduation-cap', 'iconClass' => 'text-[#2D7FA3]'],
         'parent' => ['label' => 'Phụ huynh', 'icon' => 'heart', 'iconClass' => 'text-[#4C88A1]'],
         'teacher' => ['label' => 'Giáo viên', 'icon' => 'users', 'iconClass' => 'text-[#5B77A8]'],
+        'admin' => ['label' => 'Quản trị', 'icon' => 'shield-check', 'iconClass' => 'text-[#8A6A1C]'],
     ];
+
+    /**
+     * Góc nhìn quản trị — HÀNG CHỜ VẬN HÀNH, không phải bài tập.
+     *
+     * Không có "tiến độ %" nào có nghĩa với quản trị (tiến độ của cái gì?), nên bảng này tắt
+     * hẳn thanh tiến độ bằng cờ 'showProgress' => false và thay bằng một dòng đếm việc tồn.
+     * Thà bỏ trống một ô còn hơn bịa ra một phần trăm không ai giải thích được.
+     */
+    private function adminPanel(): array
+    {
+        $pending = $this->adminDashboard->pendingCounts();
+        $total = array_sum($pending);
+
+        /*
+         * Thẻ hành động trỏ vào hàng chờ ĐANG ĐÔNG NHẤT — việc nào tồn nhiều nhất thì nhắc
+         * việc đó, thay vì luôn luôn nhắc một mục cố định.
+         */
+        $queues = [
+            'orders' => ['label' => 'đơn hàng chờ duyệt', 'route' => 'admin.orders.index'],
+            'support' => ['label' => 'yêu cầu hỗ trợ mới', 'route' => 'admin.contact-messages.index'],
+            'teachers' => ['label' => 'giáo viên chờ duyệt', 'route' => 'admin.teacher-approvals.index'],
+            'reviews' => ['label' => 'đánh giá chờ kiểm duyệt', 'route' => 'admin.reviews.index'],
+        ];
+
+        $topKey = null;
+        foreach ($queues as $key => $queue) {
+            if ($pending[$key] > 0 && ($topKey === null || $pending[$key] > $pending[$topKey])) {
+                $topKey = $key;
+            }
+        }
+
+        return [
+            'roleKey' => 'admin',
+            'roleIcon' => self::ROLE_VIEW_META['admin']['icon'],
+            'roleIconClass' => self::ROLE_VIEW_META['admin']['iconClass'],
+            'roleLabel' => 'Quản trị',
+            'contextLabel' => 'Khu quản trị',
+            'contexts' => [],
+            'guest' => false,
+
+            // Tắt thanh tiến độ, thay bằng một dòng tóm tắt việc tồn.
+            'showProgress' => false,
+            'summaryLabel' => 'Việc đang chờ xử lý',
+            'summaryValue' => $total > 0 ? $total.' việc' : 'Đã xử lý hết',
+            'summaryTone' => $total > 0 ? 'warn' : 'ok',
+
+            'nextLabel' => $total > 0 ? 'Cần xử lý trước' : 'Hàng chờ',
+            'nextTitle' => $topKey !== null
+                ? $pending[$topKey].' '.$queues[$topKey]['label']
+                : 'Không còn việc nào tồn đọng',
+            'nextMeta' => $topKey !== null ? 'Mở khu quản trị để xử lý' : 'Mọi hàng chờ đều trống',
+            'nextHref' => $topKey !== null ? route($queues[$topKey]['route']) : route('admin.dashboard'),
+
+            'stats' => [
+                ['value' => (string) $pending['orders'], 'label' => 'Đơn chờ duyệt', 'valueClass' => 'text-[#3E79A4]'],
+                ['value' => (string) $pending['support'], 'label' => 'Hỗ trợ mới', 'valueClass' => 'text-[#AF7C32]'],
+                ['value' => (string) $pending['teachers'], 'label' => 'GV chờ duyệt', 'valueClass' => 'text-[#3B9374]'],
+            ],
+        ];
+    }
 
     /** Góc nhìn giáo viên — số liệu thật của các lớp người này đang dạy. */
     private function teacherPanel(User $viewer): array
@@ -395,7 +505,9 @@ class HomeService
                 ->whereIn('id', $classRoomIds)
                 ->orderBy('name')
                 ->get(['id', 'name'])
-                ->map(fn ($room) => ['label' => $room->name, 'href' => route('teacher.classes.index')])
+                // SỬA 15/9 — trước mọi lớp đều trỏ về CÙNG trang danh sách, nên hộp chọn lớp
+                // bấm cái nào cũng ra một chỗ. Giờ vào thẳng đúng lớp đã chọn.
+                ->map(fn ($room) => ['label' => $room->name, 'href' => route('teacher.classes.show', $room->id)])
                 ->all();
 
             return [
@@ -439,13 +551,26 @@ class HomeService
                 ->where('submitted_at', '>=', now()->subDays(7))
                 ->count();
 
+            // Tổng số bài đã giao cho các lớp mà con đang học — mẫu số của thanh tiến độ.
+            $childClassRoomIds = $this->classEnrollments->query()
+                ->whereIn('student_id', $childIds)
+                ->where('status', 'active')
+                ->pluck('class_room_id');
+
+            $assignedToChildren = $this->assignments->query()
+                ->whereIn('class_room_id', $childClassRoomIds)
+                ->where('status', 'published')
+                ->count();
+
             // Tên các con — đọc thẳng từ bảng users theo đúng danh sách đã liên kết & xác minh
             // ở trên (HomeService chưa có repo người dùng riêng, và đây là truy vấn đọc đơn giản).
             $childContexts = \App\Models\User::query()
                 ->whereIn('id', $childIds)
                 ->orderBy('name')
                 ->get(['id', 'name'])
-                ->map(fn ($child) => ['label' => $child->name, 'href' => route('dashboard')])
+                // SỬA 15/9 — trước mọi con đều trỏ về /dashboard chung, chọn con nào cũng ra
+                // một chỗ. Giờ vào thẳng trang của đúng đứa con đã chọn.
+                ->map(fn ($child) => ['label' => $child->name, 'href' => route('parent.children.show', $child->id)])
                 ->all();
 
             return [
@@ -456,12 +581,22 @@ class HomeService
                 'contexts' => $childContexts,
                 'guest' => false,
                 'roleLabel' => 'Phụ huynh',
-                'progressLabel' => 'Bài đã nộp trong 7 ngày',
-                'progress' => $this->percent($weekCount, max($submitted, 1)),
+                /*
+                 * SỬA 15/9 — CON SỐ CŨ SAI NGHĨA.
+                 * Trước tính phần trăm = bài nộp tuần này / TỔNG bài đã nộp từ trước tới nay.
+                 * Con học chăm cả năm nộp 200 bài, tuần này nộp thêm 5 bài thì ra 2% — nhìn
+                 * như con đang sa sút, trong khi thực tế là ngược lại. Càng học lâu con số
+                 * càng tệ đi, đó là dấu hiệu công thức sai chứ không phải dữ liệu xấu.
+                 *
+                 * Giờ đo thứ phụ huynh thật sự muốn biết: trong số bài được giao, con đã nộp
+                 * bao nhiêu phần.
+                 */
+                'progressLabel' => 'Bài đã nộp trên tổng số được giao',
+                'progress' => $this->percent($submitted, max($assignedToChildren, 1)),
                 'nextLabel' => 'Cần đồng hành',
                 'nextTitle' => $weekCount > 0 ? 'Các con đã nộp '.$weekCount.' bài trong tuần' : 'Tuần này chưa có bài nộp mới',
                 'nextMeta' => $childIds->count().' học sinh đang theo dõi',
-                'nextHref' => route('dashboard'),
+                'nextHref' => route('parent.children.index'),
                 'stats' => [
                     ['value' => (string) $childIds->count(), 'label' => 'Con đang theo dõi', 'valueClass' => 'text-[#3E79A4]'],
                     ['value' => (string) $classCount, 'label' => 'Lớp đang học', 'valueClass' => 'text-[#3B9374]'],
