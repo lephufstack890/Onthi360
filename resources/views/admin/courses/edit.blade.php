@@ -25,7 +25,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-            <form method="POST" action="{{ route('admin.courses.update', $course->id) }}" class="space-y-4">
+            <form method="POST" action="{{ route('admin.courses.update', $course->id) }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 @method('PUT')
                 <div>
@@ -50,6 +50,8 @@
                         </x-ws.select>
                     </div>
                 </div>
+
+                @include('partials.course-cover-field')
 
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="description">Mô tả khóa học</label>

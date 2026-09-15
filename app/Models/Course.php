@@ -70,6 +70,19 @@ class Course extends Model
      *
      * Chạy migrate xong thì tự khớp lại, không phải sửa gì thêm.
      */
+    /**
+     * Ảnh đại diện ĐÃ TẢI LÊN của khoá học, chưa có thì null.
+     *
+     * SỬA 15/9 (khách: "thêm field thumbnail") — dùng ở form quản trị để xem trước ảnh hiện
+     * tại. Trang công khai KHÔNG gọi hàm này mà tự rơi về bộ ảnh mặc định course-img-1..5.png
+     * khi null, nên ở đây cố ý trả null chứ không trả sẵn ảnh mặc định: chỗ nào cần biết
+     * "khoá này đã có ảnh riêng chưa" vẫn phân biệt được.
+     */
+    public function coverUrl(): ?string
+    {
+        return $this->cover_image_path ? asset('storage/'.$this->cover_image_path) : null;
+    }
+
     public static function supportsProduct(): bool
     {
         static $has = null;

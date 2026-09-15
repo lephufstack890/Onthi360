@@ -50,11 +50,16 @@ class CourseController extends Controller
             // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
             // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
+            // SỬA 15/9 (khách: "thêm field thumbnail") — ảnh đại diện khoá học. 4MB đủ cho ảnh
+            // ngang 16:9; giới hạn định dạng để không ai tải lên .heic của iPhone rồi trình
+            // duyệt không hiện được.
+            'cover' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
+            'remove_cover' => ['nullable', 'boolean'],
         ], [
             'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
         ]);
 
-        $course = $this->courseService->store(Auth::user(), $data);
+        $course = $this->courseService->store(Auth::user(), $data, $request->file('cover'));
 
         return redirect()->route('admin.courses.index')->with('status', 'course-created');
     }
@@ -80,11 +85,21 @@ class CourseController extends Controller
             // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
             // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
+            // SỬA 15/9 (khách: "thêm field thumbnail") — ảnh đại diện khoá học. 4MB đủ cho ảnh
+            // ngang 16:9; giới hạn định dạng để không ai tải lên .heic của iPhone rồi trình
+            // duyệt không hiện được.
+            'cover' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
+            'remove_cover' => ['nullable', 'boolean'],
         ], [
             'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
         ]);
 
-        $this->courseService->update($course, $data);
+        $this->courseService->update(
+            $course,
+            $data,
+            $request->file('cover'),
+            $request->boolean('remove_cover'),
+        );
 
         return redirect()->route('admin.courses.show', $course->id)->with('status', 'course-updated');
     }

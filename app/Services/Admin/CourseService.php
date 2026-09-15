@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -58,6 +60,12 @@ class CourseService
     public const SHOW_LEVEL_FIELDS = false;
 
     public const SHOW_SELLING_FIELDS = false;
+
+    /* Nơi cất ảnh đại diện khoá học — cùng đĩa 'public' với ảnh của Tài liệu và Lộ trình, để
+       mọi ảnh công khai nằm chung một chỗ và cùng phục vụ qua storage:link. */
+    private const COVER_DISK = 'public';
+
+    private const COVER_DIR = 'courses';
 
     public function __construct(
         private CourseRepositoryInterface $courses,
@@ -154,7 +162,7 @@ class CourseService
      * tạo riêng sau đó và gắn về khóa này). Slug tự sinh từ tiêu đề, tự thêm số thứ
      * tự nếu trùng — không bắt admin phải tự nghĩ slug.
      */
-    public function store(User $creator, array $data): Course
+    public function store(User $creator, array $data, ?UploadedFile $cover = null): Course
     {
         $baseSlug = Str::slug($data['title']);
         $slug = $baseSlug;
@@ -181,6 +189,7 @@ class CourseService
             'created_by' => $creator->id,
             // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
             ...$this->productAttribute($data),
+            ...$this->coverAttribute($cover, null, false),
         ]);
     }
 
@@ -203,7 +212,7 @@ class CourseService
      * admin.courses.update — CHỦ ĐỘNG không cho đổi slug ở đây (giữ nguyên link công khai
      * đã chia sẻ/SEO); chỉ slug được sinh 1 lần lúc tạo (store()).
      */
-    public function update(Course $course, array $data): Course
+    public function update(Course $course, array $data, ?UploadedFile $cover = null, bool $removeCover = false): Course
     {
         return $this->courses->update($course, [
             'title' => $data['title'],
@@ -220,6 +229,7 @@ class CourseService
             ...$this->levelAttributes($data),
             // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
             ...$this->productAttribute($data),
+            ...$this->coverAttribute($cover, $course, $removeCover),
         ]);
     }
 
@@ -287,6 +297,43 @@ class CourseService
      *
      * @return array<string, int|null>
      */
+    /**
+     * Cặp [cover_image_path => giá trị] cho ảnh đại diện khoá học.
+     *
+     * SỬA 15/9 (khách: "thêm field thumbnail") — trả về MẢNG RỖNG khi lần lưu này KHÔNG đụng
+     * gì tới ảnh (không chọn file mới, không tick gỡ ảnh). Nhờ vậy cột cover_image_path không
+     * nằm trong câu UPDATE và ảnh cũ được giữ nguyên — nếu ghi thẳng `$data['cover'] ?? null`
+     * thì mỗi lần quản trị sửa mỗi cái tiêu đề là ảnh của khoá bay mất, đúng lỗi đã gặp với
+     * 5 cột kia.
+     *
+     * Tải ảnh mới hoặc gỡ ảnh thì xoá luôn tệp cũ khỏi ổ đĩa, tránh để rác tồn trong storage.
+     *
+     * @return array<string, string|null>
+     */
+    private function coverAttribute(?UploadedFile $cover, ?Course $existing, bool $remove): array
+    {
+        if ($cover !== null) {
+            $this->forgetCover($existing?->cover_image_path);
+
+            return ['cover_image_path' => $cover->store(self::COVER_DIR, self::COVER_DISK)];
+        }
+
+        if ($remove) {
+            $this->forgetCover($existing?->cover_image_path);
+
+            return ['cover_image_path' => null];
+        }
+
+        return [];
+    }
+
+    private function forgetCover(?string $path): void
+    {
+        if ($path !== null && $path !== '' && Storage::disk(self::COVER_DISK)->exists($path)) {
+            Storage::disk(self::COVER_DISK)->delete($path);
+        }
+    }
+
     private function productAttribute(array $data): array
     {
         // Khối "Bán khoá học này" đang ẩn -> không đụng tới cột product_id, giữ nguyên giá trị
