@@ -5,12 +5,18 @@
  * Dùng chung cho cả 3 nơi có bài lập trình cần chấm thật trong hệ thống — xem
  * App\Services\CodeJudgingService (nơi DUY NHẤT đọc file này để gọi ra Judge0).
  *
- * base_url mặc định trỏ về tunnel SSH cục bộ (127.0.0.1:2358) — máy chấm THẬT đang chạy trên
- * VPS (36.50.177.27), chỉ nghe ở loopback của chính VPS đó để an toàn, nên máy này (đang chạy
- * source onthi360 cục bộ) phải mở đường hầm SSH rồi trỏ vào cổng cục bộ:
- *   ssh -N -L 2358:127.0.0.1:2358 root@36.50.177.27
- * Khi nào source onthi360 dọn lên CHUNG VPS với máy chấm, chỉ cần sửa JUDGE0_URL trong .env
- * thành http://127.0.0.1:2358 TRÊN VPS (không cần tunnel nữa) — không phải sửa code.
+ * base_url LUÔN là http://127.0.0.1:2358, nhưng cổng 2358 đó là gì thì tuỳ nơi chạy:
+ *
+ *   · TRÊN VPS — onthi360 và Judge0 nằm CHUNG một máy, nên 127.0.0.1:2358 chính là máy chấm.
+ *     Judge0 cố ý chỉ nghe ở loopback, không hở ra Internet: nó tồn tại để chạy mã người lạ
+ *     gửi lên, mở cổng ra ngoài là tặng không một máy chạy code cho bất kỳ ai dò được cổng.
+ *
+ *   · TRÊN MÁY LẬP TRÌNH — máy chấm không chạy cục bộ, phải mở đường hầm SSH sang VPS rồi
+ *     trỏ vào cổng cục bộ, địa chỉ vẫn y nguyên nên không phải sửa .env:
+ *       ssh -N -L 2358:127.0.0.1:2358 root@<IP-VPS>
+ *
+ * Cách dựng máy chấm trên VPS: xem judge0-laptrinh/README-VPS.md (thư mục dự án riêng của
+ * máy chấm, không nằm trong mã nguồn này).
  */
 return [
 
