@@ -16,9 +16,20 @@
             slideIndex: 0,
             slidePaused: false,
 
-            grades: config.grades,
+            /*
+             * [HOME-04] SỬA 15/9 — hai nút "Khối lớp" và "Mục tiêu" đổ từ KHOÁ HỌC THẬT
+             * (config.coursePicker, xem Public\CourseService::pickerPayload()).
+             *
+             * Hai danh sách viết cứng cũ được GIỮ LẠI làm lối dự phòng: khi hệ thống chưa có
+             * khoá nào đã phát hành, hai nút vẫn có nội dung như bản thiết kế thay vì trơ ra
+             * rỗng. Xem getter grades/goals bên dưới.
+             */
+            pickerCourses: (config.coursePicker && config.coursePicker.courses) || [],
+            pickerGrades: (config.coursePicker && config.coursePicker.grades) || [],
+            fallbackGrades: config.grades || [],
+            fallbackGoals: config.goals || [],
+            coursesHref: config.coursesHref || '#',
             gradeIndex: 0,
-            goals: config.goals,
             goalIndex: 0,
 
             mainTab: 'courses',
@@ -60,6 +71,13 @@
 
             // Bản mẫu đồng bộ ô "Mục tiêu" bên dưới theo slide đang xem.
             syncGoalWithSlide() {
+                /*
+                 * SỬA 15/9 — khi ô "Mục tiêu" đổ khoá học thật thì KHÔNG đồng bộ theo slide
+                 * nữa: slide thứ 3 chẳng liên quan gì tới khoá thứ 3, nhảy như vậy sẽ tự đổi
+                 * lựa chọn của người dùng ngay dưới tay họ và nút vàng trỏ sang khoá khác.
+                 */
+                if (this.hasCourses) return;
+
                 if (this.slideIndex < this.goals.length) {
                     this.goalIndex = this.slideIndex;
                 }
@@ -81,10 +99,43 @@
             prevNotice() { this.noticeIndex = (this.noticeIndex - 1 + this.noticeCount) % this.noticeCount; },
             nextNotice() { this.noticeIndex = (this.noticeIndex + 1) % this.noticeCount; },
 
+            // Có khoá học thật thì dùng, không thì rơi về danh sách viết cứng của bản thiết kế.
+            get hasCourses() { return this.pickerCourses.length > 0; },
+            get grades() { return this.hasCourses ? this.pickerGrades : this.fallbackGrades; },
+
+            /*
+             * Các khoá thuộc khối lớp đang chọn. Khối nào không có khoá nào (không xảy ra vì
+             * danh sách khối sinh RA TỪ khoá, nhưng vẫn phòng) thì trả cả danh sách, để nút
+             * "Mục tiêu" không bao giờ rỗng.
+             */
+            get coursesForGrade() {
+                const hit = this.pickerCourses.filter((c) => c.grade === this.grade);
+                return hit.length > 0 ? hit : this.pickerCourses;
+            },
+            get goals() { return this.hasCourses ? this.coursesForGrade.map((c) => c.goal) : this.fallbackGoals; },
+
             get grade() { return this.grades[this.gradeIndex] || ''; },
-            cycleGrade() { this.gradeIndex = (this.gradeIndex + 1) % this.grades.length; },
             get goal() { return this.goals[this.goalIndex] || ''; },
-            cycleGoal() { this.goalIndex = (this.goalIndex + 1) % this.goals.length; },
+
+            // Đổi khối lớp -> danh sách mục tiêu đổi theo, nên đưa con trỏ về đầu, tránh trỏ
+            // vào một vị trí không còn tồn tại ở khối mới.
+            cycleGrade() {
+                if (this.grades.length === 0) return;
+                this.gradeIndex = (this.gradeIndex + 1) % this.grades.length;
+                this.goalIndex = 0;
+            },
+            cycleGoal() {
+                if (this.goals.length === 0) return;
+                this.goalIndex = (this.goalIndex + 1) % this.goals.length;
+            },
+
+            // Khoá học ứng với cặp (khối lớp, mục tiêu) đang chọn — cũng là đích của nút vàng.
+            get pickedCourse() {
+                if (! this.hasCourses) return null;
+                const list = this.coursesForGrade;
+                return list[this.goalIndex] || list[0] || null;
+            },
+            get pickerHref() { return this.pickedCourse ? this.pickedCourse.href : this.coursesHref; },
 
             get carouselIndex() { return this.mainTab === 'courses' ? this.courseIndex : this.pathIndex; },
             get carouselCount() { return this.mainTab === 'courses' ? this.courseCount : this.pathCount; },

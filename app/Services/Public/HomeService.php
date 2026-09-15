@@ -101,6 +101,11 @@ class HomeService
              * PUBLIC_ENABLED lên true là trang chủ có lại lộ trình thật ngay, không phải viết
              * lại gì. Khi tắt thì cũng KHÔNG chạy truy vấn nào cho lộ trình.
              */
+            /*
+             * SỬA 15/9 — [HOME-04] giờ đổ KHOÁ HỌC thật (khách chốt bỏ lộ trình). Xem
+             * Public\CourseService::pickerPayload().
+             */
+            'coursePicker' => $this->courseService->pickerPayload(),
             'pathPicker' => LearningPathService::PUBLIC_ENABLED
                 ? $this->learningPathService->pickerPayload()
                 : ['paths' => [], 'grades' => [], 'indexHref' => route('courses.index'), 'showLanguage' => false],

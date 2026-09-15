@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -28,6 +29,25 @@ use Illuminate\Support\Collection;
  */
 class CourseService
 {
+    /*
+     * ══════ HAI CÔNG TẮC KHỐI Ở TRANG CHI TIẾT KHOÁ HỌC ══════
+     *
+     * SỬA 15/9 (khách: "Các lớp đang triển khai ẩn nha, này cũng ẩn Có mã lớp?") — ẩn 2 khối
+     * cuối trang /khoa-hoc/{id}. ẨN CHỨ KHÔNG XOÁ: đổi thành true là hiện lại nguyên vẹn.
+     *
+     * ── LƯU Ý KHI TẮT/BẬT ──
+     * Nút chính ở bảng thông tin đầu trang NEO XUỐNG đúng 2 khối này (#lop-dang-mo và
+     * #tham-gia-lop). Tắt khối mà quên nút thì nút bấm vào không nhảy đi đâu cả — người dùng
+     * tưởng trang hỏng. Vì vậy view tự đổi đích của nút theo 2 hằng này, xem khối tính
+     * $primaryCta trong public/courses/show.blade.php.
+     *
+     * Ẩn khối "Có mã lớp?" cũng ẩn theo ô nhập mã lớp VÀ dải "Chọn lớp" của luồng mua khoá.
+     * Học sinh vẫn nhập được mã ở khu học sinh (student/courses/index) nên không mất đường nào.
+     */
+    public const SHOW_CLASS_LIST = false;
+
+    public const SHOW_JOIN_BY_CODE = false;
+
     public function __construct(
         private CourseRepositoryInterface $courses,
         private RatingSummaryRepositoryInterface $ratingSummaries,
@@ -100,7 +120,11 @@ class CourseService
     {
         $course = $this->courses->query()
             ->where('status', 'published')
-            ->with(['classRooms' => fn ($q) => $q->where('status', 'active')->withCount('students')->with('teachers')])
+            ->with(['classRooms' => fn ($q) => $q->where('status', 'active')
+                ->withCount(['students', 'sessions'])
+                ->withMin('sessions', 'starts_at')
+                ->withMax('sessions', 'ends_at')
+                ->with('teachers')])
             ->findOrFail($courseId);
 
         $classRoomIds = $course->classRooms->pluck('id')->all();
@@ -127,6 +151,10 @@ class CourseService
         return [
             'course' => $course,
             'classes' => $classes,
+            // SỬA 15/9 — số liệu cho bảng thông tin ở đầu trang chi tiết khoá học (bản dựng
+            // theo mẫu khách gửi). Gom ở service thay vì tính trong view để trang chỉ còn việc
+            // in ra, và để chỗ tính duy nhất một nơi nếu sau này đổi cách đếm.
+            ...$this->headlineFigures($course),
             'ratingAverage' => $average,
             'ratingCount' => $count,
             'isStudent' => $isStudent,
@@ -144,6 +172,97 @@ class CourseService
             'buyHref' => $course->isPurchasable() ? route('access.checkout', $course->product_id) : null,
             'priceLabel' => $course->isPurchasable() ? number_format((int) $course->learningPrice()).'đ' : null,
             'chooseClassHref' => route('access.chooseClass', $course->id),
+        ];
+    }
+
+    /**
+     * Dữ liệu cho khối [HOME-04] "Chọn mục tiêu hoặc lộ trình của bạn" ở trang chủ.
+     *
+     * SỬA 15/9 (khách: "ngoài trang chủ ... đổ dữ liệu các khoá học ra, click Xem lộ trình thì
+     * hiển thị ra màn đó") — hai nút bấm-để-đổi giờ sinh từ KHOÁ HỌC THẬT, và nút vàng dẫn
+     * thẳng sang trang chi tiết đúng khoá đang chọn.
+     *
+     * Nạp cả danh sách một lần rồi lọc tại trình duyệt (xem partials/home-script): số khoá
+     * công khai chỉ vài chục, đổi lựa chọn mà phải tải lại trang thì mất hẳn cảm giác mượt.
+     *
+     * 'goal' ưu tiên câu kết quả quản trị đặt cho khoá (courses.outcome) vì đó đúng là "mục
+     * tiêu"; khoá chưa đặt thì lấy tên khoá, KHÔNG bịa ra câu mục tiêu nào.
+     *
+     * @return array{grades: array<int, string>, courses: array<int, array<string, mixed>>}
+     */
+    public function pickerPayload(): array
+    {
+        $rows = $this->courses->query()
+            ->where('status', 'published')
+            ->withCount(['classRooms' => fn ($q) => $q->where('status', 'active')])
+            ->orderBy('title')
+            ->get(['id', 'title', 'grade', 'outcome'])
+            ->map(fn (Course $c) => [
+                'id' => $c->id,
+                'grade' => $c->grade ?: 'Chưa phân khối',
+                'goal' => $c->outcome ?: $c->title,
+                'title' => $c->title,
+                'href' => route('courses.show', $c->id),
+                'openClasses' => (int) $c->class_rooms_count,
+            ])
+            ->values()
+            ->all();
+
+        // Xếp khối lớp theo SỐ chứ không theo chữ — xếp theo chữ thì "Lớp 10" đứng trước "Lớp 6".
+        $grades = collect($rows)
+            ->pluck('grade')
+            ->unique()
+            ->sortBy(fn (string $g) => ((int) preg_replace('/\D/', '', $g)) ?: 99)
+            ->values()
+            ->all();
+
+        return ['grades' => $grades, 'courses' => $rows];
+    }
+
+    /**
+     * Bốn con số in ở bảng thông tin đầu trang chi tiết khoá học + dòng nhịp học.
+     *
+     * TẤT CẢ lấy từ dữ liệu THẬT, không có số viết cứng nào:
+     *   · học viên      — cộng students_count của các lớp đang mở;
+     *   · tổng buổi     — ưu tiên courses.session_count (số buổi THEO CHƯƠNG TRÌNH do quản trị
+     *                     nhập); chưa nhập thì lấy lớp có nhiều buổi đã xếp lịch nhất
+     *                     (class_sessions). Không có cả hai thì trả 0 và view tự giấu ô đó đi
+     *                     thay vì in số 0 vô nghĩa;
+     *   · số tuần       — khoảng cách buổi đầu tới buổi cuối của lớp dài nhất, làm tròn lên.
+     *                     Lớp chưa xếp lịch thì không có số tuần, view giấu dòng nhịp học.
+     *
+     * @return array{totalStudents:int, openClassCount:int, sessionTotal:int, weekSpan:int, sessionsPerWeek:?float}
+     */
+    private function headlineFigures(Course $course): array
+    {
+        $classRooms = $course->classRooms;
+
+        $sessionTotal = (int) ($course->session_count ?? 0);
+        if ($sessionTotal <= 0) {
+            $sessionTotal = (int) $classRooms->max('sessions_count');
+        }
+
+        // Lớp dài nhất quyết định độ dài khoá — lớp mới mở xếp lịch chưa đủ không kéo con số xuống.
+        $weekSpan = 0;
+        foreach ($classRooms as $classRoom) {
+            $first = $classRoom->sessions_min_starts_at;
+            $last = $classRoom->sessions_max_ends_at;
+            if ($first === null || $last === null) {
+                continue;
+            }
+
+            $days = Carbon::parse($first)->diffInDays(Carbon::parse($last));
+            $weekSpan = max($weekSpan, (int) ceil(($days + 1) / 7));
+        }
+
+        return [
+            'totalStudents' => (int) $classRooms->sum('students_count'),
+            'openClassCount' => $classRooms->count(),
+            'sessionTotal' => $sessionTotal,
+            'weekSpan' => $weekSpan,
+            'sessionsPerWeek' => $weekSpan > 0 && $sessionTotal > 0
+                ? round($sessionTotal / $weekSpan, 1)
+                : null,
         ];
     }
 

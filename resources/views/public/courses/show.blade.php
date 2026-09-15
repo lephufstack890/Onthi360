@@ -41,18 +41,43 @@
             ? asset('storage/'.$course->cover_image_path)
             : asset('assets/'.$fallbackCovers[$course->id % count($fallbackCovers)]);
 
-        $totalStudents = 0;
-        foreach ($classes as $cl) { $totalStudents += (int) ($cl['studentsCount'] ?? 0); }
+        /*
+         * SỬA 15/9 — 5 số liệu dưới đây do Public\CourseService::headlineFigures() tính từ
+         * dữ liệu THẬT (class_enrollments + class_sessions), view chỉ in ra. Vẫn để ?? mặc
+         * định phòng khi view được gọi từ chỗ khác chưa truyền đủ.
+         */
+        $totalStudents = $totalStudents ?? 0;
+        $openClassCount = $openClassCount ?? count($classes);
+        $sessionTotal = $sessionTotal ?? 0;
+        $weekSpan = $weekSpan ?? 0;
+        $sessionsPerWeek = $sessionsPerWeek ?? null;
+
+        // Viên nhãn cam ở góc bảng thông tin (chỗ chữ "SASH" trong mẫu khách gửi): ưu tiên mã
+        // bậc do quản trị đặt, không có thì lấy môn học. Không có cả hai thì giấu hẳn viên nhãn
+        // chứ không in chữ chống chế.
+        $brandChip = $course->level_code ?: $course->subject;
+
+        // Câu tóm tắt dưới tiêu đề — lấy chữ thật từ mô tả, cắt gọn. Mô tả đầy đủ (có định
+        // dạng) vẫn in nguyên ở khối "Giới thiệu khoá học" bên dưới.
+        $shortIntro = \Illuminate\Support\Str::limit(trim(strip_tags((string) $course->description)), 160);
     @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div class="flex flex-col gap-4 sm:gap-5">
+{{-- gap-5 = 20px, đúng bằng mt-5 mà source dùng giữa các <section>. --}}
+<div class="flex flex-col gap-5">
 
-    {{-- ══════ 1. ĐƯỜNG DẪN QUAY LẠI ══════ --}}
-    <a href="{{ route('courses.index') }}"
-       class="inline-flex w-fit items-center gap-1.5 rounded-xl border border-sky-100 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-2xs transition-colors hover:border-sky-200 hover:text-blue-700">
-        <x-lucide name="arrow-left" class="h-3.5 w-3.5" />Quay lại Lớp học
-    </a>
+    {{-- ══════ 1. ĐƯỜNG DẪN ══════
+         SỬA 15/9 — đổi nút "Quay lại" thành breadcrumb đủ 3 cấp đúng mẫu khách gửi: người vào
+         thẳng từ Google cần biết mình đang đứng ở đâu, không chỉ cần một lối lùi. --}}
+    {{-- -mb-2 bù lại: khung ngoài của trang giãn các khối 20px, còn source để breadcrumb
+         cách khối dưới đúng 12px (mb-3). Trừ 8px là ra đúng khoảng của source. --}}
+    <nav aria-label="Breadcrumb" class="-mb-2 flex items-center gap-2 px-1 text-[11px] font-medium text-[#7890A3] sm:text-xs">
+        <a href="{{ route('home') }}" class="transition-colors hover:text-[#126F91]">Trang chủ</a>
+        <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
+        <a href="{{ route('courses.index') }}" class="transition-colors hover:text-[#126F91] text-[#123B68]">Lớp học</a>
+        <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
+        <span class="min-w-0 truncate text-[#123B68]">{{ $course->title }}</span>
+    </nav>
 
     {{-- ══════ B6 · DẢI BẬC TRONG LỘ TRÌNH ══════
          Đặt NGAY TRÊN hero: người vào từ tìm kiếm Google thường rơi thẳng vào một khoá lẻ mà
@@ -114,105 +139,163 @@
         @endif
     @endif
 
-    {{-- ══════ 2. HERO KHOÁ HỌC ══════ --}}
-    <section class="relative overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-r from-[#0B3C78] via-[#0284C7] to-[#38BDF8] shadow-[0_10px_35px_rgba(0,100,220,0.08)]">
-        <img src="{{ $coverUrl }}" alt="" loading="eager" decoding="async"
-             class="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-35">
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#07326B]/95 via-[#0759a8]/80 to-[#0976c9]/35"></div>
+    {{-- ══════ 2. BẢNG ĐẦU TRANG: ẢNH + THÔNG TIN ══════
+         SỬA 15/9 (khách: "copy design màn này từ source, làm design in đúc vậy") — chép ĐÚNG
+         TỪNG CHUỖI CLASS của education-main/src/components/RoadmapPage.jsx: cùng lưới
+         1.42fr/0.88fr, cùng gap-5, cùng bo góc, cùng đổ bóng, cùng cỡ chữ và mã màu.
+         Chỉ dữ liệu là của khoá học thay vì lộ trình. --}}
+    <section class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(300px,0.88fr)]">
 
-        <div class="relative flex flex-col gap-5 p-5 text-white sm:p-7 lg:flex-row lg:items-center">
-            <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-1.5">
-                    @if ($course->subject)
-                        <span class="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
-                            <x-lucide name="book-open" class="h-3 w-3" />{{ $course->subject }}
-                        </span>
-                    @endif
-                    @if ($course->grade)
-                        <span class="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
-                            <x-lucide name="graduation-cap" class="h-3 w-3" />{{ $course->grade }}
-                        </span>
-                    @endif
+        <div class="h-full overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_18px_rgba(34,105,132,0.06)]">
+            <div class="aspect-[16/9] overflow-hidden bg-[#fffaf0]">
+                <img src="{{ $coverUrl }}" alt="Ảnh giới thiệu khoá học {{ $course->title }}"
+                     loading="eager" decoding="async" class="block h-full w-full object-cover object-center">
+            </div>
+        </div>
+
+        <div class="flex h-full min-w-0 flex-col justify-center rounded-3xl border border-[#DDEAF0] bg-white p-4 shadow-[0_4px_18px_rgba(34,105,132,0.06)] sm:p-5 lg:p-5">
+
+            @if ($brandChip)
+                <span class="w-fit rounded-full bg-[#ef744d] px-3 py-0.5 text-[10px] font-bold tracking-[0.14em] text-white">{{ mb_strtoupper($brandChip) }}</span>
+            @endif
+
+            <h1 class="mt-2 break-words text-2xl font-bold leading-tight tracking-tight text-[#123B68]">{{ $course->title }}</h1>
+
+            @if ($shortIntro !== '')
+                <p class="mt-1.5 type-body leading-5 text-[#2D7FA3]">{{ $shortIntro }}</p>
+            @endif
+
+            {{-- Ô "Mục tiêu đích" — chỉ hiện khi quản trị đã nhập câu kết quả cho khoá
+                 (courses.outcome). Chưa nhập thì giấu hẳn, không dựng ô rỗng cho đủ mẫu. --}}
+            @if ($course->outcome)
+                <div class="mt-2.5 flex min-w-0 items-center gap-3 rounded-2xl border border-[#f1dfad] bg-[#fff9e6] p-2.5">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f4cd67] text-[#8b6512]">
+                        <x-lucide name="target" class="h-4 w-4" />
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#2D7FA3]">Mục tiêu đích</p>
+                        <p class="mt-0.5 truncate text-sm font-semibold text-[#126F91]">{{ $course->outcome }}</p>
+                    </div>
                 </div>
+            @endif
 
-                <h1 class="type-hero-title mt-2.5 text-[24px] leading-tight text-white sm:text-[30px]">{{ $course->title }}</h1>
-
-                <div class="mt-2 [&_span]:text-sky-100">
-                    <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
-                </div>
-
-                <div class="rich-content mt-3 max-w-2xl text-[13px] leading-relaxed text-sky-50">{!! $course->description ?: 'Chưa có mô tả chi tiết.' !!}</div>
-
-                <div class="mt-5">
-                    @if (! auth()->check())
-                        <a href="{{ route('login') }}"
-                           class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
-                            <x-lucide name="log-in" class="h-4 w-4" />Đăng nhập để đăng ký / mua quyền
-                        </a>
-                    @elseif ($isStudent && $isEnrolledInThisCourse)
-                        <a href="{{ count($myClassRoomIdsInThisCourse) === 1 ? route('student.classes.show', $myClassRoomIdsInThisCourse[0]) : route('student.courses.index') }}"
-                           class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
-                            <x-lucide name="school" class="h-4 w-4" />Xem lớp học của tôi
-                            <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                        </a>
-                    @elseif ($isStudent)
-                        {{-- C2 — khoá đã mở bán thì nút chính là ĐĂNG KÝ; nhập mã lớp lùi
-                             xuống làm lối phụ. Khoá chưa gắn sản phẩm thì giữ nguyên như cũ. --}}
-                        @if ($buyHref)
-                            <div class="flex flex-wrap items-center gap-2">
-                                <a href="{{ $buyHref }}"
-                                   class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#FFF1C7] px-5 text-[13px] font-bold text-[#76551A] shadow-sm transition-colors hover:bg-[#FFE6A1]">
-                                    <x-lucide name="banknote" class="h-4 w-4" />Đăng ký học · {{ $priceLabel }}
-                                </a>
-                                <a href="#tham-gia-lop"
-                                   class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl border border-white/30 bg-white/10 px-4 text-[12px] font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-                                    <x-lucide name="key-round" class="h-3.5 w-3.5" />Đã có mã lớp
-                                </a>
-                            </div>
-                        @else
-                            <a href="#tham-gia-lop"
-                               class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
-                                <x-lucide name="key-round" class="h-4 w-4" />Nhập mã lớp để tham gia
-                            </a>
-                        @endif
-                    @else
-                        {{-- Vai trò khác (giáo viên/phụ huynh/admin) — giữ nguyên hành vi cũ. --}}
-                        <a href="{{ route('dashboard') }}"
-                           class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
-                            <x-lucide name="school" class="h-4 w-4" />Xem lớp học của tôi
-                        </a>
-                    @endif
-                </div>
+            {{-- 4 ô số liệu — đúng thành phần <Stat> của source (viền, nền, cỡ chữ, khoảng đệm).
+                 Ô nào chưa có dữ liệu thật thì in "—" chứ không in số 0: "0 buổi" khiến phụ
+                 huynh tưởng khoá rỗng, "—" thì hiểu là chưa công bố. --}}
+            @php
+                $figureTiles = [
+                    ['label' => 'Khối lớp', 'value' => $course->grade ?: '—', 'icon' => 'graduation-cap'],
+                    ['label' => 'Lớp đang mở', 'value' => $openClassCount > 0 ? $openClassCount : '—', 'icon' => 'school'],
+                    ['label' => 'Tổng buổi', 'value' => $sessionTotal > 0 ? $sessionTotal : '—', 'icon' => 'calendar-days'],
+                    ['label' => 'Học viên', 'value' => $totalStudents > 0 ? $totalStudents : '—', 'icon' => 'users'],
+                ];
+            @endphp
+            <div class="mt-2.5 grid grid-cols-2 gap-2">
+                @foreach ($figureTiles as $tile)
+                    <div class="rounded-2xl border border-[#DDEAF0] bg-[#F8FBFC] px-2.5 py-2 text-[#2D7FA3]">
+                        <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em]">
+                            <x-lucide :name="$tile['icon']" class="h-3.5 w-3.5 shrink-0" />{{ $tile['label'] }}
+                        </div>
+                        <p class="mt-1 text-[15px] font-semibold text-[#123B68]">{{ $tile['value'] }}</p>
+                    </div>
+                @endforeach
             </div>
 
-            <img src="{{ $coverUrl }}" alt="Ảnh bìa khoá học {{ $course->title }}" loading="lazy" decoding="async"
-                 class="relative w-full shrink-0 rounded-2xl border border-white/25 object-cover shadow-[0_10px_28px_rgba(4,40,80,0.28)] lg:w-72 xl:w-80"
-                 style="aspect-ratio: 4 / 3;">
+            {{-- Dòng nhịp học — đúng dải "Học theo thứ tự từ bậc 1 đến bậc 6" của source. Chỉ
+                 hiện khi các lớp đã xếp lịch thật, vì số tuần suy ra từ khoảng cách buổi đầu tới
+                 buổi cuối (xem CourseService::headlineFigures). --}}
+            @if ($weekSpan > 0)
+                <div class="mt-2.5 flex min-w-0 items-center gap-3 rounded-2xl border border-[#e7edf2] bg-[#fbfcfe] px-3 py-2 text-[11px] font-semibold text-[#2D7FA3]">
+                    <x-lucide name="clock-3" class="h-3.5 w-3.5 shrink-0 text-[#e27a57]" />
+                    <span>Học khoảng {{ $weekSpan }} tuần{{ $sessionsPerWeek ? ' · '.rtrim(rtrim(number_format($sessionsPerWeek, 1), '0'), '.').' buổi/tuần' : '' }}</span>
+                </div>
+            @endif
+
+            {{-- Cụm 2 nút — đúng hình dáng của source: nút chính chiếm hết phần còn lại
+                 (flex-1), nút "Tư vấn" viền trắng đứng cạnh.
+
+                 SỬA 15/9 (khách: "chỗ button này chỉ cần hiển thị xem các lớp đang mở là
+                 xong, in đúc design") — BỎ HẲN việc đổi chữ theo vai trò. Nút luôn là
+                 "Xem các lớp đang mở" đúng một chữ như bản mẫu, ai xem cũng thấy giống nhau. --}}
+            @php
+                $heroBtn = 'inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-[#2f7695] px-4 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(47,118,149,0.2)] transition hover:-translate-y-0.5 hover:bg-[#24627e]';
+
+                $showClassList = \App\Services\Public\CourseService::SHOW_CLASS_LIST;
+                $showJoinByCode = \App\Services\Public\CourseService::SHOW_JOIN_BY_CODE;
+
+                /*
+                 * Chữ cố định, chỉ ĐÍCH ĐẾN là co theo tình trạng trang:
+                 *   · còn khối "Các lớp đang triển khai" -> neo xuống ngay trong trang;
+                 *   · khối đó đang ẩn                    -> sang trang Lớp học, nơi thật sự
+                 *     đang liệt kê các lớp đang mở.
+                 * Không bao giờ để nút trỏ vào một neo không tồn tại: bấm mà trang đứng im thì
+                 * người dùng tưởng hỏng.
+                 */
+                $primaryHref = $showClassList ? '#lop-dang-mo' : route('courses.index');
+            @endphp
+            <div class="mt-2.5 flex flex-col gap-2 sm:flex-row">
+                <a href="{{ $primaryHref }}" class="{{ $heroBtn }}">
+                    Xem các lớp đang mở <x-lucide name="arrow-right" class="h-4 w-4" />
+                </a>
+
+                <a href="{{ route('info.index') }}"
+                   class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dbe7eb] bg-white px-5 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#a9d5dd] hover:bg-[#f2fafb]">
+                    <x-lucide name="phone" class="h-3.5 w-3.5" /> Tư vấn
+                </a>
+            </div>
+
+            {{-- Dòng xanh cuối bảng — đếm lớp thật, không có lớp nào thì nói thẳng. --}}
+            @if ($openClassCount > 0)
+                <p class="mt-1 text-center text-[10px] font-semibold text-[#56a17f]">Đang có {{ $openClassCount }} lớp mở · Vào học được ngay</p>
+            @else
+                <p class="mt-1 text-center text-[10px] font-semibold text-[#A2874A]">Chưa có lớp nào đang mở · Để lại liên hệ để được báo khi mở lớp</p>
+            @endif
         </div>
     </section>
 
-    {{-- ══════ 3. THÔNG TIN NHANH ══════ --}}
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        @foreach ([
-            ['label' => 'Lớp đang mở', 'value' => count($classes), 'icon' => 'school', 'tone' => 'bg-sky-50 text-[#2D7FA3] border-sky-100'],
-            ['label' => 'Học viên đang học', 'value' => $totalStudents, 'icon' => 'users', 'tone' => 'bg-emerald-50 text-[#3B9374] border-emerald-100'],
-            ['label' => 'Môn học', 'value' => $course->subject ?: '—', 'icon' => 'book-open', 'tone' => 'bg-violet-50 text-[#786BB1] border-violet-100'],
-            ['label' => 'Đối tượng', 'value' => $course->grade ?: '—', 'icon' => 'graduation-cap', 'tone' => 'bg-amber-50 text-[#AF7C32] border-amber-100'],
-        ] as $stat)
-            <div class="flex items-center gap-3 rounded-3xl border border-sky-100 bg-white p-3.5 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
-                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border {{ $stat['tone'] }}">
-                    <x-lucide :name="$stat['icon']" class="h-4.5 w-4.5" />
+    {{-- ══════ 3. GIỚI THIỆU KHOÁ HỌC ══════
+         Đúng thành phần <InfoCard> + khung bài viết nền kem của source. Mô tả là HTML do quản
+         trị soạn bằng trình soạn thảo nên in bằng {!! !!}; class .course-intro ở cuối trang
+         chép lại cách source tô đậm/đánh dấu danh sách bên trong bài viết. --}}
+    @if (trim(strip_tags((string) $course->description)) !== '')
+        <article class="min-w-0 rounded-2xl border border-[#DDEAF0] bg-white p-4 shadow-[0_4px_18px_rgba(34,105,132,0.05)] sm:p-5">
+            <div class="flex items-center gap-2.5">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#eaf6fb] text-[#2c789a]">
+                    <x-lucide name="target" class="h-4 w-4" />
                 </span>
-                <span class="min-w-0">
-                    <span class="type-meta block text-slate-400">{{ $stat['label'] }}</span>
-                    <span class="mt-0.5 block truncate text-[15px] font-black text-[#0B3C78]">{{ $stat['value'] }}</span>
-                </span>
+                <h2 class="type-section-title text-lg font-bold sm:text-xl">Giới thiệu khoá học</h2>
             </div>
-        @endforeach
-    </div>
+            <div class="mt-3 type-body">
+                <div class="course-intro max-w-none space-y-4 rounded-2xl border border-[#efe3c8] bg-gradient-to-br from-[#fffaf0] via-[#fffdf8] to-[#fff8e8] px-4 py-4 text-[13px] font-normal leading-6 text-[#3E79A4] sm:px-5 sm:py-5">
+                    {!! $course->description !!}
+                </div>
+            </div>
+        </article>
+    @endif
 
-    {{-- ══════ 4. CÁC LỚP ĐANG TRIỂN KHAI ══════ --}}
-    <section class="rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:p-5">
+    {{-- ══════ 4. DẢI TƯ VẤN ══════ --}}
+    <section class="flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#cfe4e8] bg-gradient-to-r from-[#e9f7f7] via-[#f4fbfb] to-[#fff8e6] p-4 sm:flex-row sm:items-center">
+        <div class="flex items-start gap-2.5">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#2c789a] shadow-sm">
+                <x-lucide name="users" class="h-4 w-4" />
+            </span>
+            <div>
+                <h2 class="type-section-title">Chưa biết con nên bắt đầu từ đâu?</h2>
+                <p class="type-body mt-1 text-[#617A8E]">Đội ngũ tư vấn sẽ giúp gia đình chọn lớp phù hợp với sức học của con.</p>
+            </div>
+        </div>
+        <a href="{{ route('info.index') }}"
+           class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-[#2f7695] px-4 text-xs font-bold text-white transition hover:bg-[#24627e]">
+            Nhận tư vấn miễn phí <x-lucide name="arrow-right" class="h-4 w-4" />
+        </a>
+    </section>
+
+    {{-- ══════ 5. CÁC LỚP ĐANG TRIỂN KHAI ══════
+         SỬA 15/9 (khách yêu cầu) — ĐANG ẨN, xem Public\CourseService::SHOW_CLASS_LIST.
+         ẨN CHỨ KHÔNG XOÁ: đổi hằng đó thành true là hiện lại y nguyên, và nút chính ở đầu
+         trang cũng tự neo xuống đây trở lại. --}}
+    @if ($showClassList)
+    <section id="lop-dang-mo" class="scroll-mt-20 rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:p-5">
         <div class="mb-3 flex items-center gap-2.5">
             <span class="grid h-8.5 w-8.5 place-items-center rounded-xl bg-blue-600 text-white shadow-2xs">
                 <x-lucide name="school" class="h-4.5 w-4.5" />
@@ -263,9 +346,13 @@
             @endforelse
         </div>
     </section>
+    @endif
 
-    {{-- ══════ 5. THAM GIA BẰNG MÃ LỚP ══════ --}}
-    @if ($isStudent)
+    {{-- ══════ 6. THAM GIA BẰNG MÃ LỚP ══════
+         SỬA 15/9 (khách yêu cầu) — ĐANG ẨN, xem Public\CourseService::SHOW_JOIN_BY_CODE.
+         Ẩn khối này cũng ẩn theo ô nhập mã lớp và dải "Chọn lớp" của luồng mua khoá; học sinh
+         vẫn nhập mã được ở khu Khoá học của học sinh nên không mất đường nào. --}}
+    @if ($showJoinByCode && $isStudent)
         <section id="tham-gia-lop" class="scroll-mt-20 rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:p-5">
             <div class="mb-3 flex items-center gap-2.5">
                 <span class="grid h-8.5 w-8.5 place-items-center rounded-xl bg-amber-50 text-amber-700">

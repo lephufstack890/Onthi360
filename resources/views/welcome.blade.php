@@ -230,6 +230,15 @@
          * chọn không tải lại trang, và hai nút chọn được SINH RA từ chính dữ liệu này nên
          * không bao giờ hiện một khối lớp hay mục tiêu không có lộ trình nào đứng sau.
          */
+        /*
+         * SỬA 15/9 — [HOME-04] "Chọn mục tiêu hoặc lộ trình của bạn" đổ KHOÁ HỌC thật:
+         * nút khối lớp và nút mục tiêu sinh từ danh sách này, nút vàng dẫn thẳng sang trang
+         * chi tiết đúng khoá đang chọn. Xem Public\CourseService::pickerPayload().
+         * Chưa có khoá nào thì home-script tự quay về 2 danh sách viết cứng bên dưới, giao
+         * diện không bao giờ trơ ra hai nút rỗng.
+         */
+        'coursePicker' => $coursePicker ?? ['grades' => [], 'courses' => []],
+        'coursesHref' => route('courses.index'),
         'pathPicker' => $pathPicker ?? ['paths' => [], 'grades' => [], 'indexHref' => route('learningPaths.index'), 'showLanguage' => false],
     ];
 @endphp
@@ -490,14 +499,13 @@
                         <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
                     </button>
 
-                    {{-- SỬA 15/9 — công tắc lộ trình đang tắt nên nút quay về ĐÚNG BẢN GỐC:
-                         liên kết tĩnh sang trang Lớp học, chữ cố định "Xem lộ trình". Bật công
-                         tắc thì 2 thuộc tính Alpine (:href / x-text) gắn lại và nút chạy theo
-                         lựa chọn của người dùng như đã làm. --}}
-                    <a href="{{ route('courses.index') }}"
-                       @if (\App\Services\Public\LearningPathService::PUBLIC_ENABLED) :href="pickerHref" @endif
+                    {{-- SỬA 15/9 — CHỮ TRÊN NÚT GIỮ NGUYÊN "Xem lộ trình" đúng bản thiết kế,
+                         chỉ đường dẫn là chạy theo lựa chọn: bấm vào mở đúng trang chi tiết
+                         khoá học đang chọn ở hai nút bên trái. href tĩnh phía dưới là lối dự
+                         phòng khi JavaScript chưa chạy hoặc chưa có khoá nào. --}}
+                    <a href="{{ route('courses.index') }}" :href="pickerHref"
                        class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#ECD78F] bg-[#FFF4C7] px-4 text-xs font-bold text-[#765C18] shadow-[0_2px_7px_rgba(183,143,37,0.09)] transition-all hover:border-[#DFC56F] hover:bg-[#FFEDAA] active:scale-[0.98]">
-                        <span @if (\App\Services\Public\LearningPathService::PUBLIC_ENABLED) x-text="pickerLabel" @endif>Xem lộ trình</span>
+                        <span>Xem lộ trình</span>
                         <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                     </a>
                 </div>

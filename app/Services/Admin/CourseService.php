@@ -38,6 +38,23 @@ class CourseService
      * Dùng ở: resources/views/partials/course-level-fields.blade.php (2 khối giao diện) và
      * store()/update() ngay trong lớp này.
      */
+    /*
+     * SỬA 15/9 (lần 2 — khách: "dữ liệu thiếu thì trong admin thêm field và làm logic cho khớp
+     * với design") — BẬT LẠI 3 trường mà trang chi tiết khoá học (bản dựng theo mẫu) cần tới,
+     * nhưng gom thành một khối RIÊNG mang đúng tên việc của nó: "Hiển thị trên trang khoá học".
+     *
+     * Ba trường đó vốn nằm trong khối "Thông tin bậc trong lộ trình" nên lúc bỏ lộ trình đã bị
+     * ẩn theo, khiến trang mới không có gì để in:
+     *   · level_code    -> viên nhãn cam ở góc bảng thông tin;
+     *   · outcome       -> ô "Mục tiêu đích" nền vàng;
+     *   · session_count -> ô "Tổng buổi" và dòng nhịp học.
+     *
+     * Chỉ còn level_subtitle là thuần lộ trình (nhãn phụ của bậc) nên vẫn ẩn cùng
+     * SHOW_LEVEL_FIELDS bên dưới.
+     */
+    public const SHOW_SHOWCASE_FIELDS = true;
+
+    /** Nhãn phụ của bậc — chỉ có nghĩa khi dùng lộ trình, đang ẩn. */
     public const SHOW_LEVEL_FIELDS = false;
 
     public const SHOW_SELLING_FIELDS = false;
@@ -233,27 +250,30 @@ class CourseService
     }
 
     /**
-     * Cặp [cột => giá trị] cho khối "Thông tin bậc trong lộ trình".
+     * Cặp [cột => giá trị] cho hai khối "Hiển thị trên trang khoá học" và "Thông tin bậc".
      *
-     * Trả về MẢNG RỖNG khi khối đang ẩn, để 4 cột bậc không nằm trong câu INSERT/UPDATE và
-     * giữ nguyên giá trị cũ — xem ghi chú dài ở self::SHOW_LEVEL_FIELDS.
+     * Cột nào thuộc khối ĐANG ẨN thì KHÔNG có mặt trong mảng trả về, nên không nằm trong câu
+     * INSERT/UPDATE và giữ nguyên giá trị cũ trong CSDL — xem ghi chú dài ở đầu lớp.
      *
      * @return array<string, string|int|null>
      */
     private function levelAttributes(array $data): array
     {
-        if (! self::SHOW_LEVEL_FIELDS) {
-            return [];
+        $attributes = [];
+
+        if (self::SHOW_SHOWCASE_FIELDS) {
+            $sessionCount = $data['session_count'] ?? null;
+
+            $attributes['level_code'] = $data['level_code'] ?? null;
+            $attributes['outcome'] = $data['outcome'] ?? null;
+            $attributes['session_count'] = ($sessionCount !== null && $sessionCount !== '') ? (int) $sessionCount : null;
         }
 
-        $sessionCount = $data['session_count'] ?? null;
+        if (self::SHOW_LEVEL_FIELDS) {
+            $attributes['level_subtitle'] = $data['level_subtitle'] ?? null;
+        }
 
-        return [
-            'level_code' => $data['level_code'] ?? null,
-            'level_subtitle' => $data['level_subtitle'] ?? null,
-            'outcome' => $data['outcome'] ?? null,
-            'session_count' => ($sessionCount !== null && $sessionCount !== '') ? (int) $sessionCount : null,
-        ];
+        return $attributes;
     }
 
     /**
