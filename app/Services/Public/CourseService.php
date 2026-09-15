@@ -106,15 +106,14 @@ class CourseService
             'totalOpenClasses' => $courses->sum(fn (Course $c) => $c->classRooms->count()),
             'subjects' => $subjects,
             'activeSubject' => $subject,
-            // Khối lớp có thật trong dữ liệu — dải lọc "Khối lớp" của giao diện mới dựng từ đây,
-            // không phải danh sách cứng, nên không bao giờ lọc ra 0 kết quả một cách vô nghĩa.
-            'grades' => $this->courses->query()
-                ->where('status', 'published')
-                ->whereNotNull('grade')
-                ->distinct()
-                ->orderBy('grade')
-                ->pluck('grade')
-                ->all(),
+            /*
+             * SỬA 15/9 — dải lọc "Khối lớp" giờ SINH TỪ LỘ TRÌNH, không từ cột courses.grade.
+             * Trang này liệt kê lộ trình, nên khối nào không có lộ trình thì đừng mời người ta
+             * bấm vào; ngược lại lộ trình "Khối 6–8" phải ra đủ Lớp 6, 7, 8 kể cả khi không
+             * khoá nào ghi "Lớp 7".
+             * Xem App\Services\Public\LearningPathService::gradeOptions().
+             */
+            'grades' => $this->learningPaths->gradeOptions(),
             /*
              * B7 (15/9, khách nói thẳng "người ta chọn lớp theo lộ trình") — bộ lọc theo lộ
              * trình bên cạnh lọc môn và lọc khối đang có.

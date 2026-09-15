@@ -1,7 +1,7 @@
 @extends('layouts.guest')
 
-@section('title', 'Lớp học Tin học 360')
-@section('meta-description', 'Danh sách lớp học Tin học của Ôn Thi 360 — lọc theo khối lớp và khóa học, xem mã lớp, sĩ số, giáo viên phụ trách và đánh giá của học viên.')
+@section('title', 'Lộ trình học theo khối lớp — Ôn Thi 360')
+@section('meta-description', 'Chọn khối lớp để xem các lộ trình học phù hợp: mỗi lộ trình chia thành nhiều bậc, có số buổi và mục tiêu rõ ràng, kèm các lớp đang mở.')
 
 @section('content')
 {{-- ═══════════════ [COURSES] MÀN LỚP HỌC ═══════════════
@@ -81,11 +81,11 @@
                     <span>Chương trình đào tạo chuẩn Chuyên & HSG</span>
                 </div>
 
-                <h1 class="text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">Lớp học Tin học 360</h1>
+                <h1 class="text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">Lộ trình học Tin học 360</h1>
 
                 <p class="mt-2 max-w-xl text-xs leading-5 text-sky-100 sm:text-sm sm:leading-6">
-                    Mỗi khóa học gồm các lớp theo khối, mục tiêu và hình thức học riêng; tích hợp chấm bài tự động,
-                    giáo trình bản quyền và đội ngũ giáo viên trường Chuyên.
+                    Chọn khối lớp của con để xem các lộ trình phù hợp. Mỗi lộ trình chia thành nhiều bậc nối tiếp nhau,
+                    có số buổi và mục tiêu rõ ràng — biết trước con đang ở đâu và còn bao xa nữa tới đích.
                 </p>
 
                 <div class="mt-4 flex flex-wrap items-center gap-2.5">
@@ -117,38 +117,38 @@
         </div>
     </div>
 
-    {{-- ══════ [COURSES-01B] LỌC THEO LỘ TRÌNH (B7) ══════
-         Khách nói thẳng "người ta chọn lớp theo lộ trình", nên dải này đứng TRƯỚC lọc môn và
-         lọc khối: đó là câu hỏi đầu tiên phụ huynh đặt ra, không phải câu hỏi cuối cùng.
-         Chọn một lộ trình là chỉ còn các lớp thuộc các bậc của lộ trình đó. --}}
+    {{-- ══════ [COURSES-01B] ĐANG XEM THEO MỘT LỘ TRÌNH ══════
+         Chỉ hiện khi người dùng đi từ trang lộ trình sang (?lo-trinh=). Lúc đó họ đã chốt lộ
+         trình rồi, việc cần là xem các khoá/lớp bên trong — nên đây là một dải báo trạng thái
+         kèm lối thoát, không phải một dãy nút chọn nữa.
+
+         SỬA 15/9 — dãy nút chọn lộ trình cũ đã bỏ: giờ lộ trình được chọn bằng cách bấm KHỐI
+         LỚP rồi bấm thẻ lộ trình ở khối bên dưới, đúng luồng khách chốt. --}}
     @if (count($learningPathFilters) > 0)
-        <div class="flex flex-col gap-2.5 rounded-3xl border border-[#CDE8EC] bg-[#F4FBFC] p-3.5 sm:flex-row sm:items-center">
-            <div class="flex min-w-0 shrink-0 items-center gap-2">
-                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-[#CDE8EC] bg-white text-[#23869B]">
+        <div x-show="selectedPath !== 'all'" x-cloak
+             class="flex flex-col gap-2.5 rounded-3xl border border-[#CDE8EC] bg-[#F4FBFC] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex min-w-0 items-center gap-2.5">
+                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#CDE8EC] bg-white text-[#23869B]">
                     <x-lucide name="route" class="h-4 w-4" />
                 </span>
                 <span class="min-w-0">
-                    <span class="block text-[11.5px] font-bold text-[#123B68]">Chọn lớp theo lộ trình</span>
-                    <span class="block text-[10.5px] text-[#71869A]">Lọc ra đúng các lớp thuộc lộ trình bạn đang theo</span>
+                    <span class="block text-[10.5px] font-bold uppercase tracking-wide text-[#71869A]">Đang xem khoá học của lộ trình</span>
+                    <span class="block truncate text-[13px] font-black text-[#123B68]" x-text="selectedPathTitle"></span>
                 </span>
             </div>
 
-            <div class="flex flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <button type="button" @click="setLearningPath('all')" :aria-pressed="selectedPath === 'all'"
-                        class="min-h-9 whitespace-nowrap rounded-xl border px-3 py-1 text-[11px] font-bold transition-all"
-                        :class="selectedPath === 'all' ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'border-[#DDEAF0] bg-white text-[#536D86] hover:border-[#C9DFE8]'">Mọi lộ trình</button>
-                @foreach ($learningPathFilters as $lp)
-                    <button type="button" @click="setLearningPath({{ $lp['id'] }})" :aria-pressed="selectedPath === {{ $lp['id'] }}"
-                            title="{{ $lp['gradeLabel'] }}"
-                            class="min-h-9 whitespace-nowrap rounded-xl border px-3 py-1 text-[11px] font-bold transition-all"
-                            :class="selectedPath === {{ $lp['id'] }} ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'border-[#DDEAF0] bg-white text-[#536D86] hover:border-[#C9DFE8]'">{{ $lp['title'] }}</button>
-                @endforeach
+            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                <template x-if="selectedPathHref">
+                    <a :href="selectedPathHref"
+                       class="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[#C9DFE8] bg-white px-3 text-[11px] font-bold text-[#126F91] transition-colors hover:bg-[#F2F8F9]">
+                        <x-lucide name="route" class="h-3.5 w-3.5" />Xem lộ trình
+                    </a>
+                </template>
+                <button type="button" @click="setLearningPath('all')"
+                        class="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[#DDEAF0] bg-white px-3 text-[11px] font-bold text-[#536D86] transition-colors hover:bg-[#F5F8FA]">
+                    <x-lucide name="x" class="h-3.5 w-3.5" />Bỏ lọc lộ trình
+                </button>
             </div>
-
-            <a href="{{ route('learningPaths.index') }}"
-               class="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#C9DFE8] bg-white px-3 text-[11px] font-bold text-[#126F91] transition-colors hover:bg-[#F2F8F9]">
-                Xem lộ trình <x-lucide name="chevron-right" class="h-3 w-3" />
-            </a>
         </div>
     @endif
 
@@ -156,13 +156,15 @@
     <div class="flex flex-col gap-3 rounded-3xl border border-[#DDEAF0] bg-white p-3.5 shadow-[0_2px_10px_rgba(28,91,121,0.04)] lg:flex-row lg:items-center lg:justify-between">
         <div class="relative flex-1">
             <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71869A]" />
-            <input type="text" aria-label="Tìm kiếm lớp học" placeholder="Tìm kiếm khóa học, lớp học, chuyên đề..."
+            <input type="text" aria-label="Tìm kiếm"
+                   :placeholder="showPaths ? 'Tìm lộ trình theo tên, mục tiêu...' : 'Tìm khoá học, lớp học, mã lớp...'"
+                   placeholder="Tìm lộ trình theo tên, mục tiêu..."
                    x-model="searchQuery"
                    class="min-h-11 w-full rounded-2xl border border-[#DDEAF0] bg-[#F8FAFB] py-2 pl-10 pr-4 text-xs text-slate-800 placeholder:text-[#8A9BAD] transition-all focus:border-[#9DC8D7] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
         </div>
 
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <span class="type-label shrink-0 text-[#536D86]">Khối lớp:</span>
+        <div x-show="showPaths" x-cloak class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span class="type-label shrink-0 text-[#536D86]">Lộ trình cho khối:</span>
             <button type="button" @click="setGrade('all')" :aria-pressed="selectedGrade === 'all'"
                     class="min-h-9 rounded-xl border px-3 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
                     :class="selectedGrade === 'all' ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'border-transparent bg-[#F5F8FA] text-[#536D86] hover:border-[#C9DFE8] hover:bg-white'">Tất cả</button>
@@ -174,8 +176,10 @@
         </div>
     </div>
 
-    {{-- ══════ [COURSES-03] TAB CHUYÊN MỤC ══════ --}}
-    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+    {{-- ══════ [COURSES-03] TAB CHUYÊN MỤC ══════
+         Lọc theo MÔN chỉ áp cho danh sách khoá học. Ở chế độ lộ trình thì ẩn: lộ trình không
+         gắn với một môn nào cả (một lộ trình có thể đi qua nhiều môn), bày ra là đánh lừa. --}}
+    <div x-show="! showPaths" x-cloak class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
         <button type="button" @click="setCategory('all')" :aria-pressed="selectedCategory === 'all'"
                 class="flex min-h-10 items-center gap-1.5 rounded-2xl border px-3.5 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
                 :class="selectedCategory === 'all' ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'bg-[#EAF5F8] border-[#C9DFE8] text-[#536D86] hover:brightness-[.98] hover:shadow-[0_2px_8px_rgba(28,91,121,0.06)]'">
@@ -197,7 +201,99 @@
         @endforeach
     </div>
 
-    <div class="flex items-center justify-between gap-3 px-1">
+    {{-- ══════ [COURSES-03B] LỘ TRÌNH CỦA KHỐI ĐANG CHỌN ══════
+         SỬA 15/9 (khách chốt luồng) — chọn KHỐI LỚP thì trang hiện các LỘ TRÌNH của khối đó,
+         không phải danh sách khoá. Bấm một lộ trình là sang thẳng trang chi tiết lộ trình.
+
+         Vì sao đúng: phụ huynh không mua "khoá học số 3", họ chọn con đường cho con. Bắt họ
+         nhìn danh sách khoá rời rạc trước khi biết chúng thuộc chặng nào là hỏi sai thứ tự. --}}
+    <div x-show="showPaths" x-cloak class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+            <div class="flex items-center gap-2">
+                <span class="grid h-7 w-7 place-items-center rounded-lg bg-[#E9F7F8] text-[#23869B]">
+                    <x-lucide name="route" class="h-4 w-4" />
+                </span>
+                <h2 class="text-[15px] font-black text-[#123B68]">
+                    <template x-if="selectedGrade === 'all'"><span>Tất cả lộ trình</span></template>
+                    <template x-if="selectedGrade !== 'all'"><span>Lộ trình cho <span x-text="selectedGrade"></span></span></template>
+                </h2>
+                <span class="rounded-lg bg-[#F5F8FA] px-2 py-0.5 text-[11px] font-bold text-[#536D86]"
+                      x-text="filteredPaths.length + ' lộ trình'"></span>
+            </div>
+
+            <button type="button" x-show="selectedGrade !== 'all'" x-cloak @click="setGrade('all')"
+                    class="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[#DDEAF0] bg-white px-3 text-[11px] font-bold text-[#536D86] transition-colors hover:bg-[#F5F8FA]">
+                <x-lucide name="list" class="h-3.5 w-3.5" />Xem tất cả lộ trình
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            @foreach ($learningPathFilters as $lp)
+                <a href="{{ $lp['href'] }}"
+                   x-show="filteredPaths.some((p) => p.id === {{ $lp['id'] }})" x-cloak
+                   class="group flex h-full flex-col overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(28,91,121,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B8DFE8] hover:shadow-[0_12px_28px_rgba(28,91,121,0.1)]">
+
+                    {{-- Ảnh lộ trình quản trị tải lên; chưa có thì dựng dải màu các bậc. --}}
+                    @if ($lp['coverUrl'])
+                        <img src="{{ $lp['coverUrl'] }}" alt="Lộ trình {{ $lp['title'] }}" loading="lazy" decoding="async"
+                             class="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]">
+                    @else
+                        <div class="flex h-40 w-full items-end gap-1 bg-gradient-to-br from-[#F3FAFC] to-[#E7F3F7] p-4">
+                            @foreach (array_slice(\App\Support\LearningPathPalette::ramp(), 0, max(1, min(6, $lp['stepCount']))) as $i => $tone)
+                                <span class="flex-1 rounded-t-lg" style="background: {{ $tone['solid'] }}; height: {{ 26 + $i * 13 }}%"></span>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="flex min-w-0 flex-1 flex-col p-4">
+                        @if ($lp['brand'])
+                            <p class="text-[10px] font-black uppercase tracking-[.1em] text-[#2D7FA3]">{{ $lp['brand'] }}</p>
+                        @endif
+
+                        <h3 class="mt-1 text-[15px] font-black leading-snug text-[#123B68] transition-colors group-hover:text-[#126F91]">{{ $lp['title'] }}</h3>
+
+                        @if ($lp['subtitle'])
+                            <p class="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-[#536D86]">{{ $lp['subtitle'] }}</p>
+                        @endif
+
+                        <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            <span class="rounded-lg border border-[#CDE8EC] bg-[#E9F7F8] px-2 py-0.5 text-[10.5px] font-bold text-[#23869B]">{{ $lp['gradeLabel'] }}</span>
+                            <span class="rounded-lg border border-[#DDEAF0] bg-[#F5F8FA] px-2 py-0.5 text-[10.5px] font-bold text-[#536D86]">{{ $lp['stepCount'] }} bậc</span>
+                            @if ($lp['totalSessions'] > 0)
+                                <span class="rounded-lg border border-[#DDEAF0] bg-[#F5F8FA] px-2 py-0.5 text-[10.5px] font-bold text-[#536D86]">{{ $lp['totalSessions'] }} buổi</span>
+                            @endif
+                        </div>
+
+                        <div class="mt-3 rounded-xl border border-[#F2E4BD] bg-[#FFFBEF] px-2.5 py-2">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-[#A98436]">Mục tiêu đích</p>
+                            <p class="mt-0.5 text-[11.5px] font-bold leading-snug text-[#765C18]">{{ $lp['goal'] }}</p>
+                        </div>
+
+                        <span class="mt-auto flex min-h-10 translate-y-3 items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-4 text-xs font-bold text-white transition-colors group-hover:bg-[#0F5E7C]">
+                            Xem lộ trình <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                        </span>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+
+        {{-- Không có lộ trình nào khớp — nói rõ và cho lối quay lại, không để trang trắng. --}}
+        <div x-show="filteredPaths.length === 0" x-cloak
+             class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
+            <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#EAF5F8] text-[#2D7FA3]">
+                <x-lucide name="route" class="h-7 w-7" />
+            </span>
+            <h3 class="mt-3 text-sm font-black text-[#123B68]">
+                <template x-if="selectedGrade !== 'all'"><span>Chưa có lộ trình cho <span x-text="selectedGrade"></span></span></template>
+                <template x-if="selectedGrade === 'all'"><span>Chưa tìm thấy lộ trình phù hợp</span></template>
+            </h3>
+            <p class="mt-1 text-xs text-[#71869A]">Thử đổi khối lớp hoặc xoá từ khoá tìm kiếm.</p>
+            <button type="button" @click="resetFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xem tất cả lộ trình</button>
+        </div>
+    </div>
+
+    {{-- Dòng đếm — chỉ có nghĩa khi đang xem danh sách khoá. --}}
+    <div x-show="! showPaths" x-cloak class="flex items-center justify-between gap-3 px-1">
         <div class="flex items-center gap-2 text-[11px] text-[#71869A]">
             <x-lucide name="filter" class="h-3.5 w-3.5 text-[#2D7FA3]" />
             {{-- SỬA 15/9 — đếm cho đúng thứ đang hiển thị: mỗi thẻ là một KHOÁ HỌC, trong
@@ -207,8 +303,10 @@
         <span class="hidden text-[11px] text-[#8A9BAD] sm:inline">Cập nhật theo mục tiêu học tập của bạn</span>
     </div>
 
-    {{-- ══════ [COURSES-04] LƯỚI LỚP HỌC ══════ --}}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
+    {{-- ══════ [COURSES-04] LƯỚI KHOÁ HỌC ══════
+         Ẩn khi đang ở chế độ xem lộ trình — khách chốt: chọn khối lớp thì hiện lộ trình,
+         không hiện khoá. --}}
+    <div x-show="! showPaths" x-cloak class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
         @foreach ($courses as $i => $course)
             @php
                 $cover = $course['image'] ?: asset('assets/'.$fallbackCovers[$course['id'] % count($fallbackCovers)]);
@@ -416,7 +514,7 @@
     </div>
 
     {{-- ══════ [COURSES-05] PHÂN TRANG ══════ --}}
-    <nav aria-label="Phân trang lớp học" x-show="filtered.length > pageSize" x-cloak
+    <nav aria-label="Phân trang khoá học" x-show="! showPaths && filtered.length > pageSize" x-cloak
          class="flex flex-col items-center justify-between gap-2 rounded-2xl border border-[#DDEAF0] bg-white p-2.5 sm:flex-row">
         <span class="text-[11px] text-[#71869A]">Trang <b class="text-[#536D86]" x-text="page"></b> / <span x-text="totalPages"></span></span>
         <div class="flex items-center gap-1.5">
@@ -438,9 +536,9 @@
     </nav>
 
     {{-- Không có kết quả --}}
-    <div x-show="filtered.length === 0" x-cloak class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
+    <div x-show="! showPaths && filtered.length === 0" x-cloak class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
         <x-lucide name="search" class="mx-auto h-9 w-9 text-[#9DC8D7]" />
-        <h2 class="mt-3 text-sm font-black text-[#123B68]">Không tìm thấy lớp học phù hợp</h2>
+        <h2 class="mt-3 text-sm font-black text-[#123B68]">Không tìm thấy khoá học phù hợp</h2>
         <p class="mt-1 text-xs text-[#71869A]">Thử đổi khối lớp, danh mục hoặc từ khóa tìm kiếm.</p>
         <button type="button" @click="resetFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
     </div>

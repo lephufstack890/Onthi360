@@ -201,26 +201,65 @@ class LearningPathService
     }
 
     /**
-     * B7 — bộ lọc "theo lộ trình" ở trang Lớp học.
+     * B7 — lộ trình dùng ở trang Lớp học.
      *
-     * Trả về từng lộ trình kèm danh sách id khoá học của nó, để trang lớp lọc ngay tại chỗ
-     * bằng id khoá — không cần thêm truy vấn khi người dùng đổi lộ trình.
+     * ── SỬA 15/9 (khách chốt luồng chọn) ──
+     * Trang Lớp học giờ đi theo hai bước: chọn KHỐI LỚP trước, rồi hiện các LỘ TRÌNH của khối
+     * đó để bấm vào xem chi tiết. Vì vậy mỗi dòng ở đây phải đủ dựng một tấm thẻ lộ trình
+     * (tên, mục tiêu, số bậc, ảnh...), chứ không chỉ đủ để lọc như bản đầu.
      *
-     * @return list<array{id:int, title:string, courseIds:list<int>}>
+     * Vẫn giữ courseIds: khi người dùng đi ngược từ trang lộ trình sang (?lo-trinh=), trang
+     * Lớp học lọc khoá theo đúng danh sách id này.
+     *
+     * @return list<array<string, mixed>>
      */
     public function filterOptions(): array
     {
         return $this->published()
             ->map(fn (LearningPath $p) => [
                 'id' => $p->id,
+                'slug' => $p->slug,
                 'title' => $p->title,
+                'brand' => $p->brand,
+                'subtitle' => $p->subtitle,
+                'goal' => $p->goal_label,
                 'gradeLabel' => $p->gradeLabel(),
+                'gradeFrom' => (int) $p->grade_from,
+                'gradeTo' => (int) $p->grade_to,
+                'stepCount' => $p->courses->count(),
+                'totalSessions' => $p->totalSessions(),
+                'totalWeeks' => $p->totalWeeks(),
+                'coverUrl' => $p->coverUrl(),
+                'href' => route('learningPaths.show', $p->slug),
                 'courseIds' => $p->courses->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+                // Chuỗi để ô tìm kiếm dò — gộp sẵn ở đây cho trình duyệt khỏi phải ghép lại.
+                'search' => mb_strtolower(trim(implode(' ', array_filter([
+                    $p->title, $p->brand, $p->subtitle, $p->goal_label, $p->gradeLabel(),
+                    $p->courses->pluck('title')->implode(' '),
+                ])))),
             ])
-            // Lộ trình chưa có bậc nào thì lọc ra sẽ rỗng — bỏ khỏi danh sách cho đỡ hụt hẫng.
+            // Lộ trình chưa có bậc nào thì bấm vào là một trang trống — bỏ khỏi danh sách.
             ->filter(fn (array $row) => $row['courseIds'] !== [])
             ->values()
             ->all();
+    }
+
+    /**
+     * Các khối lớp có lộ trình phủ tới, dạng nhãn "Lớp 6".
+     *
+     * SỬA 15/9 (khách: "chỗ khối lớp đổ khối lớp theo lộ trình") — trước dải lọc khối ở trang
+     * Lớp học lấy từ cột courses.grade, nên hiện ra cả những khối chưa có lộ trình nào (bấm
+     * vào là rỗng), lại thiếu những khối nằm giữa một khoảng (lộ trình "Khối 6–8" thì phải ra
+     * đủ Lớp 6, 7, 8 dù không khoá nào ghi "Lớp 7").
+     *
+     * @return list<string>
+     */
+    public function gradeOptions(): array
+    {
+        return array_map(
+            fn (int $grade) => 'Lớp '.$grade,
+            $this->coveredGrades($this->published()),
+        );
     }
 
     /** B5 — các bước hiện ở khối "Lộ trình học chuyên nghiệp" trang chủ. */
