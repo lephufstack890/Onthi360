@@ -94,6 +94,9 @@ class LearningPathService
             abort(404);
         }
 
+        // C1 — nạp sẵn sản phẩm của từng bậc để hiện giá, tránh N+1 khi lộ trình nhiều bậc.
+        $path->loadMissing('courses.product');
+
         $attachedIds = $path->courses->pluck('id')->all();
 
         $steps = $path->courses->values()->map(function (Course $course, int $index) {
@@ -109,6 +112,12 @@ class LearningPathService
                 'sessionCount' => (int) $course->session_count,
                 'openClassCount' => $course->classRooms()->where('status', 'active')->count(),
                 'editHref' => route('admin.courses.edit', $course->id),
+                // C1 — giá bán của bậc. null = chưa gắn sản phẩm, 0 = có sản phẩm nhưng chưa điền giá.
+                'price' => $course->learningPrice(),
+                'priceLabel' => $course->learningPrice() === null
+                    ? 'Chưa gắn sản phẩm'
+                    : number_format((int) $course->learningPrice()).'đ',
+                'productHref' => $course->product_id ? route('admin.products.show', $course->product_id) : null,
                 'color' => $tone,
             ];
         })->all();

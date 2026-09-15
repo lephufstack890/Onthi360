@@ -20,6 +20,13 @@
         $myClassRoomIdsInThisCourse = $myClassRoomIdsInThisCourse ?? [];
         $isEnrolledInThisCourse = count($myClassRoomIdsInThisCourse) > 0;
 
+        // B6/C2 (15/9) — dải bậc trong lộ trình + nút mua thật.
+        $pathStrips = $pathStrips ?? [];
+        $mainStrip = $pathStrips[0] ?? null;
+        $buyHref = $buyHref ?? null;
+        $priceLabel = $priceLabel ?? null;
+        $chooseClassHref = $chooseClassHref ?? null;
+
         // Cùng bộ ảnh dự phòng với trang danh sách khoá học để hai màn nhìn liền mạch.
         $fallbackCovers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
         $coverUrl = $course->cover_image_path
@@ -38,6 +45,66 @@
        class="inline-flex w-fit items-center gap-1.5 rounded-xl border border-sky-100 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-2xs transition-colors hover:border-sky-200 hover:text-blue-700">
         <x-lucide name="arrow-left" class="h-3.5 w-3.5" />Quay lại Lớp học
     </a>
+
+    {{-- ══════ B6 · DẢI BẬC TRONG LỘ TRÌNH ══════
+         Đặt NGAY TRÊN hero: người vào từ tìm kiếm Google thường rơi thẳng vào một khoá lẻ mà
+         không biết nó nằm ở đâu trong cả chặng đường. Dòng "Bậc 2/6" trả lời câu đó trước khi
+         họ đọc bất cứ thứ gì khác.
+         Một khoá dùng lại được ở nhiều lộ trình — in dải đầu tiên, các lộ trình còn lại gom
+         thành một dòng liên kết nhỏ phía dưới. --}}
+    @if ($mainStrip)
+        <section class="flex flex-col gap-2.5 rounded-3xl border bg-white p-3.5 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:flex-row sm:items-center sm:gap-3"
+                 style="border-color: {{ $mainStrip['color']['ring'] }}">
+
+            <a href="{{ $mainStrip['pathHref'] }}" class="flex min-w-0 flex-1 items-center gap-3">
+                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white"
+                      style="background: {{ $mainStrip['color']['solid'] }}">
+                    <span class="text-[15px] font-black leading-none">{{ $mainStrip['position'] }}</span>
+                </span>
+                <span class="min-w-0">
+                    <span class="block text-[10px] font-black uppercase tracking-[.09em]" style="color: {{ $mainStrip['color']['ink'] }}">
+                        Bậc {{ $mainStrip['position'] }}/{{ $mainStrip['total'] }}
+                    </span>
+                    <span class="mt-0.5 block truncate text-[13px] font-bold text-[#0B3C78]">
+                        Lộ trình {{ $mainStrip['pathTitle'] }}
+                    </span>
+                </span>
+            </a>
+
+            {{-- Sang bậc trước / bậc sau ngay tại chỗ, khỏi phải quay về trang lộ trình. --}}
+            <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+                @if ($mainStrip['prev'])
+                    <a href="{{ $mainStrip['prev']['href'] }}" title="{{ $mainStrip['prev']['title'] }}"
+                       class="inline-flex min-h-9 max-w-[190px] items-center gap-1 rounded-xl border border-sky-100 bg-white px-2.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-sky-200 hover:text-blue-700">
+                        <x-lucide name="chevron-left" class="h-3.5 w-3.5 shrink-0" />
+                        <span class="truncate">{{ $mainStrip['prev']['levelCode'] ?: 'Bậc trước' }}</span>
+                    </a>
+                @endif
+
+                <a href="{{ $mainStrip['pathHref'] }}"
+                   class="inline-flex min-h-9 items-center gap-1 rounded-xl border border-sky-100 bg-sky-50 px-2.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-sky-100">
+                    <x-lucide name="route" class="h-3.5 w-3.5" />Cả lộ trình
+                </a>
+
+                @if ($mainStrip['next'])
+                    <a href="{{ $mainStrip['next']['href'] }}" title="{{ $mainStrip['next']['title'] }}"
+                       class="inline-flex min-h-9 max-w-[190px] items-center gap-1 rounded-xl border border-sky-100 bg-white px-2.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-sky-200 hover:text-blue-700">
+                        <span class="truncate">{{ $mainStrip['next']['levelCode'] ?: 'Bậc sau' }}</span>
+                        <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
+                    </a>
+                @endif
+            </div>
+        </section>
+
+        @if (count($pathStrips) > 1)
+            <p class="-mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                <span>Khoá này còn nằm trong:</span>
+                @foreach (array_slice($pathStrips, 1) as $other)
+                    <a href="{{ $other['pathHref'] }}" class="font-bold text-blue-600 hover:underline">{{ $other['pathTitle'] }} (bậc {{ $other['position'] }}/{{ $other['total'] }})</a>
+                @endforeach
+            </p>
+        @endif
+    @endif
 
     {{-- ══════ 2. HERO KHOÁ HỌC ══════ --}}
     <section class="relative overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-r from-[#0B3C78] via-[#0284C7] to-[#38BDF8] shadow-[0_10px_35px_rgba(0,100,220,0.08)]">
@@ -81,10 +148,25 @@
                             <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                         </a>
                     @elseif ($isStudent)
-                        <a href="#tham-gia-lop"
-                           class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
-                            <x-lucide name="key-round" class="h-4 w-4" />Nhập mã lớp để tham gia
-                        </a>
+                        {{-- C2 — khoá đã mở bán thì nút chính là ĐĂNG KÝ; nhập mã lớp lùi
+                             xuống làm lối phụ. Khoá chưa gắn sản phẩm thì giữ nguyên như cũ. --}}
+                        @if ($buyHref)
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a href="{{ $buyHref }}"
+                                   class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#FFF1C7] px-5 text-[13px] font-bold text-[#76551A] shadow-sm transition-colors hover:bg-[#FFE6A1]">
+                                    <x-lucide name="banknote" class="h-4 w-4" />Đăng ký học · {{ $priceLabel }}
+                                </a>
+                                <a href="#tham-gia-lop"
+                                   class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl border border-white/30 bg-white/10 px-4 text-[12px] font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">
+                                    <x-lucide name="key-round" class="h-3.5 w-3.5" />Đã có mã lớp
+                                </a>
+                            </div>
+                        @else
+                            <a href="#tham-gia-lop"
+                               class="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-5 text-[13px] font-bold text-[#0B3C78] shadow-sm transition-colors hover:bg-sky-50">
+                                <x-lucide name="key-round" class="h-4 w-4" />Nhập mã lớp để tham gia
+                            </a>
+                        @endif
                     @else
                         {{-- Vai trò khác (giáo viên/phụ huynh/admin) — giữ nguyên hành vi cũ. --}}
                         <a href="{{ route('dashboard') }}"
@@ -186,6 +268,19 @@
                     <p class="type-body mt-0.5 text-slate-500">Giáo viên cấp mã riêng cho từng lớp — nhập đúng mã để tham gia ngay</p>
                 </div>
             </div>
+
+            {{-- C3 — đã mua khoá rồi thì không cần mã: tự chọn lớp trong danh sách lớp đang mở. --}}
+            @if ($buyHref && $chooseClassHref)
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-[#F8FBFE] px-3 py-2.5">
+                    <p class="text-[11.5px] leading-relaxed text-slate-600">
+                        Đã đăng ký khoá này rồi? Bạn không cần mã — chọn thẳng một lớp đang mở.
+                    </p>
+                    <a href="{{ $chooseClassHref }}"
+                       class="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-sky-200 bg-white px-3 text-[11px] font-bold text-blue-700 transition-colors hover:bg-sky-50">
+                        <x-lucide name="school" class="h-3.5 w-3.5" />Chọn lớp <x-lucide name="chevron-right" class="h-3 w-3" />
+                    </a>
+                </div>
+            @endif
 
             <form method="POST" action="{{ route('student.classes.join') }}" class="flex max-w-md flex-col gap-2.5 sm:flex-row">
                 @csrf

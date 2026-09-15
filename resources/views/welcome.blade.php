@@ -115,14 +115,32 @@
         ['title' => 'Cuộc thi', 'desc' => 'Cuộc thi, khảo sát được tổ chức thường xuyên và công bằng', 'btnText' => 'Tìm hiểu', 'bgClass' => 'from-[#E6F7FF] to-[#CCEFFF] border-[#BAE6FD]', 'image' => asset('assets/course-img-5.png'), 'href' => route('competitions.index')],
     ];
 
-    // [HOME-05B] 5 bước "Lộ trình học chuyên nghiệp".
-    $learningSteps = [
-        ['step' => '1. Lựa chọn mục tiêu', 'desc' => 'Chọn mục tiêu lớp phù hợp', 'img' => asset('assets/step-1.png'), 'href' => route('courses.index')],
-        ['step' => '2. Chọn lộ trình phù hợp', 'desc' => 'Học theo năng lực & mục tiêu', 'img' => asset('assets/step-2.png'), 'href' => route('courses.index')],
-        ['step' => '3. Luyện tập & học liệu', 'desc' => 'Bài tập, giáo trình, chuyên đề', 'img' => asset('assets/step-3.png'), 'href' => route('practice.index')],
-        ['step' => '4. Lớp học & giáo viên', 'desc' => 'Học cùng giáo viên, nhận hỗ trợ', 'img' => asset('assets/step-4.png'), 'href' => route('teachers.index')],
-        ['step' => '5. Thi & Đánh giá', 'desc' => 'Cuộc thi, đánh giá phát năng lực', 'img' => asset('assets/step-5.png'), 'href' => route('competitions.index')],
-    ];
+    /*
+     * [HOME-05B] Tab "Lộ trình học chuyên nghiệp".
+     *
+     * SỬA 15/9 (B5) — trước đây là 5 bước VIẾT CỨNG của bản thiết kế ("Lựa chọn mục tiêu",
+     * "Chọn lộ trình phù hợp"...). Nói là lộ trình nhưng thực ra chỉ là 5 tấm thẻ giới thiệu
+     * dẫn về các trang có sẵn — bấm vào không ra lộ trình nào cả.
+     *
+     * Giờ đổ LỘ TRÌNH THẬT do quản trị đăng (LearningPathService::homeStrip). Mỗi thẻ là một
+     * lộ trình, bấm vào ra đúng lộ trình đó.
+     *
+     * 5 ảnh step-1..5.png của bản thiết kế được GIỮ LẠI làm ảnh nền khi lộ trình chưa có ảnh
+     * riêng — không xoá, chỉ đổi vai trò từ "nội dung" sang "ảnh đỡ".
+     */
+    $learningPathCards = $learningPathCards ?? [];
+    $stepFallbackImages = ['step-1.png', 'step-2.png', 'step-3.png', 'step-4.png', 'step-5.png'];
+
+    $learningSteps = [];
+    foreach ($learningPathCards as $i => $card) {
+        $learningSteps[] = [
+            'step' => ($i + 1).'. '.$card['title'],
+            'desc' => $card['goal'] ?: ($card['gradeLabel'].' · '.$card['stepCount'].' bậc'),
+            'meta' => $card['gradeLabel'].' · '.$card['stepCount'].' bậc'.($card['totalSessions'] > 0 ? ' · '.$card['totalSessions'].' buổi' : ''),
+            'img' => $card['coverUrl'] ?: asset('assets/'.$stepFallbackImages[$i % count($stepFallbackImages)]),
+            'href' => $card['href'],
+        ];
+    }
 
     /*
      * [HOME-10] Câu chuyện đồng hành.
@@ -156,8 +174,18 @@
     }
 
     // [HOME-02A] Menu trái — cùng bộ mục với header, dẫn sang link thật.
+    // Công tắc mục "Lộ trình" trên thanh menu — xem ghi chú ngay dưới.
+    $showLearningPathMenu = false;
+
     $homeSideNav = [
         ['label' => 'Trang chủ', 'route' => 'home', 'icon' => 'home'],
+        /*
+         * SỬA 15/9 (khách yêu cầu "trên header ẩn menu lộ trình đi nha") — ẨN mục "Lộ trình"
+         * khỏi thanh menu. ẨN CHỨ KHÔNG XOÁ: đổi cờ dưới thành true là hiện lại ngay.
+         * Trang /lo-trinh vẫn chạy bình thường và vẫn nằm trong chân trang + sitemap, chỉ là
+         * không chiếm một ô trên thanh menu.
+         */
+        ...($showLearningPathMenu ? [['label' => 'Lộ trình', 'route' => 'learningPaths.index', 'icon' => 'route']] : []),
         ['label' => 'Lớp học', 'route' => 'courses.index', 'icon' => 'book-open'],
         ['label' => 'Luyện tập', 'route' => 'practice.index', 'icon' => 'code'],
         ['label' => 'Tài liệu', 'route' => 'materials.index', 'icon' => 'file-text'],
@@ -180,6 +208,13 @@
         // Ảnh nền hero — chỉ tải ảnh của slide đang xem (xem [HOME-03]).
         'heroImages' => array_column($heroSlides, 'bgImage'),
         'heroAlts' => array_map(fn ($slide) => $slide['subtitle'].'. '.$slide['description'], $heroSlides),
+        /*
+         * B2 — [HOME-04] "Chọn mục tiêu hoặc lộ trình".
+         * Nạp sẵn cả danh sách lộ trình đang hiển thị để lọc ngay tại trình duyệt: đổi lựa
+         * chọn không tải lại trang, và hai nút chọn được SINH RA từ chính dữ liệu này nên
+         * không bao giờ hiện một khối lớp hay mục tiêu không có lộ trình nào đứng sau.
+         */
+        'pathPicker' => $pathPicker ?? ['paths' => [], 'grades' => [], 'indexHref' => route('learningPaths.index'), 'showLanguage' => false],
     ];
 @endphp
 
@@ -392,7 +427,20 @@
                 </div>
             </section>
 
-            {{-- ══════ [HOME-04] TÌM MỤC TIÊU ══════ --}}
+            {{-- ══════ [HOME-04] TÌM MỤC TIÊU ══════
+                 SỬA 15/9 (khách yêu cầu "UI xem lộ trình để như cũ, chỉ làm logic") — GIAO
+                 DIỆN GIỮ NGUYÊN BẢN CŨ: vẫn hai nút bấm-để-đổi (khối lớp, mục tiêu) và một
+                 nút vàng "Xem lộ trình". Không thêm bớt thẻ nào, không đổi class nào.
+
+                 CHỈ PHẦN LOGIC BÊN DƯỚI LÀ THẬT (xem partials/home-script):
+                   · Danh sách khối lớp và mục tiêu sinh từ lộ trình CÓ THẬT trong cơ sở dữ
+                     liệu, không còn là hai danh sách viết cứng.
+                   · Hai nút thu hẹp lẫn nhau: đổi khối thì mục tiêu chỉ còn cái có thật ở
+                     khối đó.
+                   · Nút vàng xử lý ba tình huống — khớp đúng một thì đi thẳng vào lộ trình
+                     đó, khớp nhiều thì sang trang danh sách đã lọc sẵn, không khớp thì đổi
+                     chữ thành "Chưa có lộ trình cho lựa chọn này".
+                 Toàn bộ chạy tại chỗ, đổi lựa chọn không tải lại trang. --}}
             <section class="rounded-[22px] border border-[#DFEBF0] bg-white px-3.5 py-3 sm:px-4 shadow-[0_5px_20px_rgba(45,96,145,0.045)]">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
@@ -426,9 +474,9 @@
                         <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
                     </button>
 
-                    <a href="{{ route('courses.index') }}"
+                    <a href="{{ route('courses.index') }}" :href="pickerHref"
                        class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#ECD78F] bg-[#FFF4C7] px-4 text-xs font-bold text-[#765C18] shadow-[0_2px_7px_rgba(183,143,37,0.09)] transition-all hover:border-[#DFC56F] hover:bg-[#FFEDAA] active:scale-[0.98]">
-                        <span>Xem lộ trình</span>
+                        <span x-text="pickerLabel">Xem lộ trình</span>
                         <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                     </a>
                 </div>
@@ -502,6 +550,16 @@
 
                 {{-- [HOME-05B] Tab “Lộ trình học chuyên nghiệp” --}}
                 <section id="path" x-show="mainTab === 'path'" x-cloak class="relative overflow-hidden sm:h-[198px]">
+                    @if (count($learningSteps) === 0)
+                        {{-- Quản trị chưa đăng lộ trình nào: nói thẳng thay vì dựng 5 thẻ giả. --}}
+                        <div class="flex h-[188px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#CFE3EC] bg-[#F8FBFD] px-4 text-center">
+                            <span class="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#2D7FA3] shadow-sm">
+                                <x-lucide name="route" class="h-5 w-5" />
+                            </span>
+                            <p class="mt-2.5 text-[13px] font-bold text-[#123B68]">Lộ trình đang được hoàn thiện</p>
+                            <a href="{{ route('courses.index') }}" class="mt-1 text-[11px] font-bold text-[#126F91] hover:underline">Xem lớp học đang mở</a>
+                        </div>
+                    @endif
                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 2xl:grid-cols-4">
                         @foreach ($learningSteps as $i => $step)
                             <a href="{{ $step['href'] }}" title="{{ $step['desc'] }}"
@@ -516,7 +574,10 @@
                                 </div>
                                 <div class="flex h-[84px] min-w-0 flex-col px-3 py-2.5">
                                     <h5 class="text-[13.5px] font-bold leading-snug text-[#123B68] line-clamp-1">{{ $step['step'] }}</h5>
-                                    <p class="mt-1 line-clamp-2 text-[11px] font-normal leading-[1.45] text-[#536D86]">{{ $step['desc'] }}</p>
+                                    <p class="mt-1 line-clamp-1 text-[11px] font-normal leading-[1.45] text-[#536D86]">{{ $step['desc'] }}</p>
+                                    @if (! empty($step['meta']))
+                                        <p class="mt-auto text-[10px] font-bold uppercase tracking-wide text-[#2D7FA3]">{{ $step['meta'] }}</p>
+                                    @endif
                                 </div>
                             </a>
                         @endforeach

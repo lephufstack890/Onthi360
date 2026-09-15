@@ -55,6 +55,8 @@ class HomeService
         private readonly ParentLinkRepositoryInterface $parentLinks,
         // SỬA 12/9 — khối [HOME-10] "Câu chuyện đồng hành" giờ lấy từ CSDL, do Admin đăng.
         private readonly TestimonialRepositoryInterface $testimonialsRepo,
+        // B2/B5 (15/9) — khối [HOME-04] ba ô chọn và khối [HOME-05B] lấy lộ trình thật.
+        private readonly LearningPathService $learningPathService,
     ) {}
 
     public function indexData(): array
@@ -84,6 +86,15 @@ class HomeService
             'topStudents' => $this->topStudents(),
             'testimonials' => $this->testimonials(),
             'learningSpace' => $this->learningSpace(auth()->user()),
+            /*
+             * B2 — [HOME-04] "Chọn mục tiêu hoặc lộ trình": ba ô chọn thu hẹp dần.
+             * Nạp NGUYÊN danh sách lộ trình đang hiển thị vào trang rồi lọc tại chỗ, nên đổi
+             * lựa chọn không tải lại trang và không bao giờ hiện một khối lớp hay mục tiêu
+             * không có lộ trình nào đứng sau.
+             */
+            'pathPicker' => $this->learningPathService->pickerPayload(),
+            // B5 — [HOME-05B] thay 5 bước viết cứng bằng lộ trình thật.
+            'learningPathCards' => $this->learningPathService->homeStrip(self::FEATURED_LIMIT),
         ];
     }
 

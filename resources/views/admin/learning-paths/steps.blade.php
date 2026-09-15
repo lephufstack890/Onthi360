@@ -188,6 +188,14 @@
                                     <x-lucide name="school" class="h-3 w-3" />
                                     <span x-text="step.openClassCount > 0 ? step.openClassCount + ' lớp đang mở' : 'Chưa có lớp nào mở'"></span>
                                 </span>
+
+                                {{-- C1 — giá bán của bậc. Không có sản phẩm thì không bấm mua được ngoài trang công khai. --}}
+                                <a :href="step.productHref || '{{ route('admin.products.index') }}'"
+                                   class="inline-flex items-center gap-1 font-bold hover:underline"
+                                   :class="step.price > 0 ? 'text-emerald-700' : 'text-rose-600'">
+                                    <x-lucide name="banknote" class="h-3 w-3" />
+                                    <span x-text="step.price > 0 ? step.priceLabel : (step.price === null ? 'Chưa gắn sản phẩm' : 'Sản phẩm chưa có giá')"></span>
+                                </a>
                             </div>
                         </div>
 

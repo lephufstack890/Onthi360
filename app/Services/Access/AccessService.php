@@ -74,6 +74,13 @@ class AccessService
             // SỬA 25/8 (2): hiện số dư token ngay ở trang đặt đơn để học sinh biết đủ trả ngay
             // hay chưa TRƯỚC khi bấm "Đặt đơn" — tránh phải bấm thử rồi mới biết thiếu.
             'tokenBalance' => $user->token_balance,
+            /*
+             * C2 (15/9) — sản phẩm loại Khóa học dùng chung đúng biểu mẫu đặt đơn này, chỉ
+             * khác cách nói và đường quay lại: mua khoá thì "bản in" không có nghĩa gì, và
+             * quay lại phải về trang khoá học chứ không phải trang tài liệu.
+             */
+            'isCourse' => $product->type === \App\Enums\ProductType::Course,
+            'courseId' => $this->courseIdForProduct($product->id),
         ];
     }
 
@@ -260,6 +267,29 @@ class AccessService
 
             return $order->fresh();
         });
+    }
+
+    /**
+     * C2 — Sản phẩm này là để bán khoá học nào (null nếu không phải sản phẩm khoá học).
+     *
+     * Dùng để quyết định đi đâu sau khi đặt đơn: mua khoá thì việc tiếp theo là chọn lớp,
+     * mua sách thì là mở tài liệu. Tra ngược từ courses.product_id chứ không thêm cột mới
+     * trên products — một sản phẩm khoá học về nguyên tắc chỉ gắn cho một khoá, nhưng nếu
+     * quản trị lỡ gắn cho nhiều khoá thì lấy khoá cũ nhất cho ổn định, không để kết quả
+     * đổi mỗi lần tải.
+     */
+    public function courseIdForProduct(int $productId): ?int
+    {
+        // Chưa chạy migration thì cột chưa có — truy vấn WHERE lên nó sẽ lỗi, mà đây lại nằm
+        // ngay sau khi đặt đơn: hỏng chỗ này là khách trả tiền xong thì gặp trang lỗi.
+        if (! \App\Models\Course::supportsProduct()) {
+            return null;
+        }
+
+        return \App\Models\Course::query()
+            ->where('product_id', $productId)
+            ->orderBy('id')
+            ->value('id');
     }
 
     /** Mã đơn dễ đọc để đối chiếu khi liên hệ hỗ trợ — không phải khoá kỹ thuật (đó là id). */

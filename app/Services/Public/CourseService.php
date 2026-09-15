@@ -32,10 +32,12 @@ class CourseService
         private CourseRepositoryInterface $courses,
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ClassEnrollmentRepositoryInterface $classEnrollments,
+        // B6 (15/9) — dải "Bậc 2/6 của lộ trình ..." ở đầu trang chi tiết khoá học.
+        private LearningPathService $learningPaths,
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
-    public function indexData(?string $subject, ?User $viewer = null): array
+    public function indexData(?string $subject, ?User $viewer = null, ?int $learningPathId = null): array
     {
         // SỬA 11/9 — thẻ lớp học ở giao diện mới (education-main/src/components/CoursesPage.jsx)
         // cần thêm: mã lớp, sĩ số, giáo viên phụ trách và trợ giảng. Nạp sẵn trong CÙNG 1 câu
@@ -89,6 +91,17 @@ class CourseService
                 ->orderBy('grade')
                 ->pluck('grade')
                 ->all(),
+            /*
+             * B7 (15/9, khách nói thẳng "người ta chọn lớp theo lộ trình") — bộ lọc theo lộ
+             * trình bên cạnh lọc môn và lọc khối đang có.
+             *
+             * Trả về từng lộ trình kèm DANH SÁCH ID KHOÁ HỌC của nó, để trang lọc ngay tại
+             * chỗ bằng id khoá — người dùng đổi lộ trình không phải tải lại trang. Lộ trình
+             * chưa xếp bậc nào bị loại sẵn trong service, không để lọc ra danh sách rỗng.
+             */
+            'learningPathFilters' => $this->learningPaths->filterOptions(),
+            // Lộ trình chọn sẵn từ ?lo-trinh= trên đường dẫn (null = không lọc).
+            'activeLearningPath' => $learningPathId,
         ];
     }
 
@@ -131,6 +144,20 @@ class CourseService
             'ratingCount' => $count,
             'isStudent' => $isStudent,
             'myClassRoomIdsInThisCourse' => $myClassRoomIdsInThisCourse,
+            /*
+             * B6 — khoá này là bậc mấy của lộ trình nào.
+             * Là DANH SÁCH chứ không phải một, vì một khoá dùng lại được ở nhiều lộ trình
+             * (xem migration create_learning_path_course_table). Trang in dải đầu tiên và
+             * nêu số lộ trình còn lại.
+             */
+            'pathStrips' => $this->learningPaths->stripsForCourse($course),
+            /*
+             * C2 — nút mua khoá học. Null khi khoá chưa gắn sản phẩm hoặc sản phẩm chưa có
+             * giá: lúc đó trang giữ nguyên lối vào bằng mã lớp như trước.
+             */
+            'buyHref' => $course->isPurchasable() ? route('access.checkout', $course->product_id) : null,
+            'priceLabel' => $course->isPurchasable() ? number_format((int) $course->learningPrice()).'đ' : null,
+            'chooseClassHref' => route('access.chooseClass', $course->id),
         ];
     }
 

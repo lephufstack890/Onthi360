@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClassRoom;
+use App\Enums\ProductType;
 use App\Models\Course;
 use App\Services\Admin\CourseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -45,6 +47,11 @@ class CourseController extends Controller
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+            // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
+            // sang sách thì người mua trả tiền sách mà lại được vào lớp.
+            'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
+        ], [
+            'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
         ]);
 
         $course = $this->courseService->store(Auth::user(), $data);
@@ -70,6 +77,11 @@ class CourseController extends Controller
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+            // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
+            // sang sách thì người mua trả tiền sách mà lại được vào lớp.
+            'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
+        ], [
+            'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
         ]);
 
         $this->courseService->update($course, $data);

@@ -28,6 +28,7 @@
             <div>
                 <h5 class="type-footer-heading mb-2.5">Học tập</h5>
                 <ul class="type-footer-link flex flex-col gap-1.5 text-slate-600">
+                    <li><a href="{{ route('learningPaths.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Lộ trình học</a></li>
                     <li><a href="{{ route('courses.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Lớp học</a></li>
                     <li><a href="{{ route('practice.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Luyện tập</a></li>
                     <li><a href="{{ route('materials.index') }}" class="hover:text-blue-600 transition-colors text-left cursor-pointer py-0.5 block">Tài liệu</a></li>

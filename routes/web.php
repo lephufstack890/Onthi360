@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
 use App\Http\Controllers\Public\CourseController as PublicCourseController;
+use App\Http\Controllers\Public\LearningPathController as PublicLearningPathController;
 use App\Http\Controllers\Public\HomeController as PublicHomeController;
 use App\Http\Controllers\Public\InfoController as PublicInfoController;
 use App\Http\Controllers\Public\ContactController as PublicContactController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Parent\ProfileController as ParentProfileController;
 use App\Http\Controllers\Parent\ResultController as ParentResultController;
 use App\Http\Controllers\Parent\ScheduleController as ParentScheduleController;
 use App\Http\Controllers\Access\AccessController;
+use App\Http\Controllers\Access\CourseEnrollmentController as AccessCourseEnrollmentController;
 use App\Http\Controllers\Access\WalletController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightController;
@@ -73,6 +75,10 @@ Route::get('/', [PublicHomeController::class, 'index'])->name('home');
 Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap');
 Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
 Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name('courses.show');
+// B3/B4 (15/9) — Lộ trình học công khai. Đặt ngay sau Khóa học vì hai trang này đi cặp:
+// lộ trình gồm nhiều khoá, khoá gồm nhiều lớp.
+Route::get('/lo-trinh', [PublicLearningPathController::class, 'index'])->name('learningPaths.index');
+Route::get('/lo-trinh/{slug}', [PublicLearningPathController::class, 'show'])->name('learningPaths.show');
 Route::get('/luyen-tap', [PublicPracticeController::class, 'index'])->name('practice.index');
 Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
@@ -315,6 +321,10 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 25/8 — nối "Đặt đơn" thành submit thật (trước đây chỉ có GET hiển thị trang, xem
         // AccessService::placeOrder()).
         Route::post('/dat-don/{product}', [AccessController::class, 'store'])->name('checkout.store');
+        // C3 (15/9) — mua khoá học xong thì tự chọn một lớp đang mở. Đường nhập mã lớp
+        // (student.classes.join) vẫn giữ nguyên làm lối phụ.
+        Route::get('/chon-lop/{course}', [AccessCourseEnrollmentController::class, 'chooseClass'])->name('chooseClass');
+        Route::post('/chon-lop/{course}', [AccessCourseEnrollmentController::class, 'enroll'])->name('chooseClass.store');
         Route::get('/kich-hoat', [AccessController::class, 'activate'])->name('activate');
         // SỬA 25/8 — nối "Kích hoạt" thành submit thật (xem AccessService::activateCode()).
         Route::post('/kich-hoat', [AccessController::class, 'activateStore'])->name('activate.store');

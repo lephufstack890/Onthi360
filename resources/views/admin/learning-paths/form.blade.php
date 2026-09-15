@@ -1,4 +1,8 @@
 {{-- A8 · Biểu mẫu dùng chung cho Thêm mới và Sửa lộ trình.
+
+     LỘ TRÌNH DÙNG CHO MỌI MÔN, không riêng Tin học: các ô ở đây cố ý không có trường nào
+     gắn với một môn cụ thể, và ô "Ngôn ngữ lập trình" đã tắt (xem SHOW_LANGUAGE bên dưới).
+     Trang công khai cũng vậy — màu và icon của bậc sinh theo vị trí chứ không theo môn.
      Bên gọi truyền $path (null khi thêm mới), $statuses và $languages. --}}
 @php
     $editing = $path !== null;
@@ -29,17 +33,17 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
                     <x-ws.field label="Tên lộ trình" name="title" required>
                         <input id="title" name="title" type="text" class="admin-input" required maxlength="160"
-                               value="{{ old('title', $path->title ?? '') }}" placeholder="Python Thi đấu THCS">
+                               value="{{ old('title', $path->title ?? '') }}" placeholder="VD: Python thi đấu THCS · Toán tư duy tiểu học">
                     </x-ws.field>
 
-                    <x-ws.field label="Thương hiệu" name="brand" hint="Tên dòng sản phẩm in trên ảnh, ví dụ SASH.">
+                    <x-ws.field label="Thương hiệu" name="brand" hint="Tên dòng sản phẩm in trên áp phích, ví dụ SASH. Bỏ trống cũng được.">
                         <input id="brand" name="brand" type="text" class="admin-input sm:w-40" maxlength="60"
                                value="{{ old('brand', $path->brand ?? '') }}" placeholder="SASH">
                     </x-ws.field>
                 </div>
 
                 <x-ws.field label="Nhãn nhỏ phía trên tiêu đề" name="eyebrow"
-                            hint="Dòng chữ in hoa nhỏ, ví dụ LỘ TRÌNH TIẾP CẬN LẬP TRÌNH.">
+                            hint="Dòng chữ in hoa nhỏ phía trên tiêu đề, ví dụ LỘ TRÌNH TIẾP CẬN LẬP TRÌNH hoặc LỘ TRÌNH TOÁN TƯ DUY.">
                     <input id="eyebrow" name="eyebrow" type="text" class="admin-input" maxlength="120"
                            value="{{ old('eyebrow', $path->eyebrow ?? '') }}">
                 </x-ws.field>
@@ -47,11 +51,11 @@
                 <x-ws.field label="Phụ đề" name="subtitle">
                     <input id="subtitle" name="subtitle" type="text" class="admin-input" maxlength="255"
                            value="{{ old('subtitle', $path->subtitle ?? '') }}"
-                           placeholder="Từ tư duy thuật toán đến tự tin tạo sản phẩm nhỏ bằng Python">
+                           placeholder="Một câu tả chặng đường, ví dụ: Từ làm quen đến tự tin đi thi">
                 </x-ws.field>
 
                 <x-ws.field label="Mục tiêu đích" name="goal_label" required
-                            hint="Câu in trong viên mục tiêu, ví dụ: HSG lớp 9 · Thi tuyển sinh 10 Chuyên Tin.">
+                            hint="Câu in trong viên mục tiêu ở góc áp phích, ví dụ: HSG lớp 9 · Thi tuyển sinh 10 Chuyên Tin.">
                     <input id="goal_label" name="goal_label" type="text" class="admin-input" required maxlength="255"
                            value="{{ old('goal_label', $path->goal_label ?? '') }}">
                 </x-ws.field>
@@ -66,7 +70,7 @@
             <x-ws.field label="Mỗi dòng một ý" name="outcomes"
                         hint="Ba dòng in ở cuối ảnh lộ trình. Xuống dòng để thêm ý mới.">
                 <textarea id="outcomes" name="outcomes" rows="4" class="admin-input" maxlength="1000"
-                          placeholder="Hiểu cách máy tính giải quyết vấn đề&#10;Viết được chương trình Python nhỏ&#10;Hình thành thói quen tự học">{{ $outcomesText }}</textarea>
+                          placeholder="Hiểu bản chất vấn đề&#10;Tự làm được bài ở mức yêu cầu&#10;Hình thành thói quen tự học">{{ $outcomesText }}</textarea>
             </x-ws.field>
         </x-ws.card>
 

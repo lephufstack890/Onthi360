@@ -48,6 +48,11 @@
         ];
     }
 
+    // B7 — bộ lọc theo lộ trình. Mỗi lộ trình mang theo danh sách id khoá học của nó nên
+    // trang lọc ngay tại chỗ, không tải lại.
+    $learningPathFilters = $learningPathFilters ?? [];
+    $activeLearningPath = $activeLearningPath ?? null;
+
     $totalStudents = 0;
     $totalClasses = 0;
     foreach ($courses as $c) {
@@ -57,7 +62,7 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiCoursesPage({{ Js::from(['rows' => $courseRows, 'pageSize' => 3, 'subject' => $activeSubject]) }})" class="flex flex-col gap-5">
+<div x-data="onthiCoursesPage({{ Js::from(['rows' => $courseRows, 'pageSize' => 3, 'subject' => $activeSubject, 'learningPaths' => $learningPathFilters, 'learningPath' => $activeLearningPath]) }})" class="flex flex-col gap-5">
 
     {{-- ══════ [COURSES-01] HERO LỚP HỌC ══════ --}}
     <div class="relative overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-r from-[#0B3C78] via-[#0050A0] to-[#0284C7] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] sm:p-6 lg:p-7">
@@ -106,6 +111,41 @@
             </div>
         </div>
     </div>
+
+    {{-- ══════ [COURSES-01B] LỌC THEO LỘ TRÌNH (B7) ══════
+         Khách nói thẳng "người ta chọn lớp theo lộ trình", nên dải này đứng TRƯỚC lọc môn và
+         lọc khối: đó là câu hỏi đầu tiên phụ huynh đặt ra, không phải câu hỏi cuối cùng.
+         Chọn một lộ trình là chỉ còn các lớp thuộc các bậc của lộ trình đó. --}}
+    @if (count($learningPathFilters) > 0)
+        <div class="flex flex-col gap-2.5 rounded-3xl border border-[#CDE8EC] bg-[#F4FBFC] p-3.5 sm:flex-row sm:items-center">
+            <div class="flex min-w-0 shrink-0 items-center gap-2">
+                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-[#CDE8EC] bg-white text-[#23869B]">
+                    <x-lucide name="route" class="h-4 w-4" />
+                </span>
+                <span class="min-w-0">
+                    <span class="block text-[11.5px] font-bold text-[#123B68]">Chọn lớp theo lộ trình</span>
+                    <span class="block text-[10.5px] text-[#71869A]">Lọc ra đúng các lớp thuộc lộ trình bạn đang theo</span>
+                </span>
+            </div>
+
+            <div class="flex flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button type="button" @click="setLearningPath('all')" :aria-pressed="selectedPath === 'all'"
+                        class="min-h-9 whitespace-nowrap rounded-xl border px-3 py-1 text-[11px] font-bold transition-all"
+                        :class="selectedPath === 'all' ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'border-[#DDEAF0] bg-white text-[#536D86] hover:border-[#C9DFE8]'">Mọi lộ trình</button>
+                @foreach ($learningPathFilters as $lp)
+                    <button type="button" @click="setLearningPath({{ $lp['id'] }})" :aria-pressed="selectedPath === {{ $lp['id'] }}"
+                            title="{{ $lp['gradeLabel'] }}"
+                            class="min-h-9 whitespace-nowrap rounded-xl border px-3 py-1 text-[11px] font-bold transition-all"
+                            :class="selectedPath === {{ $lp['id'] }} ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : 'border-[#DDEAF0] bg-white text-[#536D86] hover:border-[#C9DFE8]'">{{ $lp['title'] }}</button>
+                @endforeach
+            </div>
+
+            <a href="{{ route('learningPaths.index') }}"
+               class="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#C9DFE8] bg-white px-3 text-[11px] font-bold text-[#126F91] transition-colors hover:bg-[#F2F8F9]">
+                Xem lộ trình <x-lucide name="chevron-right" class="h-3 w-3" />
+            </a>
+        </div>
+    @endif
 
     {{-- ══════ [COURSES-02] BỘ LỌC ══════ --}}
     <div class="flex flex-col gap-3 rounded-3xl border border-[#DDEAF0] bg-white p-3.5 shadow-[0_2px_10px_rgba(28,91,121,0.04)] lg:flex-row lg:items-center lg:justify-between">

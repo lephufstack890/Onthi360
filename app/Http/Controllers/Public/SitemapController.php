@@ -10,6 +10,7 @@ use App\Models\Assessment;
 use App\Models\Competition;
 use App\Models\Course;
 use App\Models\LeaderboardEntry;
+use App\Models\LearningPath;
 use App\Models\Product;
 use App\Models\Question;
 use App\Models\TeacherProfile;
@@ -69,6 +70,9 @@ class SitemapController extends Controller
     private const SECTION_PAGES = [
         ['route' => 'home', 'priority' => 1.0, 'changefreq' => 'daily', 'lastmod' => 'any'],
         ['route' => 'courses.index', 'priority' => 0.9, 'changefreq' => 'daily', 'lastmod' => 'course'],
+        // B8 (15/9) — thêm trang Lộ trình. Ưu tiên bằng trang Lớp học vì đây là cửa vào chính
+        // của người tìm "học lập trình cho con lớp mấy" — họ tìm lộ trình trước, lớp sau.
+        ['route' => 'learningPaths.index', 'priority' => 0.9, 'changefreq' => 'weekly', 'lastmod' => 'learningPath'],
         ['route' => 'practice.index', 'priority' => 0.9, 'changefreq' => 'daily', 'lastmod' => 'practice'],
         ['route' => 'materials.index', 'priority' => 0.8, 'changefreq' => 'daily', 'lastmod' => 'product'],
         ['route' => 'competitions.index', 'priority' => 0.7, 'changefreq' => 'daily', 'lastmod' => 'competition'],
@@ -83,7 +87,7 @@ class SitemapController extends Controller
      * Đổi số này khi sửa CẤU TRÚC sitemap (thêm/bớt loại trang) để buộc dựng lại ngay, khỏi
      * phải chờ hết hạn đệm hay xoá cache thủ công.
      */
-    private const STRUCTURE_VERSION = 3;
+    private const STRUCTURE_VERSION = 4;
 
     public function index(): Response
     {
@@ -141,6 +145,17 @@ class SitemapController extends Controller
             ->limit(self::DETAIL_LIMIT)
             ->each(function (Course $c) use (&$urls) {
                 $urls[] = ['loc' => route('courses.show', $c->id), 'lastmod' => $c->updated_at, 'priority' => 0.8, 'changefreq' => 'weekly'];
+            });
+
+        // B8 — từng lộ trình. Địa chỉ theo slug nên link chia sẻ ra ngoài không đổi khi quản
+        // trị sửa tên lộ trình (slug chỉ sinh một lần lúc tạo).
+        LearningPath::query()
+            ->where('status', 'published')
+            ->select('slug', 'updated_at')
+            ->orderByDesc('updated_at')
+            ->limit(self::DETAIL_LIMIT)
+            ->each(function (LearningPath $p) use (&$urls) {
+                $urls[] = ['loc' => route('learningPaths.show', $p->slug), 'lastmod' => $p->updated_at, 'priority' => 0.8, 'changefreq' => 'weekly'];
             });
 
         Product::query()
@@ -219,6 +234,7 @@ class SitemapController extends Controller
                     ->whereIn('type', ['mcq', 'fill_blank', 'coding', 'composite'])),
                 $max(Assessment::class, fn ($q) => $q->where('type', 'practice')->where('status', 'published')),
             ])->filter()->max(),
+            'learningPath' => $max(LearningPath::class, fn ($q) => $q->where('status', 'published')),
             'leaderboard' => $max(LeaderboardEntry::class, null, 'computed_at'),
             'teacher' => $max(TeacherProfile::class, fn ($q) => $q->where('approval_status', TeacherApprovalStatus::Approved->value)),
         ];

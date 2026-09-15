@@ -54,8 +54,24 @@ class AccessController extends Controller
             return redirect()->route('access.checkout', $product)->withErrors($e->errors());
         }
 
+        /*
+         * C2 (15/9) — đi đâu sau khi đặt đơn phụ thuộc loại sản phẩm:
+         *   · Khóa học  -> màn chọn lớp (mua khoá xong việc tiếp theo là vào lớp nào).
+         *   · Còn lại   -> trang tài liệu như cũ.
+         * Trước đây mọi đơn đều đổ về materials.show, nên mua khoá học sẽ rơi vào một trang
+         * tài liệu trống trơn.
+         */
+        $status = $order->status === OrderStatus::Completed ? 'access-granted' : 'order-placed';
+        $courseId = $this->accessService->courseIdForProduct($product);
+
+        if ($courseId !== null) {
+            return redirect()->route('access.chooseClass', $courseId)
+                ->with('status', $status)
+                ->with('orderNo', $order->order_no);
+        }
+
         return redirect()->route('materials.show', $product)
-            ->with('status', $order->status === OrderStatus::Completed ? 'access-granted' : 'order-placed')
+            ->with('status', $status)
             ->with('orderNo', $order->order_no);
     }
 

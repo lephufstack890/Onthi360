@@ -32,6 +32,8 @@ final class LearningPathReadiness
     {
         $issues = [];
         $courses = $path->relationLoaded('courses') ? $path->courses : $path->courses()->get();
+        // Luật giá bên dưới đọc $course->product — nạp sẵn một lần cho cả danh sách.
+        $courses->loadMissing('product');
 
         if ($courses->isEmpty()) {
             return [[
@@ -54,7 +56,7 @@ final class LearningPathReadiness
         if ($missingLabels->isNotEmpty()) {
             $issues[] = [
                 'level' => self::WARN,
-                'message' => 'Chưa đặt mã bậc (PRE-CODE, FOUNDATION A...) cho: '.$missingLabels->pluck('title')->implode(', ').'.',
+                'message' => 'Chưa đặt mã bậc (PRE-CODE, FOUNDATION A, CƠ BẢN 1... tuỳ môn) cho: '.$missingLabels->pluck('title')->implode(', ').'.',
             ];
         }
 
@@ -80,9 +82,31 @@ final class LearningPathReadiness
         }
 
         /*
-         * CHỖ DÀNH SẴN cho khối C (bán theo bậc): khi mỗi khoá đã gắn được với một sản phẩm,
-         * thêm luật "bậc chưa có giá thì không cho đăng" ngay tại đây.
+         * C1 — Bậc chưa gắn sản phẩm bán.
+         *
+         * Để mức NHẮC chứ không CHẶN: lộ trình vẫn đăng được để phụ huynh xem trước chương
+         * trình, chỉ là bậc đó chưa bấm mua được (ngoài trang công khai hiện "Liên hệ ghi
+         * danh" thay cho nút mua). Khách chốt "chưa có giá thì cấm đăng" thì đổi self::WARN
+         * ở dòng dưới thành self::BLOCK, không phải sửa chỗ nào khác.
          */
+        $noProduct = $courses->filter(fn (Course $c) => $c->product_id === null);
+        if ($noProduct->isNotEmpty()) {
+            $issues[] = [
+                'level' => self::WARN,
+                'message' => 'Chưa gắn sản phẩm bán cho: '.$noProduct->pluck('title')->implode(', ').'. Mở màn Khoá học, mục "Bán khoá học này".',
+            ];
+        }
+
+        // Có sản phẩm nhưng giá bằng 0 — gần như luôn là quên điền, nguy hiểm hơn chưa gắn
+        // vì nút mua vẫn hiện và người ta mua được miễn phí.
+        $zeroPrice = $courses->filter(fn (Course $c) => $c->product_id !== null && (int) ($c->product?->price ?? 0) <= 0);
+        if ($zeroPrice->isNotEmpty()) {
+            $issues[] = [
+                'level' => self::BLOCK,
+                'message' => 'Sản phẩm chưa điền giá (đang là 0đ) ở: '.$zeroPrice->pluck('title')->implode(', ').'.',
+            ];
+        }
+
 
         if ($path->outcomeList() === []) {
             $issues[] = [

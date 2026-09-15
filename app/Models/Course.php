@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 
 class Course extends Model
 {
@@ -21,6 +22,9 @@ class Course extends Model
         // SỬA 15/9 — bốn trường "bậc" khi khoá học nằm trong một lộ trình, xem migration
         // add_level_fields_to_courses_table.
         'level_code', 'level_subtitle', 'outcome', 'session_count',
+        // C1 — sản phẩm loại 'course' dùng để bán khoá này, xem migration
+        // add_product_id_to_courses_table.
+        'product_id',
     ];
 
     protected $casts = [
@@ -43,6 +47,60 @@ class Course extends Model
     public function classRooms(): HasMany
     {
         return $this->hasMany(ClassRoom::class);
+    }
+
+    /**
+     * Sản phẩm dùng để bán khoá học này (loại 'course').
+     *
+     * Null nghĩa là khoá chưa mở bán trực tuyến — vẫn vào được bằng mã lớp như trước.
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Bản cài đặt này đã chạy migration add_product_id_to_courses_table chưa.
+     *
+     * CHẶN LỖI LÚC TRIỂN KHAI — cùng một bài học với ContactService::onlyExistingColumns():
+     * mã nguồn mới lên máy chủ trước, `php artisan migrate` chạy sau. Trong khoảng giữa đó
+     * cột courses.product_id chưa tồn tại, mà màn Sửa khoá học lại ghi thẳng cột này lên —
+     * kết quả là quản trị KHÔNG sửa nổi bất kỳ khoá học nào, kể cả chỉ đổi mỗi tiêu đề.
+     * Thà tạm thời chưa lưu được ô "Bán khoá học này" còn hơn khoá cứng cả màn quản trị.
+     *
+     * Chạy migrate xong thì tự khớp lại, không phải sửa gì thêm.
+     */
+    public static function supportsProduct(): bool
+    {
+        static $has = null;
+
+        if ($has === null) {
+            $has = Schema::hasColumn('courses', 'product_id');
+        }
+
+        return $has;
+    }
+
+    /** Đã mở bán trực tuyến chưa: phải có sản phẩm VÀ sản phẩm đó phải có giá học. */
+    public function isPurchasable(): bool
+    {
+        return self::supportsProduct()
+            && $this->product_id !== null
+            && (int) ($this->product?->price ?? 0) > 0;
+    }
+
+    /** Giá học cá nhân của khoá, null khi chưa gắn sản phẩm. */
+    public function learningPrice(): ?int
+    {
+        return (self::supportsProduct() && $this->product_id !== null)
+            ? (int) ($this->product?->price ?? 0)
+            : null;
+    }
+
+    /** Lớp đang mở của khoá này — dùng cho màn tự chọn lớp sau khi mua (C3). */
+    public function openClassRooms(): HasMany
+    {
+        return $this->classRooms()->where('status', 'active');
     }
 
     /**

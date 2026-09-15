@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Enums\ContentStatus;
 use App\Models\ClassRoom;
 use App\Models\Course;
+use App\Models\Product;
 use App\Models\User;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
@@ -60,6 +61,7 @@ class CourseService
     public function createFormData(): array
     {
         return [
+            'courseProducts' => $this->courseProducts(),
             'grades' => ['Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9', 'Lớp 10', 'Lớp 11', 'Lớp 12'],
             'statuses' => [
                 ContentStatus::Draft->value => 'Bản nháp — chưa hiện công khai',
@@ -140,6 +142,8 @@ class CourseService
                 ? (int) $data['session_count']
                 : null,
             'created_by' => $creator->id,
+            // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
+            ...$this->productAttribute($data),
         ]);
     }
 
@@ -148,6 +152,7 @@ class CourseService
     {
         return [
             'course' => $this->courses->findOrFail($courseId),
+            'courseProducts' => $this->courseProducts(),
             'grades' => ['Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9', 'Lớp 10', 'Lớp 11', 'Lớp 12'],
             'statuses' => [
                 ContentStatus::Draft->value => 'Bản nháp — chưa hiện công khai',
@@ -180,7 +185,51 @@ class CourseService
             'session_count' => ($data['session_count'] ?? null) !== null && $data['session_count'] !== ''
                 ? (int) $data['session_count']
                 : null,
+            // C1 — sản phẩm bán khoá này. Để trống nghĩa là chưa mở bán trực tuyến.
+            ...$this->productAttribute($data),
         ]);
+    }
+
+    /**
+     * Danh sách sản phẩm loại 'course' để chọn ở ô "Sản phẩm bán khoá này".
+     *
+     * Chỉ lấy loại course: gắn nhầm khoá học vào một quyển sách thì người mua trả tiền sách
+     * mà lại được vào lớp, nên chặn ngay từ danh sách chọn chứ không chỉ nhắc bằng lời.
+     *
+     * @return array<int, string> id => nhãn hiển thị kèm giá
+     */
+    private function courseProducts(): array
+    {
+        return Product::query()
+            ->where('type', \App\Enums\ProductType::Course->value)
+            ->orderBy('title')
+            ->get(['id', 'title', 'price'])
+            ->mapWithKeys(fn (Product $p) => [
+                $p->id => $p->title.' — '.number_format((int) $p->price).'đ',
+            ])
+            ->all();
+    }
+
+    /**
+     * Cặp [cột => giá trị] cho ô "Bán khoá học này".
+     *
+     * Trả về MẢNG RỖNG khi bản cài chưa chạy migration add_product_id_to_courses_table —
+     * xem Course::supportsProduct(). Ghi thẳng cột chưa tồn tại thì cả màn Sửa khoá học hỏng,
+     * quản trị không đổi nổi mỗi cái tiêu đề.
+     *
+     * Ô để trống gửi lên chuỗi rỗng; phải quy về null chứ không ghi 0 vào khoá ngoại.
+     *
+     * @return array<string, int|null>
+     */
+    private function productAttribute(array $data): array
+    {
+        if (! Course::supportsProduct()) {
+            return [];
+        }
+
+        $value = $data['product_id'] ?? null;
+
+        return ['product_id' => ($value === null || $value === '') ? null : (int) $value];
     }
 
     /** admin.courses.destroy — xóa mềm, PHẢI có lý do + audit log (10.4). */
