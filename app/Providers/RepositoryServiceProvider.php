@@ -18,6 +18,7 @@ use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\ContactMessageRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
+use App\Repositories\Contracts\LearningPathRepositoryInterface;
 use App\Repositories\Contracts\DraftQuestionRepositoryInterface;
 use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
@@ -55,6 +56,7 @@ use App\Repositories\Eloquent\CompetitionExamRepository;
 use App\Repositories\Eloquent\CompetitionRepository;
 use App\Repositories\Eloquent\ContactMessageRepository;
 use App\Repositories\Eloquent\CourseRepository;
+use App\Repositories\Eloquent\LearningPathRepository;
 use App\Repositories\Eloquent\DraftQuestionRepository;
 use App\Repositories\Eloquent\LeaderboardEntryRepository;
 use App\Repositories\Eloquent\MaterialRepository;
@@ -124,6 +126,7 @@ class RepositoryServiceProvider extends ServiceProvider
         LeaderboardEntryRepositoryInterface::class => LeaderboardEntryRepository::class,
         AuditLogRepositoryInterface::class => AuditLogRepository::class,
         CourseRepositoryInterface::class => CourseRepository::class,
+        LearningPathRepositoryInterface::class => LearningPathRepository::class,
         MaterialRepositoryInterface::class => MaterialRepository::class,
         SystemSettingRepositoryInterface::class => SystemSettingRepository::class,
         SessionResourceRepositoryInterface::class => SessionResourceRepository::class,

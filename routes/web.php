@@ -51,6 +51,7 @@ use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionControll
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\ContentController as AdminContentController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Admin\LearningPathController as AdminLearningPathController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FeaturedTeacherController as AdminFeaturedTeacherController;
 use App\Http\Controllers\Admin\TestimonialController as AdminTestimonialController;
@@ -362,6 +363,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('teacher-approvals/{teacherApproval}/reject', [AdminTeacherApprovalController::class, 'reject'])->name('teacher-approvals.reject');
         Route::post('teacher-approvals/{teacherApproval}/suspend', [AdminTeacherApprovalController::class, 'suspend'])->name('teacher-approvals.suspend');
         Route::post('teacher-approvals/{teacherApproval}/reinstate', [AdminTeacherApprovalController::class, 'reinstate'])->name('teacher-approvals.reinstate');
+
+        /*
+         * LỘ TRÌNH HỌC (A6–A9, A12) — cấp trên của Khoá học.
+         * Đặt ngay trước nhóm khoá học vì hai thứ đi liền nhau trong đầu người dùng.
+         */
+        Route::get('learning-paths', [AdminLearningPathController::class, 'index'])->name('learning-paths.index');
+        Route::get('learning-paths/create', [AdminLearningPathController::class, 'create'])->name('learning-paths.create');
+        Route::post('learning-paths', [AdminLearningPathController::class, 'store'])->name('learning-paths.store');
+        Route::get('learning-paths/{learningPath}/edit', [AdminLearningPathController::class, 'edit'])->name('learning-paths.edit');
+        Route::put('learning-paths/{learningPath}', [AdminLearningPathController::class, 'update'])->name('learning-paths.update');
+        // Màn xếp bậc và các thao tác của nó.
+        Route::get('learning-paths/{learningPath}/steps', [AdminLearningPathController::class, 'steps'])->name('learning-paths.steps');
+        Route::post('learning-paths/{learningPath}/steps', [AdminLearningPathController::class, 'attachCourse'])->name('learning-paths.steps.attach');
+        Route::delete('learning-paths/{learningPath}/steps', [AdminLearningPathController::class, 'detachCourse'])->name('learning-paths.steps.detach');
+        Route::post('learning-paths/{learningPath}/steps/reorder', [AdminLearningPathController::class, 'reorder'])->name('learning-paths.steps.reorder');
+        Route::post('learning-paths/{learningPath}/status', [AdminLearningPathController::class, 'changeStatus'])->name('learning-paths.status');
+        Route::delete('learning-paths/{learningPath}', [AdminLearningPathController::class, 'destroy'])->name('learning-paths.destroy');
 
         Route::get('courses', [AdminCourseController::class, 'index'])->name('courses.index');
         Route::get('courses/create', [AdminCourseController::class, 'create'])->name('courses.create');

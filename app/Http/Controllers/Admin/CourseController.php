@@ -40,6 +40,11 @@ class CourseController extends Controller
             'subject' => ['nullable', 'string', 'max:60'],
             'grade' => ['nullable', 'string', 'max:20'],
             'status' => ['required', 'string', 'in:draft,published'],
+            // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
+            'level_code' => ['nullable', 'string', 'max:60'],
+            'level_subtitle' => ['nullable', 'string', 'max:60'],
+            'outcome' => ['nullable', 'string', 'max:160'],
+            'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
         ]);
 
         $course = $this->courseService->store(Auth::user(), $data);
@@ -60,6 +65,11 @@ class CourseController extends Controller
             'subject' => ['nullable', 'string', 'max:60'],
             'grade' => ['nullable', 'string', 'max:20'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
+            // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
+            'level_code' => ['nullable', 'string', 'max:60'],
+            'level_subtitle' => ['nullable', 'string', 'max:60'],
+            'outcome' => ['nullable', 'string', 'max:160'],
+            'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
         ]);
 
         $this->courseService->update($course, $data);

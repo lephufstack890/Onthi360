@@ -7,6 +7,9 @@
         ['label' => 'Tổng quan', 'route' => 'admin.dashboard', 'icon' => 'layout-dashboard'],
         ['label' => 'Người dùng', 'route' => 'admin.users.index', 'icon' => 'users', 'also' => ['admin.users.show', 'admin.teacher-approvals.index', 'admin.teacher-approvals.show']],
         ['label' => 'Kho câu hỏi và đề', 'route' => 'admin.content.index', 'icon' => 'library', 'also' => ['admin.content.show'], 'editorOk' => true],
+        // SỬA 15/9 — Lộ trình là cấp trên của Khoá học nên đứng ngay trước.
+        ['label' => 'Lộ trình', 'route' => 'admin.learning-paths.index', 'icon' => 'route',
+            'also' => ['admin.learning-paths.create', 'admin.learning-paths.edit', 'admin.learning-paths.steps']],
         ['label' => 'Khóa & Lớp', 'route' => 'admin.courses.index', 'icon' => 'graduation-cap'],
         ['label' => 'Tài liệu', 'route' => 'admin.products.index', 'icon' => 'wallet-cards', 'also' => ['admin.products.show', 'admin.access-rights.index']],
         ['label' => 'Đơn hàng', 'route' => 'admin.orders.index', 'icon' => 'file-check-2', 'also' => ['admin.orders.show']],

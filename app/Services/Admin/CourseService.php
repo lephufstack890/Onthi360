@@ -78,7 +78,7 @@ class CourseService
         $classRooms = $this->classRooms->query()
             ->where('course_id', $courseId)
             ->with('teachers')
-            ->withCount('students')
+            ->withCount(['students', 'sessions'])
             ->latest()
             ->get()
             ->map(fn ($c) => [
@@ -88,12 +88,21 @@ class CourseService
                 'teacher' => $c->teachers->first()->name ?? null,
                 'students' => $c->students_count,
                 'status' => $c->status,
+                /*
+                 * SỬA 15/9 (A10) — số buổi ĐÃ XẾP LỊCH THẬT của lớp này.
+                 * Khác courses.session_count (số buổi theo chương trình). View đối chiếu hai
+                 * con số để phát hiện lớp xếp thiếu buổi — không có chỗ này thì lớp thiếu buổi
+                 * chỉ lộ ra khi học sinh kêu.
+                 */
+                'scheduledSessions' => $c->sessions_count,
             ]);
 
         return [
             'course' => $course,
             'classRooms' => $classRooms,
             'totalStudents' => $classRooms->sum('students'),
+            // Số buổi theo chương trình của khoá, để view so với từng lớp.
+            'designedSessions' => (int) $course->session_count,
         ];
     }
 
@@ -119,6 +128,17 @@ class CourseService
             'subject' => $data['subject'] ?? null,
             'grade' => $data['grade'] ?? null,
             'status' => $data['status'],
+            /*
+             * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
+             * Để trống hoàn toàn bình thường: khoá lẻ không thuộc lộ trình nào vẫn chạy y như
+             * trước. Xem migration add_level_fields_to_courses_table.
+             */
+            'level_code' => $data['level_code'] ?? null,
+            'level_subtitle' => $data['level_subtitle'] ?? null,
+            'outcome' => $data['outcome'] ?? null,
+            'session_count' => ($data['session_count'] ?? null) !== null && $data['session_count'] !== ''
+                ? (int) $data['session_count']
+                : null,
             'created_by' => $creator->id,
         ]);
     }
@@ -149,6 +169,17 @@ class CourseService
             'subject' => $data['subject'] ?? null,
             'grade' => $data['grade'] ?? null,
             'status' => $data['status'],
+            /*
+             * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
+             * Để trống hoàn toàn bình thường: khoá lẻ không thuộc lộ trình nào vẫn chạy y như
+             * trước. Xem migration add_level_fields_to_courses_table.
+             */
+            'level_code' => $data['level_code'] ?? null,
+            'level_subtitle' => $data['level_subtitle'] ?? null,
+            'outcome' => $data['outcome'] ?? null,
+            'session_count' => ($data['session_count'] ?? null) !== null && $data['session_count'] !== ''
+                ? (int) $data['session_count']
+                : null,
         ]);
     }
 

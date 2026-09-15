@@ -85,6 +85,25 @@
                             <div class="flex-1 min-w-0">
                                 <p class="text-[13px] font-medium text-slate-700">{{ $c['name'] }} <span class="text-slate-400 font-normal">({{ $c['code'] }})</span></p>
                                 <p class="text-xs text-slate-400">{{ $c['teacher'] ? 'GV '.$c['teacher'] : 'Chưa phân công giáo viên' }} · {{ $c['students'] }} học sinh</p>
+
+                                {{-- SỬA 15/9 (A10) — đối chiếu số buổi ĐÃ XẾP LỊCH của lớp với số buổi
+                                     THEO CHƯƠNG TRÌNH của khoá. Lệch thì báo ngay tại đây, thay vì đợi
+                                     học sinh kêu thiếu buổi. --}}
+                                @php $designed = (int) ($designedSessions ?? 0); $scheduled = (int) ($c['scheduledSessions'] ?? 0); @endphp
+                                @if ($designed > 0)
+                                    <p class="mt-1 inline-flex items-center gap-1 text-[11px] font-bold
+                                              {{ $scheduled >= $designed ? 'text-emerald-600' : 'text-amber-600' }}">
+                                        <x-lucide name="calendar-days" class="h-3 w-3" />
+                                        Đã xếp {{ $scheduled }}/{{ $designed }} buổi
+                                        @if ($scheduled < $designed)
+                                            · còn thiếu {{ $designed - $scheduled }}
+                                        @endif
+                                    </p>
+                                @elseif ($scheduled > 0)
+                                    <p class="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-400">
+                                        <x-lucide name="calendar-days" class="h-3 w-3" />Đã xếp {{ $scheduled }} buổi
+                                    </p>
+                                @endif
                             </div>
                             <x-ws.badge :tone="$c['status'] === 'active' ? 'success' : 'neutral'">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</x-ws.badge>
                         </a>

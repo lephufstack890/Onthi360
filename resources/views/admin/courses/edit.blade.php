@@ -57,6 +57,8 @@
                               class="admin-input">{{ old('description', $course->description) }}</textarea>
                 </div>
 
+                @include('partials.course-level-fields')
+
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
                     <x-ws.select id="status" name="status" required>
