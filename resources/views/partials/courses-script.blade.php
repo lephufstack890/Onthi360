@@ -2,9 +2,12 @@
     function onthiCoursesPage(config) {
         return {
             rows: config.rows,
+            courses: config.courses || [],
             pageSize: config.pageSize,
             selectedCategory: config.subject || 'all',
             selectedGrade: 'all',
+            // SỬA 16/9 — bộ lọc theo KHOÁ HỌC. Giữ kiểu số vì id khoá là số; 'all' là chưa lọc.
+            selectedCourse: 'all',
             searchQuery: '',
             currentPage: 1,
 
@@ -17,8 +20,9 @@
                 return this.rows.filter((r) => {
                     const matchCat = this.selectedCategory === 'all' || r.subject === this.selectedCategory;
                     const matchGrade = this.selectedGrade === 'all' || r.grade === this.selectedGrade;
+                    const matchCourse = this.selectedCourse === 'all' || r.courseId === this.selectedCourse;
                     const matchSearch = !q || r.search.includes(q);
-                    return matchCat && matchGrade && matchSearch;
+                    return matchCat && matchGrade && matchCourse && matchSearch;
                 });
             },
 
@@ -37,10 +41,26 @@
             },
 
             setCategory(value) { this.selectedCategory = value; this.currentPage = 1; },
-            setGrade(value) { this.selectedGrade = value; this.currentPage = 1; },
+            /*
+             * Đổi KHỐI LỚP thì bỏ luôn khoá đang chọn: khoá đó thường không thuộc khối mới,
+             * để nguyên sẽ ra danh sách rỗng và người dùng không hiểu vì sao.
+             */
+            setGrade(value) {
+                this.selectedGrade = value;
+                this.selectedCourse = 'all';
+                this.currentPage = 1;
+            },
+            setCourse(value) { this.selectedCourse = value; this.currentPage = 1; },
+
+            /** Các khoá còn hợp lệ với khối lớp đang chọn — dải chip "Khoá học" dựng từ đây. */
+            get visibleCourses() {
+                if (this.selectedGrade === 'all') return this.courses;
+                return this.courses.filter((c) => c.grade === this.selectedGrade);
+            },
             resetFilters() {
                 this.selectedCategory = 'all';
                 this.selectedGrade = 'all';
+                this.selectedCourse = 'all';
                 this.searchQuery = '';
                 this.currentPage = 1;
             },

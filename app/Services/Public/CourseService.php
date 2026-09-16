@@ -3,10 +3,12 @@
 namespace App\Services\Public;
 
 use App\Enums\ReviewTargetType;
+use App\Models\ClassRoom;
 use App\Models\Course;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
+use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Carbon\Carbon;
@@ -52,9 +54,120 @@ class CourseService
         private CourseRepositoryInterface $courses,
         private RatingSummaryRepositoryInterface $ratingSummaries,
         private ClassEnrollmentRepositoryInterface $classEnrollments,
+        // SỬA 16/9 — trang Lớp học công khai giờ liệt kê THẲNG từng lớp, không còn gộp theo khoá.
+        private ClassRoomRepositoryInterface $classRooms,
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
+    /**
+     * PUB-03 — trang /khoa-hoc: MỖI THẺ LÀ MỘT LỚP HỌC.
+     *
+     * SỬA 16/9 (khách: "trang lớp học ngoài public hiển thị dữ liệu lớp học mới đúng") — trước
+     * đây trang mang tên "Lớp học" nhưng mỗi thẻ lại là một KHOÁ HỌC, và chỉ lấy đúng lớp ĐẦU
+     * TIÊN của khoá để in mã lớp. Khoá có 3 lớp thì 2 lớp kia coi như không tồn tại với người
+     * đang tìm lớp để đăng ký. Giờ liệt kê thẳng từng lớp đang mở.
+     *
+     * Hai bộ lọc, cả hai đều ĐỔ TỪ KHOÁ HỌC:
+     *   · Khoá học — chọn khoá thì chỉ còn lớp thuộc khoá đó;
+     *   · Khối lớp — khối của KHOÁ chứa lớp (bảng class_rooms không có cột khối riêng).
+     * Danh sách lựa chọn chỉ gồm khoá/khối THẬT SỰ CÒN LỚP ĐANG MỞ, nên không bao giờ bấm vào
+     * một lựa chọn rồi ra 0 kết quả.
+     *
+     * @return array{classes: array<int, array<string, mixed>>, courseFilters: array<int, array<string, mixed>>, grades: array<int, string>, totalClasses: int, totalStudents: int}
+     */
+    public function classIndexData(?User $viewer = null): array
+    {
+        $rows = $this->classRooms->query()
+            ->where('class_rooms.status', 'active')
+            ->whereHas('course', fn ($q) => $q->where('status', 'published'))
+            ->with([
+                'course:id,title,slug,subject,grade,cover_image_path',
+                'teachers:id,name',
+            ])
+            ->withCount(['students', 'sessions'])
+            ->orderBy('course_id')
+            ->orderBy('name')
+            ->limit(120)
+            ->get();
+
+        // 1 câu truy vấn cho đánh giá của TẤT CẢ lớp trong trang — tránh N+1.
+        $ratings = $this->ratingSummariesByClassRoomId($rows->pluck('id')->all());
+
+        // Lớp mà HỌC SINH ĐANG XEM còn ghi danh active — để thẻ đổi sang "Vào học".
+        $myClassRoomIds = ($viewer !== null && $viewer->hasRole(Role::STUDENT))
+            ? $this->classEnrollments->query()
+                ->where('student_id', $viewer->id)
+                ->where('status', 'active')
+                ->pluck('class_room_id')
+                ->all()
+            : [];
+
+        $classes = $rows->map(fn (ClassRoom $c) => $this->mapClassCard($c, $ratings, $myClassRoomIds))->values()->all();
+
+        // Bộ lọc dựng TỪ CHÍNH các lớp đang hiển thị, không truy vấn lại bảng courses: như vậy
+        // lựa chọn nào hiện ra cũng chắc chắn có lớp đứng sau.
+        $courseFilters = $rows
+            ->groupBy('course_id')
+            ->map(fn ($group) => [
+                'id' => (int) $group->first()->course_id,
+                'title' => (string) ($group->first()->course->title ?? ''),
+                'grade' => (string) ($group->first()->course->grade ?? ''),
+                'classCount' => $group->count(),
+            ])
+            ->sortBy('title')
+            ->values()
+            ->all();
+
+        $grades = collect($courseFilters)
+            ->pluck('grade')
+            ->filter(fn (string $g) => $g !== '')
+            ->unique()
+            // Xếp theo SỐ chứ không theo chữ — theo chữ thì "Lớp 10" đứng trước "Lớp 6".
+            ->sortBy(fn (string $g) => ((int) preg_replace('/\D/', '', $g)) ?: 99)
+            ->values()
+            ->all();
+
+        return [
+            'classes' => $classes,
+            'courseFilters' => $courseFilters,
+            'grades' => $grades,
+            'totalClasses' => count($classes),
+            'totalStudents' => (int) $rows->sum('students_count'),
+        ];
+    }
+
+    /** Một thẻ lớp học trên trang /khoa-hoc. Mọi số liệu lấy từ CSDL, không có giá trị viết cứng. */
+    private function mapClassCard(ClassRoom $classRoom, Collection $ratings, array $myClassRoomIds): array
+    {
+        $course = $classRoom->course;
+        $summary = $ratings->get($classRoom->id);
+        $teachers = $classRoom->teachers;
+
+        return [
+            'id' => $classRoom->id,
+            'name' => $classRoom->name,
+            'code' => $classRoom->code,
+            // Lịch học là ghi chú tự do quản trị nhập (class_rooms.schedule = {"note": "..."}).
+            'scheduleNote' => $classRoom->schedule['note'] ?? null,
+            'studentsCount' => (int) $classRoom->students_count,
+            'sessionsCount' => (int) $classRoom->sessions_count,
+            'teacherName' => $teachers->first()?->name,
+            'assistantNames' => $teachers->skip(1)->pluck('name')->values()->all(),
+            'average' => ($summary !== null && (int) $summary->review_count > 0)
+                ? round((float) $summary->avg_rating, 1)
+                : null,
+            'count' => (int) ($summary?->review_count ?? 0),
+            'isMember' => in_array($classRoom->id, $myClassRoomIds, true),
+            // Thông tin thừa hưởng từ khoá — lớp không có ảnh/môn/khối riêng.
+            'courseId' => (int) $classRoom->course_id,
+            'courseTitle' => (string) ($course->title ?? ''),
+            'subject' => (string) ($course->subject ?? ''),
+            'grade' => (string) ($course->grade ?? ''),
+            'image' => $course?->coverUrl(),
+            'href' => route('courses.show', $classRoom->course_id),
+        ];
+    }
+
     public function indexData(?string $subject, ?User $viewer = null): array
     {
         // SỬA 11/9 — thẻ lớp học ở giao diện mới (education-main/src/components/CoursesPage.jsx)
