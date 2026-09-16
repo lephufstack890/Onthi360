@@ -18,7 +18,7 @@
         <div class="rounded-3xl bg-gradient-to-br from-sky-50 to-amber-50 p-10 text-center">
             <div class="text-5xl mb-3">🎈</div>
             <h2 class="text-lg font-semibold text-slate-800">Chào {{ $name }}, bắt đầu hành trình học của bạn nhé!</h2>
-            <p class="text-[13px] text-slate-500 mt-2 max-w-md mx-auto">Bạn chưa tham gia lớp nào. Thử luyện tập bài công khai ngay, hoặc nhập mã lớp nếu giáo viên đã cung cấp cho bạn.</p>
+            <p class="text-[13px] text-slate-500 mt-2 max-w-md mx-auto">Bạn chưa tham gia lớp nào. Thử luyện tập bài công khai ngay, hoặc mở trang Lớp học rồi bấm &quot;Đăng ký học&quot; — giáo viên duyệt là vào học được.</p>
             <div class="flex justify-center gap-3 mt-5">
                 <a href="{{ route('practice.index') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Luyện tập ngay</a>
                 <a href="{{ route('student.courses.index') }}" class="px-5 py-2.5 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium">Tìm lớp/khóa học</a>

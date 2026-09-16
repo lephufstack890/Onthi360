@@ -11,6 +11,15 @@ interface ClassSessionRepositoryInterface extends BaseRepositoryInterface
 
     public function nextUpcomingForClassRoom(int $classRoomId): ?ClassSession;
 
+    /**
+     * SỬA 16/9 — buổi ĐANG DIỄN RA, nếu không có thì buổi sắp tới gần nhất.
+     *
+     * nextUpcomingForClassRoom() lọc starts_at >= now nên buổi đã bắt đầu mà chưa kết thúc
+     * KHÔNG lọt vào (đúng nghĩa "sắp tới", giữ nguyên, nơi khác đang dùng). Trang chi tiết lớp
+     * cần cái khác: đang học thì phải thấy ngay phòng học của buổi đang chạy.
+     */
+    public function currentOrNextForClassRoom(int $classRoomId): ?ClassSession;
+
     public function allForClassRoom(int $classRoomId): Collection;
 
     public function countPastForClassRoom(int $classRoomId): int;

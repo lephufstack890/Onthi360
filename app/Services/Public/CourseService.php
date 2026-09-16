@@ -102,7 +102,13 @@ class CourseService
                 ->all()
             : [];
 
-        $classes = $rows->map(fn (ClassRoom $c) => $this->mapClassCard($c, $ratings, $myClassRoomIds))->values()->all();
+        // SỬA 16/9 (khách yêu cầu: "bấm đăng ký học thì giáo viên duyệt") — lớp học sinh này
+        // ĐANG CHỜ DUYỆT, để thẻ hiện "Đang chờ duyệt" thay vì mời bấm đăng ký lần nữa.
+        $pendingClassRoomIds = ($viewer !== null && $viewer->hasRole(Role::STUDENT))
+            ? $this->classEnrollments->pendingClassRoomIdsForUser($viewer->id)
+            : [];
+
+        $classes = $rows->map(fn (ClassRoom $c) => $this->mapClassCard($c, $ratings, $myClassRoomIds, $pendingClassRoomIds))->values()->all();
 
         // Bộ lọc dựng TỪ CHÍNH các lớp đang hiển thị, không truy vấn lại bảng courses: như vậy
         // lựa chọn nào hiện ra cũng chắc chắn có lớp đứng sau.
@@ -146,11 +152,16 @@ class CourseService
             'grades' => $grades,
             'totalClasses' => count($classes),
             'totalStudents' => (int) $rows->sum('students_count'),
+            // Chỉ tài khoản HỌC SINH mới gửi được yêu cầu (route student.classes.requestJoin nằm
+            // trong nhóm role:student). Khách chưa đăng nhập -> mời đăng nhập; giáo viên/quản trị
+            // -> không hiện nút để khỏi bấm vào rồi ăn 403.
+            'canRequestJoin' => $viewer !== null && $viewer->hasRole(Role::STUDENT),
+            'isGuest' => $viewer === null,
         ];
     }
 
     /** Một thẻ lớp học trên trang /khoa-hoc. Mọi số liệu lấy từ CSDL, không có giá trị viết cứng. */
-    private function mapClassCard(ClassRoom $classRoom, Collection $ratings, array $myClassRoomIds): array
+    private function mapClassCard(ClassRoom $classRoom, Collection $ratings, array $myClassRoomIds, array $pendingClassRoomIds = []): array
     {
         $course = $classRoom->course;
         $summary = $ratings->get($classRoom->id);
@@ -171,6 +182,8 @@ class CourseService
                 : null,
             'count' => (int) ($summary?->review_count ?? 0),
             'isMember' => in_array($classRoom->id, $myClassRoomIds, true),
+            // SỬA 16/9 — đã gửi yêu cầu, đang chờ giáo viên duyệt.
+            'isPending' => in_array($classRoom->id, $pendingClassRoomIds, true),
             // Thông tin thừa hưởng từ khoá — lớp không có ảnh/môn/khối riêng.
             // 4 trường mô tả lớp — chỉ có khi máy chủ đã chạy migration
             // add_display_fields_to_class_rooms_table (xem ClassRoom::supportsDisplayFields).

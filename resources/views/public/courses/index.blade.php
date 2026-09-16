@@ -37,6 +37,9 @@
     $grades = $grades ?? [];
     $totalClasses = $totalClasses ?? count($classes);
     $totalStudents = $totalStudents ?? 0;
+    // SỬA 16/9 — trạng thái người đang xem, quyết định nút ở chân mỗi thẻ lớp.
+    $canRequestJoin = $canRequestJoin ?? false;
+    $isGuest = $isGuest ?? true;
 
     /*
      * Dải chip MÔN HỌC (khối [COURSES-03]) đang ẨN: khách chốt trang chỉ cần hai bộ lọc
@@ -79,6 +82,29 @@
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
 <div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 9, 'subject' => $activeSubject]) }})" class="flex flex-col gap-5">
 
+    {{-- SỬA 16/9 — kết quả của nút "Đăng ký học" (gửi yêu cầu chờ giáo viên duyệt). Không có
+         dải này thì học sinh bấm xong không biết đã gửi được hay chưa. --}}
+    @if (session('status') === 'class-join-requested')
+        <div class="flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <x-lucide name="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <p class="text-[13px] font-semibold leading-relaxed text-emerald-800">
+                Đã gửi yêu cầu đăng ký. Giáo viên của lớp sẽ duyệt, được duyệt là bạn vào học ngay —
+                kết quả sẽ báo ở chuông thông báo.
+            </p>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+            <x-lucide name="alert-triangle" class="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+            <div class="min-w-0 text-[13px] font-semibold leading-relaxed text-rose-800">
+                @foreach ($errors->all() as $message)
+                    <p>{{ $message }}</p>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- ══════ [COURSES-01] HERO LỚP HỌC ══════ --}}
     <div class="relative overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-r from-[#0B3C78] via-[#0050A0] to-[#0284C7] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] sm:p-6 lg:p-7">
         <img src="{{ asset('assets/hero-courses.jpg') }}" alt="Minh họa lớp học Tin học 360"
@@ -102,7 +128,7 @@
                     <a href="{{ route('access.activate') }}"
                        class="flex min-h-10 items-center gap-1.5 rounded-xl bg-[#FFF1C7] px-4 py-2 text-[11px] font-extrabold text-[#76551A] shadow-sm transition-all hover:bg-[#FFE6A1] active:scale-[.98]">
                         <x-lucide name="key-round" class="w-4 h-4" />
-                        <span>Kích hoạt mã lớp học</span>
+                        <span>Kích hoạt mã khoá học</span>
                     </a>
                     <div class="flex items-center gap-2 text-[11px] font-medium text-sky-100">
                         <x-lucide name="check-circle" class="w-4 h-4 text-emerald-400" />
@@ -381,8 +407,14 @@
                                     <span>Liên hệ quản lý lớp</span>
                                 </a>
                             @endif
-                            <p class="type-meta mt-0.5 max-w-[150px] truncate"
-                               title="{{ $cl['isMember'] ? 'Bạn đang học lớp này' : 'Cần mã lớp hoặc đăng ký để vào học' }}">{{ $cl['isMember'] ? 'Bạn đang học lớp này' : 'Cần mã lớp / đăng ký' }}</p>
+                            @php
+                                // SỬA 16/9 — không còn lối vào bằng mã lớp; 3 trạng thái thật:
+                                // đang học / đã gửi yêu cầu chờ duyệt / chưa đăng ký.
+                                $joinHint = $cl['isMember']
+                                    ? 'Bạn đang học lớp này'
+                                    : ($cl['isPending'] ? 'Đang chờ giáo viên duyệt' : 'Đăng ký, giáo viên duyệt là vào học');
+                            @endphp
+                            <p class="type-meta mt-0.5 max-w-[150px] truncate" title="{{ $joinHint }}">{{ $joinHint }}</p>
                         </div>
 
                         @if ($cl['isMember'])
@@ -391,11 +423,38 @@
                                 <span>Vào học</span>
                                 <x-lucide name="play" class="h-3.5 w-3.5" />
                             </a>
-                        @else
-                            <a href="{{ $cl['href'] }}"
+                        @elseif ($cl['isPending'])
+                            {{-- SỬA 16/9 — đã gửi yêu cầu rồi: không cho bấm lại (server cũng chặn,
+                                 xem Student\ClassRoomService::requestJoin()), chỉ báo trạng thái. --}}
+                            <span class="flex min-h-10 shrink-0 cursor-default items-center gap-1.5 rounded-xl border border-[#F2E1B6] bg-[#FFF7E3] px-3.5 py-2 text-[11px] font-extrabold text-[#AF7C32]">
+                                <x-lucide name="clock" class="h-3.5 w-3.5" />
+                                <span>Đang chờ duyệt</span>
+                            </span>
+                        @elseif ($canRequestJoin)
+                            {{-- SỬA 16/9 (khách yêu cầu) — bấm là GỬI YÊU CẦU, giáo viên duyệt mới
+                                 vào học được. Không còn khâu nhập mã lớp. --}}
+                            <form method="POST" action="{{ route('student.classes.requestJoin', $cl['id']) }}" class="shrink-0">
+                                @csrf
+                                <button type="submit"
+                                        class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                                    <span>Đăng ký học</span>
+                                    <x-lucide name="user-check" class="h-3.5 w-3.5" />
+                                </button>
+                            </form>
+                        @elseif ($isGuest)
+                            {{-- Khách chưa đăng nhập: đưa về đăng nhập rồi quay lại đúng trang này. --}}
+                            <a href="{{ route('login') }}"
                                class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
                                 <span>Đăng ký học</span>
                                 <x-lucide name="user-check" class="h-3.5 w-3.5" />
+                            </a>
+                        @else
+                            {{-- Giáo viên/quản trị đang xem trang công khai: route gửi yêu cầu nằm
+                                 trong nhóm role:student nên bấm vào sẽ 403 — đưa về trang khoá thay vì. --}}
+                            <a href="{{ $cl['href'] }}"
+                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-[#B8DCE6] bg-[#EAF5F8] px-3.5 py-2 text-[11px] font-extrabold text-[#126F91] transition-all hover:bg-[#DDF1F6] active:scale-[.98]">
+                                <span>Xem khoá học</span>
+                                <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                             </a>
                         @endif
                     </div>

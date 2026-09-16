@@ -7,11 +7,15 @@ use App\Enums\AssignmentStatus;
 use App\Enums\ClassMaterialStatus;
 use App\Enums\ContentStatus;
 use App\Models\Assignment;
+use App\Models\ClassEnrollment;
 use App\Models\ClassRoom;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\ClassJoinDecided;
+use App\Notifications\ClassMembershipRemoved;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
+use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassMaterialRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\ClassSessionRepositoryInterface;
@@ -54,6 +58,8 @@ class ClassRoomService
         // ở đây, KHÔNG còn ở Bài tập & Đề nữa — tái dùng nguyên AssessmentService::
         // assignToClass()/assessmentsForPicker() (không chép lại logic).
         private readonly AssessmentService $assessmentService,
+        // SỬA 16/9 — luồng "học sinh xin vào lớp, giáo viên duyệt" thay cho mã lớp.
+        private readonly ClassEnrollmentRepositoryInterface $classEnrollments,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -97,7 +103,10 @@ class ClassRoomService
             ->sessionProgressCountsForClassRoomIds($classRoomIds)
             ->keyBy('class_room_id');
 
-        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $inProgressSessionByClassRoomId, $lastSessionByClassRoomId, $sessionProgressByClassRoomId) {
+        // SỬA 16/9 — số yêu cầu vào lớp đang chờ duyệt của TỪNG lớp, lấy một lượt theo lô.
+        $pendingCountsByClassRoomId = $this->classEnrollments->pendingCountsByClassRoomIds($classRoomIds);
+
+        $classes = $classRooms->map(function (ClassRoom $classRoom) use ($nextSessionByClassRoomId, $inProgressSessionByClassRoomId, $lastSessionByClassRoomId, $sessionProgressByClassRoomId, $pendingCountsByClassRoomId) {
             $nextSession = $nextSessionByClassRoomId->get($classRoom->id);
             // Ưu tiên hiển thị: buổi sắp tới > buổi đang diễn ra > buổi gần nhất đã kết
             // thúc. Một buổi chỉ rơi vào đúng 1 trong 3 nhóm (3 truy vấn không giao nhau).
@@ -132,6 +141,9 @@ class ClassRoomService
                 'completion' => $this->completionPercent($endedSessions, $totalSessions),
                 'completionEndedSessions' => $endedSessions,
                 'completionTotalSessions' => $totalSessions,
+                // SỬA 16/9 — số học sinh đang xin vào lớp này, để giáo viên thấy ngay từ danh
+                // sách lớp mà không phải mở từng lớp ra xem.
+                'pendingRequests' => (int) ($pendingCountsByClassRoomId[$classRoom->id] ?? 0),
             ];
         })->values()->all();
 
@@ -258,6 +270,23 @@ class ClassRoomService
 
         $members = $tab === 'members' ? $classRoom->students : collect();
 
+        // SỬA 16/9 (khách yêu cầu: "học sinh bấm đăng ký học thì giáo viên duyệt") — hàng đợi
+        // yêu cầu chờ duyệt của ĐÚNG lớp này. Đếm luôn ở mọi tab để gắn số lên nhãn tab Thành
+        // viên, nhưng CHỈ nạp cả danh sách khi đang mở tab đó (1 truy vấn đếm rất nhẹ, đổi lại
+        // giáo viên không bỏ sót yêu cầu vì đang đứng ở tab khác).
+        $pendingRequests = $tab === 'members'
+            ? $this->classEnrollments->pendingForClassRoomIds([$classRoom->id])
+            : collect();
+        $pendingCount = $tab === 'members'
+            ? $pendingRequests->count()
+            : (int) ($this->classEnrollments->pendingCountsByClassRoomIds([$classRoom->id])[$classRoom->id] ?? 0);
+
+        foreach ($tabsData as $i => $t) {
+            if ($t['label'] === 'Thành viên' && $pendingCount > 0) {
+                $tabsData[$i]['count'] = $pendingCount;
+            }
+        }
+
         // TODO: rating_summaries theo target_type=class_room cho block "Rating nội bộ" ở tab overview.
         $ratingSummary = $this->ratingSummaries->findForTarget('class_room', $classRoom->id);
 
@@ -276,6 +305,8 @@ class ClassRoomService
             'assignments' => $assignments,
             'assignableAssessments' => $assignableAssessments,
             'members' => $members,
+            'pendingRequests' => $pendingRequests,
+            'pendingCount' => $pendingCount,
             'ratingSummary' => $ratingSummary,
         ];
     }
@@ -436,6 +467,139 @@ class ClassRoomService
             'status' => ClassMaterialStatus::Removed,
             'removed_at' => now(),
         ]);
+    }
+
+    /**
+     * SỬA 16/9 — GIÁO VIÊN DUYỆT yêu cầu vào lớp.
+     *
+     * Đặt status='active' chính là thứ AccessGateService::canAccessClassRoom() đang đòi, nên
+     * duyệt xong học sinh vào học được NGAY, không phải đăng nhập lại hay chờ gì thêm.
+     * enrolled_at được ghi lại ở đây vì đây mới là lúc thực sự vào lớp (lúc xin vào chỉ là
+     * requested_at).
+     *
+     * @throws ValidationException khi yêu cầu không còn ở trạng thái chờ duyệt.
+     */
+    public function approveJoinRequest(User $teacher, int $classId, int $enrollmentId): ClassEnrollment
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $enrollment = $this->findPendingRequest($classRoom, $enrollmentId);
+
+        $traces = ClassEnrollment::supportsApprovalFields()
+            ? ['approved_at' => now(), 'approved_by' => $teacher->id, 'reject_reason' => null]
+            : [];
+
+        $this->classEnrollments->update($enrollment, array_merge([
+            'status' => ClassEnrollment::STATUS_ACTIVE,
+            'enrolled_at' => now(),
+            'left_at' => null,
+        ], $traces));
+
+        $enrollment->student?->notify(new ClassJoinDecided($classRoom, true));
+
+        return $enrollment;
+    }
+
+    /**
+     * SỬA 16/9 — GIÁO VIÊN TỪ CHỐI yêu cầu vào lớp.
+     *
+     * KHÔNG xoá dòng: giữ lại để biết đã từng xin và vì sao bị từ chối, và vì
+     * unique(class_room_id, student_id) nên học sinh xin lại sẽ ghi đè đúng dòng này
+     * (Student\ClassRoomService::requestJoin()).
+     */
+    public function rejectJoinRequest(User $teacher, int $classId, int $enrollmentId, ?string $reason = null): ClassEnrollment
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $enrollment = $this->findPendingRequest($classRoom, $enrollmentId);
+
+        $traces = ClassEnrollment::supportsApprovalFields()
+            ? ['approved_at' => now(), 'approved_by' => $teacher->id, 'reject_reason' => $reason]
+            : [];
+
+        $this->classEnrollments->update($enrollment, array_merge([
+            'status' => ClassEnrollment::STATUS_REJECTED,
+        ], $traces));
+
+        $enrollment->student?->notify(new ClassJoinDecided($classRoom, false, $reason));
+
+        return $enrollment;
+    }
+
+    /**
+     * SỬA 16/9 (khách yêu cầu: "duyệt xong rồi nếu giáo viên muốn kick học sinh ra khỏi lớp thì
+     * vẫn kick được") — GỠ HỌC SINH KHỎI LỚP.
+     *
+     * Đặt status='left' chứ KHÔNG xoá dòng, vì 3 lý do:
+     *   · class_enrollments có unique(class_room_id, student_id) — giữ dòng thì sau này em xin
+     *     vào lại chỉ việc ghi đè đúng dòng đó (Student\ClassRoomService::requestJoin());
+     *   · giữ được dấu vết đã từng học lớp này và rời lúc nào (left_at);
+     *   · mọi nơi đếm sĩ số/quyền đều lọc status='active' nên 'left' tự động mất quyền ngay —
+     *     AccessGateService::canAccessClassRoom() chặn từ lần mở trang kế tiếp.
+     *
+     * Bài làm/điểm danh cũ KHÔNG bị đụng tới: đó là dữ liệu học tập có thật, gỡ khỏi lớp không
+     * có nghĩa là chưa từng học.
+     *
+     * @throws ValidationException khi học sinh này không còn là thành viên đang học của lớp.
+     */
+    public function removeStudent(User $teacher, int $classId, int $studentId, ?string $reason = null): ClassEnrollment
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+
+        $enrollment = $this->classEnrollments->findActiveForUserAndClassRoom($studentId, $classRoom->id);
+        $enrollment?->loadMissing('student');
+
+        if ($enrollment === null) {
+            throw ValidationException::withMessages([
+                'student' => 'Học sinh này không còn trong lớp (có thể vừa được gỡ ở cửa sổ khác).',
+            ]);
+        }
+
+        // Không được tự gỡ chính mình ra khỏi lớp mình dạy — không có nghĩa gì và dễ là bấm nhầm.
+        if ($studentId === $teacher->id) {
+            throw ValidationException::withMessages([
+                'student' => 'Không thể tự gỡ chính mình khỏi lớp.',
+            ]);
+        }
+
+        // reject_reason = "lý do không còn ở trong lớp" (dùng chung cho cả từ chối lẫn gỡ khỏi
+        // lớp). approved_at/approved_by GIỮ NGUYÊN vì đó là dấu vết ai đã duyệt cho em vào —
+        // vẫn đúng và vẫn cần, không phải thứ bị thay thế bởi lần gỡ này.
+        $traces = ClassEnrollment::supportsApprovalFields() ? ['reject_reason' => $reason] : [];
+
+        $this->classEnrollments->update($enrollment, array_merge([
+            'status' => ClassEnrollment::STATUS_LEFT,
+            'left_at' => now(),
+        ], $traces));
+
+        $enrollment->student?->notify(new ClassMembershipRemoved($classRoom, $reason));
+
+        return $enrollment;
+    }
+
+    /**
+     * Lấy yêu cầu chờ duyệt và kiểm tra nó ĐÚNG là của lớp này.
+     *
+     * Không tin id trên URL: thiếu bước so class_room_id thì giáo viên lớp A gửi tay id của lớp B
+     * là duyệt được người vào lớp B.
+     */
+    private function findPendingRequest(ClassRoom $classRoom, int $enrollmentId): ClassEnrollment
+    {
+        $enrollment = $this->classEnrollments->query()
+            ->where('id', $enrollmentId)
+            ->where('class_room_id', $classRoom->id)
+            ->with('student')
+            ->first();
+
+        if ($enrollment === null) {
+            abort(404);
+        }
+
+        if ($enrollment->status !== ClassEnrollment::STATUS_PENDING) {
+            throw ValidationException::withMessages([
+                'enrollment' => 'Yêu cầu này đã được xử lý trước đó.',
+            ]);
+        }
+
+        return $enrollment;
     }
 
     private function findTaughtClassRoom(User $teacher, int $classId): ClassRoom

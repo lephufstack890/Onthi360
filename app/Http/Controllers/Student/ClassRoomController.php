@@ -24,6 +24,20 @@ class ClassRoomController extends Controller
     }
 
 
+    /**
+     * SỬA 16/9 (khách yêu cầu) — học sinh bấm "Đăng ký học" ở trang lớp học công khai.
+     *
+     * Không cho vào lớp ngay: tạo yêu cầu CHỜ DUYỆT rồi quay lại đúng trang vừa bấm, giáo viên
+     * duyệt xong học sinh mới vào học được (xem Student\ClassRoomService::requestJoin()).
+     */
+    public function requestJoin(Request $request, int $class): RedirectResponse
+    {
+        $this->classRoomService->requestJoin($request->user(), $class);
+
+        return back()->with('status', 'class-join-requested');
+    }
+
+    /** SỬA 16/9 — lối vào bằng mã lớp đã tắt, xem ClassRoomService::JOIN_BY_CODE_ENABLED. */
     public function join(Request $request): RedirectResponse
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:40']]);

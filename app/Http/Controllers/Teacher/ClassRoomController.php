@@ -29,6 +29,41 @@ class ClassRoomController extends Controller
         return view('teacher.classes.show', $this->classRoomService->showForTeacher($user, $class, $tab));
     }
 
+    /**
+     * SỬA 16/9 (khách yêu cầu) — giáo viên DUYỆT yêu cầu vào lớp của học sinh. Duyệt xong học
+     * sinh vào học được ngay (xem Teacher\ClassRoomService::approveJoinRequest()).
+     */
+    public function approveJoinRequest(Request $request, int $class, int $enrollment): RedirectResponse
+    {
+        $this->classRoomService->approveJoinRequest(Auth::user(), $class, $enrollment);
+
+        return back()->with('status', 'join-request-approved');
+    }
+
+    /** SỬA 16/9 — giáo viên TỪ CHỐI yêu cầu vào lớp (kèm lý do, học sinh nhận được thông báo). */
+    public function rejectJoinRequest(Request $request, int $class, int $enrollment): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+
+        $this->classRoomService->rejectJoinRequest(Auth::user(), $class, $enrollment, $data['reason'] ?? null);
+
+        return back()->with('status', 'join-request-rejected');
+    }
+
+    /**
+     * SỬA 16/9 (khách yêu cầu) — giáo viên GỠ HỌC SINH khỏi lớp. Dòng ghi danh chuyển sang
+     * 'left' (không xoá), học sinh mất quyền vào lớp ngay — xem
+     * Teacher\ClassRoomService::removeStudent().
+     */
+    public function removeStudent(Request $request, int $class, int $student): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+
+        $this->classRoomService->removeStudent(Auth::user(), $class, $student, $data['reason'] ?? null);
+
+        return back()->with('status', 'member-removed');
+    }
+
     public function create(Request $request): View
     {
         return view('teacher.classes.create', $this->classRoomService->createFormData());

@@ -277,6 +277,9 @@
             <a href="{{ route('teacher.results.index') }}" class="text-[13px] text-blue-600 font-medium self-center">Xem kết quả chi tiết theo lớp này ›</a>
         </div>
     @elseif ($tab === 'members')
+        {{-- ẨN 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — dải chia sẻ mã lớp.
+             ẨN CHỨ KHÔNG XOÁ: bật App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED
+             rồi bỏ dấu chú thích quanh khối này là hiện lại.
         <div class="rounded-3xl bg-sky-50/60 border border-blue-100 p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
             <div>
                 <p class="text-[13px] font-medium text-slate-700">Mã lớp để học sinh tự tham gia</p>
@@ -284,15 +287,142 @@
             </div>
             <span class="text-base font-mono font-semibold px-3 py-1.5 rounded-xl bg-white border border-blue-200 text-blue-600 shrink-0">{{ $classRoom->code }}</span>
         </div>
-        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh</p>
-            <div class="space-y-2 max-h-96 overflow-y-auto">
-                @foreach ($members as $m)
-                    <div class="flex items-center gap-3 py-1.5">
-                        <x-ws.avatar :name="$m->name" size="sm" />
-                        <p class="text-[13px] text-slate-600">{{ $m->name }}</p>
+        --}}
+
+        {{-- ═══════════ YÊU CẦU ĐĂNG KÝ CHỜ DUYỆT ═══════════
+             SỬA 16/9 (khách yêu cầu: "học sinh bấm đăng ký học thì giáo viên duyệt và học sinh
+             được vào học"). Học sinh bấm "Đăng ký học" ở trang Lớp học công khai -> dòng
+             class_enrollments trạng thái 'pending'. Duyệt ở đây là đổi sang 'active' — đúng thứ
+             AccessGateService::canAccessClassRoom() đòi, nên em vào học được NGAY.
+             Xem App\Services\Teacher\ClassRoomService::approveJoinRequest()/rejectJoinRequest(). --}}
+        @php $pendingRequests = $pendingRequests ?? collect(); @endphp
+
+        @if (session('status') === 'join-request-approved')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã duyệt — học sinh vào học được ngay.'])
+        @elseif (session('status') === 'join-request-rejected')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã từ chối yêu cầu và báo cho học sinh.'])
+        @elseif (session('status') === 'member-removed')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ học sinh khỏi lớp và gửi thông báo cho em.'])
+        @endif
+
+        @if ($errors->any())
+            <div class="mb-4 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <x-lucide name="alert-triangle" class="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                <div class="min-w-0 text-[13px] font-semibold leading-relaxed text-rose-800">
+                    @foreach ($errors->all() as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        <div class="mb-4 rounded-3xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-amber-600">
+                        <x-lucide name="user-plus" class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <p class="text-[13px] font-bold text-slate-800">Yêu cầu vào lớp chờ duyệt</p>
+                        <p class="mt-0.5 text-xs text-slate-500">Học sinh bấm "Đăng ký học" ở trang Lớp học — duyệt là các em vào học được ngay.</p>
                     </div>
-                @endforeach
+                </div>
+                <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">{{ $pendingRequests->count() }} yêu cầu</span>
+            </div>
+
+            @if ($pendingRequests->isEmpty())
+                <p class="mt-3 rounded-2xl bg-white/70 px-3.5 py-3 text-[13px] text-slate-500">Hiện chưa có yêu cầu nào chờ duyệt.</p>
+            @else
+                <div class="mt-3 space-y-2">
+                    @foreach ($pendingRequests as $req)
+                        <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white px-3.5 py-3">
+                            <x-ws.avatar :name="$req->student->name ?? 'Học sinh'" size="sm" />
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-[13px] font-bold text-slate-700">{{ $req->student->name ?? 'Học sinh đã bị xoá' }}</p>
+                                <p class="truncate text-xs text-slate-400">
+                                    {{ $req->student->email ?? '' }}
+                                    @if ($req->requested_at)
+                                        · xin vào lúc {{ $req->requested_at->format('H:i d/m/Y') }}
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <form method="POST" action="{{ route('teacher.classes.requests.approve', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700">
+                                        <x-lucide name="check" class="h-3.5 w-3.5" />Duyệt
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('teacher.classes.requests.reject', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}"
+                                      class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)"
+                                           class="w-40 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs">
+                                    <button type="submit"
+                                            class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-50">
+                                        <x-lucide name="x" class="h-3.5 w-3.5" />Từ chối
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+        {{-- ═══════════ DANH SÁCH ĐANG HỌC ═══════════
+             SỬA 16/9 (khách yêu cầu: "duyệt xong rồi nếu giáo viên muốn kick học sinh ra khỏi lớp
+             thì vẫn kick được") — thêm nút gỡ từng em. Gỡ = chuyển dòng ghi danh sang 'left'
+             (KHÔNG xoá dữ liệu, bài làm/điểm danh cũ giữ nguyên), em mất quyền vào lớp ngay và
+             nhận thông báo; muốn học lại thì đăng ký lại ở trang Lớp học.
+             Xem App\Services\Teacher\ClassRoomService::removeStudent(). --}}
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
+            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh đang học</p>
+            <div class="space-y-1.5 max-h-96 overflow-y-auto">
+                @forelse ($members as $m)
+                    <div x-data="{ confirming: false }" class="rounded-2xl px-2 py-1.5 transition-colors"
+                         :class="confirming ? 'bg-rose-50' : ''">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <x-ws.avatar :name="$m->name" size="sm" />
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-[13px] font-medium text-slate-700">{{ $m->name }}</p>
+                                @if ($m->email)
+                                    <p class="truncate text-xs text-slate-400">{{ $m->email }}</p>
+                                @endif
+                            </div>
+                            <button type="button" x-show="! confirming" x-on:click="confirming = true"
+                                    class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                                <x-lucide name="log-out" class="h-3.5 w-3.5" />Gỡ khỏi lớp
+                            </button>
+                        </div>
+
+                        {{-- Bước xác nhận: hiện ngay dưới đúng em đó, kèm ô lý do (không bắt buộc)
+                             để học sinh nhận được thông báo có lý do thay vì mất quyền không hiểu vì sao. --}}
+                        <form x-show="confirming" x-cloak method="POST"
+                              action="{{ route('teacher.classes.members.remove', ['class' => $classRoom->id, 'student' => $m->id]) }}"
+                              {{-- Không nhúng TÊN học sinh vào chuỗi JS này: Blade escape dấu nháy
+                                   thành &#039;, trình duyệt giải mã lại trước khi JS chạy -> tên kiểu
+                                   "Nguyễn D'Anh" sẽ làm vỡ câu lệnh và nút bấm không chạy nữa. --}}
+                              onsubmit="return confirm('Gỡ học sinh này khỏi lớp? Em sẽ không vào lớp được nữa cho tới khi đăng ký lại và được duyệt.');"
+                              class="mt-2 flex flex-wrap items-center gap-2 pl-1">
+                            @csrf
+                            <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)"
+                                   class="min-w-0 flex-1 rounded-xl border border-rose-200 px-2.5 py-1.5 text-xs">
+                            <button type="submit"
+                                    class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700">
+                                <x-lucide name="log-out" class="h-3.5 w-3.5" />Xác nhận gỡ
+                            </button>
+                            <button type="button" x-on:click="confirming = false"
+                                    class="inline-flex min-h-8 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-50">
+                                Huỷ
+                            </button>
+                        </form>
+                    </div>
+                @empty
+                    <p class="rounded-2xl bg-slate-50 px-3.5 py-3 text-[13px] text-slate-500">
+                        Lớp chưa có học sinh nào. Các em đăng ký ở trang Lớp học, duyệt ở khối phía trên là vào lớp.
+                    </p>
+                @endforelse
             </div>
         </div>
     @else

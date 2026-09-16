@@ -23,4 +23,14 @@ interface ClassEnrollmentRepositoryInterface extends BaseRepositoryInterface
      * nếu học sinh từng có dòng 'left' cho đúng lớp này, phải cập nhật lại dòng cũ.
      */
     public function findAnyForUserAndClassRoom(int $userId, int $classRoomId): ?ClassEnrollment;
+
+    /** SỬA 16/9 — yêu cầu đăng ký đang chờ giáo viên duyệt (kèm student + classRoom). */
+    public function pendingForClassRoomIds(array $classRoomIds): Collection;
+
+    /** SỬA 16/9 — [class_room_id => số yêu cầu chờ duyệt]. */
+    public function pendingCountsByClassRoomIds(array $classRoomIds): array;
+
+    /** SỬA 16/9 — các lớp mà học sinh này đang chờ được duyệt. */
+    public function pendingClassRoomIdsForUser(int $userId): array;
+
 }

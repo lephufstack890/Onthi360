@@ -115,7 +115,19 @@
                         @forelse ($studentEnrollments as $e)
                             <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 text-[13px]">
                                 <span class="text-slate-700">{{ $e->classRoom->name ?? '—' }} <span class="text-slate-400">({{ $e->classRoom->course->title ?? '' }})</span></span>
-                                <x-ws.badge :tone="$e->status === 'active' ? 'success' : 'neutral'">{{ $e->status === 'active' ? 'Đang học' : $e->status }}</x-ws.badge>
+                                @php
+                                    // SỬA 16/9 — từ khi có luồng "học sinh xin vào lớp, giáo viên duyệt"
+                                    // (App\Services\Student\ClassRoomService::requestJoin()), cột status
+                                    // còn 2 giá trị mới; trước đây chỗ này in thẳng chuỗi tiếng Anh ra màn.
+                                    [$enrollLabel, $enrollTone] = match ($e->status) {
+                                        'active' => ['Đang học', 'success'],
+                                        'pending' => ['Chờ giáo viên duyệt', 'warning'],
+                                        'rejected' => ['Bị từ chối', 'danger'],
+                                        'left' => ['Đã rời lớp', 'neutral'],
+                                        default => [$e->status, 'neutral'],
+                                    };
+                                @endphp
+                                <x-ws.badge :tone="$enrollTone">{{ $enrollLabel }}</x-ws.badge>
                             </div>
                         @empty
                             <p class="text-[13px] text-slate-400">Chưa tham gia lớp nào.</p>

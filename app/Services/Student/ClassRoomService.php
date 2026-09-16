@@ -3,9 +3,11 @@
 namespace App\Services\Student;
 
 use App\Enums\ReviewTargetType;
+use App\Models\ClassEnrollment;
 use App\Models\ClassRoom;
 use App\Models\ClassSession;
 use App\Models\User;
+use App\Notifications\ClassJoinRequested;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
@@ -29,6 +31,26 @@ class ClassRoomService
      * "không giới hạn" nên dùng một mức trần rộng để giữ đúng hành vi cũ (get() không limit).
      */
     private const REVIEWS_TAB_LIMIT = 500;
+
+    /**
+     * SỬA 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — CÔNG TẮC lối vào lớp
+     * bằng mã giáo viên cung cấp.
+     *
+     * ĐỔI THÀNH true LÀ BẬT LẠI TOÀN BỘ, không phải viết lại gì: joinByCode() bên dưới,
+     * Student\ClassRoomController::join(), và 3 khối giao diện đang bị chú thích lại ở
+     *   · resources/views/student/courses/index.blade.php   (khối "Có mã lớp?")
+     *   · resources/views/access/choose-class.blade.php      (khối "Đã có mã lớp?")
+     *   · resources/views/teacher/classes/show.blade.php     (dải "Mã lớp để học sinh tự tham gia")
+     * Route student.classes.join vẫn ĐƯỢC ĐĂNG KÝ để route() ở chỗ khác không ném lỗi; chỉ là
+     * gọi vào thì 404.
+     *
+     * Lối vào lớp bây giờ: học sinh bấm "Đăng ký học" ở trang lớp công khai -> requestJoin()
+     * tạo dòng chờ duyệt -> giáo viên duyệt ở tab Thành viên -> vào học.
+     */
+    public const JOIN_BY_CODE_ENABLED = false;
+
+    /** Số buổi tối đa hiện trong băng hoạt động ở tab Tổng quan (SỬA 16/9). */
+    private const ACTIVITY_FEED_LIMIT = 12;
 
     /** Nhãn điểm danh hiển thị cho học sinh (Enums\AttendanceStatus) — khớp nhãn dùng ở teacher.schedule.attendance. */
     private const ATTENDANCE_LABELS = [
@@ -101,6 +123,12 @@ class ClassRoomService
 
         $nextSession = $this->classSessions->nextUpcomingForClassRoom($classRoom->id);
 
+        // SỬA 16/9 — nextUpcomingForClassRoom() lọc starts_at >= now nên buổi ĐANG DIỄN RA bị
+        // rớt, khiến thẻ "Vào lớp trực tuyến" không thấy phòng học của chính buổi đang chạy.
+        // Lấy thêm buổi đang-chạy-hoặc-sắp-tới cho trang này, KHÔNG đụng vào $nextSession (nơi
+        // khác vẫn đang hiểu nó đúng nghĩa "buổi sắp tới").
+        $currentSession = $this->classSessions->currentOrNextForClassRoom($classRoom->id);
+
         $enrollment = $this->classEnrollments->findActiveForUserAndClassRoom($user->id, $classRoom->id);
 
         $sessionProgress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
@@ -115,6 +143,15 @@ class ClassRoomService
         $roadmap = [];
         if ($tab === 'roadmap' || $tab === 'overview') {
             $roadmap = $this->buildRoadmap($classRoom, $user);
+        }
+
+        // SỬA 16/9 — tab Tổng quan trước đây CHỈ đổ $roadmap (bảng assignments: bài tập giao cho
+        // lớp). Lớp nào giáo viên chỉ dùng HOẠT ĐỘNG BUỔI HỌC (session_activities đã bấm phát) mà
+        // chưa giao assignment nào thì tab này rỗng trơn dù ngoài lịch học đã thấy hoạt động —
+        // đúng lỗi khách báo. Nạp thêm băng hoạt động thật cho tab Tổng quan.
+        $activityFeed = ['items' => [], 'initialIndex' => 0];
+        if ($tab === 'overview') {
+            $activityFeed = $this->buildActivityFeed($classRoom);
         }
 
         // Học liệu lớp (SỬA 31/8, khách yêu cầu — "xem học liệu NGAY TRONG LỚP, tách khỏi
@@ -170,9 +207,11 @@ class ClassRoomService
             'tabsData' => $tabsData,
             'mainTeacher' => $mainTeacher,
             'nextSession' => $nextSession,
+            'currentSession' => $currentSession,
             'overallPercent' => $overallPercent,
             'ratingSummary' => $ratingSummary,
             'roadmap' => $roadmap,
+            'activityFeed' => $activityFeed,
             'materials' => $materials,
             'weekOffset' => $scheduleWeek['weekOffset'],
             'weekStart' => $scheduleWeek['weekStart'],
@@ -416,6 +455,112 @@ class ClassRoomService
         return [['chapter' => 'Bài tập của lớp', 'items' => $items]];
     }
 
+    /**
+     * SỬA 16/9 — BĂNG HOẠT ĐỘNG cho tab Tổng quan (khách báo: "có hoạt động rồi mà nó vẫn không
+     * hiện"). Trước đây tab Tổng quan chỉ đọc bảng assignments; hoạt động buổi học nằm ở
+     * session_activities và CHỈ được dựng trong tab Lịch học, nên lớp dạy bằng hoạt động thì tab
+     * Tổng quan rỗng.
+     *
+     * Luật hiển thị GIỮ NGUYÊN của tính năng Hoạt động: chỉ hoạt động ĐÃ BẤM PHÁT
+     * (SessionActivity::scopePublished()) mới lọt ra học sinh — cả ở whereHas lẫn lúc nạp quan hệ.
+     * Nút "Làm bài" cũng theo đúng luật cũ: chỉ có với tài nguyên là ĐỀ và đề ĐÃ PHÁT HÀNH.
+     *
+     * Trả về theo thứ tự thời gian tăng dần + vị trí nên mở sẵn (buổi đang diễn ra; không có thì
+     * buổi sắp tới gần nhất; không có nữa thì buổi gần đây nhất).
+     */
+    private function buildActivityFeed(ClassRoom $classRoom): array
+    {
+        $sessions = $this->classSessions->query()
+            ->where('class_room_id', $classRoom->id)
+            ->whereHas('activities', fn ($q) => $q->published())
+            ->with([
+                'activities' => fn ($q) => $q->published()->orderBy('position'),
+                'activities.resources.material',
+                'activities.resources.question',
+                'activities.resources.assessment',
+            ])
+            ->orderBy('starts_at')
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return ['items' => [], 'initialIndex' => 0];
+        }
+
+        $now = now();
+
+        $items = $sessions->map(function (ClassSession $session) use ($now) {
+            [$statusLabel, $statusTone] = $this->timeStatus($session);
+
+            // Tiến độ buổi học: đã kết thúc = 100%, chưa bắt đầu = 0%, đang chạy = phần thời gian
+            // đã trôi qua. Bản mẫu in cứng 65% — đây là số tính từ giờ học thật.
+            $percent = 0;
+            if ($session->ends_at !== null && $now->gt($session->ends_at)) {
+                $percent = 100;
+            } elseif ($session->starts_at !== null && $session->ends_at !== null && $now->gte($session->starts_at)) {
+                $total = $session->starts_at->diffInSeconds($session->ends_at);
+                $percent = $total > 0
+                    ? (int) round(min(100, max(0, $session->starts_at->diffInSeconds($now) / $total * 100)))
+                    : 0;
+            }
+
+            $activities = $session->activities;
+
+            $resources = $activities->flatMap(fn ($activity) => $activity->resources->map(fn ($r) => [
+                'type' => $r->type->value,
+                'typeLabel' => $r->type->label(),
+                'title' => $r->displayTitle(),
+                'activityTitle' => $activity->title,
+                // Cùng luật với mapScheduleSession(): chỉ mở được khi là đề VÀ đề đã phát hành.
+                'assessmentId' => $r->assessment_id !== null
+                    && $r->assessment !== null
+                    && $r->assessment->status === \App\Enums\ContentStatus::Published
+                        ? $r->assessment_id
+                        : null,
+                // Video/Link do giáo viên nhập tay có sẵn địa chỉ -> mở thẳng.
+                'url' => in_array($r->type, [\App\Enums\SessionResourceType::Video, \App\Enums\SessionResourceType::Link], true)
+                    ? $r->url
+                    : null,
+            ]))->values()->all();
+
+            return [
+                'sessionId' => $session->id,
+                'title' => $session->topic ?: 'Buổi học',
+                'dateLabel' => $session->starts_at?->format('d/m/Y') ?? '',
+                'timeLabel' => $this->timeRangeLabel($session),
+                'statusLabel' => $statusLabel,
+                'statusTone' => $statusTone,
+                'percent' => $percent,
+                'isToday' => $session->starts_at?->isToday() ?? false,
+                'location' => $session->location,
+                'activityCount' => $activities->count(),
+                'openedBy' => $activities->count() === 1
+                    ? 'Giáo viên đã mở: '.$activities->first()->title
+                    : 'Giáo viên đã mở '.$activities->count().' hoạt động',
+                'note' => $activities->pluck('note')->filter()->implode(' · '),
+                'resources' => $resources,
+            ];
+        })->values()->all();
+
+        // Vị trí mở sẵn: buổi đầu tiên CHƯA kết thúc (đang chạy hoặc sắp tới); hết rồi thì buổi cuối.
+        $initialIndex = count($items) - 1;
+        foreach ($sessions->values() as $i => $session) {
+            if ($session->ends_at === null || $now->lte($session->ends_at)) {
+                $initialIndex = $i;
+                break;
+            }
+        }
+
+        // Lớp dạy lâu có thể có rất nhiều buổi — cắt một cửa sổ quanh vị trí mở sẵn để trang không
+        // phình ra hàng trăm chấm điều hướng.
+        if (count($items) > self::ACTIVITY_FEED_LIMIT) {
+            $start = max(0, min($initialIndex - (int) (self::ACTIVITY_FEED_LIMIT / 2), count($items) - self::ACTIVITY_FEED_LIMIT));
+            $items = array_slice($items, $start, self::ACTIVITY_FEED_LIMIT);
+            $initialIndex -= $start;
+        }
+
+        return ['items' => $items, 'initialIndex' => $initialIndex];
+    }
+
     /** Xem giải thích đầy đủ ở App\Services\Teacher\ClassRoomService::completionPercent(). */
     private function completionPercent(int $endedSessions, int $totalSessions): int
     {
@@ -438,6 +583,10 @@ class ClassRoomService
      */
     public function joinByCode(User $user, string $code): ClassRoom
     {
+        // SỬA 16/9 — xem self::JOIN_BY_CODE_ENABLED. Chặn ở ĐÂY chứ không chỉ giấu nút: giấu nút
+        // thôi thì ai biết địa chỉ vẫn POST thẳng vào được.
+        abort_unless(self::JOIN_BY_CODE_ENABLED, 404);
+
         $classRoom = $this->classRooms->query()
             ->where('code', $code)
             ->where('status', 'active')
@@ -468,6 +617,73 @@ class ClassRoomService
                 'status' => 'active',
                 'enrolled_at' => now(),
             ]);
+        }
+
+        return $classRoom;
+    }
+
+
+    /**
+     * SỬA 16/9 (khách yêu cầu) — HỌC SINH XIN VÀO LỚP từ trang lớp học công khai.
+     *
+     * Luồng mới thay cho mã lớp: bấm "Đăng ký học" -> tạo dòng class_enrollments trạng thái
+     * 'pending' -> giáo viên của lớp duyệt (Teacher\ClassRoomService::approveJoinRequest()) ->
+     * status thành 'active' -> vào học được.
+     *
+     * KHÔNG tự cho vào lớp ở bước này. AccessGateService::canAccessClassRoom() chỉ chấp nhận
+     * 'active', nên trong lúc chờ duyệt học sinh gõ thẳng địa chỉ lớp vẫn bị chặn — đúng ý
+     * "giáo viên duyệt thì mới được vào học".
+     *
+     * @throws ValidationException khi lớp đã đóng, đang chờ duyệt, hoặc đã ở trong lớp.
+     */
+    public function requestJoin(User $user, int $classRoomId): ClassRoom
+    {
+        $classRoom = $this->classRooms->query()
+            ->where('id', $classRoomId)
+            ->where('status', 'active')
+            ->first();
+
+        if ($classRoom === null) {
+            throw ValidationException::withMessages(['class_room_id' => 'Lớp không còn mở hoặc không tồn tại.']);
+        }
+
+        $existing = $this->classEnrollments->findAnyForUserAndClassRoom($user->id, $classRoom->id);
+
+        if ($existing !== null && $existing->status === ClassEnrollment::STATUS_ACTIVE) {
+            throw ValidationException::withMessages(['class_room_id' => 'Bạn đang học lớp này rồi.']);
+        }
+
+        if ($existing !== null && $existing->status === ClassEnrollment::STATUS_PENDING) {
+            throw ValidationException::withMessages(['class_room_id' => 'Yêu cầu của bạn đang chờ giáo viên duyệt.']);
+        }
+
+        // Dấu vết duyệt chỉ ghi khi máy chủ đã chạy migration — chưa chạy thì luồng vẫn chạy
+        // bằng riêng cột status (xem ClassEnrollment::supportsApprovalFields()).
+        $traces = ClassEnrollment::supportsApprovalFields()
+            ? ['requested_at' => now(), 'approved_at' => null, 'approved_by' => null, 'reject_reason' => null]
+            : [];
+
+        if ($existing !== null) {
+            // Từng rời lớp / từng bị từ chối rồi xin lại: unique(class_room_id, student_id) không
+            // cho tạo dòng mới nên phải ghi đè đúng dòng cũ — cùng cách joinByCode() vẫn làm.
+            $this->classEnrollments->update($existing, array_merge([
+                'status' => ClassEnrollment::STATUS_PENDING,
+                'left_at' => null,
+            ], $traces));
+        } else {
+            $this->classEnrollments->create(array_merge([
+                'class_room_id' => $classRoom->id,
+                'student_id' => $user->id,
+                'status' => ClassEnrollment::STATUS_PENDING,
+                // enrolled_at có default useCurrent() ở lược đồ; mốc VÀO LỚP thật sẽ được ghi đè
+                // lúc giáo viên duyệt, xem Teacher\ClassRoomService::approveJoinRequest().
+                'enrolled_at' => now(),
+            ], $traces));
+        }
+
+        // Báo mọi giáo viên của lớp — không có bước này thì yêu cầu nằm im, không ai biết.
+        foreach ($classRoom->teachers as $teacher) {
+            $teacher->notify(new ClassJoinRequested($classRoom, $user));
         }
 
         return $classRoom;

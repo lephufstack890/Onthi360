@@ -21,8 +21,20 @@
         $courseTitle = $classRoom->course->title ?? '';
         $className = $classRoom->name ?? '';
         $teacherLabel = isset($mainTeacher) && $mainTeacher ? 'GV '.$mainTeacher->name : 'Chưa phân công giáo viên';
-        $nextSessionLabel = isset($nextSession) && $nextSession
-            ? 'Buổi tới: '.$nextSession->starts_at->format('d/m H:i')
+        // SỬA 16/9 (lỗi khách báo) — $nextSession chỉ là buổi SẮP TỚI (starts_at >= now) nên
+        // buổi ĐANG DIỄN RA không lọt vào, trang hiện "Chưa có buổi học sắp tới" và thẻ vào lớp
+        // trực tuyến không thấy phòng học. $currentSession (mới) là buổi đang chạy, không có thì
+        // là buổi sắp tới — xem ClassSessionRepository::currentOrNextForClassRoom().
+        $currentSession = $currentSession ?? null;
+        $liveSession = $currentSession ?: ($nextSession ?? null);
+        $liveIsRunning = $liveSession
+            && $liveSession->starts_at !== null
+            && $liveSession->ends_at !== null
+            && now()->gte($liveSession->starts_at) && now()->lte($liveSession->ends_at);
+        $nextSessionLabel = $liveSession && $liveSession->starts_at !== null
+            ? ($liveIsRunning
+                ? 'Đang diễn ra: '.$liveSession->starts_at->format('d/m H:i')
+                : 'Buổi tới: '.$liveSession->starts_at->format('d/m H:i'))
             : 'Chưa có buổi học sắp tới';
         $ratingAverage = $ratingSummary->avg_rating ?? 0;
         $ratingCount = $ratingSummary->review_count ?? 0;
@@ -103,13 +115,39 @@
             default => 'border-amber-200 bg-amber-50 text-amber-700',
         };
 
+        // SỬA 16/9 (lỗi khách báo: "có hoạt động rồi mà nó vẫn không hiện") — băng HOẠT ĐỘNG
+        // BUỔI HỌC thật (session_activities đã bấm phát), nguồn đúng với thứ khách nhìn thấy ở
+        // tab Lịch học. Xem ClassRoomService::buildActivityFeed().
+        $activityFeed = $activityFeed ?? ['items' => [], 'initialIndex' => 0];
+        $feedItems = collect($activityFeed['items'] ?? []);
+        $feedInitial = (int) ($activityFeed['initialIndex'] ?? 0);
+
+        // toneClasses() của bản mẫu áp cho trạng thái THỜI GIAN của buổi học:
+        //   đang diễn ra (warning) -> live/xanh lá · đã kết thúc (neutral) -> done/xanh biển
+        //   sắp diễn ra (info)     -> upcoming/hổ phách
+        $sessionChipTone = fn ($tone) => match ($tone) {
+            'warning' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            'neutral' => 'border-sky-200 bg-sky-50 text-[#126F91]',
+            default => 'border-amber-200 bg-amber-50 text-amber-700',
+        };
+
+        // Icon theo loại tài nguyên buổi học (App\Enums\SessionResourceType).
+        $resourceIcons = [
+            'material' => 'book-open',
+            'question' => 'circle-help',
+            'assessment' => 'file-check-2',
+            'video' => 'video',
+            'link' => 'external-link',
+            'note' => 'sticky-note',
+        ];
+
         // Bản mẫu có nút "Mở Meet lớp học" trỏ vào link cứng. Hệ thống KHÔNG có cột link phòng
         // học riêng, nhưng class_sessions.location vốn được định nghĩa là "phòng học HOẶC link
         // online" — nên buổi học kế tiếp có link http thì đó chính là phòng trực tuyến thật.
-        $meetUrl = ($nextSession && filled($nextSession->location) && \Illuminate\Support\Str::startsWith($nextSession->location, ['http://', 'https://']))
-            ? $nextSession->location
+        $meetUrl = ($liveSession && filled($liveSession->location) && \Illuminate\Support\Str::startsWith($liveSession->location, ['http://', 'https://']))
+            ? $liveSession->location
             : null;
-        $meetRoomNote = ($nextSession && filled($nextSession->location) && $meetUrl === null) ? $nextSession->location : null;
+        $meetRoomNote = ($liveSession && filled($liveSession->location) && $meetUrl === null) ? $liveSession->location : null;
     @endphp
 
     {{-- ═══════════ THẺ ĐẦU TRANG (header của bản mẫu) ═══════════ --}}
@@ -605,95 +643,75 @@
             </div>
         </div>
     @else
-        {{-- ═══════════ TỔNG QUAN — "Hoạt động học tập" + "Bài tập & tài nguyên" của bản mẫu ═══════════
-             Bản mẫu có 4 hoạt động viết cứng, mỗi hoạt động kèm danh sách mục con. Nguồn thật
-             tương đương ở tab này là $roadmap — bài tập của lớp do giáo viên giao
-             (ClassRoomService::buildRoadmap(), đã có sẵn từ trước, KHÔNG sửa). Mỗi bài tập là
-             một "hoạt động" trong băng chuyền; khối dưới in đúng mục con của bài tập đang chọn.
+        {{-- ═══════════ TỔNG QUAN ═══════════
+             Khối "Hoạt động học tập" + "Bài tập & tài nguyên" của bản mẫu.
+
+             SỬA 16/9 (lỗi khách báo: "có hoạt động rồi mà nó vẫn không hiện") — bản dựng đầu chỉ
+             đổ $roadmap (bảng assignments: bài tập GIAO cho lớp). Lớp nào giáo viên dạy bằng
+             HOẠT ĐỘNG BUỔI HỌC (đã bấm phát) mà chưa giao assignment nào thì tab này trống trơn
+             dù tab Lịch học đã thấy hoạt động. Giờ tab Tổng quan đổ ĐÚNG hoạt động buổi học
+             ($activityFeed), và bài tập giao cho lớp ($roadmap) nằm ở khối riêng bên dưới —
+             hai nguồn dữ liệu khác nhau, không cái nào bị mất.
+
              Băng chuyền chỉ là trạng thái hiển thị phía trình duyệt (Alpine), không gọi mạng,
-             không đổi route — bấm sang trái/phải không mất dữ liệu nào. --}}
-        @if ($roadmapItems->isEmpty())
-            <section class="rounded-2xl border border-sky-100 bg-white p-6 shadow-[0_3px_14px_rgba(31,103,138,0.04)]">
-                <x-ws.empty-state title="Lớp chưa có bài tập nào" description="Giáo viên chưa giao bài tập cho lớp này. Khi có bài mới, hoạt động sẽ hiện ngay ở đây." />
-            </section>
-        @else
-            <div x-data="{ i: 0, n: {{ $roadmapItems->count() }} }" class="space-y-3">
+             không đổi route. --}}
+        @if ($feedItems->isNotEmpty())
+            <div x-data="{ i: {{ $feedInitial }}, n: {{ $feedItems->count() }} }" class="space-y-3">
                 <section class="rounded-2xl border border-sky-100 bg-white p-3.5 shadow-[0_3px_14px_rgba(31,103,138,0.04)]">
                     <div class="mb-3 flex items-center justify-between gap-2">
                         <div>
                             <h3 class="text-[16px] font-black text-[#123B68]">Hoạt động học tập</h3>
-                            <p class="mt-0.5 text-[13px] text-[#71869A]">Chọn một hoạt động để xem bài tập và tài nguyên.</p>
+                            <p class="mt-0.5 text-[13px] text-[#71869A]">Chọn một buổi để xem bài tập và tài nguyên thầy cô đã mở.</p>
                         </div>
-                        <span class="shrink-0 rounded-full bg-[#F4F9FC] px-2.5 py-1 text-[12px] font-extrabold text-[#536D86]"><span x-text="i + 1">1</span>/{{ $roadmapItems->count() }}</span>
+                        <span class="shrink-0 rounded-full bg-[#F4F9FC] px-2.5 py-1 text-[12px] font-extrabold text-[#536D86]"><span x-text="i + 1">1</span>/{{ $feedItems->count() }}</span>
                     </div>
 
                     <div class="relative overflow-hidden rounded-2xl border border-[#C9DFE8] bg-gradient-to-r from-[#F0F8FA] via-white to-[#FFFBF1] p-3.5">
-                        @foreach ($roadmapItems as $idx => $item)
-                            @php
-                                $done = $item['status'] === 'Đã làm';
-                                $locked = $item['status'] === 'Giáo viên chưa mở';
-                                $openedBy = match ($item['status']) {
-                                    'Giáo viên chưa mở' => 'Giáo viên chưa mở hoạt động',
-                                    'Đã làm' => 'Đã làm · có thể xem lại',
-                                    'Đã mở' => 'Giáo viên đã mở bài tập',
-                                    default => 'Đã hết hạn làm bài',
-                                };
-                                $typeLabel = match ($item['type']) {
-                                    'coding' => 'Bài lập trình',
-                                    'quiz' => 'Bài trắc nghiệm',
-                                    'exam' => 'Đề thi',
-                                    default => $item['type'] ?: 'Bài tập',
-                                };
-                                $itemPercent = $done ? 100 : 0;
-                            @endphp
-                            <div x-show="i === {{ $idx }}" @if ($idx > 0) x-cloak @endif>
+                        @foreach ($feedItems as $idx => $feed)
+                            <div x-show="i === {{ $idx }}" @if ($idx !== $feedInitial) x-cloak @endif>
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
-                                        <span class="inline-flex rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-[#126F91]">{{ $openedBy }}</span>
-                                        <h4 class="mt-2 text-[18px] font-black leading-6 text-[#123B68]">{{ $item['title'] }}</h4>
+                                        <span class="inline-flex rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-[#126F91]">{{ $feed['openedBy'] }}</span>
+                                        <h4 class="mt-2 text-[18px] font-black leading-6 text-[#123B68]">{{ $feed['title'] }}</h4>
                                         <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-bold text-[#536D86]">
-                                            <span>{{ $typeLabel }}</span>
+                                            <span>{{ $feed['dateLabel'] }}</span>
                                             <span class="text-[#9DB2C0]">·</span>
-                                            <span>{{ $done ? 'Điểm: '.$item['result'] : 'Chưa làm' }}</span>
+                                            <span>{{ $feed['timeLabel'] }}</span>
+                                            @if ($feed['isToday'])
+                                                <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-600">Hôm nay</span>
+                                            @endif
                                         </p>
                                     </div>
-                                    <span class="shrink-0 rounded-full border px-2.5 py-1 text-[12px] font-extrabold {{ $chipTone($item['tone']) }}">{{ $item['status'] }}</span>
+                                    <span class="shrink-0 rounded-full border px-2.5 py-1 text-[12px] font-extrabold {{ $sessionChipTone($feed['statusTone']) }}">{{ $feed['statusLabel'] }}</span>
                                 </div>
 
-                                @if (! empty($item['shiftLabel']))
-                                    {{-- Chia ca thi chống nghẽn — thông tin THẬT bản cũ đã hiện, giữ nguyên. --}}
-                                    <p class="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-amber-700">
-                                        <x-lucide name="clock" class="h-3.5 w-3.5 shrink-0" />{{ $item['shiftLabel'] }} (chia ca thi chống nghẽn)
-                                    </p>
-                                @endif
-
                                 <p class="mt-3 max-w-2xl text-[14px] leading-5 text-[#536D86]">
-                                    {{ $locked ? 'Giáo viên chưa mở nội dung này. Khi mở, em sẽ làm được ngay tại đây.' : ($done ? 'Em đã hoàn thành bài này — có thể mở lại để xem lời giải và rút kinh nghiệm.' : 'Bài đang mở — em có thể vào làm ngay bây giờ.') }}
+                                    {{ $feed['note'] ?: ($feed['activityCount'].' hoạt động · '.count($feed['resources']).' tài nguyên đã mở cho em.') }}
                                 </p>
 
                                 <div class="mt-4 flex items-center gap-3">
                                     <div class="h-2 flex-1 overflow-hidden rounded-full bg-white/80">
-                                        <div class="h-full rounded-full bg-[#2D7FA3]" style="width: {{ $itemPercent }}%"></div>
+                                        <div class="h-full rounded-full bg-[#2D7FA3]" style="width: {{ $feed['percent'] }}%"></div>
                                     </div>
-                                    <span class="text-[13px] font-black text-[#126F91]">{{ $itemPercent }}%</span>
+                                    <span class="text-[13px] font-black text-[#126F91]">{{ $feed['percent'] }}%</span>
                                 </div>
                             </div>
                         @endforeach
 
                         <div class="mt-4 flex items-center justify-between gap-3">
-                            <button type="button" x-on:click="i = (i + n - 1) % n" aria-label="Hoạt động trước"
-                                    class="grid h-9 w-9 place-items-center rounded-xl border border-white/80 bg-white/80 text-[#126F91] shadow-sm transition hover:bg-white">
+                            <button type="button" x-on:click="i = (i + n - 1) % n" aria-label="Buổi trước"
+                                    class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/80 bg-white/80 text-[#126F91] shadow-sm transition hover:bg-white">
                                 <x-lucide name="chevron-left" class="h-5 w-5" />
                             </button>
                             <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                @foreach ($roadmapItems as $idx => $item)
-                                    <button type="button" x-on:click="i = {{ $idx }}" aria-label="Chọn hoạt động {{ $idx + 1 }}"
+                                @foreach ($feedItems as $idx => $feed)
+                                    <button type="button" x-on:click="i = {{ $idx }}" aria-label="Chọn buổi {{ $idx + 1 }}"
                                             class="h-2 rounded-full transition-all"
                                             :class="i === {{ $idx }} ? 'w-6 bg-[#126F91]' : 'w-2 bg-[#B9D8E1]'"></button>
                                 @endforeach
                             </div>
-                            <button type="button" x-on:click="i = (i + 1) % n" aria-label="Hoạt động sau"
-                                    class="grid h-9 w-9 place-items-center rounded-xl border border-white/80 bg-white/80 text-[#126F91] shadow-sm transition hover:bg-white">
+                            <button type="button" x-on:click="i = (i + 1) % n" aria-label="Buổi sau"
+                                    class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/80 bg-white/80 text-[#126F91] shadow-sm transition hover:bg-white">
                                 <x-lucide name="chevron-right" class="h-5 w-5" />
                             </button>
                         </div>
@@ -701,16 +719,80 @@
                 </section>
 
                 <section class="rounded-2xl border border-sky-100 bg-white p-3.5 shadow-[0_3px_14px_rgba(31,103,138,0.04)]">
-                    @foreach ($roadmapItems as $idx => $item)
+                    @foreach ($feedItems as $idx => $feed)
+                        <div x-show="i === {{ $idx }}" @if ($idx !== $feedInitial) x-cloak @endif>
+                            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                                <div class="min-w-0">
+                                    <p class="text-[12px] font-black text-[#2D7FA3]">{{ $feed['openedBy'] }}</p>
+                                    <h3 class="mt-1 text-[18px] font-black text-[#123B68]">{{ $feed['title'] }}</h3>
+                                </div>
+                                <span class="rounded-full border px-2.5 py-1 text-[12px] font-extrabold {{ $sessionChipTone($feed['statusTone']) }}">{{ $feed['statusLabel'] }}</span>
+                            </div>
+
+                            <div class="mt-4 flex items-center justify-between">
+                                <h4 class="text-[15px] font-black text-[#123B68]">Bài tập &amp; tài nguyên</h4>
+                                <span class="text-[12px] font-bold text-[#71869A]">{{ count($feed['resources']) }} mục</span>
+                            </div>
+
+                            @if (count($feed['resources']) === 0)
+                                <p class="mt-2.5 rounded-2xl bg-[#F4F9FC] px-3.5 py-3 text-[13px] font-semibold text-[#71869A]">
+                                    Hoạt động này chưa gắn tài nguyên nào.
+                                </p>
+                            @else
+                                <div class="mt-2.5 overflow-hidden rounded-2xl border border-[#E2EDF2]">
+                                    @foreach ($feed['resources'] as $resIndex => $res)
+                                        <div class="flex items-center gap-3 px-3.5 py-3 {{ $resIndex > 0 ? 'border-t border-[#E2EDF2]' : '' }}">
+                                            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EAF5F8] text-[#2D7FA3]">
+                                                <x-lucide :name="$resourceIcons[$res['type']] ?? 'file-text'" class="h-4 w-4" />
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate text-[14px] font-extrabold text-[#123B68]" title="{{ $res['title'] }}">{{ $res['title'] }}</p>
+                                                <p class="mt-0.5 truncate text-[13px] text-[#71869A]">{{ $res['typeLabel'] }} · {{ $res['activityTitle'] }}</p>
+                                            </div>
+                                            @if (! empty($res['assessmentId']))
+                                                {{-- Giữ NGUYÊN đường đi cũ của nút "Làm bài" ở tab Lịch học. --}}
+                                                <a href="{{ route('student.assessment.take', $res['assessmentId']) }}"
+                                                   class="inline-flex shrink-0 items-center gap-1 rounded-xl bg-blue-600 px-3 py-2 text-[12px] font-extrabold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700">
+                                                    Làm bài<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                                                </a>
+                                            @elseif (! empty($res['url']))
+                                                <a href="{{ $res['url'] }}" target="_blank" rel="noopener noreferrer"
+                                                   class="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#EAF5F8] px-3 py-2 text-[12px] font-extrabold text-[#126F91] transition hover:bg-[#D9EEF3]">
+                                                    Mở<x-lucide name="external-link" class="h-3.5 w-3.5" />
+                                                </a>
+                                            @elseif ($res['type'] === 'assessment')
+                                                <span class="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[12px] font-extrabold text-slate-400">
+                                                    Chưa mở<x-lucide name="lock" class="h-3.5 w-3.5" />
+                                                </span>
+                                            @else
+                                                <span class="inline-flex shrink-0 items-center rounded-xl bg-[#F4F9FC] px-3 py-2 text-[12px] font-bold text-[#71869A]">Xem tại lớp</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </section>
+            </div>
+        @endif
+
+        {{-- ═══════════ BÀI TẬP CỦA LỚP ═══════════
+             Nguồn khác với băng hoạt động ở trên: đây là bảng assignments (bài tập GIAO cho lớp,
+             có hạn nộp/chia ca), dựng bởi ClassRoomService::buildRoadmap() — giữ nguyên logic cũ,
+             chỉ đổi cách trình bày sang kiểu hàng mục của bản mẫu. --}}
+        @if ($roadmapItems->isNotEmpty())
+            <section class="rounded-2xl border border-sky-100 bg-white p-3.5 shadow-[0_3px_14px_rgba(31,103,138,0.04)]">
+                <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-[16px] font-black text-[#123B68]">Bài tập của lớp</h3>
+                    <span class="text-[12px] font-bold text-[#71869A]">{{ $roadmapItems->count() }} bài</span>
+                </div>
+
+                <div class="mt-2.5 overflow-hidden rounded-2xl border border-[#E2EDF2]">
+                    @foreach ($roadmapItems as $rIndex => $item)
                         @php
                             $done = $item['status'] === 'Đã làm';
                             $locked = $item['status'] === 'Giáo viên chưa mở';
-                            $openedBy = match ($item['status']) {
-                                'Giáo viên chưa mở' => 'Giáo viên chưa mở hoạt động',
-                                'Đã làm' => 'Đã làm · có thể xem lại',
-                                'Đã mở' => 'Giáo viên đã mở bài tập',
-                                default => 'Đã hết hạn làm bài',
-                            };
                             $typeLabel = match ($item['type']) {
                                 'coding' => 'Bài lập trình',
                                 'quiz' => 'Bài trắc nghiệm',
@@ -718,46 +800,42 @@
                                 default => $item['type'] ?: 'Bài tập',
                             };
                         @endphp
-                        <div x-show="i === {{ $idx }}" @if ($idx > 0) x-cloak @endif>
-                            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
-                                <div class="min-w-0">
-                                    <p class="text-[12px] font-black text-[#2D7FA3]">{{ $openedBy }}</p>
-                                    <h3 class="mt-1 text-[18px] font-black text-[#123B68]">{{ $item['title'] }}</h3>
-                                </div>
-                                <span class="rounded-full border px-2.5 py-1 text-[12px] font-extrabold {{ $chipTone($item['tone']) }}">{{ $item['status'] }}</span>
+                        <div class="flex flex-wrap items-center gap-3 px-3.5 py-3 {{ $rIndex > 0 ? 'border-t border-[#E2EDF2]' : '' }}">
+                            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EAF5F8] text-[#2D7FA3]">
+                                <x-lucide :name="$item['type'] === 'coding' ? 'code-2' : 'file-text'" class="h-4 w-4" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-[14px] font-extrabold text-[#123B68]" title="{{ $item['title'] }}">{{ $item['title'] }}</p>
+                                <p class="mt-0.5 truncate text-[13px] text-[#71869A]">{{ $typeLabel }} · {{ $done ? 'Điểm: '.$item['result'] : 'Chưa làm' }}</p>
+                                @if (! empty($item['shiftLabel']))
+                                    <p class="mt-0.5 flex items-center gap-1.5 text-[12px] font-bold text-amber-700">
+                                        <x-lucide name="clock" class="h-3.5 w-3.5 shrink-0" />{{ $item['shiftLabel'] }} (chia ca thi chống nghẽn)
+                                    </p>
+                                @endif
                             </div>
-
-                            <div class="mt-4 flex items-center justify-between">
-                                <h4 class="text-[15px] font-black text-[#123B68]">Bài tập &amp; tài nguyên</h4>
-                                <span class="text-[12px] font-bold text-[#71869A]">1 mục</span>
-                            </div>
-
-                            <div class="mt-2.5 overflow-hidden rounded-2xl border border-[#E2EDF2]">
-                                <div class="flex items-center gap-3 px-3.5 py-3">
-                                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EAF5F8] text-[#2D7FA3]">
-                                        <x-lucide :name="$item['type'] === 'coding' ? 'code-2' : 'file-text'" class="h-4 w-4" />
-                                    </span>
-                                    <div class="min-w-0 flex-1">
-                                        <p class="truncate text-[14px] font-extrabold text-[#123B68]">{{ $item['title'] }}</p>
-                                        <p class="mt-0.5 truncate text-[13px] text-[#71869A]">{{ $typeLabel }} · {{ $done ? 'Điểm: '.$item['result'] : 'Chưa làm' }}</p>
-                                    </div>
-                                    @if ($locked)
-                                        <span class="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[12px] font-extrabold text-slate-400">
-                                            Chưa mở<x-lucide name="lock" class="h-3.5 w-3.5" />
-                                        </span>
-                                    @else
-                                        {{-- Giữ NGUYÊN đích đến cũ: khu Luyện tập (student.practice.index). --}}
-                                        <a href="{{ route('student.practice.index') }}"
-                                           class="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#EAF5F8] px-3 py-2 text-[12px] font-extrabold text-[#126F91] transition hover:bg-[#D9EEF3]">
-                                            {{ $done ? 'Xem lại' : 'Làm bài' }}<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
+                            <span class="shrink-0 rounded-full border px-2.5 py-1 text-[12px] font-extrabold {{ $chipTone($item['tone']) }}">{{ $item['status'] }}</span>
+                            @if ($locked)
+                                <span class="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[12px] font-extrabold text-slate-400">
+                                    Chưa mở<x-lucide name="lock" class="h-3.5 w-3.5" />
+                                </span>
+                            @else
+                                {{-- Giữ NGUYÊN đích đến cũ: khu Luyện tập (student.practice.index). --}}
+                                <a href="{{ route('student.practice.index') }}"
+                                   class="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#EAF5F8] px-3 py-2 text-[12px] font-extrabold text-[#126F91] transition hover:bg-[#D9EEF3]">
+                                    {{ $done ? 'Xem lại' : 'Làm bài' }}<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                                </a>
+                            @endif
                         </div>
                     @endforeach
-                </section>
-            </div>
+                </div>
+            </section>
+        @endif
+
+        @if ($feedItems->isEmpty() && $roadmapItems->isEmpty())
+            <section class="rounded-2xl border border-sky-100 bg-white p-6 shadow-[0_3px_14px_rgba(31,103,138,0.04)]">
+                <x-ws.empty-state title="Lớp chưa có hoạt động hay bài tập nào"
+                                  description="Khi thầy cô bấm phát hoạt động của buổi học hoặc giao bài tập cho lớp, nội dung sẽ hiện ngay ở đây." />
+            </section>
         @endif
         @endif
         </section>
@@ -777,7 +855,7 @@
                              đã được định nghĩa là "phòng học hoặc link online"). --}}
                         <a href="{{ $meetUrl }}" target="_blank" rel="noopener noreferrer"
                            class="mt-3 flex items-center justify-between rounded-xl bg-[#126F91] px-3.5 py-2.5 text-[13px] font-black text-white transition hover:bg-[#0F607E]">
-                            <span class="flex items-center gap-2"><x-lucide name="video" class="h-4 w-4" />Vào phòng học buổi tới</span>
+                            <span class="flex items-center gap-2"><x-lucide name="video" class="h-4 w-4" />{{ $liveIsRunning ? 'Vào lớp ngay' : 'Vào phòng học buổi tới' }}</span>
                             <x-lucide name="external-link" class="h-4 w-4" />
                         </a>
                         <p class="mt-2 text-[11px] font-semibold text-[#71869A]">{{ $nextSessionLabel }}</p>

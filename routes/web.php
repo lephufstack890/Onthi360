@@ -142,6 +142,11 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
+        // SỬA 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp... bấm đăng ký học thì giáo viên duyệt")
+        // — lối vào lớp MỚI. Route mã lớp bên dưới vẫn được đăng ký để route() ở chỗ khác không
+        // ném lỗi, nhưng gọi vào thì 404 (Student\ClassRoomService::JOIN_BY_CODE_ENABLED = false).
+        Route::post('classes/{class}/dang-ky', [StudentClassRoomController::class, 'requestJoin'])
+            ->whereNumber('class')->name('classes.requestJoin');
         Route::post('classes/join', [StudentClassRoomController::class, 'join'])->name('classes.join');
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
@@ -217,6 +222,14 @@ Route::middleware(['auth'])->group(function () {
         // đề" trong Chi tiết lớp) — KHÔNG còn giao được từ Bài tập & Đề nữa (xem
         // teacher.assessments.store/index đã bỏ nhánh giao lớp, chỉ còn lưu đề).
         Route::post('classes/{class}/assign', [TeacherClassRoomController::class, 'assignAssessment'])->name('classes.assign');
+        // SỬA 16/9 — duyệt/từ chối yêu cầu vào lớp của học sinh (tab Thành viên).
+        Route::post('classes/{class}/requests/{enrollment}/approve', [TeacherClassRoomController::class, 'approveJoinRequest'])
+            ->whereNumber(['class', 'enrollment'])->name('classes.requests.approve');
+        Route::post('classes/{class}/requests/{enrollment}/reject', [TeacherClassRoomController::class, 'rejectJoinRequest'])
+            ->whereNumber(['class', 'enrollment'])->name('classes.requests.reject');
+        // SỬA 16/9 — gỡ học sinh khỏi lớp (dòng ghi danh chuyển 'left', không xoá).
+        Route::post('classes/{class}/members/{student}/remove', [TeacherClassRoomController::class, 'removeStudent'])
+            ->whereNumber(['class', 'student'])->name('classes.members.remove');
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');

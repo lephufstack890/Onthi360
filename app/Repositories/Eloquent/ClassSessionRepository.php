@@ -20,6 +20,20 @@ class ClassSessionRepository extends EloquentRepository implements ClassSessionR
             ->first();
     }
 
+    /** Xem giải thích ở ClassSessionRepositoryInterface::currentOrNextForClassRoom(). */
+    public function currentOrNextForClassRoom(int $classRoomId): ?ClassSession
+    {
+        return $this->query()
+            ->where('class_room_id', $classRoomId)
+            // Buổi đang chạy có ends_at >= now nhưng starts_at đã qua -> lọc theo ends_at mới
+            // bắt được nó; sắp xếp theo starts_at nên buổi đang chạy luôn đứng trước buổi sau.
+            ->where(function ($q) {
+                $q->where('ends_at', '>=', now())->orWhere('starts_at', '>=', now());
+            })
+            ->orderBy('starts_at')
+            ->first();
+    }
+
     public function allForClassRoom(int $classRoomId): Collection
     {
         return $this->query()->where('class_room_id', $classRoomId)->with('attendances')->orderBy('starts_at')->get();

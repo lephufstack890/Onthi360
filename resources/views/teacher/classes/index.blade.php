@@ -45,6 +45,15 @@
                             @if ($c['code'])
                                 <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{{ $c['code'] }}</span>
                             @endif
+                            {{-- SỬA 16/9 — học sinh xin vào lớp (bấm "Đăng ký học" ngoài trang Lớp
+                                 học công khai) đang chờ duyệt. Hiện ngay ở danh sách để giáo viên
+                                 không phải mở từng lớp ra mới biết; bấm vào lớp là tới tab Thành
+                                 viên để duyệt. --}}
+                            @if (! empty($c['pendingRequests']))
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-700">
+                                    <x-lucide name="user-plus" class="h-3 w-3" />{{ $c['pendingRequests'] }} chờ duyệt
+                                </span>
+                            @endif
                         </div>
                         @if ($c['scheduleNote'])
                             <p class="text-xs text-slate-500 mt-1"><x-lucide name="calendar-days" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $c['scheduleNote'] }}</p>

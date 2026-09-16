@@ -18,22 +18,30 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tham gia lớp thành công!'])
     @endif
 
+    {{-- ẨN 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — khối "Có mã lớp?".
+         ẨN CHỨ KHÔNG XOÁ: đổi App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED
+         thành true rồi bỏ dấu chú thích quanh khối này là hiện lại nguyên vẹn.
+         Lối vào lớp bây giờ: trang Lớp học công khai -> bấm "Đăng ký học" -> giáo viên duyệt.
     <div class="rounded-3xl bg-white border border-sky-100 p-5 mb-6">
         <h2 class="font-medium text-slate-700 mb-1 flex items-center gap-2"><span><x-lucide name="ticket" class="h-4 w-4" /></span> Có mã lớp?</h2>
         <p class="text-[13px] text-slate-500 mb-3">Giáo viên cung cấp mã lớp riêng cho từng lớp — nhập đúng mã để tham gia ngay.</p>
         <form method="POST" action="{{ route('student.classes.join') }}" class="flex flex-col sm:flex-row gap-3 max-w-md">
             @csrf
             <input type="text" name="code" placeholder="Ví dụ: 10CT-2026"
-                   class="flex-1 rounded-xl border {{ $errors->has('code') ? 'border-blue-300' : 'border-sky-100' }} text-[13px] p-2.5">
-            <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 hover:bg-blue-700 transition-colors shrink-0">Tham gia lớp</button>
+                   class="flex-1 rounded-xl border border-sky-100 text-[13px] p-2.5">
+            <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Tham gia lớp</button>
         </form>
-        @error('code')
-            <p class="text-xs text-blue-500 mt-2">{{ $message }}</p>
-        @enderror
     </div>
+    --}}
+
+    {{-- SỬA 16/9 — kết quả gửi yêu cầu đăng ký (khi học sinh bấm từ trang lớp công khai rồi
+         quay lại đây). --}}
+    @if (session('status') === 'class-join-requested')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi yêu cầu đăng ký — chờ giáo viên duyệt.'])
+    @endif
 
     @if (empty($classes))
-        <x-ws.empty-state title="Bạn chưa tham gia lớp nào" description="Khám phá khóa học phù hợp hoặc nhập mã lớp giáo viên cung cấp ở trên." actionLabel="Khám phá khóa học" :actionHref="route('courses.index')" />
+        <x-ws.empty-state title="Bạn chưa tham gia lớp nào" description="Mở trang Lớp học, chọn lớp phù hợp rồi bấm &quot;Đăng ký học&quot; — giáo viên duyệt là bạn vào học được ngay." actionLabel="Xem các lớp đang mở" :actionHref="route('courses.index')" />
     @else
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             @foreach ($classes as $c)

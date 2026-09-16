@@ -2,7 +2,8 @@
   Route: access.chooseClass | C3 — chọn lớp sau khi mua khoá học.
 
   Đây là ĐƯỜNG CHÍNH mới: mua khoá → có quyền → tự chọn lớp đang mở.
-  Đường nhập mã lớp vẫn còn nguyên và được nhắc ở cuối trang làm lối phụ.
+  SỬA 16/9 — lối phụ "nhập mã lớp" ở cuối trang đã ẩn theo yêu cầu khách (xem
+  App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED).
 
   Dữ liệu do App\Services\Access\CourseEnrollmentService::chooseClassData() trả về:
   $course, $openClasses, $hasRight, $joinedClassId.
@@ -62,7 +63,7 @@
         <x-ws.card title="Lớp đang mở của khoá này" icon="school">
             @if (count($openClasses) === 0)
                 <x-ws.empty-state icon="school" title="Chưa có lớp nào đang mở"
-                                  description="Khi trung tâm mở lớp mới, lớp sẽ hiện ngay tại đây. Nếu giáo viên đã gửi mã lớp cho bạn thì dùng ô nhập mã bên dưới." />
+                                  description="Khi trung tâm mở lớp mới, lớp sẽ hiện ngay tại đây." />
             @else
                 <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     @foreach ($openClasses as $class)
@@ -121,7 +122,9 @@
             @endif
         </x-ws.card>
 
-        {{-- ══ Lối phụ: nhập mã lớp ══ --}}
+        {{-- ẨN 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — lối phụ nhập mã lớp.
+             ẨN CHỨ KHÔNG XOÁ: bật App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED
+             rồi bỏ dấu chú thích quanh khối này là hiện lại.
         <x-ws.card title="Đã có mã lớp?" icon="key-round">
             <p class="text-[12px] leading-relaxed text-slate-500">
                 Nếu giáo viên gửi riêng cho bạn một mã lớp, bạn vẫn vào lớp bằng mã như trước — không cần chọn ở danh sách trên.
@@ -136,5 +139,6 @@
                 </form>
             @endif
         </x-ws.card>
+        --}}
     </div>
 @endsection
