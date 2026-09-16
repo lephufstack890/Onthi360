@@ -32,6 +32,8 @@
      */
     $classes = $classes ?? [];
     $courseFilters = $courseFilters ?? [];
+    // Khoá chọn sẵn từ ?khoa= — nút "Xem lộ trình" ở trang chủ dẫn tới đây.
+    $activeCourseId = $activeCourseId ?? null;
     $grades = $grades ?? [];
     $totalClasses = $totalClasses ?? count($classes);
     $totalStudents = $totalStudents ?? 0;
@@ -75,7 +77,7 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'pageSize' => 9, 'subject' => $activeSubject]) }})" class="flex flex-col gap-5">
+<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 9, 'subject' => $activeSubject]) }})" class="flex flex-col gap-5">
 
     {{-- ══════ [COURSES-01] HERO LỚP HỌC ══════ --}}
     <div class="relative overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-r from-[#0B3C78] via-[#0050A0] to-[#0284C7] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] sm:p-6 lg:p-7">
@@ -211,12 +213,27 @@
         </button>
     </div>
 
-    {{-- ══════ [COURSES-04] LƯỚI LỚP HỌC ══════ --}}
+    {{-- ══════ [COURSES-04] LƯỚI LỚP HỌC ══════
+         SỬA 16/9 (khách: "copy UI trang lớp học của source mới") — chép ĐÚNG khối card của
+         education-main-12/education-main/src/components/CoursesPage.jsx: ảnh + viên nhãn,
+         dải [COURSES-04B] quan hệ khoá–lớp, mã lớp, dải [COURSES-04A] thông tin lớp có đường
+         kẻ trên dưới, khối giáo viên, và chân thẻ học phí + nút.
+
+         Bản mẫu có vài trường VIẾT CỨNG không có nguồn trong hệ thống — thay bằng số liệu thật
+         tương ứng, không in số bịa:
+           · "36 bài học"        -> số buổi ĐÃ XẾP LỊCH thật của lớp (class_sessions);
+           · "1,250+ học viên"   -> sĩ số thật (ghi danh đang hoạt động);
+           · "32 / 40 học sinh"  -> sĩ số thật / sĩ số tối đa quản trị nhập; chưa nhập thì chỉ in sĩ số thật;
+           · "1.200.000đ"        -> giá sản phẩm gắn với khoá; khoá chưa mở bán thì giấu cả dòng học phí;
+           · nút Zalo cứng       -> trang Liên hệ & Hỗ trợ của chính hệ thống. --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
         @foreach ($classes as $cl)
             @php
                 $cover = $cl['image'] ?: asset('assets/'.$fallbackCovers[$cl['courseId'] % count($fallbackCovers)]);
                 $featured = ($cl['average'] ?? 0) >= 4.5;
+                $seatsLabel = $cl['capacity']
+                    ? number_format($cl['studentsCount']).' / '.number_format($cl['capacity']).' học sinh'
+                    : number_format($cl['studentsCount']).' học sinh';
             @endphp
             <div x-show="visibleIds.includes({{ $cl['id'] }})" x-cloak
                  :style="'order:' + visibleIds.indexOf({{ $cl['id'] }})"
@@ -228,24 +245,21 @@
                         <img src="{{ $cover }}" alt="Lớp {{ $cl['name'] }}" loading="lazy" decoding="async"
                              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
 
-                        <div class="absolute left-3 top-3 flex flex-wrap gap-1.5">
-                            <span class="inline-flex items-center gap-1.5 rounded-full border border-[#C9DFE8] bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[#216F8E] shadow-sm backdrop-blur-sm">
-                                <span class="grid h-5 w-5 place-items-center rounded-md bg-[#EAF5F8]">
-                                    <x-lucide name="ticket" class="h-3.5 w-3.5 text-[#2D7FA3]" />
+                        @if ($cl['tag'])
+                            <div class="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-[#C9DFE8] bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[#216F8E] shadow-sm backdrop-blur-sm">
+                                    <span class="grid h-5 w-5 place-items-center rounded-md bg-[#EAF5F8]">
+                                        <x-lucide :name="$featured ? 'trophy' : 'sparkles'" class="h-3.5 w-3.5 {{ $featured ? 'text-[#AF7C32]' : 'text-[#2D7FA3]' }}" />
+                                    </span>
+                                    {{ $cl['tag'] }}
                                 </span>
-                                {{ $cl['code'] }}
-                            </span>
-                            @if ($cl['isMember'])
-                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/95 px-2.5 py-1 text-[11px] font-bold text-emerald-700 shadow-sm backdrop-blur-sm">
-                                    <x-lucide name="check-circle-2" class="h-3.5 w-3.5" />Đã tham gia
-                                </span>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
 
                         <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl bg-slate-900/60 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm">
                             <span class="flex items-center gap-1">
-                                <x-lucide name="calendar-days" class="h-3.5 w-3.5 text-amber-300" />
-                                <span>{{ $cl['sessionsCount'] > 0 ? $cl['sessionsCount'].' buổi đã xếp' : 'Chưa xếp lịch' }}</span>
+                                <x-lucide name="clock" class="h-3.5 w-3.5 text-amber-300" />
+                                <span>{{ $cl['sessionsCount'] > 0 ? $cl['sessionsCount'].' buổi' : 'Chưa xếp lịch' }}</span>
                             </span>
                             <span class="flex items-center gap-1">
                                 <x-lucide name="users" class="h-3.5 w-3.5 text-sky-300" />
@@ -268,50 +282,123 @@
                             </div>
                         </div>
 
-                        {{-- Lớp thuộc khoá nào — trả lời ngay câu hỏi đầu tiên của người đang chọn lớp. --}}
-                        <a href="{{ $cl['href'] }}" class="mb-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-[#536D86] hover:text-[#126F91]">
-                            <x-lucide name="book-open" class="h-3.5 w-3.5 shrink-0 text-[#2D7FA3]" />
-                            <span class="truncate">Khoá: <b class="font-bold">{{ $cl['courseTitle'] }}</b></span>
-                        </a>
+                        {{-- [COURSES-04B] QUAN HỆ KHÓA–LỚP — nói rõ thẻ này là một lớp thuộc khoá nào.
+                             Bấm vào tên khoá là LỌC ngay danh sách theo khoá đó, đúng như bản mẫu. --}}
+                        <div class="mb-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-[#536D86]">
+                            <span class="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[#EEF5FF]">
+                                <x-lucide name="book-open" class="h-3.5 w-3.5 text-[#4C83B0]" />
+                            </span>
+                            <span class="shrink-0">Khóa học:</span>
+                            <button type="button" @click="setCourse({{ $cl['courseId'] }})"
+                                    :aria-pressed="selectedCourse === {{ $cl['courseId'] }}"
+                                    aria-label="Lọc các lớp thuộc khóa học {{ $cl['courseTitle'] }}"
+                                    title="Lọc theo khóa học: {{ $cl['courseTitle'] }}"
+                                    class="min-w-0 truncate text-left font-bold text-[#2D7FA3] underline-offset-2 transition hover:text-[#126F91] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1]">{{ $cl['courseTitle'] }}</button>
+                        </div>
 
-                        <h3 class="type-card-title mb-1.5 line-clamp-2">{{ $cl['name'] }}</h3>
+                        <p class="mb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[#8A9BAD]">Mã lớp · {{ $cl['code'] }}</p>
 
-                        @if ($cl['scheduleNote'])
-                            <p class="mb-2 flex min-w-0 items-start gap-1.5 text-[11px] leading-relaxed text-[#71869A]">
-                                <x-lucide name="clock" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#2D7FA3]" />
-                                <span class="line-clamp-2">{{ $cl['scheduleNote'] }}</span>
-                            </p>
+                        <h3 class="mb-1.5 line-clamp-2 text-sm font-extrabold leading-5 text-[#123B68] transition-colors group-hover:text-[#126F91] sm:text-[15px]">{{ $cl['name'] }}</h3>
+
+                        @if ($cl['subtitle'])
+                            <p class="type-body mb-3 line-clamp-2">{{ $cl['subtitle'] }}</p>
                         @endif
 
-                        <div class="mt-3 flex items-center gap-2 border-t border-[#EDF3F6] pt-3">
-                            <x-ws.avatar :name="$cl['teacherName'] ?: 'Chưa phân công'" size="sm" />
-                            <span class="min-w-0 flex-1">
-                                <span class="block text-[10px] font-bold uppercase tracking-wide text-[#8A9BAD]">Giáo viên phụ trách</span>
-                                <span class="block truncate text-[12px] font-bold text-[#536D86]">{{ $cl['teacherName'] ?: 'Chưa phân công' }}</span>
-                            </span>
-                            @if (count($cl['assistantNames']) > 0)
-                                <span class="shrink-0 rounded-lg bg-[#F5F8FA] px-2 py-1 text-[10px] font-bold text-[#71869A]"
-                                      title="{{ implode(', ', $cl['assistantNames']) }}">+{{ count($cl['assistantNames']) }} trợ giảng</span>
+                        {{-- [COURSES-04A] THÔNG TIN LỚP — nơi học, hình thức, địa chỉ, lịch học, sĩ số.
+                             Dòng nào chưa có dữ liệu thì bỏ hẳn dòng đó, không in ô rỗng cho đủ mẫu. --}}
+                        <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-2 border-y border-[#E7EFF3] py-3 text-[11px] text-[#536D86]">
+                            @if ($cl['location'])
+                                <div class="flex min-w-0 items-center gap-1.5">
+                                    <x-lucide name="map-pin" class="h-3.5 w-3.5 shrink-0 text-[#2D7FA3]" />
+                                    <span class="truncate" title="{{ $cl['location'] }}">{{ $cl['location'] }}</span>
+                                </div>
                             @endif
+
+                            @if ($cl['format'])
+                                <div class="flex min-w-0 items-center gap-1.5">
+                                    <x-lucide name="play" class="h-3.5 w-3.5 shrink-0 text-[#3B9374]" />
+                                    <span class="truncate" title="{{ $cl['format'] }}">{{ $cl['format'] }}</span>
+                                </div>
+                            @endif
+
+                            @if ($cl['address'])
+                                <div class="col-span-2 flex min-w-0 items-center gap-1.5">
+                                    <x-lucide name="map-pin" class="h-3.5 w-3.5 shrink-0 text-[#71869A]" />
+                                    <span class="truncate" title="{{ $cl['address'] }}">{{ $cl['address'] }}</span>
+                                </div>
+                            @endif
+
+                            @if ($cl['scheduleNote'])
+                                <div class="col-span-2 flex min-w-0 items-center gap-1.5">
+                                    <x-lucide name="calendar" class="h-3.5 w-3.5 shrink-0 text-[#2D7FA3]" />
+                                    <span class="shrink-0 font-semibold text-[#71869A]">Lịch học:</span>
+                                    <span class="truncate text-[11px] font-bold text-[#376B98]" title="{{ $cl['scheduleNote'] }}">{{ $cl['scheduleNote'] }}</span>
+                                </div>
+                            @endif
+
+                            <div class="col-span-2 grid grid-cols-2 items-center gap-2 text-[11px]">
+                                <div class="flex min-w-0 items-center gap-1.5 text-[#536D86]">
+                                    <x-lucide name="users" class="h-3.5 w-3.5 shrink-0 text-[#4C83B0]" />
+                                    <span class="shrink-0 font-semibold text-[#71869A]">Sĩ số:</span>
+                                    <span class="truncate font-bold text-[#376B98]">{{ $seatsLabel }}</span>
+                                </div>
+                                <div class="inline-flex max-w-full items-center justify-self-end gap-1 whitespace-nowrap rounded-lg border px-2 py-1 text-[10px] shadow-[0_2px_6px_rgba(45,127,163,0.1)] {{ $cl['isMember'] ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-amber-500 bg-amber-500 text-white' }}">
+                                    <x-lucide :name="$cl['isMember'] ? 'check-circle-2' : 'user-check'" class="h-3.5 w-3.5 shrink-0 text-white" />
+                                    <span class="font-extrabold text-white">{{ $cl['isMember'] ? 'Đã tham gia' : 'Chưa tham gia' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Khối giáo viên. Bản mẫu dùng ảnh thật của giáo viên; hệ thống chưa lưu
+                             ảnh giáo viên nên vẽ chữ cái đầu bằng x-ws.avatar ngay tại chỗ —
+                             KHÔNG gọi dịch vụ ảnh ngoài, tránh gửi họ tên thật ra máy chủ lạ. --}}
+                        <div class="flex items-center gap-2.5 rounded-2xl border border-[#DDEAF0] bg-[#F8FAFB] p-2.5">
+                            <x-ws.avatar :name="$cl['teacherName'] ?: 'Chưa phân công'" size="sm" />
+                            <div class="overflow-hidden">
+                                <p class="truncate text-[11px] font-bold text-slate-800">{{ $cl['teacherName'] ?: 'Chưa phân công' }}</p>
+                                <p class="truncate text-[11px] text-[#71869A]">Giảng viên phụ trách</p>
+                                @if (count($cl['assistantNames']) > 0)
+                                    <p class="mt-1 truncate text-[11px] text-[#71869A]" title="{{ implode(', ', $cl['assistantNames']) }}">
+                                        {{ count($cl['assistantNames']) }} trợ giảng đồng hành
+                                    </p>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- Nút --}}
-                <div class="px-4 pb-4 sm:px-5 sm:pb-5">
-                    @if ($cl['isMember'])
-                        <a href="{{ route('student.classes.show', $cl['id']) }}"
-                           class="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#2D7FA3] to-[#3B9374] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(45,127,163,0.18)] transition-all hover:brightness-105 active:scale-[.98]">
-                            <span>Vào học</span>
-                            <x-lucide name="play" class="h-3.5 w-3.5" />
-                        </a>
-                    @else
-                        <a href="{{ $cl['href'] }}"
-                           class="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] active:scale-[.98]">
-                            <span>Xem khoá học</span>
-                            <x-lucide name="arrow-right" class="h-3.5 w-3.5" />
-                        </a>
-                    @endif
+                {{-- Chân thẻ --}}
+                <div class="p-4 pt-0">
+                    <div class="flex items-center justify-between gap-3 border-t border-[#DDEAF0] pt-3">
+                        <div class="min-w-0">
+                            @if ($cl['priceLabel'])
+                                <p class="type-meta">Học phí trọn khóa</p>
+                                <p class="text-sm font-black text-[#126F91]">{{ $cl['priceLabel'] }}</p>
+                            @else
+                                <a href="{{ route('info.index') }}"
+                                   class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[#B8DCE6] bg-[#EAF5F8] px-3 py-2 text-[11px] font-extrabold text-[#126F91] transition-all hover:border-[#8FC7D6] hover:bg-[#DDF1F6] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                                    <x-lucide name="message-circle" class="h-3.5 w-3.5" />
+                                    <span>Liên hệ quản lý lớp</span>
+                                </a>
+                            @endif
+                            <p class="type-meta mt-0.5 max-w-[150px] truncate"
+                               title="{{ $cl['isMember'] ? 'Bạn đang học lớp này' : 'Cần mã lớp hoặc đăng ký để vào học' }}">{{ $cl['isMember'] ? 'Bạn đang học lớp này' : 'Cần mã lớp / đăng ký' }}</p>
+                        </div>
+
+                        @if ($cl['isMember'])
+                            <a href="{{ route('student.classes.show', $cl['id']) }}"
+                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#2D7FA3] to-[#3B9374] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(45,127,163,0.18)] transition-all hover:brightness-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                                <span>Vào học</span>
+                                <x-lucide name="play" class="h-3.5 w-3.5" />
+                            </a>
+                        @else
+                            <a href="{{ $cl['href'] }}"
+                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                                <span>Đăng ký học</span>
+                                <x-lucide name="user-check" class="h-3.5 w-3.5" />
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </div>
         @endforeach
@@ -319,15 +406,23 @@
         @if (count($classes) === 0)
             <div class="md:col-span-2 xl:col-span-3">
                 <div class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
-                    <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#EAF5F8] text-[#2D7FA3]">
-                        <x-lucide name="school" class="h-6 w-6" />
-                    </span>
-                    <p class="type-card-title mt-3">Chưa có lớp nào đang mở</p>
-                    <p class="type-body mt-1 text-[#71869A]">Quay lại sau hoặc để lại liên hệ để được báo khi có lớp mới.</p>
-                    <a href="{{ route('info.index') }}" class="type-action mt-3 inline-block text-[#126F91] hover:underline">Liên hệ tư vấn →</a>
+                    <x-lucide name="search" class="mx-auto h-9 w-9 text-[#9DC8D7]" />
+                    <h2 class="mt-3 text-sm font-black text-[#123B68]">Chưa có lớp nào đang mở</h2>
+                    <p class="mt-1 text-xs text-[#71869A]">Quay lại sau hoặc để lại liên hệ để được báo khi có lớp mới.</p>
+                    <a href="{{ route('info.index') }}" class="mt-4 inline-block text-[11px] font-bold text-[#126F91] hover:underline">Liên hệ tư vấn →</a>
                 </div>
             </div>
         @endif
+    </div>
+
+    {{-- Không có lớp nào KHỚP BỘ LỌC (khác với "chưa có lớp nào" ở trên) — đúng khối rỗng của
+         bản mẫu, kèm nút xoá bộ lọc. --}}
+    <div x-show="filtered.length === 0 && {{ count($classes) }} > 0" x-cloak
+         class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
+        <x-lucide name="search" class="mx-auto h-9 w-9 text-[#9DC8D7]" />
+        <h2 class="mt-3 text-sm font-black text-[#123B68]">Không tìm thấy lớp học phù hợp</h2>
+        <p class="mt-1 text-xs text-[#71869A]">Thử đổi khối lớp, khoá học hoặc từ khóa tìm kiếm.</p>
+        <button type="button" @click="resetFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
     </div>
 
     {{-- ══════ [COURSES-05] PHÂN TRANG ══════ --}}

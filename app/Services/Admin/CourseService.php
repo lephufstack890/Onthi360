@@ -389,6 +389,7 @@ class CourseService
             'name' => $data['name'],
             'schedule' => filled($data['schedule_note'] ?? null) ? ['note' => $data['schedule_note']] : null,
             'status' => $data['status'] ?? 'active',
+            ...$this->classDisplayAttributes($data),
         ]);
 
         if (filled($data['teacher_id'] ?? null)) {
@@ -431,6 +432,7 @@ class CourseService
             'name' => $data['name'],
             'schedule' => filled($data['schedule_note'] ?? null) ? ['note' => $data['schedule_note']] : null,
             'status' => $data['status'],
+            ...$this->classDisplayAttributes($data),
         ]);
 
         $classRoom->teachers()->detach();
@@ -439,6 +441,32 @@ class CourseService
         }
 
         return $classRoom;
+    }
+
+    /**
+     * Bốn trường mô tả lớp in ra thẻ lớp ngoài trang công khai (hình thức học, nơi học, địa
+     * chỉ, sĩ số tối đa).
+     *
+     * Trả MẢNG RỖNG khi máy chủ chưa chạy migration add_display_fields_to_class_rooms_table —
+     * ghi thẳng cột chưa tồn tại thì cả màn quản trị lớp hỏng, không sửa nổi mỗi cái tên lớp.
+     * Cùng cách phòng vệ đang dùng cho courses.product_id.
+     *
+     * @return array<string, string|int|null>
+     */
+    private function classDisplayAttributes(array $data): array
+    {
+        if (! ClassRoom::supportsDisplayFields()) {
+            return [];
+        }
+
+        $capacity = $data['capacity'] ?? null;
+
+        return [
+            'location' => filled($data['location'] ?? null) ? $data['location'] : null,
+            'address' => filled($data['address'] ?? null) ? $data['address'] : null,
+            'format' => filled($data['format'] ?? null) ? $data['format'] : null,
+            'capacity' => ($capacity !== null && $capacity !== '') ? (int) $capacity : null,
+        ];
     }
 
     /** admin.classes.destroy — xóa mềm lớp, PHẢI có lý do + audit log (10.4). */

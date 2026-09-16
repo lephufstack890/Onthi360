@@ -135,6 +135,15 @@
                 const list = this.coursesForGrade;
                 return list[this.goalIndex] || list[0] || null;
             },
+            /*
+             * Nút vàng dẫn sang TRANG CHI TIẾT KHOÁ HỌC đang chọn.
+             *
+             * SỬA 16/9 — có thử đổi sang trang Lớp học đã lọc sẵn (?khoa=<id>) rồi khách đổi ý,
+             * trả về như cũ. Muốn dùng lại chỉ cần đổi dòng return thành:
+             *     return this.coursesHref + '?khoa=' + this.pickedCourse.id;
+             * Trang Lớp học vẫn ĐỌC ĐƯỢC tham số ?khoa= (xem Public\CourseController::index),
+             * nên link kiểu đó gửi cho nhau vẫn mở ra đúng danh sách đã lọc.
+             */
             get pickerHref() { return this.pickedCourse ? this.pickedCourse.href : this.coursesHref; },
 
             get carouselIndex() { return this.mainTab === 'courses' ? this.courseIndex : this.pathIndex; },

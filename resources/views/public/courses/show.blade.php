@@ -224,14 +224,15 @@
                 $showJoinByCode = \App\Services\Public\CourseService::SHOW_JOIN_BY_CODE;
 
                 /*
-                 * Chữ cố định, chỉ ĐÍCH ĐẾN là co theo tình trạng trang:
-                 *   · còn khối "Các lớp đang triển khai" -> neo xuống ngay trong trang;
-                 *   · khối đó đang ẩn                    -> sang trang Lớp học, nơi thật sự
-                 *     đang liệt kê các lớp đang mở.
-                 * Không bao giờ để nút trỏ vào một neo không tồn tại: bấm mà trang đứng im thì
-                 * người dùng tưởng hỏng.
+                 * SỬA 16/9 (khách: "bấm Xem các lớp đang mở thì qua trang lớp học hiển thị đúng
+                 * lớp của khoá đó") — nút dẫn sang TRANG LỚP HỌC đã LỌC SẴN theo đúng khoá này,
+                 * qua tham số ?khoa=<id> mà Public\CourseController::index đã biết đọc.
+                 *
+                 * Cố ý KHÔNG neo xuống khối "Các lớp đang triển khai" ngay trong trang nữa, kể
+                 * cả khi khối đó được bật lại: trang Lớp học mới là nơi liệt kê đầy đủ từng lớp
+                 * kèm lịch học, sĩ số, giáo viên và nút đăng ký.
                  */
-                $primaryHref = $showClassList ? '#lop-dang-mo' : route('courses.index');
+                $primaryHref = route('courses.index', ['khoa' => $course->id]);
             @endphp
             <div class="mt-2.5 flex flex-col gap-2 sm:flex-row">
                 <a href="{{ $primaryHref }}" class="{{ $heroBtn }}">

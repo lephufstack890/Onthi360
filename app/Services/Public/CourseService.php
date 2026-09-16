@@ -75,13 +75,13 @@ class CourseService
      *
      * @return array{classes: array<int, array<string, mixed>>, courseFilters: array<int, array<string, mixed>>, grades: array<int, string>, totalClasses: int, totalStudents: int}
      */
-    public function classIndexData(?User $viewer = null): array
+    public function classIndexData(?User $viewer = null, ?int $preselectCourseId = null): array
     {
         $rows = $this->classRooms->query()
             ->where('class_rooms.status', 'active')
             ->whereHas('course', fn ($q) => $q->where('status', 'published'))
             ->with([
-                'course:id,title,slug,subject,grade,cover_image_path',
+                'course:id,title,slug,subject,grade,cover_image_path,description,level_code,product_id',
                 'teachers:id,name',
             ])
             ->withCount(['students', 'sessions'])
@@ -127,9 +127,22 @@ class CourseService
             ->values()
             ->all();
 
+        /*
+         * SỬA 16/9 (khách: "ngoài trang chủ bấm Xem lộ trình thì vào trang lớp học hiển thị
+         * đúng lớp học của lộ trình đó") — ?khoa=<id> chọn sẵn bộ lọc khoá ngay khi mở trang.
+         * Cần tham số trên ĐƯỜNG DẪN chứ không chỉ bấm tại chỗ: người ta còn gửi link đó cho
+         * nhau, link phải mở ra đúng danh sách đã lọc sẵn.
+         * Mã khoá lạ (không còn lớp nào đang mở) -> bỏ qua, hiện tất cả, KHÔNG để trang trắng.
+         */
+        $activeCourseId = ($preselectCourseId !== null
+            && collect($courseFilters)->contains('id', $preselectCourseId))
+            ? $preselectCourseId
+            : null;
+
         return [
             'classes' => $classes,
             'courseFilters' => $courseFilters,
+            'activeCourseId' => $activeCourseId,
             'grades' => $grades,
             'totalClasses' => count($classes),
             'totalStudents' => (int) $rows->sum('students_count'),
@@ -159,8 +172,22 @@ class CourseService
             'count' => (int) ($summary?->review_count ?? 0),
             'isMember' => in_array($classRoom->id, $myClassRoomIds, true),
             // Thông tin thừa hưởng từ khoá — lớp không có ảnh/môn/khối riêng.
+            // 4 trường mô tả lớp — chỉ có khi máy chủ đã chạy migration
+            // add_display_fields_to_class_rooms_table (xem ClassRoom::supportsDisplayFields).
+            'location' => ClassRoom::supportsDisplayFields() ? $classRoom->location : null,
+            'address' => ClassRoom::supportsDisplayFields() ? $classRoom->address : null,
+            'format' => ClassRoom::supportsDisplayFields() ? $classRoom->format : null,
+            'capacity' => ClassRoom::supportsDisplayFields() ? $classRoom->capacity : null,
             'courseId' => (int) $classRoom->course_id,
             'courseTitle' => (string) ($course->title ?? ''),
+            // Viên nhãn góc ảnh: nhãn khoá quản trị đặt, không có thì lấy môn học.
+            'tag' => (string) ($course?->level_code ?: ($course?->subject ?? '')),
+            // Câu mô tả ngắn dưới tên lớp — lấy chữ thật từ mô tả khoá, cắt gọn.
+            'subtitle' => \Illuminate\Support\Str::limit(trim(strip_tags((string) ($course?->description ?? ''))), 120),
+            // Học phí: chỉ có khi khoá đã gắn sản phẩm VÀ sản phẩm đã điền giá.
+            'priceLabel' => $course !== null && $course->isPurchasable()
+                ? number_format((int) $course->learningPrice()).'đ'
+                : null,
             'subject' => (string) ($course->subject ?? ''),
             'grade' => (string) ($course->grade ?? ''),
             'image' => $course?->coverUrl(),

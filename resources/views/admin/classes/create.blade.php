@@ -45,6 +45,8 @@
                        class="admin-input">
             </div>
 
+                @include('partials.class-display-fields')
+
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="teacher_id">Giáo viên phụ trách</label>
                 <x-ws.select id="teacher_id" name="teacher_id" icon="👩‍🏫">

@@ -126,6 +126,11 @@ class CourseController extends Controller
             'schedule_note' => ['nullable', 'string', 'max:500'],
             'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['required', 'string', 'in:active,archived'],
+            // SỬA 16/9 — 4 trường mô tả lớp in ra thẻ lớp ngoài trang công khai.
+            'location' => ['nullable', 'string', 'max:60'],
+            'address' => ['nullable', 'string', 'max:160'],
+            'format' => ['nullable', 'string', 'max:60'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
         $classRoom = $this->courseService->storeClass($course, $data);
@@ -146,6 +151,11 @@ class CourseController extends Controller
             'schedule_note' => ['nullable', 'string', 'max:500'],
             'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['required', 'string', 'in:active,archived'],
+            // SỬA 16/9 — 4 trường mô tả lớp in ra thẻ lớp ngoài trang công khai.
+            'location' => ['nullable', 'string', 'max:60'],
+            'address' => ['nullable', 'string', 'max:160'],
+            'format' => ['nullable', 'string', 'max:60'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
         $this->courseService->updateClass($classRoom, $data);

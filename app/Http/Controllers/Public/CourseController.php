@@ -22,7 +22,11 @@ class CourseController extends Controller
          * indexData() cũ KHÔNG xoá — showData() và trang chủ vẫn dùng chung các hàm phụ trong
          * cùng service, và cần quay lại kiểu gộp theo khoá thì đổi đúng dòng này.
          */
-        return view('public.courses.index', $this->courseService->classIndexData($request->user()));
+        // ?khoa=<id> — chọn sẵn bộ lọc theo khoá (nút "Xem lộ trình" ở trang chủ dẫn tới đây).
+        $courseId = $request->query('khoa');
+        $courseId = ($courseId === null || $courseId === '') ? null : (int) $courseId;
+
+        return view('public.courses.index', $this->courseService->classIndexData($request->user(), $courseId));
     }
 
     public function show(Request $request, int $course): View

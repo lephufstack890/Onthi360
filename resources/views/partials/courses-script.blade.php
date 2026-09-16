@@ -7,7 +7,9 @@
             selectedCategory: config.subject || 'all',
             selectedGrade: 'all',
             // SỬA 16/9 — bộ lọc theo KHOÁ HỌC. Giữ kiểu số vì id khoá là số; 'all' là chưa lọc.
-            selectedCourse: 'all',
+            // config.course: mã khoá chọn sẵn từ ?khoa= trên đường dẫn (nút "Xem lộ trình" ở
+            // trang chủ). Không có thì 'all'.
+            selectedCourse: config.course || 'all',
             searchQuery: '',
             currentPage: 1,
 
