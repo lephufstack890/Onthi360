@@ -78,26 +78,26 @@
 <div x-data="onthiLeaderboardPage({{ Js::from(['rows' => $rows, 'pageSize' => 5]) }})" class="flex flex-col gap-4 animate-fadeIn">
 
     {{-- ══════ 1. HERO ══════ --}}
-    <section class="relative overflow-hidden rounded-2xl border border-sky-200/90 bg-gradient-to-r from-[#0B4F86] via-[#166A9B] to-[#2B93BA] p-5 text-white shadow-[0_8px_24px_rgba(0,100,220,0.08)] sm:p-6">
+    <section class="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-r from-[#123B68] via-[#155A86] to-[#2A8B8A] p-5 text-white shadow-[0_12px_28px_rgba(18,59,104,0.1)] sm:p-6">
         <img src="{{ asset('assets/hero-leaderboard.jpg') }}" alt=""
              class="pointer-events-none absolute inset-0 h-full w-full object-cover object-right opacity-25 mix-blend-overlay">
 
         <div class="relative z-10 flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-center">
             <div class="max-w-2xl">
-                <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-bold text-amber-950">
+                <div class="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#FFF1C7] px-3 py-1 text-[11px] font-bold text-[#7A5B16]">
                     <x-lucide name="sparkles" class="h-3.5 w-3.5" />Vinh danh Top Coder toàn quốc
                 </div>
                 <h1 class="text-2xl font-bold leading-tight tracking-tight text-white">Bảng xếp hạng & Đại sảnh Danh vọng</h1>
-                <p class="mt-2 max-w-2xl text-xs leading-relaxed text-sky-100 sm:text-sm">
+                <p class="mt-2 max-w-2xl text-xs leading-relaxed text-[#E1F1F5] sm:text-sm">
                     Xếp hạng được tính từ điểm bài thi và số câu làm đúng của mỗi cuộc thi đã công bố kết quả.
                     Mỗi nỗ lực đều có một vị trí xứng đáng.
                 </p>
-                <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-sky-100">
+                <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-[#E1F1F5]">
                     <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5">
-                        <x-lucide name="users" class="h-3.5 w-3.5 text-sky-200" />{{ number_format($totalEntries) }} lượt xếp hạng
+                        <x-lucide name="users" class="h-3.5 w-3.5 text-[#BFE1EC]" />{{ number_format($totalEntries) }} lượt xếp hạng
                     </span>
                     <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5">
-                        <x-lucide name="calendar-days" class="h-3.5 w-3.5 text-amber-300" />
+                        <x-lucide name="calendar-days" class="h-3.5 w-3.5 text-[#FFE49A]" />
                         {{ $updatedAt ? 'Chấm lúc '.\Illuminate\Support\Carbon::parse($updatedAt)->format('H:i d/m/Y') : 'Chưa có mốc chấm' }}
                     </span>
                 </div>
@@ -110,33 +110,33 @@
                         <div class="flex items-center gap-3">
                             <img src="{{ $avatarFor((int) $yourEntry['rank']) }}" alt="" class="h-12 w-12 shrink-0 rounded-full border-2 border-amber-300 object-cover">
                             <div class="min-w-0 flex-1">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
-                                <p class="mt-0.5 text-lg font-black text-white">#{{ $yourEntry['rank'] }} <span class="text-xs font-medium text-sky-200">/ {{ number_format($totalEntries) }}</span></p>
-                                <p class="truncate text-[11px] text-sky-100">{{ auth()->user()->name }} · {{ rtrim(rtrim(number_format($yourEntry['score'], 2, '.', ''), '0'), '.') }} điểm</p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-[#FFE49A]">Vị trí của bạn</p>
+                                <p class="mt-0.5 text-lg font-black text-white">#{{ $yourEntry['rank'] }} <span class="text-xs font-medium text-[#BFE1EC]">/ {{ number_format($totalEntries) }}</span></p>
+                                <p class="truncate text-[11px] text-[#E1F1F5]">{{ auth()->user()->name }} · {{ rtrim(rtrim(number_format($yourEntry['score'], 2, '.', ''), '0'), '.') }} điểm</p>
                             </div>
-                            <x-lucide name="medal" class="h-6 w-6 text-amber-300" />
+                            <x-lucide name="medal" class="h-6 w-6 text-[#FFE49A]" />
                         </div>
                     @else
                         <div class="flex items-center gap-3">
-                            <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-sky-100">
+                            <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-[#E1F1F5]">
                                 <x-lucide name="target" class="h-5 w-5" />
                             </span>
                             <div class="min-w-0 flex-1">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-[#FFE49A]">Vị trí của bạn</p>
                                 <p class="mt-0.5 text-sm font-bold text-white">Chưa có trong bảng này</p>
-                                <a href="{{ route('competitions.index') }}" class="text-[11px] text-sky-100 underline underline-offset-2 hover:text-white">Tham gia một cuộc thi →</a>
+                                <a href="{{ route('competitions.index') }}" class="text-[11px] text-[#E1F1F5] underline underline-offset-2 hover:text-white">Tham gia một cuộc thi →</a>
                             </div>
                         </div>
                     @endif
                 @else
                     <div class="flex items-center gap-3">
-                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-sky-100">
+                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-[#E1F1F5]">
                             <x-lucide name="lock-keyhole" class="h-5 w-5" />
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">Vị trí của bạn</p>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-[#FFE49A]">Vị trí của bạn</p>
                             <p class="mt-0.5 text-sm font-bold text-white">Đăng nhập để xem</p>
-                            <a href="{{ route('login') }}" class="text-[11px] text-sky-100 underline underline-offset-2 hover:text-white">Đăng nhập ngay →</a>
+                            <a href="{{ route('login') }}" class="text-[11px] text-[#E1F1F5] underline underline-offset-2 hover:text-white">Đăng nhập ngay →</a>
                         </div>
                     </div>
                 @endauth
@@ -145,60 +145,60 @@
     </section>
 
     {{-- ══════ 2. PHẠM VI & TÌM KIẾM ══════ --}}
-    <section class="rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
+    <section class="rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex flex-wrap items-center gap-1.5">
                 @forelse ($boards as $b)
                     @php $isActive = $selected && $selected->id === $b['id']; @endphp
                     <a href="{{ route('leaderboard.index', ['competition' => $b['id']]) }}"
                        aria-current="{{ $isActive ? 'page' : 'false' }}"
-                       class="inline-flex min-h-10 items-center rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-colors {{ $isActive ? 'bg-[#0066CC] text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50' }}">
+                       class="inline-flex min-h-10 items-center rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-colors {{ $isActive ? 'bg-[#123B68] text-white shadow-[0_3px_8px_rgba(18,59,104,0.14)]' : 'text-[#45657D] hover:bg-[#EAF5F8]' }}">
                         {{ $b['title'] }}
-                        <span class="ml-1.5 rounded-full px-1.5 text-[10px] {{ $isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500' }}">{{ $b['participants'] }}</span>
+                        <span class="ml-1.5 rounded-full px-1.5 text-[10px] {{ $isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-[#6E8DA4]' }}">{{ $b['participants'] }}</span>
                     </a>
                 @empty
-                    <span class="text-[11px] text-slate-400">Chưa có cuộc thi nào công bố kết quả.</span>
+                    <span class="text-[11px] text-[#7B95A8]">Chưa có cuộc thi nào công bố kết quả.</span>
                 @endforelse
             </div>
 
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <label class="relative block">
-                    <x-lucide name="search" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <x-lucide name="search" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7B95A8]" />
                     <input x-model="query" placeholder="Tìm theo hạng hoặc kỳ thi" aria-label="Tìm theo hạng hoặc kỳ thi"
-                           class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100 sm:w-56">
+                           class="h-10 w-full rounded-lg border border-[#D6E3EF] bg-[#F8FBFC] pl-9 pr-3 text-xs text-[#365B7A] outline-none placeholder:text-[#7B95A8] focus:border-sky-300 focus:ring-2 focus:ring-sky-100 sm:w-56">
                 </label>
-                <label class="flex min-h-10 items-center gap-2 text-[11px] font-bold text-slate-600"
+                <label class="flex min-h-10 items-center gap-2 text-[11px] font-bold text-[#45657D]"
                        title="Bảng xếp hạng công khai luôn ẩn danh để bảo vệ dữ liệu học sinh — không thể tắt.">
-                    <input type="checkbox" checked disabled class="h-4 w-4 accent-blue-600">
+                    <input type="checkbox" checked disabled class="h-4 w-4 accent-[#126F91]">
                     Ẩn danh tên học sinh
-                    <x-lucide name="lock" class="h-3 w-3 text-slate-400" />
+                    <x-lucide name="lock" class="h-3 w-3 text-[#7B95A8]" />
                 </label>
             </div>
         </div>
 
         {{-- Dải kỳ thi con của cuộc thi đang xem — chỉ hiện khi cuộc thi có nhiều kỳ --}}
         @if (count($examTabs) > 0 && $selected)
-            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-                <span class="text-[11px] font-bold text-slate-500">Kỳ thi:</span>
+            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#E7EFF3] pt-3">
+                <span class="text-[11px] font-bold text-[#6E8DA4]">Kỳ thi:</span>
                 <a href="{{ route('leaderboard.index', ['competition' => $selected->id]) }}"
-                   class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === null ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-sky-50' }}">
+                   class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === null ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-[#D6E3EF] bg-slate-50 text-[#45657D] hover:bg-[#EAF5F8]' }}">
                     Tổng hợp
                 </a>
                 @foreach ($examTabs as $tab)
                     <a href="{{ route('leaderboard.index', ['competition' => $selected->id, 'exam' => $tab['id']]) }}"
-                       class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === $tab['id'] ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-sky-50' }}">
+                       class="inline-flex min-h-9 items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors {{ $selectedExamId === $tab['id'] ? 'border-[#9DC8D7] bg-[#EAF5F8] text-[#126F91]' : 'border-[#D6E3EF] bg-slate-50 text-[#45657D] hover:bg-[#EAF5F8]' }}">
                         {{ $tab['title'] }}
                     </a>
                 @endforeach
             </div>
         @endif
 
-        <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+        <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-[#E7EFF3] pt-3 text-[11px] text-[#6E8DA4]">
             <span class="inline-flex items-center gap-1.5">
-                <x-lucide name="bar-chart-3" class="h-3.5 w-3.5 text-sky-600" />Đang xem: <strong class="text-slate-700">{{ $scopeLabel ?: 'Chưa chọn' }}</strong>
+                <x-lucide name="bar-chart-3" class="h-3.5 w-3.5 text-[#2D7FA3]" />Đang xem: <strong class="text-[#365B7A]">{{ $scopeLabel ?: 'Chưa chọn' }}</strong>
             </span>
             <span class="inline-flex items-center gap-1.5">
-                <x-lucide name="check-circle-2" class="h-3.5 w-3.5 text-emerald-600" />
+                <x-lucide name="check-circle-2" class="h-3.5 w-3.5 text-[#2F8A6B]" />
                 @if (!empty($rankingRule['description']))
                     {{ $rankingRule['description'] }}
                 @else
@@ -210,13 +210,13 @@
 
     {{-- ══════ 3. HALL OF FAME — BA VỊ TRÍ DẪN ĐẦU ══════ --}}
     @if (count($podium) > 0)
-        <section class="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-amber-50 p-4 shadow-[0_8px_24px_rgba(0,100,220,0.06)] sm:p-5">
+        <section class="overflow-hidden rounded-2xl border border-[#DDEAF0] bg-gradient-to-br from-[#EEF7FA] via-white to-[#FFF9EA] p-4 shadow-[0_8px_24px_rgba(0,100,220,0.06)] sm:p-5">
             <div class="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">Hall of Fame</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-[#126F91]">Hall of Fame</p>
                     <h2 class="mt-1 text-lg font-bold text-[#0B3C78]">Ba vị trí dẫn đầu</h2>
                 </div>
-                <p class="text-[11px] text-slate-500">Tôn vinh thành tích nổi bật trong {{ $scopeLabel ?: 'cuộc thi này' }}</p>
+                <p class="text-[11px] text-[#6E8DA4]">Tôn vinh thành tích nổi bật trong {{ $scopeLabel ?: 'cuộc thi này' }}</p>
             </div>
 
             <div class="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
@@ -229,25 +229,25 @@
                         $order = $rank === 2 ? 'order-2 md:order-1' : ($rank === 3 ? 'order-3' : 'order-1 md:order-2');
                         $theme = match ($rank) {
                             1 => [
-                                'shell' => 'order-1 min-h-64 border-[#E3C56C] bg-[#FFF9EA] shadow-[0_12px_30px_rgba(176,135,45,0.15)] md:order-2',
-                                'medal' => 'bg-gradient-to-br from-[#F8D978] via-[#D9AA42] to-[#A8751E]',
-                                'crown' => 'text-[#B98521]',
-                                'badge' => 'bg-[#FFF0C7] text-[#8B681D]',
-                                'score' => 'text-[#916D1F]',
+                                'shell' => 'order-1 min-h-64 border-[#E8D79A] bg-[#FFFDF4] shadow-[0_12px_30px_rgba(154,119,36,0.1)] md:order-2',
+                                'medal' => 'bg-gradient-to-br from-[#FFE99A] via-[#F6CD5C] to-[#DCAF3F]',
+                                'crown' => 'text-[#B88720]',
+                                'badge' => 'bg-[#FFF5CC] text-[#866523]',
+                                'score' => 'text-[#866523]',
                             ],
                             2 => [
-                                'shell' => 'min-h-56 border-[#CCD5DE] bg-[#F8FAFC] text-[#0B3C78] shadow-[0_8px_24px_rgba(74,91,108,0.10)] '.$order,
-                                'medal' => 'bg-gradient-to-br from-[#EEF2F5] via-[#BFC8D0] to-[#8996A2]',
-                                'crown' => 'text-[#7E8C99]',
-                                'badge' => 'bg-[#E9EEF2] text-[#667582]',
-                                'score' => 'text-[#667582]',
+                                'shell' => 'min-h-56 border-[#D6E6EF] bg-[#F7FBFD] text-[#123B68] shadow-[0_8px_24px_rgba(35,91,121,0.08)] '.$order,
+                                'medal' => 'bg-gradient-to-br from-[#F2F8FB] via-[#C9DDE8] to-[#9DB7C6]',
+                                'crown' => 'text-[#50758B]',
+                                'badge' => 'bg-[#EAF4F8] text-[#365B7A]',
+                                'score' => 'text-[#365B7A]',
                             ],
                             default => [
-                                'shell' => 'min-h-56 border-[#E6C2A5] bg-[#FFF9F4] text-[#0B3C78] shadow-[0_8px_24px_rgba(153,91,47,0.10)] '.$order,
-                                'medal' => 'bg-gradient-to-br from-[#EBC19F] via-[#B98055] to-[#89502F]',
-                                'crown' => 'text-[#9D633E]',
-                                'badge' => 'bg-[#F8E5D6] text-[#89583A]',
-                                'score' => 'text-[#89583A]',
+                                'shell' => 'min-h-56 border-[#D8E8E1] bg-[#F7FCFA] text-[#123B68] shadow-[0_8px_24px_rgba(47,138,107,0.08)] '.$order,
+                                'medal' => 'bg-gradient-to-br from-[#E0F2EA] via-[#9BCBB5] to-[#5A9E7D]',
+                                'crown' => 'text-[#3F8267]',
+                                'badge' => 'bg-[#E8F6F0] text-[#3F8267]',
+                                'score' => 'text-[#3F8267]',
                             ],
                         };
                     @endphp
@@ -262,9 +262,9 @@
                         <h3 class="mt-2 text-sm font-bold text-[#0B3C78]">{{ $person['name'] }}</h3>
                         {{-- Bản mẫu in tên trường; hệ thống không có cột trường nên đặt tên kỳ thi —
                              cũng là thông tin phân biệt, và là dữ liệu thật. --}}
-                        <p class="mt-0.5 text-[11px] text-slate-500">{{ $scopeLabel }}</p>
+                        <p class="mt-0.5 text-[11px] text-[#6E8DA4]">{{ $scopeLabel }}</p>
                         <p class="mt-2 text-base font-black {{ $theme['score'] }}">{{ rtrim(rtrim(number_format($person['score'], 2, '.', ''), '0'), '.') }} pts</p>
-                        <p class="mt-1 text-[11px] text-slate-400">{{ $person['acCount'] }} câu đúng · {{ $person['computedAt'] ? 'chấm '.\Illuminate\Support\Carbon::parse($person['computedAt'])->format('d/m/Y') : 'chưa có mốc chấm' }}</p>
+                        <p class="mt-1 text-[11px] text-[#7B95A8]">{{ $person['acCount'] }} câu đúng · {{ $person['computedAt'] ? 'chấm '.\Illuminate\Support\Carbon::parse($person['computedAt'])->format('d/m/Y') : 'chưa có mốc chấm' }}</p>
                     </article>
                 @endforeach
             </div>
@@ -273,23 +273,23 @@
 
     {{-- ══════ 4. DANH SÁCH XẾP HẠNG ══════ --}}
     @if (count($entries) === 0)
-        <section class="rounded-2xl border border-dashed border-sky-200 bg-white p-10 text-center">
-            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+        <section class="rounded-2xl border border-dashed border-[#CBEAF1] bg-white p-10 text-center">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EAF5F8] text-[#2D7FA3]">
                 <x-lucide name="school" class="h-6 w-6" />
             </div>
-            <h2 class="mt-3 text-sm font-bold text-slate-800">Chưa có bảng xếp hạng nào được công bố</h2>
-            <p class="mt-1 text-xs text-slate-500">Bảng xếp hạng chỉ hiện sau khi ban tổ chức công bố kết quả cuộc thi.</p>
+            <h2 class="mt-3 text-sm font-bold text-[#123B68]">Chưa có bảng xếp hạng nào được công bố</h2>
+            <p class="mt-1 text-xs text-[#6E8DA4]">Bảng xếp hạng chỉ hiện sau khi ban tổ chức công bố kết quả cuộc thi.</p>
             <a href="{{ route('competitions.index') }}" class="mt-4 inline-block text-[11px] font-bold text-[#126F91] hover:underline">Xem lịch cuộc thi →</a>
         </section>
     @else
-        <section class="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_4px_16px_rgba(0,100,220,0.05)]">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+        <section class="overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(0,100,220,0.05)]">
+            <div class="flex items-center justify-between gap-3 border-b border-[#E7EFF3] px-4 py-4 sm:px-5">
                 <div>
-                    <p class="text-[10px] font-bold uppercase tracking-[0.1em] text-sky-700">Ranking</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#126F91]">Ranking</p>
                     <h2 class="mt-1 text-lg font-bold text-[#0B3C78]">Danh sách xếp hạng</h2>
                 </div>
-                <div class="hidden items-center gap-1.5 text-[11px] text-slate-400 sm:flex">
-                    <x-lucide name="target" class="h-3.5 w-3.5 text-sky-500" />Top {{ min($totalEntries, 100) }} được vinh danh
+                <div class="hidden items-center gap-1.5 text-[11px] text-[#7B95A8] sm:flex">
+                    <x-lucide name="target" class="h-3.5 w-3.5 text-[#2D7FA3]" />Top {{ min($totalEntries, 100) }} được vinh danh
                 </div>
             </div>
 
@@ -301,7 +301,7 @@
                    · "Rating"/"Biến động" -> bỏ (không có lịch sử thứ hạng để tính) --}}
             <div class="overflow-x-auto">
                 <div class="min-w-[920px] divide-y divide-slate-100">
-                    <div class="grid grid-cols-[56px_minmax(240px,1fr)_180px_150px_130px_105px_56px] bg-[#F8FBFE] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 sm:px-5">
+                    <div class="grid grid-cols-[56px_minmax(240px,1fr)_180px_150px_130px_105px_56px] bg-[#F4F8FB] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6E8DA4] sm:px-5">
                         <span>Hạng</span><span>Học viên & danh hiệu</span><span>Kỳ thi</span><span>Tiến độ điểm</span><span>Thời điểm chấm</span><span class="text-right">Tổng điểm</span><span class="text-center">Chi tiết</span>
                     </div>
 
@@ -311,49 +311,49 @@
                             $ratio = $topScore > 0 ? (int) round(min(100, max(0, $person['score'] / $topScore * 100))) : 0;
                         @endphp
                         <div x-show="isVisible({{ $person['rank'] }})" x-cloak
-                             class="grid min-h-20 grid-cols-[56px_minmax(240px,1fr)_180px_150px_130px_105px_56px] items-center px-4 py-3 text-xs transition-colors even:bg-[#F8FBFE] hover:bg-sky-50 sm:px-5 {{ !empty($person['isYou']) ? 'bg-sky-50/80' : '' }}">
-                            <span class="font-bold text-slate-500">#{{ $person['rank'] }}</span>
+                             class="grid min-h-20 grid-cols-[56px_minmax(240px,1fr)_180px_150px_130px_105px_56px] items-center px-4 py-3 text-xs transition-colors even:bg-[#F7FBFD] hover:bg-[#EAF5F8] sm:px-5 {{ !empty($person['isYou']) ? 'bg-[#EAF5F8]' : '' }}">
+                            <span class="font-bold text-[#6E8DA4]">#{{ $person['rank'] }}</span>
 
                             <div class="flex min-w-0 items-center gap-3">
                                 <img src="{{ $avatarFor((int) $person['rank']) }}" alt="Avatar của {{ $person['name'] }}"
-                                     class="h-10 w-10 shrink-0 rounded-full border border-sky-100 bg-sky-50 object-cover">
+                                     class="h-10 w-10 shrink-0 rounded-full border border-[#DDEAF0] bg-[#EAF5F8] object-cover">
                                 <div class="min-w-0">
                                     <div class="flex min-w-0 items-center gap-1.5">
-                                        <p class="truncate font-bold text-slate-800">{{ $person['name'] }}</p>
+                                        <p class="truncate font-bold text-[#123B68]">{{ $person['name'] }}</p>
                                         @if (!empty($person['isYou']))
-                                            <span class="shrink-0 rounded border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">Bạn</span>
+                                            <span class="shrink-0 rounded border border-[#D6E3EF] bg-[#EEF4FA] px-1.5 py-0.5 text-[9px] font-bold text-[#365B7A]">Bạn</span>
                                         @else
-                                            <span class="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">{{ $badgeFor((int) $person['rank']) }}</span>
+                                            <span class="shrink-0 rounded border border-[#CBE7D9] bg-[#EFF9F5] px-1.5 py-0.5 text-[9px] font-bold text-[#2F8A6B]">{{ $badgeFor((int) $person['rank']) }}</span>
                                         @endif
                                     </div>
-                                    <p class="mt-1 text-[11px] text-slate-400">{{ $person['acCount'] }} câu làm đúng</p>
+                                    <p class="mt-1 text-[11px] text-[#7B95A8]">{{ $person['acCount'] }} câu làm đúng</p>
                                 </div>
                             </div>
 
-                            <span class="truncate pr-3 text-slate-600">{{ $scopeLabel }}</span>
+                            <span class="truncate pr-3 text-[#45657D]">{{ $scopeLabel }}</span>
 
                             <div class="pr-4">
                                 <div class="flex items-center justify-between gap-2 text-[11px] font-bold">
-                                    <span class="text-emerald-700">{{ $person['acCount'] }} câu</span>
-                                    <span class="text-slate-400">{{ $ratio }}%</span>
+                                    <span class="text-[#2F8A6B]">{{ $person['acCount'] }} câu</span>
+                                    <span class="text-[#7B95A8]">{{ $ratio }}%</span>
                                 </div>
-                                <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div class="h-full rounded-full bg-emerald-500" style="width: {{ $ratio }}%"></div>
+                                <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[#EAF0F3]">
+                                    <div class="h-full rounded-full bg-[#2F8A6B]" style="width: {{ $ratio }}%"></div>
                                 </div>
                             </div>
 
-                            <span class="inline-flex w-fit items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1.5 text-[11px] font-bold text-orange-600">
+                            <span class="inline-flex w-fit items-center gap-1 rounded-lg border border-[#F2E1B6] bg-[#FFF7E3] px-2 py-1.5 text-[11px] font-bold text-[#866523]">
                                 <x-lucide name="clock" class="h-3.5 w-3.5 shrink-0" />
                                 {{ $person['computedAt'] ? \Illuminate\Support\Carbon::parse($person['computedAt'])->format('d/m/Y') : '—' }}
                             </span>
 
                             <span class="text-right">
                                 <strong class="block text-sm font-black text-[#0B3C78]">{{ rtrim(rtrim(number_format($person['score'], 2, '.', ''), '0'), '.') }}</strong>
-                                <small class="text-[10px] text-slate-400">pts</small>
+                                <small class="text-[10px] text-[#7B95A8]">pts</small>
                             </span>
 
                             <a href="{{ $detailHref }}" aria-label="Xem chi tiết kỳ thi" title="Xem chi tiết kỳ thi"
-                               class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-blue-600 transition-colors hover:bg-sky-100">
+                               class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-[#EAF5F8] text-[#126F91] transition-colors hover:bg-[#E4F1F6]">
                                 <x-lucide name="eye" class="h-4 w-4" />
                             </a>
                         </div>
@@ -361,11 +361,11 @@
 
                     @if (count($rest) === 0)
                         {{-- Bảng chỉ có 1–3 người: tất cả đã lên bục vinh danh, không còn dòng nào để liệt kê. --}}
-                        <div class="px-5 py-10 text-center text-xs text-slate-500">
+                        <div class="px-5 py-10 text-center text-xs text-[#6E8DA4]">
                             Toàn bộ thí sinh đã được vinh danh ở bục phía trên.
                         </div>
                     @else
-                        <div x-show="visibleCount === 0" x-cloak class="px-5 py-10 text-center text-xs text-slate-500">
+                        <div x-show="visibleCount === 0" x-cloak class="px-5 py-10 text-center text-xs text-[#6E8DA4]">
                             Không tìm thấy hạng hoặc kỳ thi phù hợp.
                         </div>
                     @endif
@@ -374,28 +374,28 @@
 
             {{-- Phân trang 5 dòng/trang, đúng như source mới --}}
             <nav x-show="visibleCount > 0 && totalPages > 1" x-cloak aria-label="Phân trang bảng xếp hạng"
-                 class="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500 sm:px-5">
-                <span>Trang <strong class="text-slate-700" x-text="page">1</strong> / <span x-text="totalPages">1</span></span>
+                 class="flex items-center justify-between gap-3 border-t border-[#E7EFF3] px-4 py-3 text-[11px] text-[#6E8DA4] sm:px-5">
+                <span>Trang <strong class="text-[#365B7A]" x-text="page">1</strong> / <span x-text="totalPages">1</span></span>
                 <div class="flex items-center gap-1">
                     <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="page = page - 1"
-                            class="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            class="grid h-8 w-8 place-items-center rounded-lg border border-[#D6E3EF] bg-white text-[#6E8DA4] transition hover:border-sky-300 hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                         <x-lucide name="chevron-left" class="h-4 w-4" />
                     </button>
                     <template x-for="pageNumber in totalPages" :key="pageNumber">
                         <button type="button" :aria-label="'Trang ' + pageNumber" :aria-current="pageNumber === page ? 'page' : null"
                                 @click="page = pageNumber"
                                 class="grid h-8 min-w-8 place-items-center rounded-lg px-2 font-bold transition"
-                                :class="pageNumber === page ? 'bg-[#126F91] text-white' : 'text-slate-500 hover:bg-sky-50'"
+                                :class="pageNumber === page ? 'bg-[#126F91] text-white' : 'text-[#6E8DA4] hover:bg-[#EAF5F8]'"
                                 x-text="pageNumber"></button>
                     </template>
                     <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="page = page + 1"
-                            class="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            class="grid h-8 w-8 place-items-center rounded-lg border border-[#D6E3EF] bg-white text-[#6E8DA4] transition hover:border-sky-300 hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                         <x-lucide name="chevron-right" class="h-4 w-4" />
                     </button>
                 </div>
             </nav>
 
-            <div class="flex items-center gap-2 border-t border-slate-100 px-4 py-3 text-[11px] text-slate-400 sm:px-5">
+            <div class="flex items-center gap-2 border-t border-[#E7EFF3] px-4 py-3 text-[11px] text-[#7B95A8] sm:px-5">
                 <x-lucide name="award" class="h-3.5 w-3.5 text-amber-500" />
                 Dữ liệu tổng hợp từ các cuộc thi đã công bố kết quả; tên học viên được ẩn danh để bảo vệ dữ liệu học sinh.
             </div>

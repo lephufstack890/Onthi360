@@ -342,7 +342,7 @@
 
                             @if ($cl['format'])
                                 <div class="flex min-w-0 items-center gap-1.5">
-                                    <x-lucide name="play" class="h-3.5 w-3.5 shrink-0 text-[#3B9374]" />
+                                    <x-lucide name="video" class="h-3.5 w-3.5 shrink-0 text-[#3B9374]" />
                                     <span class="truncate" title="{{ $cl['format'] }}">{{ $cl['format'] }}</span>
                                 </div>
                             @endif
@@ -368,9 +368,19 @@
                                     <span class="shrink-0 font-semibold text-[#71869A]">Sĩ số:</span>
                                     <span class="truncate font-bold text-[#376B98]">{{ $seatsLabel }}</span>
                                 </div>
-                                <div class="inline-flex max-w-full items-center justify-self-end gap-1 whitespace-nowrap rounded-lg border px-2 py-1 text-[10px] shadow-[0_2px_6px_rgba(45,127,163,0.1)] {{ $cl['isMember'] ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-amber-500 bg-amber-500 text-white' }}">
-                                    <x-lucide :name="$cl['isMember'] ? 'check-circle-2' : 'user-check'" class="h-3.5 w-3.5 shrink-0 text-white" />
-                                    <span class="font-extrabold text-white">{{ $cl['isMember'] ? 'Đã tham gia' : 'Chưa tham gia' }}</span>
+                                @php
+                                    // Bản mẫu chỉ có 2 trạng thái (đã/chưa tham gia) vì không có khâu
+                                    // duyệt. Hệ thống mình có 3 kể từ 16/9 — thêm "Chờ duyệt" cho đúng
+                                    // thứ học sinh đang gặp, giữ nguyên kiểu chip đặc màu của bản mẫu.
+                                    [$joinChipTone, $joinChipIcon, $joinChipText] = $cl['isMember']
+                                        ? ['border-emerald-500 bg-emerald-500', 'check-circle-2', 'Đã tham gia']
+                                        : ($cl['isPending']
+                                            ? ['border-[#2D7FA3] bg-[#2D7FA3]', 'clock', 'Chờ duyệt']
+                                            : ['border-amber-500 bg-amber-500', 'user-check', 'Chưa tham gia']);
+                                @endphp
+                                <div class="inline-flex max-w-full items-center justify-self-end gap-1 whitespace-nowrap rounded-lg border px-2 py-1 text-[10px] text-white shadow-[0_2px_6px_rgba(45,127,163,0.1)] {{ $joinChipTone }}">
+                                    <x-lucide :name="$joinChipIcon" class="h-3.5 w-3.5 shrink-0 text-white" />
+                                    <span class="font-extrabold text-white">{{ $joinChipText }}</span>
                                 </div>
                             </div>
                         </div>
@@ -384,9 +394,28 @@
                                 <p class="truncate text-[11px] font-bold text-slate-800">{{ $cl['teacherName'] ?: 'Chưa phân công' }}</p>
                                 <p class="truncate text-[11px] text-[#71869A]">Giảng viên phụ trách</p>
                                 @if (count($cl['assistantNames']) > 0)
-                                    <p class="mt-1 truncate text-[11px] text-[#71869A]" title="{{ implode(', ', $cl['assistantNames']) }}">
-                                        {{ count($cl['assistantNames']) }} trợ giảng đồng hành
-                                    </p>
+                                    {{-- Bản mẫu mới xếp CHỒNG ảnh trợ giảng rồi mới tới nhãn. Ảnh giáo
+                                         viên hệ thống chưa lưu nên vẫn vẽ chữ cái đầu tại chỗ (không gọi
+                                         dịch vụ ảnh ngoài), chỉ mượn cách xếp chồng. --}}
+                                    <div class="mt-1 flex items-center gap-1.5">
+                                        <div class="flex -space-x-1.5" aria-label="Các trợ giảng đồng hành">
+                                            @foreach (array_slice($cl['assistantNames'], 0, 4) as $assistantName)
+                                                @php
+                                                    // Vẽ chữ cái đầu ngay tại chỗ thay vì dùng x-ws.avatar:
+                                                    // component đó cố định cỡ h-7/h-9, ghi đè bằng lớp cùng
+                                                    // độ ưu tiên là may rủi (lớp nào sinh ra sau trong tệp
+                                                    // CSS thì thắng). Chấm trợ giảng chỉ 20px nên tự vẽ.
+                                                    $aParts = preg_split('/\s+/u', trim((string) $assistantName)) ?: [];
+                                                    $aInitials = $aParts === [] ? '?' : mb_strtoupper(mb_substr(end($aParts), 0, 1), 'UTF-8');
+                                                @endphp
+                                                <span role="img" aria-label="Trợ giảng {{ $assistantName }}" title="{{ $assistantName }}"
+                                                      class="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-white bg-[#EAF5F8] text-[8px] font-black text-[#216F8E]">{{ $aInitials }}</span>
+                                            @endforeach
+                                        </div>
+                                        <span class="truncate text-[11px] text-[#71869A]" title="{{ implode(', ', $cl['assistantNames']) }}">
+                                            {{ count($cl['assistantNames']) > 4 ? '+'.(count($cl['assistantNames']) - 4).' · ' : '' }}Trợ giảng đồng hành
+                                        </span>
+                                    </div>
                                 @endif
                             </div>
                         </div>
