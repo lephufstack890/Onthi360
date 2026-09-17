@@ -187,7 +187,13 @@ class AccessGateService
             ->where('product_id', $productId)
             ->whereIn('scope', [AccessScope::PersonalLearning->value, AccessScope::TeacherTeaching->value])
             ->where('status', AccessRightStatus::Active)
-            ->where('expires_at', '>', now())
+            // SỬA 17/9 (lỗi khách báo: "kích hoạt mã thành công mà tài liệu không mở") —
+            // TRƯỚC ĐÂY chỉ có where('expires_at', '>', now()). Trong SQL, mọi phép so sánh với
+            // NULL đều cho UNKNOWN nên dòng quyền VĨNH VIỄN (expires_at = NULL, sinh ra khi sản
+            // phẩm để trống "Thời hạn quyền" — màn quản trị in là "Không giới hạn") KHÔNG BAO
+            // GIỜ lọt qua cửa này: kích hoạt xong, quyền nằm đúng trong bảng, mà mở tài liệu vẫn
+            // 403. Xem App\Models\AccessRight::isCurrentlyActive() để hiểu quy ước NULL.
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->exists();
     }
 

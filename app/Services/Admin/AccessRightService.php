@@ -37,7 +37,8 @@ class AccessRightService
                 'user' => $r->user->name ?? '',
                 'product' => $r->product->title ?? '',
                 'scope' => $r->scope === AccessScope::TeacherTeaching ? 'Dùng để dạy (mọi lớp phụ trách)' : 'Học cá nhân',
-                'expires' => $r->expires_at?->format('d/m/Y') ?? 'Không xác định',
+                // SỬA 17/9 — NULL là quyền vĩnh viễn (xem AccessRight::isCurrentlyActive()).
+                'expires' => $r->expires_at?->format('d/m/Y') ?? 'Vĩnh viễn',
                 'status' => $statusLabel,
                 'tone' => $tone,
             ];

@@ -389,7 +389,8 @@ class AccessService
         $rights = $grouped->get($tab === 'active' ? AccessRightStatusService::ACTIVE : $tab, collect())->map(fn ($r) => [
             'productId' => $r->product_id,
             'title' => $r->product->title ?? 'Học liệu',
-            'expires' => $r->expires_at?->format('d/m/Y') ?? 'Không xác định',
+            // SỬA 17/9 — NULL là quyền vĩnh viễn, nói thẳng thay vì "Không xác định" (đọc như lỗi dữ liệu).
+            'expires' => $r->expires_at?->format('d/m/Y') ?? 'Vĩnh viễn',
             'status' => match (true) {
                 $tab === 'expiring' => 'Sắp hết hạn',
                 $tab === 'expired' => 'Đã hết hạn',

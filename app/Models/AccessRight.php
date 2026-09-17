@@ -38,11 +38,22 @@ class AccessRight extends Model
     }
 
     /** Còn hiệu lực TẠI thời điểm hiện tại theo giờ máy chủ — không tin client (16 mục 3). */
+    /**
+     * SỬA 17/9 (lỗi khách báo: "nhập mã kích hoạt thành công rồi mà tài liệu không mở").
+     *
+     * expires_at = NULL nghĩa là QUYỀN VĨNH VIỄN, không phải hết hạn — đây là quy ước sẵn có của
+     * chính hệ thống:
+     *   · products.duration_months bỏ trống -> màn Chi tiết sản phẩm in thẳng "Không giới hạn";
+     *   · OrderActivationService::activate() cố ý ghi expires_at = null khi mã không có
+     *     validity_months;
+     *   · Admin\ProductService::expiryStatus() đã coi expires_at === null là "Hiệu lực";
+     *   · cùng quy ước với class_limit (migration ghi rõ "null = unlimited").
+     * Nhưng phía KIỂM TRA QUYỀN lại đang loại NULL ra, nên mua/kích hoạt xong vẫn bị 403.
+     */
     public function isCurrentlyActive(): bool
     {
         return $this->status === AccessRightStatus::Active
-            && $this->expires_at !== null
-            && $this->expires_at->isFuture();
+            && ($this->expires_at === null || $this->expires_at->isFuture());
     }
 
     /** Quyền dạy không có giới hạn số lớp (5.3, 7.2): class_limit phải là null. */

@@ -30,8 +30,15 @@ class AccessRightStatusService
     {
         $now = $now ?? now();
 
-        if ($right->status !== AccessRightStatus::Active || $right->expires_at === null) {
+        if ($right->status !== AccessRightStatus::Active) {
             return $right->status === AccessRightStatus::Expired ? self::EXPIRED : self::OTHER;
+        }
+
+        // SỬA 17/9 — TRƯỚC ĐÂY expires_at === null bị gộp chung vào nhánh trên và rơi vào OTHER,
+        // nên quyền VĨNH VIỄN biến mất khỏi CẢ BA tab (Đang có quyền / Sắp hết hạn / Đã hết hạn):
+        // người dùng kích hoạt xong không thấy quyền của mình ở đâu cả. NULL = không hết hạn.
+        if ($right->expires_at === null) {
+            return self::ACTIVE;
         }
 
         if ($right->expires_at->diffInDays($now, false) >= -self::EXPIRING_WINDOW_DAYS && $right->expires_at->isFuture()) {

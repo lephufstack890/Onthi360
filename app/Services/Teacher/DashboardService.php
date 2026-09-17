@@ -42,8 +42,12 @@ class DashboardService
         // Quyền dạy (teacher_teaching) sắp hết hạn trong 30 ngày tới — cảnh báo sớm (7.2:
         // hết hạn thì không gắn/mở mới được học liệu này ở bất kỳ lớp nào).
         $soonestExpiring = $this->accessRights->forUserWithProduct($user->id)
+            // SỬA 17/9 — isCurrentlyActive() giờ chấp nhận quyền VĨNH VIỄN (expires_at = null),
+            // nên phải tự chặn null ở đây: quyền không hết hạn thì không bao giờ "sắp hết hạn",
+            // và thiếu điều kiện này thì ->lte() gọi trên null sẽ làm vỡ cả trang tổng quan.
             ->filter(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching
                 && $ar->isCurrentlyActive()
+                && $ar->expires_at !== null
                 && $ar->expires_at->lte(now()->addDays(30)))
             ->sortBy('expires_at')
             ->first();
