@@ -19,6 +19,7 @@
         $gradeOptions = $gradeOptions ?? [];
         $questionTypeOptions = $questionTypeOptions ?? [];
         $statusOptions = $statusOptions ?? [];
+        $difficultyOptions = $difficultyOptions ?? [];
         $subjectCounts = $subjectCounts ?? [];
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     @endphp
@@ -71,7 +72,7 @@
                 @foreach ($subjectOptions as $code => $label)
                     @php $count = $subjectCounts[$code] ?? 0; @endphp
                     @if ($count > 0 || ($filters['subject'] ?? null) === $code)
-                        <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => $code, 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                        <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => $code, 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'difficulty' => $filters['difficulty'] ?? null, 'q' => $filters['q'] ?? null])) }}"
                            class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === $code ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
                             {{ $label }} <span class="opacity-70">({{ $count }})</span>
                         </a>
@@ -80,7 +81,7 @@
                 @if (($subjectCounts[''] ?? 0) > 0 || ($filters['subject'] ?? null) === 'none')
                     {{-- Nhóm "Chưa phân loại" (subject IS NULL) — chỗ để dọn dần câu cũ, xem lệnh
                          `php artisan questions:backfill-subject --all`. --}}
-                    <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => 'none', 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                    <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => 'none', 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'difficulty' => $filters['difficulty'] ?? null, 'q' => $filters['q'] ?? null])) }}"
                        class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === 'none' ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400' }}">
                         Chưa phân loại <span class="opacity-70">({{ $subjectCounts[''] ?? 0 }})</span>
                     </a>
@@ -125,6 +126,19 @@
                         @foreach ($statusOptions as $value => $label)
                             <option value="{{ $value }}" @selected(($filters['status'] ?? null) === $value)>{{ $label }}</option>
                         @endforeach
+                    </x-ws.select>
+                </div>
+                {{-- SỬA 18/9 (khách: "chỗ giáo viên và admin thêm lọc theo độ khó nữa nha") — câu
+                     CHƯA đặt độ khó vẫn lọc ra đúng mức vì hệ thống suy theo điểm (giống hệt chỗ
+                     hiển thị ngoài trang Luyện tập), xem QuestionRepository::applyDifficultyFilter(). --}}
+                <div class="min-w-[150px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-difficulty">Độ khó</label>
+                    <x-ws.select id="filter-difficulty" name="difficulty">
+                        <option value="">Tất cả độ khó</option>
+                        @foreach ($difficultyOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(($filters['difficulty'] ?? null) === $value)>{{ $label }}</option>
+                        @endforeach
+                        <option value="{{ \App\Support\QuestionDifficulty::UNSET }}" @selected(($filters['difficulty'] ?? null) === \App\Support\QuestionDifficulty::UNSET)>Chưa đặt độ khó</option>
                     </x-ws.select>
                 </div>
                 <div class="flex-1 min-w-[200px]">
@@ -218,7 +232,7 @@
     @else
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm 2 cột Môn/Khối (và mã câu hỏi dưới tên) để nhìn
              bảng là biết ngay câu nào chưa phân loại; các tab khác giữ nguyên bộ cột cũ. --}}
-        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
+        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">
@@ -238,6 +252,17 @@
                         <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['grade'] }}</td>
                     @endif
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
+                    @if ($isQuestions)
+                        {{-- Chưa đặt thì hiện mờ + chú thích: giá trị đang được SUY theo điểm câu
+                             hỏi, chưa phải do người soạn chọn (xem App\Support\QuestionDifficulty). --}}
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            @if ($r['difficultySet'] ?? false)
+                                <span class="text-slate-600">{{ $r['difficulty'] }}</span>
+                            @else
+                                <span class="text-slate-400" title="Chưa đặt — hệ thống tự suy theo điểm câu hỏi">{{ $r['difficulty'] }} <span class="text-[11px]">(tự suy)</span></span>
+                            @endif
+                        </td>
+                    @endif
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
                     <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
                     <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
@@ -264,7 +289,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="{{ $isQuestions ? 7 : 5 }}" class="px-4 py-6 text-center text-slate-400">
+                <tr><td colspan="{{ $isQuestions ? 8 : 5 }}" class="px-4 py-6 text-center text-slate-400">
                     {{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc — thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Chưa có dữ liệu.' }}
                 </td></tr>
             @endforelse

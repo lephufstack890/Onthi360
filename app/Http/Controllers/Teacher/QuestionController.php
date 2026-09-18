@@ -21,7 +21,19 @@ class QuestionController extends Controller
         $user = Auth::user();
         $tab = $request->query('tab', 'all');
 
-        return view('teacher.questions.index', $this->questionService->listForTeacher($user, $tab));
+        // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
+        // admin") — đọc bộ lọc y hệt Admin\ContentController::index(). Chuỗi rỗng -> null để
+        // "Tất cả …" không bị hiểu nhầm thành 1 điều kiện lọc thật.
+        $filters = [
+            'subject' => $request->query('subject') ?: null,
+            'grade' => $request->query('grade') ?: null,
+            'type' => $request->query('type') ?: null,
+            'status' => $request->query('status') ?: null,
+            'difficulty' => $request->query('difficulty') ?: null,
+            'q' => $request->query('q') ?: null,
+        ];
+
+        return view('teacher.questions.index', $this->questionService->listForTeacher($user, $tab, $filters));
     }
 
     public function create(Request $request): View

@@ -32,9 +32,6 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    {{-- SỬA 24/8 — câu hỏi nhập từ gói ZIP ("Nhập từ gói ZIP") có kèm đề/lời giải/code mẫu lưu
-         ở metadata.attachments (xem ContentService::questionStoreFromZipPackage()); câu hỏi tạo
-         tay như trước giờ không có mục này. --}}
     @php $zipAttachments = $question->metadata['attachments'] ?? []; @endphp
     @if (! empty($zipAttachments))
         <div class="mb-6 bg-slate-50 border border-sky-100 rounded-3xl p-4">
@@ -71,13 +68,6 @@
                         <p class="text-[13px] text-slate-500 py-2.5 px-1">{{ $types[$question->type->value] ?? $question->type->value }} <span class="text-xs text-slate-400">(không đổi được sau khi tạo)</span></p>
                     </div>
                 </div>
-
-
-                {{-- SỬA 8/9 (3) (khách: "kho câu hỏi giờ làm sao để phân loại được các môn") —
-                     2 ô phân loại, ghi thẳng vào cột questions.subject/questions.grade (KHÔNG
-                     phải metadata) để tab "Câu hỏi" lọc/đếm nhanh. Cả 2 để trống được: câu chưa
-                     rõ môn vẫn tạo được bình thường, nằm nhóm "Chưa phân loại" cho tới khi gán.
-                     Câu nhập từ gói ZIP tự điền sẵn từ taxonomy trong question.json. --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="subject">Môn học</label>
@@ -161,16 +151,13 @@
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', $question->points) }}" class="admin-input">
                 </div>
                 <div>
-                    {{-- SỬA 18/9 — Độ khó cũng phải sửa được ở đây, không chỉ lúc tạo: câu cũ
-                         trong kho mới là phần đông, không mở ở màn Sửa thì không bao giờ gắn
-                         được độ khó cho chúng. --}}
                     @php
-                        $currentDifficulty = is_array($q0 = ($question->metadata ?? null)) ? ($q0['difficulty'] ?? '') : '';
+                        $currentDifficulty = \App\Support\QuestionDifficulty::stored($question->metadata ?? null) ?? '';
                     @endphp
                     <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
                     <x-ws.select id="difficulty" name="difficulty">
                         <option value="">— Tự suy theo điểm —</option>
-                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                        @foreach (\App\Support\QuestionDifficulty::LEVELS as $dkey => $dlabel)
                             <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty) === $dkey)>{{ $dlabel }}</option>
                         @endforeach
                     </x-ws.select>
@@ -183,10 +170,6 @@
                         @endforeach
                     </x-ws.select>
                 </div>
-                {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
-                     hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem
-                     ContentService::resolveTagIds(). Tag hiện tại của câu hỏi lấy từ
-                     $question->tags (đã eager-load ở ContentService::questionEditFormData()). --}}
                 <div>
                     <label class="block text-[13px] text-slate-600 mb-1">Tag/Chuyên đề</label>
                     @if ($allTags->isNotEmpty())

@@ -32,6 +32,7 @@ use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\QuestionDifficulty;
 use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
 use App\Support\UniqueCodeFromFilename;
@@ -258,7 +259,21 @@ class ContentService
             $rows = $this->questions->allWithOwnerFiltered($filters, 100)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
-                return ['id' => $q->id, 'title' => $q->title, 'code' => $q->code, 'subject' => $q->subjectLabel(), 'grade' => $q->gradeLabel(), 'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value, 'status' => $label, 'tone' => $tone, 'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? ''))];
+                return [
+                    'id' => $q->id,
+                    'title' => $q->title,
+                    'code' => $q->code,
+                    'subject' => $q->subjectLabel(),
+                    'grade' => $q->gradeLabel(),
+                    // SỬA 18/9 — hiện luôn Độ khó để nhìn bảng là kiểm chứng được ngay bộ lọc mới.
+                    // 'difficultySet' = false: chưa ai đặt, đang SUY theo điểm (view hiện mờ đi).
+                    'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
+                    'difficultySet' => QuestionDifficulty::stored($q->metadata) !== null,
+                    'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
+                    'status' => $label,
+                    'tone' => $tone,
+                    'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
+                ];
             })->all();
 
             // Tổng khớp bộ lọc (khác $counts['questions'] = tổng toàn kho, vẫn hiện trên tab).
@@ -316,12 +331,15 @@ class ContentService
                 'grade' => $filters['grade'] ?? null,
                 'type' => $filters['type'] ?? null,
                 'status' => $filters['status'] ?? null,
+                // SỬA 18/9 — ô lọc Độ khó mới, xem QuestionRepository::applyDifficultyFilter().
+                'difficulty' => $filters['difficulty'] ?? null,
                 'q' => $filters['q'] ?? null,
             ],
             'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
             'gradeOptions' => $tab === 'questions' ? SubjectCatalog::GRADES : [],
             'questionTypeOptions' => $tab === 'questions' ? self::QUESTION_TYPE_LABELS : [],
             'statusOptions' => $tab === 'questions' ? self::CONTENT_STATUS_OPTIONS : [],
+            'difficultyOptions' => $tab === 'questions' ? QuestionDifficulty::LEVELS : [],
             'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject() : [],
         ];
     }
@@ -1121,7 +1139,7 @@ class ContentService
         $metadata = $current ?? [];
         $value = $data['difficulty'] ?? null;
 
-        if (is_string($value) && in_array($value, ['easy', 'medium', 'hard', 'expert'], true)) {
+        if (QuestionDifficulty::isValidKey($value)) {
             $metadata['difficulty'] = $value;
         } else {
             unset($metadata['difficulty']);
@@ -1336,10 +1354,11 @@ class ContentService
                 // reference ở trên) — xem storeZipAssets() + Question::findAsset().
                 'assets' => $this->storeZipAssets($question, $package['assets']),
                 // SỬA 18/9 — độ khó gói ZIP khai sẵn ở pedagogy.difficulty; đổ thẳng vào
-                // metadata.difficulty để trang Luyện tập public hiện/lọc đúng ngay sau khi nhập
-                // (gói không khai -> null -> suy theo điểm như trước).
-                'difficulty' => QuestionZipPackage::difficultyFrom($json),
-            ],
+                // metadata.difficulty để trang Luyện tập public hiện/lọc đúng ngay sau khi nhập.
+                // Gói KHÔNG khai thì BỎ HẲN khoá (array_filter dưới) chứ không ghi null: bộ lọc
+                // "Chưa đặt độ khó" đọc bằng json_extract, mà JSON null không phải SQL NULL nên
+                // ghi null sẽ làm câu đó rơi ra ngoài mọi mức lọc. Xem QuestionDifficulty.
+            ] + array_filter(['difficulty' => QuestionZipPackage::difficultyFrom($json)]),
         ]);
 
         if ($tagNames !== []) {

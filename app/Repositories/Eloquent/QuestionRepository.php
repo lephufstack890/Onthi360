@@ -4,6 +4,7 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Question;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Support\QuestionDifficulty;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -74,10 +75,15 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      * SỬA 8/9 (3) — 1 truy vấn GROUP BY duy nhất cho cả bảng đếm theo môn, thay vì bắn N câu
      * count() cho N môn. Câu chưa gán môn (subject IS NULL) gom về khoá ''.
      */
-    public function countsBySubject(): array
+    public function countsBySubject(array $scope = []): array
     {
         return $this->query()
             ->whereNull('product_id')
+            // SỬA 18/9 — $scope = ['owner_id' => …] hoặc ['owner_type' => 'shared'] để chip đếm
+            // theo môn ở trang giáo viên chỉ đếm ĐÚNG kho đang xem. Admin gọi không tham số ->
+            // đếm toàn bộ như trước, không đổi hành vi cũ.
+            ->when(! empty($scope['owner_id']), fn (Builder $q) => $q->where('owner_id', (int) $scope['owner_id']))
+            ->when(! empty($scope['owner_type']), fn (Builder $q) => $q->where('owner_type', $scope['owner_type']))
             ->selectRaw('subject, COUNT(*) as aggregate')
             ->groupBy('subject')
             ->pluck('aggregate', 'subject')
@@ -92,6 +98,18 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     private function applyQuestionBankFilters(Builder $query, array $filters): Builder
     {
         $query->whereNull('product_id');
+
+        // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
+        // admin") — 2 khoá PHẠM VI để giáo viên dùng LẠI đúng hàm lọc này thay vì viết bản thứ
+        // hai rồi lệch luật: 'owner_id' = kho riêng của 1 giáo viên, 'owner_type' = "shared"
+        // cho tab "Kho chung (chỉ xem)". Admin không truyền khoá nào -> xem toàn bộ như trước.
+        if (! empty($filters['owner_id'])) {
+            $query->where('owner_id', (int) $filters['owner_id']);
+        }
+
+        if (! empty($filters['owner_type'])) {
+            $query->where('owner_type', $filters['owner_type']);
+        }
 
         $subject = $filters['subject'] ?? null;
         if ($subject === 'none') {
@@ -126,7 +144,54 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             });
         }
 
+        $this->applyDifficultyFilter($query, $filters['difficulty'] ?? null);
+
         return $query;
+    }
+
+    /**
+     * SỬA 18/9 (khách: "chỗ giáo viên và admin thêm lọc theo độ khó nữa nha") — lọc theo độ khó.
+     *
+     * Khó ở chỗ độ khó KHÔNG phải 1 cột: câu đã đặt thì nằm ở metadata.difficulty, câu chưa đặt
+     * thì SUY theo điểm (xem App\Support\QuestionDifficulty — cùng lớp mà trang Luyện tập dùng
+     * để hiển thị). Nếu chỉ so metadata thì lọc "Dễ" sẽ bỏ sót toàn bộ câu chưa đặt, dù ngoài
+     * trang Luyện tập chúng vẫn đang hiện chữ "Dễ" — người dùng sẽ thấy lọc bị "mất bài".
+     * Nên mỗi mức là phép HOẶC của 2 vế:
+     *   (1) đã đặt đúng mức đó (khoá mới, hoặc số 1-5 kiểu cũ);
+     *   (2) CHƯA đặt (thiếu khoá / giá trị lạ / JSON null) VÀ điểm rơi vào khoảng của mức đó.
+     * Khoảng điểm lấy từ POINT_RANGES — suy ngược từ đúng công thức derive(), nên 2 chỗ không lệch.
+     *
+     * Giá trị 'none' = "chưa ai đặt độ khó", để admin/giáo viên dò ra mà gán dần.
+     */
+    private function applyDifficultyFilter(Builder $query, mixed $difficulty): void
+    {
+        if ($difficulty === null || $difficulty === '') {
+            return;
+        }
+
+        $column = 'metadata->difficulty';
+        $stored = QuestionDifficulty::allStoredValues();
+
+        if ($difficulty === QuestionDifficulty::UNSET) {
+            $query->where(fn (Builder $sub) => $sub->whereNull($column)->orWhereNotIn($column, $stored));
+
+            return;
+        }
+
+        if (! QuestionDifficulty::isValidKey($difficulty)) {
+            return; // khoá lạ (link bị sửa tay) -> coi như không lọc, không trả bảng rỗng khó hiểu
+        }
+
+        [$minPoints, $maxPoints] = QuestionDifficulty::POINT_RANGES[$difficulty];
+
+        $query->where(function (Builder $sub) use ($column, $difficulty, $stored, $minPoints, $maxPoints) {
+            $sub->whereIn($column, QuestionDifficulty::storedValuesFor($difficulty))
+                ->orWhere(function (Builder $derived) use ($column, $stored, $minPoints, $maxPoints) {
+                    $derived
+                        ->where(fn (Builder $unset) => $unset->whereNull($column)->orWhereNotIn($column, $stored))
+                        ->whereBetween('points', [$minPoints, $maxPoints]);
+                });
+        });
     }
 
     /**

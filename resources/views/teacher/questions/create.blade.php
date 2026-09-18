@@ -206,12 +206,12 @@
                     @php
                         // Giá trị đang lưu của câu (nếu là màn Sửa) — metadata giữ nguyên các
                         // khoá khác (assets/attachments của gói ZIP), chỉ đọc ra 'difficulty'.
-                        $currentDifficulty = is_array($q0 = ($question->metadata ?? null)) ? ($q0['difficulty'] ?? '') : '';
+                        $currentDifficulty = \App\Support\QuestionDifficulty::stored($question->metadata ?? null) ?? '';
                     @endphp
                     <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
                     <x-ws.select id="difficulty" name="difficulty">
                         <option value="">— Tự suy theo điểm —</option>
-                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                        @foreach (\App\Support\QuestionDifficulty::LEVELS as $dkey => $dlabel)
                             <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
                         @endforeach
                     </x-ws.select>

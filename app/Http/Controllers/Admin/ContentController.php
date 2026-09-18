@@ -40,6 +40,9 @@ class ContentController extends Controller
             'grade' => $request->query('grade') ?: null,
             'type' => $request->query('type') ?: null,
             'status' => $request->query('status') ?: null,
+            // SỬA 18/9 (khách: "admin thêm lọc theo độ khó nữa nha") — xem
+            // QuestionRepository::applyDifficultyFilter(); 'none' = chưa ai đặt độ khó.
+            'difficulty' => $request->query('difficulty') ?: null,
             'q' => $request->query('q') ?: null,
         ];
 

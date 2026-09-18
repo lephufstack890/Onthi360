@@ -27,6 +27,13 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
      *   'type'    => Enums\QuestionType
      *   'status'  => Enums\ContentStatus
      *   'q'       => từ khoá, khớp tên HOẶC mã câu hỏi
+     *
+     * SỬA 18/9 — thêm 3 khoá nữa (dùng chung cho Kho câu hỏi của Admin VÀ của Giáo viên):
+     *   'difficulty' => 'easy'|'medium'|'hard'|'expert' (khớp giá trị đã đặt HOẶC suy theo
+     *                   điểm khi câu chưa đặt) hoặc 'none' = chưa ai đặt độ khó.
+     *                   Xem App\Support\QuestionDifficulty.
+     *   'owner_id'   => chỉ lấy câu của 1 giáo viên (kho riêng)
+     *   'owner_type' => 'shared' = chỉ Kho chung
      */
     public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection;
 
@@ -36,9 +43,13 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
     /**
      * SỬA 8/9 (3) — đếm số câu theo từng môn để hiện ngay trên bộ lọc.
      *
+     * SỬA 18/9 — $scope (tuỳ chọn) nhận 'owner_id'/'owner_type' giống allWithOwnerFiltered()
+     * để trang Giáo viên đếm đúng kho đang xem; bỏ trống = đếm toàn bộ (hành vi cũ của Admin).
+     *
+     * @param  array<string, mixed>  $scope
      * @return array<string, int> mã môn => số câu; khoá '' là nhóm chưa phân loại
      */
-    public function countsBySubject(): array;
+    public function countsBySubject(array $scope = []): array;
 
     /**
      * "Luyện tập theo câu" (Giai đoạn 6) — chỉ lấy ID câu hỏi ĐÃ PHÁT HÀNH + dạng Trắc nghiệm/

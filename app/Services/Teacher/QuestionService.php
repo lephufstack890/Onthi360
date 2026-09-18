@@ -4,6 +4,7 @@ namespace App\Services\Teacher;
 
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
+use App\Enums\QuestionType;
 use App\Enums\Visibility;
 use App\Models\Question;
 use App\Models\QuestionBank;
@@ -13,6 +14,7 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\QuestionDifficulty;
 use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,6 +31,17 @@ class QuestionService
 {
     /** Giới hạn hiển thị/trang — đủ lớn để "Tất cả" thực sự hiện hết trong đa số trường hợp thực tế. */
     private const LIST_LIMIT = 200;
+
+    /**
+     * SỬA 18/9 — nhãn trạng thái cho dropdown BỘ LỌC (giống Admin\ContentService::
+     * CONTENT_STATUS_OPTIONS). Khác draftLabel() bên dưới: hàm đó sinh nhãn CHI TIẾT cho từng
+     * dòng ("Nháp — thiếu cấu hình chấm"), không dùng làm giá trị lọc được.
+     */
+    private const STATUS_FILTER_OPTIONS = [
+        'draft' => 'Nháp',
+        'published' => 'Phát hành',
+        'archived' => 'Lưu trữ',
+    ];
 
     public function __construct(
         private readonly QuestionRepositoryInterface $questions,
@@ -52,8 +65,13 @@ class QuestionService
      * đó là việc của Admin/Editor; teacher.assessments.store vẫn chỉ nhận câu thuộc
      * đúng kho riêng của giáo viên đó khi soạn đề, không đổi ở đây).
      */
-    public function listForTeacher(User $user, string $tab): array
+    public function listForTeacher(User $user, string $tab, array $filters = []): array
     {
+        // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
+        // admin") — 4 tab cũ GIỮ NGUYÊN (chúng vẫn là lối tắt hay dùng nhất), chỉ chồng thêm bộ
+        // lọc Môn/Khối/Dạng/Trạng thái/Độ khó/Tìm kiếm y như tab "Câu hỏi" bên Admin. Cả 2 màn
+        // giờ đi qua CÙNG QuestionRepository::allWithOwnerFiltered() để không lệch luật lọc —
+        // phạm vi kho truyền bằng 'owner_id' (kho riêng) / 'owner_type' (Kho chung, chỉ xem).
         $counts = [
             'all' => $this->questions->countByOwner($user->id),
             'published' => $this->questions->countByOwner($user->id, ContentStatus::Published->value),
@@ -61,38 +79,77 @@ class QuestionService
             'shared' => $this->questions->countShared(),
         ];
 
-        $tabs = [
-            ['label' => 'Tất cả', 'href' => route('teacher.questions.index'), 'active' => $tab === 'all', 'count' => $counts['all']],
-            ['label' => 'Đã phát hành', 'href' => route('teacher.questions.index', ['tab' => 'published']), 'active' => $tab === 'published', 'count' => $counts['published']],
-            ['label' => 'Nháp', 'href' => route('teacher.questions.index', ['tab' => 'draft']), 'active' => $tab === 'draft', 'count' => $counts['draft']],
-            ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', ['tab' => 'shared']), 'active' => $tab === 'shared', 'count' => $counts['shared']],
-        ];
+        $isShared = $tab === 'shared';
 
-        if ($tab === 'shared') {
-            $questions = $this->questions->sharedLatestWithOwner(self::LIST_LIMIT)
-                ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: true))
-                ->all();
-
-            return ['tab' => $tab, 'tabs' => $tabs, 'questions' => $questions, 'total' => $counts['shared']];
-        }
-
-        $statusFilter = match ($tab) {
+        // Tab "Đã phát hành"/"Nháp" thực chất LÀ bộ lọc trạng thái — cho 2 thứ dùng chung 1 giá
+        // trị thay vì AND với nhau (chọn tab Nháp + lọc "Phát hành" sẽ luôn ra bảng rỗng, khó
+        // hiểu). Người dùng đổi ô Trạng thái -> form gửi lên không kèm 'tab' -> tab active được
+        // suy NGƯỢC lại từ chính trạng thái đó ngay bên dưới.
+        $status = $filters['status'] ?? match ($tab) {
             'published' => ContentStatus::Published->value,
             'draft' => ContentStatus::Draft->value,
             default => null,
         };
 
-        $total = match ($tab) {
-            'published' => $counts['published'],
-            'draft' => $counts['draft'],
-            default => $counts['all'],
+        $scope = $isShared ? ['owner_type' => OwnerType::Shared->value] : ['owner_id' => $user->id];
+        $query = $scope + [
+            'subject' => $filters['subject'] ?? null,
+            'grade' => $filters['grade'] ?? null,
+            'type' => $filters['type'] ?? null,
+            'status' => $status,
+            'difficulty' => $filters['difficulty'] ?? null,
+            'q' => $filters['q'] ?? null,
+        ];
+
+        $activeTab = $isShared ? 'shared' : match ($status) {
+            ContentStatus::Published->value => 'published',
+            ContentStatus::Draft->value => 'draft',
+            default => 'all',
         };
 
-        $questions = $this->questions->byOwner($user->id, $statusFilter, self::LIST_LIMIT)
-            ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: false))
+        // Giữ nguyên các tiêu chí đang lọc khi bấm sang tab khác — bấm tab không phải là "xoá lọc".
+        $keep = array_filter([
+            'subject' => $filters['subject'] ?? null,
+            'grade' => $filters['grade'] ?? null,
+            'type' => $filters['type'] ?? null,
+            'difficulty' => $filters['difficulty'] ?? null,
+            'q' => $filters['q'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        $tabs = [
+            ['label' => 'Tất cả', 'href' => route('teacher.questions.index', $keep), 'active' => $activeTab === 'all', 'count' => $counts['all']],
+            ['label' => 'Đã phát hành', 'href' => route('teacher.questions.index', $keep + ['tab' => 'published']), 'active' => $activeTab === 'published', 'count' => $counts['published']],
+            ['label' => 'Nháp', 'href' => route('teacher.questions.index', $keep + ['tab' => 'draft']), 'active' => $activeTab === 'draft', 'count' => $counts['draft']],
+            ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', $keep + ['tab' => 'shared']), 'active' => $activeTab === 'shared', 'count' => $counts['shared']],
+        ];
+
+        $questions = $this->questions->allWithOwnerFiltered($query, self::LIST_LIMIT)
+            ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: $isShared))
             ->all();
 
-        return ['tab' => $tab, 'tabs' => $tabs, 'questions' => $questions, 'total' => $total];
+        return [
+            'tab' => $activeTab,
+            'tabs' => $tabs,
+            'questions' => $questions,
+            // Tổng ĐÃ LỌC (số trên tab vẫn là tổng toàn kho) — giống hệt cách tab Câu hỏi bên
+            // Admin đang hiển thị, xem Admin\ContentService::indexData().
+            'total' => $this->questions->countAllFiltered($query),
+            'filters' => [
+                'subject' => $filters['subject'] ?? null,
+                'grade' => $filters['grade'] ?? null,
+                'type' => $filters['type'] ?? null,
+                'status' => $status,
+                'difficulty' => $filters['difficulty'] ?? null,
+                'q' => $filters['q'] ?? null,
+            ],
+            'isShared' => $isShared,
+            'subjectOptions' => SubjectCatalog::SUBJECTS,
+            'gradeOptions' => SubjectCatalog::GRADES,
+            'questionTypeOptions' => collect(QuestionType::cases())->mapWithKeys(fn (QuestionType $t) => [$t->value => $t->label()])->all(),
+            'statusOptions' => self::STATUS_FILTER_OPTIONS,
+            'difficultyOptions' => QuestionDifficulty::LEVELS,
+            'subjectCounts' => $this->questions->countsBySubject($scope),
+        ];
     }
 
     private function mapQuestionRow(Question $q, bool $readOnly): array
@@ -100,6 +157,16 @@ class QuestionService
         return [
             'id' => $q->id,
             'title' => $q->title,
+            // SỬA 18/9 — 5 trường dưới đây là phần "đầy đủ như admin" của bảng: mã câu hỏi dưới
+            // tên, Môn/Khối (để thấy ngay câu nào chưa phân loại), Chủ sở hữu (phân biệt câu của
+            // mình với câu Kho chung ở tab chỉ xem) và Độ khó.
+            'code' => $q->code,
+            'subject' => $q->subjectLabel(),
+            'grade' => $q->gradeLabel(),
+            'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
+            'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
+            // false = chưa ai đặt, đang SUY theo điểm câu hỏi (view hiện mờ đi cho khỏi nhầm).
+            'difficultySet' => QuestionDifficulty::stored($q->metadata) !== null,
             // SỬA 8/9 (4) — 'type' giờ là NHÃN tiếng Việt để hiện thẳng ra bảng; 'typeValue' giữ
             // mã gốc cho phần chọn icon ở view (icon map theo mã, không theo nhãn — đổi chữ nhãn
             // sau này không làm mất icon). Xem App\Enums\QuestionType::label().
@@ -275,7 +342,7 @@ class QuestionService
         $metadata = $current ?? [];
         $value = $data['difficulty'] ?? null;
 
-        if (is_string($value) && in_array($value, ['easy', 'medium', 'hard', 'expert'], true)) {
+        if (QuestionDifficulty::isValidKey($value)) {
             $metadata['difficulty'] = $value;
         } else {
             unset($metadata['difficulty']);
@@ -437,9 +504,9 @@ class QuestionService
                 // storeZipAssets() + Question::findAsset().
                 'assets' => $this->storeZipAssets($question, $package['assets']),
                 // SỬA 18/9 — độ khó gói ZIP khai sẵn ở pedagogy.difficulty, đổ vào
-                // metadata.difficulty để trang Luyện tập public hiện/lọc đúng.
-                'difficulty' => QuestionZipPackage::difficultyFrom($json),
-            ],
+                // metadata.difficulty để trang Luyện tập public hiện/lọc đúng. Gói không khai
+                // thì BỎ HẲN khoá chứ không ghi null — xem lý do ở bản Admin cùng ngày.
+            ] + array_filter(['difficulty' => QuestionZipPackage::difficultyFrom($json)]),
         ]);
 
         if ($tagNames !== []) {

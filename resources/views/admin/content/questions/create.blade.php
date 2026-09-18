@@ -14,32 +14,8 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    {{-- SỬA 24/8 — nếu quay lại đây do lỗi từ chính form "Nhập từ gói ZIP" (zip_package), giữ
-         nguyên loại "Lập trình" đang chọn thay vì rơi về mặc định "mcq" khiến form ZIP bị ẩn
-         mất ngay lúc đang cần sửa lỗi.
-         SỬA 8/9 (khách: "trắc nghiệm và điền khuyết cũng nhập từ ZIP luôn") — khối ZIP giờ hiện
-         với CẢ 3 dạng trong dropdown nên không còn cần ép về "coding" khi có lỗi zip_package
-         (form ZIP không bao giờ bị ẩn lúc đang báo lỗi nữa) -> quay về mặc định "mcq". --}}
     <div x-data="{ type: '{{ old('type', 'mcq') }}' }">
-        {{-- SỬA 24/8 ("Nhập từ gói ZIP") — tải lên 1 gói ZIP đóng gói sẵn (question.json + đề/lời
-             giải PDF + test case nếu là câu lập trình, định dạng "OT360-QPACK") để hệ thống tự
-             điền toàn bộ thông tin câu hỏi bên dưới, chỉ cần vào trang Sửa kiểm tra rồi bấm Lưu.
-             Đây là FORM RIÊNG (enctype multipart riêng), KHÔNG liên quan tới form tạo tay bên
-             dưới — xem App\Services\Admin\ContentService::questionStoreFromZipPackage().
-             (Ban đầu khối này chỉ hiện với loại "Lập trình" — xem SỬA 8/9 ngay dưới.) --}}
-        {{-- SỬA 8/9 (khách: "trắc nghiệm và điền khuyết cũng nhập từ file zip luôn") — trước đây
-             khối này CHỈ hiện khi type === 'coding' nên 2 dạng còn lại không thấy ô tải ZIP, dù
-             ContentService::questionStoreFromZipPackage() ĐÃ hỗ trợ sẵn đủ các content.type
-             (programming / single_choice / true_false / short_answer / composite). Đây thuần tuý
-             là mở hiển thị: KHÔNG đổi service/controller/route/luồng chấm nào. Lưu ý loại câu
-             hỏi thật vẫn do content.type trong question.json quyết định (server tự map), ô "Loại
-             câu hỏi" bên dưới chỉ để chọn form nhập TAY. --}}
         <div x-show="['coding', 'mcq', 'fill_blank'].includes(type)" x-cloak class="mb-6">
-            {{-- SỬA 24/8 (2) — khách yêu cầu: chọn xong tệp ZIP là TỰ ĐỘNG nhập ngay, không bắt
-                 bấm thêm nút. @change ở input tự gọi requestSubmit() (Alpine — cùng cách dùng
-                 @click/@change đã có sẵn ở nơi khác trong dự án, ví dụ student/assessment/
-                 take.blade.php). Nút "Nhập từ ZIP" vẫn giữ lại làm phương án dự phòng (JS lỗi/
-                 tắt) + hiện trạng thái "Đang xử lý..." ngay khi vừa chọn tệp. --}}
             <form method="POST" action="{{ route('admin.content.questions.zipImport') }}" enctype="multipart/form-data"
                   x-data="{ submitting: false }"
                   class="bg-indigo-50 border border-indigo-100 rounded-3xl p-4 flex flex-wrap items-end gap-3">
@@ -186,16 +162,11 @@
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', 10) }}" class="admin-input">
                 </div>
                 <div>
-                    {{-- SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó,
-                         thêm cho tôi phần này") — lưu vào metadata.difficulty dạng KHOÁ, đúng
-                         bằng 4 mức của bộ lọc ngoài trang Luyện tập công khai, nên đặt xong là
-                         lọc được ngay. Để trống = chưa đặt, hệ thống tự suy từ điểm câu hỏi
-                         (xem Public\PracticeService). --}}
                     @php $currentDifficulty = ''; @endphp
                     <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
                     <x-ws.select id="difficulty" name="difficulty">
                         <option value="">— Tự suy theo điểm —</option>
-                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                        @foreach (\App\Support\QuestionDifficulty::LEVELS as $dkey => $dlabel)
                             <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
                         @endforeach
                     </x-ws.select>
@@ -208,9 +179,6 @@
                         @endforeach
                     </x-ws.select>
                 </div>
-                {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): tick tag có sẵn
-                     hoặc gõ tag mới ngay ở đây (cách nhau bằng dấu phẩy) — xem
-                     ContentService::resolveTagIds(). Dùng để lọc ở "Luyện tập theo câu". --}}
                 <div>
                     <label class="block text-[13px] text-slate-600 mb-1">Tag/Chuyên đề</label>
                     @if ($allTags->isNotEmpty())
