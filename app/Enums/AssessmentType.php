@@ -12,7 +12,10 @@ enum AssessmentType: string
     public function label(): string
     {
         return match ($this) {
-            self::Practice => 'Tự luyện',
+            // SỬA 18/9 — khách gọi loại này là "Luyện tập" ở mọi chỗ (ô Loại bên admin và bên
+            // giáo viên đều ghi "Luyện tập"), nhãn enum để "Tự luyện" là cùng một thứ mà hai
+            // tên, dễ tưởng là hai loại khác nhau. Giá trị lưu trong CSDL ('practice') KHÔNG đổi.
+            self::Practice => 'Luyện tập',
             self::Assignment => 'Bài tập',
             self::Exam => 'Đề thi',
             self::CompetitionPaper => 'Đề thi cuộc thi',

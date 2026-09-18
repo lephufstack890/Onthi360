@@ -41,7 +41,10 @@ class PracticeService
         $assessments = $this->assessments->query()
             ->where('type', 'practice')
             ->where('status', 'published')
-            ->withCount('items')
+            // SỬA 18/9 — đếm thêm answerKeys/codingItems: từ hôm nay đề loại "Luyện tập" có
+            // thể là đề PDF do giáo viên tạo ở "Đề PDF của tôi" (content_mode=pdf_answer_sheet).
+            // Đề dạng đó KHÔNG có bản ghi items nào — chỉ đếm items thì thẻ đề luôn hiện "0 câu".
+            ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
             ->limit(30)
             ->get();
@@ -85,10 +88,14 @@ class PracticeService
             return [
                 'id' => $a->id,
                 'title' => $a->title,
-                'itemsCount' => $a->items_count,
+                // Đề câu rời đếm theo items; đề PDF đếm theo số câu trong phiếu đáp án.
+                'itemsCount' => $a->items_count > 0 ? $a->items_count : (int) ($a->answer_keys_count ?? 0),
                 'totalPoints' => $a->total_points,
                 'durationMinutes' => $a->duration_minutes,
-                'hasCoding' => $codingAssessmentIds->contains($a->id),
+                // Có bài lập trình: đề câu rời xét qua items.question.type, đề PDF xét qua
+                // bảng assessment_coding_items riêng — thiếu vế sau thì đề PDF có bài code vẫn
+                // bị gắn nhãn "Chấm tự động", học sinh vào mới biết là phải nộp code.
+                'hasCoding' => $codingAssessmentIds->contains($a->id) || (int) ($a->coding_items_count ?? 0) > 0,
                 'progressStatus' => $progressStatus,
                 'progress' => $progress,
                 'progressLabel' => $progressLabel,

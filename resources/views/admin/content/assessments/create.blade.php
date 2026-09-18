@@ -6,7 +6,7 @@
 @section('content')
     @php $types = $types ?? []; $publishAnswerRules = $publishAnswerRules ?? []; @endphp
 
-    <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Nội dung</a>
+    <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Kho câu hỏi và đề</a>
 
     <x-ws.page-header title="Tạo đề/bộ bài" icon="scroll-text" subtitle="Chỉ tạo thông tin chung của đề — nội dung (câu hỏi rời hoặc PDF + đáp án) hoàn thiện ở màn sau khi lưu." />
 

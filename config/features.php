@@ -38,7 +38,11 @@ return [
      * gửi lại đúng giá trị cũ, cố ý KHÔNG âm thầm đổi sang loại khác.
      *
      * Enum AssessmentType::Practice và mọi luồng xử lý loại này giữ nguyên, không xoá.
+     *
+     * SỬA 18/9 — KHÁCH ĐÃ YÊU CẦU MỞ LẠI ("trong admin tạo đề/bộ bài chỗ loại thêm loại nữa là
+     * loại luyện tập, luyện tập cũng có đề"), nên mặc định đổi thành true. Vẫn tắt được bằng
+     * FEATURE_ASSESSMENT_TYPE_PRACTICE=false trong .env nếu cần.
      */
-    'assessment_type_practice' => env('FEATURE_ASSESSMENT_TYPE_PRACTICE', false),
+    'assessment_type_practice' => env('FEATURE_ASSESSMENT_TYPE_PRACTICE', true),
 
 ];

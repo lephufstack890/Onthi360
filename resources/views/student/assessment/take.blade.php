@@ -99,11 +99,18 @@
             {{-- Dải số câu: xanh đậm = đang xem, xanh lá = đã trả lời, trắng = chưa --}}
             @if (count($questions) > 1)
                 <div class="hidden min-w-0 max-w-full items-center gap-1 rounded-xl bg-[#F4F8FB] px-1.5 py-1.5 md:flex" aria-label="Tiến độ câu hỏi">
-                    <button type="button" @click="scrollRail(-1)" aria-label="Cuộn câu hỏi sang trái" title="Câu trước"
-                            class="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[#D6E3EF] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8]"><x-lucide name="chevron-left" class="h-3.5 w-3.5" /></button>
+                    {{-- SỬA 18/9 (khách: "bấm 2 nút mũi tên không được") — LỖI CŨ: hai nút này chỉ
+                         CUỘN dải số câu theo chiều ngang. Đề ít câu thì dải không hề tràn, cuộn
+                         không đi đâu cả -> bấm y như không có gì xảy ra, dù tooltip vẫn ghi
+                         "Câu trước"/"Câu sau". Giờ cho nó làm ĐÚNG việc ghi trên tooltip: chuyển
+                         sang câu trước/câu sau, và mờ đi khi đã ở đầu/cuối đề. --}}
+                    <button type="button" @click="goPrev()" :disabled="activeId === firstId || expired || submitting"
+                            aria-label="Câu trước" title="Câu trước"
+                            class="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[#D6E3EF] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40"><x-lucide name="chevron-left" class="h-3.5 w-3.5" /></button>
                     <div x-ref="rail" class="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto px-0.5 py-1">
                         @foreach ($questions as $q)
-                            <button type="button" @click="setActive({{ $q['questionId'] }})" :disabled="expired || submitting"
+                            <button type="button" data-rail-pill="{{ $q['questionId'] }}"
+                                    @click="setActive({{ $q['questionId'] }})" :disabled="expired || submitting"
                                     :aria-pressed="activeId === {{ $q['questionId'] }} ? 'true' : 'false'"
                                     title="{{ $q['title'] }}"
                                     class="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[10px] font-extrabold transition"
@@ -114,8 +121,9 @@
                                             : 'border-[#C9DCE4] bg-white text-[#607A90] hover:border-[#126F91] hover:text-[#126F91]')">{{ $q['no'] }}</button>
                         @endforeach
                     </div>
-                    <button type="button" @click="scrollRail(1)" aria-label="Cuộn câu hỏi sang phải" title="Câu sau"
-                            class="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[#D6E3EF] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8]"><x-lucide name="chevron-right" class="h-3.5 w-3.5" /></button>
+                    <button type="button" @click="goNext()" :disabled="activeId === lastId || expired || submitting"
+                            aria-label="Câu sau" title="Câu sau"
+                            class="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[#D6E3EF] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40"><x-lucide name="chevron-right" class="h-3.5 w-3.5" /></button>
                 </div>
             @endif
 
@@ -451,17 +459,34 @@
                     var q = this.questions.find((item) => item.id === this.activeId);
                     return q ? q.kind : 'choice';
                 },
-                setActive(id) { if (!this.expired && !this.submitting) this.activeId = id; },
+                setActive(id) {
+                    if (this.expired || this.submitting) return;
+                    this.activeId = id;
+                    this.followActive();
+                },
                 goPrev() {
+                    if (this.expired || this.submitting) return;
                     var i = this.questions.findIndex((q) => q.id === this.activeId);
-                    if (i > 0) this.activeId = this.questions[i - 1].id;
+                    if (i > 0) { this.activeId = this.questions[i - 1].id; this.followActive(); }
                 },
                 goNext() {
+                    if (this.expired || this.submitting) return;
                     var i = this.questions.findIndex((q) => q.id === this.activeId);
-                    if (i > -1 && i < this.questions.length - 1) this.activeId = this.questions[i + 1].id;
+                    if (i > -1 && i < this.questions.length - 1) { this.activeId = this.questions[i + 1].id; this.followActive(); }
                 },
-                scrollRail(direction) {
-                    if (this.$refs.rail) this.$refs.rail.scrollBy({ left: direction * 168, behavior: 'smooth' });
+                // SỬA 18/9 — thay cho hàm cuộn dải cũ: đề nhiều câu thì dải số chỉ hiện được vài
+                // viên, bấm mũi tên đi quá khung là viên đang xem khuất mất. Giờ dải TỰ CUỘN theo
+                // câu đang xem, không phải kéo tay.
+                followActive() {
+                    var self = this;
+                    this.$nextTick(function () {
+                        var rail = self.$refs.rail;
+                        if (!rail) return;
+                        var pill = rail.querySelector('[data-rail-pill="' + self.activeId + '"]');
+                        if (pill && typeof pill.scrollIntoView === 'function') {
+                            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        }
+                    });
                 },
 
                 // ── Nền sáng/tối (bản mẫu dùng useWorkspaceTheme, ở đây gọn lại đúng phần cần) ──

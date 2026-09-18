@@ -393,6 +393,13 @@ class AssessmentService
     public function paperTypeOptions(): array
     {
         return [
+            // SỬA 18/9 (khách: "trong giáo viên mục Đề PDF của tôi, khi thêm đề chỗ chọn loại
+            // thêm cho tôi loại luyện tập luôn") — đề PDF mang loại Practice sẽ tự hiện ở trang
+            // Luyện tập công khai VÀ trang Luyện tập của học sinh, vì
+            // Public\PracticeService::indexData() lọc đúng type=practice + status=published.
+            // Đề vẫn là dạng PDF + phiếu đáp án như mọi đề PDF khác (paperStore() ép
+            // content_mode=pdf_answer_sheet), chỉ khác chỗ nó được liệt kê ở khu Luyện tập.
+            AssessmentType::Practice->value => 'Luyện tập',
             AssessmentType::Assignment->value => 'Bài giao',
             AssessmentType::Exam->value => 'Đề thi',
             AssessmentType::CompetitionPaper->value => 'Đề thi đấu',

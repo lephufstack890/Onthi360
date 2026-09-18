@@ -276,7 +276,10 @@ class AssessmentController extends Controller
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
+            // SỬA 18/9 — thêm 'practice': ô "Loại" của Đề PDF giờ có lựa chọn "Luyện tập"
+            // (xem Teacher\AssessmentService::paperTypeOptions). Thiếu ở đây thì form hiện ra
+            // lựa chọn nhưng bấm Lưu lại bị chặn ở bước kiểm tra dữ liệu.
+            'type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'publish_answer_rule' => ['nullable', 'string', 'in:never,after_deadline,immediately'],
         ]);
