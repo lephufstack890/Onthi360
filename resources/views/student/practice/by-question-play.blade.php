@@ -496,7 +496,11 @@
                                 </span>
                                 <div class="min-w-0">
                                     <p class="text-[13px] font-bold text-amber-800">Đã ghi nhận bài làm</p>
-                                    <p class="mt-0.5 text-[12px] leading-relaxed text-amber-700">Máy chấm đang không phản hồi nên chưa có kết quả đúng/sai. Bạn thử nộp lại sau ít phút nhé.</p>
+                                    {{-- SỬA 18/9 — nói ĐÚNG lý do thay vì luôn đổ cho "máy chấm không phản hồi":
+                                         bài chưa có test case nào cũng rơi vào nhánh này, mà bảo học sinh "nộp
+                                         lại sau ít phút" thì nộp bao nhiêu lần cũng không ra kết quả. Lý do cụ
+                                         thể do PracticeByQuestionService::judgeCodingAnswer() trả về. --}}
+                                    <p class="mt-0.5 text-[12px] leading-relaxed text-amber-700">{{ $feedback['codingError'] ?? 'Máy chấm đang không phản hồi nên chưa có kết quả đúng/sai. Bạn thử nộp lại sau ít phút nhé.' }}</p>
                                 </div>
                             </div>
                         @endif

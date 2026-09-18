@@ -72,6 +72,68 @@ class CodeJudgingService
         ];
     }
 
+    /**
+     * SỬA 18/9 (khách: "chỗ chạy test không được") — CHẠY THỬ 1 lần với dữ liệu vào học sinh tự
+     * gõ, KHÔNG so với đáp án và KHÔNG chấm điểm. Khác judge() ở trên đúng 2 chỗ:
+     *   · không gửi 'expected_output' -> Judge0 trả status "Accepted" (id=3) miễn là chương
+     *     trình chạy xong không lỗi, không bao giờ ra "Wrong Answer" — đúng ý nghĩa "chạy thử";
+     *   · chỉ 1 bài nộp, nên trả thẳng stdout/stderr/compile_output cho ô Output.
+     * Cố ý KHÔNG dùng lại judge() với 1 test rỗng: làm vậy Judge0 sẽ so stdout với chuỗi rỗng
+     * và báo "Sai kết quả" cho mọi chương trình có in ra màn hình.
+     *
+     * @return array{ranCleanly: bool, statusLabel: string, output: string, stderr: ?string, compileOutput: ?string, time: ?string, memory: ?int}
+     *
+     * @throws RuntimeException khi KHÔNG chạy được: chưa có mã nguồn, ngôn ngữ lạ, hoặc không
+     *                          gọi được Judge0 (mất mạng/đứt đường hầm/sai token). Nơi gọi tự
+     *                          bắt và hiện lý do cho học sinh.
+     */
+    public function run(string $sourceCode, ?string $language, string $stdin, int $timeLimitMs, int $memoryLimitKb): array
+    {
+        $languageId = config("judge0.languages.{$language}");
+
+        if ($languageId === null) {
+            throw new RuntimeException('Ngôn ngữ chưa được hỗ trợ trên máy chấm.');
+        }
+
+        if (trim($sourceCode) === '') {
+            throw new RuntimeException('Chưa có mã nguồn để chạy.');
+        }
+
+        $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
+        $memoryLimit = min((int) config('judge0.max_memory_limit_kb'), max(16384, $memoryLimitKb));
+
+        $results = $this->client->runBatch([[
+            'source_code' => $sourceCode,
+            'language_id' => $languageId,
+            'stdin' => $stdin,
+            'cpu_time_limit' => $cpuTimeLimit,
+            'wall_time_limit' => min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10),
+            'memory_limit' => $memoryLimit,
+        ]]);
+
+        $r = $results[0] ?? null;
+
+        if ($r === null) {
+            throw new RuntimeException('Máy chấm không trả về kết quả nào.');
+        }
+
+        $verdict = $this->mapStatus((int) ($r['status']['id'] ?? 13), $r['memory'] ?? null, $memoryLimit);
+
+        return [
+            // 'ranCleanly' = chương trình chạy xong bình thường. CỐ Ý không đặt tên 'ok': nơi
+            // gọi (PracticeByQuestionService::runOnce()) dùng 'ok' với nghĩa KHÁC — "có kết quả
+            // để hiện cho học sinh". Lỗi biên dịch/chạy/quá giờ vẫn trả về đầy đủ để học sinh
+            // đọc (ok = true, ranCleanly = false), chỉ khác cái nhãn.
+            'ranCleanly' => $verdict === VerdictStatus::Accepted,
+            'statusLabel' => $verdict === VerdictStatus::Accepted ? 'Chạy xong' : $verdict->label(),
+            'output' => (string) ($r['stdout'] ?? ''),
+            'stderr' => $r['stderr'] !== null && $r['stderr'] !== '' ? $r['stderr'] : null,
+            'compileOutput' => $r['compile_output'] !== null && $r['compile_output'] !== '' ? $r['compile_output'] : null,
+            'time' => $r['time'] ?? null,
+            'memory' => $r['memory'] ?? null,
+        ];
+    }
+
     private function mapStatus(int $statusId, ?int $memoryUsedKb, int $memoryLimitKb): VerdictStatus
     {
         return match (true) {

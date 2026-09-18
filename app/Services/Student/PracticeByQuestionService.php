@@ -186,7 +186,11 @@ class PracticeByQuestionService
             default => false,
         };
 
-        $gradable = ($isCoding ? $codingResult !== null : true) && ! ($isComposite && $compositeResult['hasUngraded']);
+        // SỬA 18/9 — judgeCodingAnswer() giờ trả ['error' => ...] thay vì null khi KHÔNG chấm
+        // được (chưa viết mã / bài thiếu test / máy chấm chết). 'gradable' = false y như trước
+        // nên KHÔNG bị tính là sai, chỉ thêm việc nói rõ lý do ra màn hình.
+        $codingError = $isCoding ? ($codingResult['error'] ?? null) : null;
+        $gradable = ($isCoding ? $codingError === null : true) && ! ($isComposite && $compositeResult['hasUngraded']);
 
         if ($state['feedback'] === null) {
             $state['answered']++;
@@ -207,6 +211,7 @@ class PracticeByQuestionService
             'codingVerdict' => $codingResult['verdict'] ?? null,
             'codingVerdictLabel' => $codingResult['verdictLabel'] ?? null,
             'codingTestCases' => $codingResult['testCases'] ?? null,
+            'codingError' => $codingError,
             'compositeParts' => $compositeResult['parts'] ?? null,
         ];
 
@@ -269,14 +274,18 @@ class PracticeByQuestionService
     }
 
     /**
-     * @return array{isAccepted
+     * Chấm 1 bài Lập trình. Trả ['error' => '<lý do>'] khi KHÔNG chấm được (chưa viết mã, bài
+     * chưa có test case, hoặc máy chấm không tới được) — nơi gọi coi đó là "chưa chấm", KHÔNG
+     * phải "làm sai", và hiện nguyên lý do ra cho học sinh đọc.
+     *
+     * @return array{isAccepted?: bool, verdict?: string, verdictLabel?: string, testCases?: array, error?: string}
      */
     private function judgeCodingAnswer(Question $question, array $data): ?array
     {
         $codeSource = (string) ($data['code_source'] ?? '');
 
         if (trim($codeSource) === '') {
-            return null;
+            return ['error' => 'Bạn chưa viết mã nguồn nào — chưa có gì để chấm.'];
         }
 
         $config = $question->grading_config ?? [];
@@ -286,12 +295,23 @@ class PracticeByQuestionService
         $timeLimitMs = (int) ($config['time_limit_ms'] ?? 5000);
         $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
 
+        // SỬA 18/9 (khách: "ghi nhận bài làm máy chấm vẫn không chấm được") — CÂU HỎI KHÔNG CÓ
+        // TEST CASE là một nguyên nhân KHÁC HẲN việc máy chấm chết, nhưng trước đây cả hai đều
+        // rơi vào cùng một kết cục im lặng. Nói thẳng ra để người soạn đề biết đường bổ sung
+        // test, thay vì học sinh và giáo viên cùng ngồi đoán.
+        if ($testCases === []) {
+            return ['error' => 'Bài này chưa có test case nào để chấm — báo giáo viên bổ sung test cho bài.'];
+        }
+
         try {
             $result = $this->codeJudging->judge($codeSource, $data['language'] ?? null, $testCases, $timeLimitMs, $memoryLimitKb);
         } catch (Throwable $e) {
             Log::warning('Không chấm được câu luyện tập Lập trình #'.$question->id.' (Judge0 không tới được)', ['exception' => $e]);
 
-            return null;
+            // SỬA 18/9 — trước đây trả null, feedback im lặng hiện "Chưa đúng" nên học sinh
+            // tưởng mình sai trong khi thật ra máy chấm không chạy. Trả kèm lý do để view hiện
+            // đúng bản chất (xem exercise-play.blade.php / by-question-play.blade.php).
+            return ['error' => 'Máy chấm chưa kết nối được nên chưa chấm được bài — bài làm của bạn KHÔNG bị tính là sai. Báo giáo viên/quản trị viên kiểm tra máy chấm giúp bạn.'];
         }
 
         return [
@@ -300,6 +320,65 @@ class PracticeByQuestionService
             'verdictLabel' => $result['verdict']->label(),
             'testCases' => $result['details'],
         ];
+    }
+
+    /**
+     * student.practiceByQuestion.run (SỬA 18/9, khách: "chỗ chạy test không được") — CHẠY THỬ
+     * mã của học sinh với dữ liệu vào tự gõ ở ô Input, trả stdout cho ô Output.
+     *
+     * KHÔNG chấm điểm, KHÔNG đụng gì tới tiến trình phiên luyện (không tăng 'answered', không
+     * ghi 'feedback') — bấm chạy thử 20 lần cũng không ảnh hưởng kết quả. Câu hỏi lấy từ ĐÚNG
+     * phiên đang mở trong session chứ không nhận id từ client: người dùng không thể mượn màn
+     * này để chạy mã trên máy chấm cho một câu mà họ không được mở.
+     *
+     * @param  array{code_source?: string, language?: string, stdin?: string}  $data
+     * @return array{ok: bool, message?: string, ranCleanly?: bool, statusLabel?: string, output?: string, stderr?: ?string, compileOutput?: ?string, time?: ?string, memory?: ?int}
+     *                'ok' ở đây nghĩa là CÓ KẾT QUẢ ĐỂ HIỆN (đã gọi được máy chấm) — khác
+     *                'ranCleanly' của CodeJudgingService::run() (chương trình chạy sạch hay không).
+     */
+    public function runOnce(array $data): array
+    {
+        $state = Session::get(self::SESSION_KEY);
+
+        if (! is_array($state) || empty($state['question_ids']) || $state['index'] >= count($state['question_ids'])) {
+            return ['ok' => false, 'message' => 'Phiên luyện tập đã kết thúc — mở lại bài để chạy thử.'];
+        }
+
+        $question = Question::find($state['question_ids'][$state['index']]);
+
+        if ($question === null || $question->type->value !== 'coding') {
+            return ['ok' => false, 'message' => 'Chỉ bài Lập trình mới chạy thử được.'];
+        }
+
+        // Kiểm 2 điều kiện này TRƯỚC khi gọi máy chấm để báo đúng lý do — gọi rồi mới bắt
+        // ngoại lệ thì mọi lỗi đều ra chung một câu "không kết nối được máy chấm", sai sự thật.
+        if (trim((string) ($data['code_source'] ?? '')) === '') {
+            return ['ok' => false, 'message' => 'Chưa có mã nguồn để chạy — viết code rồi bấm lại.'];
+        }
+
+        if (config('judge0.languages.'.($data['language'] ?? '')) === null) {
+            return ['ok' => false, 'message' => 'Ngôn ngữ này chưa chạy được trên máy chấm.'];
+        }
+
+        $config = $question->grading_config ?? [];
+
+        try {
+            $result = $this->codeJudging->run(
+                (string) ($data['code_source'] ?? ''),
+                $data['language'] ?? null,
+                (string) ($data['stdin'] ?? ''),
+                (int) ($config['time_limit_ms'] ?? 5000),
+                (int) ($config['memory_limit_mb'] ?? 256) * 1024,
+            );
+        } catch (Throwable $e) {
+            // Đứt đường hầm SSH/máy chấm chưa bật/sai token đều rơi vào đây. Nói THẲNG lý do
+            // cho học sinh thay vì im lặng — đây đúng là tình huống khách đang gặp.
+            Log::warning('Chạy thử thất bại ở câu #'.$question->id.' (Judge0 không tới được)', ['exception' => $e]);
+
+            return ['ok' => false, 'message' => 'Không kết nối được máy chấm — báo giáo viên/quản trị viên kiểm tra máy chấm giúp bạn.'];
+        }
+
+        return ['ok' => true] + $result;
     }
 
     /** student.practiceByQuestion.next — qua câu kế tiếp, xoá feedback câu vừa xong. */

@@ -345,6 +345,19 @@
                                         </button>
                                     @endif
                                 @endif
+                            @elseif (! empty($feedback['codingError']))
+                                {{-- SỬA 18/9 (khách: "ghi nhận bài làm máy chấm vẫn không chấm được") — LỖI CŨ:
+                                     máy chấm chết thì rơi vào nhánh @else bên dưới và hiện "chưa có chấm tự
+                                     động cho phần này", nghe như hệ thống CỐ Ý không chấm bài Lập trình — trong
+                                     khi thật ra là máy chấm không tới được. Giờ nói đúng bản chất + trấn an là
+                                     bài KHÔNG bị tính sai, xem PracticeByQuestionService::judgeCodingAnswer(). --}}
+                                <div class="rounded-xl p-4 flex items-start gap-3 bg-amber-50 border border-amber-200">
+                                    <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100 text-amber-700"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
+                                    <span class="min-w-0">
+                                        <span class="block text-[13px] font-bold text-amber-800">Chưa chấm được bài</span>
+                                        <span class="mt-0.5 block text-[13px] leading-relaxed text-amber-800">{{ $feedback['codingError'] }}</span>
+                                    </span>
+                                </div>
                             @else
                                 <div class="rounded-xl p-4 flex items-center gap-3 bg-sky-50 border border-sky-200">
                                     <span class="w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 bg-sky-100 text-sky-700"><x-lucide name="mail" class="h-4 w-4" /></span>
@@ -364,7 +377,9 @@
                             <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="min-h-full" data-ajax-answer>
                                 @csrf
                                 @if ($isCode)
-                                    <div class="grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                    {{-- data-work-panel: mốc để script "Chạy test" tìm 4 ô (mã nguồn / ngôn ngữ /
+                                         Input / Output) trong CÙNG panel này thay vì dò cả trang — xem cuối tệp. --}}
+                                    <div data-work-panel class="grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
                                         {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
@@ -415,22 +430,28 @@
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- Chưa có route chạy thử riêng — CodeJudgingService hiện chỉ chạy
-                                                         lúc NỘP. Để nút đúng chỗ như bản mẫu nhưng khoá lại và nói rõ. --}}
-                                                    <button type="button" disabled title="Chạy thử chưa nối máy chấm — bấm Nộp bài để được chấm thật"
-                                                            class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white opacity-50 shadow-sm"><x-lucide name="play" class="h-3.5 w-3.5" />Chạy test</button>
+                                                    {{-- SỬA 18/9 (khách: "chỗ chạy test không được") — nút này trước
+                                                         đây bị khoá cứng vì CHƯA có route chạy thử. Giờ đã có
+                                                         student.practiceByQuestion.run (chạy thật trên Judge0 với dữ
+                                                         liệu vào tự gõ, không chấm điểm) — xem script cuối trang. --}}
+                                                    <button type="button" data-run-test
+                                                            data-run-url="{{ route('student.practiceByQuestion.run') }}"
+                                                            title="Chạy thử mã với dữ liệu vào bên dưới (không tính điểm)"
+                                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50"><x-lucide name="play" class="h-3.5 w-3.5" /><span data-run-test-label>Chạy test</span></button>
                                                 </div>
                                                 {{-- KHÔNG đổ sẵn test từ database: test_cases là test CHẤM ĐIỂM, không có
                                                      cờ phân biệt test mẫu/test ẩn. --}}
-                                                <textarea spellcheck="false" placeholder="Nhập dữ liệu vào để thử nghiệm…" aria-label="Dữ liệu đầu vào test"
+                                                <textarea data-run-input spellcheck="false" placeholder="Nhập dữ liệu vào để thử nghiệm…" aria-label="Dữ liệu đầu vào test"
                                                           class="min-h-0 flex-1 resize-none bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#123B68] outline-none"></textarea>
                                             </section>
 
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#F7F9FA]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#607A90]">Output</span>
+                                                    {{-- Nhãn trạng thái lần chạy gần nhất: "Chạy xong · 0.03s" hoặc lý do lỗi. --}}
+                                                    <span data-run-status class="text-[10px] font-bold text-[#7A92A3]"></span>
                                                 </div>
-                                                <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
+                                                <pre data-run-output class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
                                                 <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
                                                     <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
                                                         <x-lucide name="send" class="h-3.5 w-3.5" />Ghi nhận bài làm
@@ -898,5 +919,84 @@
             var host = document.querySelector('#practice-container');
             if (host && host.parentNode) new MutationObserver(wire).observe(host.parentNode, { childList: true, subtree: true });
         })();
+    </script>
+
+    {{-- ══════ SỬA 18/9 — NÚT "CHẠY TEST" (khách: "chỗ chạy test không được") ══════
+         Gửi mã + dữ liệu vào ô Input lên student.practiceByQuestion.run, in stdout ra ô Output.
+         Chạy thử KHÔNG chấm điểm, không đụng tiến trình phiên luyện.
+
+         Nghe click kiểu DELEGATION trên document (không gắn thẳng vào nút): #practice-container
+         bị thay mới hoàn toàn sau mỗi lần chấm bài (xem script AJAX ở trên), gắn thẳng thì sau
+         lần chấm đầu tiên nút mới sẽ không còn listener. Cùng lý do không dùng Alpine ở đây:
+         Alpine 3 không tự khởi tạo DOM do JS chèn vào. --}}
+    <script>
+        document.addEventListener('click', function (event) {
+            var button = event.target.closest ? event.target.closest('[data-run-test]') : null;
+            if (!button || button.disabled) return;
+
+            event.preventDefault();
+
+            // 4 ô này luôn nằm cùng trong panel "Làm bài" -> tìm từ chính vùng chứa nút, không
+            // querySelector toàn trang (tránh vớ nhầm nếu sau này có 2 khối cùng kiểu).
+            var panel = button.closest('[data-work-panel]') || document;
+            var codeEl = panel.querySelector('[data-code-source]');
+            var langEl = panel.querySelector('select[name="language"]');
+            var inputEl = panel.querySelector('[data-run-input]');
+            var outputEl = panel.querySelector('[data-run-output]');
+            var statusEl = panel.querySelector('[data-run-status]');
+            var labelEl = button.querySelector('[data-run-test-label]');
+
+            if (!outputEl) return;
+
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            var body = new FormData();
+            body.append('_token', meta ? meta.getAttribute('content') : '');
+            body.append('code_source', codeEl ? codeEl.value : '');
+            body.append('language', langEl ? langEl.value : 'cpp');
+            body.append('stdin', inputEl ? inputEl.value : '');
+
+            button.disabled = true;
+            if (labelEl) labelEl.textContent = 'Đang chạy…';
+            if (statusEl) statusEl.textContent = '';
+            outputEl.textContent = 'Đang chạy…';
+
+            fetch(button.getAttribute('data-run-url'), {
+                method: 'POST',
+                body: body,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data || !data.ok) {
+                        outputEl.textContent = (data && data.message) ? data.message : 'Chạy thử thất bại.';
+                        if (statusEl) statusEl.textContent = 'Không chạy được';
+                        return;
+                    }
+
+                    // Ưu tiên hiện lỗi biên dịch/lỗi chạy — đó mới là cái học sinh cần đọc;
+                    // stdout rỗng mà không nói gì thì người dùng tưởng nút hỏng.
+                    var text = '';
+                    if (data.compileOutput) text += 'Lỗi biên dịch:\n' + data.compileOutput + '\n';
+                    if (data.stderr) text += 'Lỗi khi chạy:\n' + data.stderr + '\n';
+                    if (data.output) text += data.output;
+                    outputEl.textContent = text !== '' ? text : '(chương trình không in ra gì)';
+
+                    if (statusEl) {
+                        var parts = [data.statusLabel || ''];
+                        if (data.time) parts.push(data.time + 's');
+                        if (data.memory) parts.push(Math.round(data.memory / 1024) + 'MB');
+                        statusEl.textContent = parts.filter(Boolean).join(' · ');
+                    }
+                })
+                .catch(function () {
+                    outputEl.textContent = 'Không gửi được yêu cầu chạy thử — kiểm tra kết nối mạng rồi thử lại.';
+                    if (statusEl) statusEl.textContent = 'Lỗi mạng';
+                })
+                .finally(function () {
+                    button.disabled = false;
+                    if (labelEl) labelEl.textContent = 'Chạy test';
+                });
+        });
     </script>
 @endpush

@@ -166,6 +166,10 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/exercise/{exercise}', [StudentPracticeByQuestionController::class, 'startExercise'])->name('startExercise');
             Route::get('/play', [StudentPracticeByQuestionController::class, 'play'])->name('play');
             Route::post('/answer', [StudentPracticeByQuestionController::class, 'answer'])->name('answer');
+            // SỬA 18/9 (khách: "chỗ chạy test không được") — chạy thử mã với dữ liệu vào tự gõ
+            // ở ô Input, trả JSON cho ô Output. Không chấm điểm, xem
+            // Student\PracticeByQuestionService::runOnce().
+            Route::post('/run', [StudentPracticeByQuestionController::class, 'run'])->name('run');
             Route::post('/next', [StudentPracticeByQuestionController::class, 'next'])->name('next');
             Route::post('/stop', [StudentPracticeByQuestionController::class, 'stop'])->name('stop');
             // SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): phát/hiện asset đính kèm câu

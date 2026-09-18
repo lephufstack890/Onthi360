@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Services\AccessGateService;
 use App\Services\Student\PracticeByQuestionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -197,6 +198,26 @@ class PracticeByQuestionController extends Controller
         }
 
         return redirect()->route('student.practiceByQuestion.play');
+    }
+
+    /**
+     * student.practiceByQuestion.run (SỬA 18/9, khách: "chỗ chạy test không được") — chạy thử
+     * mã với dữ liệu vào tự gõ, trả JSON cho ô Output. KHÔNG chấm điểm, không đụng tiến trình
+     * phiên luyện — xem PracticeByQuestionService::runOnce().
+     *
+     * Trả 200 kể cả khi chạy hỏng, kèm ok=false + message: phía trình duyệt chỉ cần đọc 1 chỗ
+     * là biết hiện gì, không phải phân biệt lỗi HTTP với lỗi nghiệp vụ.
+     */
+    public function run(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code_source' => ['nullable', 'string', 'max:20000'],
+            'language' => ['nullable', 'string', 'max:30'],
+            // Dữ liệu vào tự gõ — giới hạn rộng rãi nhưng có chặn để không ai dán cả tệp lớn.
+            'stdin' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        return response()->json($this->service->runOnce($data));
     }
 
     public function next(Request $request): RedirectResponse
