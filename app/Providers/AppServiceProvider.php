@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +25,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        /*
+         * SỬA 18/9 — chốt chặn thứ hai cho chuyện http/https (chặn chính là trustProxies() ở
+         * bootstrap/app.php). Lý do cần CẢ HAI: trustProxies chỉ ăn khi proxy thật sự gửi
+         * X-Forwarded-Proto; có cấu hình nginx/CDN không gửi header đó, khi ấy Laravel vẫn sinh
+         * URL http giữa trang https và mọi fetch() lại bị trình duyệt chặn như cũ. Dòng dưới
+         * đảm bảo không phụ thuộc vào việc proxy có gửi header hay không.
+         *
+         * CỐ Ý bám theo APP_URL chứ không bật cứng: máy lập trình chạy http://localhost, ép
+         * https ở đó sẽ hỏng toàn bộ link nội bộ.
+         */
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         // Nối tầng Permission (roles -> permissions) vào Gate chuẩn của Laravel, để
         // $user->can('slug') / @can('slug') dùng được ở mọi Controller/Blade mà
         // không cần đăng ký Policy riêng cho từng permission string. Trả `null` khi

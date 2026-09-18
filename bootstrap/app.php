@@ -13,6 +13,24 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        /*
+         * SỬA 18/9 (khách báo: bấm "Chạy test"/"Ghi nhận bài làm" trên site thật báo không gửi
+         * được yêu cầu) — site chạy SAU PROXY: proxy kết thúc TLS rồi nói chuyện với PHP bằng
+         * http. Không tin proxy thì Laravel tưởng mọi request đều là http và sinh URL tuyệt đối
+         * "http://tinhoc..." ngay giữa trang https. Trình duyệt CHẶN CỨNG fetch() từ trang https
+         * sang http (mixed content) nên yêu cầu không bao giờ rời trình duyệt — vì vậy cả nhật ký
+         * nginx lẫn laravel.log đều sạch trơn, rất khó lần ra.
+         *
+         * Tin proxy còn trả lại IP THẬT của người dùng cho log/throttle (trước đó mọi request
+         * đều mang IP của proxy, nên throttle:5,1 ở form Liên hệ thực chất đang đếm chung cho
+         * tất cả mọi người).
+         *
+         * at: '*' = tin mọi proxy. Đúng cho hệ thống này vì PHP chỉ tiếp nhận request đi qua
+         * proxy; nếu sau này mở cho truy cập thẳng thì phải đổi thành danh sách IP proxy cụ thể,
+         * không thì client tự đặt X-Forwarded-Proto để nói dối được.
+         */
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureHasRole::class,
             'permission' => \App\Http\Middleware\EnsureHasPermission::class,

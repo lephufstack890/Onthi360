@@ -966,7 +966,15 @@
                 credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             })
-                .then(function (response) { return response.json(); })
+                .then(function (response) {
+                    // SỬA 18/9 (2) — KHÔNG gọi thẳng response.json(). Máy chủ trả 404 (route chưa
+                    // nạp lại sau khi cập nhật mã), 419 (phiên hết hạn) hay 500 đều là HTML, khi
+                    // đó response.json() ném lỗi và rơi xuống catch() -> báo "lỗi mạng" SAI SỰ
+                    // THẬT, người dùng đi kiểm tra wifi trong khi lỗi nằm ở máy chủ. Đọc mã HTTP
+                    // trước để nói đúng chuyện gì đã xảy ra.
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(function (data) {
                     if (!data || !data.ok) {
                         outputEl.textContent = (data && data.message) ? data.message : 'Chạy thử thất bại.';
@@ -989,9 +997,21 @@
                         statusEl.textContent = parts.filter(Boolean).join(' · ');
                     }
                 })
-                .catch(function () {
-                    outputEl.textContent = 'Không gửi được yêu cầu chạy thử — kiểm tra kết nối mạng rồi thử lại.';
-                    if (statusEl) statusEl.textContent = 'Lỗi mạng';
+                .catch(function (error) {
+                    var reason = String((error && error.message) || '');
+
+                    if (reason === 'HTTP 419') {
+                        outputEl.textContent = 'Phiên làm việc đã hết hạn — tải lại trang rồi bấm chạy lại (bài đang gõ sẽ mất, nhớ chép mã ra trước).';
+                    } else if (reason === 'HTTP 404') {
+                        outputEl.textContent = 'Máy chủ chưa nhận ra chức năng chạy thử (404) — báo quản trị viên nạp lại máy chủ sau khi cập nhật mã.';
+                    } else if (reason.indexOf('HTTP ') === 0) {
+                        outputEl.textContent = 'Máy chủ báo lỗi (' + reason + ') — báo quản trị viên xem storage/logs/laravel.log.';
+                    } else {
+                        // Chỉ ĐẾN ĐÂY mới thật sự là không gửi đi được (mất mạng, server sập hẳn).
+                        outputEl.textContent = 'Không gửi được yêu cầu chạy thử — kiểm tra kết nối mạng rồi thử lại.';
+                    }
+
+                    if (statusEl) statusEl.textContent = reason !== '' ? reason : 'Không gửi được';
                 })
                 .finally(function () {
                     button.disabled = false;
