@@ -220,7 +220,9 @@
                         class="flex min-h-10 items-center gap-1.5 rounded-2xl border px-3.5 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
                         :class="selectedCategory === @js($subject) ? 'border-[#126F91] bg-[#126F91] text-white shadow-[0_4px_10px_rgba(18,111,145,0.18)]' : '{{ $tone['surface'] }} text-[#536D86] hover:brightness-[.98]'">
                     <span class="grid h-5 w-5 place-items-center rounded-lg" :class="selectedCategory === @js($subject) ? 'bg-white/15' : 'bg-white'">
-                        <x-lucide :name="$tone['icon']" class="h-3.5 w-3.5" ::class="selectedCategory === @js($subject) ? 'text-white' : '{{ $tone['iconTone'] }}'" />
+                        {{-- SỬA 18/9 — @js(...) trong thuộc tính của COMPONENT Blade không được biên dịch
+                             (Alpine báo "Invalid or unexpected token"); chuyển binding ra <span> thường. --}}
+                        <span :class="selectedCategory === @js($subject) ? 'text-white' : '{{ $tone['iconTone'] }}'"><x-lucide :name="$tone['icon']" class="h-3.5 w-3.5" /></span>
                     </span>
                     <span>{{ $subject }}</span>
                 </button>

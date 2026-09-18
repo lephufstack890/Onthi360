@@ -126,7 +126,9 @@
                         class="flex-1 sm:flex-none min-h-10 px-4 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9DC8D7]"
                         :class="activeTab === @js($key) ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-[#536D86] hover:bg-white hover:text-[#126F91]'">
                     <span class="grid h-5 w-5 place-items-center rounded-lg" :class="activeTab === @js($key) ? 'bg-white/15' : 'bg-[#EAF5F8]'">
-                        <x-lucide :name="$meta['icon']" class="h-3.5 w-3.5" ::class="activeTab === @js($key) ? 'text-white' : '{{ $meta['tone'] }}'" />
+                        {{-- SỬA 18/9 — @js(...) trong thuộc tính của COMPONENT Blade không được biên dịch
+                             (Alpine báo "Invalid or unexpected token"); chuyển binding ra <span> thường. --}}
+                        <span :class="activeTab === @js($key) ? 'text-white' : '{{ $meta['tone'] }}'"><x-lucide :name="$meta['icon']" class="h-3.5 w-3.5" /></span>
                     </span>
                     <span>{{ $meta['label'] }}</span>
                     <span class="text-[10px] px-1.5 rounded-full" :class="activeTab === @js($key) ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'">{{ count($materialGroups[$key] ?? []) }}</span>
