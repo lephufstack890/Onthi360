@@ -71,6 +71,26 @@ class OrderActivationService
             return AccessDecision::deny('code_not_usable', 'Mã kích hoạt không hợp lệ hoặc đã được sử dụng.');
         }
 
+        /*
+         * SỬA 18/9 (khách: "mã kích hoạt này thuộc tài liệu nào và thuộc tài khoản nào thì tài
+         * khoản đó mở được thôi... admin cấp mà mở cho tài khoản khác là không mở được").
+         *
+         * Mã admin cấp tay bị KHOÁ theo người nhận (activation_codes.assigned_user_id). Chặn
+         * đặt Ở ĐÂY chứ không ở màn admin/giao diện, vì canActivate() là cửa DUY NHẤT mà cả 2
+         * lối vào đều đi qua: AccessService::activationLookup() (xem trước khi mở link
+         * ?code=...) và AccessService::activateCode() (bấm nút Kích hoạt). Ai đó lấy được mã
+         * của người khác rồi tự gõ vào trang Kích hoạt cũng không qua được.
+         *
+         * Mã sinh từ đơn hàng (approveOfflineOrder()/completeInstantly()) vẫn để
+         * assigned_user_id = null => isAssignedTo() trả true => KHÔNG đổi hành vi cũ.
+         */
+        if (! $code->isAssignedTo($user)) {
+            return AccessDecision::deny(
+                'code_assigned_to_other_user',
+                'Mã này được cấp riêng cho một tài khoản khác — bạn không kích hoạt được. Hãy đăng nhập đúng tài khoản được cấp mã, hoặc liên hệ quản trị viên.',
+            );
+        }
+
         // Mã quyền dạy chỉ kích hoạt được cho giáo viên đã duyệt — không tự chuyển thành
         // quyền học sinh (7.4: "Mã kích hoạt sai scope không được chuyển đổi tự động").
         if ($code->scope === AccessScope::TeacherTeaching && ! $user->isTeacherApproved()) {
@@ -108,7 +128,12 @@ class OrderActivationService
                 // class_limit luôn null: với scope=teacher_teaching, null BẮT BUỘC nghĩa là
                 // "unlimited" (5.3/7.2); với scope=personal_learning, cột này không áp dụng.
                 'class_limit' => null,
-                'source' => 'order',
+                // SỬA 18/9 — mã admin cấp tay không thuộc đơn hàng nào (order_item_id = null),
+                // ghi nguồn 'admin_grant' cho đúng sự thật thay vì 'order' — cột này là thứ duy
+                // nhất trả lời được "quyền này từ đâu ra" khi đối soát về sau. Mã sinh từ đơn
+                // vẫn ghi 'order' y như cũ. Cả 2 giá trị đều nằm trong danh sách cho phép của
+                // migration access_rights (order|gift|admin_grant|package).
+                'source' => $code->order_item_id ? 'order' : 'admin_grant',
                 'source_id' => $code->order_item_id,
                 'created_by' => $user->id,
             ]);
@@ -152,7 +177,12 @@ class OrderActivationService
         });
     }
 
-    private function generateUniqueCode(): string
+    /**
+     * SỬA 18/9 — chuyển private -> public để màn admin "Cấp mã kích hoạt" (Admin\
+     * ActivationCodeService::store()) dùng CHUNG đúng bộ sinh mã này, không viết bản thứ hai
+     * rồi lệch định dạng/lệch cách chống trùng.
+     */
+    public function generateUniqueCode(): string
     {
         do {
             $candidate = strtoupper(Str::random(4).'-'.Str::random(4).'-'.Str::random(4));

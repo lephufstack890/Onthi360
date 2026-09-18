@@ -464,6 +464,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
+        // SỬA 18/9 (khách: "thêm tính năng thêm mã kích hoạt") — admin cấp tay 1 mã cho đúng 1
+        // tài khoản; luật "mã của ai thì người đó mở" thi hành ở OrderActivationService::canActivate().
+        Route::get('activation-codes/create', [AdminActivationCodeController::class, 'create'])->name('activation-codes.create');
+        Route::post('activation-codes', [AdminActivationCodeController::class, 'store'])->name('activation-codes.store');
         Route::post('activation-codes/{activationCode}/revoke', [AdminActivationCodeController::class, 'revoke'])->name('activation-codes.revoke');
 
         Route::post('orders/token-topups/{tokenTopup}/approve', [AdminOrderController::class, 'approveTopup'])->name('orders.token-topups.approve');
