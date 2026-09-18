@@ -159,21 +159,15 @@
             <main class="assessment-modal-content min-w-0 flex-1 overflow-hidden">
 
                 {{-- ───────── TAB: ĐỀ BÀI PDF ─────────
-                     SỬA 18/9 (khách: "tab đề bài pdf cho hiển thị to ra") — bỏ padding và chiều
-                     cao tối thiểu cố định; khung PDF ăn TRỌN phần thân modal. --}}
-                <section x-show="activeTab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-hidden bg-[#EAF4F8]">
+                     SỬA 18/9 — tự vẽ bằng pdf.js cho VỪA CHIỀU NGANG khung, xem
+                     partials/pdf-fit-viewer (lý do đầy đủ ghi trong partial đó). --}}
+                <section x-show="activeTab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-y-auto bg-[#EAF4F8] p-2 sm:p-3">
                     @foreach ($questions as $q)
-                        <div x-show="activeId === {{ $q['questionId'] }}" class="h-full">
+                        <div x-show="activeId === {{ $q['questionId'] }}" class="min-h-full">
                             @if ($q['statementPdfUrl'])
-                                {{-- SỬA 18/9 (khách: "mặc định to ra bên tab đề pdf") — trình xem PDF của trình duyệt
-                                     tự đoán mức phóng và ra rất nhỏ; ép thẳng bằng tham số mở tệp chuẩn
-                                     (view=FitH + zoom=page-width) để trang đề luôn vừa CHIỀU NGANG khung.
-                                     toolbar=0/navpanes=0 giữ như cũ — thanh công cụ có nút tải về, đề bài
-                                     chỉ cho xem trên web. --}}
-                                <iframe src="{{ $q['statementPdfUrl'] }}#toolbar=0&amp;navpanes=0&amp;view=FitH&amp;zoom=page-width"
-                                        title="Đề bài câu {{ $q['no'] }}" class="assessment-pdf-iframe h-full w-full border-0 bg-white"></iframe>
+                                <div data-pdf-fit data-pdf-url="{{ $q['statementPdfUrl'] }}" class="min-h-full"></div>
                             @else
-                                <div class="grid h-full place-items-center p-8 text-center">
+                                <div class="grid h-full min-h-[320px] place-items-center p-8 text-center">
                                     <div>
                                         <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
                                         <p class="mt-3 text-sm font-extrabold text-[#123B68]">Câu này không có bản PDF</p>
@@ -395,6 +389,8 @@
         .no-scrollbar { scrollbar-width: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
+
+    @include('partials.pdf-fit-viewer')
 
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với màn luyện 1 bài. --}}
     @include('partials.code-editor-runtime')

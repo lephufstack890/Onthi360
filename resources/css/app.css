@@ -1326,3 +1326,9 @@ html.theme-dark .assessment-modal textarea[data-code-source] {
 .assessment-modal textarea[data-code-source] { caret-color: #126F91; }
 html.theme-dark .assessment-modal textarea[data-code-source] { caret-color: #EAF5F8; }
 
+
+/* Nền tối: hạ chói cho trang đề vẽ bằng canvas — cùng cách bản mẫu làm với
+   .assessment-pdf-iframe (education-main/src/index.css: filter brightness/saturate). */
+html.theme-dark .assessment-modal .assessment-pdf-surface canvas {
+  filter: brightness(.72) saturate(.85) contrast(.96);
+}

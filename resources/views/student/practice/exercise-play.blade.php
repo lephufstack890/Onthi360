@@ -138,17 +138,12 @@
             <main class="assessment-modal-content min-w-0 flex-1 overflow-hidden">
 
                 {{-- ───────── TAB: ĐỀ BÀI PDF ─────────
-                     SỬA 18/9 (khách: "tab đề bài pdf cho hiển thị to ra") — bỏ padding và mọi
-                     chiều cao tối thiểu cố định; khung PDF ăn TRỌN phần thân modal. --}}
-                <section x-show="tab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-hidden bg-[#EAF4F8]">
+                     SỬA 18/9 — tự vẽ bằng pdf.js cho VỪA CHIỀU NGANG khung; trình xem PDF của
+                     trình duyệt dùng kiểu "vừa cả trang" nên đề khổ lớn hiện bé tí, mà ép bằng
+                     tham số mở tệp thì Chrome không nghe. Xem partials/pdf-fit-viewer. --}}
+                <section x-show="tab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-y-auto bg-[#EAF4F8] p-2 sm:p-3">
                     @if ($statementUrl)
-                        {{-- SỬA 18/9 (khách: "mặc định to ra bên tab đề pdf") — trình xem PDF của trình duyệt
-                                     tự đoán mức phóng và ra rất nhỏ; ép thẳng bằng tham số mở tệp chuẩn
-                                     (view=FitH + zoom=page-width) để trang đề luôn vừa CHIỀU NGANG khung.
-                                     toolbar=0/navpanes=0 giữ như cũ — thanh công cụ có nút tải về, đề bài
-                                     chỉ cho xem trên web. --}}
-                        <iframe src="{{ $statementUrl }}#toolbar=0&amp;navpanes=0&amp;view=FitH&amp;zoom=page-width"
-                                title="Đề bài" class="assessment-pdf-iframe h-full w-full border-0 bg-white"></iframe>
+                        <div data-pdf-fit data-pdf-url="{{ $statementUrl }}" class="min-h-full"></div>
                     @else
                         <div class="grid h-full place-items-center p-8 text-center">
                             <div>
@@ -831,6 +826,8 @@
 
 
 @push('scripts')
+    @include('partials.pdf-fit-viewer')
+
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
     @include('partials.code-editor-runtime')
 
