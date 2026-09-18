@@ -12,6 +12,14 @@
         $topic = $topic ?? null;
         $filtersApply = $filtersApply ?? false;
         $availableTopics = $availableTopics ?? [];
+        // Khoá mới do PracticeService bổ sung 18/9 cho khối "Luyện tập của tôi".
+        $counts = $counts ?? ['self' => 0, 'class' => 0, 'assigned' => 0, 'saved' => 0, 'history' => 0];
+        $nextDueAt = $nextDueAt ?? null;
+        $lastSubmittedAt = $lastSubmittedAt ?? null;
+        $quickStartHref = $quickStartHref ?? null;
+
+        // Bản mẫu in số dạng 2 chữ số ("03") — giữ đúng cách trình bày đó.
+        $pad2 = fn (int $n) => $n < 10 ? '0'.$n : (string) $n;
 
         $baseParams = array_filter(['tab' => $tab !== 'self' ? $tab : null]);
         $typeHref = fn (?string $val) => route('student.practice.index', array_filter($baseParams + ['type' => $val, 'topic' => $topic]));
@@ -43,25 +51,105 @@
         };
     @endphp
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4 flex items-center justify-between flex-wrap gap-4">
-        <div>
-            <p class="text-[13px] text-blue-600 font-medium"><x-lucide name="pen-line" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Luyện tập</p>
-            <h2 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">Luyện đủ dạng, tự tin đi thi</h2>
-            <p class="text-[13px] text-slate-500 mt-1 max-w-lg">Chấm được câu lập trình, trắc nghiệm và điền đáp án — trong cùng một đề (6.3).</p>
-        </div>
-        <div class="text-5xl">🎯</div>
-    </div>
+    {{-- ══════════════════════════════════════════════════════════════════════════
+         SỬA 18/9 (khách: "làm lại UI trang luyện tập dựa vào source mới copy lại UI,
+         đổ dữ liệu database vào trước") — phần HIỂN THỊ của trang được chép lại theo
+         bản mẫu education-main/src/components/RoleWorkspace.jsx:
+           · <Hero> -> <x-ws.page-header> (component này vốn đã rút gọn từ đúng <Hero> đó)
+           · nhánh active === "Luyện tập" -> khối "Luyện tập của tôi" bên dưới:
+             CardTitle + 3 ô số liệu + hàng nút, giữ nguyên cỡ chữ/bo góc/bảng màu của mẫu.
+         Khác bản mẫu ĐÚNG MỘT CHỖ: mọi con số và dòng ghi chú lấy từ database thật
+         (PracticeService) thay vì số minh hoạ 03/08/42 viết cứng trong JSX.
 
-    <a href="{{ route('student.practiceByQuestion.setup') }}"
-       class="mb-6 flex items-center justify-between gap-4 rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-4 lg:p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-        <div class="flex items-center gap-3">
-            <x-ws.icon-tile icon="sparkles" tone="sky" />
-            <div>
-                <h3 class="font-semibold text-slate-800">Luyện tập theo câu</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Chọn chuyên đề, luyện từng câu một, biết đúng/sai ngay lập tức.</p>
+         Các khối đã ẩn theo yêu cầu 24/8 (dải tab, hộp lọc, lưới danh sách đề) vẫn nằm
+         nguyên bên dưới dạng ghi chú — KHÔNG mở lại, chờ khách yêu cầu.
+         ══════════════════════════════════════════════════════════════════════════ --}}
+
+    <x-ws.page-header title="Luyện tập" icon="pen-line"
+                      subtitle="Từng bước rõ ràng, mọi kết quả đều được lưu lại để bạn tiếp tục đúng lúc.">
+        <x-slot:actions>
+            <a href="{{ route('student.practiceByQuestion.setup') }}"
+               class="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50 lg:min-h-11">
+                <x-lucide name="sparkles" class="h-3.5 w-3.5" />Vào luyện tập
+            </a>
+        </x-slot:actions>
+    </x-ws.page-header>
+
+    {{-- ══════ LUYỆN TẬP CỦA TÔI (chép từ bản mẫu) ══════ --}}
+    <section class="mt-4 rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] sm:p-5">
+        {{-- CardTitle của bản mẫu: ô icon bo góc + tiêu đề + link hành động bên phải --}}
+        <div class="mb-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="rounded-lg bg-blue-50 p-1.5 text-blue-600"><x-lucide name="pen-line" class="h-3.5 w-3.5" /></span>
+                <h2 class="text-sm font-bold text-slate-800">Luyện tập của tôi</h2>
+            </div>
+            <a href="{{ route('practice.index') }}" class="text-xs font-bold text-blue-600 transition hover:underline">
+                Xem kho bài <x-lucide name="chevron-right" class="inline h-3 w-3" />
+            </a>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3">
+            {{-- 1. Bài được giao — đếm assignment đang mở của các lớp học sinh đang theo học --}}
+            <div class="rounded-2xl bg-blue-50 p-4">
+                <p class="text-[10px] font-bold uppercase text-blue-600">Bài được giao</p>
+                <p class="mt-1 text-2xl font-black text-blue-600">{{ $pad2($counts['assigned']) }}</p>
+                <p class="mt-2 text-[10px] text-slate-500">
+                    @if ($nextDueAt)
+                        {{-- Không nhét chữ tiếng Việt vào chuỗi format của date(): dấu thoát chỉ
+                             che được 1 BYTE nên chữ có dấu sẽ vỡ. Tách ra hai lần format cho chắc. --}}
+                        Hạn gần nhất: {{ $nextDueAt->format('H:i') }} ngày {{ $nextDueAt->format('d/m') }}
+                    @else
+                        Chưa có bài nào đang mở
+                    @endif
+                </p>
+            </div>
+
+            {{-- 2. Đã lưu — hệ thống CHƯA có bảng bookmark (xem PracticeService: 'saved' => 0),
+                 nên in đúng 0 và nói thẳng là chưa bật, không mượn con số của mục khác. --}}
+            <div class="rounded-2xl bg-amber-50 p-4">
+                <p class="text-[10px] font-bold uppercase text-amber-600">Đã lưu</p>
+                <p class="mt-1 text-2xl font-black text-amber-600">{{ $pad2($counts['saved']) }}</p>
+                <p class="mt-2 text-[10px] text-slate-500">Chưa bật tính năng lưu bài</p>
+            </div>
+
+            {{-- 3. Lịch sử nộp — đếm attempt đã nộp của chính người đang xem --}}
+            <div class="rounded-2xl bg-emerald-50 p-4">
+                <p class="text-[10px] font-bold uppercase text-emerald-600">Lịch sử nộp</p>
+                <p class="mt-1 text-2xl font-black text-emerald-600">{{ $pad2($counts['history']) }}</p>
+                <p class="mt-2 text-[10px] text-slate-500">
+                    @if ($lastSubmittedAt)
+                        Nộp gần nhất: {{ $lastSubmittedAt->format('H:i d/m/Y') }}
+                    @else
+                        Bạn chưa nộp bài nào
+                    @endif
+                </p>
             </div>
         </div>
-        <span class="inline-flex items-center gap-1 text-[13px] font-medium text-sky-600">Bắt đầu <span aria-hidden="true">→</span></span>
+
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+            @if ($quickStartHref)
+                <a href="{{ $quickStartHref }}"
+                   class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100">
+                    <x-lucide name="layers" class="h-3.5 w-3.5" />Làm đề hỗn hợp
+                </a>
+            @endif
+            <span class="px-3 py-2 text-[10px] text-slate-500">Tự luyện · Theo lớp · Bài giao · Đã lưu · Lịch sử</span>
+        </div>
+    </section>
+
+    {{-- ══════ LỐI VÀO "LUYỆN TẬP THEO CÂU" (giữ nguyên đường đi cũ, chỉ đổi kiểu) ══════ --}}
+    <a href="{{ route('student.practiceByQuestion.setup') }}"
+       class="group mt-4 mb-6 flex items-center justify-between gap-4 rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] transition-all duration-200 hover:border-sky-200 hover:shadow-md lg:p-5">
+        <div class="flex items-center gap-3">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-600"><x-lucide name="sparkles" class="h-5 w-5" /></span>
+            <div class="min-w-0">
+                <h3 class="text-sm font-bold text-slate-800">Luyện tập theo câu</h3>
+                <p class="mt-0.5 text-[11px] text-slate-500">Chọn chuyên đề, luyện từng câu một, biết đúng/sai ngay lập tức.</p>
+            </div>
+        </div>
+        <span class="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-blue-600 transition-all group-hover:gap-2">
+            Bắt đầu <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+        </span>
     </a>
 
     {{-- <x-ws.tabs :tabs="$tabs" /> --}}

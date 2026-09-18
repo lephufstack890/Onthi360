@@ -66,7 +66,13 @@ class PracticeByQuestionService
         return true;
     }
 
-    public function startForQuestion(int $questionId, ?string $returnUrl = null): void
+    /**
+     * SỬA 18/9 — thêm $backLabel (tuỳ chọn). Phiên luyện 1 câu giờ mở được từ HAI nơi: "Tài
+     * liệu của tôi" (bài tập của sản phẩm) và bảng bài tập ở trang Luyện tập công khai. Hai
+     * nơi quay về hai chỗ khác nhau nên nút quay lại không thể ghi cứng một nhãn như trước.
+     * Bỏ trống -> giữ nguyên nhãn cũ ("Quay lại Tài liệu của tôi"), không đổi hành vi hiện có.
+     */
+    public function startForQuestion(int $questionId, ?string $returnUrl = null, ?string $backLabel = null): void
     {
         Session::put(self::SESSION_KEY, [
             'question_ids' => [$questionId],
@@ -77,6 +83,7 @@ class PracticeByQuestionService
             'feedback' => null,
             'mode' => 'single_question',
             'returnUrl' => $returnUrl,
+            'backLabel' => $backLabel,
         ]);
     }
 
@@ -103,6 +110,7 @@ class PracticeByQuestionService
                 'answered' => $state['answered'],
                 'mode' => $state['mode'] ?? null,
                 'returnUrl' => $state['returnUrl'] ?? null,
+                'backLabel' => $state['backLabel'] ?? null,
             ];
         }
 
@@ -133,6 +141,7 @@ class PracticeByQuestionService
             'feedback' => $state['feedback'],
             'mode' => $state['mode'] ?? null,
             'returnUrl' => $state['returnUrl'] ?? null,
+            'backLabel' => $state['backLabel'] ?? null,
         ];
     }
 

@@ -1049,3 +1049,280 @@
 .material-pdf-scroll::-webkit-scrollbar-thumb:hover {
   background: #6f9caf;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   SỬA 18/9 — PHÒNG THI (trang làm bài của học sinh).
+   Chép NGUYÊN khối .assessment-* + chế độ nền tối từ bản mẫu:
+   education-main/src/index.css (dòng 1680–1819).
+   Mọi luật đều bị giới hạn trong .assessment-modal / .assessment-modal-*
+   hoặc html.theme-dark (lớp chỉ được bật ở đúng trang này), nên không
+   ảnh hưởng bất kỳ trang nào khác.
+   ────────────────────────────────────────────────────────────── */
+/* Assessment test status: toned down for dark workspace mode. */
+html.theme-dark .assessment-test-status-pass {
+  background-color: #245447 !important;
+  color: #b9efd9 !important;
+}
+
+html.theme-dark .assessment-test-status-fail {
+  background-color: #5b3540 !important;
+  color: #ffd0d8 !important;
+}
+/* Assessment workspace theme contract: keep every modal surface in one tonal system. */
+html.theme-dark .assessment-modal { background-color: #12212b; color: #dceaf0; }
+html.theme-dark .assessment-modal [class~="text-[#45657D]"] { color: #b8cbd6 !important; }
+html.theme-dark .assessment-modal [class~="text-[#607A90]"], html.theme-dark .assessment-modal [class~="text-[#7A92A3]"] { color: #9eb4c0 !important; }
+html.theme-dark .assessment-modal [class~="text-[#A4621B]"], html.theme-dark .assessment-modal [class~="text-[#967342]"] { color: #e1bd79 !important; }
+html.theme-dark .assessment-modal [class*="border-[#DDEAF0]"], html.theme-dark .assessment-modal [class*="border-[#EEF2F4]"] { border-color: #365361 !important; }
+html.theme-dark .assessment-modal [class~="bg-[#EAF5F8]"] { background-color: #244955 !important; }
+html.theme-dark .assessment-modal [class~="bg-[#EEF6F8]"], html.theme-dark .assessment-modal [class~="bg-[#F7F9FA]"], html.theme-dark .assessment-modal [class~="bg-[#E9F0F4]"], html.theme-dark .assessment-modal [class~="bg-[#FFF8E8]"] { background-color: #203b48 !important; }
+html.theme-dark .assessment-modal [class~="bg-[#FFF5DE]"] { background-color: #403820 !important; }
+html.theme-dark .assessment-modal [class~="bg-[#102A43]"] { background-color: #0d202d !important; }
+html.theme-dark .assessment-modal [class~="bg-[#0D2338]"] { background-color: #0a1a25 !important; }
+html.theme-dark .assessment-modal [class~="bg-white/80"], html.theme-dark .assessment-modal [class~="bg-white/70"] { background-color: #1b2d38 !important; }
+html.theme-dark .assessment-modal .assessment-a4-page { background-color: #ffffff !important; color: #123b68; }
+html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#45657D]"] { color: #45657d !important; }
+
+
+
+/* Assessment PDF glare control */
+html.theme-dark .assessment-modal .assessment-pdf-surface {
+  background-color: #152b36 !important;
+  border-color: #365361 !important;
+}
+html.theme-dark .assessment-modal .assessment-pdf-frame {
+  background-color: #cbd6d8 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .34) !important;
+}
+html.theme-dark .assessment-modal .assessment-pdf-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(18, 33, 43, .1);
+}
+html.theme-dark .assessment-modal .assessment-pdf-iframe {
+  filter: brightness(.7) saturate(.82) contrast(.96);
+}
+html.theme-dark .assessment-modal .assessment-a4-page {
+  background-color: #e7edeb !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .32) !important;
+}
+
+
+/* Assessment modal presentation audit */
+.assessment-modal button:focus-visible,
+.assessment-modal select:focus-visible,
+.assessment-modal textarea:focus-visible,
+.assessment-modal input:focus-visible {
+  outline: 2px solid #2d7fa3;
+  outline-offset: 2px;
+}
+.assessment-modal-shell,
+.assessment-modal-main,
+.assessment-modal-content {
+  min-height: 0;
+}
+html.theme-dark .assessment-modal-shell,
+html.theme-dark .assessment-modal-main,
+html.theme-dark .assessment-modal-content {
+  background-color: #12212b !important;
+}
+html.theme-dark .assessment-modal-header,
+html.theme-dark .assessment-modal-tabs {
+  background-color: #162a35 !important;
+  border-color: #365361 !important;
+}
+html.theme-dark .assessment-modal-header button:hover,
+html.theme-dark .assessment-modal-tabs button:hover {
+  background-color: #203b48 !important;
+}
+html.theme-dark .assessment-run-dialog,
+html.theme-dark .assessment-submission-dialog {
+  background-color: #1b2d38 !important;
+  color: #dceaf0;
+}
+html.theme-dark .assessment-run-header {
+  background-color: #162a35 !important;
+  border-color: #365361 !important;
+}
+html.theme-dark .assessment-run-test {
+  border-color: #365361 !important;
+}
+html.theme-dark .assessment-submission-dialog [class*="border-slate-100"] {
+  border-color: #365361 !important;
+}
+
+
+/* Assessment light mode glare control */
+html:not(.theme-dark) .assessment-modal-shell {
+  background-color: #f4f8f9 !important;
+}
+html:not(.theme-dark) .assessment-modal-header,
+html:not(.theme-dark) .assessment-modal-tabs {
+  background-color: #fcfefe !important;
+  border-color: #d6e4e8 !important;
+}
+html:not(.theme-dark) .assessment-modal [class~="bg-white"] {
+  background-color: #fcfefe !important;
+}
+html:not(.theme-dark) .assessment-modal [class~="bg-white/80"],
+html:not(.theme-dark) .assessment-modal [class~="bg-white/70"] {
+  background-color: #f7fbfc !important;
+}
+html:not(.theme-dark) .assessment-modal [class~="bg-[#F8FBFC]"] {
+  background-color: #f3f7f8 !important;
+}
+html:not(.theme-dark) .assessment-modal [class~="bg-[#F4F9FB]"] {
+  background-color: #eef5f6 !important;
+}
+html:not(.theme-dark) .assessment-modal [class~="border-[#DDEAF0]"],
+html:not(.theme-dark) .assessment-modal [class*="border-[#E7EFF3]"] {
+  border-color: #d6e4e8 !important;
+}
+html:not(.theme-dark) .assessment-modal .assessment-a4-page {
+  background-color: #fffdf8 !important;
+}
+html:not(.theme-dark) .assessment-modal .assessment-pdf-frame,
+html:not(.theme-dark) .assessment-modal .assessment-pdf-iframe {
+  background-color: #fffdf8 !important;
+}
+
+
+/* Assessment modal surfaces: keep answer workspace readable in both themes. */
+html.theme-dark .assessment-modal .assessment-work-panel { background-color: #102a43 !important; }
+html.theme-dark .assessment-modal .assessment-work-panel [class~="bg-white"] { background-color: #173a53 !important; color: #cbe7ed; }
+html.theme-dark .assessment-modal .assessment-work-panel [class~="bg-[#F4F8FB]"] { background-color: #173a53 !important; }
+html.theme-dark .assessment-modal .assessment-work-panel [class~="text-[#123B68]"] { color: #eaf5f8 !important; }
+html.theme-dark .assessment-modal-header [class~="bg-white"], html.theme-dark .assessment-modal-header [class~="bg-[#F4F8FB]"] { background-color: #173a53 !important; }
+html:not(.theme-dark) .assessment-modal .assessment-work-panel { background-color: #eaf3f6 !important; }
+html:not(.theme-dark) .assessment-modal .assessment-work-panel [class~="bg-white"] { background-color: #f9fcfd !important; }
+
+/* ──────────────────────────────────────────────────────────────
+   SỬA 18/9 (khách: "màu tối nó không ổn lắm") — NGUYÊN NHÂN: khối .assessment-*
+   chép hôm trước chỉ là phần RIÊNG của phòng thi; bản mẫu còn dựa vào một loạt luật
+   nền-tối TOÀN CỤC (education-main/src/index.css dòng 255–357) để lật mọi surface
+   sáng (bg-white, bg-[#F...], bg-slate-50...) và chữ xanh đậm sang thang tối. Thiếu
+   chúng nên ô soạn mã vẫn trắng toát, tiêu đề xanh đậm chìm hẳn vào nền.
+
+   Chép đúng các luật đó nhưng GIỚI HẠN trong .assessment-modal: bản mẫu là SPA nên
+   để toàn cục được, còn ở đây lớp theme-dark chỉ bật ở phòng thi — để toàn cục là
+   đổi màu cả trang khác nếu lỡ sót lớp.
+   ────────────────────────────────────────────────────────────── */
+html.theme-dark .assessment-modal .bg-white,
+html.theme-dark .assessment-modal [class~="bg-white/95"],
+html.theme-dark .assessment-modal [class~="bg-white/90"],
+html.theme-dark .assessment-modal [class~="bg-white/80"],
+html.theme-dark .assessment-modal [class~="bg-white/70"] {
+  background-color: #1b2d38;
+}
+
+html.theme-dark .assessment-modal [class~="bg-[#EEF5FC]"],
+html.theme-dark .assessment-modal [class~="bg-[#F8FAFB]"],
+html.theme-dark .assessment-modal [class~="bg-[#F8FBFE]"],
+html.theme-dark .assessment-modal [class~="bg-[#F0F6FC]"] {
+  background-color: #12212b;
+}
+
+html.theme-dark .assessment-modal [class*="bg-[#F"],
+html.theme-dark .assessment-modal [class*="bg-[#E"] {
+  background-color: #203b48;
+}
+
+html.theme-dark .assessment-modal [class~="text-[#123B68]"],
+html.theme-dark .assessment-modal [class~="text-[#0B3C78]"],
+html.theme-dark .assessment-modal [class~="text-[#0050A0]"],
+html.theme-dark .assessment-modal [class~="text-[#0066CC]"],
+html.theme-dark .assessment-modal [class~="text-[#536D86]"],
+html.theme-dark .assessment-modal [class~="text-[#71869A]"] {
+  color: #dceaf0;
+}
+
+html.theme-dark .assessment-modal [class~="text-[#126F91]"],
+html.theme-dark .assessment-modal [class~="text-[#2D7FA3]"] {
+  color: #84d4e2;
+}
+
+html.theme-dark .assessment-modal .bg-slate-50,
+html.theme-dark .assessment-modal .bg-slate-100,
+html.theme-dark .assessment-modal [class~="bg-slate-50/80"],
+html.theme-dark .assessment-modal [class~="bg-slate-50/60"],
+html.theme-dark .assessment-modal [class~="bg-sky-50/50"],
+html.theme-dark .assessment-modal [class~="bg-sky-50/40"],
+html.theme-dark .assessment-modal [class~="bg-sky-50/60"],
+html.theme-dark .assessment-modal .bg-sky-50,
+html.theme-dark .assessment-modal .bg-blue-50,
+html.theme-dark .assessment-modal .bg-emerald-50,
+html.theme-dark .assessment-modal .bg-amber-50 {
+  background-color: #203b48;
+}
+
+html.theme-dark .assessment-modal .text-slate-800,
+html.theme-dark .assessment-modal .text-slate-700,
+html.theme-dark .assessment-modal .text-slate-600 {
+  color: #dceaf0;
+}
+
+html.theme-dark .assessment-modal .text-slate-500,
+html.theme-dark .assessment-modal .text-slate-400 {
+  color: #9eb4c0;
+}
+
+html.theme-dark .assessment-modal .text-slate-300 {
+  color: #c3d4dc;
+}
+
+html.theme-dark .assessment-modal .text-blue-700,
+html.theme-dark .assessment-modal .text-blue-600,
+html.theme-dark .assessment-modal .text-sky-700,
+html.theme-dark .assessment-modal .text-sky-600 {
+  color: #84d4e2;
+}
+
+html.theme-dark .assessment-modal .text-emerald-700,
+html.theme-dark .assessment-modal .text-green-700 {
+  color: #86dfb0;
+}
+
+html.theme-dark .assessment-modal .text-amber-700,
+html.theme-dark .assessment-modal .text-amber-600 {
+  color: #f2c778;
+}
+
+html.theme-dark .assessment-modal .border-slate-100,
+html.theme-dark .assessment-modal .border-slate-200,
+html.theme-dark .assessment-modal .border-sky-100,
+html.theme-dark .assessment-modal .border-sky-200,
+html.theme-dark .assessment-modal .border-blue-100,
+html.theme-dark .assessment-modal .border-blue-200 {
+  border-color: #34505e;
+}
+
+html.theme-dark .assessment-modal input,
+html.theme-dark .assessment-modal textarea,
+html.theme-dark .assessment-modal select {
+  color: #e6f1f7;
+  background-color: #172a35;
+  border-color: #3b5b69;
+}
+
+html.theme-dark .assessment-modal input::placeholder,
+html.theme-dark .assessment-modal textarea::placeholder {
+  color: #88a1af;
+}
+
+/* NGOẠI LỆ BẮT BUỘC: ô soạn mã là textarea TRONG SUỐT nằm chồng lên lớp <pre> tô màu
+   bên dưới (đúng cách bản mẫu làm). Luật "textarea nền #172a35" ở trên có độ ưu tiên
+   cao hơn lớp bg-transparent của Tailwind — không chừa chỗ này ra là ô code bị tô nền
+   đặc, che mất lớp tô màu, học sinh gõ mà không thấy chữ. */
+html.theme-dark .assessment-modal textarea[data-code-source] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+/* Con trỏ nhập của ô soạn mã — đổi theo nền đang bật (bản mẫu đặt caretColor bằng JS,
+   ở đây để CSS lo cho cả hai màn, không phải nhớ truyền tham số ở từng chỗ). */
+.assessment-modal textarea[data-code-source] { caret-color: #126F91; }
+html.theme-dark .assessment-modal textarea[data-code-source] { caret-color: #EAF5F8; }
+

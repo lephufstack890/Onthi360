@@ -49,6 +49,21 @@ class PracticeService
             'history' => $this->attempts->countSubmittedForUser($user->id),
         ];
 
+        // SỬA 18/9 (khách: "copy lại UI bản mẫu rồi đổ dữ liệu database vào trước") — 3 ô số
+        // liệu của bản mẫu (Bài được giao / Đã lưu / Lịch sử nộp) cần thêm 2 MỐC THỜI GIAN
+        // THẬT cho dòng ghi chú, thay vì in con số minh hoạ như trong RoleWorkspace.jsx.
+        // Mỗi mốc 1 câu truy vấn nhẹ (lấy đúng 1 bản ghi), không đụng gì tới $items/$counts.
+        $nextDueAt = $classRoomIds === []
+            ? null
+            : $this->assignments->query()
+                ->whereIn('class_room_id', $classRoomIds)
+                ->where('status', 'open')
+                ->whereNotNull('due_at')
+                ->orderBy('due_at')
+                ->first(['due_at'])?->due_at;
+
+        $lastSubmittedAt = $this->attempts->recentSubmittedForUser($user->id, 1)->first()?->submitted_at;
+
         $tabs = [
             ['label' => 'Tự luyện', 'href' => route('student.practice.index'), 'active' => $tab === 'self', 'count' => $counts['self']],
             ['label' => 'Theo lớp', 'href' => route('student.practice.index', ['tab' => 'class']), 'active' => $tab === 'class', 'count' => $counts['class']],
@@ -121,6 +136,14 @@ class PracticeService
             'tab' => $tab,
             'tabs' => $tabs,
             'items' => $items,
+            // Khoá THÊM cho giao diện mới — mọi khoá cũ giữ nguyên nên không phá chỗ nào đang dùng.
+            'counts' => $counts,
+            'nextDueAt' => $nextDueAt,
+            'lastSubmittedAt' => $lastSubmittedAt,
+            // Nút "Làm đề hỗn hợp" của bản mẫu: trỏ vào ĐỀ TỰ LUYỆN đầu danh sách đang phát
+            // hành — lấy từ chính $items đã nạp, KHÔNG thêm truy vấn. Tab khác (hoặc lọc xong
+            // không còn đề nào) thì trả null và Blade ẩn nút, không đưa ra link chết.
+            'quickStartHref' => ($tab === 'self' && $items !== []) ? ($items[0]['takeRoute'] ?? null) : null,
             'type' => $type,
             'topic' => $topic,
             'filtersApply' => $filtersApply,

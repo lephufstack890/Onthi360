@@ -4,6 +4,7 @@ namespace App\Services\Student;
 
 use App\Enums\AnswerSheetQuestionType;
 use App\Enums\PublishAnswerRule;
+use App\Enums\QuestionType;
 use App\Models\Assessment;
 use App\Models\Assignment;
 use App\Models\Attempt;
@@ -93,6 +94,29 @@ class AssessmentService
                 'codeSource' => $existing?->code_source,
                 'language' => $existing?->language,
                 'status' => $existing !== null ? 'answered' : 'unanswered',
+
+                // ── SỬA 18/9 (dựng lại giao diện phòng thi theo bản mẫu) ──────────────────
+                // 3 khoá THÊM, thuần hiển thị — không đụng gì tới luồng lưu nháp/nộp/chấm.
+                // 'kind' gom 4 dạng câu của hệ thống về đúng 3 nhóm mà bản mẫu vẽ giao diện
+                // (choice/fill/code), để Blade không phải tự đoán lại ở nhiều chỗ.
+                'kind' => match ($question->type) {
+                    QuestionType::Coding => 'code',
+                    QuestionType::FillBlank => 'fill',
+                    default => 'choice',
+                },
+                'typeLabel' => match ($question->type) {
+                    QuestionType::Coding => 'Lập trình',
+                    QuestionType::FillBlank => 'Điền đáp án',
+                    QuestionType::Composite => 'Nhiều phần',
+                    default => 'Trắc nghiệm',
+                },
+                // Tab "Đề bài PDF" của bản mẫu. Nguồn thật: tệp đính kèm kind='statement' của
+                // câu hỏi (Question::attachmentInfo). CHỈ 'statement' — 'solution'/'reference'
+                // tuyệt đối không lộ cho học sinh, xem ghi chú ở chính Question::attachmentInfo()
+                // và Student\PracticeByQuestionController::statement() (route dùng lại ở đây).
+                'statementPdfUrl' => $question->attachmentInfo('statement') !== null
+                    ? route('student.practiceByQuestion.statement', $question->id)
+                    : null,
             ];
         })->all();
 
@@ -101,6 +125,11 @@ class AssessmentService
             'assessmentModel' => $assessmentModel,
             'attempt' => $attempt,
             'questions' => $questions,
+            // SỬA 18/9 — dòng nhãn nhỏ trên đầu phòng thi của bản mẫu ("EXAM_HSG_01 · 100 ĐIỂM").
+            // Lấy đúng 2 cột đã có của đề; đề chưa đặt mã thì Blade tự ẩn phần mã.
+            'examCode' => $assessmentModel->exam_code,
+            'totalPoints' => $assessmentModel->total_points
+                ?? collect($questions)->sum('points'),
             // Đồng hồ đếm ngược ở client tính từ 2 mốc giờ MÁY CHỦ này (không dùng giờ máy của
             // học sinh) — null nếu đề không giới hạn thời gian (không có duration_minutes lẫn
             // không giao qua assignment có khung giờ). Việc CHẶN THẬT khi hết giờ luôn nằm ở

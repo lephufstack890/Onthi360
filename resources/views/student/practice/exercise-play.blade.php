@@ -1,26 +1,25 @@
-@extends('layouts.student')
+@extends('layouts.exam')
 
 @section('title', 'Làm bài tập')
-@section('page-title', 'Làm bài tập')
 
 {{--
-    SỬA 31/8 (3, khách yêu cầu tách riêng UI): "Làm bài" 1 bài tập cụ thể của sản phẩm (mở từ
-    "Tài liệu của tôi" — xem PracticeByQuestionService::startForQuestion(), luôn
-    mode='single_question') giờ có view RIÊNG, KHÔNG dùng chung với
-    student/practice/by-question-play.blade.php ("Luyện tập theo câu" — chọn ngẫu nhiên nhiều
-    câu theo tag/dạng). 2 luồng khác hẳn về ngữ cảnh: đây là làm ĐÚNG 1 bài tập của 1 sản phẩm đã
-    mua/kích hoạt, có đề bài PDF thật cần hiện ra để làm bài — KHÔNG có khái niệm "câu tiếp theo/
-    điểm luyện tập" như bên kia. Vẫn cùng 1 route/state/logic chấm ở PracticeByQuestionService
-    (không tạo state riêng) — chỉ khác template hiển thị, chọn ở PracticeByQuestionController::
-    play().
+    SỬA 31/8 (3, khách yêu cầu tách riêng UI): "Làm bài" 1 bài tập cụ thể (mở từ "Tài liệu của
+    tôi", và TỪ 18/9 cả từ bảng bài tập ở trang Luyện tập công khai — xem
+    PracticeByQuestionService::startForQuestion(), luôn mode='single_question') có view RIÊNG,
+    KHÔNG dùng chung với student/practice/by-question-play.blade.php. Vẫn cùng route/state/logic
+    chấm ở PracticeByQuestionService — chỉ khác template, chọn ở PracticeByQuestionController::play().
 
-    SỬA 31/8 (3, khách báo lỗi): trước đây $question->body của bài tập nhập từ ZIP chỉ là 1 dòng
-    ghi chú trung lập ("Đề bài đầy đủ nằm trong tệp PDF đính kèm... xem mục Tệp đính kèm ở trang
-    Sửa câu hỏi") — dòng này viết cho ADMIN đọc (trỏ tới 1 trang Admin học sinh không vào được),
-    hiện thẳng ra cho học sinh là VÔ NGHĨA. Giờ nhúng THẲNG file statement.pdf thật (qua route
-    access.resource.exerciseAttachment đã có sẵn — dùng lại nguyên vẹn, không tạo route mới) làm
-    đề bài chính — chỉ rơi về hiện $question->body (fallback) nếu bài tập này (hiếm/không đúng
-    quy ước) không có tệp statement.pdf đính kèm.
+    SỬA 18/9 (khách: "sao click nó không ra trang này, update UI này rồi mà") — dựng lại lớp áo
+    theo ĐÚNG bản mẫu education-main/src/components/AssessmentModal.jsx ở chế độ singleExercise
+    (một bài, nên KHÔNG có dải số câu và nút ghi "Nộp bài" chứ không phải "Nộp đề"): khung toàn
+    màn hình, rail 4 tab dọc, nền sáng/tối.
+
+    LOGIC GIỮ NGUYÊN TUYỆT ĐỐI — form trả lời, khối kết quả, script chấm AJAX và CodeMirror đều
+    là các khối CŨ chép nguyên văn sang, không sửa một dòng:
+      · #practice-container vẫn là khối DUY NHẤT bị thay sau mỗi lần chấm. Nó nằm BÊN TRONG tab
+        "Làm bài" (không bọc ra ngoài rail tab) — Alpine 3 KHÔNG khởi tạo DOM được nhét vào bằng
+        JS, bọc ra ngoài là mất luôn phần chuyển tab sau lần chấm đầu tiên.
+      · Phần bên trong #practice-container không dùng directive Alpine nào, chỉ data-* như cũ.
 --}}
 @section('content')
     @php
@@ -30,215 +29,167 @@
         $compositeParts = $compositeParts ?? [];
         $assets = $assets ?? [];
         $backUrl = $returnUrl ?? route('student.library.index');
+        // SỬA 18/9 — nhãn nút quay lại đi theo NƠI MỞ phiên luyện (xem
+        // PracticeByQuestionService::startForQuestion). Không truyền thì giữ nguyên nhãn cũ.
+        $backLabel = $backLabel ?? 'Quay lại Tài liệu của tôi';
 
         $statementUrl = null;
         if (! $finished) {
             $hasStatement = isset($question->metadata['attachments']['statement']['path']);
             if ($hasStatement) {
-                $statementUrl = route('access.resource.exerciseAttachment', [$question->product_id, $question->id, 'statement']);
+                // SỬA 18/9 — LỖI CŨ: luôn dựng link theo product_id. Phiên luyện 1 câu giờ còn
+                // mở được cho câu trong KHO CHUNG (product_id = null) — route() gặp tham số null
+                // sẽ ném UrlGenerationException, tức là trắng trang 500 ngay khi câu đó có đính
+                // kèm đề bài. Câu không thuộc sản phẩm dùng route statement riêng của học sinh
+                // (cùng quyền: chỉ cho kind='statement').
+                $statementUrl = $question->product_id !== null
+                    ? route('access.resource.exerciseAttachment', [$question->product_id, $question->id, 'statement'])
+                    : route('student.practiceByQuestion.statement', $question->id);
             }
         }
 
-        // SỬA 3/9 (3, khách yêu cầu: "logic ok hết rồi, xây lại UI cho đẹp") — thêm badge dạng
-        // câu (giống hệt by-question-play.blade.php — component <x-ws.badge>) cho nhất quán,
-        // trang này TRƯỚC ĐÓ chưa hiện badge dạng câu, chỉ có tiêu đề trơn.
         $typeBadge = ! $finished ? match ($question->type->value) {
-            'mcq' => '🔤 Trắc nghiệm',
-            'fill_blank' => '✏️ Điền đáp án',
-            'composite' => '🧩 Câu hỏi nhiều phần',
-            default => '💻 Lập trình',
+            'mcq' => 'Trắc nghiệm',
+            'fill_blank' => 'Điền đáp án',
+            'composite' => 'Câu hỏi nhiều phần',
+            default => 'Lập trình',
         } : null;
+
+        // Bản mẫu chia giao diện làm bài làm 2 nhánh: câu Lập trình (trình soạn mã +
+        // INPUT/OUTPUT) và các dạng còn lại (một panel "Cách trả lời").
+        $isCode = ! $finished && $question->type->value === 'coding';
     @endphp
 
-    {{-- SỬA 3/9 (khách yêu cầu: bấm chấm bài KHÔNG reload cả trang, chỉ hiện spinner ở nút rồi
-         hiện kết quả tại chỗ — CÙNG hành vi đã làm ở by-question-play.blade.php, khách báo trang
-         "Làm bài" 1 bài tập cụ thể này — cùng route/action student.practiceByQuestion.play,
-         khác template do PracticeByQuestionController::play() chọn theo mode — vẫn còn load lại
-         trang) — bọc id="practice-container" quanh CẢ 2 nhánh (đã xong/chưa xong) làm 1 khối
-         DUY NHẤT có thể thay nguyên khối bằng JS: form "Ghi nhận bài làm"/"Kiểm tra đáp án" giờ
-         submit qua fetch() (script cuối trang) thay vì để trình duyệt tự điều hướng — fetch tới
-         ĐÚNG route cũ (student.practiceByQuestion.answer), Laravel vẫn redirect sang GET .play
-         như cũ (KHÔNG đổi controller/route nào), fetch tự đi theo redirect đó và nhận về HTML
-         trang mới, JS chỉ lấy đúng #practice-container trong HTML đó rồi thay vào chỗ cũ —
-         không cần sửa gì ở backend. --}}
-    <div id="practice-container">
-    @if ($finished)
-        {{-- SỬA 3/9 (3) — thêm nền gradient nhẹ + icon trong khung tròn màu (trước chỉ có emoji
-             trơn) cho màn hoàn tất có điểm nhấn hơn, đồng bộ shadow-sm với các card khác. --}}
-        <div class="max-w-3xl mx-auto text-center bg-gradient-to-br from-sky-50 to-white rounded-3xl border border-sky-100 shadow-sm p-8 mt-8">
-            <div class="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-4xl mx-auto mb-4">🎉</div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Đã ghi nhận bài làm!</h2>
-            <p class="text-base text-slate-500 mb-6">Bài tập của bạn đã được ghi nhận — phần nào tự chấm được đã báo đúng/sai ngay, phần tự luận/lập trình (nếu có) chờ chấm sau.</p>
-            <a href="{{ $backUrl }}" class="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-base font-semibold shadow-sm inline-block">‹ Quay lại Tài liệu của tôi</a>
-        </div>
-    @else
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-center justify-between mb-5">
-                <a href="{{ $backUrl }}" class="text-[13px] font-medium text-slate-500 hover:text-blue-600 transition-colors inline-flex items-center gap-1">‹ Quay lại Tài liệu của tôi</a>
-                <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}">
-                    @csrf
-                    <button type="submit" class="text-[13px] font-medium text-slate-400 hover:text-blue-600 transition-colors">Thoát bài tập ✕</button>
-                </form>
-            </div>
+    {{-- SỬA 18/9 (khách: "copy Assessment Modal á, khi click thì nó hiển thị modal vậy á") —
+         lớp vỏ chép ĐÚNG 2 thẻ ngoài cùng của bản mẫu: nền tối phủ kín + khung bo góc thụt vào
+         8px mỗi bên. Trang vẫn có URL riêng (bấm F5 hay nút Back của trình duyệt đều đúng,
+         không mất bài đang làm) nhưng nhìn y hệt modal của bản mẫu. --}}
+    <div class="assessment-modal fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-0 sm:p-2"
+         x-data="{
+             tab: 'work',
+             theme: 'light',
+             init() {
+                 try { if (window.localStorage.getItem('onthi360-exam-theme') === 'dark') this.setTheme('dark'); } catch (e) {}
+             },
+             setTheme(next) {
+                 this.theme = next;
+                 document.documentElement.classList.toggle('theme-dark', next === 'dark');
+             },
+             toggleTheme() {
+                 this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+                 try { window.localStorage.setItem('onthi360-exam-theme', this.theme); } catch (e) {}
+             },
+         }" x-init="init()">
 
-            {{-- SỬA 3/9 (3) — thay tiêu đề trơn bằng khối icon-badge + nhãn dạng câu, cùng phong
-                 cách "Luyện tập theo câu" (badge màu bg-blue-50, chữ hoa nhỏ phía trên tiêu đề)
-                 để 2 trang nhìn đồng bộ, có điểm nhấn hơn 1 dòng chữ trơn như trước. --}}
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-xl shrink-0">🧪</div>
-                <div class="min-w-0">
-                    <p class="text-xs font-semibold text-blue-500 uppercase tracking-wide mb-1">Làm bài tập</p>
-                    <h2 class="text-xl font-bold text-slate-800 leading-tight truncate">{{ $question->title }}</h2>
+        <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl">
+
+        {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
+        <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">
+            <a href="{{ $backUrl }}" aria-label="{{ $backLabel }}" title="{{ $backLabel }}"
+               class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
+
+            <div class="min-w-0 flex-1">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-[#126F91]">
+                    @if ($question->code){{ $question->code }} · @endif{{ $question->points }} điểm
+                </p>
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 class="min-w-0 truncate text-sm font-extrabold text-[#123B68] sm:text-base">{{ $question->title }}</h2>
+                    @if ($typeBadge)
+                        <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">{{ $typeBadge }}</span>
+                    @endif
                 </div>
-                @if ($typeBadge)
-                    <x-ws.badge tone="info">{{ $typeBadge }}</x-ws.badge>
-                @endif
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                {{-- Cột trái: đề bài. SỬA 3/9 (3) — thêm shadow-sm cho card có chiều sâu hơn (trước
-                     chỉ có border phẳng), nhãn "ĐỀ BÀI" đổi thành chip có icon thay vì chữ trơn,
-                     giảm chiều cao khung PDF (560px → 460px, PDF ngắn để 560px dư khoảng trắng
-                     rất nhiều — xem ảnh khách chụp), và nút "Mở đề bài" đổi thành nút chip màu
-                     thay vì link chữ trơn, dễ bấm/dễ thấy hơn. --}}
-                <div class="bg-white rounded-3xl border border-sky-100 shadow-sm p-5 lg:p-6">
-                    <p class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3"><x-lucide name="scroll-text" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Đề bài</p>
+            <button type="button" @click="toggleTheme()" aria-label="Đổi nền sáng/tối" title="Đổi nền sáng/tối"
+                    class="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-[#DDEAF0] bg-white text-[#607A90] transition hover:bg-[#EAF5F8]">
+                <span x-show="theme === 'dark'" x-cloak><x-lucide name="sun" class="h-4 w-4" /></span>
+                <span x-show="theme !== 'dark'"><x-lucide name="moon" class="h-4 w-4" /></span>
+            </button>
 
+            {{-- "Thoát bài tập" — form CŨ, giữ nguyên route/hành vi. --}}
+            <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}" class="shrink-0">
+                @csrf
+                <button type="submit" class="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] transition hover:bg-[#F4F9FB] sm:flex">Thoát bài tập</button>
+            </form>
+
+            {{-- Nút chính trên header BẤM HỘ nút submit đang nằm trong #practice-container (khối
+                 này bị thay mới sau mỗi lần chấm nên không thể trỏ cứng vào 1 form). Nhãn được
+                 một MutationObserver nhỏ ở cuối trang đồng bộ lại — xem script. --}}
+            <button type="button" data-header-submit
+                    class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-not-allowed disabled:opacity-50">
+                <x-lucide name="send" class="h-4 w-4" /><span data-header-submit-label>Nộp bài</span>
+            </button>
+        </header>
+
+        {{-- ═══════════════════ RAIL 4 TAB + NỘI DUNG ═══════════════════ --}}
+        <div class="assessment-modal-main flex min-h-0 flex-1 flex-col md:flex-row">
+            <aside class="assessment-modal-tabs shrink-0 border-b border-[#DDEAF0] bg-white md:w-12 md:border-b-0 md:border-r">
+                <div class="grid h-full grid-cols-4 gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
+                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu']] as [$tabId, $tabLabel])
+                        <button type="button" @click="tab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
+                                class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
+                                :class="tab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
+                            <span class="min-w-0"><span class="block text-[10px] font-extrabold leading-tight md:rotate-180 md:[writing-mode:vertical-rl]">{{ $tabLabel }}</span></span>
+                        </button>
+                    @endforeach
+                </div>
+            </aside>
+
+            <main class="assessment-modal-content min-w-0 flex-1 overflow-hidden">
+
+                {{-- ───────── TAB: ĐỀ BÀI PDF ─────────
+                     SỬA 18/9 (khách: "tab đề bài pdf cho hiển thị to ra") — bỏ padding và mọi
+                     chiều cao tối thiểu cố định; khung PDF ăn TRỌN phần thân modal. --}}
+                <section x-show="tab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-hidden bg-[#EAF4F8]">
                     @if ($statementUrl)
-                        <div class="rounded-xl overflow-hidden border border-sky-100 mb-3">
-                            <iframe src="{{ $statementUrl }}" class="w-full" style="height: 460px;" title="Đề bài"></iframe>
-                        </div>
-                        <a href="{{ $statementUrl }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-blue-600 bg-blue-50 hover:text-blue-700 transition-colors">
-                            ↗ Mở đề bài trong tab mới
-                        </a>
+                        {{-- SỬA 18/9 (khách: "mặc định to ra bên tab đề pdf") — trình xem PDF của trình duyệt
+                                     tự đoán mức phóng và ra rất nhỏ; ép thẳng bằng tham số mở tệp chuẩn
+                                     (view=FitH + zoom=page-width) để trang đề luôn vừa CHIỀU NGANG khung.
+                                     toolbar=0/navpanes=0 giữ như cũ — thanh công cụ có nút tải về, đề bài
+                                     chỉ cho xem trên web. --}}
+                        <iframe src="{{ $statementUrl }}#toolbar=0&amp;navpanes=0&amp;view=FitH&amp;zoom=page-width"
+                                title="Đề bài" class="assessment-pdf-iframe h-full w-full border-0 bg-white"></iframe>
                     @else
-                        {{-- Fallback hiếm gặp: bài tập không có statement.pdf đính kèm — hiện
-                             thẳng $question->body (cùng cách hiển thị rich-content như trước). --}}
-                        <div class="rich-content text-base text-slate-600">{!! $question->body !!}</div>
-                    @endif
-
-                    @if ($question->tags->isNotEmpty())
-                        <div class="flex flex-wrap gap-1 mt-4">
-                            @foreach ($question->tags as $t)
-                                <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500"><x-lucide name="book-open" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $t->name }}</span>
-                            @endforeach
+                        <div class="grid h-full place-items-center p-8 text-center">
+                            <div>
+                                <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
+                                <p class="mt-3 text-sm font-extrabold text-[#123B68]">Bài này không có bản PDF</p>
+                                <p class="mt-1 text-[11px] text-[#607A90]">Toàn bộ nội dung đề nằm ở tab <span class="font-bold">Làm bài</span>.</p>
+                            </div>
                         </div>
                     @endif
+                </section>
 
-                    {{-- Học liệu CẦN để trả lời (vd nghe audio nghe-hiểu) — khác đề bài PDF ở
-                         trên (chỉ để xem/tham khảo), asset ở đây là nội dung PHẢI dùng để làm
-                         bài, nên luôn hiện kể cả đã trả lời hay chưa. --}}
-                    @if (! empty($assets))
-                        <div class="mt-4 space-y-3">
-                            @foreach ($assets as $asset)
-                                <div class="p-3 rounded-xl border border-sky-100 bg-slate-50">
-                                    @if ($asset['kind'] === 'audio')
-                                        <audio controls preload="none" class="w-full" src="{{ $asset['url'] }}"></audio>
-                                    @elseif ($asset['kind'] === 'image')
-                                        <img src="{{ $asset['url'] }}" alt="{{ $asset['altText'] ?? '' }}" class="rounded-xl">
-                                    @else
-                                        <a href="{{ $asset['url'] }}" class="text-[13px] text-blue-600 font-medium"><x-lucide name="file-text" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $asset['filename'] ?? 'Tệp đính kèm' }}</a>
-                                    @endif
-                                    @if (! empty($asset['altText']))
-                                        <p class="text-xs text-slate-400 mt-1"><x-lucide name="headphones" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $asset['altText'] }}</p>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
+                {{-- ───────── TAB: LÀM BÀI ─────────
+                     SỬA 18/9 (khách: "tab làm bài copy UI in đúc source mới, đang sai UI") —
+                     dựng lại theo ĐÚNG <WorkPanel> của AssessmentModal.jsx:
+                       · câu Lập trình  -> lưới [trình soạn mã 1.6fr | INPUT + OUTPUT 0.9fr]
+                       · các dạng khác  -> một panel "Cách trả lời" + thanh nút nộp bên dưới
+                       · đã chấm xong   -> khối kết quả chiếm trọn khung (bản mẫu cũng thay cả
+                                           màn bằng <SubmissionResult> sau khi nộp)
+                     Toàn bộ TÊN TRƯỜNG, thuộc tính required và khối kết quả giữ y như cũ. --}}
+                <section x-show="tab === 'work'" class="assessment-work-panel flex h-full min-h-0 flex-col overflow-hidden p-1.5 sm:p-2">
+                    <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
+                        <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]">{{ $isCode ? 'Soạn mã' : 'Trả lời câu hỏi' }}</span>
+                        @if (! $finished)
+                            <span class="shrink-0 text-[10px] font-bold text-[#7A92A3]">{{ $question->points }} điểm</span>
+                        @endif
+                    </div>
 
-                {{-- Cột phải: trả lời / kết quả. SỬA 3/9 (3) — thêm shadow-sm đồng bộ với card
-                     bên trái. --}}
-                <div class="bg-white rounded-3xl border border-sky-100 shadow-sm p-5 lg:p-6">
-                    @if ($feedback === null)
-                        {{-- SỬA 3/9 (khách yêu cầu: bấm nút KHÔNG reload trang, chỉ hiện spinner
-                             rồi hiện kết quả tại chỗ) — data-ajax-answer đánh dấu để script cuối
-                             trang bắt sự kiện submit của ĐÚNG form này (không đụng form "Thoát
-                             bài tập"/"Hoàn tất bài tập" — 2 form đó vẫn điều hướng bình thường vì
-                             không có độ trễ mạng đáng kể). --}}
-                        <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="space-y-3" data-ajax-answer>
-                            @csrf
-                            @if ($question->type->value === 'mcq')
-                                @foreach ($options as $i => $opt)
-                                    @if ($opt !== '' && $opt !== null)
-                                        <label class="flex items-center gap-2 p-4 rounded-xl border border-sky-100 hover:border-blue-200 cursor-pointer has-[:checked]:border-blue-300 has-[:checked]:bg-blue-50">
-                                            <input type="radio" name="selected_option" value="{{ $i }}" required>
-                                            <span class="text-base text-slate-700">{{ $opt }}</span>
-                                        </label>
-                                    @endif
-                                @endforeach
-                            @elseif ($question->type->value === 'fill_blank')
-                                <input type="text" name="text" required maxlength="500" placeholder="Nhập đáp án..."
-                                       class="w-full rounded-xl border border-sky-100 text-base p-4">
-                            @elseif ($question->type->value === 'composite')
-                                @foreach ($compositeParts as $part)
-                                    <div class="p-4 rounded-xl border border-sky-100">
-                                        <p class="text-[13px] font-medium text-slate-700 mb-2">Phần {{ strtoupper($part['code']) }} <span class="text-slate-400 font-normal">({{ $part['points'] }} điểm)</span></p>
-                                        @if ($part['responseType'] === 'single_choice')
-                                            <div class="flex flex-wrap gap-2">
-                                                @foreach ($part['choices'] as $choice)
-                                                    <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-[13px] cursor-pointer has-[:checked]:border-blue-300 has-[:checked]:bg-blue-50">
-                                                        <input type="radio" name="parts[{{ $part['code'] }}]" value="{{ $choice }}" required> {{ $choice }}
-                                                    </label>
-                                                @endforeach
-                                            </div>
-                                        @elseif ($part['responseType'] === 'true_false')
-                                            <div class="flex gap-2">
-                                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-[13px] cursor-pointer has-[:checked]:border-blue-300 has-[:checked]:bg-blue-50">
-                                                    <input type="radio" name="parts[{{ $part['code'] }}]" value="true" required> Đúng
-                                                </label>
-                                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-[13px] cursor-pointer has-[:checked]:border-blue-300 has-[:checked]:bg-blue-50">
-                                                    <input type="radio" name="parts[{{ $part['code'] }}]" value="false" required> Sai
-                                                </label>
-                                            </div>
-                                        @elseif ($part['responseType'] === 'short_answer')
-                                            <input type="text" name="parts[{{ $part['code'] }}]" maxlength="500" placeholder="Nhập đáp án..."
-                                                   class="admin-input">
-                                        @else
-                                            {{-- 'essay' hoặc dạng lạ chưa hỗ trợ — chỉ ghi nhận. --}}
-                                            <textarea name="parts[{{ $part['code'] }}]" rows="4" maxlength="5000" placeholder="Viết câu trả lời của bạn..."
-                                                      class="admin-input"></textarea>
-                                            <p class="text-xs text-slate-400 mt-1">Phần tự luận chưa có chấm tự động — chỉ được ghi nhận.</p>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            @else
-                                {{-- Lập trình — ô viết code "như VSCode": nhúng CodeMirror 5 qua
-                                     CDN (script init ở @push('scripts') cuối trang). --}}
-                                <div class="rounded-xl overflow-hidden border border-slate-700 shadow-sm">
-                                    <div class="flex items-center gap-2 bg-[#272822] px-3.5 py-2.5 border-b border-slate-700">
-                                        <span class="text-xs text-slate-300 font-semibold"><x-lucide name="code-2" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Ngôn ngữ:</span>
-                                        <select name="language" data-code-language
-                                                class="text-xs rounded-md border border-slate-600 bg-[#3a3d31] text-slate-100 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-rose-400">
-                                            <option value="cpp" selected>C++</option>
-                                            <option value="c">C</option>
-                                            <option value="java">Java</option>
-                                            <option value="python">Python</option>
-                                            <option value="csharp">C#</option>
-                                        </select>
-                                    </div>
-                                    {{-- SỬA (khách báo lỗi console "invalid form control ... not
-                                         focusable") — bỏ 'required': control này bị CodeMirror ẩn
-                                         đi (class hidden/display:none), nhưng trình duyệt validate
-                                         HTML5 chạy TRƯỚC sự kiện 'submit' nên không thể focus 1
-                                         control required đang ẩn để báo lỗi — kết quả là trình
-                                         duyệt CHẶN LUÔN submit, học sinh bấm nút không thấy gì xảy
-                                         ra. Xem giải thích đầy đủ ở by-question-play.blade.php
-                                         (cùng lỗi, sửa cùng lúc). --}}
-                                    <textarea name="code_source" data-code-editor class="hidden"></textarea>
-                                </div>
-                            @endif
-                            <button type="submit" class="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-base font-semibold shadow-sm">
-                                {{ $question->type->value === 'coding' ? '📤 Ghi nhận bài làm' : 'Kiểm tra đáp án' }}
-                            </button>
-                            {{-- SỬA 3/9 — chỗ hiện lỗi khi gửi AJAX thất bại (mất mạng...), thay
-                                 vì alert() gây gián đoạn. Ẩn mặc định, script cuối trang bật lên
-                                 khi cần. --}}
-                            <p data-ajax-error class="hidden text-[13px] text-blue-600 text-center"></p>
-                        </form>
-                    @else
+                    <div class="mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+                        {{-- ⚠ TỪ ĐÂY TRỞ XUỐNG LÀ KHỐI BỊ THAY MỚI SAU MỖI LẦN CHẤM (AJAX).
+                             Không đặt directive Alpine nào bên trong. --}}
+                        <div id="practice-container">
+                        @if ($finished)
+                            <div class="mx-auto mt-6 max-w-2xl rounded-2xl border border-[#DDEAF0] bg-white p-8 text-center shadow-sm">
+                                <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#EAF5F8] text-2xl">🎉</span>
+                                <h2 class="mt-4 text-lg font-extrabold text-[#123B68]">Đã ghi nhận bài làm!</h2>
+                                <p class="mt-2 text-[13px] leading-6 text-[#607A90]">Bài tập của bạn đã được ghi nhận — phần nào tự chấm được đã báo đúng/sai ngay, phần tự luận/lập trình (nếu có) chờ chấm sau.</p>
+                                <a href="{{ $backUrl }}" class="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">‹ {{ $backLabel }}</a>
+                            </div>
+                        @elseif ($feedback !== null)
+                            {{-- ĐÃ CHẤM — khối kết quả CŨ, chép nguyên văn, chiếm trọn khung. --}}
+                            <div class="mx-auto max-w-3xl rounded-xl bg-white p-4 sm:p-5">
                         {{-- Đã trả lời — hiện kết quả đúng/sai + đáp án đúng, khoá form lại. --}}
                         <div class="space-y-3">
                             @if ($question->type->value === 'mcq')
@@ -413,11 +364,222 @@
                                 </button>
                             </form>
                         </div>
-                    @endif
-                </div>
-            </div>
+                            </div>
+                        @else
+                            <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="min-h-full" data-ajax-answer>
+                                @csrf
+                                @if ($isCode)
+                                    <div class="grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                        {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
+                                        <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
+                                            <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
+                                                {{-- Chỉ 2 ngôn ngữ vì máy chấm CHỈ nhận 2 (config/judge0.php) — bày
+                                                     thêm là hứa cái hệ thống không chấm được. Giá trị gửi lên giữ
+                                                     nguyên 'cpp'/'python' như cũ. --}}
+                                                <select name="language" aria-label="Chọn ngôn ngữ lập trình"
+                                                        class="rounded-lg bg-[#F4F9FB] px-2 py-1.5 text-[10px] font-bold text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
+                                                    <option value="cpp" selected>C++17</option>
+                                                    <option value="python">Python 3</option>
+                                                </select>
+                                                <div class="flex items-center gap-1.5">
+                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-[#EAF5F8] px-2 py-1.5 text-[10px] font-bold text-[#126F91] transition hover:bg-[#D9EFF3]">
+                                                        <x-lucide name="upload" class="h-3.5 w-3.5" />Nộp bằng file
+                                                        <input type="file" accept=".cpp,.cc,.cxx,.h,.hpp,.py,.txt" class="hidden" data-code-file>
+                                                    </label>
+                                                    <button type="button" data-code-reset
+                                                            class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="rotate-ccw" class="h-3.5 w-3.5" />Đặt lại</button>
+                                                </div>
+                                            </div>
+
+                                            {{-- SỬA 18/9 (khách: "tab làm bài là để làm bài chứ không cần hiển thị đề") —
+                                                 có bản PDF thì ô soạn mã KHÔNG in lại đề nữa (trước đây đề chiếm nửa
+                                                 khung, đẩy chỗ gõ code xuống dưới), chỉ để một dòng chỉ chỗ đọc.
+                                                 Bài KHÔNG có PDF thì vẫn phải in đề ở đây — bỏ luôn là học sinh không
+                                                 còn chỗ nào đọc được đề mà làm. --}}
+                                            @if ($statementUrl)
+                                                <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                            @elseif ($question->body)
+                                                <div class="max-h-[30%] shrink-0 overflow-y-auto px-4 pb-3 pt-3 text-xs leading-5 text-[#45657D]">
+                                                    <div class="rich-content">{!! $question->body !!}</div>
+                                                </div>
+                                            @endif
+
+                                            {{-- Lớp tô màu nằm dưới, textarea trong suốt nằm trên — đúng cách bản mẫu làm. --}}
+                                            <div class="relative min-h-[240px] flex-1 overflow-hidden">
+                                                <pre aria-hidden="true" data-code-highlight
+                                                     class="pointer-events-none absolute inset-0 z-20 overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6"></pre>
+                                                <textarea name="code_source" data-code-source spellcheck="false"
+                                                          aria-label="Trình soạn mã có tô màu cú pháp"
+                                                          style="color: transparent; -webkit-text-fill-color: transparent;"
+                                                          class="absolute inset-0 z-10 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6 outline-none selection:bg-[#2F8A6B]/40"></textarea>
+                                            </div>
+                                        </section>
+
+                                        {{-- ── INPUT / OUTPUT (TestInputPanel + TestOutputPanel) ── --}}
+                                        <div class="grid min-h-[420px] min-w-0 grid-rows-2 gap-2 overflow-hidden">
+                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
+                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
+                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
+                                                    {{-- Chưa có route chạy thử riêng — CodeJudgingService hiện chỉ chạy
+                                                         lúc NỘP. Để nút đúng chỗ như bản mẫu nhưng khoá lại và nói rõ. --}}
+                                                    <button type="button" disabled title="Chạy thử chưa nối máy chấm — bấm Nộp bài để được chấm thật"
+                                                            class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white opacity-50 shadow-sm"><x-lucide name="play" class="h-3.5 w-3.5" />Chạy test</button>
+                                                </div>
+                                                {{-- KHÔNG đổ sẵn test từ database: test_cases là test CHẤM ĐIỂM, không có
+                                                     cờ phân biệt test mẫu/test ẩn. --}}
+                                                <textarea spellcheck="false" placeholder="Nhập dữ liệu vào để thử nghiệm…" aria-label="Dữ liệu đầu vào test"
+                                                          class="min-h-0 flex-1 resize-none bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#123B68] outline-none"></textarea>
+                                            </section>
+
+                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#F7F9FA]">
+                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
+                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#607A90]">Output</span>
+                                                </div>
+                                                <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
+                                                <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
+                                                    <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
+                                                        <x-lucide name="send" class="h-3.5 w-3.5" />Ghi nhận bài làm
+                                                    </button>
+                                                    <p data-ajax-error class="mt-2 hidden text-center text-[11px] text-[#B42318]"></p>
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="flex min-h-full flex-col gap-2">
+                                        {{-- ── ResponsePanel của bản mẫu ── --}}
+                                        <section class="flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
+                                            <div class="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Cách trả lời</div>
+                                            <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+                                                {{-- Cùng luật với ô soạn mã: có PDF thì đề đọc ở tab riêng, không in lại. --}}
+                                                @if ($statementUrl)
+                                                    <p class="mb-3 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                                @elseif ($question->body)
+                                                    <div class="mb-3 rounded-lg bg-white px-3 py-3">
+                                                        <div class="rich-content text-xs leading-6 text-[#45657D]">{!! $question->body !!}</div>
+                                                    </div>
+                                                @endif
+
+                                                {{-- Học liệu CẦN để trả lời (vd nghe audio nghe-hiểu) — khối CŨ, chép nguyên văn. --}}
+                                                @if (! empty($assets))
+                                                    <div class="mb-3 space-y-3">
+                                                        @foreach ($assets as $asset)
+                                                            <div class="rounded-lg bg-white p-3">
+                                                                @if ($asset['kind'] === 'audio')
+                                                                    <audio controls preload="none" class="w-full" src="{{ $asset['url'] }}"></audio>
+                                                                @elseif ($asset['kind'] === 'image')
+                                                                    <img src="{{ $asset['url'] }}" alt="{{ $asset['altText'] ?? '' }}" class="rounded-lg">
+                                                                @else
+                                                                    <a href="{{ $asset['url'] }}" class="text-[12px] font-semibold text-[#126F91]"><x-lucide name="file-text" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $asset['filename'] ?? 'Tệp đính kèm' }}</a>
+                                                                @endif
+                                                                @if (! empty($asset['altText']))
+                                                                    <p class="mt-1 text-[10px] text-[#7A92A3]"><x-lucide name="headphones" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $asset['altText'] }}</p>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+
+                                                @if ($question->type->value === 'mcq')
+                                                    <div class="space-y-2">
+                                                        @foreach ($options as $i => $opt)
+                                                            @if ($opt !== '' && $opt !== null)
+                                                                <label class="flex cursor-pointer items-center gap-3 rounded-lg bg-white px-3 py-2.5 text-xs font-semibold text-[#45657D] transition hover:bg-[#F8FBFC] has-[:checked]:bg-[#EAF5F8] has-[:checked]:text-[#126F91] has-[:checked]:shadow-sm">
+                                                                    <input type="radio" name="selected_option" value="{{ $i }}" required class="h-4 w-4 accent-[#126F91]">
+                                                                    <span>{{ chr(65 + (int) $i) }}. {{ $opt }}</span>
+                                                                </label>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @elseif ($question->type->value === 'fill_blank')
+                                                    <div class="space-y-2">
+                                                        <label class="block text-xs font-bold text-[#123B68]" for="fill-answer">Đáp án của bạn <span class="text-rose-500">*</span></label>
+                                                        <input id="fill-answer" type="text" name="text" required maxlength="500" placeholder="Nhập đáp án"
+                                                               class="w-full rounded-lg bg-white px-3 py-3 text-sm text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
+                                                        <p class="text-[10px] leading-5 text-[#607A90]">Hệ thống sẽ chuẩn hóa khoảng trắng thừa khi chấm.</p>
+                                                    </div>
+                                                @else
+                                                    <div class="space-y-2">
+                                                        @foreach ($compositeParts as $part)
+                                                            <div class="rounded-lg bg-white p-3">
+                                                                <p class="mb-2 text-[11px] font-bold text-[#123B68]">Phần {{ strtoupper($part['code']) }} <span class="font-normal text-[#7A92A3]">({{ $part['points'] }} điểm)</span></p>
+                                                                @if ($part['responseType'] === 'single_choice')
+                                                                    <div class="flex flex-wrap gap-2">
+                                                                        @foreach ($part['choices'] as $choice)
+                                                                            <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-[#45657D] ring-1 ring-inset ring-[#DDEAF0] has-[:checked]:bg-[#EAF5F8] has-[:checked]:text-[#126F91]">
+                                                                                <input type="radio" name="parts[{{ $part['code'] }}]" value="{{ $choice }}" required class="h-3.5 w-3.5 accent-[#126F91]"> {{ $choice }}
+                                                                            </label>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @elseif ($part['responseType'] === 'true_false')
+                                                                    <div class="flex gap-2">
+                                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-[#45657D] ring-1 ring-inset ring-[#DDEAF0] has-[:checked]:bg-[#EAF5F8] has-[:checked]:text-[#126F91]">
+                                                                            <input type="radio" name="parts[{{ $part['code'] }}]" value="true" required class="h-3.5 w-3.5 accent-[#126F91]"> Đúng
+                                                                        </label>
+                                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-[#45657D] ring-1 ring-inset ring-[#DDEAF0] has-[:checked]:bg-[#EAF5F8] has-[:checked]:text-[#126F91]">
+                                                                            <input type="radio" name="parts[{{ $part['code'] }}]" value="false" required class="h-3.5 w-3.5 accent-[#126F91]"> Sai
+                                                                        </label>
+                                                                    </div>
+                                                                @elseif ($part['responseType'] === 'short_answer')
+                                                                    <input type="text" name="parts[{{ $part['code'] }}]" maxlength="500" placeholder="Nhập đáp án"
+                                                                           class="w-full rounded-lg bg-[#F8FBFC] px-3 py-2.5 text-xs text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
+                                                                @else
+                                                                    {{-- 'essay' hoặc dạng lạ chưa hỗ trợ — chỉ ghi nhận. --}}
+                                                                    <textarea name="parts[{{ $part['code'] }}]" rows="4" maxlength="5000" placeholder="Viết câu trả lời của bạn…"
+                                                                              class="w-full rounded-lg bg-[#F8FBFC] px-3 py-2.5 text-xs text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]"></textarea>
+                                                                    <p class="mt-1 text-[10px] text-[#7A92A3]">Phần tự luận chưa có chấm tự động — chỉ được ghi nhận.</p>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </section>
+
+                                        <div class="flex shrink-0 flex-col items-end gap-2 rounded-xl border border-[#DDEAF0] bg-white p-2.5">
+                                            <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
+                                                <x-lucide name="send" class="h-3.5 w-3.5" />Kiểm tra đáp án
+                                            </button>
+                                            <p data-ajax-error class="hidden text-[11px] text-[#B42318]"></p>
+                                        </div>
+                                    </div>
+                                @endif
+                            </form>
+                        @endif
+                        </div>
+                    </div>
+                </section>
+
+                {{-- ───────── TAB: HƯỚNG DẪN ───────── --}}
+                <section x-show="tab === 'guide'" x-cloak class="h-full min-h-0 overflow-y-auto p-2 sm:p-3">
+                    <article class="min-h-full rounded-xl bg-white p-4 sm:p-6">
+                        <h3 class="text-sm font-extrabold text-[#123B68]">Hướng dẫn làm bài</h3>
+                        <ul class="mt-3 space-y-2 text-[13px] leading-7 text-[#45657D]">
+                            <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
+                            <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
+                            <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
+                            <li>· Chấm xong bấm <span class="font-bold">Hoàn tất bài tập</span> để kết thúc phiên luyện.</li>
+                        </ul>
+                        <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng bài chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của bài đang làm.</p>
+                    </article>
+                </section>
+
+                {{-- ───────── TAB: BÀI MẪU ───────── --}}
+                <section x-show="tab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-y-auto p-2 sm:p-3">
+                    <article class="grid min-h-full place-items-center rounded-xl bg-white p-6 text-center">
+                        <div>
+                            <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="book-open" class="h-5 w-5" /></span>
+                            <p class="mt-3 text-sm font-extrabold text-[#123B68]">Đáp án hiện sau khi chấm</p>
+                            {{-- Không dựng thêm nguồn "bài mẫu" nào: đáp án đúng đã được khối kết quả
+                                 cũ in ra ngay tại tab "Làm bài" sau khi bấm nộp. Bày ra ở đây trước
+                                 khi làm là đưa luôn đáp án cho học sinh. --}}
+                            <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Bấm Nộp bài xong, đáp án đúng và kết quả từng test sẽ hiện ngay ở tab <span class="font-bold">Làm bài</span>.</p>
+                        </div>
+                    </article>
+                </section>
+            </main>
         </div>
-    @endif
+        </div>
     </div>
 @endsection
 
@@ -450,17 +612,11 @@
         }
     </style>
 
-    {{-- Ô viết code "như VSCode" (chỉ dùng khi bài tập là Lập trình) — cùng kiểu nhúng CodeMirror
-         qua CDN như student/practice/by-question-play.blade.php, tải riêng ở view này. --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/theme/monokai.css">
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/clike/clike.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/python/python.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/addon/display/placeholder.js"></script>
-    <style>
-        .CodeMirror { height: 420px; font-size: 14px; }
-    </style>
+    {{-- SỬA 18/9 — GỠ 4 tệp CDN CodeMirror + style .CodeMirror: ô soạn mã giờ là trình soạn
+         của bản mẫu (textarea trong suốt + lớp tô màu), không còn thẻ [data-code-editor] nào
+         nên CodeMirror chỉ là ~200KB tải về rồi nằm không. initCodeEditor() bên dưới GIỮ
+         NGUYÊN và tự thoát ở dòng đầu (không có textarea, và typeof CodeMirror === 'undefined'),
+         nên script chấm bài cũ chạy y hệt. --}}
     <script>
         // SỬA 3/9 — tách hàm init CodeMirror ra tên riêng (initCodeEditor) để gọi LẠI được sau
         // mỗi lần thay #practice-container bằng AJAX (xem submit handler bên dưới) — cùng cách
@@ -629,5 +785,121 @@
                 URL.revokeObjectURL(url);
             }
         });
+    </script>
+@endpush
+
+@push('scripts')
+    <script>
+        // SỬA 18/9 — nút chính trên header bấm hộ nút submit đang nằm trong #practice-container.
+        // Khối đó bị thay mới sau mỗi lần chấm (AJAX) nên KHÔNG trỏ cứng vào form được: tra DOM
+        // ngay lúc bấm, và dùng MutationObserver để đổi nhãn nút cho khớp trạng thái hiện tại.
+        // Đoạn này ĐỘC LẬP hoàn toàn với script chấm bài cũ — không sửa một dòng nào của nó.
+        (function () {
+            var headerBtn = document.querySelector('[data-header-submit]');
+            var labelEl = document.querySelector('[data-header-submit-label]');
+            if (!headerBtn || !labelEl) return;
+
+            function panelButton() {
+                var container = document.querySelector('#practice-container');
+                return container ? container.querySelector('form button[type="submit"]') : null;
+            }
+
+            function sync() {
+                var container = document.querySelector('#practice-container');
+                var answering = container ? container.querySelector('form[data-ajax-answer]') : null;
+                var target = panelButton();
+                headerBtn.disabled = target === null;
+                labelEl.textContent = answering ? 'Nộp bài' : (target ? 'Hoàn tất bài tập' : 'Đã xong');
+            }
+
+            headerBtn.addEventListener('click', function () {
+                var target = panelButton();
+                if (target) target.click();
+            });
+
+            document.addEventListener('DOMContentLoaded', sync);
+            sync();
+
+            // #practice-container bị replaceWith() nên phải theo dõi CHA của nó, không phải nó.
+            var host = document.querySelector('#practice-container');
+            if (host && host.parentNode) {
+                new MutationObserver(sync).observe(host.parentNode, { childList: true, subtree: true });
+            }
+        })();
+    </script>
+@endpush
+
+
+@push('scripts')
+    {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
+    @include('partials.code-editor-runtime')
+
+    <script>
+        // SỬA 18/9 — nối trình soạn mã kiểu bản mẫu (textarea trong suốt chồng lên lớp <pre> tô
+        // màu) cho màn luyện 1 bài. KHÔNG dùng CodeMirror nữa để đúng giao diện bản mẫu; textarea
+        // name="code_source" giờ là ô nhập THẬT nên form gửi thẳng giá trị đang gõ — script chấm
+        // bài cũ không phải đổi gì: initCodeEditor() không tìm thấy [data-code-editor] nên tự
+        // thoát, form.__codeEditor để trống và handler bỏ qua bước save() như thiết kế sẵn của nó.
+        (function () {
+            function wire() {
+                var ta = document.querySelector('[data-code-source]');
+                var pre = document.querySelector('[data-code-highlight]');
+                if (!ta || !pre || ta.dataset.wired === '1') return;
+                ta.dataset.wired = '1';
+
+                var form = ta.closest('form');
+                var langSelect = form ? form.querySelector('select[name="language"]') : null;
+                var lang = function () { return langSelect ? langSelect.value : 'cpp'; };
+
+                if (ta.value === '') ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+
+                // SỬA 18/9 — bảng màu phải BÁM theo nền đang bật, trước đây ghi cứng 'light'
+                // nên bật nền tối là chữ sáng trên ô tối, đọc không ra.
+                function themeNow() { return document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light'; }
+                function paint() { pre.innerHTML = '<code>' + highlightCode(ta.value, lang(), themeNow()) + '</code>'; }
+                function sync() { pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft; }
+
+                ta.addEventListener('input', paint);
+                ta.addEventListener('scroll', sync);
+
+                if (langSelect) {
+                    langSelect.addEventListener('change', function () {
+                        // Chỉ thay mã mẫu khi học sinh CHƯA viết gì khác — không xoá bài đang viết dở.
+                        var cur = ta.value.trim();
+                        if (cur === '' || cur === String(STARTER_CODE.cpp).trim() || cur === String(STARTER_CODE.python).trim()) {
+                            ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+                        }
+                        paint();
+                    });
+                }
+
+                var reset = form ? form.querySelector('[data-code-reset]') : null;
+                if (reset) reset.addEventListener('click', function () {
+                    ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+                    paint();
+                });
+
+                var file = form ? form.querySelector('[data-code-file]') : null;
+                if (file) file.addEventListener('change', function (event) {
+                    var f = event.target.files && event.target.files[0];
+                    if (!f) return;
+                    if (/\.py$/i.test(f.name) && langSelect) langSelect.value = 'python';
+                    f.text().then(function (content) { ta.value = content; paint(); });
+                    event.target.value = '';
+                });
+
+                paint();
+
+                // Bấm nút đổi nền sáng/tối -> tô lại ngay, không phải tải lại trang.
+                new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+            }
+
+            document.addEventListener('DOMContentLoaded', wire);
+            wire();
+
+            // #practice-container bị thay mới sau mỗi lần chấm -> nối lại cho ô mã mới.
+            var host = document.querySelector('#practice-container');
+            if (host && host.parentNode) new MutationObserver(wire).observe(host.parentNode, { childList: true, subtree: true });
+        })();
     </script>
 @endpush

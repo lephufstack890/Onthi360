@@ -40,6 +40,41 @@ class PracticeByQuestionController extends Controller
      */
     public function setup(Request $request): View|RedirectResponse
     {
+        // ── SỬA 18/9 (khách: "click Làm bài ở trang luyện tập public mà không ra trang đó") ──
+        // LỖI CŨ: nút "Làm bài" trên TỪNG DÒNG bài tập ở trang công khai đều trỏ về route này
+        // KHÔNG kèm tham số nào, nên bấm bài nào cũng chỉ ra màn "chọn chuyên đề" — bài vừa
+        // bấm bị bỏ qua hoàn toàn.
+        //
+        // Nhận thêm ?question=<id> để mở ĐÚNG bài đó. Dùng lại y nguyên cơ chế đã có sẵn ở
+        // nhánh ?type=/?tag_ids= bên dưới: khách chưa đăng nhập bị middleware đẩy sang /login,
+        // Laravel tự nhớ NGUYÊN url kèm query (session('url.intended')), đăng nhập xong quay
+        // lại đây và vào thẳng bài — không phải tìm lại bài lần hai.
+        //
+        // Quyền: chỉ cho luyện câu ĐÃ PHÁT HÀNH. Câu thuộc một sản phẩm (product_id khác null)
+        // bắt buộc kiểm tra quyền sở hữu như startExercise() — không tin danh sách hiển thị đã
+        // lọc đúng, đúng nguyên tắc "2 request độc lập" dùng khắp hệ thống.
+        if ($request->query->has('question')) {
+            $data = $request->validate(['question' => ['required', 'integer']]);
+
+            $question = Question::find($data['question']);
+            abort_if($question === null || $question->status !== ContentStatus::Published, 404);
+
+            if ($question->product_id !== null) {
+                abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+            }
+
+            // Quay về ĐÚNG trang vừa bấm. route(..., absolute: false) cho ra đường dẫn tương
+            // đối ('/luyen-tap') — cùng dạng mà stop() chấp nhận (chỉ nhận path nội bộ bắt đầu
+            // bằng một dấu '/'), nên hai lối quay lại không lệch nhau.
+            $this->service->startForQuestion(
+                $question->id,
+                route('practice.index', absolute: false),
+                'Quay lại Luyện tập',
+            );
+
+            return redirect()->route('student.practiceByQuestion.play');
+        }
+
         if ($request->query->has('type') || $request->query->has('tag_ids')) {
             $data = $request->validate([
                 'tag_ids' => ['nullable', 'array'],

@@ -248,8 +248,11 @@
 
             @foreach ($problems as $prob)
                 @php
+                    // SỬA 18/9 — trước đây mọi dòng đều trỏ về màn "chọn chuyên đề" chung, bấm
+                    // bài nào cũng ra cùng một trang. Giờ kèm ?question=<id> để mở ĐÚNG bài vừa
+                    // bấm (xem Student\PracticeByQuestionController::setup()).
                     $openHref = $canTakeDirectly
-                        ? route('student.practiceByQuestion.setup')
+                        ? route('student.practiceByQuestion.setup', ['question' => $prob['id']])
                         : route('login');
                     $ctaLabel = match ($prob['status']) { 'ac' => 'Luyện lại', 'doing' => 'Tiếp tục', default => 'Làm bài' };
                     // Bản mẫu mới bỏ màu hổ phách cho trạng thái "đang làm": chỉ còn 2 màu nút.
