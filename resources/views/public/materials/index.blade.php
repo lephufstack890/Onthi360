@@ -10,7 +10,8 @@
      Bố cục/class chép nguyên; React state đổi sang Alpine; mọi nút gắn link thật.
 
      Dữ liệu lấy từ cơ sở dữ liệu (App\Services\Public\MaterialService::indexData):
-       · 3 tab + số đếm <- $tabs / $materialGroups  (Sách / Chuyên đề / Bộ đề — đã phát hành + công khai)
+       · 3 tab + số đếm <- $tabs / $materialGroups  (Sách giáo trình / Chuyên đề thuật toán /
+                           Tuyển tập đề thi — đã phát hành + công khai)
        · thẻ tài liệu   <- ảnh bìa, nhãn chuyên đề, số chương/phần/đề, mô tả, tác giả,
                            giá bản mềm, tuỳ chọn bản in, đánh giá thật
      Cả 3 nhóm nạp sẵn nên đổi tab KHÔNG tải lại trang, đúng như bản mẫu. --}}
@@ -18,6 +19,10 @@
     $materialGroups = $materialGroups ?? ['sach' => ($materials ?? []), 'chuyen-de' => [], 'de-thi' => []];
     $activeTab = $activeTab ?? 'sach';
 
+    // SỬA 18/9 — nhãn tab lấy đúng bản mẫu mới (education-main/src/components/MaterialsPage.jsx):
+    // "Chuyên đề" -> "Chuyên đề thuật toán", "Bộ đề" -> "Tuyển tập đề thi". Khoá nhóm ('sach' /
+    // 'chuyen-de' / 'de-thi') GIỮ NGUYÊN vì đó là khoá dữ liệu do MaterialService trả về, đổi là
+    // vỡ bộ lọc — chỉ đổi CHỮ hiển thị.
     $tabMeta = [
         'sach' => ['label' => 'Sách giáo trình', 'icon' => 'book-open', 'tone' => 'text-[#2D7FA3]'],
         'chuyen-de' => ['label' => 'Chuyên đề', 'icon' => 'sparkles', 'tone' => 'text-[#786BB1]'],
@@ -43,6 +48,8 @@
                 'owned' => (bool) ($m['owned'] ?? false),
                 'href' => $m['href'],
                 'checkoutHref' => $m['checkoutHref'],
+                // SỬA 18/9 — đường vào TRÌNH ĐỌC (bài đầu tiên có PDF của sản phẩm).
+                'readHref' => $m['readHref'] ?? null,
             ];
         }
     }
@@ -111,7 +118,7 @@
         </div>
     </div>
 
-    {{-- ══════ 2. 3 TAB: SÁCH / CHUYÊN ĐỀ / BỘ ĐỀ ══════ --}}
+    {{-- ══════ 2. 3 TAB: SÁCH GIÁO TRÌNH / CHUYÊN ĐỀ THUẬT TOÁN / TUYỂN TẬP ĐỀ THI ══════ --}}
     <div class="bg-white rounded-3xl p-4 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
             @foreach ($tabMeta as $key => $meta)
@@ -138,8 +145,13 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         @foreach ($materialGroups as $tabKey => $group)
             @foreach ($group as $item)
+                {{-- SỬA 18/9 (khách báo: "bấm chuyên đề thì nó hiển thị sai") — DÙNG DẠNG ĐỐI TƯỢNG cho
+                      :style, KHÔNG dùng chuỗi. Alpine 3 xử lý bind:style theo 2 nhánh khác hẳn nhau:
+                      chuỗi thì gọi el.setAttribute('style', ...) tức GHI ĐÈ toàn bộ thuộc tính style,
+                      xoá luôn display:none mà x-show vừa đặt -> thẻ lẽ ra phải ẩn lại hiện ra. Dạng
+                      đối tượng thì đặt từng thuộc tính một, không đụng tới display. --}}
                 <div x-show="visibleIds.includes({{ $item['id'] }})" x-cloak
-                     :style="'order:' + visibleIds.indexOf({{ $item['id'] }})"
+                     :style="{ order: visibleIds.indexOf({{ $item['id'] }}) }"
                      class="bg-white rounded-3xl border border-sky-100 shadow-[0_4px_16px_rgba(0,100,220,0.05)] overflow-hidden flex flex-col justify-between hover:shadow-lg hover:border-sky-200 transition-all duration-300 group">
                     <div>
                         {{-- Ảnh bìa --}}
@@ -189,7 +201,7 @@
 
                             <button type="button" @click="openDetail({{ $item['id'] }})"
                                     class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs flex items-center gap-1 transition-all cursor-pointer">
-                                <span>Xem tài liệu</span>
+                                <span>{{ $item['owned'] ? 'Đọc tài liệu' : 'Xem tài liệu' }}</span>
                                 <x-lucide name="chevron-right" class="w-3.5 h-3.5" />
                             </button>
                         </div>
@@ -282,7 +294,12 @@
                         <a :href="activateHref" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs cursor-pointer">Nhập mã kích hoạt có sẵn</a>
                         <a :href="selected.checkoutHref" x-show="!selected.owned"
                            class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md cursor-pointer">Mua quyền học ngay →</a>
-                        <a :href="readNowHref || selected.href" x-show="selected.owned"
+                        {{-- SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đó") — TRƯỚC ĐÂY
+                             nút này chỉ dẫn về danh sách "Tài liệu của tôi" (yêu cầu cũ ngày 14/9),
+                             nên bấm xong vẫn phải tự tìm bài rồi mới đọc được. Giờ mở THẲNG trình
+                             đọc ở bài đầu tiên có PDF; sản phẩm chưa có bài nào đọc được thì mới lùi
+                             về danh sách như cũ. --}}
+                        <a :href="selected.readHref || readNowHref || selected.href" x-show="selected.owned"
                            class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer">Vào đọc ngay →</a>
                     </div>
                 </div>

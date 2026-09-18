@@ -7,66 +7,116 @@
     @php
         $tabs = $tabs ?? [];
         $products = $products ?? [];
+
+        // Nhãn loại đang mở, lấy từ CHÍNH dải tab do LibraryService dựng (không đặt nhãn mới):
+        // bỏ emoji ở đầu để in lên bìa thẻ — "📘 Sách" -> "Sách".
+        $activeTabLabel = collect($tabs)->firstWhere('active', true)['label'] ?? '';
+        $activeTabLabel = trim(preg_replace('/^[^\p{L}]+/u', '', $activeTabLabel));
     @endphp
 
-    <x-ws.page-header title="Tài liệu của tôi" icon="book-open" subtitle="Sách, chuyên đề, bộ đề bạn đã mua hoặc kích hoạt — tải bài tập và học liệu đi kèm ngay tại đây." />
+    <x-ws.page-header title="Tài liệu của tôi" icon="book-open" subtitle="Sách, chuyên đề, bộ đề bạn đã mua hoặc kích hoạt — mở đọc, tải bài tập và học liệu đi kèm ngay tại đây." />
 
     <x-ws.tabs :tabs="$tabs" />
 
     @if (empty($products))
         <x-ws.empty-state title="Chưa có tài liệu nào trong mục này" description="Mua hoặc nhập mã kích hoạt ở trang Tài liệu để bắt đầu." actionLabel="Khám phá tài liệu" :actionHref="route('materials.index')" />
     @else
-        <div class="mb-4 flex items-center gap-2">
-            <div class="relative w-full sm:w-64">
-                <input type="search" id="materials-search" placeholder="Tìm theo tên..."
-                       class="w-full rounded-xl border border-sky-100 text-[13px] p-2.5 pl-9 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"><x-lucide name="search" class="h-4 w-4" /></span>
+        {{-- ══════ THANH TÌM KIẾM ══════ --}}
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+            <div class="relative w-full sm:w-72">
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7FA5B8]"><x-lucide name="search" class="h-4 w-4" /></span>
+                <input type="search" id="materials-search" placeholder="Tìm theo tên tài liệu…"
+                       class="w-full rounded-xl border border-[#DDEAF0] bg-white py-2.5 pl-9 pr-3 text-[13px] text-[#123B68] placeholder:text-[#8FAABB] transition focus:border-[#9DC8D7] focus:outline-none focus:ring-2 focus:ring-[#CFE6EF]">
             </div>
-            <span id="materials-count" class="text-xs text-slate-400 shrink-0">{{ count($products) }} tài liệu</span>
+            <span id="materials-count" class="shrink-0 rounded-full border border-[#DDEAF0] bg-[#F0F8FB] px-3 py-1.5 text-[11px] font-semibold text-[#466278]">{{ count($products) }} tài liệu</span>
         </div>
 
-        <div id="materials-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {{-- ══════ LƯỚI THẺ TÀI LIỆU ══════ --}}
+        <div id="materials-grid" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             @foreach ($products as $p)
-                <div class="material-card bg-white rounded-3xl border border-sky-100 shadow-sm overflow-hidden flex flex-col"
-                     data-title="{{ mb_strtolower($p['title']) }}" x-data="{ open: false }">
-                    <div class="p-5 flex items-start gap-3">
-                        <div class="w-14 h-16 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-sky-100 to-blue-50 flex items-center justify-center">
-                            @if ($p['coverPath'])
-                                <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
-                            @else
-                                <span class="text-xl"><x-lucide name="book-open" class="h-4 w-4" /></span>
+                <article class="material-card group flex flex-col overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(0,100,220,0.05)] transition-all duration-300 hover:border-[#9DC8D7] hover:shadow-[0_14px_30px_-16px_rgba(15,80,140,.35)]"
+                         data-title="{{ mb_strtolower($p['title']) }}" x-data="{ open: false }">
+
+                    {{-- Bìa --}}
+                    <div class="relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-[#F3F9FC] to-[#E4F0F6] p-3">
+                        @if ($p['coverPath'])
+                            <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}"
+                                 class="h-full w-auto object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105">
+                        @else
+                            <span class="grid h-16 w-16 place-items-center rounded-2xl bg-white/80 text-[#23869B] shadow-inner"><x-lucide name="book-open" class="h-7 w-7" /></span>
+                        @endif
+
+                        @if ($activeTabLabel !== '')
+                            <span class="absolute left-3 top-3 rounded-full border border-[#CFE6EF] bg-white/95 px-2.5 py-1 text-[10px] font-bold text-[#0F5B86] shadow-sm backdrop-blur-sm">{{ $activeTabLabel }}</span>
+                        @endif
+                    </div>
+
+                    {{-- Thân thẻ --}}
+                    <div class="flex flex-1 flex-col p-4">
+                        {{-- Huy hiệu quyền — y như bản mẫu: "Đã sở hữu" + hạn dùng thật từ AccessRight --}}
+                        <div class="mb-2 flex flex-wrap items-center gap-1.5">
+                            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                                <x-lucide name="check-circle" class="h-3 w-3" />Đã sở hữu
+                            </span>
+                            <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                                <x-lucide name="clock" class="h-3 w-3" />{{ $p['access']['remainingLabel'] }}
+                            </span>
+                        </div>
+
+                        <h3 class="mb-2 line-clamp-2 text-[13.5px] font-extrabold leading-snug text-[#123B68] transition-colors group-hover:text-[#126F91]">{{ $p['title'] }}</h3>
+
+                        {{-- Số liệu thật của sản phẩm --}}
+                        <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-[#61798B]">
+                            @if ($p['lessonCount'] > 0)
+                                <span class="inline-flex items-center gap-1"><x-lucide name="file-text" class="h-3.5 w-3.5 text-[#2D7FA3]" />{{ $p['lessonCount'] }} {{ $p['lessonWord'] }}</span>
+                            @endif
+                            @if (count($p['resources']) > 0)
+                                <span class="inline-flex items-center gap-1"><x-lucide name="download" class="h-3.5 w-3.5 text-[#2D7FA3]" />{{ count($p['resources']) }} tài nguyên</span>
+                            @endif
+                            @if (count($p['exercises']) > 0)
+                                <span class="inline-flex items-center gap-1"><x-lucide name="layers" class="h-3.5 w-3.5 text-[#AF7C32]" />{{ count($p['exercises']) }} bài tập</span>
                             @endif
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="font-semibold text-slate-800 leading-snug text-[13px] line-clamp-2">{{ $p['title'] }}</h3>
-                            <span class="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium mt-1">
-                                <span>✓</span> Đã sở hữu
-                            </span>
+
+                        {{-- Hàng hành động --}}
+                        <div class="mt-auto flex items-center justify-between gap-2 border-t border-[#E9F1F5] pt-3">
+                            @if ($p['readHref'])
+                                <a href="{{ $p['readHref'] }}"
+                                   class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-[12px] font-bold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700">
+                                    <x-lucide name="book-open" class="h-3.5 w-3.5" />Đọc tài liệu<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                                </a>
+                            @else
+                                {{-- Sản phẩm chưa có bài nào gắn file PDF — nói thật thay vì đưa nút bấm không ra gì. --}}
+                                <span class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F5F8FA] px-3 py-2 text-[11.5px] font-semibold text-[#8399A8]" title="Sản phẩm chưa có bài đọc nào đính kèm file PDF">
+                                    <x-lucide name="lock" class="h-3.5 w-3.5" />Chưa có nội dung đọc
+                                </span>
+                            @endif
+
+                            @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
+                                <button type="button" @click="open = ! open" :aria-expanded="open ? 'true' : 'false'"
+                                        class="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#DDEAF0] px-2.5 py-2 text-[11.5px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                    <span x-text="open ? 'Thu gọn' : 'Tài nguyên'"></span>
+                                    {{-- Mũi tên xoay bằng Alpine đặt trên THẺ THƯỜNG, không đặt ::class lên
+                                         component Blade (x-lucide dùng $attributes->merge cho 'class', trộn
+                                         thêm ':class' vào đó dễ sinh thuộc tính lạ). --}}
+                                    <span class="inline-flex transition-transform" :class="open ? 'rotate-180' : ''"><x-lucide name="chevron-down" class="h-3.5 w-3.5" /></span>
+                                </button>
+                            @endif
                         </div>
                     </div>
 
-                    <p class="px-5 pb-4 text-xs text-slate-400">
-                        {{ count($p['resources']) }} tài nguyên
-                        @if (count($p['exercises']) > 0)
-                            · {{ count($p['exercises']) }} bài tập
-                        @endif
-                    </p>
-
+                    {{-- ══════ NGĂN KÉO: TÀI NGUYÊN + BÀI TẬP (logic giữ nguyên như cũ) ══════ --}}
                     @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
-                        <button type="button" @click="open = ! open"
-                                class="mt-auto px-5 py-3 border-t border-slate-100 text-[13px] text-blue-600 font-medium flex items-center justify-between hover:bg-sky-50 transition">
-                            <span x-text="open ? 'Thu gọn ︿' : 'Xem chi tiết ﹀'"></span>
-                        </button>
-
-                        <div x-show="open" x-cloak class="border-t border-slate-100 p-5 space-y-4">
+                        <div x-show="open" x-cloak class="space-y-4 border-t border-[#E9F1F5] bg-[#F8FBFC] p-4">
                             @if (count($p['resources']) > 0)
                                 <div>
-                                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Tài nguyên đính kèm</p>
+                                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#7FA5B8]">Tài nguyên đính kèm</p>
                                     <div class="space-y-2">
                                         @foreach ($p['resources'] as $res)
                                             <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener"
-                                               class="flex items-center gap-2 px-3 py-2 rounded-xl border border-sky-100 text-[13px] text-slate-600 hover:border-blue-200 hover:text-blue-600 transition">
-                                                <span>{{ $res['icon'] }}</span> {{ $res['label'] }}
+                                               class="flex items-center gap-2 rounded-xl border border-[#DDEAF0] bg-white px-3 py-2 text-[12.5px] font-medium text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                                <span>{{ $res['icon'] }}</span>{{ $res['label'] }}
+                                                <x-lucide name="download" class="ml-auto h-3.5 w-3.5 text-[#9DB6C4]" />
                                             </a>
                                         @endforeach
                                     </div>
@@ -75,13 +125,13 @@
 
                             @if (count($p['exercises']) > 0)
                                 <div>
-                                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"><x-lucide name="layers" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Bài tập</p>
+                                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#7FA5B8]">Bài tập</p>
                                     <div class="space-y-2">
                                         @foreach ($p['exercises'] as $ex)
-                                            <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-sky-100">
+                                            <div class="flex items-center justify-between gap-3 rounded-xl border border-[#DDEAF0] bg-white px-3 py-2.5">
                                                 <div class="min-w-0">
-                                                    <p class="text-[13px] text-slate-700 truncate">{{ $ex['title'] }}</p>
-                                                    <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
+                                                    <p class="truncate text-[12.5px] font-semibold text-[#123B68]">{{ $ex['title'] }}</p>
+                                                    <p class="text-[11px] text-[#7A92A3]">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
                                                 </div>
                                                 <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
                                                     @csrf
@@ -94,21 +144,21 @@
                                                          lớp) — request()->getRequestUri() trả về đúng path+query TƯƠNG ĐỐI
                                                          (bắt đầu bằng '/'), qua được kiểm tra và quay lại ĐÚNG trang đã bấm. --}}
                                                     <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
-                                                    <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 hover:bg-blue-700 transition">Làm bài ›</button>
+                                                    <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-[#2F9E72] px-3 py-1.5 text-[11.5px] font-bold text-white shadow-sm transition hover:bg-[#278761]">Làm bài<x-lucide name="chevron-right" class="h-3.5 w-3.5" /></button>
                                                 </form>
                                             </div>
                                         @endforeach
                                     </div>
-                                    <p class="text-xs text-slate-400 mt-2">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
+                                    <p class="mt-2 text-[11px] text-[#7A92A3]">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
                                 </div>
                             @endif
                         </div>
                     @endif
-                </div>
+                </article>
             @endforeach
         </div>
 
-        <p id="materials-empty-search" class="hidden text-[13px] text-slate-400 text-center py-10">Không tìm thấy tài liệu nào khớp từ khoá tìm kiếm.</p>
+        <p id="materials-empty-search" class="hidden rounded-3xl border border-dashed border-[#CFE6EF] bg-white py-10 text-center text-[13px] text-[#7A92A3]">Không tìm thấy tài liệu nào khớp từ khoá tìm kiếm.</p>
     @endif
 
     @push('scripts')

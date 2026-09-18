@@ -1018,3 +1018,34 @@
     padding-inline: 0.5rem;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   SỬA 18/9 — Vùng đọc PDF (trang "Đọc tài liệu") có thanh cuộn RIÊNG.
+   Chép nguyên từ bản mẫu mới: education-main/src/index.css (.material-pdf-scroll).
+   Dùng kèm lớp Tailwind trên khung #reader-scroll-box, chỉ là phần tạo kiểu
+   cho thanh cuộn nên không đụng tới logic đọc/pdf.js.
+   ────────────────────────────────────────────────────────────── */
+.material-pdf-scroll {
+  scrollbar-color: #9dbccc #eaf4f8;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.material-pdf-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.material-pdf-scroll::-webkit-scrollbar-track {
+  background: #eaf4f8;
+  border-radius: 999px;
+}
+
+.material-pdf-scroll::-webkit-scrollbar-thumb {
+  background: #9dbccc;
+  border: 3px solid #eaf4f8;
+  border-radius: 999px;
+}
+
+.material-pdf-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6f9caf;
+}

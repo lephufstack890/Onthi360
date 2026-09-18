@@ -95,7 +95,7 @@
                     $bio = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $t['bio'])));
                 @endphp
                 <div x-show="visibleIds.includes({{ $t['id'] }})" x-cloak
-                     :style="'order:' + visibleIds.indexOf({{ $t['id'] }})"
+                     :style="{ order: visibleIds.indexOf({{ $t['id'] }}) }"
                      class="group flex flex-col justify-between rounded-2xl border border-sky-100 bg-white p-4 shadow-[0_2px_12px_rgba(0,100,220,0.06)] transition-all hover:border-sky-200 hover:shadow-lg">
                     <div>
                         <div class="mb-3 flex items-center gap-3">

@@ -262,7 +262,7 @@
                     : number_format($cl['studentsCount']).' học sinh';
             @endphp
             <div x-show="visibleIds.includes({{ $cl['id'] }})" x-cloak
-                 :style="'order:' + visibleIds.indexOf({{ $cl['id'] }})"
+                 :style="{ order: visibleIds.indexOf({{ $cl['id'] }}) }"
                  class="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(28,91,121,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#C9DFE8] hover:shadow-[0_12px_28px_rgba(28,91,121,0.1)]">
                 <div>
                     {{-- Ảnh thẻ — ảnh của KHOÁ chứa lớp, lớp không có ảnh riêng. --}}

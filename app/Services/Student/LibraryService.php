@@ -65,7 +65,13 @@ class LibraryService
     {
         $type = self::TABS[$tab] ?? self::TABS['sach'];
 
-        $owned = $this->ownedProducts($user);
+        // SỬA 18/9 — gọi kho quyền ĐÚNG MỘT LẦN rồi dùng chung cho cả danh sách sản phẩm lẫn
+        // nhãn hạn dùng in trên thẻ. Trước đây ownedProducts() tự gọi repo rồi vứt AccessRight
+        // đi, muốn biết "còn bao nhiêu ngày" sẽ phải truy vấn lần thứ hai cho cùng một dữ liệu.
+        $rights = $this->accessRights->forUserWithProduct($user->id);
+
+        $owned = $this->ownedProducts($user, $rights);
+        $remainingByProduct = $this->remainingLabels($rights);
 
         $tabs = [
             ['label' => '📘 Sách', 'href' => route($routeName, ['tab' => 'sach']), 'active' => $tab === 'sach', 'count' => $owned->where('type', ProductType::Book)->count()],
@@ -82,7 +88,10 @@ class LibraryService
         $materialsByProduct = Material::query()
             ->whereIn('product_id', $productsForTab->pluck('id')->all())
             ->orderBy('order')
-            ->get(['id', 'product_id', 'parent_id', 'title', 'pdf_path'])
+            // SỬA 18/9 — thêm 'status' vào select: nút "Đọc tài liệu" chỉ được trỏ vào bài ĐÃ
+            // PHÁT HÀNH, đúng bộ lọc mà trang đọc dùng để dựng điều hướng bài trước/sau
+            // (MaterialReadService::buildReadData: status = Published + pdf_path khác null).
+            ->get(['id', 'product_id', 'parent_id', 'title', 'pdf_path', 'status'])
             ->groupBy('product_id');
 
         // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — bài tập lập trình đính kèm TỪNG sản phẩm
@@ -100,14 +109,44 @@ class LibraryService
             ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config'])
             ->groupBy('product_id');
 
-        $products = $productsForTab->map(fn (Product $p) => [
-            'id' => $p->id,
-            'title' => $p->title,
-            'coverPath' => $p->cover_image_path,
-            'toc' => $this->buildTocTree($materialsByProduct->get($p->id, collect()), null),
-            'resources' => $this->resources($p, $includeGuide),
-            'exercises' => $this->exercisesFor($exercisesByProduct->get($p->id, collect())),
-        ])->all();
+        // SỬA 18/9 (khách: "có nút đọc tài liệu thì nó sẽ hiển thị ra trang đó") — dựng sẵn
+        // link vào trang đọc. Tiền tố route suy từ $routeName nên giáo viên ra
+        // teacher.materials.read, học sinh ra student.materials.read — không hard-code như
+        // lỗi đã mắc ở read.blade.php trước đây.
+        $readPrefix = str_starts_with($routeName, 'teacher.') ? 'teacher' : 'student';
+
+        $products = $productsForTab->map(function (Product $p) use ($materialsByProduct, $exercisesByProduct, $includeGuide, $readPrefix, $remainingByProduct) {
+            // Bài ĐỌC ĐƯỢC = đã phát hành + có pdf_path — CÙNG bộ lọc với
+            // Public\MaterialService::firstReadableMaterialIds() và với danh sách bài mà trang
+            // đọc dùng để điều hướng, nên nút không bao giờ dẫn tới một bài trang đọc không nhận.
+            // $materialsByProduct đã orderBy('order') nên first() đúng là bài mở đầu.
+            $readable = $materialsByProduct->get($p->id, collect())
+                ->filter(fn (Material $m) => $m->status === ContentStatus::Published && filled($m->pdf_path));
+            $firstReadable = $readable->first();
+
+            return [
+                'id' => $p->id,
+                'title' => $p->title,
+                'coverPath' => $p->cover_image_path,
+                'toc' => $this->buildTocTree($materialsByProduct->get($p->id, collect()), null),
+                'resources' => $this->resources($p, $includeGuide),
+                'exercises' => $this->exercisesFor($exercisesByProduct->get($p->id, collect())),
+                // Số bài đọc được + ĐÚNG danh từ của từng loại sản phẩm (Chương/Phần/Đề) —
+                // dùng lại ProductType::chapterLabel() đang có, không đặt thêm nhãn mới.
+                'lessonCount' => $readable->count(),
+                'lessonWord' => mb_strtolower($p->type?->chapterLabel() ?? 'bài'),
+                'readHref' => $firstReadable !== null
+                    ? route($readPrefix.'.materials.read', $firstReadable->id)
+                    : null,
+                // Huy hiệu như bản mẫu (MaterialsPage.jsx): "Đã sở hữu" + hạn dùng. Sản phẩm
+                // được cấp MIỄN PHÍ qua lớp không có AccessRight cá nhân nên không có trong
+                // $remainingByProduct — in đúng nguồn quyền thay vì bịa một con số ngày.
+                'access' => [
+                    'owned' => true,
+                    'remainingLabel' => $remainingByProduct[$p->id] ?? 'Cấp qua lớp học',
+                ],
+            ];
+        })->all();
 
         // SỬA 31/8 — $includeGuide (true = đang gọi cho giáo viên) TÁI DÙNG làm cờ cho
         // mine.blade.php biết có nên hiện nút "Làm bài" (chỉ học sinh) hay chỉ xem/tải đề bài
@@ -210,9 +249,9 @@ class LibraryService
      *
      * @return Collection<int, Product>
      */
-    private function ownedProducts(User $user): Collection
+    private function ownedProducts(User $user, Collection $rights): Collection
     {
-        $personal = $this->accessRights->forUserWithProduct($user->id)
+        $personal = $rights
             ->filter(fn (AccessRight $ar) => in_array($ar->scope, [AccessScope::PersonalLearning, AccessScope::TeacherTeaching], true)
                 && $ar->isCurrentlyActive()
                 && $ar->product !== null)
@@ -221,6 +260,53 @@ class LibraryService
         return $personal->merge($this->accessGate->classGrantedProducts($user))
             ->unique('id')
             ->values();
+    }
+
+    /**
+     * SỬA 18/9 — nhãn hạn dùng của TỪNG sản phẩm, in ở huy hiệu thứ hai trên thẻ (giống
+     * MaterialAccessBadges của bản mẫu: "Đã sở hữu" + "Còn N ngày").
+     *
+     * Dùng lại ĐÚNG cách tính của Student\MaterialReadService::accessChip() để hai màn không
+     * bao giờ nói khác nhau: chỉ quyền còn hiệu lực, vĩnh viễn (expires_at = null) thắng mọi
+     * hạn, còn lại giữ hạn XA NHẤT. Không truy vấn thêm — $rights là kết quả đã nạp ở
+     * indexData().
+     *
+     * @param  Collection<int, AccessRight>  $rights
+     * @return array<int, string>  product_id => nhãn
+     */
+    private function remainingLabels(Collection $rights): array
+    {
+        /** @var array<int, int|null> $best product_id => null (vĩnh viễn) | số ngày còn lại */
+        $best = [];
+
+        foreach ($rights as $right) {
+            if ($right->product_id === null
+                || ! in_array($right->scope, [AccessScope::PersonalLearning, AccessScope::TeacherTeaching], true)
+                || ! $right->isCurrentlyActive()) {
+                continue;
+            }
+
+            if (array_key_exists($right->product_id, $best) && $best[$right->product_id] === null) {
+                continue; // đã có quyền vĩnh viễn — không hạn nào thắng được nữa
+            }
+
+            if ($right->expires_at === null) {
+                $best[$right->product_id] = null;
+
+                continue;
+            }
+
+            $days = max(0, (int) now()->diffInDays($right->expires_at, false));
+
+            if (! array_key_exists($right->product_id, $best) || $days > $best[$right->product_id]) {
+                $best[$right->product_id] = $days;
+            }
+        }
+
+        return array_map(
+            fn (?int $days) => $days === null ? 'Không giới hạn' : 'Còn '.$days.' ngày',
+            $best
+        );
     }
 
     /**

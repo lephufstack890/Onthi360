@@ -126,6 +126,11 @@
                             (bool) auth()->user()?->hasRole(\App\Models\Role::TEACHER) => route('teacher.library.index'),
                             default => null,
                         };
+
+                        // SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đó") — ưu tiên
+                        // mở THẲNG trình đọc ở bài đầu tiên có PDF (MaterialService::showData()).
+                        // Sản phẩm chưa có bài nào đọc được thì mới lùi về danh sách như cũ.
+                        $ownedReadHref = ($readHref ?? null) ?: $ownedReadHref;
                     @endphp
                     @if ($ownedReadHref)
                         <a href="{{ $ownedReadHref }}"

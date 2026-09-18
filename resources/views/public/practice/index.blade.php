@@ -258,7 +258,7 @@
                         : 'bg-[#126F91] hover:bg-[#0F5E7B]';
                 @endphp
                 <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
-                     :style="'order:' + visibleProblemIds.indexOf({{ $prob['id'] }})"
+                     :style="{ order: visibleProblemIds.indexOf({{ $prob['id'] }}) }"
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
                      :class="visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]'"
@@ -462,7 +462,7 @@
                     $btnClass = $exam['hasCoding'] ? 'bg-[#B68032] hover:bg-[#9F702A]' : 'bg-[#126F91] hover:bg-[#0F5E7B]';
                 @endphp
                 <article x-show="visibleExamIds.includes({{ $exam['id'] }})" x-cloak
-                         :style="'order:' + visibleExamIds.indexOf({{ $exam['id'] }})"
+                         :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
                          class="group flex min-h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(28,91,121,0.09)] {{ $borderClass }}">
                     <div class="relative flex h-32 items-center justify-center overflow-hidden bg-[#F8FBFC] p-2">
                         <img src="{{ asset('assets/book-img-'.(($i % 4) + 1).'.png') }}" alt="{{ $exam['title'] }}"

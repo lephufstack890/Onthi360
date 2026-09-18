@@ -3,12 +3,14 @@
 namespace App\Services\Public;
 
 use App\Enums\AccessScope;
+use App\Enums\ContentStatus;
 use App\Enums\ProductType;
 use App\Enums\ReviewTargetType;
 use App\Models\AccessRight;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\RatingSummary;
+use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
@@ -73,9 +75,13 @@ class MaterialService
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());
         $ownedProductIds = $this->ownedProductIds($viewer, $productIds);
         $pageCounts = $this->materialCounts($productIds);
+        // SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đọc") — bài ĐẦU TIÊN đọc
+        // được của từng sản phẩm, để nút "Vào đọc ngay" mở THẲNG trình đọc.
+        $firstReadable = $this->firstReadableMaterialIds($productIds);
+        $readRoutePrefix = $this->readRoutePrefixFor($viewer);
 
         $cards = $allProducts->map(
-            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, $ownedProductIds, $pageCounts)
+            fn (Product $p) => $this->mapCard($p, $representativeIdByProductId->get($p->id), $ratingsByMaterialId, $ownedProductIds, $pageCounts, $firstReadable->get($p->id), $readRoutePrefix)
         );
 
         $groups = [];
@@ -107,7 +113,7 @@ class MaterialService
         $allMaterials = Material::query()
             ->where('product_id', $product->id)
             ->orderBy('order')
-            ->get(['id', 'parent_id', 'title', 'pdf_path']);
+            ->get(['id', 'parent_id', 'title', 'pdf_path', 'status']);
 
         $representativeId = $allMaterials->firstWhere('parent_id', null)?->id;
         $summary = $representativeId !== null
@@ -116,9 +122,19 @@ class MaterialService
 
         $owned = $this->ownedProductIds($viewer, [$product->id])->contains($product->id);
 
+        // SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đó") — bài ĐẦU TIÊN đọc
+        // được, để nút "Vào đọc ngay" mở thẳng trình đọc thay vì chỉ dẫn về danh sách tài liệu.
+        // Lọc ngay trên tập đã nạp, không thêm truy vấn.
+        $firstReadableId = $allMaterials
+            ->first(fn (Material $m) => $m->status === ContentStatus::Published && filled($m->pdf_path))?->id;
+        $readRoutePrefix = $this->readRoutePrefixFor($viewer);
+
         return [
             'material' => $product,
             'toc' => $this->buildTocTree($allMaterials, null),
+            'readHref' => ($firstReadableId !== null && $readRoutePrefix !== null)
+                ? route($readRoutePrefix.'.materials.read', $firstReadableId)
+                : null,
             'ratingAverage' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
             'ratingCount' => $summary->review_count ?? 0,
             'owned' => $owned,
@@ -193,7 +209,7 @@ class MaterialService
             ->where('type', '!=', ProductType::Course->value);
     }
 
-    private function mapCard(Product $product, ?int $representativeMaterialId, Collection $ratingsByMaterialId, Collection $ownedProductIds, ?Collection $pageCounts = null): array
+    private function mapCard(Product $product, ?int $representativeMaterialId, Collection $ratingsByMaterialId, Collection $ownedProductIds, ?Collection $pageCounts = null, ?int $firstReadableMaterialId = null, ?string $readRoutePrefix = null): array
     {
         $summary = $representativeMaterialId !== null ? $ratingsByMaterialId->get($representativeMaterialId) : null;
 
@@ -235,7 +251,55 @@ class MaterialService
             'durationMonths' => $product->duration_months,
             'href' => route('materials.show', $product->id),
             'checkoutHref' => route('access.checkout', $product->id),
+            // SỬA 18/9 — đường vào TRÌNH ĐỌC (bài đầu tiên có PDF). null khi sản phẩm chưa có
+            // bài nào đọc được, hoặc người xem không phải học sinh/giáo viên (khách chưa đăng
+            // nhập thì route đọc nằm sau middleware, đưa link vào chỉ tổ đá ra trang đăng nhập).
+            'readHref' => ($firstReadableMaterialId !== null && $readRoutePrefix !== null)
+                ? route($readRoutePrefix.'.materials.read', $firstReadableMaterialId)
+                : null,
         ];
+    }
+
+    /**
+     * SỬA 18/9 — bài ĐẦU TIÊN đọc được của từng sản phẩm (đã phát hành + có PDF), theo đúng thứ
+     * tự mục lục. Một câu truy vấn cho cả trang, cùng điều kiện lọc với
+     * Student\MaterialReadService::buildReadData() nên nút "Vào đọc ngay" luôn mở được thật.
+     *
+     * @param  array<int, int>  $productIds
+     * @return Collection<int, int> keyed theo product_id
+     */
+    private function firstReadableMaterialIds(array $productIds): Collection
+    {
+        if ($productIds === []) {
+            return collect();
+        }
+
+        return \App\Models\Material::query()
+            ->whereIn('product_id', $productIds)
+            ->where('status', 'published')
+            ->whereNotNull('pdf_path')
+            ->orderBy('product_id')
+            ->orderBy('order')
+            ->get(['id', 'product_id'])
+            ->groupBy('product_id')
+            ->map(fn ($group) => (int) $group->first()->id);
+    }
+
+    /**
+     * Khu đọc tài liệu tách theo vai trò (student.materials.read / teacher.materials.read) — trả
+     * tiền tố đúng với người đang xem, hoặc null nếu không có khu nào dành cho họ.
+     */
+    private function readRoutePrefixFor(?User $viewer): ?string
+    {
+        if ($viewer === null) {
+            return null;
+        }
+
+        return match (true) {
+            $viewer->hasRole(Role::STUDENT) => 'student',
+            $viewer->hasRole(Role::TEACHER) => 'teacher',
+            default => null,
+        };
     }
 
     /**

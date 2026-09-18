@@ -433,7 +433,7 @@
                             <a href="{{ $program['href'] }}" title="{{ $program['desc'] }}"
                                x-show="slotOf(visibleCourses, {{ $i }}) !== null"
                                :class="offsetClass(slotOf(visibleCourses, {{ $i }}))"
-                               :style="'order:' + (slotOf(visibleCourses, {{ $i }}) ?? 0)"
+                               :style="{ order: slotOf(visibleCourses, {{ $i }}) ?? 0 }"
                                class="group block animate-fadeIn overflow-hidden rounded-2xl border bg-gradient-to-b {{ $program['bgClass'] }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
                                 <div class="relative h-[104px] overflow-hidden border-b border-white/70 bg-white/35">
                                     <img src="{{ $program['image'] }}" alt="{{ $program['title'] }}"
@@ -479,7 +479,7 @@
                             <a href="{{ $step['href'] }}" title="{{ $step['desc'] }}"
                                x-show="slotOf(visiblePaths, {{ $i }}) !== null"
                                :class="offsetClass(slotOf(visiblePaths, {{ $i }}))"
-                               :style="'order:' + (slotOf(visiblePaths, {{ $i }}) ?? 0)"
+                               :style="{ order: slotOf(visiblePaths, {{ $i }}) ?? 0 }"
                                class="group relative block h-[188px] animate-fadeIn overflow-hidden rounded-2xl border border-[#DDEAF2] bg-[#F8FBFD] text-left transition-all hover:-translate-y-0.5 hover:border-[#B8DFE8] hover:bg-[#F3FAFC] hover:shadow-sm cursor-pointer">
                                 <div class="relative flex h-[104px] items-center justify-center overflow-hidden border-b border-white bg-gradient-to-br from-[#F3FAFC] to-[#E7F3F7]">
                                     <img src="{{ $step['img'] }}" alt="{{ $step['step'] }}"
