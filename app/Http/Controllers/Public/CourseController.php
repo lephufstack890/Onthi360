@@ -29,6 +29,21 @@ class CourseController extends Controller
         return view('public.courses.index', $this->courseService->classIndexData($request->user(), $courseId));
     }
 
+    /**
+     * SỬA 18/9 (khách yêu cầu) — nội dung POPUP "Chi tiết lớp" ở trang Lớp học công khai.
+     *
+     * Trả về MẢNH GIAO DIỆN (không phải cả trang) để trang danh sách nạp đúng lớp vừa bấm, thay
+     * vì nhồi sẵn dữ liệu của cả 120 lớp vào một lần tải. Xem
+     * App\Services\Public\CourseService::classDetailData().
+     */
+    public function classDetail(Request $request, int $class): View
+    {
+        return view(
+            'public.courses._class-detail',
+            $this->courseService->classDetailData($class, $request->user()),
+        );
+    }
+
     public function show(Request $request, int $course): View
     {
         return view('public.courses.show', $this->courseService->showData($course, $request->user()));

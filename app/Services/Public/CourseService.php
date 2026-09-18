@@ -9,6 +9,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
+use App\Repositories\Contracts\ClassSessionRepositoryInterface;
+use App\Repositories\Contracts\ReviewRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Carbon\Carbon;
@@ -31,6 +33,16 @@ use Illuminate\Support\Collection;
  */
 class CourseService
 {
+    /** SỬA 18/9 — popup chi tiết lớp: số buổi sắp tới và số đánh giá hiển thị tối đa. */
+    private const DETAIL_SESSION_LIMIT = 8;
+
+    private const DETAIL_REVIEW_LIMIT = 6;
+
+    /** Số ký tự tối đa của phần giới thiệu khoá in trong popup. */
+    private const DETAIL_INTRO_LIMIT = 420;
+
+    private const WEEKDAY_LABELS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
+
     /*
      * ══════ HAI CÔNG TẮC KHỐI Ở TRANG CHI TIẾT KHOÁ HỌC ══════
      *
@@ -56,6 +68,9 @@ class CourseService
         private ClassEnrollmentRepositoryInterface $classEnrollments,
         // SỬA 16/9 — trang Lớp học công khai giờ liệt kê THẲNG từng lớp, không còn gộp theo khoá.
         private ClassRoomRepositoryInterface $classRooms,
+        // SỬA 18/9 — popup "Chi tiết lớp" cần lịch buổi học sắp tới và đánh giá đã duyệt.
+        private ClassSessionRepositoryInterface $classSessions,
+        private ReviewRepositoryInterface $reviews,
     ) {}
 
     /** courses.index — danh mục khóa học công khai đã phát hành, lọc theo môn (?subject=) tùy chọn. */
@@ -161,6 +176,81 @@ class CourseService
     }
 
     /** Một thẻ lớp học trên trang /khoa-hoc. Mọi số liệu lấy từ CSDL, không có giá trị viết cứng. */
+    /**
+     * SỬA 18/9 (khách yêu cầu: "bấm đăng ký học thì hiện popup UI như source mới") — dữ liệu cho
+     * POPUP CHI TIẾT LỚP ở trang Lớp học công khai (bản mẫu education-main/src/components/
+     * ClassDetailModal.jsx).
+     *
+     * Nạp RIÊNG theo từng lớp lúc người dùng bấm, không nhồi sẵn vào trang danh sách: trang đang
+     * liệt kê tới 120 lớp, kéo kèm lịch học + đánh giá của tất cả là 240 truy vấn thừa cho 1 lần
+     * xem 1 lớp.
+     *
+     * PHẠM VI DỮ LIỆU: đây là trang CÔNG KHAI, người xem chưa phải thành viên lớp. Chỉ trả những
+     * thứ vốn đã công khai (thông tin lớp, lịch buổi sắp tới, giáo viên, đánh giá đã duyệt) —
+     * KHÔNG trả bài tập, tài liệu, thông báo hay danh sách thành viên của lớp như bản mẫu, vì đó
+     * là dữ liệu nội bộ của lớp và người ngoài không có quyền xem (xem AccessGateService::
+     * canAccessClassRoom()).
+     */
+    public function classDetailData(int $classRoomId, ?User $viewer = null): array
+    {
+        $classRoom = $this->classRooms->query()
+            ->where('class_rooms.id', $classRoomId)
+            ->where('class_rooms.status', 'active')
+            ->whereHas('course', fn ($q) => $q->where('status', 'published'))
+            ->with(['course', 'teachers:id,name'])
+            ->withCount(['students', 'sessions'])
+            ->first();
+
+        abort_if($classRoom === null, 404);
+
+        $isStudent = $viewer !== null && $viewer->hasRole(Role::STUDENT);
+
+        $card = $this->mapClassCard(
+            $classRoom,
+            $this->ratingSummariesByClassRoomId([$classRoom->id]),
+            $isStudent ? $this->classEnrollments->activeClassRoomIdsForUser($viewer->id) : [],
+            $isStudent ? $this->classEnrollments->pendingClassRoomIdsForUser($viewer->id) : [],
+        );
+
+        // Buổi học SẮP TỚI — cùng nguồn với lịch học trong lớp, chỉ lấy phần chưa diễn ra.
+        $sessions = $this->classSessions->upcomingForClassRoomIds([$classRoom->id], self::DETAIL_SESSION_LIMIT)
+            ->map(fn ($session) => [
+                'topic' => $session->topic ?: 'Buổi học',
+                'dateLabel' => $session->starts_at?->format('d/m/Y'),
+                'weekdayLabel' => $session->starts_at ? self::WEEKDAY_LABELS[(int) $session->starts_at->dayOfWeekIso - 1] : '',
+                'timeLabel' => ($session->starts_at?->format('H:i') ?? '').' – '.($session->ends_at?->format('H:i') ?? ''),
+                // class_sessions.location là "phòng học HOẶC link online"; link thì không in ra
+                // trang công khai (chỉ thành viên lớp mới cần), chỉ in tên phòng.
+                'location' => \Illuminate\Support\Str::startsWith((string) $session->location, ['http://', 'https://'])
+                    ? null
+                    : $session->location,
+            ])->values()->all();
+
+        // Đánh giá ĐÃ DUYỆT của chính lớp này.
+        $reviews = $this->reviews->publishedForTarget(ReviewTargetType::ClassRoom, $classRoom->id, self::DETAIL_REVIEW_LIMIT)
+            ->map(fn ($review) => [
+                'name' => $review->reviewer->name ?? 'Học viên',
+                'stars' => (int) round((float) $review->overall_rating),
+                'comment' => (string) ($review->comment ?? ''),
+                'timeLabel' => $review->published_at?->format('d/m/Y'),
+                'adminReply' => $review->admin_reply,
+            ])->values()->all();
+
+        return [
+            'class' => $card,
+            'sessions' => $sessions,
+            'reviews' => $reviews,
+            'canRequestJoin' => $isStudent,
+            'isGuest' => $viewer === null,
+            // Cắt gọn phần giới thiệu: mô tả khoá có thể dài cả nghìn chữ, in nguyên vào popup
+            // thì đè hết các mục còn lại. Bản đầy đủ vẫn ở trang chi tiết khoá (có link ngay dưới).
+            'courseDescription' => \Illuminate\Support\Str::limit(
+                trim(strip_tags((string) ($classRoom->course?->description ?? ''))),
+                self::DETAIL_INTRO_LIMIT,
+            ),
+        ];
+    }
+
     private function mapClassCard(ClassRoom $classRoom, Collection $ratings, array $myClassRoomIds, array $pendingClassRoomIds = []): array
     {
         $course = $classRoom->course;

@@ -74,6 +74,11 @@ Route::get('/', [PublicHomeController::class, 'index'])->name('home');
 // để không lọt vào nhóm route nào có middleware auth.
 Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap');
 Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
+// SỬA 18/9 (khách yêu cầu) — mảnh giao diện cho popup "Chi tiết lớp" ở trang Lớp học công khai.
+// Công khai như chính trang danh sách: chỉ trả thông tin lớp vốn đã hiển thị ngoài trang, không
+// trả dữ liệu nội bộ của lớp (xem CourseService::classDetailData()).
+Route::get('/lop-hoc/{class}/chi-tiet', [PublicCourseController::class, 'classDetail'])
+    ->whereNumber('class')->name('courses.classDetail');
 Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name('courses.show');
 // B3/B4 (15/9) — Lộ trình học công khai. Đặt ngay sau Khóa học vì hai trang này đi cặp:
 // lộ trình gồm nhiều khoá, khoá gồm nhiều lớp.

@@ -80,7 +80,7 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 9, 'subject' => $activeSubject]) }})" class="flex flex-col gap-5">
+<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 9, 'subject' => $activeSubject, 'detailUrl' => route('courses.classDetail', ['class' => '__ID__'])]) }})" class="flex flex-col gap-5">
 
     {{-- SỬA 16/9 — kết quả của nút "Đăng ký học" (gửi yêu cầu chờ giáo viên duyệt). Không có
          dải này thì học sinh bấm xong không biết đã gửi được hay chưa. --}}
@@ -441,7 +441,9 @@
                                 // đang học / đã gửi yêu cầu chờ duyệt / chưa đăng ký.
                                 $joinHint = $cl['isMember']
                                     ? 'Bạn đang học lớp này'
-                                    : ($cl['isPending'] ? 'Đang chờ giáo viên duyệt' : 'Đăng ký, giáo viên duyệt là vào học');
+                                    : ($cl['isPending']
+                                        ? 'Đang chờ giáo viên duyệt'
+                                        : ($isGuest ? 'Đăng nhập để đăng ký lớp' : 'Đăng ký, giáo viên duyệt là vào học'));
                             @endphp
                             <p class="type-meta mt-0.5 max-w-[150px] truncate" title="{{ $joinHint }}">{{ $joinHint }}</p>
                         </div>
@@ -460,22 +462,21 @@
                                 <span>Đang chờ duyệt</span>
                             </span>
                         @elseif ($canRequestJoin)
-                            {{-- SỬA 16/9 (khách yêu cầu) — bấm là GỬI YÊU CẦU, giáo viên duyệt mới
-                                 vào học được. Không còn khâu nhập mã lớp. --}}
-                            <form method="POST" action="{{ route('student.classes.requestJoin', $cl['id']) }}" class="shrink-0">
-                                @csrf
-                                <button type="submit"
-                                        class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
-                                    <span>Đăng ký học</span>
-                                    <x-lucide name="user-check" class="h-3.5 w-3.5" />
-                                </button>
-                            </form>
-                        @elseif ($isGuest)
-                            {{-- Khách chưa đăng nhập: đưa về đăng nhập rồi quay lại đúng trang này. --}}
-                            <a href="{{ route('login') }}"
-                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                            {{-- SỬA 18/9 (khách yêu cầu) — bấm "Đăng ký học" giờ MỞ POPUP chi tiết lớp;
+                                 nút gửi yêu cầu thật nằm ở chân popup (resources/views/public/courses/
+                                 _class-detail.blade.php). Luồng duyệt phía sau KHÔNG đổi. --}}
+                            <button type="button" @click="openClassDetail({{ $cl['id'] }})"
+                                    class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
                                 <span>Đăng ký học</span>
                                 <x-lucide name="user-check" class="h-3.5 w-3.5" />
+                            </button>
+                        @elseif ($isGuest)
+                            {{-- SỬA 18/9 (khách yêu cầu) — chưa đăng nhập thì nói thẳng là phải đăng
+                                 nhập, không mời "Đăng ký học" rồi mới đá sang màn đăng nhập. --}}
+                            <a href="{{ route('login') }}"
+                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-all hover:from-[#0F607E] hover:to-[#147D9B] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                                <span>Đăng nhập để xem</span>
+                                <x-lucide name="log-in" class="h-3.5 w-3.5" />
                             </a>
                         @else
                             {{-- Giáo viên/quản trị đang xem trang công khai: route gửi yêu cầu nằm
@@ -541,6 +542,26 @@
         <h2 class="mt-3 text-sm font-black text-[#123B68]">Không tìm thấy lớp học phù hợp</h2>
         <p class="mt-1 text-xs text-[#71869A]">Thử đổi khối lớp, danh mục hoặc từ khóa tìm kiếm.</p>
         <button type="button" @click="resetFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
+    </div>
+
+    {{-- ══════ POPUP CHI TIẾT LỚP ══════
+         SỬA 18/9 (khách yêu cầu: "bấm đăng ký học thì hiển thị popup UI như source mới").
+         Khung cố định do trang giữ; RUỘT nạp riêng theo từng lớp lúc bấm (route
+         courses.classDetail), để trang danh sách không phải kéo sẵn dữ liệu của cả 120 lớp.
+         Xem resources/views/public/courses/_class-detail.blade.php. --}}
+    <div x-show="detail.open" x-cloak role="dialog" aria-modal="true" aria-label="Chi tiết lớp học"
+         @click.self="closeClassDetail()" @keydown.escape.window="closeClassDetail()"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 backdrop-blur-sm sm:p-4">
+        <div x-ref="detailPanel" @click="onDetailClick($event)"
+             class="relative flex h-[calc(100dvh-24px)] max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-sky-100 bg-[#F8FAFB] shadow-2xl sm:rounded-3xl">
+
+            <div x-show="detail.loading" class="flex flex-1 flex-col items-center justify-center gap-3 p-10">
+                <span class="h-8 w-8 animate-spin rounded-full border-2 border-[#CBEAF1] border-t-[#126F91]"></span>
+                <p class="text-xs font-bold text-slate-500">Đang tải chi tiết lớp…</p>
+            </div>
+
+            <div x-show="! detail.loading" x-html="detail.html" class="flex min-h-0 flex-1 flex-col"></div>
+        </div>
     </div>
 </div>
 </div>
