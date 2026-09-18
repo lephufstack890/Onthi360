@@ -4,23 +4,7 @@
 @section('meta-description', 'Ôn Thi 360 — nền tảng luyện thi Tin học: lớp học, bài tập tự luyện theo chuyên đề, tài liệu, cuộc thi và bảng xếp hạng cho học sinh lớp 6–12.')
 
 @section('content')
-{{-- ═══════════════ TRANG CHỦ ═══════════════
-     SỬA 11/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
-     education-main/src/components/HomePage.jsx (sơ đồ khối HOME-01 … HOME-11).
-     Toàn bộ class/bố cục chép nguyên; phần động của React đổi sang Alpine và MỌI nút bấm
-     đều gắn LINK THẬT sang trang tương ứng ("làm UI thì nhớ gắn link đầy đủ").
 
-     Dữ liệu lấy từ cơ sở dữ liệu (App\Services\Public\HomeService):
-       · HOME-01 Thông báo hệ thống  <- $systemNotices       (cuộc thi/tài liệu/khoá học mới nhất)
-       · HOME-06 Không gian học tập  <- $learningSpace       (số liệu thật của người đang đăng nhập)
-       · HOME-07 Top xuất sắc        <- $topStudents         (leaderboard_entries, ẩn danh)
-       · HOME-07 Thông báo           <- $bellItems
-       · HOME-08 Tài liệu nổi bật    <- $featuredMaterials
-       · HOME-09 Cuộc thi & khảo sát <- $upcomingCompetitions
-       · HOME-11 Câu hỏi thường gặp  <- $faqs
-     Nội dung marketing của bản mẫu (hero 4 mục tiêu, 5 thẻ chương trình, 5 bước lộ trình,
-     3 câu chuyện đồng hành) là NỘI DUNG THIẾT KẾ, không phải dữ liệu nghiệp vụ — giữ nguyên
-     theo source, ảnh nằm ở public/assets/. --}}
 @php
     $systemNotices = $systemNotices ?? [];
     $featuredMaterials = $featuredMaterials ?? [];
@@ -30,7 +14,6 @@
     $learningSpace = $learningSpace ?? ['guest' => true];
     $bellItems = $bellItems ?? [];
 
-    // [HOME-03] 4 slide hero — chép đúng nội dung, màu và ảnh của source.
     $heroSlides = [
         [
             'id' => 'hsg', 'tabTitle' => 'Giải HSG', 'tag' => '🏆 Đấu trường đỉnh cao',
@@ -115,28 +98,10 @@
         ['title' => 'Cuộc thi', 'desc' => 'Cuộc thi, khảo sát được tổ chức thường xuyên và công bằng', 'btnText' => 'Tìm hiểu', 'bgClass' => 'from-[#E6F7FF] to-[#CCEFFF] border-[#BAE6FD]', 'image' => asset('assets/course-img-5.png'), 'href' => route('competitions.index')],
     ];
 
-    /*
-     * [HOME-05B] Tab "Lộ trình học chuyên nghiệp".
-     *
-     * SỬA 15/9 (B5) — trước đây là 5 bước VIẾT CỨNG của bản thiết kế ("Lựa chọn mục tiêu",
-     * "Chọn lộ trình phù hợp"...). Nói là lộ trình nhưng thực ra chỉ là 5 tấm thẻ giới thiệu
-     * dẫn về các trang có sẵn — bấm vào không ra lộ trình nào cả.
-     *
-     * Giờ đổ LỘ TRÌNH THẬT do quản trị đăng (LearningPathService::homeStrip). Mỗi thẻ là một
-     * lộ trình, bấm vào ra đúng lộ trình đó.
-     *
-     * 5 ảnh step-1..5.png của bản thiết kế được GIỮ LẠI làm ảnh nền khi lộ trình chưa có ảnh
-     * riêng — không xoá, chỉ đổi vai trò từ "nội dung" sang "ảnh đỡ".
-     */
     $learningPathCards = $learningPathCards ?? [];
     $stepFallbackImages = ['step-1.png', 'step-2.png', 'step-3.png', 'step-4.png', 'step-5.png'];
 
     if (! \App\Services\Public\LearningPathService::PUBLIC_ENABLED) {
-        /*
-         * SỬA 15/9 (khách đổi ý, tạm dừng phần lộ trình công khai) — TRẢ VỀ ĐÚNG 5 THẺ CỦA
-         * BẢN THIẾT KẾ GỐC, nguyên văn từng chữ và từng đường dẫn như trước khi làm lộ trình.
-         * Không xoá nhánh đổ lộ trình thật ở dưới: bật công tắc lên là dùng lại ngay.
-         */
         $learningSteps = [
             ['step' => '1. Lựa chọn mục tiêu', 'desc' => 'Chọn mục tiêu lớp phù hợp', 'img' => asset('assets/step-1.png'), 'href' => route('courses.index')],
             ['step' => '2. Chọn lộ trình phù hợp', 'desc' => 'Học theo năng lực & mục tiêu', 'img' => asset('assets/step-2.png'), 'href' => route('courses.index')],
@@ -157,26 +122,8 @@
         }
     }
 
-    /*
-     * [HOME-10] Câu chuyện đồng hành.
-     *
-     * SỬA 12/9 (khách yêu cầu "đăng ở trang quản trị xong hiện ở trang chủ") — nội dung này
-     * giờ do Admin đăng (Quản trị → Câu chuyện đồng hành), lấy qua HomeService::testimonials().
-     *
-     * SỬA 13/9 (khách yêu cầu "trang chủ public lấy dữ liệu từ CSDL đổ ra") — khối này
-     * bây giờ CHỈ đổ dữ liệu thật từ bảng testimonials. Không còn bất kỳ câu chuyện nào viết cứng
-     * trong giao diện nữa.
-     *
-     * Quản trị chưa bật câu chuyện nào thì ẨN HẴN cả khối, KHÔNG lùi về câu mẫu. Lý do: đây là
-     * lời chứng thực của người học — để một câu bịa nằm trên trang công khai vừa mất niềm tin của
-     * phụ huynh, vừa rủi ro với Google. Thà thiếu một khối còn hơn đăng lời không có thật.
-     *
-     * Bộ 3 câu mẫu của bản thiết kế được GIỮ LẠI bên dưới nhưng TẮT (cờ $homeTestimonialFallback
-     * = false) — không xoá, để khi nào cần xem thử bố cục thì đổi cờ thành true là có lại.
-     */
     $testimonials = $testimonials ?? [];
 
-    // Cờ xem thử bố cục bằng câu mẫu — MẶC ĐỊNH TẮT, xem ghi chú ở trên.
     $homeTestimonialFallback = false;
     $testimonialsAreSamples = $homeTestimonialFallback && count($testimonials) === 0;
 
@@ -188,19 +135,10 @@
         ];
     }
 
-    // [HOME-02A] Menu trái — cùng bộ mục với header, dẫn sang link thật.
-    // Mục "Lộ trình" chỉ hiện khi phần lộ trình công khai được bật — cùng công tắc với
-    // thanh menu trên cùng (partials/nav-public), không khai báo rời để 2 chỗ khỏi lệch nhau.
     $showLearningPathMenu = \App\Services\Public\LearningPathService::PUBLIC_ENABLED;
 
     $homeSideNav = [
         ['label' => 'Trang chủ', 'route' => 'home', 'icon' => 'home'],
-        /*
-         * SỬA 15/9 (khách yêu cầu "trên header ẩn menu lộ trình đi nha") — ẨN mục "Lộ trình"
-         * khỏi thanh menu. ẨN CHỨ KHÔNG XOÁ: đổi cờ dưới thành true là hiện lại ngay.
-         * Trang /lo-trinh vẫn chạy bình thường và vẫn nằm trong chân trang + sitemap, chỉ là
-         * không chiếm một ô trên thanh menu.
-         */
         ...($showLearningPathMenu ? [['label' => 'Lộ trình', 'route' => 'learningPaths.index', 'icon' => 'route']] : []),
         ['label' => 'Lớp học', 'route' => 'courses.index', 'icon' => 'book-open'],
         ['label' => 'Luyện tập', 'route' => 'practice.index', 'icon' => 'code'],
@@ -218,25 +156,9 @@
         'pathCount' => count($learningSteps),
         'grades' => ['Lớp 10', 'Lớp 9', 'Lớp 11', 'Lớp 12'],
         'goals' => array_column($heroSlides, 'defaultGoal'),
-        // SỬA 12/9 — vai trò đang xem ở khối [HOME-06A]; mặc định là vai trò chính của người
-        // đang đăng nhập (khách thì không dùng tới).
         'activeRole' => $learningSpace['defaultRole'] ?? 'student',
-        // Ảnh nền hero — chỉ tải ảnh của slide đang xem (xem [HOME-03]).
         'heroImages' => array_column($heroSlides, 'bgImage'),
         'heroAlts' => array_map(fn ($slide) => $slide['subtitle'].'. '.$slide['description'], $heroSlides),
-        /*
-         * B2 — [HOME-04] "Chọn mục tiêu hoặc lộ trình".
-         * Nạp sẵn cả danh sách lộ trình đang hiển thị để lọc ngay tại trình duyệt: đổi lựa
-         * chọn không tải lại trang, và hai nút chọn được SINH RA từ chính dữ liệu này nên
-         * không bao giờ hiện một khối lớp hay mục tiêu không có lộ trình nào đứng sau.
-         */
-        /*
-         * SỬA 15/9 — [HOME-04] "Chọn mục tiêu hoặc lộ trình của bạn" đổ KHOÁ HỌC thật:
-         * nút khối lớp và nút mục tiêu sinh từ danh sách này, nút vàng dẫn thẳng sang trang
-         * chi tiết đúng khoá đang chọn. Xem Public\CourseService::pickerPayload().
-         * Chưa có khoá nào thì home-script tự quay về 2 danh sách viết cứng bên dưới, giao
-         * diện không bao giờ trơ ra hai nút rỗng.
-         */
         'coursePicker' => $coursePicker ?? ['grades' => [], 'courses' => []],
         'coursesHref' => route('courses.index'),
         'pathPicker' => $pathPicker ?? ['paths' => [], 'grades' => [], 'indexHref' => route('learningPaths.index'), 'showLanguage' => false],
@@ -246,9 +168,6 @@
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
 <div x-data="onthiHomePage({{ Js::from($homeState) }})" class="home-typography flex flex-col gap-4 sm:gap-5 animate-fadeIn">
 
-    {{-- ══════ [HOME-01] THANH THÔNG BÁO HỆ THỐNG ══════
-         SỬA 12/9 — source mới đổi hẳn tông: nền xanh đặc #285B78, chữ trắng, vạch vàng cố
-         định bên trái và viên phân loại cố định (không còn đổi màu theo từng loại tin nữa). --}}
     @if (count($systemNotices) > 0)
         <div @mouseenter="noticePaused = true" @mouseleave="noticePaused = false"
              @focusin="noticePaused = true" @focusout="noticePaused = false"
@@ -285,16 +204,10 @@
         </div>
     @endif
 
-    {{-- ══════ [HOME-LAYOUT] LƯỚI CHÍNH 3 CỘT ══════ --}}
     <div data-section="HOME-MAIN-GRID" class="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] xl:grid-cols-[240px_1fr_310px] 2xl:grid-cols-[260px_1fr_360px] gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6 items-start">
-        {{-- SỬA 14/9 — source mới bọc cột trái + cột giữa vào một lưới con, còn cột phải được
-             ghim tuyệt đối, để khối [HOME-06D] và [HOME-10] nằm gọn bên dưới hai cột đó. Các
-             quy tắc CSS của source bám theo thuộc tính data-section nên phải giữ đúng tên. --}}
         <div class="home-left-center-grid">
 
-        {{-- ══════ [HOME-02] MENU TRÁI ══════ --}}
         <aside data-section="HOME-02-LEFT-SIDEBAR" class="hidden lg:flex flex-col gap-3.5 xl:gap-4 shrink-0">
-            {{-- [HOME-02A] Danh sách điều hướng --}}
             <div class="bg-white rounded-3xl p-3 border border-sky-100 shadow-[0_2px_8px_rgba(0,100,220,0.04)] flex flex-col gap-1.5">
                 @foreach ($homeSideNav as $item)
                     @php $isSelected = request()->routeIs($item['route']); @endphp
@@ -306,14 +219,12 @@
                 @endforeach
             </div>
 
-            {{-- [HOME-02B] Banner “Cùng nhau kiến tạo tương lai số” --}}
             <a href="{{ route('courses.index') }}"
                class="bg-white rounded-3xl overflow-hidden border border-sky-100 shadow-[0_2px_8px_rgba(0,100,220,0.04)] cursor-pointer hover:shadow-md transition-all group block">
                 <img src="{{ asset('assets/sidebar-plane.jpg') }}" alt="Cùng nhau kiến tạo tương lai số"
                      class="w-full object-cover group-hover:scale-102 transition-transform duration-300">
             </a>
 
-            {{-- [HOME-02C] Thẻ giáo viên tiêu biểu --}}
             <a data-section="HOME-02C-TEACHER-CARD" href="{{ route('teachers.index') }}"
                class="relative block min-h-[190px] xl:min-h-[205px] overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-br from-white via-[#F3FAFF] to-[#E4F3FF] p-3.5 shadow-[0_8px_24px_rgba(0,100,220,0.09)] transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_12px_30px_rgba(0,100,220,0.14)] cursor-pointer group">
                 <span class="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-200/35 blur-sm transition-transform duration-500 group-hover:scale-125"></span>
@@ -351,16 +262,11 @@
             </a>
         </aside>
 
-        {{-- ══════ [HOME-CENTER] CỘT GIỮA ══════ --}}
         <main data-section="HOME-CENTER-CONTENT" class="flex flex-col gap-4 sm:gap-5 min-w-0">
 
-            {{-- ══════ [HOME-03] HERO ══════ --}}
             <section id="hero" @mouseenter="slidePaused = true" @mouseleave="slidePaused = false"
                      @focusin="slidePaused = true" @focusout="slidePaused = false"
                      class="relative rounded-3xl border border-sky-200/90 shadow-[0_12px_40px_rgba(0,100,220,0.09)] overflow-hidden p-4 sm:p-6 lg:p-7 min-h-[340px] sm:min-h-[380px] lg:min-h-[390px] flex flex-col justify-between group/hero">
-                {{-- SỬA 12/9 — source mới CHỈ tải ảnh nền của slide đang hiển thị (trước đây in cả 4
-                     ảnh chồng lên nhau rồi mờ dần). Dùng ĐÚNG MỘT thẻ ảnh và đổi src theo slide —
-                     giống cách bản mẫu remount ảnh bằng key. Nhẹ hơn hẳn ở lần mở trang đầu tiên. --}}
                 <img :src="heroImages[slideIndex]" :alt="heroAlts[slideIndex]"
                      src="{{ $heroSlides[0]['bgImage'] }}" alt="{{ $heroSlides[0]['subtitle'] }}. {{ $heroSlides[0]['description'] }}"
                      loading="eager" decoding="async" fetchpriority="high"
@@ -368,7 +274,6 @@
 
                 <div class="absolute inset-0 z-0 pointer-events-none bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_72%,rgba(255,255,255,0.3)_100%)] sm:bg-gradient-to-r sm:from-white/95 sm:via-white/70 sm:to-transparent"></div>
 
-                {{-- Nhãn chủ đề của slideshow --}}
                 <div class="relative z-10 mb-3 max-w-full overflow-x-auto no-scrollbar">
                     <div class="flex w-max min-w-full items-center gap-0.5 rounded-2xl border border-white/80 bg-white/62 p-1 shadow-[0_3px_14px_rgba(31,91,139,0.07)] backdrop-blur-md sm:w-full">
                         @foreach ($heroSlides as $i => $slide)
@@ -382,7 +287,6 @@
                     </div>
                 </div>
 
-                {{-- Nội dung slide --}}
                 <div class="relative z-10 grid w-full my-auto">
                     @foreach ($heroSlides as $i => $slide)
                         <div :aria-hidden="slideIndex !== {{ $i }}"
@@ -432,7 +336,6 @@
                     @endforeach
                 </div>
 
-                {{-- Điều khiển slideshow --}}
                 <div class="absolute bottom-3.5 right-4 sm:bottom-4 sm:right-5 z-20 flex items-center gap-1 rounded-full border border-white/80 bg-white/82 px-1.5 py-1 shadow-[0_5px_18px_rgba(15,58,122,0.16)] backdrop-blur-md">
                     <button type="button" @click="prevSlide()" aria-label="Ảnh trước"
                             class="flex h-7 w-7 items-center justify-center rounded-full text-[#42617E] transition-all hover:bg-white hover:text-[#07549A] hover:shadow-sm active:scale-95 cursor-pointer">
@@ -452,20 +355,6 @@
                 </div>
             </section>
 
-            {{-- ══════ [HOME-04] TÌM MỤC TIÊU ══════
-                 SỬA 15/9 (khách yêu cầu "UI xem lộ trình để như cũ, chỉ làm logic") — GIAO
-                 DIỆN GIỮ NGUYÊN BẢN CŨ: vẫn hai nút bấm-để-đổi (khối lớp, mục tiêu) và một
-                 nút vàng "Xem lộ trình". Không thêm bớt thẻ nào, không đổi class nào.
-
-                 CHỈ PHẦN LOGIC BÊN DƯỚI LÀ THẬT (xem partials/home-script):
-                   · Danh sách khối lớp và mục tiêu sinh từ lộ trình CÓ THẬT trong cơ sở dữ
-                     liệu, không còn là hai danh sách viết cứng.
-                   · Hai nút thu hẹp lẫn nhau: đổi khối thì mục tiêu chỉ còn cái có thật ở
-                     khối đó.
-                   · Nút vàng xử lý ba tình huống — khớp đúng một thì đi thẳng vào lộ trình
-                     đó, khớp nhiều thì sang trang danh sách đã lọc sẵn, không khớp thì đổi
-                     chữ thành "Chưa có lộ trình cho lựa chọn này".
-                 Toàn bộ chạy tại chỗ, đổi lựa chọn không tải lại trang. --}}
             <section class="rounded-[22px] border border-[#DFEBF0] bg-white px-3.5 py-3 sm:px-4 shadow-[0_5px_20px_rgba(45,96,145,0.045)]">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
@@ -499,10 +388,6 @@
                         <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
                     </button>
 
-                    {{-- SỬA 15/9 — CHỮ TRÊN NÚT GIỮ NGUYÊN "Xem lộ trình" đúng bản thiết kế,
-                         chỉ đường dẫn là chạy theo lựa chọn: bấm vào mở đúng trang chi tiết
-                         khoá học đang chọn ở hai nút bên trái. href tĩnh phía dưới là lối dự
-                         phòng khi JavaScript chưa chạy hoặc chưa có khoá nào. --}}
                     <a href="{{ route('courses.index') }}" :href="pickerHref"
                        class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#ECD78F] bg-[#FFF4C7] px-4 text-xs font-bold text-[#765C18] shadow-[0_2px_7px_rgba(183,143,37,0.09)] transition-all hover:border-[#DFC56F] hover:bg-[#FFEDAA] active:scale-[0.98]">
                         <span>Xem lộ trình</span>
@@ -676,14 +561,8 @@
                         </a>
                     </div>
                 @else
-                    {{-- ══════ [HOME-06A] BỘ CHỌN VAI TRÒ ══════
-                         SỬA 12/9 — khối mới của source. Chỉ hiện khi người đang đăng nhập thật sự
-                         giữ từ 2 vai trò trở lên; mỗi tab là SỐ LIỆU THẬT của đúng vai trò đó, không
-                         phải bản xem thử. Giữ 1 vai trò thì khối này không xuất hiện. --}}
                     @if (! empty($learningSpace['multiRole']))
                         @php
-                            // Số tab tối đa giờ là 4 (quản trị + học sinh + phụ huynh + giáo viên),
-                            // trước chỉ tính tới 3 nên 4 vai trò sẽ tràn hàng.
                             $wsTabCols = match (count($learningSpace['panels'])) {
                                 3 => 'grid-cols-3',
                                 default => 'grid-cols-2',
@@ -706,10 +585,6 @@
 
                     @foreach ($learningSpace['panels'] as $roleKey => $panel)
                         <div x-show="activeRole === '{{ $roleKey }}'" @if (! $loop->first) x-cloak @endif>
-                            {{-- Thanh tiến độ.
-                                 SỬA 15/9 — bảng nào không có "tiến độ" nào có nghĩa (vai trò quản
-                                 trị) thì tắt hẳn thanh này và thay bằng một dòng tóm tắt. Thà bỏ
-                                 trống còn hơn bịa ra một phần trăm không ai giải thích được. --}}
                             @if (($panel['showProgress'] ?? true) === false)
                                 @php $summaryOk = ($panel['summaryTone'] ?? 'ok') === 'ok'; @endphp
                                 <div class="mb-2.5 flex items-center justify-between gap-2 rounded-2xl border px-3 py-2
@@ -919,14 +794,8 @@
             </section>
         </aside>
 
-        {{-- SỬA 14/9 — source mới gom [HOME-06D] và [HOME-10] vào một cột dưới, rộng đúng
-             bằng cột trái + cột giữa. --}}
         <div class="parent-lower-stack">
 
-        {{-- ══════ [HOME-06D] PHẦN MỀM CHO PHỤ HUYNH ══════
-             Khối mới của source: dải giới thiệu phần mềm quản lý máy tính khi con học online.
-             Đường tải là trang ngoài do khách chỉ định trong source (PARENT_SOFTWARE_DOWNLOAD_URL);
-             đổi địa chỉ thì sửa đúng một dòng $parentSoftwareUrl bên dưới. --}}
         @php $parentSoftwareUrl = 'https://chocon.net/download'; @endphp
         <section data-section="HOME-06D-PARENT-SOFTWARE" class="parent-software-wide">
             <div class="parent-software-wide__intro">
@@ -942,8 +811,6 @@
             </div>
         </section>
 
-        {{-- ══════ [HOME-10] CÂU CHUYỆN ĐỒNG HÀNH ══════
-             Dữ liệu lấy từ CSDL (Quản trị → Câu chuyện đồng hành). Chưa bật câu nào thì ẩn cả khối. --}}
         @if (count($testimonials) > 0)
         @include('partials.seo-testimonials', ['testimonials' => $testimonials])
 
@@ -1012,11 +879,9 @@
         </section>
         @endif
 
-        </div>{{-- hết .parent-lower-stack --}}
+        </div>
 
-        {{-- ══════ [HOME-11] HỖ TRỢ TOÀN CHIỀU NGANG ══════ --}}
         <div id="support" class="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-            {{-- [HOME-11A] Câu hỏi thường gặp --}}
             <section class="h-full bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
                 <div>
                     <div class="flex items-center gap-2.5 mb-3">
@@ -1046,7 +911,6 @@
                 </div>
             </section>
 
-            {{-- [HOME-11B] Liên hệ tư vấn và hỗ trợ --}}
             <section class="h-full relative overflow-hidden rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between min-h-[300px] sm:min-h-[320px]">
                 <img src="{{ asset('assets/support-banner-bg.jpg') }}" alt="Cần hỗ trợ?"
                      class="absolute inset-0 w-full h-full object-cover object-[80%_center] sm:object-right pointer-events-none select-none z-0">
