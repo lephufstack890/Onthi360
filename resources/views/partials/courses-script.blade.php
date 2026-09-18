@@ -107,7 +107,18 @@
                 }
 
                 const tab = event.target.closest('[data-class-tab]');
-                if (tab) this.setDetailTab(tab.getAttribute('data-class-tab'));
+                if (tab) {
+                    this.setDetailTab(tab.getAttribute('data-class-tab'));
+                    return;
+                }
+
+                // Nút "Xem bài tập" trong phần Tổng quan: nhảy tab nhưng KHÔNG mang thuộc tính
+                // data-class-tab, nếu không setDetailTab() sẽ tô nó như một nút tab.
+                const goto = event.target.closest('[data-class-goto-tab]');
+                if (goto) {
+                    this.setDetailTab(goto.getAttribute('data-class-goto-tab'));
+                    this.$refs.detailPanel?.querySelector('[data-class-panel]')?.parentElement?.scrollTo({ top: 0 });
+                }
             },
 
             setDetailTab(id) {

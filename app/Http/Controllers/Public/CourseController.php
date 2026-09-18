@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Services\Public\CourseService;
+use App\Services\Student\ClassRoomService as StudentClassRoomService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CourseController extends Controller
 {
-    public function __construct(private CourseService $courseService) {}
+    public function __construct(
+        private CourseService $courseService,
+        // SỬA 18/9 — phần popup dành cho người ĐÃ LÀ THÀNH VIÊN lớp lấy từ chính service của khu
+        // học sinh, để dùng chung đúng cửa quyền và đúng cách tính của trang chi tiết lớp.
+        private StudentClassRoomService $studentClassRooms,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -38,10 +44,16 @@ class CourseController extends Controller
      */
     public function classDetail(Request $request, int $class): View
     {
-        return view(
-            'public.courses._class-detail',
-            $this->courseService->classDetailData($class, $request->user()),
-        );
+        $data = $this->courseService->classDetailData($class, $request->user());
+
+        // Thành viên lớp thì popup có thêm tiến độ + bài tập/tài liệu/thông báo/thành viên.
+        // previewForMember() tự kiểm tra quyền và trả mảng rỗng nếu không phải thành viên, nên
+        // không cần (và không được) tin vào cờ isMember tính ở tầng công khai.
+        $data['member'] = $request->user() !== null
+            ? $this->studentClassRooms->previewForMember($request->user(), $class)
+            : [];
+
+        return view('public.courses._class-detail', $data);
     }
 
     public function show(Request $request, int $course): View

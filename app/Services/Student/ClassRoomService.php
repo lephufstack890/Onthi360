@@ -225,6 +225,64 @@ class ClassRoomService
     }
 
     /**
+     * SỬA 18/9 (khách yêu cầu: "khi click vào học nó cũng hiển thị popup như này trước") — dữ
+     * liệu XEM NHANH cho popup chi tiết lớp ở trang Lớp học công khai, dành cho người ĐÃ LÀ
+     * THÀNH VIÊN của lớp.
+     *
+     * Vì sao đặt ở đây chứ không ở Public\CourseService: mấy mục này (bài tập được giao, tài
+     * liệu của lớp, thông báo, thành viên) là dữ liệu NỘI BỘ của lớp — dựng lại ở tầng công khai
+     * là chép luật quyền ra chỗ thứ hai, sớm muộn cũng lệch. Ở đây dùng CHUNG đúng cửa quyền
+     * (AccessGateService::canAccessClassRoom) và đúng các hàm mà trang chi tiết lớp đang dùng.
+     *
+     * Không phải thành viên -> trả mảng RỖNG, popup tự về đúng phần công khai. Không ném 403 vì
+     * người ngoài vẫn được xem popup, chỉ là xem phần công khai.
+     */
+    public function previewForMember(User $user, int $classId): array
+    {
+        $classRoom = $this->classRooms->findWithCourseAndTeachers($classId);
+
+        if ($classRoom === null || ! $this->accessGate->canAccessClassRoom($user, $classRoom)->allowed) {
+            return [];
+        }
+
+        $progress = $this->classSessions->sessionProgressCountsForClassRoomIds([$classRoom->id])->first();
+        $endedSessions = (int) ($progress->ended ?? 0);
+        $totalSessions = (int) ($progress->total ?? 0);
+
+        // Bài tập giao cho lớp + kết quả của CHÍNH học sinh này — đúng hàm mà tab Tổng quan của
+        // trang chi tiết lớp đang dùng, không viết lại cách tính.
+        $assignments = collect($this->buildRoadmap($classRoom, $user))
+            ->flatMap(fn ($chapter) => $chapter['items'] ?? [])
+            ->values()
+            ->all();
+
+        // Học liệu gắn NGUYÊN sản phẩm vào lớp — cùng điều kiện lọc với buildShowData().
+        $materials = $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
+            ->filter(fn ($cm) => $cm->isWholeProduct() && $cm->product !== null)
+            ->map(fn ($cm) => [
+                'id' => $cm->product->id,
+                'title' => $cm->product->title,
+                'coverPath' => $cm->product->cover_image_path,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'percent' => $this->completionPercent($endedSessions, $totalSessions),
+            'endedSessions' => $endedSessions,
+            'totalSessions' => $totalSessions,
+            'assignments' => $assignments,
+            'materials' => $materials,
+            'notifications' => $this->notificationsForClass($user, $classRoom),
+            'teachers' => $classRoom->teachers->map(fn ($t) => [
+                'name' => $t->name,
+                'role' => ($t->pivot->role ?? 'main') === 'main' ? 'Giáo viên chính' : 'Trợ giảng',
+            ])->values()->all(),
+            'studentsCount' => $classRoom->students()->count(),
+        ];
+    }
+
+    /**
      * Tab "Thông báo" (8.3) — lọc thông báo THẬT của học sinh (App\Services\
      * NotificationService::forUser(), dùng chung mọi vai trò) theo url trỏ ĐÚNG về lớp này,
      * để không lẫn thông báo của lớp khác/vai trò khác vào đây.

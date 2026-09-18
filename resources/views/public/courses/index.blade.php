@@ -449,11 +449,14 @@
                         </div>
 
                         @if ($cl['isMember'])
-                            <a href="{{ route('student.classes.show', $cl['id']) }}"
-                               class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#2D7FA3] to-[#3B9374] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(45,127,163,0.18)] transition-all hover:brightness-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
+                            {{-- SỬA 18/9 (khách yêu cầu: "khi click vào học nó cũng hiển thị popup
+                                 như này trước") — mở popup chi tiết lớp; nút "Vào lớp học →" ở chân
+                                 popup mới đi thẳng vào lớp. --}}
+                            <button type="button" @click="openClassDetail({{ $cl['id'] }})"
+                                    class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#2D7FA3] to-[#3B9374] px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_5px_12px_rgba(45,127,163,0.18)] transition-all hover:brightness-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
                                 <span>Vào học</span>
                                 <x-lucide name="play" class="h-3.5 w-3.5" />
-                            </a>
+                            </button>
                         @elseif ($cl['isPending'])
                             {{-- SỬA 16/9 — đã gửi yêu cầu rồi: không cho bấm lại (server cũng chặn,
                                  xem Student\ClassRoomService::requestJoin()), chỉ báo trạng thái. --}}

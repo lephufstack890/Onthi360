@@ -30,6 +30,29 @@
         : number_format($cl['studentsCount']).' học sinh';
 
     $intro = $courseDescription !== '' ? $courseDescription : ($cl['subtitle'] ?: null);
+
+    // SỬA 18/9 — $member do Student\ClassRoomService::previewForMember() dựng; RỖNG nghĩa là
+    // người xem không phải thành viên lớp (chính hàm đó kiểm tra quyền, không tin cờ ở tầng
+    // công khai). Chỉ khi có dữ liệu mới bày thêm 4 tab nội bộ.
+    $member = $member ?? [];
+    $isMember = $member !== [];
+
+    $tabs = [
+        ['overview', 'Tổng quan', 'book-open'],
+        ['schedule', 'Lịch học', 'calendar'],
+    ];
+    if ($isMember) {
+        $tabs[] = ['assignments', 'Bài tập', 'play'];
+        $tabs[] = ['materials', 'Tài liệu', 'file-text'];
+    }
+    $tabs[] = ['teachers', 'Giáo viên', 'user-round'];
+    if ($isMember) {
+        $tabs[] = ['announcements', 'Thông báo', 'bell'];
+    }
+    $tabs[] = ['reviews', 'Đánh giá', 'star'];
+    if ($isMember) {
+        $tabs[] = ['members', 'Thành viên', 'users'];
+    }
 @endphp
 
 {{-- ══════ ĐẦU POPUP ══════ --}}
@@ -76,7 +99,7 @@
 
     {{-- Dải tab --}}
     <div class="flex items-center gap-1 overflow-x-auto border-t border-sky-100 px-3 py-2 no-scrollbar sm:px-5">
-        @foreach ([['overview', 'Tổng quan', 'book-open'], ['schedule', 'Lịch học', 'calendar'], ['teachers', 'Giáo viên', 'user-round'], ['reviews', 'Đánh giá', 'star']] as [$tabId, $tabLabel, $tabIcon])
+        @foreach ($tabs as [$tabId, $tabLabel, $tabIcon])
             <button type="button" data-class-tab="{{ $tabId }}"
                     class="flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all {{ $loop->first ? 'bg-[#126F91] text-white shadow-sm' : 'text-slate-500 hover:bg-sky-50 hover:text-[#126F91]' }}">
                 <x-lucide :name="$tabIcon" class="h-3.5 w-3.5" />
@@ -151,6 +174,35 @@
             </dl>
         </div>
 
+        @if ($isMember)
+            {{-- SỬA 18/9 — khối "Tiến độ của bạn" của bản mẫu, số liệu THẬT: số buổi đã kết thúc
+                 trên tổng số buổi đã xếp lịch (cùng công thức với trang chi tiết lớp,
+                 Student\ClassRoomService::completionPercent()). --}}
+            <div class="rounded-2xl border border-[#C5DEE7] bg-[#E5F1F4] p-4 shadow-[0_4px_12px_rgba(45,127,163,0.08)]">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h5 class="text-[13px] font-bold text-[#0B3C78]">Tiến độ của bạn</h5>
+                        <p class="mt-0.5 text-xs text-[#536D86]">
+                            Lớp đã học {{ $member['endedSessions'] }}/{{ $member['totalSessions'] }} buổi theo lịch
+                            @if (count($member['assignments']) > 0)
+                                · {{ collect($member['assignments'])->where('status', 'Đã làm')->count() }}/{{ count($member['assignments']) }} bài tập đã làm
+                            @endif
+                        </p>
+                    </div>
+                    @if (count($member['assignments']) > 0)
+                        <button type="button" data-class-goto-tab="assignments"
+                                class="shrink-0 rounded-xl bg-[#126F91] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#0F607E]">Xem bài tập</button>
+                    @endif
+                </div>
+                <div class="mt-3 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-white/80">
+                        <div class="h-full rounded-full bg-[#126F91]" style="width: {{ $member['percent'] }}%"></div>
+                    </div>
+                    <span class="text-[13px] font-extrabold text-[#126F91]">{{ $member['percent'] }}%</span>
+                </div>
+            </div>
+        @endif
+
         {{-- Bản mẫu có khối "Tiến độ của bạn". Người CHƯA vào lớp thì chưa có tiến độ nào để in —
              thay bằng đúng trạng thái đăng ký của chính họ, là thứ họ đang cần biết ở màn này. --}}
         <div class="rounded-2xl border border-[#C5DEE7] bg-[#E5F1F4] p-4 shadow-[0_4px_12px_rgba(45,127,163,0.08)]">
@@ -207,6 +259,114 @@
             </div>
         @endforelse
     </div>
+
+    @if ($isMember)
+        {{-- ── TAB: BÀI TẬP (chỉ thành viên) ──
+             Nguồn: Student\ClassRoomService::buildRoadmap() — đúng bảng assignments và đúng kết
+             quả của chính học sinh đang xem. Bấm "Mở" là sang trang lớp, không làm bài trong
+             popup: làm bài cần cả màn hình và luồng nộp riêng. --}}
+        <div data-class-panel="assignments" hidden class="flex flex-col gap-2.5">
+            @forelse ($member['assignments'] as $item)
+                @php
+                    $done = $item['status'] === 'Đã làm';
+                    $locked = $item['status'] === 'Giáo viên chưa mở';
+                    $itemTone = $done
+                        ? 'border-[#D4EDE2] bg-[#EFF9F5] text-[#2F8A6B]'
+                        : ($locked ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-[#BFDCE5] bg-[#EAF5F8] text-[#126F91]');
+                @endphp
+                <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-100 bg-white p-3.5">
+                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EAF5F8] text-[#2D7FA3]">
+                        <x-lucide :name="$item['type'] === 'coding' ? 'code-2' : 'file-text'" class="h-4 w-4" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-bold text-slate-800" title="{{ $item['title'] }}">{{ $item['title'] }}</p>
+                        <p class="mt-0.5 text-[11px] text-slate-500">{{ $done ? 'Điểm: '.$item['result'] : 'Chưa làm' }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-lg border px-2 py-1 text-[10px] font-bold {{ $itemTone }}">{{ $item['status'] }}</span>
+                </div>
+            @empty
+                <div class="rounded-2xl border border-dashed border-sky-200 bg-white p-8 text-center">
+                    <x-lucide name="play" class="mx-auto h-8 w-8 text-[#9DC8D7]" />
+                    <p class="mt-2 text-xs font-bold text-slate-700">Lớp chưa có bài tập nào</p>
+                    <p class="mt-1 text-[11px] text-slate-500">Giáo viên giao bài là hiện ngay ở đây.</p>
+                </div>
+            @endforelse
+        </div>
+
+        {{-- ── TAB: TÀI LIỆU (chỉ thành viên) ──
+             Bản mẫu tách "Tài liệu" và "Học liệu" thành 2 tab. Hệ thống mình chỉ có MỘT nguồn —
+             sản phẩm giáo viên gắn nguyên vào lớp (ClassMaterial::isWholeProduct) — nên gộp làm
+             một tab, không dựng tab thứ hai rỗng cho đủ mẫu. --}}
+        <div data-class-panel="materials" hidden class="flex flex-col gap-2.5">
+            @forelse ($member['materials'] as $productItem)
+                <div class="flex items-center gap-3 rounded-2xl border border-sky-100 bg-white p-3.5">
+                    <div class="grid h-12 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-100 to-blue-50">
+                        @if ($productItem['coverPath'])
+                            <img src="{{ asset('storage/'.$productItem['coverPath']) }}" alt="Bìa {{ $productItem['title'] }}" class="h-full w-full object-cover">
+                        @else
+                            <x-lucide name="book-open" class="h-4 w-4 text-[#2D7FA3]" />
+                        @endif
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-bold text-slate-800">{{ $productItem['title'] }}</p>
+                        <p class="mt-0.5 text-[11px] text-slate-500">Đang dùng ở lớp này</p>
+                    </div>
+                </div>
+            @empty
+                <div class="rounded-2xl border border-dashed border-sky-200 bg-white p-8 text-center">
+                    <x-lucide name="file-text" class="mx-auto h-8 w-8 text-[#9DC8D7]" />
+                    <p class="mt-2 text-xs font-bold text-slate-700">Lớp chưa gắn tài liệu nào</p>
+                    <p class="mt-1 text-[11px] text-slate-500">Giáo viên gắn sách/chuyên đề/bộ đề vào lớp là hiện ở đây.</p>
+                </div>
+            @endforelse
+        </div>
+
+        {{-- ── TAB: THÔNG BÁO (chỉ thành viên) ── --}}
+        <div data-class-panel="announcements" hidden class="flex flex-col gap-2.5">
+            @forelse ($member['notifications'] as $notification)
+                <div class="flex items-start gap-3 rounded-2xl border border-sky-100 bg-white p-3.5 {{ ! $notification['read'] ? 'ring-1 ring-sky-100' : '' }}">
+                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#EAF5F8] text-lg">{{ $notification['icon'] }}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs text-slate-700">{{ $notification['text'] }}</p>
+                        <p class="mt-1 text-[11px] text-slate-400">{{ $notification['time'] }}</p>
+                    </div>
+                    @if (! $notification['read'])
+                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#126F91]"></span>
+                    @endif
+                </div>
+            @empty
+                <div class="rounded-2xl border border-dashed border-sky-200 bg-white p-8 text-center">
+                    <x-lucide name="bell" class="mx-auto h-8 w-8 text-[#9DC8D7]" />
+                    <p class="mt-2 text-xs font-bold text-slate-700">Chưa có thông báo nào cho lớp này</p>
+                </div>
+            @endforelse
+        </div>
+
+        {{-- ── TAB: THÀNH VIÊN (chỉ thành viên) ──
+             Chỉ in giáo viên (tên + vai trò) và SỐ lượng học sinh — không liệt kê danh sách tên
+             học sinh ở popup của trang công khai; danh sách đầy đủ đã có trong trang lớp. --}}
+        <div data-class-panel="members" hidden class="flex flex-col gap-2.5">
+            @foreach ($member['teachers'] as $teacherItem)
+                <div class="flex items-center gap-3 rounded-2xl border border-sky-100 bg-white p-3.5">
+                    <x-ws.avatar :name="$teacherItem['name']" size="sm" />
+                    <div class="min-w-0">
+                        <p class="truncate text-xs font-bold text-slate-800">{{ $teacherItem['name'] }}</p>
+                        <p class="mt-0.5 text-[11px] text-slate-500">{{ $teacherItem['role'] }}</p>
+                    </div>
+                </div>
+            @endforeach
+
+            <div class="flex items-center gap-3 rounded-2xl border border-[#C5DEE7] bg-[#E5F1F4] p-3.5">
+                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F4FAFB] text-[#126F91]">
+                    <x-lucide name="users" class="h-5 w-5" />
+                </span>
+                <div class="min-w-0">
+                    <p class="text-[10px] font-semibold text-[#6B8195]">Học sinh trong lớp</p>
+                    <p class="text-xs font-bold text-slate-800">{{ number_format($member['studentsCount']) }} bạn</p>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- ── TAB 3: GIÁO VIÊN ── --}}
     <div data-class-panel="teachers" hidden class="flex flex-col gap-3">
@@ -279,7 +439,7 @@
 
         @if ($cl['isMember'])
             <a href="{{ route('student.classes.show', $cl['id']) }}"
-               class="rounded-xl bg-[#126F91] px-4 py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0F607E]">Vào học →</a>
+               class="rounded-xl bg-[#126F91] px-4 py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0F607E]">Vào lớp học →</a>
         @elseif ($cl['isPending'])
             <span class="cursor-not-allowed rounded-xl bg-amber-400 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm">Đang chờ duyệt</span>
         @elseif ($canRequestJoin)
