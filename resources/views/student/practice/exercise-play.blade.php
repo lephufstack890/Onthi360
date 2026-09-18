@@ -182,8 +182,16 @@
                                 <p class="mt-2 text-[13px] leading-6 text-[#607A90]">Bài tập của bạn đã được ghi nhận — phần nào tự chấm được đã báo đúng/sai ngay, phần tự luận/lập trình (nếu có) chờ chấm sau.</p>
                                 <a href="{{ $backUrl }}" class="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">‹ {{ $backLabel }}</a>
                             </div>
-                        @elseif ($feedback !== null)
-                            {{-- ĐÃ CHẤM — khối kết quả CŨ, chép nguyên văn, chiếm trọn khung. --}}
+                        @elseif ($feedback !== null && ! $isCode)
+                            {{-- ĐÃ CHẤM — khối kết quả CŨ, chép nguyên văn, chiếm trọn khung.
+
+                                 SỬA 18/9 (khách: "khi ghi nhận làm bài xong hiển thị kết quả test
+                                 bên dưới luôn, khỏi cần phải qua trang này") — thêm điều kiện
+                                 `! $isCode`: bài LẬP TRÌNH giờ giữ nguyên khu soạn mã và hiện kết
+                                 quả ngay bên dưới (xem partials.practice-coding-result ở nhánh
+                                 form phía dưới), để học sinh đọc test sai rồi sửa code tại chỗ.
+                                 Trắc nghiệm/điền đáp án/nhiều phần vẫn dùng khối này như cũ —
+                                 mấy dạng đó trả lời xong là xong, không có gì để sửa tiếp. --}}
                             <div class="mx-auto max-w-3xl rounded-xl bg-white p-4 sm:p-5">
                         {{-- Đã trả lời — hiện kết quả đúng/sai + đáp án đúng, khoá form lại. --}}
                         <div class="space-y-3">
@@ -377,9 +385,10 @@
                             <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="min-h-full" data-ajax-answer>
                                 @csrf
                                 @if ($isCode)
+                                  <div class="flex min-h-full flex-col gap-2">
                                     {{-- data-work-panel: mốc để script "Chạy test" tìm 4 ô (mã nguồn / ngôn ngữ /
                                          Input / Output) trong CÙNG panel này thay vì dò cả trang — xem cuối tệp. --}}
-                                    <div data-work-panel class="grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                    <div data-work-panel class="grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
                                         {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
@@ -388,8 +397,8 @@
                                                      nguyên 'cpp'/'python' như cũ. --}}
                                                 <select name="language" aria-label="Chọn ngôn ngữ lập trình"
                                                         class="rounded-lg bg-[#F4F9FB] px-2 py-1.5 text-[10px] font-bold text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
-                                                    <option value="cpp" selected>C++17</option>
-                                                    <option value="python">Python 3</option>
+                                                    <option value="cpp" @selected(($feedback['yourLanguage'] ?? 'cpp') === 'cpp')>C++17</option>
+                                                    <option value="python" @selected(($feedback['yourLanguage'] ?? null) === 'python')>Python 3</option>
                                                 </select>
                                                 <div class="flex items-center gap-1.5">
                                                     <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-[#EAF5F8] px-2 py-1.5 text-[10px] font-bold text-[#126F91] transition hover:bg-[#D9EFF3]">
@@ -418,10 +427,14 @@
                                             <div class="relative min-h-[240px] flex-1 overflow-hidden">
                                                 <pre aria-hidden="true" data-code-highlight
                                                      class="pointer-events-none absolute inset-0 z-20 overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6"></pre>
+                                                {{-- SỬA 18/9 — đổ lại ĐÚNG mã vừa nộp sau khi chấm, để học sinh sửa
+                                                     tiếp chứ không phải gõ lại từ đầu. Script tô màu chỉ tự điền mã
+                                                     mẫu khi ô đang RỖNG (xem `if (ta.value === '')` ở cuối tệp) nên
+                                                     không đè lên bài của học sinh. --}}
                                                 <textarea name="code_source" data-code-source spellcheck="false"
                                                           aria-label="Trình soạn mã có tô màu cú pháp"
                                                           style="color: transparent; -webkit-text-fill-color: transparent;"
-                                                          class="absolute inset-0 z-10 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6 outline-none selection:bg-[#2F8A6B]/40"></textarea>
+                                                          class="absolute inset-0 z-10 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6 outline-none selection:bg-[#2F8A6B]/40">{{ $feedback['yourCode'] ?? '' }}</textarea>
                                             </div>
                                         </section>
 
@@ -453,14 +466,22 @@
                                                 </div>
                                                 <pre data-run-output class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
                                                 <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
+                                                    {{-- Đã chấm 1 lần rồi thì đổi chữ: học sinh sửa code xong bấm lại
+                                                         là chấm lại, không phải rời màn hình đi đâu cả. --}}
                                                     <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
-                                                        <x-lucide name="send" class="h-3.5 w-3.5" />Ghi nhận bài làm
+                                                        <x-lucide name="send" class="h-3.5 w-3.5" />{{ $feedback !== null ? 'Chấm lại' : 'Ghi nhận bài làm' }}
                                                     </button>
                                                     <p data-ajax-error class="mt-2 hidden text-center text-[11px] text-[#B42318]"></p>
                                                 </div>
                                             </section>
                                         </div>
                                     </div>
+
+                                    {{-- SỬA 18/9 — KẾT QUẢ CHẤM nằm NGAY ĐÂY, dưới khu soạn mã. --}}
+                                    @if ($feedback !== null)
+                                        @include('partials.practice-coding-result')
+                                    @endif
+                                  </div>
                                 @else
                                     <div class="flex min-h-full flex-col gap-2">
                                         {{-- ── ResponsePanel của bản mẫu ── --}}
@@ -561,6 +582,16 @@
                                     </div>
                                 @endif
                             </form>
+
+                            {{-- SỬA 18/9 — form "Hoàn tất bài tập" đặt NGOÀI form chấm bài: HTML không
+                                 cho lồng <form> vào nhau (trình duyệt sẽ âm thầm bỏ form bên trong).
+                                 Nút bấm nằm ở cuối khối kết quả và trỏ ngược lên đây bằng thuộc tính
+                                 form="practice-finish-form" — xem partials.practice-coding-result. --}}
+                            @if ($feedback !== null && $isCode)
+                                <form id="practice-finish-form" method="POST" action="{{ route('student.practiceByQuestion.next') }}" class="hidden">
+                                    @csrf
+                                </form>
+                            @endif
                         @endif
                         </div>
                     </div>
