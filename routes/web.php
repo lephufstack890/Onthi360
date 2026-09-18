@@ -190,6 +190,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');
         Route::post('attempts/{attempt}/answers', [StudentAssessmentController::class, 'saveAnswers'])->name('assessment.take.save');
         Route::post('attempts/{attempt}/submit', [StudentAssessmentController::class, 'submit'])->name('assessment.take.submit');
+        // SỬA 18/9 (2) (khách: "chỗ bắt đầu làm đề, chỗ chạy test không chạy được") — chạy thử
+        // mã của 1 câu trong đề với dữ liệu vào tự gõ. Không chấm điểm, xem
+        // Student\AssessmentService::runCodeOnce().
+        Route::post('attempts/{attempt}/run', [StudentAssessmentController::class, 'runCode'])->name('assessment.take.run');
         // SỬA 25/8 ("đọc bài" — Sách/Chuyên đề/Đề thi): quyền đọc kiểm tra qua
         // App\Services\AccessGateService::canAccessMaterial() (đúng 1 nơi kiểm tra quyền học
         // liệu của toàn hệ thống, xem MaterialReadService). File PDF phục vụ qua route riêng

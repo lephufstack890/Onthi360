@@ -18,6 +18,7 @@ use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Services\AttemptService;
+use App\Services\CodeJudgingService;
 use App\Services\PdfAttemptService;
 use App\Services\ReviewEligibilityService;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,9 @@ class AssessmentService
         // của đề content_mode=pdf_answer_sheet — xem App\Services\PdfAttemptService để biết vì
         // sao tách riêng khỏi AttemptService (không đụng Question).
         private PdfAttemptService $pdfAttemptService,
+        // SỬA 18/9 (2) (khách: "chỗ bắt đầu làm đề, chỗ chạy test không chạy được") — chạy thử
+        // mã với dữ liệu vào tự gõ ngay trong không gian làm đề, xem runCodeOnce().
+        private CodeJudgingService $codeJudging,
     ) {}
 
     /**
@@ -266,6 +270,82 @@ class AssessmentService
         }
 
         return $this->attemptService->submit($attempt);
+    }
+
+    /**
+     * student.assessment.take.run (SỬA 18/9 (2), khách: "chỗ bắt đầu làm đề khi click vào để
+     * làm á, chỗ chạy test không chạy được") — CHẠY THỬ mã của 1 câu trong đề với dữ liệu vào
+     * học sinh tự gõ ở ô Input.
+     *
+     * KHÔNG chấm điểm, KHÔNG đụng bài làm đã lưu, không tính là một lần nộp — chạy bao nhiêu
+     * lần cũng được. Chấm thật vẫn chỉ xảy ra lúc Nộp đề (AttemptService::gradeCoding()).
+     *
+     * Ba chốt an toàn, làm ở ĐÂY chứ không tin giao diện:
+     *   1. Lượt làm bài phải của CHÍNH người đang đăng nhập (ownedAttemptOrFail).
+     *   2. Câu hỏi phải THUỘC đúng đề của lượt đó — nếu không, ai cũng có thể mượn màn này để
+     *      chạy mã trên máy chấm cho một câu bất kỳ trong hệ thống.
+     *   3. Hết giờ/đã nộp thì thôi — cùng luật với ô tự lưu.
+     *
+     * @param  array{question_id: int|string, code_source?: string, language?: string, stdin?: string}  $data
+     * @return array{ok: bool, message?: string, ranCleanly?: bool, statusLabel?: string, output?: string, stderr?: ?string, compileOutput?: ?string, time?: ?string, memory?: ?int}
+     */
+    public function runCodeOnce(User $user, int $attemptId, array $data): array
+    {
+        $attempt = $this->ownedAttemptOrFail($user, $attemptId);
+
+        if ($attempt->submitted_at !== null) {
+            return ['ok' => false, 'message' => 'Đề đã nộp — không chạy thử được nữa.'];
+        }
+
+        // Lượt TỰ LUYỆN theo câu không thuộc đề nào (assessment_id = null, xem
+        // Student\PracticeByQuestionService::recordSubmission()). Không chặn ở đây thì truyền id
+        // của một lượt như vậy vào sẽ làm withItemsAndQuestions(null) ném TypeError -> 500.
+        // Màn luyện theo câu có đường chạy thử RIÊNG (student.practiceByQuestion.run).
+        if ($attempt->assessment_id === null) {
+            return ['ok' => false, 'message' => 'Lượt làm bài này không gắn với đề nào.'];
+        }
+
+        $assessmentModel = $this->assessments->withItemsAndQuestions($attempt->assessment_id);
+        $item = $assessmentModel?->items->firstWhere('question_id', (int) $data['question_id']);
+
+        if ($item === null || $item->question === null) {
+            return ['ok' => false, 'message' => 'Câu hỏi này không thuộc đề đang làm.'];
+        }
+
+        if ($item->question->type !== QuestionType::Coding) {
+            return ['ok' => false, 'message' => 'Chỉ câu Lập trình mới chạy thử được.'];
+        }
+
+        // Kiểm 2 điều kiện này TRƯỚC khi gọi máy chấm để báo đúng lý do — gọi rồi mới bắt ngoại
+        // lệ thì mọi lỗi đều ra chung một câu "không kết nối được máy chấm", sai sự thật.
+        if (trim((string) ($data['code_source'] ?? '')) === '') {
+            return ['ok' => false, 'message' => 'Chưa có mã nguồn để chạy — viết code rồi bấm lại.'];
+        }
+
+        if (config('judge0.languages.'.($data['language'] ?? '')) === null) {
+            return ['ok' => false, 'message' => 'Ngôn ngữ này chưa chạy được trên máy chấm.'];
+        }
+
+        $config = $item->question->grading_config ?? [];
+
+        try {
+            $result = $this->codeJudging->run(
+                (string) $data['code_source'],
+                $data['language'],
+                (string) ($data['stdin'] ?? ''),
+                (int) ($config['time_limit_ms'] ?? 5000),
+                (int) ($config['memory_limit_mb'] ?? 256) * 1024,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                'Chạy thử thất bại ở câu #'.$item->question_id.' trong đề #'.$attempt->assessment_id.' (Judge0 không tới được)',
+                ['exception' => $e],
+            );
+
+            return ['ok' => false, 'message' => 'Không kết nối được máy chấm — báo giáo viên/quản trị viên kiểm tra máy chấm giúp bạn.'];
+        }
+
+        return ['ok' => true] + $result;
     }
 
     private function ownedAttemptOrFail(User $user, int $attemptId): Attempt

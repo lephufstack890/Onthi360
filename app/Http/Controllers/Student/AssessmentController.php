@@ -60,6 +60,26 @@ class AssessmentController extends Controller
      * Dùng CHUNG cho cả đề câu hỏi rời VÀ đề PDF — $answers hình dạng khác nhau, nhưng
      * AssessmentService::saveDraftAnswers() tự rẽ nhánh theo content_mode.
      */
+    /**
+     * student.assessment.take.run (SỬA 18/9 (2)) — chạy thử mã của 1 câu trong đề với dữ liệu
+     * vào tự gõ, trả JSON cho ô Output. KHÔNG chấm điểm, không đụng bài làm đã lưu — xem
+     * Student\AssessmentService::runCodeOnce().
+     *
+     * Luôn trả 200 kèm ok=false + message khi hỏng: phía trình duyệt chỉ đọc một chỗ là biết
+     * hiện gì, không phải phân biệt lỗi HTTP với lỗi nghiệp vụ.
+     */
+    public function runCode(Request $request, int $attempt): JsonResponse
+    {
+        $data = $request->validate([
+            'question_id' => ['required', 'integer'],
+            'code_source' => ['nullable', 'string', 'max:20000'],
+            'language' => ['nullable', 'string', 'max:30'],
+            'stdin' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        return response()->json($this->assessmentService->runCodeOnce($request->user(), $attempt, $data));
+    }
+
     public function saveAnswers(Request $request, int $attempt): RedirectResponse|JsonResponse
     {
         $user = $request->user();

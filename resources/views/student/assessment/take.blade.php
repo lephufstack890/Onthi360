@@ -35,6 +35,7 @@
              deadlineAt: @js($deadlineAt ?? null),
              serverNow: @js($serverNow ?? null),
              saveUrl: @js(route('student.assessment.take.save', $attempt->id)),
+             runUrl: @js(route('student.assessment.take.run', $attempt->id)),
              questions: @js($vm),
              answers: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['kind'] === 'fill' ? (string) ($q['textAnswer'] ?? '') : (($q['selectedOption'] === null) ? '' : (string) $q['selectedOption'])])),
              codes: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => (string) ($q['codeSource'] ?? '')])),
@@ -264,11 +265,14 @@
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- Chưa có route chạy thử riêng (CodeJudgingService hiện chỉ được gọi lúc
-                                                         NỘP: AttemptService::gradeCoding). Để nút đúng chỗ như bản mẫu nhưng
-                                                         khoá lại + nói rõ lý do, thay vì bấm vào không có gì xảy ra. --}}
-                                                    <button type="button" disabled title="Chạy thử chưa nối máy chấm — bấm Nộp đề để được chấm thật"
-                                                            class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white opacity-50 shadow-sm"><x-lucide name="play" class="h-3.5 w-3.5" />Chạy test</button>
+                                                    {{-- SỬA 18/9 (2) (khách: "chỗ bắt đầu làm đề, chỗ chạy test không chạy
+                                                         được") — nút này trước đây khoá cứng vì CHƯA có route chạy thử. Giờ đã
+                                                         có student.assessment.take.run: chạy thật trên máy chấm với dữ liệu vào
+                                                         tự gõ, KHÔNG chấm điểm và không tính là một lần nộp. --}}
+                                                    <button type="button" @click="runTest({{ $qid }})"
+                                                            :disabled="expired || testRunning[{{ $qid }}]"
+                                                            title="Chạy thử mã với dữ liệu vào bên dưới (không tính điểm)"
+                                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50"><x-lucide name="play" class="h-3.5 w-3.5" /><span x-text="testRunning[{{ $qid }}] ? 'Đang chạy…' : 'Chạy test'">Chạy test</span></button>
                                                 </div>
                                                 {{-- Ô này KHÔNG đổ sẵn test từ database: test_cases trong grading_config là
                                                      test CHẤM ĐIỂM, không có cờ phân biệt test mẫu/test ẩn, in ra đây là
@@ -281,8 +285,10 @@
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#F7F9FA]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#607A90]">Output</span>
+                                                    {{-- Nhãn lần chạy gần nhất: "Chạy xong · 0.03s · 3MB" hoặc lý do hỏng. --}}
+                                                    <span x-text="testStatus[{{ $qid }}]" class="text-[10px] font-bold text-[#7A92A3]"></span>
                                                 </div>
-                                                <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
+                                                <pre x-text="testOutputs[{{ $qid }}]" class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
                                             </section>
                                         </div>
                                     </div>
@@ -412,6 +418,7 @@
                 firstId: config.firstId,
                 lastId: config.lastId,
                 saveUrl: config.saveUrl,
+                runUrl: config.runUrl,
                 deadlineAt: config.deadlineAt ? new Date(config.deadlineAt).getTime() : null,
                 // Bù lệch giờ máy học sinh vs máy chủ — GIỮ NGUYÊN cách tính của bản cũ. Đây chỉ
                 // là hiển thị; chặn THẬT vẫn nằm ở server (AttemptService::isExpired()).
@@ -422,6 +429,11 @@
                 codes: Object.assign({}, config.codes),
                 languages: Object.assign({}, config.languages),
                 testInputs: {},
+                // SỬA 18/9 (2) — kết quả lần chạy thử gần nhất, tách theo TỪNG CÂU: chuyển câu
+                // rồi quay lại vẫn thấy đúng output của câu đó, không bị của câu khác đè lên.
+                testOutputs: {},
+                testStatus: {},
+                testRunning: {},
 
                 // ── Trạng thái giao diện ──
                 activeId: config.firstId,
@@ -440,6 +452,9 @@
                     var self = this;
                     this.questions.forEach(function (q) {
                         if (self.testInputs[q.id] === undefined) self.testInputs[q.id] = '';
+                        if (self.testOutputs[q.id] === undefined) self.testOutputs[q.id] = 'Chưa chạy test';
+                        if (self.testStatus[q.id] === undefined) self.testStatus[q.id] = '';
+                        if (self.testRunning[q.id] === undefined) self.testRunning[q.id] = false;
                         if (q.kind === 'code' && !String(self.codes[q.id] || '').length) {
                             self.codes[q.id] = STARTER_CODE[self.languages[q.id]] || STARTER_CODE.cpp;
                         }
@@ -545,6 +560,79 @@
                 },
                 onCode(id) {
                     this.save(id, { code_source: this.codes[id], language: this.languages[id] });
+                },
+
+                // ── Chạy thử (SỬA 18/9 (2)) ────────────────────────────────────────────────
+                // Gửi mã + dữ liệu vào ô Input lên student.assessment.take.run, in stdout ra ô
+                // Output của ĐÚNG câu đó. Không chấm điểm, không tính là một lần nộp, không đụng
+                // tới bài làm đã lưu — chấm thật vẫn chỉ xảy ra lúc Nộp đề.
+                async runTest(id) {
+                    if (this.expired || this.testRunning[id]) return;
+
+                    this.testRunning[id] = true;
+                    this.testStatus[id] = '';
+                    this.testOutputs[id] = 'Đang chạy…';
+
+                    try {
+                        var res = await fetch(this.runUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                question_id: id,
+                                code_source: this.codes[id] ?? '',
+                                language: this.languages[id] ?? 'cpp',
+                                stdin: this.testInputs[id] ?? '',
+                            }),
+                        });
+
+                        // KHÔNG gọi thẳng res.json(): 404/419/500 đều trả HTML, json() sẽ ném lỗi
+                        // rồi rơi xuống catch -> báo "lỗi mạng" sai sự thật, người dùng đi kiểm tra
+                        // wifi trong khi lỗi nằm ở máy chủ. Đọc mã HTTP trước.
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                        var data = await res.json();
+
+                        if (!data || !data.ok) {
+                            this.testOutputs[id] = (data && data.message) ? data.message : 'Chạy thử thất bại.';
+                            this.testStatus[id] = 'Không chạy được';
+                            return;
+                        }
+
+                        // Ưu tiên hiện lỗi biên dịch/lỗi chạy — đó mới là cái cần đọc; stdout rỗng
+                        // mà không nói gì thì người dùng tưởng nút hỏng.
+                        var text = '';
+                        if (data.compileOutput) text += 'Lỗi biên dịch:\n' + data.compileOutput + '\n';
+                        if (data.stderr) text += 'Lỗi khi chạy:\n' + data.stderr + '\n';
+                        if (data.output) text += data.output;
+                        this.testOutputs[id] = text !== '' ? text : '(chương trình không in ra gì)';
+
+                        var parts = [data.statusLabel || ''];
+                        if (data.time) parts.push(data.time + 's');
+                        if (data.memory) parts.push(Math.round(data.memory / 1024) + 'MB');
+                        this.testStatus[id] = parts.filter(Boolean).join(' · ');
+                    } catch (error) {
+                        var reason = String((error && error.message) || '');
+
+                        if (reason === 'HTTP 419') {
+                            this.testOutputs[id] = 'Phiên làm việc đã hết hạn — tải lại trang rồi thử lại.';
+                        } else if (reason === 'HTTP 404') {
+                            this.testOutputs[id] = 'Máy chủ chưa nhận ra chức năng chạy thử (404) — báo quản trị viên nạp lại máy chủ sau khi cập nhật mã.';
+                        } else if (reason.indexOf('HTTP ') === 0) {
+                            this.testOutputs[id] = 'Máy chủ báo lỗi (' + reason + ') — báo quản trị viên xem storage/logs/laravel.log.';
+                        } else {
+                            this.testOutputs[id] = 'Không gửi được yêu cầu chạy thử — kiểm tra kết nối mạng rồi thử lại.';
+                        }
+
+                        this.testStatus[id] = reason !== '' ? reason : 'Không gửi được';
+                    } finally {
+                        this.testRunning[id] = false;
+                    }
                 },
 
                 // ── Trắc nghiệm / điền đáp án ──
