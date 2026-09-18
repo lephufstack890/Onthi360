@@ -52,6 +52,9 @@ class ClassRoomService
     /** Số buổi tối đa hiện trong băng hoạt động ở tab Tổng quan (SỬA 16/9). */
     private const ACTIVITY_FEED_LIMIT = 12;
 
+    /** Số buổi tối đa đưa vào ô "Đang xem" của màn lớp học (SỬA 18/9). */
+    private const CLASSROOM_LESSON_LIMIT = 30;
+
     /** Nhãn điểm danh hiển thị cho học sinh (Enums\AttendanceStatus) — khớp nhãn dùng ở teacher.schedule.attendance. */
     private const ATTENDANCE_LABELS = [
         'present' => ['Có mặt', 'success'],
@@ -85,7 +88,7 @@ class ClassRoomService
         private LibraryService $libraryService,
     ) {}
 
-    public function buildShowData(User $user, int $classId, string $tab, int $weekOffset = 0): array
+    public function buildShowData(User $user, int $classId, string $tab, int $weekOffset = 0, ?int $sessionId = null): array
     {
         $classRoom = $this->classRooms->findWithCourseAndTeachers($classId);
         abort_if($classRoom === null, 404);
@@ -154,6 +157,13 @@ class ClassRoomService
             $activityFeed = $this->buildActivityFeed($classRoom);
         }
 
+        // SỬA 18/9 — màn lớp học dựng lại theo bản mẫu mới (xem buildClassroomData()). Chỉ nạp ở
+        // tab Tổng quan, đúng nếp nạp-theo-tab của hàm này.
+        $classroom = [];
+        if ($tab === 'overview') {
+            $classroom = $this->buildClassroomData($user, $classRoom, $sessionId);
+        }
+
         // Học liệu lớp (SỬA 31/8, khách yêu cầu — "xem học liệu NGAY TRONG LỚP, tách khỏi
         // Tài liệu của tôi"): CHỈ lấy dòng gắn NGUYÊN 1 sản phẩm (material_id=null —
         // ClassMaterial::isWholeProduct(), xem Teacher\ClassRoomService::attachProduct())
@@ -212,6 +222,7 @@ class ClassRoomService
             'ratingSummary' => $ratingSummary,
             'roadmap' => $roadmap,
             'activityFeed' => $activityFeed,
+            'classroom' => $classroom,
             'materials' => $materials,
             'weekOffset' => $scheduleWeek['weekOffset'],
             'weekStart' => $scheduleWeek['weekStart'],
@@ -222,6 +233,237 @@ class ClassRoomService
             'teachers' => $teachers,
             'students' => $students,
         ];
+    }
+
+    /**
+     * SỬA 18/9 (khách yêu cầu: "khi vào lớp học thì bên học sinh sẽ hiển thị UI như [ảnh], lấy UI
+     * trong source mới, đổ dữ liệu từ database ra, mục ghi hình buổi học tạm thời bỏ đi") —
+     * dữ liệu cho màn LỚP HỌC dựng theo education-main/src/components/ClassroomPage.jsx.
+     *
+     * Màn này xoay quanh MỘT BUỔI HỌC: chọn buổi ở ô "Đang xem", rồi xem dải hoạt động của buổi
+     * đó và nội dung/học liệu của hoạt động đang chọn.
+     *
+     * LUẬT HIỂN THỊ GIỮ NGUYÊN: chỉ hoạt động giáo viên ĐÃ BẤM PHÁT mới lọt ra học sinh
+     * (SessionActivity::scopePublished()) — đúng yêu cầu cũ "giáo viên phải click icon play thì
+     * học sinh mới thấy được".
+     *
+     * BA TRƯỜNG BẢN MẪU CÓ MÀ HỆ THỐNG KHÔNG CÓ NGUỒN, xử lý như sau (không bịa số):
+     *   · khung giờ riêng của từng hoạt động ("19:30 – 19:35") — bảng session_activities không
+     *     có cột giờ; thay bằng GIỜ GIÁO VIÊN PHÁT hoạt động (published_at), là mốc thật và cũng
+     *     chính là lúc hoạt động bắt đầu với học sinh;
+     *   · trạng thái hoạt động — suy từ dữ liệu thật: buổi đã kết thúc thì mọi hoạt động là "Đã
+     *     tổ chức"; buổi đang diễn ra thì hoạt động phát SAU CÙNG là "Đang diễn ra", các hoạt
+     *     động trước đó là "Đã tổ chức"; buổi chưa bắt đầu thì "Chưa diễn ra";
+     *   · mục "Ghi hình buổi học" — khách bảo tạm bỏ, và hệ thống cũng chưa có nguồn video.
+     */
+    public function buildClassroomData(User $user, ClassRoom $classRoom, ?int $sessionId = null): array
+    {
+        $now = now();
+
+        // Danh sách buổi để chọn: buổi ĐÃ BẮT ĐẦU hoặc đã có hoạt động được phát. Buổi tương lai
+        // chưa có gì để xem nên không đưa vào ô chọn (đúng chữ "Các buổi đã tổ chức" của bản mẫu).
+        $sessions = $this->classSessions->query()
+            ->where('class_room_id', $classRoom->id)
+            ->orderBy('starts_at')
+            ->get();
+
+        $numberBySessionId = [];
+        foreach ($sessions->values() as $index => $session) {
+            $numberBySessionId[$session->id] = $index + 1;
+        }
+
+        $selectable = $sessions
+            ->filter(fn (ClassSession $session) => $session->starts_at !== null && $session->starts_at->lte($now))
+            ->sortByDesc('starts_at')
+            ->take(self::CLASSROOM_LESSON_LIMIT)
+            ->values();
+
+        // Chưa có buổi nào diễn ra thì lấy buổi gần nhất sắp tới, để màn không trống trơn.
+        if ($selectable->isEmpty()) {
+            $selectable = $sessions->sortBy('starts_at')->take(1)->values();
+        }
+
+        $attendanceBySessionId = $this->attendance->forStudentInSessionIds($user->id, $selectable->pluck('id')->all());
+
+        $selected = $sessionId !== null
+            ? $selectable->firstWhere('id', $sessionId)
+            : null;
+        $selected = $selected ?? $selectable->first();
+
+        $lessons = $selectable->map(fn (ClassSession $session) => [
+            'id' => $session->id,
+            'number' => $numberBySessionId[$session->id] ?? 0,
+            'title' => $session->topic ?: 'Buổi học',
+            'dateLabel' => $session->starts_at?->format('d/m/Y') ?? '',
+            'timeLabel' => $this->timeRangeLabel($session),
+            'isSelected' => $selected !== null && $session->id === $selected->id,
+            'isLatest' => $selectable->first() !== null && $session->id === $selectable->first()->id,
+        ])->all();
+
+        if ($selected === null) {
+            return [
+                'lessons' => [], 'selected' => null, 'activities' => [],
+                'meetUrl' => null, 'roomNote' => null, 'notifications' => [], 'classMaterials' => [],
+            ];
+        }
+
+        // Hoạt động ĐÃ PHÁT của đúng buổi đang xem + tài nguyên bên trong.
+        $selected->load([
+            'activities' => fn ($q) => $q->published()->orderBy('position')->orderBy('id'),
+            'activities.resources.material',
+            'activities.resources.question',
+            'activities.resources.assessment',
+        ]);
+
+        // Điểm bài làm của CHÍNH học sinh này cho các đề xuất hiện trong buổi — bản mẫu có viên
+        // "Đúng hết / Đúng một phần / Sai · 86/100" trên thẻ bài tập. Lấy MỘT truy vấn cho cả
+        // buổi (tái dùng progressForUserAndAssessments, đúng hàm trang Luyện tập đang dùng).
+        $assessmentIds = $selected->activities
+            ->flatMap(fn ($activity) => $activity->resources->pluck('assessment_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $scoreByAssessment = $this->attempts->progressForUserAndAssessments($user->id, $assessmentIds)->keyBy('assessment_id');
+        $totalPointsByAssessment = $selected->activities
+            ->flatMap(fn ($activity) => $activity->resources)
+            ->filter(fn ($r) => $r->assessment !== null)
+            ->mapWithKeys(fn ($r) => [$r->assessment_id => (float) ($r->assessment->total_points ?? 0)])
+            ->all();
+
+        $sessionEnded = $selected->ends_at !== null && $now->gt($selected->ends_at);
+        $sessionStarted = $selected->starts_at !== null && $now->gte($selected->starts_at);
+        $lastPublishedId = $selected->activities->sortByDesc('published_at')->first()?->id;
+
+        $activities = $selected->activities->values()->map(function ($activity, $index) use ($sessionEnded, $sessionStarted, $lastPublishedId, $scoreByAssessment, $totalPointsByAssessment) {
+            [$stateKey, $stateLabel] = match (true) {
+                ! $sessionStarted => ['upcoming', 'Chưa diễn ra'],
+                $sessionEnded => ['completed', 'Đã tổ chức'],
+                $activity->id === $lastPublishedId => ['current', 'Đang diễn ra'],
+                default => ['completed', 'Đã tổ chức'],
+            };
+
+            return [
+                'id' => $activity->id,
+                'index' => $index + 1,
+                'title' => $activity->title,
+                'note' => $activity->note,
+                'state' => $stateKey,
+                'statusLabel' => $stateLabel,
+                // Bản mẫu in khung giờ riêng của hoạt động; hệ thống chỉ có mốc GIÁO VIÊN PHÁT.
+                'timeLabel' => $activity->published_at?->format('H:i') ?? '—',
+                'items' => $this->groupActivityResources($activity, $scoreByAssessment, $totalPointsByAssessment),
+            ];
+        })->all();
+
+        // Buổi học đang xem có phòng trực tuyến không (class_sessions.location vốn được định
+        // nghĩa là "phòng học HOẶC link online").
+        $isUrl = \Illuminate\Support\Str::startsWith((string) $selected->location, ['http://', 'https://']);
+
+        return [
+            'lessons' => $lessons,
+            'selected' => [
+                'id' => $selected->id,
+                'number' => $numberBySessionId[$selected->id] ?? 0,
+                'title' => $selected->topic ?: 'Buổi học',
+                'dateLabel' => $selected->starts_at?->format('d/m/Y') ?? '',
+                'timeLabel' => $this->timeRangeLabel($selected),
+                'attendance' => $this->attendanceChip($attendanceBySessionId->get($selected->id)),
+            ],
+            'activities' => $activities,
+            'meetUrl' => $isUrl ? $selected->location : null,
+            'roomNote' => (! $isUrl && filled($selected->location)) ? $selected->location : null,
+            'notifications' => $this->notificationsForClass($user, $classRoom),
+            'classMaterials' => $this->classMaterials->activeForClassRoomWithProduct($classRoom->id)
+                ->filter(fn ($cm) => $cm->isWholeProduct() && $cm->product !== null)
+                ->map(fn ($cm) => ['id' => $cm->product->id, 'title' => $cm->product->title])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Viên trạng thái điểm danh của CHÍNH học sinh này ở buổi đang xem — bản mẫu chỉ có một ô
+     * "Đã có mặt" màu xanh, thực tế có đủ 5 trạng thái (kể cả chưa điểm danh).
+     */
+    private function attendanceChip($record): array
+    {
+        if ($record === null) {
+            return ['label' => 'Chưa điểm danh', 'tone' => 'none', 'timeLabel' => null];
+        }
+
+        [$label] = self::ATTENDANCE_LABELS[$record->status->value] ?? ['Chưa điểm danh', 'neutral'];
+
+        return [
+            'label' => $label,
+            'tone' => $record->status->value,
+            'timeLabel' => $record->updated_at?->format('H:i'),
+        ];
+    }
+
+    /**
+     * Xếp tài nguyên của một hoạt động vào 3 nhóm của bản mẫu (Bài tập · Tài liệu · Học liệu).
+     *
+     * Bản mẫu có sẵn trường "category" cho từng mục; hệ thống thì phân theo LOẠI TÀI NGUYÊN thật
+     * (App\Enums\SessionResourceType): đề/câu hỏi là thứ để LÀM, tài liệu/ghi chú là thứ để
+     * ĐỌC, video/link là thứ để XEM.
+     */
+    private function groupActivityResources($activity, $scoreByAssessment = null, array $totalPointsByAssessment = []): array
+    {
+        $groups = ['exercise' => [], 'document' => [], 'material' => []];
+        $scoreByAssessment = $scoreByAssessment ?? collect();
+
+        foreach ($activity->resources as $resource) {
+            $type = $resource->type;
+
+            $group = match ($type) {
+                \App\Enums\SessionResourceType::Assessment, \App\Enums\SessionResourceType::Question => 'exercise',
+                \App\Enums\SessionResourceType::Video, \App\Enums\SessionResourceType::Link => 'material',
+                default => 'document',
+            };
+
+            // Cùng luật với mapScheduleSession(): chỉ mở làm bài khi là ĐỀ và đề ĐÃ PHÁT HÀNH.
+            $assessmentId = $resource->assessment_id !== null
+                && $resource->assessment !== null
+                && $resource->assessment->status === \App\Enums\ContentStatus::Published
+                    ? $resource->assessment_id
+                    : null;
+
+            // Viên điểm của bản mẫu: CHỈ hiện khi học sinh này thật sự đã nộp bài đề đó.
+            $scoreLabel = null;
+            $scoreTone = null;
+            $row = $resource->assessment_id !== null ? $scoreByAssessment->get($resource->assessment_id) : null;
+            if ($row !== null && (int) $row->submitted_count > 0 && $row->best_score !== null) {
+                $best = (float) $row->best_score;
+                $total = (float) ($totalPointsByAssessment[$resource->assessment_id] ?? 0);
+                $scoreLabel = $total > 0
+                    ? $this->trimNumber($best).'/'.$this->trimNumber($total)
+                    : $this->trimNumber($best).' điểm';
+                $ratio = $total > 0 ? $best / $total : ($best > 0 ? 1.0 : 0.0);
+                [$scoreTone, $scoreText] = match (true) {
+                    $ratio >= 1.0 => ['is-correct', 'Đúng hết'],
+                    $ratio > 0 => ['is-partial', 'Đúng một phần'],
+                    default => ['is-wrong', 'Sai'],
+                };
+                $scoreLabel = $scoreText.' · '.$scoreLabel;
+            }
+
+            $groups[$group][] = [
+                'id' => $resource->id,
+                'scoreLabel' => $scoreLabel,
+                'scoreTone' => $scoreTone,
+                'title' => $resource->displayTitle(),
+                'typeLabel' => $type->label(),
+                'code' => $resource->question?->code,
+                'assessmentId' => $assessmentId,
+                'url' => in_array($type, [\App\Enums\SessionResourceType::Video, \App\Enums\SessionResourceType::Link], true)
+                    ? $resource->url
+                    : null,
+                'note' => $resource->note,
+            ];
+        }
+
+        return $groups;
     }
 
     /**
@@ -617,6 +859,12 @@ class ClassRoomService
         }
 
         return ['items' => $items, 'initialIndex' => $initialIndex];
+    }
+
+    /** 8.00 -> "8", 8.50 -> "8.5" — điểm in ra không kéo theo số 0 vô nghĩa. */
+    private function trimNumber(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
     /** Xem giải thích đầy đủ ở App\Services\Teacher\ClassRoomService::completionPercent(). */

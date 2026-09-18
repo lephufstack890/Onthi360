@@ -19,8 +19,11 @@ class ClassRoomController extends Controller
         $user = $request->user();
         $tab = $request->query('tab', 'overview');
         $weekOffset = (int) $request->query('week', 0);
+        // SỬA 18/9 — ?buoi=<id>: buổi học đang xem ở màn lớp học. Có trên ĐƯỜNG DẪN chứ không chỉ
+        // đổi tại chỗ, để tải lại trang hoặc gửi link cho nhau vẫn mở đúng buổi.
+        $sessionId = $request->query('buoi') !== null ? (int) $request->query('buoi') : null;
 
-        return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset));
+        return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset, $sessionId));
     }
 
 
