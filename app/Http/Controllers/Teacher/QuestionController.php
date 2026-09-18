@@ -83,9 +83,9 @@ class QuestionController extends Controller
         return redirect()->route('teacher.questions.index')->with('status', 'question-archived');
     }
 
-    // ================= Câu hỏi lập trình — "Nhập từ gói ZIP" (24/8) =================
-    // Xem App\Services\Teacher\QuestionService::storeFromZipPackage() — tái sử dụng store()
-    // nguyên vẹn nên KHÔNG đụng gì tới create/store ở trên.
+    // ================= "Nhập từ gói ZIP" (24/8, mở rộng mọi loại câu 18/9) =================
+    // Xem App\Services\Teacher\QuestionService::storeFromZipPackage() — KHÔNG đụng gì tới
+    // create/store nhập tay ở trên.
 
     /** teacher.questions.zipImport — tải 1 gói ZIP OT360-QPACK, tự điền, redirect sang Sửa. */
     public function zipImportStore(Request $request): RedirectResponse
@@ -97,7 +97,12 @@ class QuestionController extends Controller
         try {
             $question = $this->questionService->storeFromZipPackage(Auth::user(), $request->file('zip_package'));
         } catch (ValidationException $e) {
-            return redirect()->route('teacher.questions.create', ['type' => 'coding'])->withErrors($e->errors());
+            // SỬA 18/9 — quay lại ĐÚNG loại câu giáo viên đang đứng khi gói ZIP lỗi (trước đây
+            // luôn ép về 'coding' vì ô tải ZIP chỉ hiện ở loại Lập trình, giờ hiện ở mọi loại).
+            $returnType = $request->input('return_type');
+            $returnType = in_array($returnType, ['mcq', 'fill_blank', 'coding'], true) ? $returnType : 'coding';
+
+            return redirect()->route('teacher.questions.create', ['type' => $returnType])->withErrors($e->errors());
         }
 
         return redirect()->route('teacher.questions.edit', $question->id)->with('status', 'question-zip-imported');
@@ -146,7 +151,13 @@ class QuestionController extends Controller
     private function validationRules(string $type): array
     {
         $common = [
-            'type' => ['required', 'in:mcq,fill_blank,coding'],
+            // SỬA 18/9 — thêm 'composite': câu Nhiều phần nhập từ gói ZIP không có form nhập
+            // tay, nhưng vẫn phải MỞ được trang Sửa để đổi Tiêu đề/Nội dung/Điểm/Độ khó/Tag —
+            // không có 'composite' ở đây thì mọi lần Lưu đều bị chặn "type không hợp lệ".
+            'type' => ['required', 'in:mcq,fill_blank,coding,composite'],
+            // SỬA 18/9 — ô "Độ khó" mới ở form câu hỏi. Rỗng = chưa đặt (hệ thống tự suy
+            // theo điểm), 4 khoá còn lại khớp đúng bộ lọc ngoài trang Luyện tập.
+            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
             'title' => ['required', 'string', 'max:255'],
             // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — cả 2 đều tuỳ chọn; giá trị được
             // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
@@ -164,6 +175,9 @@ class QuestionController extends Controller
         ];
 
         return match ($type) {
+            // Composite: KHÔNG có trường cấu hình chấm nào trên form (giữ nguyên theo gói ZIP),
+            // xem Teacher\QuestionService::buildAttributes().
+            'composite' => $common,
             // SỬA 19/8 — correct_option PHẢI là chỉ số (0-3), không phải chữ cái — xem sửa lỗi
             // chấm điểm ở QuestionService::buildGradingConfig() + create.blade.php (khớp
             // đúng validation Admin\ContentController đã dùng từ đầu: 'integer','min:0','max:3').

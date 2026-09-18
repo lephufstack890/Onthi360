@@ -161,6 +161,21 @@
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', $question->points) }}" class="admin-input">
                 </div>
                 <div>
+                    {{-- SỬA 18/9 — Độ khó cũng phải sửa được ở đây, không chỉ lúc tạo: câu cũ
+                         trong kho mới là phần đông, không mở ở màn Sửa thì không bao giờ gắn
+                         được độ khó cho chúng. --}}
+                    @php
+                        $currentDifficulty = is_array($q0 = ($question->metadata ?? null)) ? ($q0['difficulty'] ?? '') : '';
+                    @endphp
+                    <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
+                    <x-ws.select id="difficulty" name="difficulty">
+                        <option value="">— Tự suy theo điểm —</option>
+                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                            <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty) === $dkey)>{{ $dlabel }}</option>
+                        @endforeach
+                    </x-ws.select>
+                </div>
+                <div>
                     <label class="block text-[13px] text-slate-600 mb-1" for="visibility">Hiển thị</label>
                     <x-ws.select id="visibility" name="visibility" required>
                         @foreach ($visibilities as $value => $label)

@@ -32,12 +32,12 @@ use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
 use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
@@ -1002,6 +1002,11 @@ class ContentService
             'owner_type' => OwnerType::Shared->value,
             'owner_id' => null,
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
+            // SỬA 18/9 — Độ khó do người tạo chọn (dễ/trung bình/khó/cực khó). Lưu vào
+            // metadata.difficulty (KHÔNG thêm cột mới) vì metadata còn giữ 'assets'/'attachments'
+            // của câu nhập ZIP — xem mergeDifficultyIntoMetadata() để biết vì sao phải GỘP.
+            // Bỏ trống => không lưu key => trang Luyện tập public tự suy độ khó theo điểm (cũ).
+            'metadata' => $this->mergeDifficultyIntoMetadata(null, $data),
             'status' => ContentStatus::Draft->value,
             'version' => 1,
             'created_by' => $admin->id,
@@ -1046,6 +1051,9 @@ class ContentService
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
+            // SỬA 18/9 — sửa Độ khó ngay ở form Sửa. GỘP vào metadata hiện có của câu (giữ
+            // nguyên 'assets'/'attachments' đã nhập từ ZIP), xem mergeDifficultyIntoMetadata().
+            'metadata' => $this->mergeDifficultyIntoMetadata($question->metadata, $data),
         ];
 
         // SỬA 31/8 (2, "mở rộng ZIP bài tập") — câu Composite (nhiều phần/nhiều dạng con, chỉ
@@ -1076,6 +1084,9 @@ class ContentService
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
+            // SỬA 18/9 — bản version mới giữ đúng Độ khó đang chọn trên form (replicate() đã
+            // copy metadata cũ sang, gộp thêm để sửa được luôn khi tạo version mới).
+            'metadata' => $this->mergeDifficultyIntoMetadata($question->metadata, $data),
         ];
 
         // SỬA 31/8 (2) — cùng lý do ở questionUpdate() ngay trên: KHÔNG build lại grading_config
@@ -1093,6 +1104,30 @@ class ContentService
         $newVersion->tags()->sync($this->resolveTagIds($data));
 
         return $newVersion;
+    }
+
+    /**
+     * SỬA 18/9 (khách: "tạo câu hỏi không thấy Độ khó") — ghi độ khó do người tạo CHỌN vào
+     * metadata.difficulty. Phải GỘP chứ không ghi đè cả cột metadata vì metadata còn chứa
+     * 'assets' (ảnh/âm thanh) và 'attachments' (PDF đề/lời giải) của câu nhập từ gói ZIP —
+     * ghi đè sẽ làm mất file đính kèm (xem questionAssetDownload()/questionAttachment()).
+     * Bỏ trống ô Độ khó => XOÁ key => Public\PracticeService tự suy lại theo điểm như trước,
+     * chứ không kẹt ở giá trị cũ.
+     *
+     * @return array<string, mixed> metadata mới để lưu vào cột questions.metadata (cast array).
+     */
+    private function mergeDifficultyIntoMetadata(?array $current, array $data): array
+    {
+        $metadata = $current ?? [];
+        $value = $data['difficulty'] ?? null;
+
+        if (is_string($value) && in_array($value, ['easy', 'medium', 'hard', 'expert'], true)) {
+            $metadata['difficulty'] = $value;
+        } else {
+            unset($metadata['difficulty']);
+        }
+
+        return $metadata;
     }
 
     /**
@@ -1254,7 +1289,7 @@ class ContentService
         // SỬA 31/8 (2, "mở rộng ZIP bài tập" — không chỉ lập trình): trước đây $data['type'] LUÔN
         // gán cứng 'coding' rồi gọi lại questionStore() (đi qua buildGradingConfig() theo cấu
         // trúc form nhập tay) — giờ gói ZIP có thể là 1 trong 4 content.type khác nhau (xem
-        // SUPPORTED_ZIP_CONTENT_TYPES), mỗi loại map sang 1 Question::type khác nhau
+        // QuestionZipPackage::SUPPORTED_CONTENT_TYPES), mỗi loại map sang 1 Question::type khác nhau
         // (questionTypeFromZipContentType()) và có cấu trúc grading JSON khác hẳn form nhập tay
         // — build thẳng grading_config qua buildGradingConfigFromZipPackage() (hiểu đúng cấu
         // trúc từng loại) rồi tạo Question trực tiếp, không qua questionStore() nữa (giữ nguyên
@@ -1300,6 +1335,10 @@ class ContentService
                 // SỬA 31/8 (2) — audio/ảnh... đính kèm (khác 3 tệp cố định statement/solution/
                 // reference ở trên) — xem storeZipAssets() + Question::findAsset().
                 'assets' => $this->storeZipAssets($question, $package['assets']),
+                // SỬA 18/9 — độ khó gói ZIP khai sẵn ở pedagogy.difficulty; đổ thẳng vào
+                // metadata.difficulty để trang Luyện tập public hiện/lọc đúng ngay sau khi nhập
+                // (gói không khai -> null -> suy theo điểm như trước).
+                'difficulty' => QuestionZipPackage::difficultyFrom($json),
             ],
         ]);
 
@@ -1334,7 +1373,7 @@ class ContentService
      * (content.type) hiện được hỗ trợ — trước đây CHỈ 'programming'. Khách chốt: essay (phần
      * tự luận trong 'composite') ghi nhận, chưa tự chấm được (cùng cách xử lý câu Lập trình).
      */
-    private const SUPPORTED_ZIP_CONTENT_TYPES = ['programming', 'single_choice', 'true_false', 'short_answer', 'composite'];
+    private const SUPPORTED_ZIP_CONTENT_TYPES = QuestionZipPackage::SUPPORTED_CONTENT_TYPES;
 
     /**
      * Mở gói ZIP, đọc + kiểm tra question.json (phải đúng schema "OT360-QPACK" và content.type
@@ -1354,144 +1393,20 @@ class ContentService
      */
     private function parseZipQuestionPackage(UploadedFile $zip): array
     {
-        $zipArchive = new ZipArchive();
-        if ($zipArchive->open($zip->getRealPath()) !== true) {
-            throw ValidationException::withMessages(['zip_package' => 'Không mở được gói ZIP, kiểm tra lại tệp.']);
-        }
-
-        $jsonRaw = $zipArchive->getFromName('question.json');
-        if ($jsonRaw === false) {
-            $zipArchive->close();
-            throw ValidationException::withMessages(['zip_package' => 'Gói ZIP thiếu tệp question.json ở gốc.']);
-        }
-
-        $json = json_decode($jsonRaw, true);
-        if (! is_array($json)) {
-            $zipArchive->close();
-            throw ValidationException::withMessages(['zip_package' => 'question.json trong gói ZIP không đúng định dạng JSON.']);
-        }
-
-        $schema = (string) ($json['schema'] ?? '');
-        $contentType = (string) ($json['content']['type'] ?? '');
-        if (! str_starts_with($schema, 'OT360-QPACK') || ! in_array($contentType, self::SUPPORTED_ZIP_CONTENT_TYPES, true)) {
-            $zipArchive->close();
-            throw ValidationException::withMessages([
-                'zip_package' => 'Gói ZIP không đúng định dạng OT360-QPACK hoặc loại nội dung (content.type) chưa được hỗ trợ.',
-            ]);
-        }
-
-        $attachmentNames = ['statement.pdf' => 'statement', 'solution.pdf' => 'solution', 'reference/official.cpp' => 'reference'];
-        $attachments = [];
-        $testFolders = [];
-
-        // Gom trước danh sách đường dẫn asset cần đọc (path -> true) từ question.json['assets']
-        // — đọc luôn trong CÙNG vòng lặp quét zip bên dưới, không mở lại ZipArchive lần 2.
-        $assetPaths = [];
-        foreach (($json['assets'] ?? []) as $asset) {
-            if (isset($asset['path']) && is_string($asset['path'])) {
-                $assetPaths[$asset['path']] = true;
-            }
-        }
-        $assetsRaw = [];
-
-        for ($i = 0; $i < $zipArchive->numFiles; $i++) {
-            $name = $zipArchive->getNameIndex($i);
-            if ($name === false || str_ends_with($name, '/')) {
-                continue; // thư mục con trong zip, bỏ qua
-            }
-
-            if (isset($attachmentNames[$name])) {
-                $raw = $zipArchive->getFromName($name);
-                if ($raw !== false) {
-                    $attachments[$attachmentNames[$name]] = ['content' => $raw, 'filename' => basename($name)];
-                }
-
-                continue;
-            }
-
-            if (isset($assetPaths[$name])) {
-                $raw = $zipArchive->getFromName($name);
-                if ($raw !== false) {
-                    $assetsRaw[$name] = $raw;
-                }
-
-                continue;
-            }
-
-            if (preg_match('#^tests/([^/]+)/([^/]+)$#i', $name, $m)) {
-                $lower = strtolower($m[2]);
-                if (str_contains($lower, 'input')) {
-                    $testFolders[$m[1]]['input'] = $name;
-                } elseif (str_contains($lower, 'output')) {
-                    $testFolders[$m[1]]['output'] = $name;
-                }
-            }
-        }
-
-        ksort($testFolders, SORT_NATURAL);
-        $testCases = [];
-        foreach ($testFolders as $pair) {
-            if (! isset($pair['input'], $pair['output'])) {
-                continue; // thiếu 1 trong 2 vế — không đoán bừa, bỏ qua thư mục test này
-            }
-
-            $input = $zipArchive->getFromName($pair['input']);
-            $output = $zipArchive->getFromName($pair['output']);
-            if ($input === false || $output === false) {
-                continue;
-            }
-
-            $testCases[] = ['input' => $input, 'output' => $output];
-        }
-
-        $zipArchive->close();
-
-        if ($contentType === 'programming' && $testCases === []) {
-            throw ValidationException::withMessages([
-                'zip_package' => 'Không tìm thấy test case hợp lệ trong gói ZIP (cần thư mục tests/<số>/ chứa 2 tệp input/output).',
-            ]);
-        }
-
-        // Ghép lại 'assets' đầy đủ (metadata khai báo trong question.json + nội dung nhị phân
-        // vừa đọc được) — asset khai báo trong JSON nhưng KHÔNG tìm thấy file thật trong zip bị
-        // bỏ qua (không đoán bừa/không chặn cả gói chỉ vì 1 asset lỗi).
-        $assets = [];
-        foreach (($json['assets'] ?? []) as $asset) {
-            $path = $asset['path'] ?? null;
-            if (! is_string($path) || ! isset($assetsRaw[$path])) {
-                continue;
-            }
-
-            $assets[] = [
-                'id' => (string) ($asset['id'] ?? Str::uuid()),
-                'kind' => (string) ($asset['kind'] ?? 'file'),
-                'filename' => basename($path),
-                'content' => $assetsRaw[$path],
-                'transcript' => $asset['transcript'] ?? null,
-                'alt_text' => $asset['alt_text'] ?? null,
-            ];
-        }
-
-        return ['json' => $json, 'testCases' => $testCases, 'attachments' => $attachments, 'assets' => $assets];
+        return QuestionZipPackage::parse($zip);
     }
 
     /**
      * SỬA 31/8 (2) — map content.type (gói ZIP) sang Question::type (cột 'type' thật của hệ
      * thống): 'single_choice'/'true_false' quy về 'mcq' — TÁI DÙNG NGUYÊN VẸN máy Mcq đã có
      * (QuestionGrader::isMcqCorrect(), màn Luyện tập/Làm bài Mcq) thay vì viết thêm luồng
-     * chấm/hiển thị riêng, xem buildChoiceGradingConfigFromZip()/buildTrueFalseGradingConfigFromZip()
-     * bên dưới; 'short_answer' quy về 'fill_blank' cùng lý do. 'composite' là loại DUY NHẤT thật
+     * chấm/hiển thị riêng, xem App\Support\QuestionZipPackage
+     * (đã chuyển sang đó, SỬA 18/9); 'short_answer' quy về 'fill_blank' cùng lý do. 'composite' là loại DUY NHẤT thật
      * sự mới (nhiều phần khác dạng, không quy về đâu được).
      */
     private function questionTypeFromZipContentType(string $contentType): string
     {
-        return match ($contentType) {
-            'programming' => 'coding',
-            'single_choice', 'true_false' => 'mcq',
-            'short_answer' => 'fill_blank',
-            'composite' => 'composite',
-            default => 'coding',
-        };
+        return QuestionZipPackage::questionType($contentType);
     }
 
     /**
@@ -1501,101 +1416,7 @@ class ContentService
      */
     private function buildGradingConfigFromZipPackage(string $contentType, array $json, array $testCases): array
     {
-        $grading = $json['grading'] ?? [];
-
-        return match ($contentType) {
-            'programming' => $this->buildGradingConfig('coding', [
-                'test_cases_parsed' => $testCases,
-                'time_limit_ms' => $grading['time_limit_ms'] ?? 1000,
-                'memory_limit_mb' => $grading['memory_limit_mb'] ?? 256,
-                'languages' => $grading['languages'] ?? null,
-                'file_io' => $grading['file_io'] ?? null,
-                'subtasks' => $json['subtasks'] ?? null,
-            ]),
-            'single_choice' => $this->buildChoiceGradingConfigFromZip($grading),
-            'true_false' => $this->buildTrueFalseGradingConfigFromZip($grading),
-            'short_answer' => $this->buildShortAnswerGradingConfigFromZip($grading),
-            'composite' => $this->buildCompositeGradingConfigFromZip($grading),
-            default => [],
-        };
-    }
-
-    /**
-     * ZIP single_choice: grading.choices = [{id,text}] (thứ tự = thứ tự hiện), grading.
-     * correct_answer = id chữ cái (vd "B"). Map sang ĐÚNG cấu trúc Mcq hiện có (options: mảng
-     * text theo thứ tự, correct_options: mảng CHỈ SỐ — xem QuestionGrader::isMcqCorrect()) để
-     * dùng lại NGUYÊN VẸN toàn bộ máy Mcq đã có, không viết thêm UI/luồng chấm riêng.
-     */
-    private function buildChoiceGradingConfigFromZip(array $grading): array
-    {
-        $choices = $grading['choices'] ?? [];
-        $options = array_values(array_map(fn ($c) => (string) ($c['text'] ?? ''), $choices));
-
-        $correctId = $grading['correct_answer'] ?? null;
-        $correctIndex = null;
-        foreach (array_values($choices) as $i => $c) {
-            if (($c['id'] ?? null) === $correctId) {
-                $correctIndex = $i;
-                break;
-            }
-        }
-
-        return [
-            'options' => $options,
-            'correct_options' => $correctIndex !== null ? [$correctIndex] : [],
-        ];
-    }
-
-    /**
-     * ZIP true_false: chỉ có grading.correct_answer (bool), KHÔNG có 'choices' — map sang Mcq 2
-     * phương án cố định "Đúng"/"Sai", cùng lý do tái dùng máy Mcq như single_choice ở trên.
-     */
-    private function buildTrueFalseGradingConfigFromZip(array $grading): array
-    {
-        $correct = (bool) ($grading['correct_answer'] ?? false);
-
-        return [
-            'options' => ['Đúng', 'Sai'],
-            'correct_options' => [$correct ? 0 : 1],
-        ];
-    }
-
-    /**
-     * ZIP short_answer: grading.accepted_answers + grading.normalization {trim, case_sensitive,
-     * remove_diacritics} -> khớp thẳng cấu trúc FillBlank hiện có, thêm key 'remove_diacritics'
-     * (QuestionGrader::isFillBlankCorrect() đã hỗ trợ đọc, xem SỬA 31/8 (2) ở đó).
-     */
-    private function buildShortAnswerGradingConfigFromZip(array $grading): array
-    {
-        $normalization = $grading['normalization'] ?? [];
-
-        return [
-            'accepted_answers' => array_values(array_map('strval', $grading['accepted_answers'] ?? [])),
-            'case_sensitive' => (bool) ($normalization['case_sensitive'] ?? false),
-            'remove_diacritics' => (bool) ($normalization['remove_diacritics'] ?? false),
-        ];
-    }
-
-    /**
-     * ZIP composite: grading.mode = 'per_part', grading.parts = [{code, response_type, points,
-     * ...}] — GIỮ NGUYÊN cấu trúc gốc của gói ZIP (KHÔNG quy về Mcq/FillBlank như 3 loại trên)
-     * vì mỗi phần (part) có thể khác response_type nhau trong CÙNG 1 câu — không có 1 kiểu
-     * chấm/hiển thị chung nào để quy về. Student\PracticeByQuestionService::gradeCompositeParts()
-     * đọc thẳng cấu trúc này để chấm từng phần lúc "Làm bài". Chuẩn hoá tối thiểu (đảm bảo có
-     * 'points' số) để tránh lỗi truy cập khoá không tồn tại về sau.
-     */
-    private function buildCompositeGradingConfigFromZip(array $grading): array
-    {
-        $parts = array_map(function (array $part) {
-            $part['points'] = (float) ($part['points'] ?? 0);
-
-            return $part;
-        }, $grading['parts'] ?? []);
-
-        return [
-            'mode' => 'per_part',
-            'parts' => array_values($parts),
-        ];
+        return QuestionZipPackage::gradingConfig($contentType, $json, $testCases);
     }
 
     /**

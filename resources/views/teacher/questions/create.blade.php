@@ -13,6 +13,12 @@
             ['key' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => 'pencil'],
             ['key' => 'coding', 'label' => 'Lập trình', 'icon' => 'code-2'],
         ];
+        // SỬA 18/9 — câu "Nhiều phần" (composite) CHỈ tạo được bằng nhập ZIP, không có form nhập
+        // tay, nên chỉ thêm chip này khi đang SỬA đúng 1 câu như vậy (để nút loại không bị trống
+        // trơn). Giống Kho câu hỏi bên admin: dropdown loại cũng lọc bỏ 'composite'.
+        if ($type === 'composite') {
+            $types[] = ['key' => 'composite', 'label' => 'Nhiều phần (từ ZIP)', 'icon' => 'layers'];
+        }
         $config = $question->grading_config ?? [];
         $options = old('options', $config['options'] ?? ['', '', '', '']);
         $correctOption = old('correct_option', $config['correct_options'][0] ?? null);
@@ -42,17 +48,26 @@
         </div>
     @endif
 
-    @if (! $question && $type === 'coding')
+    {{-- SỬA 18/9 (khách: "tạo câu hỏi chỗ giáo viên cũng cho nhập file zip như admin luôn nha")
+         — trước đây khối này CHỈ hiện khi $type === 'coding' nên giáo viên chọn Trắc nghiệm/Điền
+         đáp án là không thấy ô tải ZIP, dù backend (giờ dùng chung App\Support\QuestionZipPackage
+         với admin) đọc được cả 5 loại content.type. Bỏ điều kiện loại đi, hiện với MỌI loại đang
+         chọn — loại câu thật lấy theo content.type trong question.json chứ không theo nút đang
+         chọn ở trên (giống hệt bản admin). --}}
+    @if (! $question)
         <form method="POST" action="{{ route('teacher.questions.zipImport') }}" enctype="multipart/form-data"
               x-data="{ submitting: false }"
               class="mb-6 bg-indigo-50 border border-indigo-100 rounded-3xl p-4 flex flex-wrap items-end gap-3">
             @csrf
+            {{-- Giữ lại loại đang chọn để khi gói ZIP lỗi, quay về đúng tab đang đứng thay vì
+                 rơi về "Lập trình" như trước. --}}
+            <input type="hidden" name="return_type" value="{{ $type }}">
             <div class="flex-1 min-w-[240px]">
-                <label class="block text-[13px] font-medium text-indigo-700 mb-1" for="zip_package"><x-lucide name="package" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Nhập câu hỏi lập trình từ gói ZIP</label>
-                <input id="zip_package" name="zip_package" type="file" accept=".zip" required
+                <label class="block text-[13px] font-medium text-indigo-700 mb-1" for="zip_package"><x-lucide name="package" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Nhập câu hỏi từ gói ZIP</label>
+                <input id="zip_package" name="zip_package" type="file" accept=".zip,application/zip" required
                        @change="submitting = true; $el.form.requestSubmit()" :disabled="submitting"
                        class="w-full text-[13px] text-indigo-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px] disabled:opacity-60">
-                <p class="text-xs text-indigo-500 mt-1">Gói định dạng OT360-QPACK (question.json + đề/lời giải PDF + test case) — <strong>chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
+                <p class="text-xs text-indigo-500 mt-1">Gói định dạng OT360-QPACK (question.json + đề/lời giải PDF + test case/asset) — hỗ trợ <strong>trắc nghiệm, đúng/sai, điền đáp án ngắn, lập trình và câu nhiều phần</strong>. <strong>Chọn tệp xong hệ thống tự động nhập ngay</strong>, không cần bấm nút. Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
             </div>
             <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
                     class="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
@@ -147,6 +162,15 @@
                     <label class="flex items-center gap-2 text-[13px] text-slate-600">
                         <input type="checkbox" name="case_sensitive" value="1" @checked($caseSensitive)> Phân biệt hoa/thường
                     </label>
+                @elseif ($type === 'composite')
+                    {{-- SỬA 18/9 — câu Nhiều phần nhập từ ZIP: cấu hình từng phần con nằm trong
+                         grading_config.parts, KHÔNG có form nhập tay tương ứng. Trước đây nhánh
+                         này rơi vào @else (form Lập trình) nên lưu lại là XOÁ SẠCH các phần con.
+                         Chỉ cho sửa Tiêu đề/Nội dung/Điểm/Độ khó/Tag — đúng như Kho câu hỏi bên
+                         admin đang làm (xem Admin\ContentService::questionUpdate()). --}}
+                    <div class="rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-700">
+                        Câu <strong>Nhiều phần</strong> được nhập từ gói ZIP — cấu hình các phần con ({{ count($config['parts'] ?? []) }} phần) giữ nguyên theo gói, không sửa tay ở đây. Muốn đổi cấu hình chấm thì sửa gói ZIP rồi nhập lại.
+                    </div>
                 @else
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -171,6 +195,26 @@
                 <div class="mb-4">
                     <label class="block text-[13px] text-slate-600 mb-1" for="points">Điểm</label>
                     <input id="points" name="points" type="number" value="{{ old('points', $question->points ?? 10) }}" min="1" max="100" class="admin-input">
+                </div>
+
+                <div class="mb-4">
+                    {{-- SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó,
+                         thêm cho tôi phần này") — lưu vào metadata.difficulty dạng KHOÁ, đúng
+                         bằng 4 mức của bộ lọc ngoài trang Luyện tập công khai, nên đặt xong là
+                         lọc được ngay. Để trống = chưa đặt, hệ thống tự suy từ điểm câu hỏi
+                         (xem Public\PracticeService). --}}
+                    @php
+                        // Giá trị đang lưu của câu (nếu là màn Sửa) — metadata giữ nguyên các
+                        // khoá khác (assets/attachments của gói ZIP), chỉ đọc ra 'difficulty'.
+                        $currentDifficulty = is_array($q0 = ($question->metadata ?? null)) ? ($q0['difficulty'] ?? '') : '';
+                    @endphp
+                    <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
+                    <x-ws.select id="difficulty" name="difficulty">
+                        <option value="">— Tự suy theo điểm —</option>
+                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                            <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
+                        @endforeach
+                    </x-ws.select>
                 </div>
 
                 @if ($question && $question->status->value === 'published')

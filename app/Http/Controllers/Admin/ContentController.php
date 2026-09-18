@@ -237,6 +237,9 @@ class ContentController extends Controller
         $data = $request->validate(array_merge([
             'code' => ['required', 'string', 'max:40'],
             'type' => ['required', 'string', 'in:coding,mcq,fill_blank'],
+            // SỬA 18/9 — ô "Độ khó" mới ở form câu hỏi. Rỗng = chưa đặt (hệ thống tự suy
+            // theo điểm), 4 khoá còn lại khớp đúng bộ lọc ngoài trang Luyện tập.
+            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
@@ -259,6 +262,8 @@ class ContentController extends Controller
     {
         $data = $request->validate(array_merge([
             'code' => ['required', 'string', 'max:40'],
+            // SỬA 18/9 — Độ khó sửa được ở màn Sửa, không chỉ lúc tạo.
+            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
@@ -282,6 +287,10 @@ class ContentController extends Controller
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             'visibility' => ['required', 'string', 'in:public,private'],
+            // SỬA 18/9 — PHẢI có ở đây nữa: form "Tạo phiên bản mới" dùng CHUNG màn Sửa (có ô
+            // Độ khó). Thiếu luật này thì giá trị gửi lên bị validate() loại bỏ, và
+            // questionCreateNewVersion() hiểu là "bỏ trống" -> XOÁ mất độ khó của bản mới.
+            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
         ], $this->questionGradingRules(), $this->tagRules()));
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);

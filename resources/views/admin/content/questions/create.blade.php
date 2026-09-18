@@ -186,6 +186,21 @@
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', 10) }}" class="admin-input">
                 </div>
                 <div>
+                    {{-- SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó,
+                         thêm cho tôi phần này") — lưu vào metadata.difficulty dạng KHOÁ, đúng
+                         bằng 4 mức của bộ lọc ngoài trang Luyện tập công khai, nên đặt xong là
+                         lọc được ngay. Để trống = chưa đặt, hệ thống tự suy từ điểm câu hỏi
+                         (xem Public\PracticeService). --}}
+                    @php $currentDifficulty = ''; @endphp
+                    <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
+                    <x-ws.select id="difficulty" name="difficulty">
+                        <option value="">— Tự suy theo điểm —</option>
+                        @foreach (['easy' => 'Dễ', 'medium' => 'Trung bình', 'hard' => 'Khó', 'expert' => 'Cực khó'] as $dkey => $dlabel)
+                            <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
+                        @endforeach
+                    </x-ws.select>
+                </div>
+                <div>
                     <label class="block text-[13px] text-slate-600 mb-1" for="visibility">Hiển thị</label>
                     <x-ws.select id="visibility" name="visibility" required>
                         @foreach ($visibilities as $value => $label)

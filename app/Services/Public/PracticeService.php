@@ -196,18 +196,46 @@ class PracticeService
             }
 
             $meta = $q->metadata ?? [];
-            $difficultyLevel = (int) ($meta['difficulty'] ?? 0);
-            if ($difficultyLevel < 1 || $difficultyLevel > 5) {
-                // Chưa gắn độ khó thủ công thì suy ra từ điểm của câu (thang 5 sao), vì đây là
-                // dữ liệu có thật của câu hỏi chứ không phải con số bịa ra.
-                $difficultyLevel = max(1, min(5, (int) ceil(($q->points ?: 10) / 20)));
+
+            // SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó, thêm cho tôi;
+            // ngoài luyện tập public thì đổ chỗ Độ khó này ra và lọc được") — metadata.difficulty
+            // giờ do NGƯỜI DÙNG đặt ở form tạo/sửa câu hỏi, lưu dạng KHOÁ ('easy'/'medium'/
+            // 'hard'/'expert') đúng bằng 4 mức của bộ lọc ngoài trang luyện tập.
+            //
+            // Vẫn đọc được giá trị SỐ 1-5 kiểu cũ (câu nhập từ gói ZIP có thể mang dạng này) —
+            // không để dữ liệu cũ mất độ khó chỉ vì đổi cách lưu.
+            $raw = $meta['difficulty'] ?? null;
+            $difficultyKey = null;
+
+            if (is_string($raw) && in_array($raw, ['easy', 'medium', 'hard', 'expert'], true)) {
+                $difficultyKey = $raw;
+            } elseif (is_numeric($raw) && (int) $raw >= 1 && (int) $raw <= 5) {
+                $difficultyKey = match ((int) $raw) {
+                    1, 2 => 'easy',
+                    3 => 'medium',
+                    4 => 'hard',
+                    default => 'expert',
+                };
             }
-            $difficultyKey = match (true) {
-                $difficultyLevel <= 1 => 'easy',
-                $difficultyLevel === 2 => 'easy',
-                $difficultyLevel === 3 => 'medium',
-                $difficultyLevel === 4 => 'hard',
-                default => 'expert',
+
+            if ($difficultyKey === null) {
+                // Chưa ai đặt độ khó thì suy ra từ điểm của câu (thang 5 sao) — vẫn là dữ liệu
+                // có thật của câu hỏi, không phải con số bịa ra.
+                $guess = max(1, min(5, (int) ceil(($q->points ?: 10) / 20)));
+                $difficultyKey = match ($guess) {
+                    1, 2 => 'easy',
+                    3 => 'medium',
+                    4 => 'hard',
+                    default => 'expert',
+                };
+            }
+
+            // Số sao hiển thị suy NGƯỢC từ mức, để cột "Độ khó" và bộ lọc luôn nói cùng một điều.
+            $difficultyLevel = match ($difficultyKey) {
+                'easy' => 2,
+                'medium' => 3,
+                'hard' => 4,
+                default => 5,
             };
 
             $limits = $q->grading_config['limits'] ?? [];
