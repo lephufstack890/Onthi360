@@ -313,6 +313,13 @@ class AssessmentService
             403
         );
 
+        // SỬA 18/9 — lượt TỰ LUYỆN theo câu không thuộc đề nào (assessment_id = null, xem
+        // Student\PracticeByQuestionService::recordSubmission()). Cả trang này dựng quanh một
+        // đề (điểm tối đa, chế độ PDF, danh sách câu trong đề) nên không có đề là không dựng
+        // được — trả 404 thay vì vỡ ở dòng dưới. Lịch sử làm bài đã trỏ lượt tự luyện về trang
+        // Luyện tập, đây chỉ là chốt chặn cho ai gõ thẳng URL.
+        abort_if($attemptModel->assessment === null, 404);
+
         if ($attemptModel->assessment->isPdfMode()) {
             return $this->buildPdfResultData($user, $attemptModel);
         }

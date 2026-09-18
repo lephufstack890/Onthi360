@@ -23,7 +23,12 @@
 --}}
 @section('content')
     @php
-        $finished = $finished ?? false;
+        // SỬA 18/9 (2) — KHÔNG có $question thì coi như đã xong. Bình thường playData() luôn
+        // trả một trong hai hình (đang làm: có $question / đã xong: không có), nên nhánh này
+        // không bao giờ chạy — để đây làm van an toàn: thiếu dữ liệu thì hiện màn "đã hoàn tất"
+        // chứ tuyệt đối không vỡ trang 500 giữa lúc học sinh đang làm bài.
+        $question = $question ?? null;
+        $finished = $finished ?? ($question === null);
         $feedback = $feedback ?? null;
         $options = $options ?? [];
         $compositeParts = $compositeParts ?? [];
@@ -58,6 +63,21 @@
         // Bản mẫu chia giao diện làm bài làm 2 nhánh: câu Lập trình (trình soạn mã +
         // INPUT/OUTPUT) và các dạng còn lại (một panel "Cách trả lời").
         $isCode = ! $finished && $question->type->value === 'coding';
+
+        /*
+         * SỬA 18/9 (2) — LỖI 500 THẬT (khách vừa gặp lúc 16:20, xem laravel.log: "Undefined
+         * variable $question"): thanh tiêu đề LUÔN hiển thị, kể cả ở trạng thái ĐÃ HOÀN TẤT —
+         * mà lúc đó PracticeByQuestionService::playData() KHÔNG trả $question nữa (nhánh
+         * `$index >= $total` chỉ trả finished/total/correct/answered/...). Đọc thẳng
+         * $question->code / ->title / ->points ở thanh tiêu đề là vỡ trang ngay khi học sinh
+         * bấm "Hoàn tất bài tập".
+         *
+         * Rút sẵn 3 giá trị an toàn ở đây, thanh tiêu đề chỉ dùng chúng. Quy tắc chung cho tệp
+         * này: MỌI thứ nằm ngoài `@if (! $finished)` không được đụng tới $question.
+         */
+        $headCode = $finished ? null : $question->code;
+        $headPoints = $finished ? null : $question->points;
+        $headTitle = $finished ? 'Đã hoàn tất bài tập' : $question->title;
     @endphp
 
     {{-- SỬA 18/9 (khách: "copy Assessment Modal á, khi click thì nó hiển thị modal vậy á") —
@@ -90,10 +110,12 @@
 
             <div class="min-w-0 flex-1">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-[#126F91]">
-                    @if ($question->code){{ $question->code }} · @endif{{ $question->points }} điểm
+                    @if ($headCode){{ $headCode }} · @endif
+                    @if ($headPoints !== null){{ $headPoints }} điểm
+                    @endif
                 </p>
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h2 class="min-w-0 truncate text-sm font-extrabold text-[#123B68] sm:text-base">{{ $question->title }}</h2>
+                    <h2 class="min-w-0 truncate text-sm font-extrabold text-[#123B68] sm:text-base">{{ $headTitle }}</h2>
                     @if ($typeBadge)
                         <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">{{ $typeBadge }}</span>
                     @endif
@@ -167,7 +189,7 @@
                     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]">{{ $isCode ? 'Soạn mã' : 'Trả lời câu hỏi' }}</span>
                         @if (! $finished)
-                            <span class="shrink-0 text-[10px] font-bold text-[#7A92A3]">{{ $question->points }} điểm</span>
+                            <span class="shrink-0 text-[10px] font-bold text-[#7A92A3]">{{ $headPoints }} điểm</span>
                         @endif
                     </div>
 
@@ -182,205 +204,13 @@
                                 <p class="mt-2 text-[13px] leading-6 text-[#607A90]">Bài tập của bạn đã được ghi nhận — phần nào tự chấm được đã báo đúng/sai ngay, phần tự luận/lập trình (nếu có) chờ chấm sau.</p>
                                 <a href="{{ $backUrl }}" class="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">‹ {{ $backLabel }}</a>
                             </div>
-                        @elseif ($feedback !== null && ! $isCode)
-                            {{-- ĐÃ CHẤM — khối kết quả CŨ, chép nguyên văn, chiếm trọn khung.
-
-                                 SỬA 18/9 (khách: "khi ghi nhận làm bài xong hiển thị kết quả test
-                                 bên dưới luôn, khỏi cần phải qua trang này") — thêm điều kiện
-                                 `! $isCode`: bài LẬP TRÌNH giờ giữ nguyên khu soạn mã và hiện kết
-                                 quả ngay bên dưới (xem partials.practice-coding-result ở nhánh
-                                 form phía dưới), để học sinh đọc test sai rồi sửa code tại chỗ.
-                                 Trắc nghiệm/điền đáp án/nhiều phần vẫn dùng khối này như cũ —
-                                 mấy dạng đó trả lời xong là xong, không có gì để sửa tiếp. --}}
-                            <div class="mx-auto max-w-3xl rounded-xl bg-white p-4 sm:p-5">
-                        {{-- Đã trả lời — hiện kết quả đúng/sai + đáp án đúng, khoá form lại. --}}
-                        <div class="space-y-3">
-                            @if ($question->type->value === 'mcq')
-                                @foreach ($options as $i => $opt)
-                                    @if ($opt !== '' && $opt !== null)
-                                        @php
-                                            $isCorrectOpt = in_array((int) $i, array_map('intval', $feedback['correctOptions']), true);
-                                            $isYourPick = (string) $feedback['yourSelectedOption'] === (string) $i;
-                                        @endphp
-                                        <div @class([
-                                            'flex items-center gap-2 p-4 rounded-xl border text-base',
-                                            'border-emerald-300 bg-emerald-50 text-emerald-700' => $isCorrectOpt,
-                                            'border-blue-300 bg-blue-50 text-blue-600' => $isYourPick && ! $isCorrectOpt,
-                                            'border-sky-100 text-slate-500' => ! $isCorrectOpt && ! $isYourPick,
-                                        ])>
-                                            <span>{{ $isCorrectOpt ? '✓' : ($isYourPick ? '✕' : '') }}</span>
-                                            <span>{{ $opt }}</span>
-                                        </div>
-                                    @endif
-                                @endforeach
-                            @elseif ($question->type->value === 'fill_blank')
-                                <div class="p-4 rounded-xl border border-sky-100 text-base text-slate-500">
-                                    Bạn trả lời: <span class="font-medium text-slate-700">{{ $feedback['yourText'] }}</span>
-                                </div>
-                                <div class="p-4 rounded-xl border border-emerald-300 bg-emerald-50 text-base text-emerald-700">
-                                    Đáp án đúng: {{ implode(', ', $feedback['acceptedAnswers']) }}
-                                </div>
-                            @elseif ($question->type->value === 'composite')
-                                @foreach (($feedback['compositeParts'] ?? []) as $part)
-                                    <div @class([
-                                        'p-4 rounded-xl border text-base',
-                                        'border-emerald-300 bg-emerald-50 text-emerald-700' => $part['gradable'] && $part['isCorrect'],
-                                        'border-blue-300 bg-blue-50 text-blue-600' => $part['gradable'] && ! $part['isCorrect'],
-                                        'border-sky-200 bg-sky-50 text-sky-700' => ! $part['gradable'],
-                                    ])>
-                                        <p class="font-medium mb-1">Phần {{ strtoupper($part['code']) }} ({{ $part['points'] }} điểm)</p>
-                                        <p>Bạn trả lời: {{ is_bool($part['yourAnswer']) ? ($part['yourAnswer'] ? 'Đúng' : 'Sai') : ($part['yourAnswer'] ?: '—') }}</p>
-                                        @if ($part['gradable'])
-                                            <p>{{ $part['isCorrect'] ? '✓ Chính xác' : '✕ Chưa đúng — đáp án đúng: '.$part['correctAnswer'] }}</p>
-                                        @else
-                                            <p><x-lucide name="mail" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Đã ghi nhận — phần tự luận chưa có chấm tự động.</p>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            @else
-                                <div class="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-sky-100 text-[13px] text-slate-500 mb-2">
-                                    <span>Ngôn ngữ:</span> <span class="font-semibold text-slate-700">{{ $feedback['yourLanguage'] ?: '—' }}</span>
-                                </div>
-                                <pre class="p-4 rounded-xl border border-slate-700 bg-[#272822] text-[13px] text-slate-100 font-mono overflow-x-auto whitespace-pre-wrap">{{ $feedback['yourCode'] }}</pre>
-                            @endif
-
-                            {{-- SỬA 3/9 (3, khách yêu cầu: "logic ok hết rồi, xây lại UI cho đẹp")
-                                 — banner verdict đổi từ khối chữ căn giữa trơn sang bố cục ngang
-                                 icon tròn + chữ (rõ ràng/hiện đại hơn), cùng kiểu áp dụng ở
-                                 by-question-play.blade.php. --}}
-                            @if ($feedback['gradable'])
-                                <div @class([
-                                    'rounded-xl p-4 flex items-center gap-3',
-                                    'bg-emerald-50 border border-emerald-200' => $feedback['isCorrect'],
-                                    'bg-blue-50 border border-blue-200' => ! $feedback['isCorrect'],
-                                ])>
-                                    <span @class([
-                                        'w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0',
-                                        'bg-emerald-100 text-emerald-700' => $feedback['isCorrect'],
-                                        'bg-blue-100 text-blue-600' => ! $feedback['isCorrect'],
-                                    ])>{{ $feedback['isCorrect'] ? '✓' : '✕' }}</span>
-                                    {{-- SỬA 3/9 (2, đồng bộ với by-question-play.blade.php) — câu
-                                         Lập trình hiện nhãn verdict CỤ THỂ (VerdictStatus::label(),
-                                         vd "Sai kết quả (Wrong Answer)"/"Lỗi biên dịch (Compilation
-                                         Error)"/"Quá thời gian (Time Limit Exceeded)") thay vì luôn
-                                         "✕ Chưa đúng" chung chung — MCQ/điền đáp án/composite giữ
-                                         nguyên câu cũ (không có nhiều dạng verdict như Lập trình). --}}
-                                    <span @class([
-                                        'text-base font-semibold',
-                                        'text-emerald-700' => $feedback['isCorrect'],
-                                        'text-blue-600' => ! $feedback['isCorrect'],
-                                    ])>
-                                        @if ($question->type->value === 'coding' && ! $feedback['isCorrect'] && $feedback['codingVerdictLabel'])
-                                            {{ $feedback['codingVerdictLabel'] }}
-                                        @else
-                                            {{ $feedback['isCorrect'] ? 'Chính xác!' : 'Chưa đúng — xem đáp án ở trên.' }}
-                                        @endif
-                                    </span>
-                                </div>
-                                {{-- SỬA 3/9 (2, khách yêu cầu: hiện chi tiết từng test đúng/sai +
-                                     cho tải test sai về) — danh sách ĐẦY ĐỦ từng test case
-                                     (PracticeByQuestionService::judgeCodingAnswer() trả
-                                     'codingTestCases', xem CodeJudgingService::judge()). Test
-                                     ĐÚNG chỉ hiện 1 dòng khoá cứng — test SAI bấm vào mới xổ chi
-                                     tiết (script cuối trang, cùng logic by-question-play.blade.php).
-                                     SỬA 3/9 (3) — gộp các dòng test vào 1 khung chung (divide-y)
-                                     thay vì mỗi dòng 1 khung riêng rời rạc, thêm icon tròn ✓/✕
-                                     thay ký tự trơn, đồng bộ phong cách với banner verdict trên. --}}
-                                @if ($question->type->value === 'coding' && ! empty($feedback['codingTestCases']))
-                                    @php
-                                        $tcs = $feedback['codingTestCases'];
-                                        $tcPassed = collect($tcs)->where('isAccepted', true)->count();
-                                        $tcFailed = collect($tcs)->reject(fn ($t) => $t['isAccepted'])->values();
-                                    @endphp
-                                    <div class="mt-3 rounded-xl border border-sky-100 overflow-hidden divide-y divide-slate-100">
-                                        <div class="px-3.5 py-2 bg-slate-50 flex items-center justify-between">
-                                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Kết quả từng test</p>
-                                            <span class="text-xs font-semibold text-slate-600">Đúng {{ $tcPassed }}/{{ count($tcs) }}</span>
-                                        </div>
-                                        @foreach ($tcs as $tc)
-                                            <div data-test-case-row>
-                                                <button type="button"
-                                                        @class([
-                                                            'w-full flex items-center justify-between gap-2 px-3.5 py-2 text-[13px] text-left transition-colors',
-                                                            'text-emerald-700' => $tc['isAccepted'],
-                                                            'text-blue-600 hover:bg-sky-50' => ! $tc['isAccepted'],
-                                                        ])
-                                                        @if ($tc['isAccepted']) disabled @else data-test-case-toggle @endif>
-                                                    <span class="inline-flex items-center gap-2">
-                                                        <span @class([
-                                                            'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
-                                                            'bg-emerald-100 text-emerald-700' => $tc['isAccepted'],
-                                                            'bg-blue-100 text-blue-600' => ! $tc['isAccepted'],
-                                                        ])>{{ $tc['isAccepted'] ? '✓' : '✕' }}</span>
-                                                        Test {{ $tc['index'] }} — {{ $tc['statusLabel'] }}
-                                                    </span>
-                                                    @if (! $tc['isAccepted'])
-                                                        <span data-test-case-arrow class="text-slate-400">▾</span>
-                                                    @endif
-                                                </button>
-                                                @if (! $tc['isAccepted'])
-                                                    <div class="hidden px-3.5 py-2.5 text-xs text-slate-600 bg-slate-50 border-t border-slate-100 space-y-2" data-test-case-detail>
-                                                        <div>
-                                                            <p class="font-semibold text-slate-500 mb-1">Dữ liệu vào</p>
-                                                            <pre class="p-2 rounded-xl bg-white border border-sky-100 overflow-x-auto whitespace-pre-wrap">{{ $tc['input'] !== '' ? $tc['input'] : '(rỗng)' }}</pre>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-slate-500 mb-1">Kết quả mong đợi</p>
-                                                            <pre class="p-2 rounded-xl bg-white border border-sky-100 overflow-x-auto whitespace-pre-wrap">{{ $tc['expectedOutput'] }}</pre>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-slate-500 mb-1">Chương trình của bạn in ra</p>
-                                                            <pre class="p-2 rounded-xl bg-white border border-sky-100 overflow-x-auto whitespace-pre-wrap">{{ $tc['actualOutput'] !== null && $tc['actualOutput'] !== '' ? $tc['actualOutput'] : '(không có gì)' }}</pre>
-                                                        </div>
-                                                        @if ($tc['compileOutput'] || $tc['stderr'])
-                                                            <div>
-                                                                <p class="font-semibold text-blue-500 mb-1">Lỗi</p>
-                                                                <pre class="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 overflow-x-auto whitespace-pre-wrap">{{ trim(($tc['compileOutput'] ?? '')."\n".($tc['stderr'] ?? '')) }}</pre>
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                    @if ($tcFailed->isNotEmpty())
-                                        <button type="button"
-                                                class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-600 bg-blue-50 hover:text-blue-700 transition-colors"
-                                                data-download-failed-tests
-                                                data-question-id="{{ $question->id }}"
-                                                data-tests="{{ $tcFailed->toJson() }}">
-                                            ⬇️ Tải test sai (.txt)
-                                        </button>
-                                    @endif
-                                @endif
-                            @elseif (! empty($feedback['codingError']))
-                                {{-- SỬA 18/9 (khách: "ghi nhận bài làm máy chấm vẫn không chấm được") — LỖI CŨ:
-                                     máy chấm chết thì rơi vào nhánh @else bên dưới và hiện "chưa có chấm tự
-                                     động cho phần này", nghe như hệ thống CỐ Ý không chấm bài Lập trình — trong
-                                     khi thật ra là máy chấm không tới được. Giờ nói đúng bản chất + trấn an là
-                                     bài KHÔNG bị tính sai, xem PracticeByQuestionService::judgeCodingAnswer(). --}}
-                                <div class="rounded-xl p-4 flex items-start gap-3 bg-amber-50 border border-amber-200">
-                                    <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100 text-amber-700"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
-                                    <span class="min-w-0">
-                                        <span class="block text-[13px] font-bold text-amber-800">Chưa chấm được bài</span>
-                                        <span class="mt-0.5 block text-[13px] leading-relaxed text-amber-800">{{ $feedback['codingError'] }}</span>
-                                    </span>
-                                </div>
-                            @else
-                                <div class="rounded-xl p-4 flex items-center gap-3 bg-sky-50 border border-sky-200">
-                                    <span class="w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 bg-sky-100 text-sky-700"><x-lucide name="mail" class="h-4 w-4" /></span>
-                                    <span class="text-[13px] font-medium text-sky-700">Đã ghi nhận bài làm — chưa có chấm tự động cho phần này.</span>
-                                </div>
-                            @endif
-
-                            <form method="POST" action="{{ route('student.practiceByQuestion.next') }}" class="mt-1">
-                                @csrf
-                                <button type="submit" class="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-base font-semibold shadow-sm">
-                                    Hoàn tất bài tập ›
-                                </button>
-                            </form>
-                        </div>
-                            </div>
+                        {{-- SỬA 18/9 (2) (khách: "kiểm tra đáp án xong không cần hiển thị ra màn
+                             này mà hiển thị kết quả bên chỗ modal luôn") — ĐÃ BỎ nhánh "màn kết quả
+                             riêng chiếm trọn khung" ở đây. Mọi dạng câu giờ giữ nguyên panel trả lời
+                             và hiện kết quả TẠI CHỖ:
+                               · Lập trình        -> partials.practice-coding-result (dưới khu soạn mã)
+                               · 3 dạng còn lại   -> partials.practice-answer-review (trong panel trả lời)
+                             Nhờ vậy không còn cảm giác bị nhảy sang một trang khác sau mỗi lần chấm. --}}
                         @else
                             <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="min-h-full" data-ajax-answer>
                                 @csrf
@@ -517,7 +347,10 @@
                                                     </div>
                                                 @endif
 
-                                                @if ($question->type->value === 'mcq')
+                                                @if ($feedback !== null)
+                                                    {{-- ĐÃ CHẤM — khoá ô nhập, hiện đáp án đúng/sai tại chỗ. --}}
+                                                    @include('partials.practice-answer-review')
+                                                @elseif ($question->type->value === 'mcq')
                                                     <div class="space-y-2">
                                                         @foreach ($options as $i => $opt)
                                                             @if ($opt !== '' && $opt !== null)
@@ -573,12 +406,17 @@
                                             </div>
                                         </section>
 
-                                        <div class="flex shrink-0 flex-col items-end gap-2 rounded-xl border border-[#DDEAF0] bg-white p-2.5">
-                                            <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
-                                                <x-lucide name="send" class="h-3.5 w-3.5" />Kiểm tra đáp án
-                                            </button>
-                                            <p data-ajax-error class="hidden text-[11px] text-[#B42318]"></p>
-                                        </div>
+                                        {{-- Chấm xong thì giấu nút: trắc nghiệm/điền đáp án/nhiều phần đã
+                                             thấy đáp án đúng rồi, bấm lại không còn ý nghĩa gì (khác bài
+                                             Lập trình — ở đó nút đổi thành "Chấm lại" để sửa code). --}}
+                                        @if ($feedback === null)
+                                            <div class="flex shrink-0 flex-col items-end gap-2 rounded-xl border border-[#DDEAF0] bg-white p-2.5">
+                                                <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
+                                                    <x-lucide name="send" class="h-3.5 w-3.5" />Kiểm tra đáp án
+                                                </button>
+                                                <p data-ajax-error class="hidden text-[11px] text-[#B42318]"></p>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
                             </form>
@@ -587,7 +425,7 @@
                                  cho lồng <form> vào nhau (trình duyệt sẽ âm thầm bỏ form bên trong).
                                  Nút bấm nằm ở cuối khối kết quả và trỏ ngược lên đây bằng thuộc tính
                                  form="practice-finish-form" — xem partials.practice-coding-result. --}}
-                            @if ($feedback !== null && $isCode)
+                            @if ($feedback !== null)
                                 <form id="practice-finish-form" method="POST" action="{{ route('student.practiceByQuestion.next') }}" class="hidden">
                                     @csrf
                                 </form>

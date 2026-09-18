@@ -92,18 +92,32 @@ class PracticeService
                 ], $a->assessment))->all(),
             'assigned' => $this->assignedTabItems($classRoomIds),
             'saved' => [], // TODO: chưa có bảng "đã lưu/bookmark".
+            // SỬA 18/9 (khách: "làm bài rồi mà không hiển % tỉ lệ / không đổi thành Luyện lại")
+            // — từ nay lượt LUYỆN THEO CÂU cũng được ghi lại (Student\PracticeByQuestionService
+            // ::recordSubmission()). Lượt đó KHÔNG thuộc đề nào (assessment_id = null) nên tên
+            // phải lấy từ chính các câu đã làm, và nút phải trỏ về trang Luyện tập chứ không
+            // phải trang kết quả đề (trang đó dựng quanh một đề, không có đề thì vô nghĩa).
             'history' => $this->attempts->recentSubmittedForUser($user->id, 30)
-                ->map(fn ($attempt) => [
-                    'title' => $attempt->assessment->title ?? 'Bài đã nộp',
-                    'type' => $attempt->assessment?->type?->value ?? '',
-                    'typeLabel' => $attempt->assessment?->type?->label() ?? '',
-                    'typeIcon' => $attempt->assessment?->type?->icon() ?? '📝',
-                    'source' => ucfirst($attempt->source?->value ?? ''),
-                    'difficulty' => '',
-                    'status' => $attempt->total_score !== null ? 'Đã nộp — '.$attempt->total_score : 'Đang chấm',
-                    'tone' => $attempt->is_provisional ? 'info' : 'success',
-                    'takeRoute' => route('student.assessment.result', $attempt->id),
-                ])->all(),
+                ->map(function ($attempt) {
+                    $isSelfPractice = $attempt->assessment_id === null;
+
+                    $questionCount = $isSelfPractice ? $attempt->answers()->count() : 0;
+
+                    return [
+                        'title' => $attempt->assessment->title
+                            ?? ($isSelfPractice ? 'Tự luyện '.$questionCount.' câu' : 'Bài đã nộp'),
+                        'type' => $attempt->assessment?->type?->value ?? '',
+                        'typeLabel' => $attempt->assessment?->type?->label() ?? ($isSelfPractice ? 'Luyện theo câu' : ''),
+                        'typeIcon' => $attempt->assessment?->type?->icon() ?? '📝',
+                        'source' => $isSelfPractice ? 'Tự luyện' : ucfirst($attempt->source?->value ?? ''),
+                        'difficulty' => '',
+                        'status' => $attempt->total_score !== null ? 'Đã nộp — '.$attempt->total_score : 'Đang chấm',
+                        'tone' => $attempt->is_provisional ? 'info' : 'success',
+                        'takeRoute' => $isSelfPractice
+                            ? route('practice.index')
+                            : route('student.assessment.result', $attempt->id),
+                    ];
+                })->all(),
             default => $this->assessments->publishedPractice(30)
                 ->map(fn ($a) => $this->withQuestionMeta([
                     'title' => $a->title,

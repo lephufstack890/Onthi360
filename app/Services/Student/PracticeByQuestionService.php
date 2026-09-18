@@ -2,12 +2,17 @@
 
 namespace App\Services\Student;
 
+use App\Enums\AttemptSource;
+use App\Enums\AttemptStatus;
+use App\Enums\VerdictStatus;
+use App\Models\Attempt;
 use App\Models\Question;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\CodeJudgingService;
 use App\Services\QuestionGrader;
 use App\Support\PracticeFilters;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Throwable;
@@ -215,9 +220,93 @@ class PracticeByQuestionService
             'compositeParts' => $compositeResult['parts'] ?? null,
         ];
 
+        // SỬA 18/9 — GHI NHẬN vào attempts/attempt_answers. Phải làm sau khi đã có
+        // $isCorrect/$gradable, và trước khi trả về, để Tỷ lệ AC + nhãn "Luyện lại" ngoài trang
+        // Luyện tập cập nhật ngay lần tải kế tiếp. Xem recordSubmission().
+        $this->recordSubmission($question, $state, $data, $isCorrect, $gradable, $codingResult);
+
         Session::put(self::SESSION_KEY, $state);
 
         return true;
+    }
+
+    /**
+     * SỬA 18/9 (khách: "làm bài rồi mà không hiển % tỉ lệ, không chuyển chữ Làm bài thành
+     * Luyện lại") — LƯU bài làm xuống CSDL.
+     *
+     * Trước đây màn này cố ý chỉ giữ trong session, nên hai chỗ đọc attempt_answers là
+     * Public\PracticeService::problemRows() (Tỷ lệ AC + trạng thái ac/doing) và tab "Lịch sử
+     * làm bài" đều không thấy gì — học sinh làm bao nhiêu bài thì ngoài kia vẫn 0%.
+     *
+     * MỖI PHIÊN luyện = 1 Attempt (assessment_id = null: không thuộc đề nào, xem migration
+     * make_assessment_id_nullable_on_attempts_table); MỖI CÂU trong phiên = 1 AttemptAnswer,
+     * nộp lại cùng câu thì CẬP NHẬT dòng cũ và tăng submission_count chứ không đẻ thêm dòng —
+     * đúng cách AttemptService đang làm cho bài thi, để Tỷ lệ AC không bị thổi phồng chỉ vì
+     * một người bấm nộp nhiều lần.
+     *
+     * Chỉ ghi khi CHẤM ĐƯỢC ($gradable): máy chấm chết hay bài thiếu test thì không có kết quả
+     * thật nào để tính, ghi vào chỉ làm bẩn số liệu.
+     *
+     * @param  array<string, mixed>  $state  tham chiếu — nhận thêm khoá 'attempt_id' của phiên.
+     */
+    private function recordSubmission(Question $question, array &$state, array $data, bool $isCorrect, bool $gradable, ?array $codingResult): void
+    {
+        $user = Auth::user();
+
+        if ($user === null || ! $gradable) {
+            return;
+        }
+
+        $attempt = isset($state['attempt_id']) ? Attempt::find($state['attempt_id']) : null;
+
+        if ($attempt === null) {
+            $attempt = Attempt::create([
+                'user_id' => $user->id,
+                'assessment_id' => null,
+                'source' => AttemptSource::Personal->value,
+                'started_at' => now(),
+                'status' => AttemptStatus::Graded->value,
+                'total_score' => 0,
+                'is_provisional' => false,
+            ]);
+
+            $state['attempt_id'] = $attempt->id;
+        }
+
+        $score = $isCorrect ? (int) $question->points : 0;
+
+        $verdict = match (true) {
+            $question->type->value === 'coding' => $codingResult['verdict'] ?? VerdictStatus::SystemError->value,
+            $isCorrect => VerdictStatus::Accepted->value,
+            default => VerdictStatus::WrongAnswer->value,
+        };
+
+        $existing = $attempt->answers()->where('question_id', $question->id)->first();
+
+        $attempt->answers()->updateOrCreate(
+            ['question_id' => $question->id],
+            [
+                // 'answer' là cột JSON — gom cả 3 dạng trả lời vào đây, bỏ khoá rỗng cho gọn.
+                'answer' => array_filter([
+                    'selected_option' => $data['selected_option'] ?? null,
+                    'text' => $data['text'] ?? null,
+                    'parts' => $data['parts'] ?? null,
+                ], fn ($v) => $v !== null && $v !== []),
+                'code_source' => $data['code_source'] ?? null,
+                'language' => $data['language'] ?? null,
+                'verdict' => $verdict,
+                'score' => $score,
+                'graded_at' => now(),
+                'submission_count' => ($existing?->submission_count ?? 0) + 1,
+            ],
+        );
+
+        // Điểm của phiên = tổng điểm các câu đã chấm trong phiên. submitted_at đặt mỗi lần nộp
+        // để lượt này nổi lên đầu tab "Lịch sử làm bài" (truy vấn ở đó lọc whereNotNull).
+        $attempt->update([
+            'total_score' => (int) $attempt->answers()->sum('score'),
+            'submitted_at' => now(),
+        ]);
     }
 
     /**
