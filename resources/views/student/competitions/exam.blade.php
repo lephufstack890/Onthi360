@@ -71,6 +71,7 @@
              languages: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['language'] ?: 'cpp'])),
              firstId: @js($firstId),
              lastId: @js($lastId),
+             warnOnLeave: true,
          })"
          x-init="init()">
 
@@ -106,9 +107,55 @@
             </div>
         </div>
 
+        {{-- ══════ SỬA 19/9 (6) — HỎI LẠI TRƯỚC KHI RỜI PHÒNG THI ══════
+             Câu chữ cố ý nói THẲNG điều quan trọng nhất: bài đã lưu, NHƯNG ĐỒNG HỒ VẪN CHẠY.
+             Đây là luật thật ở máy chủ (AttemptService::deadlineFor() tính từ lúc BẮT ĐẦU
+             làm bài, không phải từ lúc mở trang), nên nếu chỉ ghi "bài đã được lưu" là nói
+             nửa sự thật, thí sinh sẽ tưởng rời đi bao lâu cũng được. --}}
+        <div x-cloak x-show="leaveOpen" x-transition.opacity @keydown.escape.window="leaveOpen = false"
+             class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+                <div class="flex items-start gap-3">
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FFF3D9] text-[#A4621B]">
+                        <x-lucide name="alert-triangle" class="h-5 w-5" />
+                    </span>
+                    <div class="min-w-0">
+                        <h2 class="text-base font-extrabold text-[#123B68]">Rời phòng thi khi đang làm bài?</h2>
+                        <p class="mt-1 text-[12px] leading-5 text-[#607A90]">Bài làm của bạn đã được lưu, nhưng vòng thi vẫn tiếp tục chạy.</p>
+                    </div>
+                </div>
+
+                <template x-if="deadlineAt !== null">
+                    <div class="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[#EAD9A8] bg-[#FFF8E8] px-3 py-2.5">
+                        <span class="text-[11px] font-bold text-[#7C541C]">Thời gian còn lại</span>
+                        <span class="text-base font-black tabular-nums text-[#A4621B]" x-text="remainingLabel"></span>
+                    </div>
+                </template>
+
+                <ul class="mt-3 space-y-1.5 text-[12px] leading-5 text-[#45657D]">
+                    <li class="flex gap-2"><x-lucide name="check" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#2F8A6B]" /><span>Câu trả lời đã nhập <span class="font-bold">được giữ nguyên</span>, quay lại là làm tiếp.</span></li>
+                    <li class="flex gap-2"><x-lucide name="clock" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A4621B]" /><span><span class="font-bold">Đồng hồ vẫn chạy</span> trong lúc bạn rời đi — thời gian không được cộng bù.</span></li>
+                    <li class="flex gap-2"><x-lucide name="lock-keyhole" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9B2C2C]" /><span>Hết giờ, hệ thống <span class="font-bold">tự nộp bài</span> và bạn <span class="font-bold">không vào lại được</span>.</span></li>
+                </ul>
+
+                <div class="mt-5 flex flex-col gap-2 sm:flex-row">
+                    <button type="button" @click="leaveOpen = false"
+                            class="flex-1 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">
+                        Ở lại làm bài
+                    </button>
+                    <button type="button" @click="leaveNow()"
+                            class="flex-1 rounded-xl border border-[#DDEAF0] bg-white px-4 py-2.5 text-[12px] font-bold text-[#45657D] transition hover:bg-[#F4F9FB]">
+                        Vẫn rời phòng thi
+                    </button>
+                </div>
+            </div>
+        </div>
+
         {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
         <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">
-            <a href="{{ $contestRoomUrl }}" aria-label="Rời phòng thi" title="Rời phòng thi (bài làm đã tự lưu)"
+            {{-- href giữ nguyên để bấm chuột giữa / mở tab mới vẫn đúng; .prevent chỉ chặn cú bấm thường. --}}
+            <a href="{{ $contestRoomUrl }}" @click.prevent="askLeave('{{ $contestRoomUrl }}')"
+               aria-label="Rời phòng thi" title="Rời phòng thi"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
             <div class="min-w-0 flex-1">
@@ -178,7 +225,7 @@
             </span>
 
             {{-- Nút chữ "Thoát phòng thi" — đứng cạnh nút nộp, giống "Thoát bài tập" của màn luyện tập. --}}
-            <a href="{{ $contestRoomUrl }}"
+            <a href="{{ $contestRoomUrl }}" @click.prevent="askLeave('{{ $contestRoomUrl }}')"
                class="hidden shrink-0 items-center rounded-xl px-2 py-2 text-xs font-bold text-[#45657D] transition hover:bg-[#F4F9FB] sm:flex">
                 Thoát phòng thi
             </a>

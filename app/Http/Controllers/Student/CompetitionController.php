@@ -110,15 +110,14 @@ class CompetitionController extends Controller
             return redirect()->route('student.assessment.result', $data['attempt']->id);
         }
 
+        /*
+         * SỬA 19/9 (5) — đề PDF có PHÒNG THI RIÊNG của cuộc thi (exam-pdf), không còn mượn màn
+         * student.assessment.take-pdf vốn chạy trong layout học sinh (còn nguyên sidebar, nhìn
+         * lệch hẳn so với phòng thi câu lập trình). Hai view cùng dùng chung dữ liệu của
+         * buildTakeData() và chung partials/exam-pdf-workspace-script nên logic không tách đôi.
+         */
         if ($data['isPdfMode']) {
-            Log::warning('Phòng thi cuộc thi: ĐỀ DẠNG PDF -> dùng màn phiếu đáp án, không phải modal cuộc thi', [
-                'competition_id' => $competition,
-                'competition_exam_id' => $exam,
-                'user_id' => $user?->id,
-                'assessment_id' => $context['assessmentId'],
-            ]);
-
-            return view('student.assessment.take-pdf', $data);
+            return view('student.competitions.exam-pdf', array_merge($data, $context));
         }
 
         Log::info('Phòng thi cuộc thi: MỞ MODAL', [

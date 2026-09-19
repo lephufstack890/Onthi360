@@ -499,6 +499,15 @@ class AttemptService
      *  (1) started_at + assessment.duration_minutes — thời lượng làm bài của riêng lượt này;
      *  (2) khung giờ ca thi của assignment (Assignment::shiftWindowFor(), có thể sớm hơn nếu
      *      học sinh bắt đầu làm bài gần sát giờ đóng bài giao).
+     *  (3) SỬA 19/9 (6) — ends_at của VÒNG THI (competition_exams) và của CUỘC THI
+     *      (competitions) mà lượt làm bài này thuộc về.
+     *
+     * Vì sao phải có (3): trước đây thiếu nó thì thí sinh vào thi sát giờ đóng vòng vẫn được
+     * làm trọn thời lượng của đề. Ví dụ vòng đóng 10:00, đề dài 60 phút, vào lúc 9:55 -> hạn
+     * nộp tính ra 10:55, tức là làm thêm 55 phút SAU KHI vòng thi đã đóng, trong khi người
+     * vào đúng giờ chỉ có 60 phút. Lấy mốc sớm nhất nên ai vào muộn thì mất phần thời gian
+     * tương ứng — đúng luật của một cuộc thi.
+     *
      * Dùng CHUNG cho cả (a) đồng hồ đếm ngược hiển thị ở client (chỉ để NHÌN, không phải nơi
      * chặn) và (b) chặn thật ở server trong saveAnswer()/isExpired() bên dưới.
      */
@@ -516,6 +525,23 @@ class AttemptService
 
             if ($closesAt !== null) {
                 $deadline = $deadline === null ? $closesAt : $deadline->min($closesAt);
+            }
+        }
+
+        /*
+         * SỬA 19/9 (6) — nguồn (3): giờ đóng của vòng thi, rồi tới giờ đóng của cuộc thi.
+         *
+         * Đọc qua quan hệ (competitionExam/competition) chứ không truy vấn thêm ở đây; hai cột
+         * competition_exam_id / competition_id đã được ghi vào lượt làm bài ngay lúc tạo
+         * (startOrResume), nên lượt nào không thuộc cuộc thi thì cả hai đều null và khối này
+         * không đụng gì tới $deadline — đề Tự luyện/Bài giao giữ NGUYÊN hành vi cũ.
+         */
+        foreach ([$attempt->competitionExam?->ends_at, $attempt->competition?->ends_at] as $endsAt) {
+            if ($endsAt !== null) {
+                // ->copy() ở cả hai nhánh: Carbon::min() trả về CHÍNH đối tượng nhỏ hơn, có thể
+                // là ends_at của model. Trả thẳng ra ngoài thì nơi gọi lỡ tay sửa mốc giờ sẽ
+                // sửa luôn thuộc tính của model đang nằm trong bộ nhớ.
+                $deadline = $deadline === null ? $endsAt->copy() : $deadline->min($endsAt)->copy();
             }
         }
 

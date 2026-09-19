@@ -73,9 +73,17 @@
                 saving: false,
                 timerId: null,
                 inFlight: 0,
+                // ── SỬA 19/9 (6) — CẢNH BÁO KHI RỜI PHÒNG THI ─────────────────────────────
+                // Chỉ bật khi view truyền warnOnLeave: true (phòng thi CUỘC THI). Màn làm bài
+                // thường không truyền -> false -> không đăng ký beforeunload, hành vi y như cũ.
+                warnOnLeave: config.warnOnLeave === true,
+                leaveOpen: false,
+                leaveUrl: null,
+                leaving: false,
 
                 init() {
                     var self = this;
+                    this.registerLeaveGuard();
                     this.questions.forEach(function (q) {
                         if (self.testInputs[q.id] === undefined) self.testInputs[q.id] = '';
                         if (self.testOutputs[q.id] === undefined) self.testOutputs[q.id] = 'Chưa chạy test';
@@ -95,6 +103,51 @@
                     if (this.deadlineAt === null) return;
                     this.tick();
                     this.timerId = setInterval(function () { self.tick(); }, 1000);
+                },
+
+
+                /*
+                 * SỬA 19/9 (6) — bấm X / "Thoát phòng thi": hỏi lại trước khi đi.
+                 *
+                 * Hết giờ hoặc đang nộp thì KHÔNG hỏi — lúc đó không còn gì để mất, chặn thêm
+                 * một lớp hộp thoại chỉ làm thí sinh hoảng.
+                 */
+                askLeave(url) {
+                    if (this.expired || this.submitting) {
+                        this.leaving = true;
+                        window.location.href = url;
+                        return;
+                    }
+
+                    this.leaveUrl = url;
+                    this.leaveOpen = true;
+                },
+
+                /** Đồng ý rời đi: bật cờ leaving để beforeunload không hỏi lại lần hai. */
+                leaveNow() {
+                    this.leaving = true;
+                    this.leaveOpen = false;
+
+                    if (this.leaveUrl) {
+                        window.location.href = this.leaveUrl;
+                    }
+                },
+
+                /*
+                 * Đóng tab / F5 / nút Back — những lối ra mà nút bấm trong trang không chặn được.
+                 * Trình duyệt hiện hộp thoại CỦA NÓ với câu chữ cố định, không đổi được; ở đây
+                 * chỉ có thể bật/tắt. Bỏ qua khi đang nộp bài hoặc vừa bấm "Rời phòng thi", nếu
+                 * không thì chính việc nộp bài cũng bị hỏi lại.
+                 */
+                registerLeaveGuard() {
+                    if (!this.warnOnLeave) return;
+
+                    var self = this;
+                    window.addEventListener('beforeunload', function (event) {
+                        if (self.expired || self.submitting || self.leaving) return;
+                        event.preventDefault();
+                        event.returnValue = '';
+                    });
                 },
 
                 // ── Điều hướng câu ──
@@ -399,6 +452,10 @@
 
                 handleTimeUp(resultUrl) {
                     this.expired = true;
+                    // Hết giờ thì đóng mọi hộp thoại đang mở: lớp phủ "Đã hết giờ" phải là thứ
+                    // duy nhất thí sinh nhìn thấy, không để hộp "Rời phòng thi?" đè lên trên.
+                    this.leaveOpen = false;
+                    this.confirmOpen = false;
                     clearInterval(this.timerId);
 
                     if (resultUrl) {
