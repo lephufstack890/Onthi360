@@ -5,6 +5,7 @@ namespace App\Services\Public;
 use App\Enums\CompetitionStatus;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
+use App\Models\CompetitionRegistration;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
@@ -94,6 +95,14 @@ class CompetitionService
 
         $isStudent = $viewer !== null && $viewer->hasRole(Role::STUDENT);
 
+        /*
+         * SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt, duyệt xong mới vào
+         * được") — trạng thái ĐƠN ĐĂNG KÝ của chính người đang xem, nạp MỘT truy vấn cho tất
+         * cả cuộc thi rồi tra trong bộ nhớ (thẻ nào cũng cần, đừng bắn N truy vấn).
+         * Khoá = competition_id, giá trị = 'pending'|'approved'|'rejected'|'withdrawn'.
+         */
+        $registrationByCompetition = $this->registrationStatuses($viewer, $competitions->pluck('id')->all());
+
         $cards = $competitions->map(fn (Competition $c) => $this->mapContestCard(
             $c,
             $examStats,
@@ -102,6 +111,7 @@ class CompetitionService
             $isStudent,
             in_array($c->id, $submittedCompetitionIds, true),
             $submittedExamIds,
+            $registrationByCompetition[$c->id] ?? null,
         ))->all();
 
         return [
@@ -117,6 +127,50 @@ class CompetitionService
      * nhất (đếm tới giờ mở). deadline trả về dạng timestamp để Alpine tự chạy đồng hồ; null
      * nghĩa là không có gì để đếm (view hiện dấu "—" thay vì số 0 gây hiểu lầm).
      */
+    /**
+     * SỬA 19/9 — trạng thái đơn đăng ký cuộc thi của MỘT người xem, cho nhiều cuộc thi cùng lúc.
+     *
+     * Trả mảng rỗng khi chưa đăng nhập hoặc máy chủ chưa chạy migration tạo bảng — khi đó mọi
+     * chỗ dùng sẽ coi như "chưa đăng ký", và AttemptService cũng cho qua như hành vi cũ, nên
+     * hai bên vẫn khớp nhau.
+     *
+     * @param  array<int, int>  $competitionIds
+     * @return array<int, string> competition_id => status
+     */
+    private function registrationStatuses(?User $viewer, array $competitionIds): array
+    {
+        if ($viewer === null || $competitionIds === [] || ! CompetitionRegistration::supported()) {
+            return [];
+        }
+
+        return CompetitionRegistration::query()
+            ->where('student_id', $viewer->id)
+            ->whereIn('competition_id', $competitionIds)
+            ->pluck('status', 'competition_id')
+            ->all();
+    }
+
+    /**
+     * SỬA 19/9 — học sinh đã được ban tổ chức duyệt đơn chưa?
+     *
+     * Tách riêng một hàm vì luật này bị hỏi ở NHIỀU chỗ (canJoin của từng vòng, canJoinDirectly
+     * của trang chi tiết, nút hành động chính của thẻ cuộc thi). Nếu mỗi chỗ tự viết lại điều
+     * kiện thì sớm muộn sẽ lệch nhau.
+     *
+     * QUAN TRỌNG: hàm này PHẢI khớp đúng AttemptService::isApprovedForCompetition().
+     * Giao diện nới lỏng hơn máy chủ = hiện nút rồi bấm vào báo lỗi (lỗi thật sự).
+     * Vì vậy khi máy chủ CHƯA chạy migration tạo bảng đăng ký, cả hai bên cùng trả true để
+     * giữ nguyên hành vi cũ (cuộc thi mở là vào được), thay vì khoá sạch cả hệ thống.
+     */
+    private function isApprovedRegistration(?string $status): bool
+    {
+        if (! CompetitionRegistration::supported()) {
+            return true;
+        }
+
+        return $status === CompetitionRegistration::STATUS_APPROVED;
+    }
+
     private function heroPanel(array $cards): array
     {
         $ongoing = null;
@@ -178,6 +232,9 @@ class CompetitionService
         bool $isStudent,
         bool $hasSubmitted,
         array $submittedExamIds,
+        // SỬA 19/9 — trạng thái đơn đăng ký của người xem với CHÍNH cuộc thi này (null = chưa
+        // đăng ký, hoặc chưa đăng nhập, hoặc máy chủ chưa chạy migration).
+        ?string $registrationStatus = null,
     ): array {
         $statusValue = $c->computedStatus()->value;
         $meta = self::CARD_STATUS_STYLE[$statusValue] ?? ['label' => $statusValue, 'style' => 'bg-slate-100 text-slate-700 border-slate-300'];
@@ -206,7 +263,14 @@ class CompetitionService
                 'problemsCount' => max((int) ($exam->assessment?->items_count ?? 0), (int) ($exam->assessment?->answer_keys_count ?? 0)),
                 'totalPoints' => $exam->assessment?->total_points,
                 'alreadyAttempted' => in_array($exam->id, $submittedExamIds, true),
+                /*
+                 * SỬA 19/9 — thêm điều kiện ĐÃ ĐƯỢC DUYỆT. Chặn thật nằm ở
+                 * AttemptService::competitionEntryDecision() (đã sửa cùng ngày); dòng này chỉ
+                 * để giao diện nói đúng cùng một luật — 2 nơi PHẢI luôn khớp, nếu không nút
+                 * hiện "Vào thi" mà bấm vào lại báo lỗi, đúng kiểu lỗi đã gặp hồi 24/8.
+                 */
                 'canJoin' => $isStudent
+                    && $this->isApprovedRegistration($registrationStatus)
                     && $exam->assessment_id !== null
                     && $examStatus === 'ongoing'
                     && ! in_array($exam->id, $submittedExamIds, true),
@@ -253,21 +317,47 @@ class CompetitionService
             if ($r['canJoin']) { $joinRound = $r; break; }
         }
 
+        /*
+         * SỬA 19/9 — 3 bước "Gửi đăng ký → BTC duyệt → Vào phòng" của bản mẫu giờ là luồng THẬT.
+         * Thứ tự xét cố ý như sau, đi từ việc người dùng cần làm TIẾP THEO:
+         *   chưa đăng nhập      -> mời đăng nhập
+         *   chưa gửi đơn/bị từ chối -> mời gửi đăng ký (bị từ chối thì xin lại được)
+         *   đang chờ duyệt      -> nút khoá, nói rõ đang chờ
+         *   đã duyệt + có vòng mở -> vào phòng thi
+         *   đã duyệt, chưa tới giờ -> vào KHÔNG GIAN THI để xem lịch các vòng
+         */
+        $isApproved = $this->isApprovedRegistration($registrationStatus);
+        $isPending = $registrationStatus === CompetitionRegistration::STATUS_PENDING;
+
         if ($viewer === null) {
             $cta = ['label' => 'Đăng nhập để vào thi', 'href' => route('login'), 'icon' => 'shield-check', 'tone' => 'primary'];
+        } elseif ($isStudent && $isPending) {
+            $cta = ['label' => 'Đã gửi · Chờ BTC duyệt', 'href' => null, 'icon' => 'clock', 'tone' => 'waiting'];
+        } elseif ($isStudent && ! $isApproved && $statusValue !== 'archived') {
+            $cta = ['label' => 'Đăng ký tham gia', 'href' => null, 'icon' => 'file-check-2', 'tone' => 'register'];
         } elseif ($joinRound !== null) {
             $cta = ['label' => 'Vào phòng thi', 'href' => route('student.assessment.take', $joinRound['assessmentId']), 'icon' => 'play', 'tone' => 'go'];
+        } elseif ($isStudent && $isApproved) {
+            $cta = ['label' => 'Vào không gian thi', 'href' => route('student.competitions.room', $c->id), 'icon' => 'trophy', 'tone' => 'go'];
         } elseif ($hasSubmitted || $statusValue === 'published') {
             $cta = ['label' => 'Xem bảng xếp hạng', 'href' => route('leaderboard.index', ['competition' => $c->id]), 'icon' => 'bar-chart-3', 'tone' => 'primary'];
         } else {
             $cta = ['label' => 'Xem thể lệ cuộc thi', 'href' => route('competitions.show', $c->id), 'icon' => 'info', 'tone' => 'muted'];
         }
 
-        // Nhãn "đã/chưa tham gia" ở chân thẻ — chỉ 2 trạng thái thật (không có bước BTC duyệt).
+        /*
+         * SỬA 19/9 — nhãn ở chân thẻ giờ có thêm bước "chờ BTC duyệt" (trước đây chỉ 2 trạng
+         * thái vì chưa có luồng duyệt). Thứ tự xét đi từ trạng thái "xa" nhất về gần:
+         * đã nộp bài > đang chờ duyệt > đã duyệt (có vòng mở) > còn lại.
+         */
         if ($hasSubmitted) {
             $participationLabel = 'Đã tham gia';
             $participationStyle = 'text-emerald-700 bg-emerald-50 border-emerald-200';
             $cardStyle = 'border-emerald-300 bg-emerald-50/70 shadow-[0_4px_18px_rgba(55,125,95,0.12)]';
+        } elseif ($isPending) {
+            $participationLabel = 'Đang chờ BTC duyệt';
+            $participationStyle = 'text-amber-700 bg-amber-50 border-amber-200';
+            $cardStyle = 'border-amber-300 bg-amber-50/70 shadow-[0_4px_18px_rgba(180,130,30,0.10)]';
         } elseif ($joinRound !== null) {
             $participationLabel = 'Đang mở cho bạn';
             $participationStyle = 'text-amber-700 bg-amber-50 border-amber-200';
@@ -326,6 +416,30 @@ class CompetitionService
             'canJoinNow' => $joinRound !== null,
             'href' => route('competitions.show', $c->id),
             'leaderboardHref' => route('leaderboard.index', ['competition' => $c->id]),
+
+            /*
+             * SỬA 19/9 — dữ liệu cho widget "Đăng ký tham gia" 3 bước trong hộp chi tiết
+             * (bản mẫu: ContestsPage.jsx > RegistrationStatus). Tính sẵn ở đây thay vì để
+             * view tự suy luận, vì đúng bộ luật này còn được dùng ở trang competitions.show
+             * và ở AttemptService — để một chỗ tính thì 3 nơi không lệch nhau được.
+             */
+            'registrationStatus' => $registrationStatus,
+            // CHÚ Ý: dùng so sánh TƯỜNG MINH chứ không dùng $isApproved. $isApproved cố ý trả
+            // true khi máy chủ chưa migrate (để không khoá hệ thống cũ) — nhưng widget 3 bước
+            // thì phải nói đúng sự thật "đã được duyệt hay chưa", không được tô xanh bước 2
+            // cho người chưa hề gửi đơn.
+            'registrationApproved' => $registrationStatus === CompetitionRegistration::STATUS_APPROVED,
+            'registrationPending' => $isPending,
+            'registrationRejected' => $registrationStatus === CompetitionRegistration::STATUS_REJECTED,
+            // Bảng chưa migrate -> supported() = false -> không hiện nút gửi đơn (tránh bấm vào lỗi 500),
+            // và isApprovedRegistration() trả true nên mọi thứ chạy y như trước khi có tính năng này.
+            'canRequestJoin' => $isStudent
+                && CompetitionRegistration::supported()
+                && ! $isPending
+                && $registrationStatus !== CompetitionRegistration::STATUS_APPROVED
+                && $statusValue !== 'archived',
+            'requestJoinUrl' => route('student.competitions.requestJoin', $c->id),
+            'roomUrl' => route('student.competitions.room', $c->id),
         ];
     }
 
@@ -356,8 +470,27 @@ class CompetitionService
         // đúng cách assertResubmissionAllowed() chặn thật ở server.
         $alreadyAttemptedSingle = $this->hasSubmittedAttemptForCompetition($viewer, $competition->id);
 
+        /*
+         * SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt, duyệt xong học sinh mới
+         * vào được không gian thi") — trạng thái đơn đăng ký của CHÍNH người đang xem.
+         * Dùng lại registrationStatuses() (hàm nhiều-cuộc-thi) với đúng 1 id thay vì viết
+         * truy vấn thứ hai, để luật "chưa chạy migration thì trả rỗng" chỉ nằm ở 1 chỗ.
+         */
+        $registrationStatus = $this->registrationStatuses($viewer, [$competition->id])[$competition->id] ?? null;
+        $isRegistrationApproved = $this->isApprovedRegistration($registrationStatus);
+
         return [
             'competition' => $competition,
+            // Dữ liệu cho widget "Đăng ký tham gia" 3 bước ở view (Gửi đăng ký → BTC duyệt → Vào phòng).
+            'registrationStatus' => $registrationStatus,
+            'registrationApproved' => $isRegistrationApproved,
+            'registrationPending' => $registrationStatus === CompetitionRegistration::STATUS_PENDING,
+            'registrationRejected' => $registrationStatus === CompetitionRegistration::STATUS_REJECTED,
+            'canRequestJoin' => $viewer !== null
+                && $viewer->hasRole(Role::STUDENT)
+                && CompetitionRegistration::supported()
+                && ! in_array($registrationStatus, [CompetitionRegistration::STATUS_PENDING, CompetitionRegistration::STATUS_APPROVED], true)
+                && $computedStatusValue !== 'archived',
             'statusLabel' => $meta['label'],
             'statusTone' => $meta['tone'],
             'rankingRule' => $competition->ranking_rule ?? [],
@@ -376,11 +509,14 @@ class CompetitionService
              * chưa đặt starts_at/ends_at (null) thì không bị chặn thêm — giữ đúng hành vi cũ
              * (chỉ dựa vào status) để không phá cuộc thi đã tạo trước khi có luật này.
              */
+            // SỬA 19/9: thêm điều kiện đã-được-duyệt. PHẢI khớp AttemptService::
+            // competitionEntryDecision() — hai nơi này luôn đi cùng nhau.
             'canJoinDirectly' => $viewer !== null
                 && $viewer->hasRole(Role::STUDENT)
                 && $competition->assessment_id !== null
                 && $computedStatusValue === 'ongoing'
                 && $this->isWithinWindow($competition)
+                && $isRegistrationApproved
                 && ! $alreadyAttemptedSingle,
             'alreadyAttempted' => $alreadyAttemptedSingle,
             /*
@@ -393,7 +529,7 @@ class CompetitionService
              * nên luôn có ít nhất 1 phần tử nếu Competition từng gắn đề — không cần fallback
              * UI riêng ở view.
              */
-            'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer) {
+            'examSittings' => $competition->examSittings->map(function (CompetitionExam $exam) use ($viewer, $isRegistrationApproved) {
                 $examStatusValue = $exam->computedStatus();
                 $examMeta = self::EXAM_STATUS_META[$examStatusValue] ?? ['label' => $examStatusValue, 'tone' => 'neutral'];
 
@@ -437,10 +573,12 @@ class CompetitionService
                      * con này 1 lần, đã nộp rồi thì không hiện "Vào thi" nữa (view sẽ tự chuyển
                      * sang nhánh "Đã làm").
                      */
+                    // SỬA 19/9: kỳ thi con cũng phải được BTC duyệt đơn mới vào được.
                     'canJoinDirectly' => $viewer !== null
                         && $viewer->hasRole(Role::STUDENT)
                         && $exam->assessment_id !== null
                         && $examStatusValue === 'ongoing'
+                        && $isRegistrationApproved
                         && ! $examAlreadyAttempted,
                 ];
             })->all(),

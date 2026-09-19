@@ -23,6 +23,8 @@
             'type' => $c['type'],
             'statusValue' => $c['statusValue'],
             'participated' => $c['participated'],
+            // SỬA 19/9 — để tab "Đã tham gia" gom cả đơn đang chờ duyệt / đã duyệt.
+            'registrationStatus' => $c['registrationStatus'],
         ];
     }
 @endphp
@@ -30,6 +32,20 @@
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
 <div x-data="onthiContestsPage({{ Js::from(['rows' => $contestRows, 'deadline' => $heroPanel['deadline']]) }})"
      class="flex flex-col gap-4 animate-fadeIn">
+
+    {{-- SỬA 19/9 — thông báo sau khi gửi đơn đăng ký (bản mẫu: notice nổi ở đáy màn). --}}
+    @if (session('status') === 'competition-join-requested')
+        <div role="status" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" x-cloak
+             class="fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-[11px] font-bold text-emerald-700 shadow-2xl">
+            <x-lucide name="check-circle-2" class="h-4 w-4 shrink-0" />
+            Đã gửi đăng ký. Vui lòng chờ ban tổ chức duyệt.
+        </div>
+    @endif
+    @if ($errors->any())
+        <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold text-rose-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
 
     {{-- ══════ 1. HERO ══════ --}}
     <div class="relative flex flex-col items-center justify-between gap-4 overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-r from-[#0050A0] via-[#0066CC] to-[#0284C7] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] md:flex-row sm:p-6">
@@ -293,64 +309,112 @@
                                 </div>
                             </div>
 
-                            {{-- 3 bước THẬT: Đăng nhập → Vào phòng thi → Xem kết quả --}}
+                            {{--
+                                SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt. Sau khi admin
+                                duyệt xong thì học sinh sẽ vào được màn không gian thi") — thay khối
+                                "Đăng nhập → Vào phòng thi → Xem kết quả" cũ bằng đúng widget
+                                RegistrationStatus của bản mẫu: Gửi đăng ký → BTC duyệt → Vào phòng.
+
+                                Mọi biến bên dưới đã được Public\CompetitionService::mapContestCard()
+                                tính sẵn — view KHÔNG tự suy luận lại luật duyệt, vì cùng luật đó còn
+                                được dùng ở AttemptService (chặn thật) và competitions.show.
+                            --}}
                             @php
-                                $stepLoggedIn = auth()->check();
-                                $stepJoined = $c['participated'];
-                                $stepResult = $c['statusValue'] === 'published';
+                                // "Đóng đăng ký": cuộc thi đã qua giai đoạn nhận thí sinh. Bản mẫu dùng
+                                // waiting|published; ở đây thêm archived vì đó mới là trạng thái khoá thật.
+                                $regClosed = in_array($c['statusValue'], ['pending_publish', 'published', 'archived'], true);
+                                $regPending = $c['registrationPending'];
+                                $regApproved = $c['registrationApproved'];
                             @endphp
                             <div class="rounded-xl border border-sky-100 bg-white p-3">
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="flex items-center gap-1.5">
                                         <x-lucide name="user-check" class="h-3.5 w-3.5 shrink-0 text-[#3A7185]" />
-                                        <h3 class="text-sm font-black text-[#123B68]">Tham gia thế nào</h3>
+                                        <h3 class="text-sm font-black text-[#123B68]">Đăng ký tham gia</h3>
                                     </div>
-                                    <span class="text-[10px] font-bold text-slate-500">Không cần đăng ký trước</span>
+                                    <span class="text-[10px] font-bold text-slate-500">BTC duyệt trước khi vào phòng</span>
                                 </div>
 
                                 <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-[10px] font-bold">
-                                    <div class="rounded-lg p-1.5 {{ $stepLoggedIn ? 'bg-[#E7F3EE] text-[#39755F]' : 'bg-slate-50 text-slate-500' }}">
-                                        @if ($stepLoggedIn)
+                                    <div class="rounded-lg p-1.5 {{ $regPending || $regApproved ? 'bg-[#E7F3EE] text-[#39755F]' : 'bg-slate-50 text-slate-500' }}">
+                                        @if ($regPending || $regApproved)
                                             <x-lucide name="check" class="mx-auto mb-0.5 h-3 w-3" />
                                         @else
                                             1<br>
                                         @endif
-                                        Đăng nhập
+                                        Gửi đăng ký
                                     </div>
-                                    <div class="rounded-lg p-1.5 {{ $stepJoined ? 'bg-[#E7F3EE] text-[#39755F]' : ($c['canJoinNow'] ? 'bg-[#FFF3D9] text-[#9A741E]' : 'bg-slate-50 text-slate-500') }}">
-                                        @if ($stepJoined)
+                                    <div class="rounded-lg p-1.5 {{ $regApproved ? 'bg-[#E7F3EE] text-[#39755F]' : ($regPending ? 'bg-[#FFF3D9] text-[#9A741E]' : 'bg-slate-50 text-slate-500') }}">
+                                        @if ($regApproved)
                                             <x-lucide name="check" class="mx-auto mb-0.5 h-3 w-3" />
                                         @else
                                             2<br>
                                         @endif
-                                        Vào phòng thi
+                                        BTC duyệt
                                     </div>
-                                    <div class="rounded-lg p-1.5 {{ $stepResult ? 'bg-[#EAF2F8] text-[#356782]' : 'bg-slate-50 text-slate-500' }}">
-                                        3<br>Xem kết quả
+                                    <div class="rounded-lg p-1.5 {{ $regApproved ? 'bg-[#EAF2F8] text-[#356782]' : 'bg-slate-50 text-slate-500' }}">
+                                        3<br>Vào phòng
                                     </div>
                                 </div>
 
-                                @if ($c['cta']['tone'] === 'go')
-                                    <a href="{{ $c['cta']['href'] }}"
-                                       class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
-                                        <x-lucide :name="$c['cta']['icon']" class="h-3.5 w-3.5" />{{ $c['cta']['label'] }}
-                                    </a>
-                                @elseif ($c['cta']['tone'] === 'primary')
-                                    <a href="{{ $c['cta']['href'] }}"
+                                @guest
+                                    {{-- Chưa đăng nhập thì chưa thể gửi đơn — mời đăng nhập trước. --}}
+                                    <a href="{{ route('login') }}"
                                        class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F7890] px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-[#286B80]">
-                                        <x-lucide :name="$c['cta']['icon']" class="h-3.5 w-3.5" />{{ $c['cta']['label'] }}
+                                        <x-lucide name="shield-check" class="h-3.5 w-3.5" />Đăng nhập để đăng ký
                                     </a>
                                 @else
-                                    <a href="{{ $c['cta']['href'] }}"
-                                       class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-100 bg-white px-3 py-2 text-[11px] font-black text-[#2F7890] transition hover:bg-sky-50">
-                                        <x-lucide :name="$c['cta']['icon']" class="h-3.5 w-3.5" />{{ $c['cta']['label'] }}
-                                    </a>
-                                @endif
+                                    @if ($regApproved)
+                                        <a href="{{ $c['roomUrl'] }}"
+                                           class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
+                                            <x-lucide name="play" class="h-3.5 w-3.5" />Đã duyệt · Vào không gian thi
+                                        </a>
+                                    @elseif ($regPending)
+                                        {{-- Nút khoá (không phải <button disabled> trong form) để không gửi trùng đơn. --}}
+                                        <span class="mt-2 flex min-h-9 w-full cursor-default items-center justify-center gap-1.5 rounded-lg bg-[#FFF0C7] px-3 py-2 text-[11px] font-black text-[#8D6A1A]">
+                                            <x-lucide name="clock-3" class="h-3.5 w-3.5" />Đã gửi · Chờ BTC duyệt
+                                        </span>
+                                    @elseif ($c['canRequestJoin'] && ! $regClosed)
+                                        <form method="POST" action="{{ $c['requestJoinUrl'] }}" class="mt-2">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F7890] px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-[#286B80]">
+                                                <x-lucide name="file-check-2" class="h-3.5 w-3.5" />Đăng ký tham gia
+                                            </button>
+                                        </form>
+                                        @if ($c['registrationRejected'])
+                                            <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[10px] font-bold text-rose-700">
+                                                <x-lucide name="info" class="h-3.5 w-3.5 shrink-0" />Đơn trước bị từ chối — bạn có thể gửi lại.
+                                            </div>
+                                        @endif
+                                    @else
+                                        {{-- Không phải học sinh, hoặc cuộc thi đã đóng đăng ký: chỉ còn đường xem. --}}
+                                        <a href="{{ $c['leaderboardHref'] }}"
+                                           class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-100 bg-white px-3 py-2 text-[11px] font-black text-[#2F7890] transition hover:bg-sky-50">
+                                            <x-lucide name="bar-chart-3" class="h-3.5 w-3.5" />Xem bảng xếp hạng
+                                        </a>
+                                        @if ($regClosed)
+                                            <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] font-bold text-violet-700">
+                                                <x-lucide name="info" class="h-3.5 w-3.5 shrink-0" />Đã đóng đăng ký — bạn vẫn xem lại được kết quả.
+                                            </div>
+                                        @endif
+                                    @endif
+                                @endguest
 
-                                @if (! $c['canJoinNow'] && $c['statusValue'] !== 'ongoing')
-                                    <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] font-bold text-violet-700">
-                                        <x-lucide name="info" class="h-3.5 w-3.5 shrink-0" />Ngoài khung giờ thi — chỉ xem thông tin và kết quả.
-                                    </div>
+                                @php
+                                    // Vòng đang thật sự mở cho CHÍNH người này (canJoin đã gộp cả luật
+                                    // "đã được duyệt"). Không dùng currentRound vì vòng đang xem có thể
+                                    // là vòng sắp tới/đã kết thúc — bấm vào sẽ ra đề sai.
+                                    $openRound = null;
+                                    foreach ($c['rounds'] as $r) {
+                                        if ($r['canJoin']) { $openRound = $r; break; }
+                                    }
+                                @endphp
+                                @if ($openRound !== null)
+                                    <a href="{{ route('student.assessment.take', $openRound['assessmentId']) }}"
+                                       class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
+                                        <x-lucide name="play" class="h-3.5 w-3.5" />Vào thi ngay · {{ $openRound['shortLabel'] }}
+                                    </a>
                                 @endif
 
                                 <a href="{{ $c['href'] }}" class="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline">

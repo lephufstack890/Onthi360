@@ -17,6 +17,7 @@ use App\Http\Controllers\Public\SitemapController as PublicSitemapController;
 use App\Http\Controllers\Public\TeacherController as PublicTeacherController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
 use App\Http\Controllers\Student\ClassRoomController as StudentClassRoomController;
+use App\Http\Controllers\Student\CompetitionController as StudentCompetitionController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\LibraryController as StudentLibraryController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
@@ -156,6 +157,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
+        // SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt, duyệt xong học sinh vào
+        // được màn không gian thi") — 2 lối duy nhất của học sinh với cuộc thi. Chặn THẬT khi
+        // vào thi vẫn nằm ở AttemptService::competitionEntryDecision(), không phải ở route.
+        Route::post('competitions/{competition}/dang-ky', [StudentCompetitionController::class, 'requestJoin'])
+            ->whereNumber('competition')->name('competitions.requestJoin');
+        Route::get('competitions/{competition}/phong-thi', [StudentCompetitionController::class, 'room'])
+            ->whereNumber('competition')->name('competitions.room');
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
@@ -511,6 +519,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('competitions/{competition}/exams', [AdminCompetitionController::class, 'examStore'])->name('competitions.exams.store');
         Route::put('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
         Route::delete('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
+        // SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt") — duyệt/từ chối đơn đăng
+        // ký cuộc thi, đặt ngay trong màn chi tiết cuộc thi chứ không đẻ trang riêng. Xem
+        // Admin\CompetitionService::registrationsData().
+        Route::post('competitions/{competition}/registrations/{registration}/approve', [AdminCompetitionController::class, 'approveRegistration'])
+            ->whereNumber(['competition', 'registration'])->name('competitions.registrations.approve');
+        Route::post('competitions/{competition}/registrations/{registration}/reject', [AdminCompetitionController::class, 'rejectRegistration'])
+            ->whereNumber(['competition', 'registration'])->name('competitions.registrations.reject');
         Route::post('competitions/{competition}/recompute-aggregate', [AdminCompetitionController::class, 'recomputeAggregate'])->name('competitions.recompute-aggregate');
         // SỬA 12/9 — khối "Câu chuyện đồng hành" của trang chủ ([HOME-10]) giờ do Admin đăng.
         Route::get('testimonials', [AdminTestimonialController::class, 'index'])->name('testimonials.index');

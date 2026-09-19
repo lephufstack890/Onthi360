@@ -53,6 +53,15 @@ class Competition extends Model
      * (note họp 13/8, mục 1: "cuộc thi ngoài đơn vị tổ chức thì cần có chuyên gia cố vấn
      * giáo viên đồng hành để tăng uy tín"), xem App\Services\Admin\CompetitionService.
      */
+    /**
+     * SỬA 19/9 — đơn đăng ký tham gia của học sinh (mọi trạng thái). Lọc theo trạng thái ở nơi
+     * dùng, xem App\Models\CompetitionRegistration.
+     */
+    public function registrations(): HasMany
+    {
+        return $this->hasMany(CompetitionRegistration::class);
+    }
+
     public function advisors(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'competition_advisors', 'competition_id', 'teacher_id')->withTimestamps();

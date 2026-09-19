@@ -143,6 +143,27 @@ class CompetitionController extends Controller
     }
 
     /** admin.competitions.exams.store — thêm 1 kỳ thi (vòng) mới vào cuộc thi. */
+    /**
+     * admin.competitions.registrations.approve (SỬA 19/9) — duyệt đơn đăng ký của học sinh.
+     * Duyệt xong học sinh vào được không gian thi và mở được đề của cuộc thi.
+     */
+    public function approveRegistration(Request $request, int $competition, int $registration): RedirectResponse
+    {
+        $this->competitionService->approveRegistration($request->user(), $competition, $registration);
+
+        return redirect()->route('admin.competitions.show', $competition)->with('status', 'registration-approved');
+    }
+
+    /** admin.competitions.registrations.reject (SỬA 19/9) — từ chối, có thể kèm lý do. */
+    public function rejectRegistration(Request $request, int $competition, int $registration): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+
+        $this->competitionService->rejectRegistration($request->user(), $competition, $registration, $data['reason'] ?? null);
+
+        return redirect()->route('admin.competitions.show', $competition)->with('status', 'registration-rejected');
+    }
+
     public function examStore(Request $request, Competition $competition): RedirectResponse
     {
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);

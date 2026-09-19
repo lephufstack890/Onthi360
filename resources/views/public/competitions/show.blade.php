@@ -16,6 +16,14 @@
         $alreadyAttempted = $alreadyAttempted ?? false;
         $examSittings = $examSittings ?? [];
         $endedExamsCount = collect($examSittings)->where('hasEnded', true)->count();
+
+        // SỬA 19/9 — luồng "đăng ký → BTC duyệt → vào phòng". Giá trị do
+        // Public\CompetitionService::showData() tính; ?? để trang không vỡ nếu view được
+        // render từ nơi khác chưa truyền đủ.
+        $registrationPending = $registrationPending ?? false;
+        $registrationApproved = $registrationApproved ?? false;
+        $registrationRejected = $registrationRejected ?? false;
+        $canRequestJoin = $canRequestJoin ?? false;
     @endphp
 
     <div class="max-w-5xl mx-auto px-4 pt-6">
@@ -99,6 +107,53 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 p-5 h-fit sticky top-6 shadow-sm">
+                {{--
+                    SỬA 19/9 — thẻ đăng ký, ĐẶT TRÊN CÙNG vì đây là việc học sinh phải làm
+                    trước mọi thứ khác: chưa được BTC duyệt thì mọi nút "Vào thi" bên dưới đều
+                    bị AttemptService chặn. Cùng bộ luật với popup ở trang danh sách
+                    (public/competitions/index.blade.php) — sửa một bên nhớ sửa bên kia.
+                --}}
+                @if ($registrationApproved || $registrationPending || $canRequestJoin)
+                    <div class="mb-5 rounded-xl border border-sky-100 bg-sky-50/50 p-3.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <h2 class="text-sm font-semibold text-[#123B68]">Đăng ký tham gia</h2>
+                            <span class="text-[10px] font-medium text-slate-500">BTC duyệt trước khi vào phòng</span>
+                        </div>
+
+                        <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-[10px] font-semibold">
+                            <span class="rounded-lg p-1.5 {{ $registrationPending || $registrationApproved ? 'bg-[#E7F3EE] text-[#39755F]' : 'bg-white text-slate-500' }}">1<br>Gửi đăng ký</span>
+                            <span class="rounded-lg p-1.5 {{ $registrationApproved ? 'bg-[#E7F3EE] text-[#39755F]' : ($registrationPending ? 'bg-[#FFF3D9] text-[#9A741E]' : 'bg-white text-slate-500') }}">2<br>BTC duyệt</span>
+                            <span class="rounded-lg p-1.5 {{ $registrationApproved ? 'bg-[#EAF2F8] text-[#356782]' : 'bg-white text-slate-500' }}">3<br>Vào phòng</span>
+                        </div>
+
+                        @if ($registrationApproved)
+                            <a href="{{ route('student.competitions.room', $competition->id) }}"
+                               class="mt-2.5 block rounded-lg bg-[#43876F] px-3 py-2 text-center text-xs font-semibold text-white hover:bg-[#3A7561]">
+                                Đã duyệt · Vào không gian thi
+                            </a>
+                        @elseif ($registrationPending)
+                            <p class="mt-2.5 rounded-lg bg-[#FFF0C7] px-3 py-2 text-center text-xs font-semibold text-[#8D6A1A]">Đã gửi · Chờ BTC duyệt</p>
+                        @else
+                            <form method="POST" action="{{ route('student.competitions.requestJoin', $competition->id) }}" class="mt-2.5">
+                                @csrf
+                                <button type="submit" class="w-full rounded-lg bg-[#2F7890] px-3 py-2 text-xs font-semibold text-white hover:bg-[#286B80]">
+                                    Đăng ký tham gia
+                                </button>
+                            </form>
+                            @if ($registrationRejected)
+                                <p class="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[11px] font-medium text-rose-700">Đơn trước bị từ chối — bạn có thể gửi lại.</p>
+                            @endif
+                        @endif
+                    </div>
+                @endif
+
+                @if (session('status') === 'competition-join-requested')
+                    <p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">Đã gửi đăng ký. Vui lòng chờ ban tổ chức duyệt.</p>
+                @endif
+                @if ($errors->any())
+                    <p class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{{ $errors->first() }}</p>
+                @endif
+
                 @if (count($examSittings) > 0)
                     <div class="flex items-center justify-between mb-1">
                         <h2 class="font-medium text-slate-700">Các kỳ thi</h2>

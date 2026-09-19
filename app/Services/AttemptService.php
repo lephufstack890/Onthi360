@@ -17,6 +17,7 @@ use App\Models\Attempt;
 use App\Models\AttemptAnswer;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
+use App\Models\CompetitionRegistration;
 use App\Models\JudgeSubmission;
 use App\Models\Question;
 use App\Models\SessionResource;
@@ -268,7 +269,7 @@ class AttemptService
             return $noCompetitionContext;
         }
 
-        $decision = $this->competitionEntryDecision($assessment);
+        $decision = $this->competitionEntryDecision($user, $assessment);
 
         if ($decision !== null) {
             if (! $decision['open']) {
@@ -377,7 +378,7 @@ class AttemptService
      * @return array{open: bool, message: ?string, competitionId: ?int, competitionExamId: ?int}|null
      *         null nếu đề KHÔNG được cuộc thi/kỳ thi nào tham chiếu tới.
      */
-    private function competitionEntryDecision(Assessment $assessment): ?array
+    private function competitionEntryDecision(User $user, Assessment $assessment): ?array
     {
         $directCompetitions = Competition::where('assessment_id', $assessment->id)
             ->whereDoesntHave('examSittings')
@@ -390,6 +391,11 @@ class AttemptService
 
         foreach ($directCompetitions as $competition) {
             if ($competition->computedStatus() === CompetitionStatus::Ongoing) {
+                // SỬA 19/9 — đúng giờ thôi CHƯA đủ: phải được ban tổ chức duyệt đơn đăng ký.
+                if (! $this->isApprovedForCompetition($user, $competition->id)) {
+                    return $this->notApprovedDecision();
+                }
+
                 return ['open' => true, 'message' => null, 'competitionId' => $competition->id, 'competitionExamId' => null];
             }
         }
@@ -414,6 +420,12 @@ class AttemptService
             // kỳ thi cụ thể (đã công bố kết quả, hoặc muốn đóng sớm) thì sửa ends_at của ĐÚNG
             // kỳ thi đó, không dùng trạng thái/thời hạn cấp cuộc thi để khoá gián tiếp nữa.
             if ($exam->isOngoing()) {
+                // SỬA 19/9 — duyệt tính ở CẤP CUỘC THI (một đơn dùng cho mọi vòng), không bắt
+                // học sinh đăng ký lại từng vòng: thi nhiều vòng vẫn là một cuộc thi.
+                if (! $this->isApprovedForCompetition($user, $competition->id)) {
+                    return $this->notApprovedDecision();
+                }
+
                 return ['open' => true, 'message' => null, 'competitionId' => null, 'competitionExamId' => $exam->id];
             }
         }
@@ -421,6 +433,41 @@ class AttemptService
         return [
             'open' => false,
             'message' => 'Cuộc thi/kỳ thi của đề này hiện không mở (chưa tới giờ, đã kết thúc, hoặc đã lưu trữ) — bạn chưa thể vào làm bài lúc này.',
+            'competitionId' => null,
+            'competitionExamId' => null,
+        ];
+    }
+
+    /**
+     * SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt, duyệt xong học sinh mới vào
+     * được") — học sinh này đã được duyệt vào cuộc thi đó chưa.
+     *
+     * Đây là CHỐT CHẶN THẬT của cả tính năng: giao diện có ẩn nút hay không cũng không quan
+     * trọng, gõ thẳng địa chỉ đề vẫn phải đi qua đây. Phần hiển thị ở
+     * Public\CompetitionService PHẢI nói đúng cùng một luật này (2 nơi luôn phải khớp).
+     *
+     * Máy chủ chưa chạy migration tạo bảng đăng ký thì trả TRUE — giữ nguyên hành vi cũ (cứ
+     * đúng giờ là vào) thay vì khoá sạch mọi cuộc thi đang chạy chỉ vì quên `artisan migrate`.
+     */
+    private function isApprovedForCompetition(User $user, int $competitionId): bool
+    {
+        if (! CompetitionRegistration::supported()) {
+            return true;
+        }
+
+        return CompetitionRegistration::query()
+            ->where('competition_id', $competitionId)
+            ->where('student_id', $user->id)
+            ->where('status', CompetitionRegistration::STATUS_APPROVED)
+            ->exists();
+    }
+
+    /** @return array{open: bool, message: string, competitionId: null, competitionExamId: null} */
+    private function notApprovedDecision(): array
+    {
+        return [
+            'open' => false,
+            'message' => 'Bạn chưa được ban tổ chức duyệt tham gia cuộc thi này — mở trang Cuộc thi, bấm "Chi tiết cuộc thi" rồi gửi đăng ký tham gia.',
             'competitionId' => null,
             'competitionExamId' => null,
         ];

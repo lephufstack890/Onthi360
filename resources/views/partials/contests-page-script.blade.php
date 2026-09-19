@@ -1,9 +1,10 @@
 {{-- Alpine cho màn Cuộc thi — chuyển đúng useState/useMemo/useEffect của
      education-main/src/components/ContestsPage.jsx (lọc, phân trang 3 thẻ/trang, mở hộp chi tiết).
 
-     Khác bản mẫu: bỏ state "registrationStates" (gửi đăng ký chờ BTC duyệt) vì hệ thống không
-     có luồng đó — "đã tham gia" là dữ liệu THẬT đã tính sẵn ở máy chủ (attempts đã nộp), nên
-     ở đây chỉ đọc, không tự đổi. Thêm đồng hồ đếm ngược chạy theo mốc giờ thật. --}}
+     SỬA 19/9: bản mẫu giữ "registrationStates" trong bộ nhớ trình duyệt (bấm là đổi ngay, tải
+     lại trang là mất). Ở đây luồng duyệt là THẬT nên trạng thái đơn do máy chủ trả xuống trong
+     row.registrationStatus (pending|approved|rejected|null) — Alpine chỉ ĐỌC để lọc, việc gửi
+     đơn là POST form thật rồi tải lại trang. Thêm đồng hồ đếm ngược chạy theo mốc giờ thật. --}}
 <script>
     function onthiContestsPage(config) {
         return {
@@ -38,7 +39,13 @@
             matchesTab(row) {
                 if (this.activeTab === 'all') return true;
                 if (this.activeTab === 'surveys') return row.type !== 'contest';
-                if (this.activeTab === 'participated') return row.participated === true;
+                // "Đã tham gia" = đã nộp bài THẬT, hoặc đã có đơn đăng ký (đang chờ/đã duyệt) —
+                // để học sinh vừa bấm đăng ký xong vẫn tìm lại được cuộc thi ở tab này.
+                if (this.activeTab === 'participated') {
+                    return row.participated === true
+                        || row.registrationStatus === 'pending'
+                        || row.registrationStatus === 'approved';
+                }
                 return row.statusValue === this.activeTab;
             },
 

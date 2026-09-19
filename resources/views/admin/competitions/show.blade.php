@@ -26,8 +26,17 @@
             'exam-updated' => 'Đã cập nhật kỳ thi.',
             'exam-deleted' => 'Đã xoá kỳ thi.',
             'aggregate-recomputed' => 'Đã tính lại bảng xếp hạng tổng từ các kỳ thi.',
+            // SỬA 19/9 — duyệt đơn đăng ký cuộc thi.
+            'registration-approved' => 'Đã duyệt đơn — học sinh vào được không gian thi.',
+            'registration-rejected' => 'Đã từ chối đơn, đã ghi lý do và báo cho học sinh.',
             default => null,
         };
+
+        // SỬA 19/9 — dữ liệu khối "Đơn đăng ký", xem Admin\CompetitionService::registrationsData().
+        $registrationsReady = $registrationsReady ?? false;
+        $pendingRegistrations = $pendingRegistrations ?? [];
+        $decidedRegistrations = $decidedRegistrations ?? [];
+        $approvedCount = $approvedCount ?? 0;
     @endphp
     @if ($competitionStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $competitionStatusMessage])
@@ -212,6 +221,72 @@
                 <p><span class="text-slate-400">Công bố kết quả:</span> {{ $competition->publish_result_at?->format('d/m/Y H:i') ?: '— Chưa đặt —' }}</p>
             </div>
             --}}
+            {{-- ══════ SỬA 19/9 — ĐƠN ĐĂNG KÝ THAM GIA (khách: "click đăng ký tham gia thì
+                 admin sẽ duyệt") — dựng theo khuôn khối "Yêu cầu vào lớp chờ duyệt" ở
+                 teacher/classes/show.blade.php để hai màn duyệt trong hệ thống giống nhau. ══════ --}}
+            <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px]">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h2 class="font-medium text-slate-700">Đơn đăng ký tham gia</h2>
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{{ $approvedCount }} đã duyệt</span>
+                </div>
+
+                @if (! $registrationsReady)
+                    {{-- Chưa chạy migration thì nói thẳng việc cần làm, đừng để bảng trống khiến
+                         admin tưởng chưa ai đăng ký. --}}
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        <p class="font-bold">Chưa chạy migration cho tính năng đăng ký cuộc thi</p>
+                        <p class="mt-1">Chạy <code class="rounded bg-amber-100 px-1.5 py-0.5 font-mono">php artisan migrate</code> trên máy chủ rồi tải lại trang.</p>
+                    </div>
+                @else
+                    @if (count($pendingRegistrations) === 0)
+                        <p class="text-slate-400">Chưa có đơn nào đang chờ duyệt.</p>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($pendingRegistrations as $r)
+                                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3" x-data="{ open: false, reason: '' }">
+                                    <p class="font-semibold text-slate-700">{{ $r['student'] }}</p>
+                                    <p class="text-xs text-slate-500">{{ $r['email'] }} · gửi {{ $r['requestedAt'] }}</p>
+
+                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                        <form method="POST" action="{{ route('admin.competitions.registrations.approve', [$competition->id, $r['id']]) }}">
+                                            @csrf
+                                            <button type="submit" class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700">Duyệt</button>
+                                        </form>
+                                        <button type="button" @click="open = ! open" class="text-xs font-bold text-blue-600" x-text="open ? 'Đóng' : 'Từ chối'"></button>
+                                    </div>
+
+                                    <form x-show="open" x-cloak method="POST" action="{{ route('admin.competitions.registrations.reject', [$competition->id, $r['id']]) }}" class="mt-2 space-y-2">
+                                        @csrf
+                                        <textarea name="reason" x-model="reason" rows="2" maxlength="255" class="admin-input" placeholder="Lý do từ chối (không bắt buộc, học sinh sẽ đọc được)"></textarea>
+                                        <button type="submit" class="w-full rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700">Xác nhận từ chối</button>
+                                    </form>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if (count($decidedRegistrations) > 0)
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-xs font-bold text-slate-500">Đã xử lý ({{ count($decidedRegistrations) }})</summary>
+                            <div class="mt-2 space-y-1.5">
+                                @foreach ($decidedRegistrations as $r)
+                                    <div class="flex items-start justify-between gap-2 rounded-xl border border-sky-100 px-3 py-2">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-medium text-slate-700">{{ $r['student'] }}</p>
+                                            <p class="text-xs text-slate-400">{{ $r['decidedAt'] }} · {{ $r['decidedBy'] }}</p>
+                                            @if ($r['rejectReason'])
+                                                <p class="text-xs text-blue-600">Lý do: {{ $r['rejectReason'] }}</p>
+                                            @endif
+                                        </div>
+                                        <x-ws.badge :tone="$r['tone']">{{ $r['statusLabel'] }}</x-ws.badge>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endif
+            </div>
+
             <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px]">
                 <h2 class="font-medium text-slate-700 mb-2">Bảng xếp hạng</h2>
                 <p class="text-slate-600">{{ $competition->leaderboard_entries_count }} lượt xếp hạng tổng đã ghi nhận.</p>

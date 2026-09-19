@@ -7,7 +7,10 @@ use App\Enums\CompetitionStatus;
 use App\Enums\CompetitionType;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
+use App\Models\CompetitionRegistration;
 use App\Models\LeaderboardEntry;
+use App\Models\User;
+use App\Notifications\CompetitionJoinDecided;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
@@ -283,7 +286,133 @@ class CompetitionService
             ->with(['assessment', 'advisors'])
             ->findOrFail($competitionId);
 
-        return array_merge(['competition' => $competition], $this->examSittingsData($competition));
+        return array_merge(
+            ['competition' => $competition],
+            $this->examSittingsData($competition),
+            // SỬA 19/9 — khối "Đơn đăng ký" ngay trong màn chi tiết cuộc thi, không đẻ trang riêng:
+            // admin đang xem cuộc thi nào thì duyệt đơn của cuộc thi đó, đúng chỗ.
+            $this->registrationsData($competition),
+        );
+    }
+
+    /**
+     * SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt") — danh sách đơn đăng ký của
+     * MỘT cuộc thi, chia sẵn thành "chờ duyệt" và "đã xử lý" để màn quản trị khỏi tự lọc.
+     *
+     * @return array{registrationsReady: bool, pendingRegistrations: array, decidedRegistrations: array, approvedCount: int}
+     */
+    public function registrationsData(Competition $competition): array
+    {
+        // Máy chủ chưa chạy migration thì trả rỗng + cờ để view báo rõ, thay vì vỡ trang bằng
+        // lỗi SQL "table not found" (xem CompetitionRegistration::supported()).
+        if (! CompetitionRegistration::supported()) {
+            return ['registrationsReady' => false, 'pendingRegistrations' => [], 'decidedRegistrations' => [], 'approvedCount' => 0];
+        }
+
+        $rows = CompetitionRegistration::query()
+            ->where('competition_id', $competition->id)
+            ->with(['student:id,name,email', 'approvedBy:id,name'])
+            ->orderByDesc('requested_at')
+            ->get();
+
+        $map = fn (CompetitionRegistration $r) => [
+            'id' => $r->id,
+            'student' => $r->student?->name ?? 'Người dùng đã xoá',
+            'email' => $r->student?->email ?? '',
+            'requestedAt' => $r->requested_at?->format('d/m/Y H:i') ?? '—',
+            'decidedAt' => $r->approved_at?->format('d/m/Y H:i') ?? '—',
+            'decidedBy' => $r->approvedBy?->name ?? '—',
+            'status' => $r->status,
+            'statusLabel' => match ($r->status) {
+                CompetitionRegistration::STATUS_APPROVED => 'Đã duyệt',
+                CompetitionRegistration::STATUS_REJECTED => 'Từ chối',
+                CompetitionRegistration::STATUS_WITHDRAWN => 'Đã rút',
+                default => 'Chờ duyệt',
+            },
+            'tone' => match ($r->status) {
+                CompetitionRegistration::STATUS_APPROVED => 'success',
+                CompetitionRegistration::STATUS_REJECTED => 'danger',
+                default => 'warning',
+            },
+            'rejectReason' => $r->reject_reason,
+        ];
+
+        return [
+            'registrationsReady' => true,
+            'pendingRegistrations' => $rows->where('status', CompetitionRegistration::STATUS_PENDING)->map($map)->values()->all(),
+            'decidedRegistrations' => $rows->where('status', '!=', CompetitionRegistration::STATUS_PENDING)->map($map)->values()->all(),
+            'approvedCount' => $rows->where('status', CompetitionRegistration::STATUS_APPROVED)->count(),
+        ];
+    }
+
+    /**
+     * admin.competitions.registrations.approve — DUYỆT đơn. Duyệt xong học sinh vào được không
+     * gian thi và mở được đề của cuộc thi (chặn thật ở AttemptService::competitionEntryDecision()).
+     *
+     * @throws ValidationException khi đơn không còn ở trạng thái chờ duyệt (tránh 2 admin bấm
+     *                             cùng lúc, hoặc bấm lại nút cũ trên trang đã cũ).
+     */
+    public function approveRegistration(User $admin, int $competitionId, int $registrationId): CompetitionRegistration
+    {
+        $registration = $this->findPendingRegistration($competitionId, $registrationId);
+
+        $registration->update([
+            'status' => CompetitionRegistration::STATUS_APPROVED,
+            'approved_at' => now(),
+            'approved_by' => $admin->id,
+            'reject_reason' => null,
+        ]);
+
+        $registration->student?->notify(new CompetitionJoinDecided($registration->competition, true));
+
+        return $registration;
+    }
+
+    /**
+     * admin.competitions.registrations.reject — TỪ CHỐI đơn.
+     *
+     * KHÔNG xoá dòng: giữ lại để biết đã từng xin và vì sao bị từ chối, và vì
+     * unique(competition_id, student_id) nên học sinh xin lại sẽ ghi đè đúng dòng này
+     * (Student\CompetitionService::requestJoin()).
+     */
+    public function rejectRegistration(User $admin, int $competitionId, int $registrationId, ?string $reason = null): CompetitionRegistration
+    {
+        $registration = $this->findPendingRegistration($competitionId, $registrationId);
+
+        $registration->update([
+            'status' => CompetitionRegistration::STATUS_REJECTED,
+            'approved_at' => now(),
+            'approved_by' => $admin->id,
+            'reject_reason' => $reason,
+        ]);
+
+        $registration->student?->notify(new CompetitionJoinDecided($registration->competition, false, $reason));
+
+        return $registration;
+    }
+
+    private function findPendingRegistration(int $competitionId, int $registrationId): CompetitionRegistration
+    {
+        if (! CompetitionRegistration::supported()) {
+            throw ValidationException::withMessages([
+                'registration' => 'Máy chủ chưa chạy migration cho tính năng này — chạy "php artisan migrate" rồi thử lại.',
+            ]);
+        }
+
+        $registration = CompetitionRegistration::query()
+            ->where('competition_id', $competitionId)
+            ->with(['student', 'competition'])
+            ->find($registrationId);
+
+        if ($registration === null) {
+            throw ValidationException::withMessages(['registration' => 'Không tìm thấy đơn đăng ký này trong cuộc thi.']);
+        }
+
+        if (! $registration->isPending()) {
+            throw ValidationException::withMessages(['registration' => 'Đơn này đã được xử lý rồi — tải lại trang để xem trạng thái mới nhất.']);
+        }
+
+        return $registration;
     }
 
     /** @return array{exams: array, assessmentOptions: array} */
