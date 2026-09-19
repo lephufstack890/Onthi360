@@ -24,6 +24,7 @@
         $registrationApproved = $registrationApproved ?? false;
         $registrationRejected = $registrationRejected ?? false;
         $canRequestJoin = $canRequestJoin ?? false;
+        $directExamId = $directExamId ?? null;
     @endphp
 
     <div class="max-w-5xl mx-auto px-4 pt-6">
@@ -187,7 +188,8 @@
                                         ✓ Đã làm — Xem xếp hạng
                                     </a>
                                 @elseif ($exam['canJoinDirectly'])
-                                    <a href="{{ route('student.assessment.take', $exam['assessmentId']) }}" class="block text-center px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                                    {{-- SỬA 19/9 (2) — phòng thi RIÊNG của cuộc thi, định danh bằng id vòng thi. --}}
+                                    <a href="{{ route('student.competitions.exam', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
                                         Vào thi
                                     </a>
                                 @elseif ($exam['ongoing'])
@@ -209,7 +211,9 @@
                 @elseif ($canJoinDirectly)
                     <h2 class="font-medium text-slate-700 mb-2">Sẵn sàng tham gia?</h2>
                     <p class="text-sm text-slate-500 mb-4">Vào làm đề tham chiếu của cuộc thi — kết quả sẽ được ghi nhận vào hồ sơ của bạn.</p>
-                    <a href="{{ route('student.assessment.take', $competition->assessment_id) }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                    {{-- $directExamId null = cuộc thi cũ chưa có vòng thi nào trỏ tới đề này; khi đó
+                         vẫn dùng màn làm bài chung để nút không bị chết. --}}
+                    <a href="{{ $directExamId !== null ? route('student.competitions.exam', ['competition' => $competition->id, 'exam' => $directExamId]) : route('student.assessment.take', $competition->assessment_id) }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
                         Vào thi ngay
                     </a>
                     <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">

@@ -282,6 +282,73 @@ class CompetitionService
         ];
     }
 
+
+    /**
+     * SỬA 19/9 (2) — bối cảnh CUỘC THI cho màn làm bài riêng (student.competitions.exam).
+     *
+     * CHỈ trả thông tin để HIỂN THỊ + 2 lớp kiểm tra quyền rẻ tiền (đã duyệt chưa, vòng thi có
+     * đúng của cuộc thi này không). TUYỆT ĐỐI không đụng tới việc mở/tiếp tục lượt làm bài —
+     * việc đó vẫn do Student\AssessmentService::buildTakeData() + AttemptService làm y như
+     * đường cũ, nên luật giờ giấc, số lượt làm lại và chấm điểm không đổi một dòng nào.
+     *
+     * Khoá trả về đều có tiền tố "contest" để trộn chung với mảng của buildTakeData() mà không
+     * đè nhầm khoá nào của nó (nó đã có 'examCode', 'attempt', 'questions'...).
+     *
+     * @return array<string, mixed>
+     */
+    public function examContext(?User $user, int $competitionId, int $examId): array
+    {
+        abort_if($user === null, 403);
+
+        /** @var Competition $competition */
+        $competition = Competition::query()->findOrFail($competitionId);
+
+        /*
+         * Chưa được duyệt là chuyện NGHIỆP VỤ bình thường (đơn còn chờ, hoặc bị từ chối), nên
+         * ném ValidationException để controller hiện trang "Chưa thể vào làm bài" quen thuộc,
+         * KHÔNG abort(403) — trang 403 trắng trơn của Laravel không nói được phải làm gì tiếp.
+         * Ngược lại, id vòng thi sai/ghép từ cuộc thi khác mới là truy cập bất thường -> 404.
+         */
+        if (CompetitionRegistration::supported() && ! $this->isApproved($user, $competition->id)) {
+            throw ValidationException::withMessages([
+                'attempt' => 'Bạn chưa được ban tổ chức duyệt tham gia cuộc thi này — hãy gửi đăng ký và chờ duyệt trước khi vào thi.',
+            ]);
+        }
+
+        /** @var CompetitionExam|null $exam */
+        $exam = CompetitionExam::query()
+            ->with('assessment')
+            ->where('competition_id', $competition->id)   // chặn ghép id vòng của cuộc thi KHÁC
+            ->find($examId);
+
+        abort_if($exam === null, 404);
+
+        if ($exam->assessment_id === null) {
+            abort(404, 'Vòng thi này chưa được ban tổ chức gắn đề.');
+        }
+
+        $examStatus = $exam->computedStatus();   // upcoming | ongoing | ended
+
+        return [
+            'assessmentId' => (int) $exam->assessment_id,
+            'contestId' => $competition->id,
+            'contestTitle' => $competition->title,
+            'contestRoundLabel' => $exam->displayTitle(),
+            'contestRoundShort' => $exam->title ?: 'Vòng thi',
+            'contestStatusLabel' => match ($examStatus) {
+                'ongoing' => 'Đang diễn ra',
+                'ended' => 'Đã kết thúc',
+                default => 'Chưa mở',
+            },
+            'contestTimeRange' => $this->timeRangeLabel($exam),
+            'contestEndsAtLabel' => $exam->ends_at?->format('H:i d/m/Y'),
+            // Thể lệ do admin nhập; rỗng thì view tự ẩn mục "Thể lệ" thay vì in ô trống.
+            'contestRules' => trim((string) ($competition->rules ?? '')) ?: null,
+            'contestRoomUrl' => route('student.competitions.room', ['competition' => $competition->id, 'vong' => $exam->id]),
+            'contestLeaderboardUrl' => route('leaderboard.index', ['competition' => $competition->id, 'exam' => $exam->id]),
+        ];
+    }
+
     /** "08:00 10/09 → 11:00 10/09"; thiếu mốc nào thì nói thẳng là chưa xếp. */
     private function timeRangeLabel(CompetitionExam $exam): string
     {

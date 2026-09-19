@@ -301,7 +301,11 @@
                 {{-- Nút vào thi --}}
                 <div class="mt-5 rounded-2xl border border-sky-100 bg-gradient-to-r from-[#F1FAFC] via-white to-[#F5FBF8] p-4 shadow-[0_6px_18px_rgba(28,91,121,0.07)] sm:p-5">
                     @if ($canEnterExam)
-                        <a href="{{ route('student.assessment.take', $selectedRound['assessmentId']) }}"
+                        {{-- SỬA 19/9 (2) — vào PHÒNG THI RIÊNG của cuộc thi (student.competitions.exam)
+                             thay vì màn làm bài chung. Truyền id vòng thi chứ không phải id đề: một đề
+                             có thể được dùng lại ở nhiều vòng/nhiều cuộc thi, chỉ id vòng mới nói được
+                             đang thi cái gì. --}}
+                        <a href="{{ route('student.competitions.exam', ['competition' => $competition->id, 'exam' => $selectedRound['id']]) }}"
                            class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#126F91] px-5 py-3 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0F607E]">
                             <x-lucide name="play" class="h-4 w-4" />{{ $examActionLabel }}
                         </a>

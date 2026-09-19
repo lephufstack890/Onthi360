@@ -411,7 +411,7 @@
                                     }
                                 @endphp
                                 @if ($openRound !== null)
-                                    <a href="{{ route('student.assessment.take', $openRound['assessmentId']) }}"
+                                    <a href="{{ route('student.competitions.exam', ['competition' => $c['id'], 'exam' => $openRound['id']]) }}"
                                        class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
                                         <x-lucide name="play" class="h-3.5 w-3.5" />Vào thi ngay · {{ $openRound['shortLabel'] }}
                                     </a>
@@ -441,7 +441,7 @@
                                             {{ $r['status'] === 'completed' ? 'Đã kết thúc' : ($r['status'] === 'current' ? 'Đang diễn ra' : 'Sắp diễn ra') }}
                                         </span>
                                         @if ($r['canJoin'])
-                                            <a href="{{ route('student.assessment.take', $r['assessmentId']) }}"
+                                            <a href="{{ route('student.competitions.exam', ['competition' => $c['id'], 'exam' => $r['id']]) }}"
                                                class="inline-flex items-center gap-1 rounded-lg bg-[#43876F] px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-[#3A7561]">
                                                 <x-lucide name="play" class="h-3 w-3" />Vào thi
                                             </a>

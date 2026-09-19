@@ -336,7 +336,8 @@ class CompetitionService
         } elseif ($isStudent && ! $isApproved && $statusValue !== 'archived') {
             $cta = ['label' => 'Đăng ký tham gia', 'href' => null, 'icon' => 'file-check-2', 'tone' => 'register'];
         } elseif ($joinRound !== null) {
-            $cta = ['label' => 'Vào phòng thi', 'href' => route('student.assessment.take', $joinRound['assessmentId']), 'icon' => 'play', 'tone' => 'go'];
+            // SỬA 19/9 (2) — phòng thi RIÊNG của cuộc thi, định danh bằng id VÒNG THI.
+            $cta = ['label' => 'Vào phòng thi', 'href' => route('student.competitions.exam', ['competition' => $c->id, 'exam' => $joinRound['id']]), 'icon' => 'play', 'tone' => 'go'];
         } elseif ($isStudent && $isApproved) {
             $cta = ['label' => 'Vào không gian thi', 'href' => route('student.competitions.room', $c->id), 'icon' => 'trophy', 'tone' => 'go'];
         } elseif ($hasSubmitted || $statusValue === 'published') {
@@ -479,10 +480,23 @@ class CompetitionService
         $registrationStatus = $this->registrationStatuses($viewer, [$competition->id])[$competition->id] ?? null;
         $isRegistrationApproved = $this->isApprovedRegistration($registrationStatus);
 
+        /*
+         * SỬA 19/9 (2) — phòng thi cuộc thi định danh bằng id VÒNG THI, trong khi nút "Vào thi
+         * ngay" ở khối dưới lại đi theo $competition->assessment_id (đường tham chiếu đơn, có
+         * từ trước khi hệ thống có khái niệm nhiều vòng). Tìm đúng vòng đang trỏ tới đề đó để
+         * dựng được đường dẫn mới. Cuộc thi cũ đã được migration backfill 1 vòng tương ứng nên
+         * bình thường luôn tìm thấy; không thấy thì view tự lùi về màn làm bài chung (giữ
+         * nguyên hành vi cũ, không để nút chết).
+         */
+        $directExam = $competition->assessment_id === null
+            ? null
+            : $competition->examSittings->firstWhere('assessment_id', $competition->assessment_id);
+
         return [
             'competition' => $competition,
             // Dữ liệu cho widget "Đăng ký tham gia" 3 bước ở view (Gửi đăng ký → BTC duyệt → Vào phòng).
             'registrationStatus' => $registrationStatus,
+            'directExamId' => $directExam?->id,
             'registrationApproved' => $isRegistrationApproved,
             'registrationPending' => $registrationStatus === CompetitionRegistration::STATUS_PENDING,
             'registrationRejected' => $registrationStatus === CompetitionRegistration::STATUS_REJECTED,

@@ -164,6 +164,13 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('competition')->name('competitions.requestJoin');
         Route::get('competitions/{competition}/phong-thi', [StudentCompetitionController::class, 'room'])
             ->whereNumber('competition')->name('competitions.room');
+        // SỬA 19/9 (2) (khách: "vào thi thì mở màn làm bài RIÊNG cho cuộc thi") — phòng thi
+        // của cuộc thi. Đường dẫn mang cả competition + vòng thi để màn làm bài biết mình
+        // đang ở cuộc thi/vòng nào mà hiển thị cho đúng; việc TẠO/TIẾP TỤC lượt làm bài, tự
+        // lưu, chạy thử và chấm vẫn dùng NGUYÊN hạ tầng cũ (student.assessment.take.save /
+        // .run / .submit) — chỉ khác cái view.
+        Route::get('competitions/{competition}/vong/{exam}/lam-bai', [StudentCompetitionController::class, 'exam'])
+            ->whereNumber(['competition', 'exam'])->name('competitions.exam');
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
