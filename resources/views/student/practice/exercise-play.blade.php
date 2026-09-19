@@ -232,6 +232,13 @@
                                     ? $summary['scorePercent']
                                     : ($total > 0 ? (int) round($correct / $total * 100) : 0);
                                 $allCorrect = $total > 0 && $correct === $total;
+
+                                // Phiên chỉ có ĐÚNG MỘT câu lập trình (luồng "Làm bài" từ trang
+                                // Luyện tập) — nói thẳng tỉ lệ TEST, vì đó mới là con số học sinh
+                                // vừa nhìn thấy ở khối chấm, chứ không phải "0/2 điểm".
+                                $soloTest = (count($summary['rows'] ?? []) === 1 && ($summary['rows'][0]['testPercent'] ?? null) !== null)
+                                    ? $summary['rows'][0]
+                                    : null;
                             @endphp
 
                             <div class="mx-auto mt-6 max-w-2xl space-y-3">
@@ -249,7 +256,12 @@
                                         'text-[#2C6BB0]' => $mainPercent < 50,
                                     ])>{{ $mainPercent }}%</p>
                                     <p class="mt-1 text-[12px] font-bold text-[#607A90]">
-                                        Đúng {{ $correct }}/{{ $total }} câu{{ $hasPoints ? ' · '.$summary['earned'].'/'.$summary['maxPoints'].' điểm' : '' }}
+                                        @if ($soloTest !== null)
+                                            Qua {{ $soloTest['passedTests'] }}/{{ $soloTest['totalTests'] }} test ({{ $soloTest['testPercent'] }}%)
+                                        @else
+                                            Đúng {{ $correct }}/{{ $total }} câu
+                                        @endif
+                                        {{ $hasPoints ? ' · '.$summary['earned'].'/'.$summary['maxPoints'].' điểm' : '' }}
                                     </p>
 
                                     <div class="mx-auto mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-[#EAF0F3]">
@@ -286,6 +298,17 @@
                                                         <span class="min-w-0">
                                                             <span class="block truncate text-[12px] font-bold text-[#123B68]">{{ $r['title'] }}</span>
                                                             <span class="block truncate text-[10px] font-semibold text-[#8AA0B0]">{{ $r['code'] }} · {{ $r['verdictLabel'] }}</span>
+                                                            {{-- SỬA 19/9 (8) — TỈ LỆ AC của câu lập trình. Chỉ hiện khi có số
+                                                                 liệu thật: null (câu không phải lập trình, bài nộp cũ, hoặc
+                                                                 máy chủ chưa migrate) thì ẩn hẳn, không hiện "0/0 test". --}}
+                                                            @if ($r['testPercent'] !== null)
+                                                                <span class="mt-1 flex items-center gap-1.5">
+                                                                    <span class="h-1.5 w-16 overflow-hidden rounded-full bg-[#EAF0F3]">
+                                                                        <span class="block h-full rounded-full {{ $r['testPercent'] === 100 ? 'bg-[#2F8A6B]' : 'bg-[#4C87CE]' }}" style="width: {{ $r['testPercent'] }}%"></span>
+                                                                    </span>
+                                                                    <span class="whitespace-nowrap text-[10px] font-bold text-[#607A90]">{{ $r['passedTests'] }}/{{ $r['totalTests'] }} test · {{ $r['testPercent'] }}%</span>
+                                                                </span>
+                                                            @endif
                                                         </span>
                                                     </span>
                                                     <span @class([

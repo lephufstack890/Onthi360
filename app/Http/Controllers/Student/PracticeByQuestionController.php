@@ -280,12 +280,21 @@ class PracticeByQuestionController extends Controller
 
     /** SỬA 31/8 — nếu phiên vừa dừng là "Làm bài" 1 bài tập sản phẩm (có returnUrl lưu sẵn,
      *  xem startForQuestion()), quay lại ĐÚNG trang sản phẩm thay vì trang "Luyện tập" chung. */
+    /**
+     * SỬA 19/9 (8) — "Thoát bài tập": đã làm bài thì về MÀN TỔNG KẾT (tỉ lệ AC, điểm, kết quả
+     * từng câu) chứ không rời đi trắng tay; chưa làm gì thì thoát thẳng như cũ.
+     * Xem PracticeByQuestionService::stop().
+     */
     public function stop(Request $request): RedirectResponse
     {
-        $returnUrl = $this->service->stop();
+        $result = $this->service->stop();
 
-        return $returnUrl !== null
-            ? redirect()->to($returnUrl)
+        if ($result['finish']) {
+            return redirect()->route('student.practiceByQuestion.play');
+        }
+
+        return $result['returnUrl'] !== null
+            ? redirect()->to($result['returnUrl'])
             : redirect()->route('student.practice.index');
     }
 }

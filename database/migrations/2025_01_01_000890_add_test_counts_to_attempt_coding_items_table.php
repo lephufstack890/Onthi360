@@ -5,8 +5,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * SỬA 19/9 (7) (khách: "nộp bài phần lập trình xong nó không hiển thị tỉ lệ AC") — LƯU SỐ TEST
- * ĐÃ QUA của bài lập trình trong đề PDF.
+ * SỬA 19/9 (7)(8) (khách: "nộp bài phần lập trình xong nó không hiển thị tỉ lệ AC") — LƯU SỐ
+ * TEST ĐÃ QUA của bài lập trình, cho CẢ HAI đường chấm code của hệ thống:
+ *   · attempt_coding_items — bài lập trình con trong đề PDF (PdfAttemptService)
+ *   · attempt_answers      — câu Lập trình rời ở Luyện tập/Đề cấu trúc (PracticeByQuestionService)
+ *
+ * Gộp trong một migration để người quản trị chỉ phải chạy "php artisan migrate" một lần.
  *
  * Trước đây attempt_coding_items chỉ có verdict + score, tức là chỉ biết ĐÚNG hay SAI. Học sinh
  * nộp một chương trình qua 18/20 test cũng chỉ thấy đúng một chữ "Sai", không biết mình sai ở
@@ -22,16 +26,29 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('attempt_coding_items', function (Blueprint $table) {
-            $table->unsignedInteger('passed_tests')->nullable()->after('score');
-            $table->unsignedInteger('total_tests')->nullable()->after('passed_tests');
-        });
+        foreach (['attempt_coding_items', 'attempt_answers'] as $tableName) {
+            // hasColumn: chạy lại migration trên máy đã thêm tay 2 cột này thì bỏ qua, không đổ lỗi.
+            if (Schema::hasColumn($tableName, 'passed_tests')) {
+                continue;
+            }
+
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->unsignedInteger('passed_tests')->nullable()->after('score');
+                $table->unsignedInteger('total_tests')->nullable()->after('passed_tests');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('attempt_coding_items', function (Blueprint $table) {
-            $table->dropColumn(['passed_tests', 'total_tests']);
-        });
+        foreach (['attempt_coding_items', 'attempt_answers'] as $tableName) {
+            if (! Schema::hasColumn($tableName, 'passed_tests')) {
+                continue;
+            }
+
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->dropColumn(['passed_tests', 'total_tests']);
+            });
+        }
     }
 };

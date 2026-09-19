@@ -6,6 +6,7 @@ use App\Enums\AttemptSource;
 use App\Enums\AttemptStatus;
 use App\Enums\VerdictStatus;
 use App\Models\Attempt;
+use App\Models\AttemptAnswer;
 use App\Models\Question;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
@@ -213,6 +214,15 @@ class PracticeByQuestionService
             $earned += $score;
             $acceptedCount += $accepted ? 1 : 0;
 
+            /*
+             * SỬA 19/9 (8) — TỈ LỆ AC của câu lập trình: số test đã qua / tổng số test, ghi lúc
+             * chấm (recordSubmission()). null = bài nộp từ trước khi có 2 cột, hoặc máy chủ
+             * chưa migrate, hoặc câu không phải dạng lập trình -> view ẩn hẳn phần tỉ lệ thay
+             * vì hiện "0/0 test" gây hiểu nhầm là bài không có test nào.
+             */
+            $totalTests = $answer?->total_tests !== null ? (int) $answer->total_tests : null;
+            $passedTests = $answer?->passed_tests !== null ? (int) $answer->passed_tests : null;
+
             $rows[] = [
                 'code' => $question?->code ?? '—',
                 'title' => $question?->title ?? 'Câu hỏi đã bị xoá',
@@ -222,6 +232,11 @@ class PracticeByQuestionService
                 'verdictLabel' => $answer === null ? 'Chưa trả lời' : ($answer->verdict?->label() ?? 'Chưa chấm'),
                 'score' => $score,
                 'points' => $points,
+                'passedTests' => $passedTests,
+                'totalTests' => $totalTests,
+                'testPercent' => ($totalTests !== null && $totalTests > 0 && $passedTests !== null)
+                    ? (int) round($passedTests / $totalTests * 100)
+                    : null,
             ];
         }
 
@@ -368,23 +383,38 @@ class PracticeByQuestionService
 
         $existing = $attempt->answers()->where('question_id', $question->id)->first();
 
-        $attempt->answers()->updateOrCreate(
-            ['question_id' => $question->id],
-            [
-                // 'answer' là cột JSON — gom cả 3 dạng trả lời vào đây, bỏ khoá rỗng cho gọn.
-                'answer' => array_filter([
-                    'selected_option' => $data['selected_option'] ?? null,
-                    'text' => $data['text'] ?? null,
-                    'parts' => $data['parts'] ?? null,
-                ], fn ($v) => $v !== null && $v !== []),
-                'code_source' => $data['code_source'] ?? null,
-                'language' => $data['language'] ?? null,
-                'verdict' => $verdict,
-                'score' => $score,
-                'graded_at' => now(),
-                'submission_count' => ($existing?->submission_count ?? 0) + 1,
-            ],
-        );
+        $payload = [
+            // 'answer' là cột JSON — gom cả 3 dạng trả lời vào đây, bỏ khoá rỗng cho gọn.
+            'answer' => array_filter([
+                'selected_option' => $data['selected_option'] ?? null,
+                'text' => $data['text'] ?? null,
+                'parts' => $data['parts'] ?? null,
+            ], fn ($v) => $v !== null && $v !== []),
+            'code_source' => $data['code_source'] ?? null,
+            'language' => $data['language'] ?? null,
+            'verdict' => $verdict,
+            'score' => $score,
+            'graded_at' => now(),
+            'submission_count' => ($existing?->submission_count ?? 0) + 1,
+        ];
+
+        /*
+         * SỬA 19/9 (8) — ĐẾM số test đã qua cho câu Lập trình. Máy chấm vốn trả chi tiết từng
+         * test ($codingResult['testCases']), trước giờ chỉ dùng để vẽ ra màn rồi bỏ; giữ lại 2
+         * con số này thì sau khi thoát bài, màn tổng kết mới nói được "Đúng 4/20 test · 20%".
+         *
+         * KHÔNG lưu cả mảng chi tiết: trong đó có dữ liệu vào + đáp án đúng của từng test.
+         */
+        if (AttemptAnswer::supportsTestCounts()) {
+            $details = $codingResult['testCases'] ?? null;
+
+            $payload['total_tests'] = is_array($details) ? count($details) : null;
+            $payload['passed_tests'] = is_array($details)
+                ? count(array_filter($details, fn ($d) => ($d['isAccepted'] ?? false) === true))
+                : null;
+        }
+
+        $attempt->answers()->updateOrCreate(['question_id' => $question->id], $payload);
 
         // Điểm của phiên = tổng điểm các câu đã chấm trong phiên. submitted_at đặt mỗi lần nộp
         // để lượt này nổi lên đầu tab "Lịch sử làm bài" (truy vấn ở đó lọc whereNotNull).
@@ -570,13 +600,51 @@ class PracticeByQuestionService
         Session::put(self::SESSION_KEY, $state);
     }
 
-    public function stop(): ?string
+    /**
+     * SỬA 19/9 (8) (khách: "nộp bài xong thoát bài tập thì phải thấy tỉ lệ AC chứ đây không
+     * thấy luôn") — bấm "Thoát bài tập" KHÔNG còn vứt sạch kết quả.
+     *
+     * Hành vi cũ: xoá session rồi đá thẳng về trang trước. Học sinh vừa nộp bài xong, bấm
+     * thoát là mất luôn mọi thứ vừa chấm — muốn xem kết quả thì phải nhớ bấm đúng nút "Hoàn
+     * tất bài tập" nằm tít cuối khối kết quả, mà nút đó lại hay bị khuất.
+     *
+     * Hành vi mới: ĐÃ trả lời ít nhất một câu thì đẩy phiên về trạng thái "đã xong" và GIỮ
+     * session để màn tổng kết (có tỉ lệ AC, điểm, kết quả từng câu) hiện ra; CHƯA làm gì thì
+     * thoát thẳng như cũ — bắt người chưa làm gì phải xem một bảng rỗng là vô nghĩa.
+     *
+     * @return array{finish: bool, returnUrl: string|null} finish=true -> nơi gọi đưa về màn chơi
+     *                                                     để hiện tổng kết; false -> rời đi luôn.
+     */
+    public function stop(): array
     {
         $state = Session::get(self::SESSION_KEY);
         $returnUrl = is_array($state) ? ($state['returnUrl'] ?? null) : null;
 
+        /*
+         * ĐÃ ở màn tổng kết rồi (index đã ra ngoài danh sách câu) mà bấm "Thoát bài tập" lần
+         * nữa thì phải RỜI ĐI THẬT. Thiếu điều kiện này là bẫy chuột: bấm thoát lại quay về
+         * đúng màn tổng kết, bấm mấy lần cũng không ra được.
+         */
+        $alreadyFinished = is_array($state)
+            && ! empty($state['question_ids'])
+            && (int) ($state['index'] ?? 0) >= count($state['question_ids']);
+
+        $hasWork = ! $alreadyFinished
+            && is_array($state)
+            && (int) ($state['answered'] ?? 0) > 0
+            && ! empty($state['question_ids']);
+
+        if ($hasWork) {
+            // Đặt con trỏ ra ngoài danh sách câu = dấu hiệu "đã xong" mà playData() vẫn dùng.
+            $state['index'] = count($state['question_ids']);
+            $state['feedback'] = null;
+            Session::put(self::SESSION_KEY, $state);
+
+            return ['finish' => true, 'returnUrl' => $returnUrl];
+        }
+
         Session::forget(self::SESSION_KEY);
 
-        return $returnUrl;
+        return ['finish' => false, 'returnUrl' => $returnUrl];
     }
 }
