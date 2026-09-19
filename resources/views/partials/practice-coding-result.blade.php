@@ -90,7 +90,21 @@
                 @endif
             </div>
 
-            <div class="max-h-[320px] divide-y divide-[#EEF3F6] overflow-y-auto">
+            {{--
+                SỬA 19/9 (8) (khách: "đâu thấy được test 19 20 đâu") — BỎ max-h-[320px] +
+                overflow-y-auto ở đây.
+
+                Lỗi cũ là CUỘN LỒNG NHAU: danh sách test tự cuộn trong một ô cao 320px, mà bản
+                thân ô 320px đó lại nằm dưới khu soạn mã cao 420px, nên nửa dưới của chính cái ô
+                đã nằm ngoài vùng nhìn thấy. Kéo chuột trong danh sách thì các dòng có chạy,
+                nhưng dòng cuối cùng nhìn thấy được luôn là dòng chạm mép cắt (Test 17/18) —
+                Test 19, 20 không bao giờ hiện ra, dù thanh cuộn bên trong đã ở đáy.
+
+                Giờ danh sách đổ thẳng, chỉ còn MỘT thanh cuộn duy nhất của khung ngoài (xem
+                exercise-play.blade.php, chỗ bỏ lg:overflow-hidden), cuộn tới đâu cũng tới được,
+                kể cả nút "Hoàn tất bài tập" ở cuối.
+            --}}
+            <div class="divide-y divide-[#EEF3F6]">
                 @foreach ($tcs as $tc)
                     <div data-test-case-row>
                         <button type="button"
