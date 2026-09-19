@@ -28,7 +28,9 @@
         // trong màn "Đánh giá" nên không ai để ý là có người đang chờ trả lời. Không đặt
         // 'editorOk' => true: chỉ quản trị viên được đọc nội dung người dùng gửi.
         ['label' => 'Yêu cầu hỗ trợ', 'route' => 'admin.contact-messages.index', 'icon' => 'headphones', 'badge' => 'support'],
-        ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => 'trophy', 'also' => ['admin.featured-teachers.index']],
+        // SỬA 19/9 (10) (khách: "học sinh đăng ký cuộc thi mà admin không biết cuộc thi nào để
+        // duyệt") — viên số đỏ = số ĐƠN ĐĂNG KÝ đang chờ duyệt của mọi cuộc thi cộng lại.
+        ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => 'trophy', 'also' => ['admin.featured-teachers.index'], 'badge' => 'competitions'],
         ['label' => 'Câu chuyện đồng hành', 'route' => 'admin.testimonials.index', 'icon' => 'heart', 'also' => ['admin.testimonials.create', 'admin.testimonials.edit']],
         ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => 'bar-chart-3'],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => 'scroll-text'],
@@ -71,6 +73,10 @@
         'orders' => $badgeQueues->contains('orders')
             ? app(\App\Services\WalletService::class)->pendingTopupCount()
                 + app(\App\Services\Admin\OrderService::class)->awaitingApprovalCount()
+            : 0,
+        // Đơn học sinh xin vào cuộc thi, đang chờ ban tổ chức bấm Duyệt/Từ chối.
+        'competitions' => $badgeQueues->contains('competitions')
+            ? app(\App\Services\Admin\CompetitionService::class)->pendingRegistrationCount()
             : 0,
     ];
 

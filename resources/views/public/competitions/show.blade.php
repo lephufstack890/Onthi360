@@ -25,6 +25,7 @@
         $registrationRejected = $registrationRejected ?? false;
         $canRequestJoin = $canRequestJoin ?? false;
         $directExamId = $directExamId ?? null;
+        $approvedRegistrations = $approvedRegistrations ?? 0;
     @endphp
 
     <div class="max-w-5xl mx-auto px-4 pt-6">
@@ -55,8 +56,15 @@
                     <p class="text-xs text-slate-400 mt-1">nữa bắt đầu</p>
                 </div>
             @endif
+            {{-- SỬA 19/9 (12) — hai con số KHÁC NHAU, cố ý tách riêng: "đã được duyệt" là số
+                 thí sinh ban tổ chức nhận vào, "trên bảng xếp hạng" là số người đã có kết quả
+                 chấm xong. Gộp làm một là nói dối một trong hai. --}}
             <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-                <p class="text-2xl font-semibold text-slate-800">👥 {{ number_format($competition->leaderboard_entries_count) }}</p>
+                <p class="text-2xl font-semibold text-slate-800">👥 {{ number_format($approvedRegistrations) }}</p>
+                <p class="text-xs text-slate-400 mt-1">thí sinh đã được duyệt</p>
+            </div>
+            <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
+                <p class="text-2xl font-semibold text-slate-800">🏅 {{ number_format($competition->leaderboard_entries_count) }}</p>
                 <p class="text-xs text-slate-400 mt-1">đã có trên bảng xếp hạng</p>
             </div>
             <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">

@@ -44,13 +44,23 @@ class CompetitionController extends Controller
      * student.competitions.room — KHÔNG GIAN THI. Chỉ mở cho học sinh đã được ban tổ chức duyệt;
      * kiểm tra nằm trong roomData() (không tin giao diện đã ẩn link).
      */
-    public function room(Request $request, int $competition): View
+    public function room(Request $request, int $competition): View|RedirectResponse
     {
         // ?vong=<id kỳ thi> — cho phép chia sẻ đường dẫn tới đúng vòng đang xem; giá trị lạ
         // (vòng của cuộc thi khác, id không tồn tại) bị roomData() bỏ qua và tự chọn vòng hợp lý.
         $selectedExamId = $request->integer('vong') ?: null;
 
-        return view('student.competitions.room', $this->competitionService->roomData($request->user(), $competition, $selectedExamId));
+        try {
+            $data = $this->competitionService->roomData($request->user(), $competition, $selectedExamId);
+        } catch (ValidationException $e) {
+            // SỬA 19/9 (11) — chưa đăng ký / vừa bị ban tổ chức gỡ: đưa về trang cuộc thi công
+            // khai kèm lý do, thay vì quăng trang 403 trắng không giải thích gì.
+            return redirect()
+                ->route('competitions.show', $competition)
+                ->withErrors($e->errors());
+        }
+
+        return view('student.competitions.room', $data);
     }
 
     /**

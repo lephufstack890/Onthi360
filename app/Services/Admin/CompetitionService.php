@@ -72,6 +72,29 @@ class CompetitionService
     }
 
     /** @return array{tabs: array, competitions: array} */
+    /**
+     * SỬA 19/9 (10) (khách: "học sinh đăng ký cuộc thi mà admin không biết cuộc thi nào đang
+     * có đơn để duyệt") — TỔNG số đơn đang chờ duyệt của TOÀN BỘ cuộc thi.
+     *
+     * Dùng cho viên số đỏ cạnh mục "Cuộc thi" ở menu trái (partials/sidebar-admin), để quản
+     * trị viên đang đứng ở bất kỳ màn nào cũng thấy có việc đang chờ — không phải mở từng cuộc
+     * thi ra dò. Cùng khuôn với ContactMessageService::openCount() / OrderService::
+     * awaitingApprovalCount() đang chạy cho 2 mục khác.
+     *
+     * Trả 0 khi máy chủ chưa chạy migration tạo bảng đăng ký — menu chỉ không có viên số, không
+     * vỡ trang.
+     */
+    public function pendingRegistrationCount(): int
+    {
+        if (! CompetitionRegistration::supported()) {
+            return 0;
+        }
+
+        return CompetitionRegistration::query()
+            ->where('status', CompetitionRegistration::STATUS_PENDING)
+            ->count();
+    }
+
     public function indexData(): array
     {
         $tabs = [
@@ -79,13 +102,30 @@ class CompetitionService
             ['label' => 'Giáo viên và chuyên gia', 'href' => route('admin.featured-teachers.index'), 'active' => false, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
-        $competitions = $this->competitions->latest(50)->map(function ($c) {
+        $rows = $this->competitions->latest(50);
+
+        /*
+         * SỬA 19/9 (10) — số đơn CHỜ DUYỆT của từng cuộc thi, gộp MỘT truy vấn cho cả trang
+         * (đừng bắn 50 truy vấn con). Khoá = competition_id, giá trị = số đơn đang chờ.
+         */
+        $pendingByCompetition = CompetitionRegistration::supported()
+            ? CompetitionRegistration::query()
+                ->selectRaw('competition_id, COUNT(*) as pending')
+                ->where('status', CompetitionRegistration::STATUS_PENDING)
+                ->whereIn('competition_id', $rows->pluck('id')->all())
+                ->groupBy('competition_id')
+                ->pluck('pending', 'competition_id')
+                ->all()
+            : [];
+
+        $competitions = $rows->map(function ($c) use ($pendingByCompetition) {
             $statusValue = $c->computedStatus()->value;
 
             return [
                 'id' => $c->id,
                 'name' => $c->title,
                 'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
+                'pendingRegistrations' => (int) ($pendingByCompetition[$c->id] ?? 0),
                 // Hiện rõ Bắt đầu/Kết thúc riêng (ngày + giờ) thay vì gộp mập mờ kiểu "18/08 -
                 // 19/08/2026" — nhìn 1 cái là biết chính xác mốc nào, không phải đoán.
                 'startsAtLabel' => $c->starts_at?->format('d/m/Y H:i') ?? '— Chưa đặt —',
@@ -95,7 +135,20 @@ class CompetitionService
             ];
         })->all();
 
-        return ['tabs' => $tabs, 'competitions' => $competitions];
+        /*
+         * pendingTotal lấy số TOÀN HỆ THỐNG (cùng nguồn với viên số đỏ ở menu) chứ không cộng
+         * lại từ 50 dòng đang hiện: bảng chỉ liệt kê 50 cuộc thi mới nhất, nếu có đơn nằm ở
+         * cuộc thi cũ hơn thì hai con số sẽ lệch nhau và quản trị viên có quyền nghi ngờ cái
+         * nào đúng. pendingListed là phần ĐANG THẤY, chênh lệch được nói rõ ở view.
+         */
+        $pendingListed = array_sum(array_column($competitions, 'pendingRegistrations'));
+
+        return [
+            'tabs' => $tabs,
+            'competitions' => $competitions,
+            'pendingTotal' => $this->pendingRegistrationCount(),
+            'pendingListed' => $pendingListed,
+        ];
     }
 
     /** admin.competitions.create — dữ liệu tĩnh cho form. */
@@ -337,10 +390,21 @@ class CompetitionService
             'rejectReason' => $r->reject_reason,
         ];
 
+        /*
+         * SỬA 19/9 (11) (khách: "có duyệt thì có kick nữa") — tách riêng nhóm ĐÃ DUYỆT.
+         *
+         * Trước đây mọi đơn không-chờ-duyệt bị gộp chung vào một khối <details> "Đã xử lý",
+         * nên muốn gỡ một thí sinh ra khỏi cuộc thi thì phải bung khối đó, lẫn lộn giữa người
+         * đang thi thật với người đã bị từ chối. Giờ ba nhóm rõ ràng: chờ duyệt / đã duyệt
+         * (có nút gỡ) / còn lại.
+         */
         return [
             'registrationsReady' => true,
             'pendingRegistrations' => $rows->where('status', CompetitionRegistration::STATUS_PENDING)->map($map)->values()->all(),
-            'decidedRegistrations' => $rows->where('status', '!=', CompetitionRegistration::STATUS_PENDING)->map($map)->values()->all(),
+            'approvedRegistrations' => $rows->where('status', CompetitionRegistration::STATUS_APPROVED)->map($map)->values()->all(),
+            'decidedRegistrations' => $rows
+                ->whereNotIn('status', [CompetitionRegistration::STATUS_PENDING, CompetitionRegistration::STATUS_APPROVED])
+                ->map($map)->values()->all(),
             'approvedCount' => $rows->where('status', CompetitionRegistration::STATUS_APPROVED)->count(),
         ];
     }
@@ -387,6 +451,61 @@ class CompetitionService
         ]);
 
         $registration->student?->notify(new CompetitionJoinDecided($registration->competition, false, $reason));
+
+        return $registration;
+    }
+
+    /**
+     * admin.competitions.registrations.revoke (SỬA 19/9 (11), khách: "có duyệt cuộc thi thì có
+     * kick nữa") — GỠ một thí sinh ĐÃ DUYỆT ra khỏi cuộc thi.
+     *
+     * Chuyển đơn về trạng thái "từ chối" kèm lý do, đúng bộ dữ liệu mà mọi chốt chặn đang đọc:
+     * AttemptService::isApprovedForCompetition() và Student\CompetitionService::examContext()
+     * đều chỉ cho qua khi status = approved, nên gỡ xong là thí sinh mất quyền vào phòng thi
+     * NGAY, kể cả đang mở sẵn trang (lần lưu bài / vào vòng kế tiếp sẽ bị chặn).
+     *
+     * CỐ Ý KHÔNG đụng tới bài đã nộp và dòng xếp hạng đã ghi: đó là dữ liệu THẬT của một lượt
+     * thi đã diễn ra, xoá kèm ở đây là âm thầm phá sổ sách. Muốn bỏ kết quả thì làm riêng ở
+     * màn Bảng xếp hạng — có chủ đích, có dấu vết.
+     *
+     * Đơn bị gỡ vẫn xin lại được (Student\CompetitionService::requestJoin() cho gửi lại sau
+     * khi bị từ chối) và lại phải chờ duyệt — đúng ý "gỡ" chứ không phải "cấm vĩnh viễn".
+     *
+     * @throws ValidationException nếu đơn không tồn tại hoặc KHÔNG ở trạng thái đã duyệt.
+     */
+    public function revokeRegistration(User $admin, int $competitionId, int $registrationId, ?string $reason = null): CompetitionRegistration
+    {
+        if (! CompetitionRegistration::supported()) {
+            throw ValidationException::withMessages([
+                'registration' => 'Máy chủ chưa chạy migration cho tính năng này — chạy "php artisan migrate" rồi thử lại.',
+            ]);
+        }
+
+        $registration = CompetitionRegistration::query()
+            ->where('competition_id', $competitionId)
+            ->with(['student', 'competition'])
+            ->find($registrationId);
+
+        if ($registration === null) {
+            throw ValidationException::withMessages(['registration' => 'Không tìm thấy đơn đăng ký này trong cuộc thi.']);
+        }
+
+        if (! $registration->isApproved()) {
+            throw ValidationException::withMessages([
+                'registration' => 'Chỉ gỡ được thí sinh ĐANG ở trạng thái đã duyệt — tải lại trang để xem trạng thái mới nhất.',
+            ]);
+        }
+
+        $reason = trim((string) $reason) !== '' ? trim((string) $reason) : null;
+
+        $registration->update([
+            'status' => CompetitionRegistration::STATUS_REJECTED,
+            'approved_at' => now(),
+            'approved_by' => $admin->id,
+            'reject_reason' => $reason ?? 'Bị ban tổ chức gỡ khỏi cuộc thi.',
+        ]);
+
+        $registration->student?->notify(new CompetitionJoinDecided($registration->competition, false, $reason, true));
 
         return $registration;
     }

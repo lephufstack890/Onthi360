@@ -14,53 +14,27 @@ use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Support\PracticeFilters;
 use App\Support\QuestionDifficulty;
 
-/**
- * Luyện tập công khai (PUB-07, 4.1 "Kho bài công khai, lọc, chi tiết đề, đăng nhập để bắt
- * đầu/nộp" + 10.1 "Luyện tập"). Cùng NGUỒN dữ liệu với tab "Tự luyện" của
- * App\Services\Student\PracticeService (type=practice, status=published) để danh sách công
- * khai và danh sách học sinh đã đăng nhập không lệch nhau.
- *
- * SỬA 24/8 — khách chốt: trang này KHÔNG còn ưu tiên "làm theo đề gồm nhiều câu hỏi" nữa, mà
- * ưu tiên lối "Luyện tập theo câu" (chọn dạng câu hỏi + chuyên đề, luyện từng câu, bấm "Câu
- * tiếp theo ›" — cùng cơ chế App\Services\Student\PracticeByQuestionService đã có, xem view
- * public/practice/index.blade.php). Thêm $tags CHỈ để lấy dữ liệu hiển thị bộ lọc (dạng câu
- * + chuyên đề + số câu khả dụng) — KHÔNG đụng gì tới $assessments/indexData() phần
- * "đề" cũ, phần đó vẫn tính nguyên (chỉ bị ẨN ở view) để dễ khôi phục nếu khách đổi ý.
- */
+
 class PracticeService
 {
     public function __construct(
         private AssessmentRepositoryInterface $assessments,
         private TagRepositoryInterface $tags,
-        // SỬA 12/9 — thẻ đề có thêm khối "Tiến độ của bạn" (theo source mới), lấy từ attempts thật.
         private AttemptRepositoryInterface $attempts,
     ) {}
 
-    /** practice.index — kho bài luyện tập công khai; CTA khác nhau theo việc đã đăng nhập là học sinh hay chưa. */
     public function indexData(?User $viewer): array
     {
         $assessments = $this->assessments->query()
             ->where('type', 'practice')
             ->where('status', 'published')
-            // SỬA 18/9 — đếm thêm answerKeys/codingItems: từ hôm nay đề loại "Luyện tập" có
-            // thể là đề PDF do giáo viên tạo ở "Đề PDF của tôi" (content_mode=pdf_answer_sheet).
-            // Đề dạng đó KHÔNG có bản ghi items nào — chỉ đếm items thì thẻ đề luôn hiện "0 câu".
             ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
             ->limit(30)
             ->get();
 
-        // Đề nào có ít nhất 1 câu type=coding — 1 câu truy vấn cho CẢ trang, tránh N+1 (mỗi
-        // đề 1 câu). Môn Tin (4.1) có 2 lối chấm khác nhau: trắc nghiệm/điền đáp án chấm tự
-        // động ngay, còn code phải qua bộ test/luật riêng — học sinh cần biết trước khi vào
-        // làm, không phải bấm vào mới biết đề có code hay không.
         $codingAssessmentIds = $this->assessmentIdsWithCoding($assessments->pluck('id')->all());
 
-        /*
-         * SỬA 12/9 — source mới thêm khối "Tiến độ của bạn" trên thẻ đề. Dữ liệu thật: điểm
-         * cao nhất người này từng đạt ở đề đó / tổng điểm đề. Chưa đăng nhập hoặc chưa từng
-         * làm thì để trạng thái "Chưa làm" (0%) chứ không bịa số.
-         */
         $progressByAssessment = $viewer !== null
             ? $this->attempts->progressForUserAndAssessments($viewer->id, $assessments->pluck('id')->all())->keyBy('assessment_id')
             : collect();
@@ -78,7 +52,7 @@ class PracticeService
                 $progressLabel = $best !== null ? 'Đã nộp · '.rtrim(rtrim(number_format($best, 2, ',', ''), '0'), ',').' điểm' : 'Đã nộp';
             } elseif ($inProgress) {
                 $progressStatus = 'doing';
-                $progress = 35; // đang làm dở, chưa có điểm để quy ra phần trăm
+                $progress = 35;
                 $progressLabel = 'Đang làm dở';
             } else {
                 $progressStatus = 'open';
@@ -89,13 +63,9 @@ class PracticeService
             return [
                 'id' => $a->id,
                 'title' => $a->title,
-                // Đề câu rời đếm theo items; đề PDF đếm theo số câu trong phiếu đáp án.
                 'itemsCount' => $a->items_count > 0 ? $a->items_count : (int) ($a->answer_keys_count ?? 0),
                 'totalPoints' => $a->total_points,
                 'durationMinutes' => $a->duration_minutes,
-                // Có bài lập trình: đề câu rời xét qua items.question.type, đề PDF xét qua
-                // bảng assessment_coding_items riêng — thiếu vế sau thì đề PDF có bài code vẫn
-                // bị gắn nhãn "Chấm tự động", học sinh vào mới biết là phải nộp code.
                 'hasCoding' => $codingAssessmentIds->contains($a->id) || (int) ($a->coding_items_count ?? 0) > 0,
                 'progressStatus' => $progressStatus,
                 'progress' => $progress,
@@ -103,47 +73,18 @@ class PracticeService
             ];
         })->all();
 
-        // SỬA 9/9 (7) (khách: "trang luyện tập ngoài public cũng vậy sửa giúp tôi nha") —
-        // bộ lọc "Luyện tập theo câu" của trang công khai giờ lấy CHUNG một nguồn với màn học
-        // sinh (App\Support\PracticeFilters::options()): đủ 4 dạng câu + số câu của từng
-        // chuyên đề TÁCH THEO DẠNG (practiceTypes / practiceTags / practiceTotal).
-        // Trước đây chỗ này tự dựng danh sách chuyên đề PHẲNG ($allTags) nên trang công khai
-        // lệch hẳn với màn học sinh: thiếu dạng "Câu nhiều phần", và chọn dạng nào cũng đổ ra y
-        // một danh sách chuyên đề — chọn "Lập trình" + chuyên đề "Hàm số" là chắc chắn ra 0
-        // câu, bấm vào báo "không tìm thấy câu hỏi phù hợp".
-        // practiceTotal cũng thay luôn cho practiceQuestionsCount cũ (idsForPractice(null, [])
-        // kéo TOÀN BỘ id câu hỏi về chỉ để count()) — cùng điều kiện lọc nên con số không đổi.
         return array_merge([
             'items' => $items,
-            // SỬA 11/9 — giao diện mới (education-main/src/components/PracticePage.jsx) có chế độ
-            // "Bài tập chuyên đề" liệt kê TỪNG CÂU. Danh sách dưới đây là câu hỏi THẬT trong kho
-            // (đã phát hành + công khai + không thuộc sản phẩm riêng), kèm tỷ lệ AC tính từ
-            // attempt_answers thật — không có con số minh hoạ nào.
             'problems' => $this->problemRows($viewer),
-            // Chỉ học sinh đã đăng nhập mới vào thẳng student.assessment.take (STU-04);
-            // khách/vai trò khác vẫn thấy đề nhưng phải đăng nhập trước (4.1: "đăng nhập để
-            // bắt đầu/nộp").
             'canTakeDirectly' => $viewer !== null && $viewer->hasRole(Role::STUDENT),
         ], PracticeFilters::options($this->tags));
     }
 
     /**
-     * Danh sách từng câu hỏi cho chế độ "Bài tập chuyên đề".
-     *
-     * Cùng điều kiện lọc với App\Support\PracticeFilters (đã phát hành, công khai, không
-     * gắn vào 1 sản phẩm riêng) nên số câu ở bộ lọc và số dòng trong bảng luôn khớp nhau.
-     *
-     * Tỷ lệ AC: đếm trên attempt_answers — mỗi bản ghi là 1 lượt của 1 học sinh cho 1 câu;
-     * "accepted" = verdict 'accepted' (bài code) hoặc score > 0 (trắc nghiệm/điền đáp án).
-     * Gom bằng ĐÚNG 1 câu GROUP BY cho cả trang, không phải mỗi câu 1 truy vấn.
-     *
      * @return array<int, array<string, mixed>>
      */
     private function problemRows(?User $viewer): array
     {
-        // ĐÚNG cùng điều kiện với QuestionRepository::idsForPractice() (đã phát hành + không
-        // thuộc sản phẩm riêng + 4 dạng câu luyện tập). Cố ý KHÔNG thêm lọc visibility ở đây:
-        // thêm vào thì số câu ở bộ lọc (PracticeFilters) và số dòng trong bảng sẽ lệch nhau.
         $questions = Question::query()
             ->where('status', 'published')
             ->whereNull('product_id')
@@ -166,22 +107,8 @@ class PracticeService
             ->get()
             ->keyBy('question_id');
 
-        // Số lượt của CHÍNH người đang xem — khách chưa đăng nhập thì là 0, không suy đoán.
         $mine = collect();
         if ($viewer !== null) {
-            /*
-             * SỬA 19/9 (9) (khách: "vẫn 0%") — lấy thêm KẾT QUẢ TỐT NHẤT CỦA CHÍNH NGƯỜI XEM
-             * theo số test đã qua.
-             *
-             * Vì sao cần: "Tỷ lệ AC" là chỉ số của CẢ HỆ THỐNG (số lượt được chấp nhận / tổng
-             * số lượt) — bài khó mà chưa ai giải được thì nó đứng yên ở 0% dù học sinh đã nộp
-             * cả chục lần và qua 4/20 test. Con số đó đúng nhưng vô ích với người đang làm bài:
-             * họ không thấy mình tiến bộ tới đâu. Thêm "Bạn: 4/20 test" ngay dưới để cột này
-             * còn nói được điều gì đó về chính họ.
-             *
-             * MAX(passed_tests): trong nhiều lần nộp thì lấy lần TỐT NHẤT, đúng thông lệ của
-             * mọi trang chấm bài. total_tests cố định theo câu nên MAX cũng chính là nó.
-             */
             $selectMine = 'question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted';
 
             if (AttemptAnswer::supportsTestCounts()) {
@@ -207,15 +134,12 @@ class PracticeService
             $mineCount = (int) ($mineRow->mine ?? 0);
             $mineAccepted = (int) ($mineRow->mine_accepted ?? 0);
 
-            // Kết quả test tốt nhất của chính người xem. null = chưa nộp lần nào / câu không
-            // phải dạng lập trình / máy chủ chưa chạy migration -> view ẩn hẳn dòng này.
             $minePassed = $mineRow->mine_passed_tests ?? null;
             $mineTotalTests = $mineRow->mine_total_tests ?? null;
             $mineTestPercent = ($mineTotalTests !== null && (int) $mineTotalTests > 0 && $minePassed !== null)
                 ? (int) round((int) $minePassed / (int) $mineTotalTests * 100)
                 : null;
 
-            // Trạng thái của người đang xem: đã AC / đang làm dở / chưa nộp.
             $status = 'todo';
             if ($mineAccepted > 0) {
                 $status = 'ac';
@@ -225,11 +149,6 @@ class PracticeService
 
             $meta = $q->metadata ?? [];
 
-            // SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó, thêm cho tôi;
-            // ngoài luyện tập public thì đổ chỗ Độ khó này ra và lọc được") — toàn bộ luật độ khó
-            // (khoá người dùng chọn / số 1-5 kiểu cũ / suy theo điểm khi chưa đặt) nằm ở
-            // App\Support\QuestionDifficulty, DÙNG CHUNG với bộ lọc Độ khó bên Admin + Giáo viên
-            // để chỗ hiển thị và chỗ lọc không bao giờ nói khác nhau.
             $difficultyKey = QuestionDifficulty::resolve($meta, (int) $q->points);
 
             $limits = $q->grading_config['limits'] ?? [];
@@ -244,7 +163,6 @@ class PracticeService
                 'topicLabel' => $q->tags->first()?->name ?? 'Chưa gắn chuyên đề',
                 'difficulty' => $difficultyKey,
                 'difficultyLevel' => QuestionDifficulty::stars($difficultyKey),
-                // SỬA 12/9 — source mới in NHÃN độ khó dưới dãy sao thay vì số điểm.
                 'difficultyLabel' => QuestionDifficulty::label($difficultyKey),
                 'points' => (int) $q->points,
                 'timeLimit' => isset($limits['time_ms']) ? round($limits['time_ms'] / 1000, 1).'s' : '—',

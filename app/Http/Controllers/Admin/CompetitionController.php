@@ -164,6 +164,20 @@ class CompetitionController extends Controller
         return redirect()->route('admin.competitions.show', $competition)->with('status', 'registration-rejected');
     }
 
+    /**
+     * admin.competitions.registrations.revoke (SỬA 19/9 (11), khách: "có duyệt cuộc thi thì có
+     * kick nữa") — gỡ một thí sinh ĐÃ DUYỆT khỏi cuộc thi. Xem
+     * Admin\CompetitionService::revokeRegistration().
+     */
+    public function revokeRegistration(Request $request, int $competition, int $registration): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+
+        $this->competitionService->revokeRegistration($request->user(), $competition, $registration, $data['reason'] ?? null);
+
+        return redirect()->route('admin.competitions.show', $competition)->with('status', 'registration-revoked');
+    }
+
     public function examStore(Request $request, Competition $competition): RedirectResponse
     {
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at']);

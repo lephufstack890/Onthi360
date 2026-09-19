@@ -29,11 +29,13 @@
             // SỬA 19/9 — duyệt đơn đăng ký cuộc thi.
             'registration-approved' => 'Đã duyệt đơn — học sinh vào được không gian thi.',
             'registration-rejected' => 'Đã từ chối đơn, đã ghi lý do và báo cho học sinh.',
+            'registration-revoked' => 'Đã gỡ thí sinh khỏi cuộc thi — bài đã nộp vẫn được giữ nguyên.',
             default => null,
         };
 
         // SỬA 19/9 — dữ liệu khối "Đơn đăng ký", xem Admin\CompetitionService::registrationsData().
         $registrationsReady = $registrationsReady ?? false;
+        $approvedRegistrations = $approvedRegistrations ?? [];
         $pendingRegistrations = $pendingRegistrations ?? [];
         $decidedRegistrations = $decidedRegistrations ?? [];
         $approvedCount = $approvedCount ?? 0;
@@ -224,7 +226,9 @@
             {{-- ══════ SỬA 19/9 — ĐƠN ĐĂNG KÝ THAM GIA (khách: "click đăng ký tham gia thì
                  admin sẽ duyệt") — dựng theo khuôn khối "Yêu cầu vào lớp chờ duyệt" ở
                  teacher/classes/show.blade.php để hai màn duyệt trong hệ thống giống nhau. ══════ --}}
-            <div class="bg-white rounded-3xl border border-sky-100 p-5 text-[13px]">
+            {{-- id="don-dang-ky": neo để màn danh sách cuộc thi bấm một phát là nhảy thẳng xuống
+                 đây, không phải cuộn tìm (xem admin/competitions/index.blade.php). --}}
+            <div id="don-dang-ky" class="scroll-mt-2 bg-white rounded-3xl border border-sky-100 p-5 text-[13px]">
                 <div class="flex items-center justify-between gap-2 mb-3">
                     <h2 class="font-medium text-slate-700">Đơn đăng ký tham gia</h2>
                     <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{{ $approvedCount }} đã duyệt</span>
@@ -262,6 +266,43 @@
                                     </form>
                                 </div>
                             @endforeach
+                        </div>
+                    @endif
+
+                    {{-- ── SỬA 19/9 (11) (khách: "có duyệt cuộc thi thì có kick nữa") — DANH SÁCH
+                         THÍ SINH ĐÃ DUYỆT, mỗi người có nút gỡ khỏi cuộc thi.
+
+                         Để mở sẵn (không nhét vào <details>) vì đây là danh sách người ĐANG thi
+                         thật — admin cần nhìn thấy để đối chiếu, chứ không phải hồ sơ cũ. ── --}}
+                    @if (count($approvedRegistrations) > 0)
+                        <div class="mt-4">
+                            <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Đang tham gia ({{ count($approvedRegistrations) }})</p>
+                            <div class="space-y-1.5">
+                                @foreach ($approvedRegistrations as $r)
+                                    <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2" x-data="{ open: false }">
+                                        <div class="flex flex-wrap items-start justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <p class="truncate font-medium text-slate-700">{{ $r['student'] }}</p>
+                                                <p class="truncate text-xs text-slate-500">{{ $r['email'] }} · duyệt {{ $r['decidedAt'] }} · {{ $r['decidedBy'] }}</p>
+                                            </div>
+                                            <button type="button" @click="open = ! open"
+                                                    class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 transition hover:bg-rose-50"
+                                                    x-text="open ? 'Đóng' : 'Gỡ khỏi cuộc thi'"></button>
+                                        </div>
+
+                                        <form x-show="open" x-cloak method="POST" action="{{ route('admin.competitions.registrations.revoke', [$competition->id, $r['id']]) }}" class="mt-2 space-y-2">
+                                            @csrf
+                                            <p class="rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[11px] leading-5 text-rose-800">
+                                                Gỡ xong thí sinh <b>không vào phòng thi được nữa</b>, kể cả đang mở sẵn trang.
+                                                <b>Bài đã nộp và điểm đã ghi vẫn giữ nguyên</b> — muốn bỏ kết quả thì xử lý riêng ở màn Bảng xếp hạng.
+                                                Thí sinh vẫn có thể đăng ký lại và chờ bạn duyệt.
+                                            </p>
+                                            <textarea name="reason" rows="2" maxlength="255" class="admin-input" placeholder="Lý do gỡ (không bắt buộc, thí sinh sẽ đọc được)"></textarea>
+                                            <button type="submit" class="w-full rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-700">Xác nhận gỡ khỏi cuộc thi</button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     @endif
 

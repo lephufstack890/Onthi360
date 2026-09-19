@@ -146,8 +146,23 @@ class CompetitionService
          * giống hệt AttemptService::isApprovedForCompetition(), để bản triển khai cũ không bị
          * khoá cứng chỉ vì thiếu migration. Chạy migration xong là luật duyệt có hiệu lực ngay.
          */
+        /*
+         * SỬA 19/9 (11) — ném ValidationException thay vì abort(403).
+         *
+         * Từ khi có chức năng GỠ thí sinh khỏi cuộc thi, người đang mở sẵn màn Không gian thi
+         * mà bị gỡ sẽ đâm thẳng vào chốt này ở lần tải trang kế tiếp. Trang 403 trắng trơn của
+         * Laravel không nói được chuyện gì vừa xảy ra; nơi gọi sẽ bắt ngoại lệ này rồi đưa về
+         * trang cuộc thi công khai kèm đúng câu giải thích.
+         */
         if (CompetitionRegistration::supported() && ! $this->isApproved($user, $competition->id)) {
-            abort(403, 'Bạn chưa được ban tổ chức duyệt tham gia cuộc thi này.');
+            $registration = $this->registrationFor($user, $competition->id);
+
+            throw ValidationException::withMessages([
+                'competition_id' => $registration === null
+                    ? 'Bạn chưa đăng ký tham gia cuộc thi này.'
+                    : 'Bạn không còn quyền vào không gian thi của cuộc thi này.'
+                        .($registration->reject_reason ? ' Lý do: '.$registration->reject_reason : ''),
+            ]);
         }
 
         $exams = $competition->examSittings;

@@ -103,6 +103,21 @@ class CompetitionService
          */
         $registrationByCompetition = $this->registrationStatuses($viewer, $competitions->pluck('id')->all());
 
+        /*
+         * SỬA 19/9 (12) — SỐ THÍ SINH ĐÃ ĐƯỢC DUYỆT của từng cuộc thi, gộp MỘT truy vấn cho cả
+         * trang. Khác registrationStatuses() ở trên: cái đó là đơn của RIÊNG người đang xem,
+         * cái này là tổng của MỌI người — dùng cho ô "N người" trên thẻ cuộc thi.
+         */
+        $approvedByCompetition = CompetitionRegistration::supported() && $competitionIds !== []
+            ? CompetitionRegistration::query()
+                ->selectRaw('competition_id, COUNT(*) as approved')
+                ->where('status', CompetitionRegistration::STATUS_APPROVED)
+                ->whereIn('competition_id', $competitionIds)
+                ->groupBy('competition_id')
+                ->pluck('approved', 'competition_id')
+                ->all()
+            : [];
+
         $cards = $competitions->map(fn (Competition $c) => $this->mapContestCard(
             $c,
             $examStats,
@@ -112,6 +127,7 @@ class CompetitionService
             in_array($c->id, $submittedCompetitionIds, true),
             $submittedExamIds,
             $registrationByCompetition[$c->id] ?? null,
+            (int) ($approvedByCompetition[$c->id] ?? 0),
         ))->all();
 
         return [
@@ -235,6 +251,8 @@ class CompetitionService
         // SỬA 19/9 — trạng thái đơn đăng ký của người xem với CHÍNH cuộc thi này (null = chưa
         // đăng ký, hoặc chưa đăng nhập, hoặc máy chủ chưa chạy migration).
         ?string $registrationStatus = null,
+        // SỬA 19/9 (12) — số thí sinh ĐÃ ĐƯỢC DUYỆT của cuộc thi này (đếm gộp ở indexData()).
+        int $approvedRegistrations = 0,
     ): array {
         $statusValue = $c->computedStatus()->value;
         $meta = self::CARD_STATUS_STYLE[$statusValue] ?? ['label' => $statusValue, 'style' => 'bg-slate-100 text-slate-700 border-slate-300'];
@@ -355,6 +373,20 @@ class CompetitionService
             $participationLabel = 'Đã tham gia';
             $participationStyle = 'text-emerald-700 bg-emerald-50 border-emerald-200';
             $cardStyle = 'border-emerald-300 bg-emerald-50/70 shadow-[0_4px_18px_rgba(55,125,95,0.12)]';
+        } elseif ($isApproved && $registrationStatus !== null) {
+            /*
+             * SỬA 19/9 (12) (khách: "đăng ký rồi admin duyệt rồi mà trạng thái vẫn Chưa tham gia")
+             * — LỖI CŨ: chỉ có 3 nhánh (đã nộp bài / đang chờ duyệt / có vòng đang mở), nên
+             * người ĐÃ ĐƯỢC DUYỆT mà chưa tới giờ thi rơi hết xuống nhánh cuối "Chưa tham gia"
+             * — đúng lúc họ cần thấy nhất là mình đã được nhận.
+             *
+             * Điều kiện $registrationStatus !== null là cố ý: isApprovedRegistration() trả TRUE
+             * khi máy chủ chưa chạy migration (để không khoá hệ thống cũ), nếu thiếu vế này thì
+             * mọi khách vãng lai cũng hiện "Đã được duyệt".
+             */
+            $participationLabel = 'Đã được duyệt';
+            $participationStyle = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            $cardStyle = 'border-emerald-300 bg-emerald-50/70 shadow-[0_4px_18px_rgba(55,125,95,0.12)]';
         } elseif ($isPending) {
             $participationLabel = 'Đang chờ BTC duyệt';
             $participationStyle = 'text-amber-700 bg-amber-50 border-amber-200';
@@ -392,7 +424,18 @@ class CompetitionService
                 : ($currentRound['label'] ?? 'Chưa gắn đề'),
             'duration' => $durationMinutes !== null ? $durationMinutes.' phút' : 'Không giới hạn',
             'problemsCount' => $currentRound['problemsCount'] ?? 0,
-            'participants' => (int) $c->leaderboard_entries_count,
+            /*
+             * SỬA 19/9 (12) (khách: "số người không tăng lên, vẫn giữ nguyên như cũ") — LỖI CŨ:
+             * con số này chỉ đếm leaderboard_entries, tức là người ĐÃ CÓ KẾT QUẢ ĐƯỢC CHẤM.
+             * Học sinh đăng ký và được duyệt xong thì chưa thi nên chưa có dòng xếp hạng nào ->
+             * số đứng yên, đúng như khách thấy.
+             *
+             * Lấy số LỚN HƠN giữa hai nguồn:
+             *   · số thí sinh đã được ban tổ chức duyệt (nguồn mới, đúng nghĩa "đã tham gia");
+             *   · số dòng xếp hạng (nguồn cũ) — giữ lại để cuộc thi TẠO TRƯỚC khi có tính năng
+             *     đăng ký, vốn không có đơn nào, không bị tụt về 0 người.
+             */
+            'participants' => max((int) $c->leaderboard_entries_count, $approvedRegistrations),
             // Ô "Giải thưởng" của bản mẫu không có cột tương ứng; thay bằng mốc công bố kết
             // quả — thông tin thật mà người thi quan tâm đúng ở vị trí đó.
             'awardLabel' => $c->publish_result_at !== null
@@ -480,6 +523,15 @@ class CompetitionService
         $registrationStatus = $this->registrationStatuses($viewer, [$competition->id])[$competition->id] ?? null;
         $isRegistrationApproved = $this->isApprovedRegistration($registrationStatus);
 
+        // SỬA 19/9 (12) — số thí sinh ĐÃ ĐƯỢC DUYỆT, để trang chi tiết cũng trả lời được câu
+        // "bao nhiêu người tham gia" chứ không chỉ có "bao nhiêu người đã lên bảng xếp hạng".
+        $approvedRegistrations = CompetitionRegistration::supported()
+            ? CompetitionRegistration::query()
+                ->where('competition_id', $competition->id)
+                ->where('status', CompetitionRegistration::STATUS_APPROVED)
+                ->count()
+            : 0;
+
         /*
          * SỬA 19/9 (2) — phòng thi cuộc thi định danh bằng id VÒNG THI, trong khi nút "Vào thi
          * ngay" ở khối dưới lại đi theo $competition->assessment_id (đường tham chiếu đơn, có
@@ -496,6 +548,7 @@ class CompetitionService
             'competition' => $competition,
             // Dữ liệu cho widget "Đăng ký tham gia" 3 bước ở view (Gửi đăng ký → BTC duyệt → Vào phòng).
             'registrationStatus' => $registrationStatus,
+            'approvedRegistrations' => $approvedRegistrations,
             'directExamId' => $directExam?->id,
             'registrationApproved' => $isRegistrationApproved,
             'registrationPending' => $registrationStatus === CompetitionRegistration::STATUS_PENDING,

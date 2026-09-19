@@ -533,6 +533,10 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber(['competition', 'registration'])->name('competitions.registrations.approve');
         Route::post('competitions/{competition}/registrations/{registration}/reject', [AdminCompetitionController::class, 'rejectRegistration'])
             ->whereNumber(['competition', 'registration'])->name('competitions.registrations.reject');
+        // SỬA 19/9 (11) — GỠ thí sinh đã duyệt khỏi cuộc thi (khác 'reject' vốn chỉ áp dụng cho
+        // đơn ĐANG CHỜ duyệt).
+        Route::post('competitions/{competition}/registrations/{registration}/revoke', [AdminCompetitionController::class, 'revokeRegistration'])
+            ->whereNumber(['competition', 'registration'])->name('competitions.registrations.revoke');
         Route::post('competitions/{competition}/recompute-aggregate', [AdminCompetitionController::class, 'recomputeAggregate'])->name('competitions.recompute-aggregate');
         // SỬA 12/9 — khối "Câu chuyện đồng hành" của trang chủ ([HOME-10]) giờ do Admin đăng.
         Route::get('testimonials', [AdminTestimonialController::class, 'index'])->name('testimonials.index');

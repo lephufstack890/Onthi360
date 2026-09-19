@@ -10,30 +10,10 @@ use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
 use App\Repositories\Contracts\CompetitionRepositoryInterface;
 use App\Repositories\Contracts\LeaderboardEntryRepositoryInterface;
 
-/**
- * Bảng xếp hạng công khai (PUB-09, 11.2): phạm vi rõ — chỉ hiển thị bảng của Cuộc thi ĐÃ
- * CÔNG BỐ ("Chờ công bố" không lộ rank tạm thời); ẩn danh tên mặc định để bảo vệ dữ liệu
- * trẻ em (chưa có cột "đồng ý hiển thị công khai" nên áp dụng ẩn danh cho MỌI người, không
- * có ngoại lệ); nêu công thức điểm/penalty/đồng điểm (ranking_rule) và thời điểm cập nhật
- * (computed_at) thay vì bộ lọc thời gian giả (tuần này/tháng này — không có trong BA và
- * không có nguồn dữ liệu thật để lọc theo).
- *
- * $examTabs (App\Models\CompetitionExam) — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi kỳ có
- * bảng xếp hạng RIÊNG (scope=competition_exam) ngoài bảng TỔNG (scope=competition, xem
- * App\Services\Admin\CompetitionService::recomputeAggregateFromExams()). Việc gate theo
- * "cuộc thi đã công bố" vẫn áp dụng ở cấp Cuộc thi như cũ — không thêm gate riêng theo
- * từng kỳ thi vì $publicCompetitions bên dưới đã lọc status=published từ đầu.
- *
- * Chỉ xử lý scope=competition(_exam). scope=class_room đã có ở App\Services\Admin\
- * RankingService nhưng dùng nội bộ cho giáo viên/admin quản lý lớp — hiển thị công khai
- * bảng xếp hạng theo lớp cho người ngoài lớp không phù hợp về quyền riêng tư nên chưa đưa
- * vào đây.
- */
 class LeaderboardService
 {
     private const ANONYMOUS_LABEL = 'Học viên đã xác thực';
 
-    /** Hiển thị top N — bảng đầy đủ (không giới hạn) đã có ở trang quản trị ranking. */
     private const DISPLAY_LIMIT = 50;
 
     public function __construct(
@@ -57,9 +37,6 @@ class LeaderboardService
      */
     public function indexData(?int $competitionId, ?int $examId, ?User $viewer): array
     {
-        // SỬA 11/9 — con số cạnh tên cuộc thi phải ĐÚNG bằng số dòng bảng tổng hợp hiển thị bên
-        // dưới. Trước đây withCount() đếm CẢ dòng scope=competition_exam (bảng riêng của từng kỳ
-        // thi con) nên chip ghi "2" trong khi bảng chỉ có 1 dòng — người xem tưởng thiếu dữ liệu.
         $publicCompetitions = $this->competitions->query()
             ->where('status', 'published')
             ->withCount(['leaderboardEntries' => fn ($q) => $q->where('scope', 'competition')])

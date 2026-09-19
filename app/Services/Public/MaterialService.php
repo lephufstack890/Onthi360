@@ -17,19 +17,9 @@ use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use Illuminate\Support\Collection;
 
-/**
- * Tài liệu công khai (PUB-05/06, 4.1 "tabs Sách/Chuyên đề/Đề thi" + 7.5 "màn mua theo vai
- * trò"). Product type=course không hiển thị ở đây — đó là khóa học
- * (App\Services\Public\CourseService), giữ đúng 4.3 "Khóa học khác Tài liệu".
- *
- * "Tic xanh" (4.1) — tài liệu mà NGƯỜI ĐANG XEM (nếu đã đăng nhập) đã sở hữu quyền học cá
- * nhân (AccessRight.scope=personal_learning, còn hiệu lực) thì đánh dấu 'owned' => true cho
- * thẻ/trang chi tiết tương ứng. Khách (chưa đăng nhập, $viewer=null) luôn thấy 'owned' =>
- * false cho mọi tài liệu — không có false-positive.
- */
+
 class MaterialService
 {
-    /** query-tab (?tab=) -> ProductType — khớp 3 tab BA 4.1. */
     private const TABS = [
         'sach' => ProductType::Book,
         'chuyen-de' => ProductType::Topic,
@@ -42,7 +32,6 @@ class MaterialService
         private AccessRightRepositoryInterface $accessRights,
     ) {}
 
-    /** materials.index — 3 tab theo ProductType, chỉ hiển thị đã phát hành + công khai. */
     public function indexData(string $tab, ?User $viewer = null): array
     {
         $type = self::TABS[$tab] ?? self::TABS['sach'];
@@ -58,25 +47,17 @@ class MaterialService
             ['label' => '📝 Bộ đề', 'href' => route('materials.index', ['tab' => 'de-thi']), 'active' => $tab === 'de-thi', 'count' => $counts['de-thi']],
         ];
 
-        // SỬA 11/9 — giao diện mới (education-main/src/components/MaterialsPage.jsx) đổi 3 tab
-        // NGAY TẠI CHỖ (không tải lại trang), nên phải nạp sẵn cả 3 nhóm. Toàn bộ vẫn đi qua
-        // baseQuery()/mapCard() nên luật lọc (đã phát hành + công khai, không lộ loại "course")
-        // chỉ khai báo đúng 1 chỗ.
         $allProducts = $this->baseQuery()
             ->whereIn('type', array_map(fn ($t) => $t->value, array_values(self::TABS)))
             ->latest()
             ->limit(120)
             ->get();
 
-        // 1 câu truy vấn duy nhất cho material gốc đại diện + rating của TẤT CẢ sản phẩm
-        // trong trang — tránh N+1 (mỗi sản phẩm 2 câu) khi có nhiều tài liệu.
         $productIds = $allProducts->pluck('id')->all();
         $representativeIdByProductId = $this->representativeMaterialIds($productIds);
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());
         $ownedProductIds = $this->ownedProductIds($viewer, $productIds);
         $pageCounts = $this->materialCounts($productIds);
-        // SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đọc") — bài ĐẦU TIÊN đọc
-        // được của từng sản phẩm, để nút "Vào đọc ngay" mở THẲNG trình đọc.
         $firstReadable = $this->firstReadableMaterialIds($productIds);
         $readRoutePrefix = $this->readRoutePrefixFor($viewer);
 
@@ -92,24 +73,15 @@ class MaterialService
         return [
             'tabs' => $tabs,
             'materials' => $groups[$tab] ?? $groups['sach'],
-            // 3 nhóm nạp sẵn cho giao diện mới; 'materials' ở trên giữ nguyên để không phá
-            // bất kỳ chỗ nào đang dùng khoá cũ.
             'materialGroups' => $groups,
             'activeTab' => $tab,
         ];
     }
 
-    /** materials.show — 1 tài liệu + mục lục ĐA CẤP (mọi Material của Product) + lựa chọn quyền theo vai trò (7.5, qua access.checkout). */
     public function showData(int $productId, ?User $viewer = null): array
     {
         $product = $this->baseQuery()->findOrFail($productId);
 
-        // SỬA 25/8 (8 — "mục lục đa cấp"): trước đây dùng quan hệ Product::materials(), quan
-        // hệ này LỌC whereNull('parent_id') nên mục lục chỉ có Material CẤP 1 — bài con lồng
-        // bên trong 1 chương (VD "Chương 1" chứa nhiều "BÀI") không bao giờ xuất hiện, dù
-        // logic đọc/mua vẫn đúng. Giờ lấy TẤT CẢ Material của sản phẩm (mọi cấp) trong ĐÚNG 1
-        // câu truy vấn phẳng rồi dựng CÂY theo parent_id ở PHP (buildTocTree()) — Blade dùng
-        // đệ quy (partials.materials-toc-item) để hiển thị bao nhiêu cấp cũng được.
         $allMaterials = Material::query()
             ->where('product_id', $product->id)
             ->orderBy('order')
@@ -122,9 +94,6 @@ class MaterialService
 
         $owned = $this->ownedProductIds($viewer, [$product->id])->contains($product->id);
 
-        // SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đó") — bài ĐẦU TIÊN đọc
-        // được, để nút "Vào đọc ngay" mở thẳng trình đọc thay vì chỉ dẫn về danh sách tài liệu.
-        // Lọc ngay trên tập đã nạp, không thêm truy vấn.
         $firstReadableId = $allMaterials
             ->first(fn (Material $m) => $m->status === ContentStatus::Published && filled($m->pdf_path))?->id;
         $readRoutePrefix = $this->readRoutePrefixFor($viewer);
@@ -138,21 +107,11 @@ class MaterialService
             'ratingAverage' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
             'ratingCount' => $summary->review_count ?? 0,
             'owned' => $owned,
-            // Dùng đúng 1 hàm coverUrl() — y hệt ảnh đã hiện ở thẻ danh sách (mapCard()) —
-            // để trang chi tiết KHÔNG BAO GIỜ lệch ảnh bìa so với thẻ ngoài danh sách nữa.
             'coverUrl' => $this->coverUrl($product),
         ];
     }
 
     /**
-     * Dựng cây Mục lục đa cấp từ danh sách Material PHẲNG (TẤT CẢ Material của 1 Product,
-     * không lọc parent_id, đã orderBy('order')) — nhóm theo parent_id rồi đệ quy xuống từng
-     * cấp con. 'hasContent' — chỉ bài đã có PDF mới có gì để đọc. Blade dùng cờ này CÙNG VỚI
-     * 'owned' để quyết định 1 dòng mục lục (ở BẤT KỲ cấp nào) có bấm vào đọc được không (đủ 2
-     * điều kiện: đã mua VÀ bài đó có nội dung) — xem partials.materials-toc-item.blade.php.
-     * Quyền đọc THẬT vẫn luôn được App\Services\AccessGateService kiểm tra lại ở route đọc,
-     * đây chỉ là hiển thị.
-     *
      * @param  Collection<int, Material>  $materials
      * @return array<int, array{id:int,title:string,hasContent:bool,children:array}>
      */
@@ -170,18 +129,6 @@ class MaterialService
             ->all();
     }
 
-    /**
-     * Trang chủ (PUB-01/02, 12.1) — "Tài liệu nổi bật": MỚI PHÁT HÀNH NHẤT gộp chung CẢ 3
-     * loại (Sách/Chuyên đề/Đề thi), khác với materials.index vốn luôn lọc riêng theo TỪNG
-     * tab. Tái dùng đúng baseQuery()/mapCard() để không lặp lại luật lọc (chỉ
-     * published+public, không lộ loại "course") ở một chỗ thứ hai. Không tính "Tic xanh" ở
-     * đây (khối chỉ là teaser dẫn sang materials.index/show — nơi có tick thật).
-     */
-    /**
-     * SỬA 9/9 (11) (khách: "chỗ trang chủ đoạn này chuyển tab k dc") — thêm tham số $type để
-     * trang chủ lấy được tài liệu nổi bật RIÊNG cho từng tab Sách / Chuyên đề / Bộ đề. Bỏ
-     * trống $type thì giữ nguyên hành vi cũ (gộp chung cả 3 loại).
-     */
     public function featuredData(int $limit = 4, ?ProductType $type = null): array
     {
         $query = $this->baseQuery();
@@ -200,7 +147,6 @@ class MaterialService
         )->all();
     }
 
-    /** Chỉ đã phát hành + công khai — Product riêng tư (visibility=private) không lộ ra catalog công khai; loại "course" thuộc Khóa học, không thuộc Tài liệu (4.3). */
     private function baseQuery()
     {
         return $this->products->query()
@@ -220,7 +166,6 @@ class MaterialService
 
         [$badgeLabel, $badgeTone] = $product->price > 0 ? ['Cần kích hoạt', 'warning'] : ['Công khai', 'info'];
 
-        // Nhãn ngắn góc trên ảnh bìa: ưu tiên chuyên đề, rồi khối, rồi môn — đều là cột thật.
         $tagLabel = $product->topic ?: ($product->grade ? 'Dành cho '.$product->grade : ($product->subject ?: 'Học liệu'));
 
         $unitCount = (int) ($pageCounts?->get($product->id) ?? 0);
@@ -241,7 +186,6 @@ class MaterialService
             'tone' => $badgeTone,
             'owned' => $ownedProductIds->contains($product->id),
             'image' => $this->coverUrl($product),
-            // ── các trường bổ sung cho thẻ tài liệu của giao diện mới ──
             'tag' => $tagLabel,
             'unitLabel' => $unitLabel,
             'highlight' => $product->description,
@@ -251,9 +195,6 @@ class MaterialService
             'durationMonths' => $product->duration_months,
             'href' => route('materials.show', $product->id),
             'checkoutHref' => route('access.checkout', $product->id),
-            // SỬA 18/9 — đường vào TRÌNH ĐỌC (bài đầu tiên có PDF). null khi sản phẩm chưa có
-            // bài nào đọc được, hoặc người xem không phải học sinh/giáo viên (khách chưa đăng
-            // nhập thì route đọc nằm sau middleware, đưa link vào chỉ tổ đá ra trang đăng nhập).
             'readHref' => ($firstReadableMaterialId !== null && $readRoutePrefix !== null)
                 ? route($readRoutePrefix.'.materials.read', $firstReadableMaterialId)
                 : null,
@@ -261,10 +202,6 @@ class MaterialService
     }
 
     /**
-     * SỬA 18/9 — bài ĐẦU TIÊN đọc được của từng sản phẩm (đã phát hành + có PDF), theo đúng thứ
-     * tự mục lục. Một câu truy vấn cho cả trang, cùng điều kiện lọc với
-     * Student\MaterialReadService::buildReadData() nên nút "Vào đọc ngay" luôn mở được thật.
-     *
      * @param  array<int, int>  $productIds
      * @return Collection<int, int> keyed theo product_id
      */
@@ -285,10 +222,6 @@ class MaterialService
             ->map(fn ($group) => (int) $group->first()->id);
     }
 
-    /**
-     * Khu đọc tài liệu tách theo vai trò (student.materials.read / teacher.materials.read) — trả
-     * tiền tố đúng với người đang xem, hoặc null nếu không có khu nào dành cho họ.
-     */
     private function readRoutePrefixFor(?User $viewer): ?string
     {
         if ($viewer === null) {
@@ -303,9 +236,6 @@ class MaterialService
     }
 
     /**
-     * Số đơn vị nội dung CẤP 1 (chương/phần/đề) của từng sản phẩm — đúng 1 câu GROUP BY cho
-     * cả trang, dùng làm nhãn "50 đề thi / 12 chương" trên thẻ. Không suy đoán số trang PDF.
-     *
      * @param  array<int, int>  $productIds
      * @return Collection<int, int> keyed theo product_id
      */
@@ -323,19 +253,6 @@ class MaterialService
             ->pluck('total', 'product_id');
     }
 
-    /**
-     * Ảnh bìa 1 sản phẩm — dùng CHUNG bởi cả thẻ danh sách (mapCard) lẫn trang chi tiết
-     * (showData), để 2 nơi luôn hiện đúng 1 ảnh giống nhau, không lệch nhau như trước đây
-     * (khi mỗi nơi tự vẽ ảnh/placeholder riêng theo 2 cách khác nhau).
-     *
-     * Có ảnh bìa thật (admin đã tải lên qua Admin\ProductController) → dùng đúng ảnh đó,
-     * cùng cách lấy URL với resources/views/admin/products/edit.blade.php
-     * (asset('storage/'.cover_image_path)). Chưa có ảnh thật → tự vẽ 1 ảnh bìa SVG ngay
-     * trên server (gradient thương hiệu + tên tài liệu), không phụ thuộc dịch vụ ảnh ngoài
-     * (trước đây trang danh sách dùng picsum.photos — ảnh ngẫu nhiên không liên quan nội
-     * dung, còn trang chi tiết lại tự vẽ 1 kiểu placeholder khác — đây chính là nguyên nhân
-     * "ảnh thumbnail không khớp với ảnh ngoài" đã được báo).
-     */
     private function coverUrl(Product $product): string
     {
         return $product->cover_image_path
@@ -343,7 +260,6 @@ class MaterialService
             : $this->placeholderCoverDataUri($product->title);
     }
 
-    /** Bìa tạm dạng SVG (data URI) khi sản phẩm chưa có ảnh bìa thật — màu gradient chọn ổn định theo tiêu đề (không đổi mỗi lần tải lại trang), tái dùng đúng bảng màu thương hiệu hiện có. */
     private function placeholderCoverDataUri(string $title): string
     {
         $palettes = [
@@ -408,12 +324,6 @@ class MaterialService
     }
 
     /**
-     * Rating "tài liệu" (9.1) được gắn vào 1 Material CỤ THỂ, không phải Product — xem
-     * App\Services\Review\ReviewService::findTarget() (target_type=material tra theo
-     * MaterialRepositoryInterface). Dùng material gốc đầu tiên (order nhỏ nhất, không có
-     * parent) của Product làm đại diện — đúng cách App\Services\ReviewEligibilityService
-     * ::eligibleForMaterialReview() suy ngược Product từ 1 Material ($material->product).
-     *
      * @param  array<int, int>  $productIds
      * @return Collection<int, int> keyed theo product_id, giá trị là material_id đại diện.
      */
@@ -423,8 +333,6 @@ class MaterialService
             return collect();
         }
 
-        // orderBy('product_id') TRƯỚC orderBy('order') để ->unique('product_id') giữ đúng
-        // material có 'order' NHỎ NHẤT của TỪNG sản phẩm (không phải nhỏ nhất toàn cục).
         return Material::query()
             ->whereIn('product_id', $productIds)
             ->whereNull('parent_id')
@@ -451,15 +359,6 @@ class MaterialService
     }
 
     /**
-     * "Tic xanh" (4.1) — product_id mà $viewer đang có quyền CÒN HIỆU LỰC cho sản phẩm đó.
-     * Khách ($viewer=null) luôn trả về rỗng.
-     *
-     * SỬA 27/8 ("giáo viên mua tài liệu xong đọc bị 403" — cùng gốc với
-     * AccessGateService::hasActivePersonalAccess()): TRƯỚC ĐÂY chỉ nhận scope=personal_learning,
-     * nên giáo viên mua theo giá "để dạy" (scope=teacher_teaching) vẫn thấy trang này như CHƯA
-     * mua (mục lục khoá 🔒, không có tic xanh) dù đã trả tiền và đọc bài đã mở được (sau khi
-     * sửa AccessGateService). Nhận cả 2 scope cho khớp — cùng là quyền đọc thật đã kích hoạt.
-     *
      * @param  array<int, int>  $productIds
      * @return Collection<int, int>
      */
