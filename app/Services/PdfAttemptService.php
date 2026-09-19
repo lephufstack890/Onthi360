@@ -307,6 +307,21 @@ class PdfAttemptService
             $item->verdict = $result['verdict']->value;
             $item->score = $result['isAccepted'] ? $codingItem->points : 0;
             $item->graded_at = now();
+
+            /*
+             * SỬA 19/9 (7) — ĐẾM số test đã qua. Máy chấm vốn trả về chi tiết từng test
+             * ($result['details']), trước giờ dùng xong rồi bỏ; giữ lại 2 con số này để màn
+             * kết quả nói được "Đúng 18/20 test" thay vì mỗi chữ "Sai".
+             *
+             * KHÔNG lưu cả mảng details: trong đó có dữ liệu vào + đáp án đúng của TEST ẨN,
+             * đổ xuống màn học sinh là lộ bộ test chấm điểm của bài thi.
+             */
+            if (AttemptCodingItem::supportsTestCounts()) {
+                $details = $result['details'] ?? [];
+                $item->total_tests = count($details);
+                $item->passed_tests = count(array_filter($details, fn ($d) => ($d['isAccepted'] ?? false) === true));
+            }
+
             $item->save();
         }
     }

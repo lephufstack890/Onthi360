@@ -193,16 +193,111 @@
                         @endif
                     </div>
 
-                    <div class="mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+                    {{--
+                        SỬA 19/9 (7) (khách: "UI này scroll nó không xuống được hết") — BỎ
+                        lg:overflow-hidden.
+
+                        Lỗi cũ: trên màn rộng khung này bị khoá overflow-hidden, cố ý cho khu
+                        soạn mã vừa khít chiều cao và các ô con tự cuộn riêng. Nhưng SAU KHI
+                        CHẤM, khối "Kết quả từng test" được chèn THÊM ngay dưới khu soạn mã ->
+                        cột nội dung cao hơn khung -> phần thừa bị CẮT và không có cách nào cuộn
+                        tới: danh sách test cuối cùng và cả nút "Hoàn tất bài tập" đều nằm ngoài
+                        vùng nhìn thấy.
+
+                        Để overflow-y-auto ở mọi khổ màn hình: lúc chưa chấm nội dung vừa khít
+                        nên không có thanh cuộn nào hiện ra (không đổi cảm giác cũ), lúc đã chấm
+                        thì cuộn được xuống hết.
+                    --}}
+                    <div class="mt-2 min-h-0 flex-1 overflow-y-auto">
                         {{-- ⚠ TỪ ĐÂY TRỞ XUỐNG LÀ KHỐI BỊ THAY MỚI SAU MỖI LẦN CHẤM (AJAX).
                              Không đặt directive Alpine nào bên trong. --}}
                         <div id="practice-container">
                         @if ($finished)
-                            <div class="mx-auto mt-6 max-w-2xl rounded-2xl border border-[#DDEAF0] bg-white p-8 text-center shadow-sm">
-                                <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#EAF5F8] text-2xl">🎉</span>
-                                <h2 class="mt-4 text-lg font-extrabold text-[#123B68]">Đã ghi nhận bài làm!</h2>
-                                <p class="mt-2 text-[13px] leading-6 text-[#607A90]">Bài tập của bạn đã được ghi nhận — phần nào tự chấm được đã báo đúng/sai ngay, phần tự luận/lập trình (nếu có) chờ chấm sau.</p>
-                                <a href="{{ $backUrl }}" class="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">‹ {{ $backLabel }}</a>
+                            {{-- SỬA 19/9 (7) (khách: "nộp bài phần lập trình xong nó không hiện tỉ lệ AC")
+                                 — màn này trước đây chỉ có 🎉 và một câu chúc mừng, không một con số
+                                 nào: học sinh nộp xong không biết mình đúng mấy câu, được bao nhiêu
+                                 điểm. Mọi số bên dưới lấy từ attempt_answers ĐÃ LƯU
+                                 (PracticeByQuestionService::finishedSummary()), cùng nguồn với Tỷ lệ
+                                 AC ngoài trang Luyện tập nên hai chỗ không thể nói khác nhau. --}}
+                            @php
+                                $summary = $summary ?? null;
+                                $total = $total ?? 0;
+                                $correct = $correct ?? 0;
+                                $answered = $answered ?? 0;
+                                // Tỉ lệ hiển thị to nhất: ưu tiên THEO ĐIỂM (đúng bản chất bài lập
+                                // trình — có bài 2 điểm, có bài 10 điểm); đề chưa đặt điểm thì lùi
+                                // về tỉ lệ số câu đúng để ô này không bao giờ trống.
+                                $hasPoints = ($summary['maxPoints'] ?? 0) > 0;
+                                $mainPercent = $hasPoints
+                                    ? $summary['scorePercent']
+                                    : ($total > 0 ? (int) round($correct / $total * 100) : 0);
+                                $allCorrect = $total > 0 && $correct === $total;
+                            @endphp
+
+                            <div class="mx-auto mt-6 max-w-2xl space-y-3">
+                                <div class="rounded-2xl border border-[#DDEAF0] bg-white p-6 text-center shadow-sm sm:p-8">
+                                    <span @class([
+                                        'mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl',
+                                        'bg-[#EAF5F8]' => ! $allCorrect,
+                                        'bg-[#D4EDE2]' => $allCorrect,
+                                    ])>{{ $allCorrect ? '🎉' : '📊' }}</span>
+                                    <h2 class="mt-4 text-lg font-extrabold text-[#123B68]">Đã ghi nhận bài làm!</h2>
+
+                                    <p @class([
+                                        'mt-3 text-4xl font-black leading-none',
+                                        'text-[#2F8A6B]' => $mainPercent >= 50,
+                                        'text-[#2C6BB0]' => $mainPercent < 50,
+                                    ])>{{ $mainPercent }}%</p>
+                                    <p class="mt-1 text-[12px] font-bold text-[#607A90]">
+                                        Đúng {{ $correct }}/{{ $total }} câu{{ $hasPoints ? ' · '.$summary['earned'].'/'.$summary['maxPoints'].' điểm' : '' }}
+                                    </p>
+
+                                    <div class="mx-auto mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-[#EAF0F3]">
+                                        <div @class([
+                                            'h-full rounded-full transition-all',
+                                            'bg-[#2F8A6B]' => $mainPercent >= 50,
+                                            'bg-[#4C87CE]' => $mainPercent < 50,
+                                        ]) style="width: {{ $mainPercent }}%"></div>
+                                    </div>
+
+                                    @if ($answered < $total)
+                                        <p class="mt-3 text-[11px] font-bold text-[#A4621B]">Còn {{ $total - $answered }} câu bạn chưa trả lời.</p>
+                                    @endif
+
+                                    <a href="{{ $backUrl }}" class="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">‹ {{ $backLabel }}</a>
+                                </div>
+
+                                @if (! empty($summary['rows']))
+                                    <div class="overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-sm">
+                                        <p class="border-b border-[#E7EFF3] bg-[#F4F8FB] px-4 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#365B7A]">Kết quả từng câu</p>
+                                        <div class="divide-y divide-[#EEF3F6]">
+                                            @foreach ($summary['rows'] as $r)
+                                                <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                                                    <span class="inline-flex min-w-0 items-center gap-2">
+                                                        {{-- 3 trạng thái: đúng / sai / chưa trả lời — câu bỏ trống
+                                                             phải khác hẳn câu làm sai, nếu không học sinh tưởng mình
+                                                             đã làm hết mà sai. --}}
+                                                        <span @class([
+                                                            'grid h-5 w-5 shrink-0 place-items-center rounded-full',
+                                                            'bg-[#D4EDE2] text-[#2F8A6B]' => $r['isAccepted'],
+                                                            'bg-[#DCE8F8] text-[#2C6BB0]' => ! $r['isAccepted'] && $r['answered'],
+                                                            'bg-[#EAF0F3] text-[#8AA0B0]' => ! $r['answered'],
+                                                        ])><x-lucide :name="! $r['answered'] ? 'minus' : ($r['isAccepted'] ? 'check' : 'x')" class="h-3 w-3" /></span>
+                                                        <span class="min-w-0">
+                                                            <span class="block truncate text-[12px] font-bold text-[#123B68]">{{ $r['title'] }}</span>
+                                                            <span class="block truncate text-[10px] font-semibold text-[#8AA0B0]">{{ $r['code'] }} · {{ $r['verdictLabel'] }}</span>
+                                                        </span>
+                                                    </span>
+                                                    <span @class([
+                                                        'shrink-0 text-[12px] font-black',
+                                                        'text-[#2F8A6B]' => $r['isAccepted'],
+                                                        'text-[#8AA0B0]' => ! $r['isAccepted'],
+                                                    ])>{{ $r['score'] }}/{{ $r['points'] }} điểm</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         {{-- SỬA 18/9 (2) (khách: "kiểm tra đáp án xong không cần hiển thị ra màn
                              này mà hiển thị kết quả bên chỗ modal luôn") — ĐÃ BỎ nhánh "màn kết quả

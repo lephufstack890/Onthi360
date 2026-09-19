@@ -85,13 +85,29 @@
             </div>
             <table class="w-full text-[13px]">
                 <thead class="bg-slate-50 text-left text-slate-500">
-                    <tr><th class="px-4 py-3">Bài</th><th class="px-4 py-3">Kết quả</th><th class="px-4 py-3 text-right">Điểm</th></tr>
+                    <tr><th class="px-4 py-3">Bài</th><th class="px-4 py-3">Kết quả</th><th class="px-4 py-3">Tỉ lệ test</th><th class="px-4 py-3 text-right">Điểm</th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @foreach ($codingBreakdown as $b)
                         <tr>
                             <td class="px-4 py-3 font-medium text-slate-700">{{ $b['code'] }} — {{ $b['title'] }}</td>
                             <td class="px-4 py-3"><x-ws.badge :tone="$b['tone']">{{ $b['verdict'] }}</x-ws.badge></td>
+                            {{-- SỬA 19/9 (7) — cột TỈ LỆ AC. Bài nộp trước khi hệ thống biết đếm test
+                                 (hoặc máy chủ chưa chạy migration) thì testPercent = null: hiện dấu
+                                 "—" chứ KHÔNG hiện 0% — 0% và "không có số liệu" là hai chuyện khác
+                                 hẳn nhau với người vừa đi thi về. --}}
+                            <td class="px-4 py-3">
+                                @if ($b['testPercent'] !== null)
+                                    <div class="flex items-center gap-2">
+                                        <div class="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
+                                            <div class="h-full rounded-full {{ $b['testPercent'] === 100 ? 'bg-emerald-500' : 'bg-blue-500' }}" style="width: {{ $b['testPercent'] }}%"></div>
+                                        </div>
+                                        <span class="whitespace-nowrap text-[12px] font-bold text-slate-600">{{ $b['passedTests'] }}/{{ $b['totalTests'] }} test · {{ $b['testPercent'] }}%</span>
+                                    </div>
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right text-slate-600">{{ $b['points'] }}</td>
                         </tr>
                     @endforeach

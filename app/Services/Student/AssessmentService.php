@@ -488,12 +488,27 @@ class AssessmentService
                 default => 'danger',
             };
 
+            /*
+             * SỬA 19/9 (7) — TỈ LỆ AC của bài lập trình (số test đã qua / tổng số test), lấy từ
+             * 2 cột ghi lúc chấm (PdfAttemptService::gradePendingCodingItems()).
+             *
+             * null = bài nộp từ trước khi có 2 cột đó, hoặc máy chủ chưa chạy migration — view
+             * sẽ ẩn hẳn phần tỉ lệ thay vì hiện "0/0 test" gây hiểu nhầm là bài không có test.
+             */
+            $totalTests = $c->total_tests !== null ? (int) $c->total_tests : null;
+            $passedTests = $c->passed_tests !== null ? (int) $c->passed_tests : null;
+
             return [
                 'code' => $c->codingItem?->code,
                 'title' => $c->codingItem?->title,
                 'verdict' => $verdictLabel,
                 'tone' => $tone,
                 'points' => $c->score !== null ? (string) $c->score : '—',
+                'passedTests' => $passedTests,
+                'totalTests' => $totalTests,
+                'testPercent' => ($totalTests !== null && $totalTests > 0 && $passedTests !== null)
+                    ? (int) round($passedTests / $totalTests * 100)
+                    : null,
             ];
         })->all();
 

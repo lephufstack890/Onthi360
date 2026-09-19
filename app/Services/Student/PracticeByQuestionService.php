@@ -113,6 +113,9 @@ class PracticeByQuestionService
                 'total' => $total,
                 'correct' => $state['correct'],
                 'answered' => $state['answered'],
+                // SỬA 19/9 (7) (khách: "nộp bài phần lập trình xong nó không hiện tỉ lệ AC") —
+                // màn "đã hoàn tất" trước đây chỉ có một câu chúc mừng, không một con số nào.
+                'summary' => $this->finishedSummary($state),
                 'mode' => $state['mode'] ?? null,
                 'returnUrl' => $state['returnUrl'] ?? null,
                 'backLabel' => $state['backLabel'] ?? null,
@@ -147,6 +150,88 @@ class PracticeByQuestionService
             'mode' => $state['mode'] ?? null,
             'returnUrl' => $state['returnUrl'] ?? null,
             'backLabel' => $state['backLabel'] ?? null,
+        ];
+    }
+
+    /**
+     * SỬA 19/9 (7) — BẢNG KẾT QUẢ của phiên luyện vừa xong, đọc từ CSDL chứ không từ session.
+     *
+     * Vì sao đọc từ CSDL: session chỉ đếm được "đúng mấy câu"; điểm thật, verdict thật (Sai kết
+     * quả / Quá thời gian / Lỗi biên dịch…) nằm ở attempt_answers do recordSubmission() ghi.
+     * Đây cũng đúng là bộ số mà Tỷ lệ AC ngoài trang Luyện tập dùng, nên hai nơi không thể nói
+     * khác nhau.
+     *
+     * Trả null khi phiên chưa ghi được lượt nào (chưa đăng nhập, hoặc mọi câu đều không chấm
+     * được) — view sẽ chỉ hiện lời chúc mừng như cũ thay vì một bảng rỗng.
+     *
+     * @param  array<string, mixed>  $state
+     * @return array{rows: array<int, array<string, mixed>>, earned: int, maxPoints: int, scorePercent: int, acceptedCount: int}|null
+     */
+    private function finishedSummary(array $state): ?array
+    {
+        $questionIds = array_values($state['question_ids'] ?? []);
+        $attemptId = $state['attempt_id'] ?? null;
+
+        if ($questionIds === [] || $attemptId === null) {
+            return null;
+        }
+
+        $attempt = Attempt::with('answers')->find($attemptId);
+
+        if ($attempt === null || $attempt->answers->isEmpty()) {
+            return null;
+        }
+
+        $answers = $attempt->answers->keyBy('question_id');
+        $questions = Question::query()
+            ->whereIn('id', $questionIds)
+            ->get(['id', 'code', 'title', 'points', 'type'])
+            ->keyBy('id');
+
+        $rows = [];
+        $earned = 0;
+        $maxPoints = 0;
+        $acceptedCount = 0;
+
+        /*
+         * Duyệt theo DANH SÁCH CÂU CỦA PHIÊN, không phải theo các câu đã trả lời.
+         *
+         * Vì sao quan trọng: nếu chỉ cộng điểm của những câu đã làm thì học sinh làm 1/3 câu
+         * và câu đó đúng sẽ thấy "100%" — sai hoàn toàn. Mẫu số phải là TỔNG ĐIỂM CẢ PHIÊN,
+         * và câu chưa làm vẫn hiện trong bảng với nhãn "Chưa trả lời" để không ai tưởng là
+         * mình đã làm hết.
+         */
+        foreach ($questionIds as $questionId) {
+            $question = $questions->get($questionId);
+            $answer = $answers->get($questionId);
+
+            $points = (int) ($question?->points ?? 0);
+            $score = (int) ($answer?->score ?? 0);
+            $accepted = $answer !== null && $answer->verdict === VerdictStatus::Accepted;
+
+            $maxPoints += $points;
+            $earned += $score;
+            $acceptedCount += $accepted ? 1 : 0;
+
+            $rows[] = [
+                'code' => $question?->code ?? '—',
+                'title' => $question?->title ?? 'Câu hỏi đã bị xoá',
+                'isCoding' => ($question?->type?->value ?? null) === 'coding',
+                'answered' => $answer !== null,
+                'isAccepted' => $accepted,
+                'verdictLabel' => $answer === null ? 'Chưa trả lời' : ($answer->verdict?->label() ?? 'Chưa chấm'),
+                'score' => $score,
+                'points' => $points,
+            ];
+        }
+
+        return [
+            'rows' => $rows,
+            'earned' => $earned,
+            'maxPoints' => $maxPoints,
+            // Thang điểm chưa đặt (points = 0 hết) thì không chia được -> 0% thay vì lỗi chia 0.
+            'scorePercent' => $maxPoints > 0 ? (int) round($earned / $maxPoints * 100) : 0,
+            'acceptedCount' => $acceptedCount,
         ];
     }
 
