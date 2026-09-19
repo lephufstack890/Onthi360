@@ -332,6 +332,23 @@
                                 <div class="h-full rounded-full bg-[#2F8A6B] transition-all" style="width: {{ $prob['acRate'] }}%"></div>
                             </div>
                             <p class="mt-1 text-[9px] text-[#6B8295]">{{ number_format($prob['acceptedCount']) }}/{{ number_format($prob['submissionCount']) }} lượt toàn hệ thống</p>
+                            {{--
+                                SỬA 19/9 (9) (khách: "vẫn 0%") — KẾT QUẢ TỐT NHẤT CỦA CHÍNH BẠN.
+
+                                "Tỷ lệ AC" ở trên là chỉ số của CẢ HỆ THỐNG: số lượt được chấp nhận
+                                chia tổng số lượt. Bài chưa ai giải trọn vẹn thì nó đứng yên 0% —
+                                đúng về số học nhưng chẳng nói được gì với người đang làm. Dòng này
+                                mới là thứ họ cần: lần nộp tốt nhất của chính họ qua bao nhiêu test.
+
+                                Ẩn khi chưa có số liệu (chưa nộp / không phải câu lập trình / máy chủ
+                                chưa chạy migration) thay vì hiện "0/0 test".
+                            --}}
+                            @if (($prob['mineTestPercent'] ?? null) !== null)
+                                <p class="mt-1 flex items-center gap-1 text-[9px] font-bold {{ $prob['mineTestPercent'] === 100 ? 'text-[#2F8A6B]' : 'text-[#2C6BB0]' }}">
+                                    <x-lucide name="user-check" class="h-3 w-3 shrink-0" />
+                                    Bạn: {{ $prob['minePassedTests'] }}/{{ $prob['mineTotalTests'] }} test · {{ $prob['mineTestPercent'] }}%
+                                </p>
+                            @endif
                         </div>
                     </div>
 

@@ -169,8 +169,27 @@ class PracticeService
         // Số lượt của CHÍNH người đang xem — khách chưa đăng nhập thì là 0, không suy đoán.
         $mine = collect();
         if ($viewer !== null) {
+            /*
+             * SỬA 19/9 (9) (khách: "vẫn 0%") — lấy thêm KẾT QUẢ TỐT NHẤT CỦA CHÍNH NGƯỜI XEM
+             * theo số test đã qua.
+             *
+             * Vì sao cần: "Tỷ lệ AC" là chỉ số của CẢ HỆ THỐNG (số lượt được chấp nhận / tổng
+             * số lượt) — bài khó mà chưa ai giải được thì nó đứng yên ở 0% dù học sinh đã nộp
+             * cả chục lần và qua 4/20 test. Con số đó đúng nhưng vô ích với người đang làm bài:
+             * họ không thấy mình tiến bộ tới đâu. Thêm "Bạn: 4/20 test" ngay dưới để cột này
+             * còn nói được điều gì đó về chính họ.
+             *
+             * MAX(passed_tests): trong nhiều lần nộp thì lấy lần TỐT NHẤT, đúng thông lệ của
+             * mọi trang chấm bài. total_tests cố định theo câu nên MAX cũng chính là nó.
+             */
+            $selectMine = 'question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted';
+
+            if (AttemptAnswer::supportsTestCounts()) {
+                $selectMine .= ', MAX(passed_tests) as mine_passed_tests, MAX(total_tests) as mine_total_tests';
+            }
+
             $mine = AttemptAnswer::query()
-                ->selectRaw('question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted', ['accepted'])
+                ->selectRaw($selectMine, ['accepted'])
                 ->whereIn('question_id', $questionIds)
                 ->whereHas('attempt', fn ($q) => $q->where('user_id', $viewer->id))
                 ->groupBy('question_id')
@@ -187,6 +206,14 @@ class PracticeService
             $mineRow = $mine->get($q->id);
             $mineCount = (int) ($mineRow->mine ?? 0);
             $mineAccepted = (int) ($mineRow->mine_accepted ?? 0);
+
+            // Kết quả test tốt nhất của chính người xem. null = chưa nộp lần nào / câu không
+            // phải dạng lập trình / máy chủ chưa chạy migration -> view ẩn hẳn dòng này.
+            $minePassed = $mineRow->mine_passed_tests ?? null;
+            $mineTotalTests = $mineRow->mine_total_tests ?? null;
+            $mineTestPercent = ($mineTotalTests !== null && (int) $mineTotalTests > 0 && $minePassed !== null)
+                ? (int) round((int) $minePassed / (int) $mineTotalTests * 100)
+                : null;
 
             // Trạng thái của người đang xem: đã AC / đang làm dở / chưa nộp.
             $status = 'todo';
@@ -226,6 +253,9 @@ class PracticeService
                 'acceptedCount' => $accepted,
                 'acRate' => $rate,
                 'userSubmissions' => $mineCount,
+                'minePassedTests' => $minePassed !== null ? (int) $minePassed : null,
+                'mineTotalTests' => $mineTotalTests !== null ? (int) $mineTotalTests : null,
+                'mineTestPercent' => $mineTestPercent,
                 'status' => $status,
                 'subject' => $q->subject,
                 'subjectLabel' => $q->subjectLabel(),
