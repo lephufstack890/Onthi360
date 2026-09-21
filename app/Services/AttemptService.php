@@ -736,7 +736,7 @@ class AttemptService
             $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
 
             try {
-                $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb);
+                $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
             } catch (Throwable $e) {
                 Log::error('Không chấm được câu trả lời Lập trình #'.$answer->id.' (Judge0 không tới được)', ['exception' => $e]);
 

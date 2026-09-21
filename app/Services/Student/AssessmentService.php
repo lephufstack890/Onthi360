@@ -322,7 +322,7 @@ class AssessmentService
             return ['ok' => false, 'message' => 'Chưa có mã nguồn để chạy — viết code rồi bấm lại.'];
         }
 
-        if (config('judge0.languages.'.($data['language'] ?? '')) === null) {
+        if (\App\Services\CodeJudgingService::languageId($data['language'] ?? null) === null) {
             return ['ok' => false, 'message' => 'Ngôn ngữ này chưa chạy được trên máy chấm.'];
         }
 
@@ -335,6 +335,7 @@ class AssessmentService
                 (string) ($data['stdin'] ?? ''),
                 (int) ($config['time_limit_ms'] ?? 5000),
                 (int) ($config['memory_limit_mb'] ?? 256) * 1024,
+                $config['file_io'] ?? null,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning(

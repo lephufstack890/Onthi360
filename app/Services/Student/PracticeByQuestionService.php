@@ -508,7 +508,7 @@ class PracticeByQuestionService
         }
 
         try {
-            $result = $this->codeJudging->judge($codeSource, $data['language'] ?? null, $testCases, $timeLimitMs, $memoryLimitKb);
+            $result = $this->codeJudging->judge($codeSource, $data['language'] ?? null, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
         } catch (Throwable $e) {
             Log::warning('Không chấm được câu luyện tập Lập trình #'.$question->id.' (Judge0 không tới được)', ['exception' => $e]);
 
@@ -560,7 +560,7 @@ class PracticeByQuestionService
             return ['ok' => false, 'message' => 'Chưa có mã nguồn để chạy — viết code rồi bấm lại.'];
         }
 
-        if (config('judge0.languages.'.($data['language'] ?? '')) === null) {
+        if (\App\Services\CodeJudgingService::languageId($data['language'] ?? null) === null) {
             return ['ok' => false, 'message' => 'Ngôn ngữ này chưa chạy được trên máy chấm.'];
         }
 
@@ -573,6 +573,7 @@ class PracticeByQuestionService
                 (string) ($data['stdin'] ?? ''),
                 (int) ($config['time_limit_ms'] ?? 5000),
                 (int) ($config['memory_limit_mb'] ?? 256) * 1024,
+                $config['file_io'] ?? null,
             );
         } catch (Throwable $e) {
             // Đứt đường hầm SSH/máy chấm chưa bật/sai token đều rơi vào đây. Nói THẲNG lý do

@@ -15,17 +15,19 @@ class CodeJudgingService
      *
      * @throws RuntimeException
      */
-    public function judge(string $sourceCode, ?string $language, array $testCases, int $timeLimitMs, int $memoryLimitKb): array
+    public function judge(string $sourceCode, ?string $language, array $testCases, int $timeLimitMs, int $memoryLimitKb, ?array $fileIo = null): array
     {
         if ($testCases === []) {
             return ['verdict' => VerdictStatus::SystemError, 'isAccepted' => false, 'details' => []];
         }
 
-        $languageId = config("judge0.languages.{$language}");
+        $languageId = self::languageId($language);
 
         if ($languageId === null || trim($sourceCode) === '') {
             return ['verdict' => VerdictStatus::CompileError, 'isAccepted' => false, 'details' => []];
         }
+
+        $sourceCode = $this->withFileIo($sourceCode, self::languageKey($language), $fileIo);
 
         $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
         $wallTimeLimit = min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10);
@@ -87,9 +89,9 @@ class CodeJudgingService
      *                          gọi được Judge0 (mất mạng/đứt đường hầm/sai token). Nơi gọi tự
      *                          bắt và hiện lý do cho học sinh.
      */
-    public function run(string $sourceCode, ?string $language, string $stdin, int $timeLimitMs, int $memoryLimitKb): array
+    public function run(string $sourceCode, ?string $language, string $stdin, int $timeLimitMs, int $memoryLimitKb, ?array $fileIo = null): array
     {
-        $languageId = config("judge0.languages.{$language}");
+        $languageId = self::languageId($language);
 
         if ($languageId === null) {
             throw new RuntimeException('Ngôn ngữ chưa được hỗ trợ trên máy chấm.');
@@ -101,6 +103,8 @@ class CodeJudgingService
 
         $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
         $memoryLimit = min((int) config('judge0.max_memory_limit_kb'), max(16384, $memoryLimitKb));
+
+        $sourceCode = $this->withFileIo($sourceCode, self::languageKey($language), $fileIo);
 
         $results = $this->client->runBatch([[
             'source_code' => $sourceCode,
@@ -132,6 +136,107 @@ class CodeJudgingService
             'time' => $r['time'] ?? null,
             'memory' => $r['memory'] ?? null,
         ];
+    }
+
+    /**
+     * SỬA 21/9 (khách: "20 test đều sai hết") — gói ZIP khai ngôn ngữ kiểu "cpp14"/"python3"
+     * trong khi config/judge0.php chỉ có khoá "cpp"/"python" → trước đây ra null và mọi test bị
+     * chấm "Lỗi biên dịch". Quy mọi biến thể về đúng 2 khoá của config.
+     */
+    public static function languageKey(?string $language): ?string
+    {
+        $l = strtolower(str_replace([' ', '_', '-'], '', (string) $language));
+
+        return match (true) {
+            $l === '' => null,
+            str_starts_with($l, 'cpp'), str_starts_with($l, 'c++'), str_starts_with($l, 'g++'), str_starts_with($l, 'gnuc++') => 'cpp',
+            str_starts_with($l, 'py') => 'python',
+            default => $l,
+        };
+    }
+
+    public static function languageId(?string $language): ?int
+    {
+        $key = self::languageKey($language);
+        $id = $key === null ? null : config("judge0.languages.{$key}");
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * SỬA 21/9 — đề kiểu thi HSG khai file_io (vd TONG.INP / TONG.OUT): học sinh được phép đọc
+     * từ file TONG.INP và ghi ra TONG.OUT (freopen / ifstream / open()). Judge0 chỉ đưa dữ liệu
+     * qua stdin và chỉ lấy stdout, nên trước đây bài làm đúng đề vẫn sai 100% test.
+     *
+     * Cách làm: chèn trước mã học sinh một đoạn chạy TRƯỚC main:
+     *   1. đọc hết stdin, ghi ra file INP, rồi nối stdin vào file đó → đọc cin hay đọc file đều được;
+     *   2. giữ lại "cửa" stdout gốc; khi chương trình kết thúc, nếu có file OUT thì chép nội dung
+     *      ra stdout gốc để Judge0 so với đáp án. Không ghi file thì in màn hình vẫn chấm như cũ.
+     * Đề không khai file_io → trả nguyên mã, hành vi không đổi.
+     */
+    private function withFileIo(string $sourceCode, ?string $languageKey, ?array $fileIo): string
+    {
+        $clean = static fn ($name) => preg_match('/^[A-Za-z0-9._-]{1,64}$/', (string) $name) ? (string) $name : null;
+        $in = $clean(is_array($fileIo) ? ($fileIo['input'] ?? null) : null);
+        $out = $clean(is_array($fileIo) ? ($fileIo['output'] ?? null) : null);
+
+        if ($in === null && $out === null) {
+            return $sourceCode;
+        }
+
+        if ($languageKey === 'cpp') {
+            $prelude = "#include <cstdio>\n#include <iostream>\n#include <unistd.h>\n#include <fcntl.h>\n"
+                ."namespace onthi360_file_io { struct Guard { int saved = -1;\n"
+                ."  Guard() {\n"
+                .($in !== null
+                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); }\n"
+                      ."    if (!std::freopen(\"{$in}\", \"rb\", stdin)) {}\n"
+                    : '')
+                .($out !== null ? "    std::remove(\"{$out}\"); saved = dup(1);\n" : '')
+                ."  }\n"
+                ."  ~Guard() {\n"
+                ."    std::cout.flush(); std::fflush(nullptr);\n"
+                .($out !== null
+                    ? "    if (saved < 0) return; int fd = open(\"{$out}\", O_RDONLY); if (fd < 0) return;\n"
+                      ."    char b[65536]; ssize_t n; while ((n = read(fd, b, sizeof b)) > 0) { ssize_t o = 0; while (o < n) { ssize_t w = write(saved, b + o, n - o); if (w <= 0) break; o += w; } }\n"
+                      ."    close(fd);\n"
+                    : '')
+                ."  }\n} guard; }\n"
+                ."#line 1\n";
+
+            return $prelude.$sourceCode;
+        }
+
+        if ($languageKey === 'python') {
+            $inLit = var_export($in, true);
+            $outLit = var_export($out, true);
+            // Gói gọn 1 dòng để số dòng báo lỗi của học sinh chỉ lệch đúng 1.
+            $code = <<<PY
+import sys as _s, os as _o, io as _io, gc as _gc, atexit as _a
+_IN, _OUT = {$inLit}, {$outLit}
+if _IN:
+    _d = _s.stdin.buffer.read()
+    with open(_IN, 'wb') as _f: _f.write(_d)
+    _s.stdin = open(_IN, 'r')
+_saved = -1
+if _OUT:
+    try: _o.remove(_OUT)
+    except OSError: pass
+    _saved = _o.dup(1)
+def _fin():
+    for _x in _gc.get_objects():
+        try:
+            if isinstance(_x, _io.IOBase) and not _x.closed and _x.writable(): _x.flush()
+        except Exception: pass
+    if _saved >= 0 and _o.path.exists(_OUT):
+        with open(_OUT, 'rb') as _f: _o.write(_saved, _f.read())
+_a.register(_fin)
+PY;
+
+            return 'exec('.json_encode($code, JSON_UNESCAPED_SLASHES).")\n".$sourceCode;
+        }
+
+        return $sourceCode;
     }
 
     private function mapStatus(int $statusId, ?int $memoryUsedKb, int $memoryLimitKb): VerdictStatus
