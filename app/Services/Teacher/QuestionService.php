@@ -256,7 +256,8 @@ class QuestionService
     {
         $attributes = $this->buildAttributes($data, $question);
 
-        if ($this->publishGuard->hasBeenAttempted($question)) {
+        // SỬA 21/9 — luật 6.2 đang TẮT (QuestionPublishGuard::VERSION_ON_EDIT) → sửa thẳng câu gốc.
+        if ($this->publishGuard->requiresNewVersion($question)) {
             $newVersion = $this->publishGuard->createNewVersion($question, $attributes);
             $newVersion->tags()->sync($this->resolveTagIds($data));
 

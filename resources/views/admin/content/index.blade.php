@@ -24,7 +24,7 @@
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     @endphp
 
-    <x-ws.page-header title="Kho câu hỏi và đề" icon="library" subtitle="Không sửa âm thầm câu/đề đã có người làm — mọi thay đổi tạo version mới.">
+    <x-ws.page-header title="Kho câu hỏi và đề" icon="library" subtitle="Quản lý câu hỏi và đề — sửa là cập nhật trực tiếp.">
         <x-slot:actions>
             @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>

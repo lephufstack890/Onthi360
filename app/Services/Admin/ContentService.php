@@ -493,7 +493,7 @@ class ContentService
                 'model' => $question,
                 'item' => ['id' => $question->id, 'title' => $question->title, 'status' => $label, 'tone' => $tone, 'statusValue' => $question->status->value],
                 'publishErrors' => $decision->allowed ? [] : [$decision->message ?? 'Chưa đủ điều kiện phát hành.'],
-                'hasBeenAttempted' => $this->publishGuard->hasBeenAttempted($question),
+                'hasBeenAttempted' => $this->publishGuard->requiresNewVersion($question),
             ];
         }
 
@@ -1042,7 +1042,7 @@ class ContentService
 
         return array_merge($this->questionCreateFormData(), [
             'question' => $question,
-            'hasBeenAttempted' => $this->publishGuard->hasBeenAttempted($question),
+            'hasBeenAttempted' => $this->publishGuard->requiresNewVersion($question),
         ]);
     }
 
@@ -1053,7 +1053,8 @@ class ContentService
      */
     public function questionUpdate(Question $question, array $data): Question
     {
-        if ($this->publishGuard->hasBeenAttempted($question)) {
+        // SỬA 21/9 — luật 6.2 đang TẮT (QuestionPublishGuard::VERSION_ON_EDIT) → sửa thẳng.
+        if ($this->publishGuard->requiresNewVersion($question)) {
             throw ValidationException::withMessages([
                 'code' => 'Câu hỏi này đã có học sinh làm bài — không thể sửa trực tiếp, hãy dùng "Tạo phiên bản mới" (6.2).',
             ]);

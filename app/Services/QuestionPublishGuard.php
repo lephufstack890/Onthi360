@@ -34,7 +34,7 @@ class QuestionPublishGuard
             );
         }
 
-        if ($this->hasBeenAttempted($question) && $question->isDirty()) {
+        if ($this->requiresNewVersion($question) && $question->isDirty()) {
             return AccessDecision::deny(
                 'requires_new_version',
                 'Câu hỏi đã có người làm — sửa nội dung phải tạo phiên bản mới, không sửa âm thầm.',
@@ -42,6 +42,20 @@ class QuestionPublishGuard
         }
 
         return AccessDecision::allow();
+    }
+
+    /**
+     * SỬA 21/9 (khách: "sửa thẳng lên luôn cũng k sao, k cần tạo phiên bản mới" — cả admin và
+     * giáo viên) — TẮT luật 6.2 "câu đã có người làm phải tạo phiên bản mới". Chỉ tắt bằng cờ
+     * này, KHÔNG xoá code tạo phiên bản (createNewVersion(), route newVersion vẫn còn): muốn
+     * bật lại thì đổi thành true là xong.
+     */
+    public const VERSION_ON_EDIT = false;
+
+    /** Câu đã có người làm VÀ đang bật luật tạo phiên bản mới khi sửa. */
+    public function requiresNewVersion(Question $question): bool
+    {
+        return self::VERSION_ON_EDIT && $this->hasBeenAttempted($question);
     }
 
     public function hasBeenAttempted(Question $question): bool

@@ -189,8 +189,9 @@ class CodeJudgingService
                 ."namespace onthi360_file_io { struct Guard { int saved = -1;\n"
                 ."  Guard() {\n"
                 .($in !== null
-                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); }\n"
-                      ."    if (!std::freopen(\"{$in}\", \"rb\", stdin)) {}\n"
+                    // Chỉ nối stdin sang file khi GHI ĐƯỢC file — không ghi được thì để stdin nguyên như cũ.
+                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f);\n"
+                      ."      if (!std::freopen(\"{$in}\", \"rb\", stdin)) {} }\n"
                     : '')
                 .($out !== null ? "    std::remove(\"{$out}\"); saved = dup(1);\n" : '')
                 ."  }\n"
@@ -216,8 +217,11 @@ import sys as _s, os as _o, io as _io, gc as _gc, atexit as _a
 _IN, _OUT = {$inLit}, {$outLit}
 if _IN:
     _d = _s.stdin.buffer.read()
-    with open(_IN, 'wb') as _f: _f.write(_d)
-    _s.stdin = open(_IN, 'r')
+    try:
+        with open(_IN, 'wb') as _f: _f.write(_d)
+        _s.stdin = open(_IN, 'r')
+    except OSError:
+        _s.stdin = _io.TextIOWrapper(_io.BytesIO(_d))
 _saved = -1
 if _OUT:
     try: _o.remove(_OUT)
