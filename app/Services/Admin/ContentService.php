@@ -1080,6 +1080,8 @@ class ContentService
         // SẠCH cấu hình các phần con nếu gọi cho Composite. Giữ NGUYÊN grading_config đã nhập từ
         // ZIP, chỉ cho sửa Tiêu đề/Nội dung/Điểm/Hiển thị/Tag như các dạng khác.
         if ($question->type !== \App\Enums\QuestionType::Composite) {
+            // SỬA 21/9 — ô test bị khoá (không gửi lên) thì giữ nguyên test cũ, xem buildGradingConfig().
+            $data['_existing_test_cases'] = $question->grading_config['test_cases'] ?? [];
             $attributes['grading_config'] = $this->buildGradingConfig($question->type->value, $data);
         }
 
@@ -1112,6 +1114,8 @@ class ContentService
         // sang bản version mới, bỏ qua key này trong $changes là đủ để giữ nguyên, không cần gọi
         // buildGradingConfig() (sẽ xoá sạch 'parts').
         if ($question->type !== \App\Enums\QuestionType::Composite) {
+            // SỬA 21/9 — cùng lý do ở questionUpdate(): ô test bị khoá thì giữ nguyên test cũ.
+            $data['_existing_test_cases'] = $question->grading_config['test_cases'] ?? [];
             $changes['grading_config'] = $this->buildGradingConfig($question->type->value, $data);
         }
 
@@ -1200,7 +1204,19 @@ class ContentService
                 // 1-test "input|||output" khi test case gốc có nhiều dòng (xem
                 // questionStoreFromZipPackage() bên dưới). Form nhập tay bình thường không
                 // gửi 'test_cases_parsed' nên hành vi cũ (đọc 'test_cases_raw') không đổi.
-                'test_cases' => $data['test_cases_parsed'] ?? $this->parseTestCases($data['test_cases_raw'] ?? ''),
+                /*
+                 * SỬA 21/9 (khách: "code tính tổng đúng mà ghi nhận cứ sai") — thứ tự ưu tiên:
+                 *   1. 'test_cases_parsed' — đã tách sẵn (gói ZIP), dùng nguyên văn;
+                 *   2. có gửi ô 'test_cases_raw' -> tách theo định dạng "input|||output";
+                 *   3. KHÔNG gửi ô đó -> GIỮ NGUYÊN test cũ ('_existing_test_cases').
+                 * Nhánh 3 là mới: form Sửa khoá ô test khi câu có test nhiều dòng (xem
+                 * edit.blade.php) và không gửi ô đó lên. Trước đây vắng ô này thì rơi vào
+                 * parseTestCases('') -> mảng rỗng -> XOÁ SẠCH toàn bộ test của câu hỏi.
+                 */
+                'test_cases' => $data['test_cases_parsed']
+                    ?? (array_key_exists('test_cases_raw', $data)
+                        ? $this->parseTestCases((string) ($data['test_cases_raw'] ?? ''))
+                        : ($data['_existing_test_cases'] ?? [])),
                 'time_limit_ms' => filled($data['time_limit_ms'] ?? null) ? (int) $data['time_limit_ms'] : null,
                 'memory_limit_mb' => filled($data['memory_limit_mb'] ?? null) ? (int) $data['memory_limit_mb'] : null,
                 // SỬA 24/8 — 3 khoá dưới đây CHỈ được gói ZIP điền (form nhập tay không có
@@ -1215,16 +1231,48 @@ class ContentService
         };
     }
 
-    /** Mỗi dòng "input|||output" -> 1 test case. Dòng không đúng định dạng bị b�o qua. */
+    /**
+     * Mỗi dòng "input|||output" -> 1 test case.
+     *
+     * SỬA 21/9 — dòng KHÔNG có dấu "|||" giờ là LỖI, báo rõ số dòng cho người nhập; trước đây
+     * nó bị BỎ QUA ÂM THẦM, và đó chính là cơ chế đã xoá sạch dữ liệu vào của cả bộ test:
+     *
+     *   Test nhập từ gói ZIP có dữ liệu vào kết thúc bằng xuống dòng ("2 3\n"). Form Sửa ghép
+     *   lại thành chuỗi "2 3\n|||5" -> ô textarea hiện HAI dòng "2 3" và "|||5". Bấm Lưu, dòng
+     *   "2 3" không có "|||" nên bị bỏ, dòng "|||5" thành test có dữ liệu vào RỖNG. Chỉ một lần
+     *   bấm Lưu (không sửa gì) là mất hết. Chương trình đúng đọc vào rỗng -> in 0 -> chỉ đậu
+     *   đúng những test có đáp án 0 (khách gặp: 4/20).
+     *
+     * Dòng trống vẫn bỏ qua như cũ (để người nhập cách dòng cho dễ đọc).
+     *
+     * @throws ValidationException khi có dòng không đúng định dạng.
+     */
     private function parseTestCases(string $raw): array
     {
         $cases = [];
-        foreach (preg_split('/\r?\n/', trim($raw)) as $line) {
-            if (blank($line) || ! str_contains($line, '|||')) {
+        $badLines = [];
+
+        foreach (preg_split('/\r?\n/', trim($raw)) as $index => $line) {
+            if (blank($line)) {
                 continue;
             }
+
+            if (! str_contains($line, '|||')) {
+                $badLines[] = $index + 1;
+
+                continue;
+            }
+
             [$input, $output] = explode('|||', $line, 2);
             $cases[] = ['input' => $input, 'output' => $output];
+        }
+
+        if ($badLines !== []) {
+            throw ValidationException::withMessages([
+                'test_cases_raw' => 'Dòng '.implode(', ', array_slice($badLines, 0, 10)).(count($badLines) > 10 ? '…' : '')
+                    .' trong ô Test cases thiếu dấu "|||" giữa dữ liệu vào và kết quả. Mỗi dòng phải có dạng: dữ liệu vào|||kết quả (vd: 3 5|||8). '
+                    .'Chưa lưu gì để tránh mất test.',
+            ]);
         }
 
         return $cases;
@@ -1283,9 +1331,11 @@ class ContentService
      * KHÁCH: test case nhập từ ZIP được lưu đúng nguyên vẹn (kể cả nhiều dòng) nhờ
      * 'test_cases_parsed' ở buildGradingConfig() trên — nhưng nếu SAU ĐÓ ai sửa câu hỏi này
      * qua ô "Test cases" thủ công (dạng text "input|||output" mỗi dòng), nội dung nhiều dòng
-     * có thể bị hiểu sai thành nhiều test case khác nhau. Đây là hạn chế CÓ SẴN TỪ TRƯỚC (ô
-     * nhập tay dùng chung cho mọi câu lập trình, không riêng câu nhập từ ZIP) — cố ý KHÔNG sửa
-     * ô nhập tay ở đây vì phạm vi rộng hơn nhiều so với yêu cầu hiện tại.
+     * có thể bị hiểu sai thành nhiều test case khác nhau.
+     *
+     * SỬA 21/9 — hạn chế trên ĐÃ ĐƯỢC SỬA: form Sửa bỏ xuống dòng thừa cuối mỗi test trước khi
+     * ghép, khoá ô test khi câu có test nhiều dòng thật, và parseTestCases() báo lỗi thay vì âm
+     * thầm bỏ dòng. Xem 3 chỗ đó để biết chi tiết.
      *
      * @throws ValidationException nếu gói ZIP không mở được, thiếu/sai question.json, hoặc
      *                              không có test case hợp lệ nào trong thư mục tests/.

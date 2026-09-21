@@ -11,7 +11,15 @@
         $correctOption = ($config['correct_options'][0] ?? null);
         $acceptedAnswers = implode("\n", $config['accepted_answers'] ?? []);
         $caseSensitive = $config['case_sensitive'] ?? false;
-        $testCasesRaw = collect($config['test_cases'] ?? [])->map(fn ($c) => ($c['input'] ?? '').'|||'.($c['output'] ?? ''))->implode("\n");
+        // Bỏ xuống dòng cuối của input/output khi hiển thị để mỗi test nằm đúng 1 dòng "input|||output".
+        // Test có input/output nhiều dòng thật thì không thể sửa an toàn ở dạng 1 dòng → khoá ô (không gửi lên),
+        // server giữ nguyên test cũ thay vì cắt mất dữ liệu.
+        $testCasesList = collect($config['test_cases'] ?? [])->map(fn ($c) => [
+            'input' => rtrim((string) ($c['input'] ?? ''), "\r\n"),
+            'output' => rtrim((string) ($c['output'] ?? ''), "\r\n"),
+        ]);
+        $hasMultilineTests = $testCasesList->contains(fn ($c) => str_contains($c['input'], "\n") || str_contains($c['output'], "\n"));
+        $testCasesRaw = $testCasesList->map(fn ($c) => $c['input'].'|||'.$c['output'])->implode("\n");
         $timeLimitMs = $config['time_limit_ms'] ?? 1000;
         $memoryLimitMb = $config['memory_limit_mb'] ?? 256;
         $actionRoute = $hasBeenAttempted ? route('admin.content.questions.newVersion', $question->id) : route('admin.content.questions.update', $question->id);
@@ -138,8 +146,17 @@
                     </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="test_cases_raw">Test cases</label>
-                        <textarea id="test_cases_raw" name="test_cases_raw" rows="4"
-                                  class="admin-input font-mono">{{ old('test_cases_raw', $testCasesRaw) }}</textarea>
+                        @if ($hasMultilineTests)
+                            <p class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+                                Câu này có test input/output nhiều dòng ({{ $testCasesList->count() }} test) — không sửa được ở dạng 1 dòng nên ô bị khoá, lưu form sẽ giữ nguyên test cũ. Muốn thay test hãy import lại file ZIP.
+                            </p>
+                            <textarea id="test_cases_raw" rows="6" readonly
+                                      class="admin-input font-mono bg-slate-50 text-slate-500">{{ $testCasesRaw }}</textarea>
+                        @else
+                            <textarea id="test_cases_raw" name="test_cases_raw" rows="8"
+                                      class="admin-input font-mono">{{ old('test_cases_raw', $testCasesRaw) }}</textarea>
+                            <p class="mt-1 text-[12px] text-slate-500">Mỗi dòng 1 test: <code>input|||output</code> (ví dụ <code>2 3|||5</code>). Dòng thiếu <code>|||</code> sẽ bị báo lỗi, không lưu.</p>
+                        @endif
                     </div>
                 </div>
             </div>
