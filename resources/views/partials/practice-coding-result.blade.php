@@ -27,6 +27,28 @@
                 <p class="mt-0.5 text-[12px] leading-relaxed text-amber-800">{{ $feedback['codingError'] }}</p>
             </div>
         </div>
+    @elseif (! empty($feedback['codingCompileError']))
+        {{--
+          SỬA 23/9 (khách: "chương trình lỗi thì ngừng chấm luôn... lỗi code là báo lỗi ở dòng
+          bao nhiêu") — mã không biên dịch được: KHÔNG vẽ dải 20 ô test (máy chấm cũng đã dừng
+          sau test đầu), chỉ nói thẳng sai ở dòng nào và sai gì.
+        --}}
+        <div class="flex items-start gap-3 bg-[#FEF3F2] p-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FEE4E2] text-[#B42318]"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
+            <div class="min-w-0 flex-1">
+                <p class="text-[13px] font-bold text-[#B42318]">
+                    Mã nguồn chưa biên dịch được @if (! empty($feedback['codingErrorLine']))— lỗi ở <span class="rounded bg-[#FEE4E2] px-1.5 py-0.5">dòng {{ $feedback['codingErrorLine'] }}</span>@endif
+                </p>
+                @if (! empty($feedback['codingErrorMessage']))
+                    <p class="mt-1 break-words font-mono text-[12px] leading-relaxed text-[#B42318]">{{ $feedback['codingErrorMessage'] }}</p>
+                @endif
+                <p class="mt-1.5 text-[12px] text-[#7A271A]">Chưa chấm test nào — sửa lỗi rồi bấm "Ghi nhận bài làm" lại.</p>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-[11px] font-bold text-[#B42318]">Xem toàn bộ thông báo của trình biên dịch</summary>
+                    <pre class="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2 font-mono text-[11px] text-[#B42318] ring-1 ring-[#FECDCA]">{{ $feedback['codingCompileError'] }}</pre>
+                </details>
+            </div>
+        </div>
     @else
         {{-- ── Băng kết quả chung ── --}}
         <div @class([

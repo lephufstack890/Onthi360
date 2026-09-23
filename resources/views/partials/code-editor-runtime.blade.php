@@ -62,8 +62,10 @@
         }
 
         // Mã khởi tạo theo ngôn ngữ — chép từ starterCodeByLanguage của bản mẫu.
+        // SỬA 23/9 (khách: "code C++ mặc định dùng bits/stdc++.h") — dân thi lập trình quen
+        // gộp 1 dòng include duy nhất, khỏi phải nhớ từng thư viện.
         var STARTER_CODE = {
-            cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello, World!" << endl;\n  return 0;\n}',
+            cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios_base::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}',
             python: 'print("Hello, World!")'
         };
 </script>

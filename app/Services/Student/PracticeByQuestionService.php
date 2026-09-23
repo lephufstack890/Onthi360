@@ -317,6 +317,9 @@ class PracticeByQuestionService
             'codingVerdictLabel' => $codingResult['verdictLabel'] ?? null,
             'codingTestCases' => $codingResult['testCases'] ?? null,
             'codingError' => $codingError,
+            'codingCompileError' => $codingResult['compileError'] ?? null,
+            'codingErrorLine' => $codingResult['errorLine'] ?? null,
+            'codingErrorMessage' => $codingResult['errorMessage'] ?? null,
             'compositeParts' => $compositeResult['parts'] ?? null,
         ];
 
@@ -523,6 +526,11 @@ class PracticeByQuestionService
             'verdict' => $result['verdict']->value,
             'verdictLabel' => $result['verdict']->label(),
             'testCases' => $result['details'],
+            // SỬA 23/9 — mã không biên dịch được thì CodeJudgingService dừng ngay sau test đầu
+            // và trả kèm số dòng sai; đẩy tiếp ra view để hiện "Lỗi ở dòng N".
+            'compileError' => $result['compileError'] ?? null,
+            'errorLine' => $result['errorLine'] ?? null,
+            'errorMessage' => $result['errorMessage'] ?? null,
         ];
     }
 

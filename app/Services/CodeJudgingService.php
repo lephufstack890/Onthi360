@@ -43,7 +43,31 @@ class CodeJudgingService
             'memory_limit' => $memoryLimit,
         ], $testCases);
 
-        $results = $this->client->runBatch($submissions);
+        /*
+         * SỬA 23/9 (khách: "chương trình lỗi thì ngừng chấm luôn, đừng chạy qua các test nữa —
+         * tốn thời gian và tài nguyên; chương trình chạy được mới chấm test") — chấm 2 chặng:
+         *
+         *   Chặng 1: nộp ĐÚNG 1 test đầu. Mã không biên dịch được thì dừng ngay, không đụng
+         *            tới 19 test còn lại (trước đây bài sai cú pháp vẫn đốt đủ 20 lượt chạy).
+         *   Chặng 2: biên dịch ổn mới nộp các test còn lại.
+         *
+         * Test đầu ở chặng 1 vẫn gửi kèm expected_output nên nó là một test được chấm thật,
+         * KHÔNG tốn thêm lượt chạy nào so với cách cũ khi mã chạy được.
+         */
+        $firstResults = $this->client->runBatch([$submissions[0]]);
+        $first = $firstResults[0] ?? null;
+        $firstStatusId = (int) ($first['status']['id'] ?? 13);
+
+        // 6 = Compilation Error. Với Python, Judge0 cũng báo lỗi cú pháp ở bước này.
+        if ($firstStatusId === 6) {
+            return $this->compileErrorResult($first, count($testCases), self::languageKey($language), $fileIo);
+        }
+
+        $results = $firstResults;
+
+        if (count($submissions) > 1) {
+            $results = array_merge($results, $this->client->runBatch(array_slice($submissions, 1)));
+        }
 
         $verdict = VerdictStatus::Accepted;
         $details = [];
@@ -241,6 +265,104 @@ PY;
         }
 
         return $sourceCode;
+    }
+
+    /**
+     * SỬA 23/9 — kết quả khi mã KHÔNG biên dịch được: mọi test đều "chưa chấm", kèm thông báo
+     * lỗi đã rút gọn và SỐ DÒNG sai trong mã của học sinh (khách: "lỗi code là báo lỗi ở dòng
+     * bao nhiêu").
+     *
+     * @param  array<string, mixed>|null  $result
+     * @return array<string, mixed>
+     */
+    private function compileErrorResult(?array $result, int $testCount, ?string $languageKey, ?array $fileIo): array
+    {
+        $raw = trim((string) ($result['compile_output'] ?? ''));
+
+        if ($raw === '') {
+            $raw = trim((string) ($result['stderr'] ?? ''));
+        }
+
+        $parsed = $this->parseCompileError($raw, $languageKey, $fileIo);
+
+        $details = [];
+        for ($i = 0; $i < $testCount; $i++) {
+            $details[] = [
+                'index' => $i + 1,
+                'isAccepted' => false,
+                'statusLabel' => VerdictStatus::CompileError->label(),
+                'status' => 'Compilation Error',
+                'time' => null,
+                'memory' => null,
+                'input' => '',
+                'expectedOutput' => '',
+                'actualOutput' => null,
+                'stderr' => null,
+                // Chỉ đính lỗi vào test đầu — 19 dòng lặp lại cùng một thông báo chỉ làm rối.
+                'compileOutput' => $i === 0 ? ($raw !== '' ? $raw : null) : null,
+            ];
+        }
+
+        return [
+            'verdict' => VerdictStatus::CompileError,
+            'isAccepted' => false,
+            'details' => $details,
+            // 3 khoá dưới đây để view hiện thẳng "Lỗi ở dòng N" thay vì bắt học sinh tự dò
+            // trong log biên dịch, xem partials/practice-coding-result.blade.php.
+            'compileError' => $raw !== '' ? $raw : null,
+            'errorLine' => $parsed['line'],
+            'errorMessage' => $parsed['message'],
+        ];
+    }
+
+    /**
+     * Rút "dòng bao nhiêu, lỗi gì" từ log biên dịch.
+     *
+     *   C++ : "main.cpp:5:14: error: expected ';' before '}' token"
+     *   Py  : "  File \"__init__.py\", line 3\n    print(\n         ^\nSyntaxError: ..."
+     *
+     * @return array{line: ?int, message: ?string}
+     */
+    private function parseCompileError(string $raw, ?string $languageKey, ?array $fileIo): array
+    {
+        if ($raw === '') {
+            return ['line' => null, 'message' => null];
+        }
+
+        $line = null;
+        $message = null;
+
+        if (preg_match('/[^\s:]+:(\d+):(?:\d+:)?\s*(?:fatal\s+)?error:\s*(.+)/i', $raw, $m)) {
+            $line = (int) $m[1];
+            $message = trim($m[2]);
+        } elseif (preg_match('/line\s+(\d+)/i', $raw, $m)) {
+            $line = (int) $m[1];
+
+            if (preg_match('/^\s*(\w*(?:Error|Exception))\s*:\s*(.+)$/mi', $raw, $m2)) {
+                $message = trim($m2[1].': '.$m2[2]);
+            }
+        }
+
+        /*
+         * Đề có file_io thì withFileIo() chèn thêm mã ở đầu bài làm. Bản C++ đã tự nắn số dòng
+         * bằng chỉ thị "#line 1" nên không lệch; bản Python chèn đúng 1 dòng exec(...) nên số
+         * dòng báo ra lớn hơn số dòng thật 1 đơn vị — trừ lại cho khớp với mã học sinh thấy.
+         */
+        if ($line !== null && $languageKey === 'python' && ! empty($fileIo)) {
+            $line = max(1, $line - 1);
+        }
+
+        if ($message === null) {
+            // Không khớp mẫu nào thì lấy dòng đầu tiên có chữ "error" cho dễ đọc.
+            foreach (preg_split('/\r?\n/', $raw) as $l) {
+                if (stripos($l, 'error') !== false) {
+                    $message = trim($l);
+                    break;
+                }
+            }
+        }
+
+        return ['line' => $line, 'message' => $message];
     }
 
     private function mapStatus(int $statusId, ?int $memoryUsedKb, int $memoryLimitKb): VerdictStatus
