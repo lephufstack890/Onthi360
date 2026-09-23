@@ -53,16 +53,41 @@ class DashboardService
                 'tone' => $attempt->is_provisional ? 'info' : 'success',
             ])->all();
 
-        // TODO: thay bằng dữ liệu thật khi có bảng notifications và luật
-        // gộp assignment/progress_unlock sắp tới hạn (16 mục 4, 16 mục 9).
+        /*
+         * SỬA 23/9 (khách: "giao diện bảng điều khiển còn xấu, thống nhất với trang lớp học và
+         * cuộc thi") — LỊCH SẮP TỚI trước đây là mảng rỗng nên khối đó luôn trống trơn. Giờ lấy
+         * buổi học thật của chính các lớp học sinh đang theo, dùng lại đúng truy vấn màn Lịch
+         * học đang dùng (ClassSessionRepository::upcomingForClassRoomIds()) — không thêm bảng,
+         * không thêm truy vấn nào ngoài 1 câu này.
+         */
+        $upcoming = empty($classRoomIds)
+            ? []
+            : $this->classSessions->upcomingForClassRoomIds($classRoomIds, 5)
+                ->map(fn ($session) => [
+                    'time' => $session->starts_at?->format('d/m H:i') ?? 'Chưa hẹn giờ',
+                    'title' => $session->topic ?: ($session->classRoom->name ?? 'Buổi học'),
+                    'meta' => trim(($session->classRoom->name ?? '').(filled($session->location) ? ' · '.$session->location : '')) ?: 'Chưa có ghi chú',
+                    'isToday' => $session->starts_at?->isToday() ?? false,
+                ])->all();
+
+        // 3 con số cho dải thẻ thống kê đầu trang — đều đếm từ dữ liệu đã có sẵn ở trên, riêng
+        // tổng số bài đã nộp dùng câu đếm sẵn có của AttemptRepository.
+        $percents = array_column($classProgress, 'percent');
+
+        // TODO: thay 'todayTasks'/'notifications' bằng dữ liệu thật khi có bảng notifications và
+        // luật gộp assignment/progress_unlock sắp tới hạn (16 mục 4, 16 mục 9).
         return [
             'name' => $user->name,
             'hasAnyClass' => $hasAnyClass,
             'todayTasks' => [],
-            'upcoming' => [],
+            'upcoming' => $upcoming,
             'classProgress' => $classProgress,
             'recentResults' => $recentResults,
             'notifications' => [],
+            'classCount' => count($classProgress),
+            'averageProgress' => $percents === [] ? 0 : (int) round(array_sum($percents) / count($percents)),
+            'submittedCount' => $this->attempts->countSubmittedForUser($user->id),
+            'todaySessionCount' => count(array_filter($upcoming, fn ($u) => $u['isToday'])),
         ];
     }
 

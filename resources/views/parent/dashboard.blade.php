@@ -18,7 +18,8 @@
     @endphp
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4">
-        <p class="text-[13px] text-violet-600 font-medium">Chào mừng trở lại 👋</p>
+        {{-- SỬA 23/9 — bỏ emoji, dùng icon SVG cho đồng bộ toàn hệ thống. --}}
+        <p class="inline-flex items-center gap-1.5 text-[13px] font-medium text-violet-600"><x-lucide name="sparkles" class="h-3.5 w-3.5" />Chào mừng trở lại</p>
         <h2 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">Đồng hành cùng con mỗi ngày</h2>
         <p class="text-[13px] text-slate-500 mt-1">Chỉ hiển thị dữ liệu của con đã liên kết và xác minh (10.3).</p>
     </div>

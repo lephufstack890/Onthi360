@@ -29,11 +29,12 @@
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4 flex items-center justify-between flex-wrap gap-4">
         <div>
-            <p class="text-[13px] text-sky-600 font-medium">Chào thầy/cô 👋</p>
+            {{-- SỬA 23/9 (khách: "emoji cẩu thả, dùng SVG") — bỏ 👋, dùng icon lucide. --}}
+            <p class="inline-flex items-center gap-1.5 text-[13px] font-medium text-sky-600"><x-lucide name="sparkles" class="h-3.5 w-3.5" />Chào thầy/cô</p>
             <h2 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">{{ $name }}, hôm nay có {{ count($upcoming) }} buổi dạy</h2>
             <p class="text-[13px] text-slate-500 mt-1">{{ count($toOpen) }} bài đang chờ mở tiến độ · {{ count($attentionStudents) }} học sinh cần chú ý</p>
         </div>
-        <div class="w-16 h-16 rounded-3xl bg-white/70 flex items-center justify-center text-4xl shrink-0 shadow-sm">🍎</div>
+        <div class="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-white/70 text-sky-600 shadow-sm"><x-lucide name="graduation-cap" class="h-7 w-7" /></div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -44,7 +45,7 @@
 
     @if ($accessExpiring)
         <div class="rounded-3xl bg-amber-50 border border-amber-100 p-4 mb-6 flex items-center gap-4 flex-wrap">
-            <x-ws.icon-tile emoji="⏳" tone="amber" />
+            <x-ws.icon-tile icon="clock" tone="amber" />
             <p class="text-[13px] text-amber-800 flex-1">
                 Quyền dạy "<strong>{{ $accessExpiring['product'] }}</strong>" sắp hết hạn — còn {{ $accessExpiring['daysLeft'] }} ngày. Hết hạn sẽ không gắn/mở mới được học liệu này ở bất kỳ lớp nào (7.2).
             </p>
@@ -93,7 +94,7 @@
         </div>
 
         <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-            <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2"><span>🧑‍🎓</span> Học sinh cần chú ý</h3>
+            <h3 class="font-medium text-slate-700 mb-4 flex items-center gap-2"><x-lucide name="users" class="h-4 w-4 text-sky-600" /> Học sinh cần chú ý</h3>
             <ul class="space-y-3">
                 @forelse ($attentionStudents as $s)
                     <li class="flex items-center gap-3 text-[13px]">
