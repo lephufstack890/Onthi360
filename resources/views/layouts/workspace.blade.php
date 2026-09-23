@@ -42,6 +42,9 @@
         ],
     ][$wsRole] ?? null;
 
+    // Khoá 'home' của mỗi vai trò giữ lại để dùng về sau (điều hướng nội bộ) — KHÔNG còn
+    // dùng cho logo nữa, xem ghi chú ở thẻ <a> của logo bên dưới.
+
     // Vai trò lạ (không nằm trong 4 khu) vẫn phải ra được trang, lấy tạm cấu hình học sinh.
     $wsConfig = $wsConfig ?? [
         'badge' => 'Khu làm việc', 'navTitle' => 'Khu làm việc',
@@ -66,7 +69,12 @@
     <header class="sticky top-0 z-50 w-full border-b border-sky-100 bg-white/95 shadow-[0_1px_3px_rgba(0,0,0,0.02)] backdrop-blur-md"
             x-data="{ mobileNavOpen: false }">
         <div class="mx-auto flex w-full max-w-[1780px] items-center gap-2 px-3 py-2 sm:px-5 sm:py-2.5 lg:px-6 2xl:px-10">
-            <a href="{{ route($wsConfig['home']) }}" class="group flex shrink-0 items-center gap-2">
+            {{--
+              SỬA 23/9 (khách: "bấm logo phải về trang công khai, đó là phản xạ của người dùng")
+              — logo trỏ về TRANG CHỦ CÔNG KHAI chứ không về bảng điều khiển của vai trò nữa.
+              Muốn quay lại khu làm việc thì đã có mục đầu tiên trong menu bên trái.
+            --}}
+            <a href="{{ route('home') }}" title="Về trang chủ Ôn Thi 360" class="group flex shrink-0 items-center gap-2">
                 <img src="{{ asset('assets/header-logo.png') }}" alt="Ôn Thi 360"
                      class="h-7 object-contain transition-transform group-hover:scale-102 sm:h-8">
             </a>
