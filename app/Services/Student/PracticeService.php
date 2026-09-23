@@ -77,6 +77,18 @@ class PracticeService
         $filterableTabs = ['self', 'class', 'assigned'];
         $filtersApply = in_array($tab, $filterableTabs, true);
 
+        /*
+         * SỬA 23/9 (khách: "lịch sử làm bài dài quá, cho phân trang") — mục Lịch sử trước đây
+         * đổ thẳng 30 lượt gần nhất vào 1 trang: học sinh làm nhiều là danh sách dài lê thê mà
+         * vẫn KHÔNG xem được lượt thứ 31 trở đi. Giờ phân trang thật, 12 dòng/trang.
+         *
+         * Chỉ dựng paginator khi đang ở mục Lịch sử — các mục khác không dùng tới, dựng thừa
+         * là tốn 2 câu truy vấn (đếm + lấy trang).
+         */
+        $historyPaginator = $tab === 'history'
+            ? $this->attempts->paginateSubmittedForUser($user->id, 12)
+            : null;
+
         $items = match ($tab) {
             'class' => $this->assignments->forClassRoomIds($classRoomIds, null, 30)
                 ->map(fn ($a) => $this->withQuestionMeta([
@@ -97,11 +109,11 @@ class PracticeService
             // ::recordSubmission()). Lượt đó KHÔNG thuộc đề nào (assessment_id = null) nên tên
             // phải lấy từ chính các câu đã làm, và nút phải trỏ về trang Luyện tập chứ không
             // phải trang kết quả đề (trang đó dựng quanh một đề, không có đề thì vô nghĩa).
-            'history' => $this->attempts->recentSubmittedForUser($user->id, 30)
-                ->map(function ($attempt) {
+            'history' => $historyPaginator
+                ->through(function ($attempt) {
                     $isSelfPractice = $attempt->assessment_id === null;
 
-                    $questionCount = $isSelfPractice ? $attempt->answers()->count() : 0;
+                    $questionCount = $isSelfPractice ? (int) ($attempt->answers_count ?? 0) : 0;
 
                     return [
                         'title' => $attempt->assessment->title
@@ -124,7 +136,7 @@ class PracticeService
                             ? route('practice.index')
                             : route('student.assessment.result', $attempt->id),
                     ];
-                })->all(),
+                })->items(),
             default => $this->assessments->publishedPractice(30)
                 ->map(fn ($a) => $this->withQuestionMeta([
                     'title' => $a->title,
@@ -169,6 +181,8 @@ class PracticeService
             'topic' => $topic,
             'filtersApply' => $filtersApply,
             'availableTopics' => $availableTopics,
+            // Paginator của mục Lịch sử (null ở các mục khác) — Blade dùng để vẽ thanh trang.
+            'historyPaginator' => $historyPaginator,
         ];
     }
 

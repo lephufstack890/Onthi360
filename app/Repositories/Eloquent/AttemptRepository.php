@@ -6,6 +6,7 @@ use App\Models\Attempt;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AttemptRepository extends EloquentRepository implements AttemptRepositoryInterface
 {
@@ -20,6 +21,19 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
             ->latest('submitted_at')
             ->limit($limit)
             ->get();
+    }
+
+    public function paginateSubmittedForUser(int $userId, int $perPage = 12): LengthAwarePaginator
+    {
+        return $this->query()
+            ->where('user_id', $userId)
+            ->whereNotNull('submitted_at')
+            ->with('assessment')
+            ->withCount('answers')
+            ->latest('submitted_at')
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     public function countSubmittedForUser(int $userId): int

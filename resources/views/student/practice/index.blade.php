@@ -17,6 +17,7 @@
         $nextDueAt = $nextDueAt ?? null;
         $lastSubmittedAt = $lastSubmittedAt ?? null;
         $quickStartHref = $quickStartHref ?? null;
+        $historyPaginator = $historyPaginator ?? null;
 
         // ── Biến của riêng trang này ──
         // SỬA 18/9 (khách: "để 1 tab lịch sử thôi") — trang chỉ còn ĐÚNG HAI mục: kho bài tập
@@ -153,6 +154,11 @@
                     <a href="{{ $catalogHref }}" class="mt-4 inline-flex items-center gap-1 text-[12px] font-bold text-[#126F91] hover:underline">Về kho bài tập <x-lucide name="chevron-right" class="h-3 w-3" /></a>
                 </div>
             @endforelse
+        </div>
+
+        {{-- SỬA 23/9 (khách: "lịch sử làm bài dài quá, cho phân trang") — 12 dòng/trang. --}}
+        <div class="mb-6">
+            @include('partials.pager', ['paginator' => $historyPaginator, 'unit' => 'bài đã nộp'])
         </div>
     @else
         {{-- ══════ KHO BÀI TẬP — DÙNG CHUNG PARTIAL VỚI TRANG CÔNG KHAI ══════

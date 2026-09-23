@@ -5,11 +5,19 @@ namespace App\Repositories\Contracts;
 use App\Models\Attempt;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 interface AttemptRepositoryInterface extends BaseRepositoryInterface
 {
 
     public function recentSubmittedForUser(int $userId, int $limit = 5): Collection;
+
+    /**
+     * SỬA 23/9 (khách: "lịch sử làm bài dài quá, cho phân trang") — bản PHÂN TRANG của
+     * recentSubmittedForUser(). Đếm số câu sẵn (withCount) để trang Lịch sử khỏi bắn thêm
+     * 1 truy vấn cho mỗi dòng tự luyện.
+     */
+    public function paginateSubmittedForUser(int $userId, int $perPage = 12): LengthAwarePaginator;
 
     public function countSubmittedForUser(int $userId): int;
 
