@@ -65,8 +65,19 @@
                     <tr>
                         <td class="px-4 py-3 font-medium text-slate-700">Câu {{ $b['no'] }}</td>
                         <td class="px-4 py-3 text-slate-500">{{ match ($b['type']) { 'mcq' => 'Trắc nghiệm', 'fill_blank' => 'Điền đáp án', 'coding' => 'Lập trình', default => $b['type'] } }}</td>
-                        <td class="px-4 py-3"><x-ws.badge :tone="$b['tone']">{{ $b['verdict'] }}</x-ws.badge></td>
-                        <td class="px-4 py-3 text-right text-slate-600">{{ $b['points'] }}</td>
+                        <td class="px-4 py-3">
+                            <x-ws.badge :tone="$b['tone']">{{ $b['verdict'] }}</x-ws.badge>
+                            {{-- SỬA 23/9 — câu Lập trình chấm theo tỉ lệ test nên phải nói rõ qua mấy test. --}}
+                            @if (! empty($b['testNote']))
+                                <span class="ml-1.5 text-[11px] text-slate-500">{{ $b['testNote'] }}</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-right text-slate-600">
+                            <span class="font-semibold text-slate-700">{{ $b['points'] }}</span>
+                            @if (isset($b['maxPoints']))
+                                <span class="text-slate-400">/ {{ $b['maxPoints'] }}</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có dữ liệu câu nào.</td></tr>

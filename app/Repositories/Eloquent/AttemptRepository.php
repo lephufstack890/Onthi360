@@ -75,7 +75,10 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
 
     public function withAnswersAndAssessment(int $id): ?Attempt
     {
-        return $this->query()->with(['answers.question', 'assessment'])->find($id);
+        // SỬA 23/9 — 'assessment.items.question' để màn kết quả biết ĐIỂM TỐI ĐA từng câu theo
+        // đề (points_override), khớp với cách AttemptService chấm. Eager-load để không bắn
+        // thêm 1 truy vấn cho mỗi câu.
+        return $this->query()->with(['answers.question', 'assessment.items.question'])->find($id);
     }
 
     public function forAssignmentAndUserIds(int $assignmentId, array $userIds): Collection

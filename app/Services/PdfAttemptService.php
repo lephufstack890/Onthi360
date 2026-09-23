@@ -237,12 +237,14 @@ class PdfAttemptService
 
             $locked->load(['answerKeys', 'codingItems']);
 
-            $answerScore = (int) $locked->answerKeys->sum('score');
-            $codingScore = (int) $locked->codingItems->whereNotNull('score')->sum('score');
+            // SỬA 23/9 — cộng theo số thực: câu lập trình giờ có điểm lẻ (vd 2,1), ép (int)
+            // là cắt mất phần thập phân của từng câu.
+            $answerScore = (float) $locked->answerKeys->sum('score');
+            $codingScore = (float) $locked->codingItems->whereNotNull('score')->sum('score');
 
             $hasPendingCoding = $locked->codingItems->contains(fn (AttemptCodingItem $c) => ! $c->verdict->isFinal());
 
-            $locked->total_score = $answerScore + $codingScore;
+            $locked->total_score = round($answerScore + $codingScore, 2);
             $locked->is_provisional = $hasPendingCoding;
             $locked->submitted_at = now();
             $locked->status = ($hasPendingCoding ? AttemptStatus::Grading : AttemptStatus::Graded)->value;
@@ -304,8 +306,19 @@ class PdfAttemptService
                 continue;
             }
 
+            /*
+             * SỬA 23/9 (khách chốt cách chấm) — CHẤM THEO TỈ LỆ TEST, giống hệt đề câu hỏi rời
+             * (xem AttemptService::scoreFromTestResults()): qua bao nhiêu phần test được bấy
+             * nhiêu phần điểm, làm tròn 2 chữ số. Lỗi biên dịch thì mọi test đều trượt -> 0 điểm.
+             */
+            $details = $result['details'] ?? [];
+            $totalTests = count($details);
+            $passedTests = count(array_filter($details, fn ($d) => ($d['isAccepted'] ?? false) === true));
+
             $item->verdict = $result['verdict']->value;
-            $item->score = $result['isAccepted'] ? $codingItem->points : 0;
+            $item->score = $totalTests > 0
+                ? round((float) $codingItem->points * $passedTests / $totalTests, 2)
+                : 0.0;
             $item->graded_at = now();
 
             /*
@@ -317,9 +330,8 @@ class PdfAttemptService
              * đổ xuống màn học sinh là lộ bộ test chấm điểm của bài thi.
              */
             if (AttemptCodingItem::supportsTestCounts()) {
-                $details = $result['details'] ?? [];
-                $item->total_tests = count($details);
-                $item->passed_tests = count(array_filter($details, fn ($d) => ($d['isAccepted'] ?? false) === true));
+                $item->total_tests = $totalTests;
+                $item->passed_tests = $passedTests;
             }
 
             $item->save();

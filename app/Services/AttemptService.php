@@ -614,10 +614,10 @@ class AttemptService
             $verdict = VerdictStatus::Queued;
         } elseif ($question->type === QuestionType::Mcq) {
             $answer = ['selected_option' => $rawInput['selected_option'] ?? null];
-            [$score, $verdict] = $this->gradeMcq($question, $answer);
+            [$score, $verdict] = $this->gradeMcq($attempt, $question, $answer);
         } else {
             $answer = ['text' => $rawInput['text'] ?? null];
-            [$score, $verdict] = $this->gradeFillBlank($question, $answer);
+            [$score, $verdict] = $this->gradeFillBlank($attempt, $question, $answer);
         }
 
         $existing = $this->attemptAnswers->query()
@@ -668,7 +668,9 @@ class AttemptService
 
             $locked->load('answers');
 
-            $totalScore = (int) $locked->answers->whereNotNull('score')->sum('score');
+            // SỬA 23/9 — cộng theo SỐ THỰC rồi mới làm tròn 2 chữ số. Trước đây ép (int) nên
+            // câu lập trình qua 14/20 test được 2,1 điểm bị cắt còn 2 — càng nhiều câu càng lệch.
+            $totalScore = round((float) $locked->answers->whereNotNull('score')->sum('score'), 2);
 
             $locked->recalculateProvisionalFlag();
             $locked->total_score = $totalScore;
@@ -715,7 +717,9 @@ class AttemptService
      */
     private function gradePendingCodingAnswers(Attempt $attempt): void
     {
-        $attempt->load(['answers.question']);
+        // 'assessment.items' để maxPointsFor() đọc được điểm đè của từng câu trong đề mà
+        // không bắn thêm truy vấn cho mỗi câu.
+        $attempt->load(['answers.question', 'assessment.items']);
 
         foreach ($attempt->answers as $answer) {
             $question = $answer->question;
@@ -750,9 +754,21 @@ class AttemptService
                 continue;
             }
 
+            [$score, $passed, $totalTests] = $this->scoreFromTestResults(
+                $result['details'],
+                $this->maxPointsFor($attempt, $question),
+            );
+
             $answer->verdict = $result['verdict']->value;
-            $answer->score = $result['isAccepted'] ? $question->points : 0;
+            $answer->score = $score;
             $answer->graded_at = now();
+
+            // SỬA 19/9 (8) — số test qua/tổng, để màn kết quả nói được "Qua 14/20 test".
+            if (AttemptAnswer::supportsTestCounts()) {
+                $answer->passed_tests = $passed;
+                $answer->total_tests = $totalTests;
+            }
+
             $answer->save();
 
             JudgeSubmission::create([
@@ -774,18 +790,75 @@ class AttemptService
      *
      * @return array{0: ?int, 1: VerdictStatus}
      */
-    private function gradeMcq(Question $question, array $answer): array
+    /**
+     * SỬA 23/9 (khách: "làm xong bấm nộp thì tổng lại được bao nhiêu điểm") — ĐIỂM TỐI ĐA của
+     * 1 câu TRONG ĐỀ NÀY.
+     *
+     * Trước đây mọi chỗ chấm đều lấy thẳng $question->points, tức là BỎ QUA điểm admin nhập đè
+     * khi gắn câu vào đề (assessment_items.points_override — xem
+     * Admin\ContentService::assessmentItemsUpdate(), nơi total_points của đề được tính CHÍNH
+     * TỪ điểm đè đó). Hậu quả: tổng điểm đề ghi 10 nhưng học sinh làm đúng hết lại ra 30, vì
+     * điểm gốc của câu trong kho khác điểm đặt cho đề.
+     *
+     * Không thuộc đề nào (tự luyện) thì quay về điểm gốc của câu.
+     */
+    private function maxPointsFor(Attempt $attempt, Question $question): float
+    {
+        $assessment = $attempt->assessment;
+
+        if ($assessment !== null) {
+            $item = $assessment->items->firstWhere('question_id', $question->id);
+
+            if ($item !== null && $item->points_override !== null) {
+                return (float) $item->points_override;
+            }
+        }
+
+        return (float) $question->points;
+    }
+
+    /**
+     * SỬA 23/9 — CHẤM THEO TỈ LỆ TEST cho câu Lập trình (khách chốt): qua bao nhiêu phần test
+     * thì được bấy nhiêu phần điểm, thay vì "thiếu 1 test cũng 0 điểm" như trước.
+     *
+     * · Lỗi biên dịch -> 0 điểm (máy chấm đã dừng sớm, không test nào chạy).
+     * · Qua hết test  -> trọn điểm câu.
+     * · Làm tròn 2 chữ số ở từng câu; tổng bài làm tròn 1 lần ở submit(), tránh sai số cộng dồn.
+     *
+     * @param  array<int, array<string, mixed>>  $details  Kết quả từng test của CodeJudgingService
+     * @return array{0: float, 1: int, 2: int}  [điểm đạt, số test qua, tổng số test]
+     */
+    private function scoreFromTestResults(array $details, float $maxPoints): array
+    {
+        $total = count($details);
+        $passed = 0;
+
+        foreach ($details as $detail) {
+            if (($detail['isAccepted'] ?? false) === true) {
+                $passed++;
+            }
+        }
+
+        if ($total === 0) {
+            return [0.0, 0, 0];
+        }
+
+        return [round($maxPoints * $passed / $total, 2), $passed, $total];
+    }
+
+    private function gradeMcq(Attempt $attempt, Question $question, array $answer): array
     {
         $isCorrect = QuestionGrader::isMcqCorrect($question, $answer['selected_option'] ?? null);
 
-        return [$isCorrect ? $question->points : 0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
+        // SỬA 23/9 — điểm lấy theo ĐỀ (points_override), xem maxPointsFor().
+        return [$isCorrect ? $this->maxPointsFor($attempt, $question) : 0.0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
     }
 
-    /** @return array{0: ?int, 1: VerdictStatus} */
-    private function gradeFillBlank(Question $question, array $answer): array
+    /** @return array{0: ?float, 1: VerdictStatus} */
+    private function gradeFillBlank(Attempt $attempt, Question $question, array $answer): array
     {
         $isCorrect = QuestionGrader::isFillBlankCorrect($question, (string) ($answer['text'] ?? ''));
 
-        return [$isCorrect ? $question->points : 0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
+        return [$isCorrect ? $this->maxPointsFor($attempt, $question) : 0.0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
     }
 }

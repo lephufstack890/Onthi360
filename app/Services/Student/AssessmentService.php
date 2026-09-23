@@ -409,7 +409,18 @@ class AssessmentService
         $score = $attemptModel->total_score;
         $total = $attemptModel->assessment->total_points ?? null;
 
-        $breakdown = $attemptModel->answers->map(function ($answer, $idx) {
+        /*
+         * SỬA 23/9 (khách: "làm xong bấm nộp thì tổng lại được bao nhiêu điểm") — mỗi dòng nói
+         * rõ ĐẠT bao nhiêu trên TỐI ĐA bao nhiêu, riêng câu Lập trình ghi thêm số test đã qua.
+         * Điểm tối đa lấy theo ĐỀ (assessment_items.points_override), khớp đúng cách
+         * AttemptService::maxPointsFor() chấm — hai nơi lệch nhau là học sinh thắc mắc ngay.
+         */
+        $maxPointsByQuestion = $attemptModel->assessment->items
+            ->mapWithKeys(fn ($item) => [
+                $item->question_id => (float) ($item->points_override ?? $item->question?->points ?? 0),
+            ]);
+
+        $breakdown = $attemptModel->answers->map(function ($answer, $idx) use ($maxPointsByQuestion) {
             $verdictLabel = match ($answer->verdict?->value) {
                 'accepted' => 'Đúng',
                 'wrong_answer' => 'Sai',
@@ -423,11 +434,22 @@ class AssessmentService
                 default => 'danger',
             };
 
+            $maxPoints = $maxPointsByQuestion[$answer->question_id] ?? (float) ($answer->question?->points ?? 0);
+            $trim = fn (float $v) => rtrim(rtrim(number_format($v, 2, ',', ''), '0'), ',');
+
+            $testNote = null;
+            if (\App\Models\AttemptAnswer::supportsTestCounts()
+                && $answer->total_tests !== null && (int) $answer->total_tests > 0) {
+                $testNote = 'Qua '.(int) $answer->passed_tests.'/'.(int) $answer->total_tests.' test';
+            }
+
             return [
                 'no' => $idx + 1,
                 'type' => $answer->question?->type?->value ?? '',
                 'verdict' => $verdictLabel,
-                'points' => $answer->score !== null ? (string) $answer->score : '—',
+                'points' => $answer->score !== null ? $trim((float) $answer->score) : '—',
+                'maxPoints' => $trim($maxPoints),
+                'testNote' => $testNote,
                 'tone' => $tone,
             ];
         })->all();
