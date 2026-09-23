@@ -240,6 +240,22 @@
              nộp. Trang công khai KHÔNG có nguồn dữ liệu đó (lịch sử nộp là dữ liệu riêng của
              từng học sinh, chỉ có trong khu đã đăng nhập) — dựng nút mở hộp thoại rỗng là bịa
              tính năng, nên chỗ đó đặt chip DẠNG CÂU HỎI thật, giữ nguyên nhịp bố cục. --}}
+        {{--
+          SỬA 23/9 (khách: "người ta muốn xem lại kết quả thì xem ở đâu") — trang công khai
+          trước đây KHÔNG có lối nào dẫn tới lịch sử làm bài, nộp xong đóng tab là coi như mất
+          dấu. Người đã đăng nhập giờ có nút đi thẳng sang Lịch sử làm bài (danh sách mọi lượt
+          đã nộp kèm điểm và nút xem lại). Khách chưa đăng nhập thì không hiện, vì lịch sử là
+          dữ liệu riêng của từng người.
+        --}}
+        @auth
+            <div class="mb-3 flex justify-end">
+                <a href="{{ route('student.practice.index', ['tab' => 'history']) }}"
+                   class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[#D6E3EF] bg-white px-3 py-2 text-[12px] font-bold text-[#126F91] transition hover:bg-[#EAF5F8]">
+                    <x-lucide name="history" class="h-3.5 w-3.5" />Lịch sử làm bài của tôi
+                </a>
+            </div>
+        @endauth
+
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
             <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid lg:grid-cols-[minmax(0,1fr)_150px_100px_136px_144px]">
                 <span>Tên bài tập &amp; Mã</span>

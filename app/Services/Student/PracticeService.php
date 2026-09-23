@@ -111,7 +111,14 @@ class PracticeService
                         'typeIcon' => $attempt->assessment?->type?->icon() ?? '📝',
                         'source' => $isSelfPractice ? 'Tự luyện' : ucfirst($attempt->source?->value ?? ''),
                         'difficulty' => '',
-                        'status' => $attempt->total_score !== null ? 'Đã nộp — '.$attempt->total_score : 'Đang chấm',
+                        // SỬA 23/9 — bài lập trình giờ chấm chạy nền: có điểm rồi nhưng vẫn
+                        // còn câu đang chấm thì phải nói là TẠM TÍNH, không để học sinh tưởng
+                        // đó là điểm cuối cùng.
+                        'status' => match (true) {
+                            $attempt->total_score === null => 'Đang chấm',
+                            (bool) $attempt->is_provisional => 'Tạm tính — '.$this->trimScore($attempt->total_score),
+                            default => 'Đã nộp — '.$this->trimScore($attempt->total_score),
+                        },
                         'tone' => $attempt->is_provisional ? 'info' : 'success',
                         'takeRoute' => $isSelfPractice
                             ? route('practice.index')
@@ -221,4 +228,10 @@ class PracticeService
                 'takeRoute' => route('student.assessment.take', ['assessment' => $a->assessment_id, 'assignment' => $a->id]),
             ], $a->assessment))->all();
     }
+    /** SỬA 23/9 — bỏ số 0 thừa ở đuôi điểm: 8.10 -> 8,1 · 3.00 -> 3. */
+    private function trimScore($score): string
+    {
+        return rtrim(rtrim(number_format((float) $score, 2, ',', ''), '0'), ',');
+    }
+
 }
