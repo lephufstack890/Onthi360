@@ -219,9 +219,13 @@ class AssessmentService
             if ($question === null) {
                 continue;
             }
+            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — LUÔN ghi points_override, kể cả khi
+            // trùng điểm gốc của câu trong kho. Để null thì lúc chấm sẽ đọc lại questions.points,
+            // nên sửa điểm gốc của câu (cho đề khác) là điểm đề này âm thầm đổi theo. Xem
+            // Admin\ContentService::assessmentItemsUpdate(), cùng một lý do.
             $override = $data['points_override'][$questionId] ?? null;
-            $points = filled($override) ? (int) $override : $question->points;
-            $items[] = ['question_id' => $question->id, 'order' => $order, 'points_override' => filled($override) ? $points : null];
+            $points = max(1, filled($override) ? (int) $override : (int) $question->points);
+            $items[] = ['question_id' => $question->id, 'order' => $order, 'points_override' => $points];
             $totalPoints += $points;
         }
 

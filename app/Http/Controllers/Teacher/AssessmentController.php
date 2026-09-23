@@ -220,7 +220,10 @@ class AssessmentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer'],
+            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — điểm từng câu là dữ liệu CHÍNH của
+            // đề, phải kiểm tra tử tế thay vì nhận bừa cả mảng.
             'points_override' => ['nullable', 'array'],
+            'points_override.*' => ['nullable', 'integer', 'min:1', 'max:100'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],

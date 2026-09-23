@@ -2038,7 +2038,9 @@ class ContentService
             'title' => $data['title'],
             'type' => $data['type'],
             'content_mode' => $this->contentModeForType($data['type']),
-            'total_points' => $data['total_points'] ?? 0,
+            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — đề mới chưa có câu nào thì 0 điểm;
+            // con số thật do màn "Chọn câu hỏi" cộng lại, form này không còn ô Tổng điểm.
+            'total_points' => 0,
             'duration_minutes' => $data['duration_minutes'] ?: null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
             'status' => ContentStatus::Draft->value,
@@ -2104,13 +2106,23 @@ class ContentService
                 continue;
             }
 
+            /*
+             * SỬA 23/9 (khách: "nhập điểm cho từng câu") — LUÔN GHI points_override, kể cả khi
+             * điểm gõ vào trùng đúng điểm gốc của câu trong kho.
+             *
+             * Trước đây để null trong trường hợp đó, và AttemptService::maxPointsFor() sẽ quay
+             * về đọc questions.points. Hậu quả: sửa điểm gốc của câu trong kho (cho đề khác)
+             * là điểm của ĐỀ NÀY âm thầm đổi theo, học sinh làm xong ra điểm khác hẳn tổng ghi
+             * trên đề. Ghi hẳn số vào đề thì đề đã chốt điểm là chốt luôn.
+             */
             $override = $pointsOverride[$questionId] ?? null;
-            $points = filled($override) ? (int) $override : $question->points;
+            $points = filled($override) ? (int) $override : (int) $question->points;
+            $points = max(1, $points);
 
             $assessment->items()->create([
                 'question_id' => $question->id,
                 'order' => $order,
-                'points_override' => filled($override) ? $points : null,
+                'points_override' => $points,
             ]);
 
             $totalPoints += $points;
@@ -2154,7 +2166,9 @@ class ContentService
             'title' => $data['title'],
             'type' => $data['type'],
             'content_mode' => $this->contentModeForType($data['type']),
-            'total_points' => $derived ?? ($data['total_points'] ?? 0),
+            // Đề có câu -> cộng lại từ các câu. Đề chưa có câu (hoặc đề PDF, điểm do
+            // PdfAssessmentEditingService tính riêng) -> GIỮ NGUYÊN số đang có, không đạp về 0.
+            'total_points' => $derived ?? $assessment->total_points,
             'duration_minutes' => $data['duration_minutes'] ?: null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
         ]);

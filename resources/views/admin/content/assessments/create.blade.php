@@ -47,11 +47,13 @@
                         @endif
                     </p>
                 </div>
+                {{-- SỬA 23/9 (khách: "thay vì nhập tổng điểm thì nhập điểm cho từng câu") — BỎ HẲN
+                     ô "Tổng điểm" ở đây. Điểm đặt ở màn "Chọn câu hỏi", tổng là số cộng lại. --}}
                 <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>
-                    <input id="total_points" name="total_points" type="number" min="0" value="{{ old('total_points', 10) }}"
-                           class="admin-input">
-                    <p class="text-xs text-slate-500 mt-1">Khi gắn câu hỏi vào đề, tổng điểm sẽ tự tính lại theo các câu.</p>
+                    <span class="block text-[13px] font-medium text-slate-600 mb-1">Tổng điểm</span>
+                    <p class="rounded-xl border border-dashed border-sky-100 bg-sky-50/50 px-3 py-2.5 text-[13px] text-slate-500">
+                        Đặt ở bước <strong class="font-semibold text-slate-700">Chọn câu hỏi</strong> — gõ điểm cho từng câu, tổng tự cộng lại.
+                    </p>
                 </div>
             </div>
 

@@ -543,7 +543,6 @@ class ContentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'],
-            'total_points' => ['nullable', 'integer', 'min:0'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'publish_answer_rule' => ['required', 'string', 'in:never,after_deadline,immediately'],
         ]);
@@ -568,8 +567,12 @@ class ContentController extends Controller
         $data = $request->validate([
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer', 'exists:questions,id'],
+            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — điểm từng câu là dữ liệu CHÍNH của
+            // đề (không còn ô "Tổng điểm" nào khác để sửa), nên phải kiểm tra tử tế thay vì
+            // nhận bừa cả mảng: 0 hay chữ lọt vào là đề chấm sai ngay.
             'points_override' => ['nullable', 'array'],
-        ], [], ['question_ids' => 'Câu hỏi']);
+            'points_override.*' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], [], ['question_ids' => 'Câu hỏi', 'points_override.*' => 'Điểm của câu']);
 
         $this->contentService->assessmentItemsUpdate($assessment, $data);
 
@@ -581,7 +584,6 @@ class ContentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'],
-            'total_points' => ['nullable', 'integer', 'min:0'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'publish_answer_rule' => ['required', 'string', 'in:never,after_deadline,immediately'],
         ]);

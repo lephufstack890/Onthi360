@@ -54,16 +54,19 @@
                         </x-ws.select>
                     @endif
                 </div>
+                {{-- SỬA 23/9 (khách: "thay vì nhập tổng điểm thì nhập điểm cho từng câu") — BỎ HẲN
+                     ô "Tổng điểm" ở đây. Điểm đặt ở màn "Chọn câu hỏi", tổng là số cộng lại. --}}
                 <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>
-                    @php($hasItems = $assessment->items()->count() > 0)
-                    <input id="total_points" name="total_points" type="number" min="0" value="{{ old('total_points', $assessment->total_points) }}"
-                           class="admin-input" @if ($hasItems) readonly @endif>
-                    @if ($hasItems)
-                        <p class="text-xs text-slate-500 mt-1">Tự tính từ tổng điểm các câu trong đề. Muốn đổi thì sửa điểm ở bước chọn câu hỏi.</p>
-                    @else
-                        <p class="text-xs text-slate-500 mt-1">Khi gắn câu hỏi vào đề, tổng điểm sẽ tự tính lại theo các câu.</p>
-                    @endif
+                    @php($itemCount = $assessment->items()->count())
+                    <span class="block text-[13px] font-medium text-slate-600 mb-1">Tổng điểm</span>
+                    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-sky-100 bg-sky-50/50 px-3 py-2.5">
+                        <span class="text-[15px] font-bold text-blue-700">{{ $assessment->total_points }} điểm</span>
+                        <span class="text-xs text-slate-500">({{ $itemCount }} câu)</span>
+                        <a href="{{ route('admin.content.assessments.items.edit', $assessment->id) }}"
+                           class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
+                            Sửa điểm từng câu <x-lucide name="chevron-right" class="h-3 w-3" />
+                        </a>
+                    </div>
                 </div>
             </div>
 
