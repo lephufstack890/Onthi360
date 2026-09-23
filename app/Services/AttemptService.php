@@ -14,6 +14,7 @@ use App\Enums\VerdictStatus;
 use App\Models\Assessment;
 use App\Models\Assignment;
 use App\Models\Attempt;
+use App\Jobs\GradeCodingAnswerJob;
 use App\Models\AttemptAnswer;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
@@ -648,7 +649,18 @@ class AttemptService
         // SỬA (nối máy chấm Judge0 thật) — chấm THẬT câu Lập trình còn "queued" TRƯỚC khi mở
         // transaction/khoá dòng bên dưới, cùng lý do với App\Services\PdfAttemptService::
         // submit(): gọi Judge0 qua mạng có thể chậm, không nên giữ khoá dòng suốt lúc chờ.
-        $this->gradePendingCodingAnswers($attempt);
+        /*
+         * SỬA 23/9 (khách: "bấm nộp đề trong luyện tập nó đứng luôn") — TRƯỚC ĐÂY chấm ngay tại
+         * đây: mỗi câu lập trình 20 test, đề 5 câu là 100 lượt chạy nối nhau, vượt xa thời gian
+         * chờ của web nên trình duyệt đứng im rồi lỗi, học sinh tưởng mất bài.
+         *
+         * GIỜ: nộp xong trả trang kết quả ngay, mỗi câu lập trình thành 1 việc chạy nền
+         * (App\Jobs\GradeCodingAnswerJob). Điểm hiện dần, trang kết quả tự làm mới.
+         *
+         * Máy chủ chưa bật tiến trình chạy nền thì đặt QUEUE_CONNECTION=sync trong .env —
+         * Laravel chạy thẳng tại chỗ, đúng y hành vi cũ, không cần sửa mã.
+         */
+        $this->dispatchCodingGrading($attempt);
 
         // Trước đây đọc $attempt->status rồi mới ghi (check-then-write) KHÔNG có transaction/
         // khoá dòng — 2 request nộp bài đồng thời cho CÙNG 1 lượt làm (double-click, hoặc
@@ -687,6 +699,36 @@ class AttemptService
     }
 
     /**
+     * SỬA 23/9 — đẩy mỗi câu Lập trình chưa chấm thành 1 việc chạy nền.
+     *
+     * Đánh dấu 'judging' ngay để trang kết quả biết mà hiện "Đang chấm" và để lần nộp/refresh
+     * sau không đẩy trùng việc.
+     */
+    private function dispatchCodingGrading(Attempt $attempt): void
+    {
+        $attempt->load(['answers.question']);
+
+        foreach ($attempt->answers as $answer) {
+            $question = $answer->question;
+
+            if ($question === null || $question->type !== QuestionType::Coding) {
+                continue;
+            }
+
+            if ($answer->verdict->isFinal() || blank($answer->code_source)) {
+                continue;
+            }
+
+            if ($answer->verdict !== VerdictStatus::Judging) {
+                $answer->verdict = VerdictStatus::Judging->value;
+                $answer->save();
+            }
+
+            GradeCodingAnswerJob::dispatch($answer->id);
+        }
+    }
+
+    /**
      * SỬA 19/8 (Giai đoạn 5 — "Tự động ghi bảng xếp hạng"): gọi NGOÀI transaction nộp bài ở
      * trên (đã commit xong, Attempt đã lưu chắc chắn) — cố ý bọc try/catch NUỐT lỗi thay vì
      * để lỗi ném ra ngoài, vì đây chỉ là tác dụng phụ (ghi bảng xếp hạng cho đề đấu Cuộc thi),
@@ -722,64 +764,106 @@ class AttemptService
         $attempt->load(['answers.question', 'assessment.items']);
 
         foreach ($attempt->answers as $answer) {
-            $question = $answer->question;
+            $this->gradeCodingAnswer($answer);
+        }
+    }
 
-            if ($question === null || $question->type !== QuestionType::Coding) {
-                continue;
-            }
+    /**
+     * SỬA 23/9 (khách: "bấm nộp đề nó đứng luôn") — CHẤM ĐÚNG 1 CÂU lập trình.
+     *
+     * Tách riêng khỏi vòng lặp cũ để App\Jobs\GradeCodingAnswerJob gọi được: nộp bài giờ chỉ
+     * đẩy mỗi câu thành 1 việc chạy nền, trang kết quả mở ra ngay thay vì treo chờ máy chấm
+     * chạy hết 20 test × N câu (đề 5 bài là 100 lượt chạy — quá thời gian chờ của web).
+     *
+     * An toàn khi gọi lại nhiều lần: câu đã chấm xong (verdict final) hoặc chưa có mã nguồn
+     * thì bỏ qua ngay.
+     */
+    public function gradeCodingAnswer(AttemptAnswer $answer): void
+    {
+        $answer->loadMissing(['question', 'attempt.assessment.items']);
 
-            if ($answer->verdict->isFinal() || blank($answer->code_source)) {
-                continue;
-            }
+        $question = $answer->question;
+        $attempt = $answer->attempt;
 
-            $config = $question->grading_config ?? [];
-            $testCases = collect($config['test_cases'] ?? [])
-                ->map(fn ($tc) => ['input' => (string) ($tc['input'] ?? ''), 'expected_output' => (string) ($tc['output'] ?? '')])
-                ->all();
-            $timeLimitMs = (int) ($config['time_limit_ms'] ?? 5000);
-            $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
+        if ($question === null || $attempt === null || $question->type !== QuestionType::Coding) {
+            return;
+        }
 
-            try {
-                $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
-            } catch (Throwable $e) {
-                Log::error('Không chấm được câu trả lời Lập trình #'.$answer->id.' (Judge0 không tới được)', ['exception' => $e]);
+        if ($answer->verdict->isFinal() || blank($answer->code_source)) {
+            return;
+        }
 
-                JudgeSubmission::create([
-                    'attempt_answer_id' => $answer->id,
-                    'status' => 'failed',
-                    'dispatched_at' => now(),
-                    'raw_result' => ['error' => $e->getMessage()],
-                ]);
+        $config = $question->grading_config ?? [];
+        $testCases = collect($config['test_cases'] ?? [])
+            ->map(fn ($tc) => ['input' => (string) ($tc['input'] ?? ''), 'expected_output' => (string) ($tc['output'] ?? '')])
+            ->all();
+        $timeLimitMs = (int) ($config['time_limit_ms'] ?? 5000);
+        $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
 
-                continue;
-            }
-
-            [$score, $passed, $totalTests] = $this->scoreFromTestResults(
-                $result['details'],
-                $this->maxPointsFor($attempt, $question),
-            );
-
-            $answer->verdict = $result['verdict']->value;
-            $answer->score = $score;
-            $answer->graded_at = now();
-
-            // SỬA 19/9 (8) — số test qua/tổng, để màn kết quả nói được "Qua 14/20 test".
-            if (AttemptAnswer::supportsTestCounts()) {
-                $answer->passed_tests = $passed;
-                $answer->total_tests = $totalTests;
-            }
-
-            $answer->save();
+        try {
+            $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
+        } catch (Throwable $e) {
+            Log::error('Không chấm được câu trả lời Lập trình #'.$answer->id.' (Judge0 không tới được)', ['exception' => $e]);
 
             JudgeSubmission::create([
                 'attempt_answer_id' => $answer->id,
-                'status' => 'completed',
-                'verdict' => $result['verdict']->value,
-                'raw_result' => $result['details'],
+                'status' => 'failed',
                 'dispatched_at' => now(),
-                'completed_at' => now(),
+                'raw_result' => ['error' => $e->getMessage()],
             ]);
+
+            return;
         }
+
+        [$score, $passed, $totalTests] = $this->scoreFromTestResults(
+            $result['details'],
+            $this->maxPointsFor($attempt, $question),
+        );
+
+        $answer->verdict = $result['verdict']->value;
+        $answer->score = $score;
+        $answer->graded_at = now();
+
+        // SỬA 19/9 (8) — số test qua/tổng, để màn kết quả nói được "Qua 14/20 test".
+        if (AttemptAnswer::supportsTestCounts()) {
+            $answer->passed_tests = $passed;
+            $answer->total_tests = $totalTests;
+        }
+
+        $answer->save();
+
+        JudgeSubmission::create([
+            'attempt_answer_id' => $answer->id,
+            'status' => 'completed',
+            'verdict' => $result['verdict']->value,
+            'raw_result' => $result['details'],
+            'dispatched_at' => now(),
+            'completed_at' => now(),
+        ]);
+    }
+
+    /**
+     * SỬA 23/9 — cộng lại tổng điểm sau khi một câu vừa được chấm nền xong, và chốt trạng thái
+     * lượt làm bài khi không còn câu nào chờ chấm.
+     *
+     * Gọi từ GradeCodingAnswerJob sau mỗi câu, nên điểm nhích dần ngay trên trang kết quả.
+     */
+    public function refreshScoreAfterGrading(Attempt $attempt): void
+    {
+        DB::transaction(function () use ($attempt) {
+            $locked = $this->attempts->query()->whereKey($attempt->id)->lockForUpdate()->first();
+
+            if ($locked === null || $locked->submitted_at === null) {
+                return;
+            }
+
+            $locked->load('answers');
+
+            $locked->total_score = round((float) $locked->answers->whereNotNull('score')->sum('score'), 2);
+            $locked->recalculateProvisionalFlag();
+            $locked->status = ($locked->is_provisional ? AttemptStatus::Grading : AttemptStatus::Graded)->value;
+            $locked->save();
+        });
     }
 
     /**

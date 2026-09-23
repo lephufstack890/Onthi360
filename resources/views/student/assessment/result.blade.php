@@ -19,18 +19,19 @@
 
         $percent = ($total !== null && $total > 0 && $score !== null) ? (int) round($score / $total * 100) : null;
 
-        [$resultEmoji, $resultHeadline] = match (true) {
-            ! $isFinal => ['⏳', 'Đang chờ chấm phần còn lại'],
-            $percent === null => ['📄', 'Đã ghi nhận bài làm'],
-            $percent >= 90 => ['🏆', 'Xuất sắc!'],
-            $percent >= 70 => ['🎉', 'Làm tốt lắm!'],
-            $percent >= 50 => ['💪', 'Khá ổn, cố thêm chút nữa nhé!'],
-            default => ['📚', 'Cần ôn luyện thêm — đừng nản nhé!'],
+        // SỬA 23/9 — emoji thay bằng icon SVG cho đồng bộ toàn hệ thống.
+        [$resultIcon, $resultHeadline] = match (true) {
+            ! $isFinal => ['clock', 'Đang chấm phần bài lập trình'],
+            $percent === null => ['file-check-2', 'Đã ghi nhận bài làm'],
+            $percent >= 90 => ['trophy', 'Xuất sắc!'],
+            $percent >= 70 => ['medal', 'Làm tốt lắm!'],
+            $percent >= 50 => ['trending-up', 'Khá ổn, cố thêm chút nữa nhé!'],
+            default => ['book-open', 'Cần ôn luyện thêm — đừng nản nhé!'],
         };
     @endphp
 
     <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-6 lg:p-8 mb-4 text-center">
-        <div class="text-4xl mb-2">{{ $resultEmoji }}</div>
+        <div class="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#126F91] shadow-sm"><x-lucide :name="$resultIcon" class="h-6 w-6" /></div>
         <p class="text-base font-medium text-slate-700">{{ $resultHeadline }}</p>
 
         <p class="text-5xl font-bold text-slate-800 mt-4">
@@ -46,9 +47,18 @@
         <p class="text-[13px] text-slate-500 mt-4">{{ $submittedLabel }}</p>
 
         @if (! $isFinal)
-            <div class="mt-3">
-                <x-ws.badge tone="info">Kết quả tạm tính — còn câu lập trình đang chờ chấm</x-ws.badge>
+            {{--
+              SỬA 23/9 (khách: "bấm nộp đề nó đứng luôn") — bài lập trình giờ chấm chạy NỀN, nộp
+              xong là thấy trang này ngay. Chừng nào còn câu đang chấm thì tự tải lại sau 5 giây
+              để điểm nhích dần, người dùng không phải tự bấm F5.
+            --}}
+            <div class="mt-3 flex flex-col items-center gap-2">
+                <x-ws.badge tone="info">Kết quả tạm tính — còn câu lập trình đang chấm</x-ws.badge>
+                <p class="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <x-lucide name="refresh-cw" class="h-3 w-3" />Trang tự cập nhật sau vài giây
+                </p>
             </div>
+            <meta http-equiv="refresh" content="5">
         @endif
     </div>
 
