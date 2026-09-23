@@ -12,9 +12,22 @@
         $eligibleForReview = $eligibleForReview ?? false;
         $reviewType = $reviewType ?? 'material';
         $reviewTargetId = $reviewTargetId ?? null;
+        // SỬA 23/9 — "7.6833333333333 phút" là số thô của diffInMinutes(); đổi sang dạng
+        // người đọc được: dưới 1 phút ghi theo giây, từ 60 phút trở lên ghi "1 giờ 12 phút".
+        $durationLabel = null;
+        if (isset($attemptModel) && $attemptModel->started_at && $attemptModel->submitted_at) {
+            $seconds = max(0, (int) round($attemptModel->started_at->diffInSeconds($attemptModel->submitted_at)));
+            $minutes = intdiv($seconds, 60);
+            $durationLabel = match (true) {
+                $minutes < 1 => $seconds.' giây',
+                $minutes < 60 => $minutes.' phút',
+                default => intdiv($minutes, 60).' giờ '.($minutes % 60).' phút',
+            };
+        }
+
         $submittedLabel = isset($attemptModel) && $attemptModel->submitted_at
             ? 'Nộp lúc '.$attemptModel->submitted_at->format('H:i d/m/Y')
-                .(($attemptModel->started_at) ? ' · Thời gian làm bài: '.$attemptModel->started_at->diffInMinutes($attemptModel->submitted_at).' phút' : '')
+                .(($attemptModel->started_at) ? ' · Thời gian làm bài: '.$durationLabel : '')
             : 'Chưa nộp';
 
         $percent = ($total !== null && $total > 0 && $score !== null) ? (int) round($score / $total * 100) : null;
@@ -39,7 +52,7 @@
         </p>
         @if ($percent !== null)
             <div class="max-w-xs mx-auto mt-4 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full {{ $percent >= 70 ? 'bg-emerald-500' : ($percent >= 50 ? 'bg-amber-500' : 'bg-blue-500') }}" style="width: {{ $percent }}%"></div>
+                <div class="h-full rounded-full {{ $percent >= 70 ? 'bg-emerald-500' : ($percent >= 50 ? 'bg-amber-500' : 'bg-blue-500') }}" style="width: {{ min(100, $percent) }}%"></div>
             </div>
             <p class="text-xs text-slate-400 mt-1.5">{{ $percent }}% số điểm</p>
         @endif

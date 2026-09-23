@@ -2119,13 +2119,42 @@ class ContentService
         return $this->assessments->update($assessment, ['total_points' => $totalPoints]);
     }
 
+    /**
+     * SỬA 23/9 (khách báo "30.00 / 10 · 300% số điểm") — TỔNG ĐIỂM CỦA ĐỀ LÀ SỐ TỰ TÍNH,
+     * KHÔNG phải số admin gõ tay.
+     *
+     * Trước đây ô "Tổng điểm" trên form Sửa đề ghi đè thẳng vào assessments.total_points. Đề
+     * tạo mới mặc định 10 điểm, gắn 5 câu Lập trình (mỗi câu 10 điểm trong kho) thì
+     * assessmentItemsUpdate() đã tính lại đúng thành 50 — nhưng chỉ cần mở lại form Sửa đề và
+     * bấm Lưu (ô Tổng điểm vẫn đang hiện 10) là con số 50 bị đạp về 10. Kết quả: học sinh làm
+     * đúng hết ra 50/10 = 500%.
+     *
+     * Quy tắc chốt: đề ĐÃ CÓ CÂU thì tổng điểm = tổng điểm từng câu (ưu tiên points_override),
+     * số gõ tay bị bỏ qua. Đề CHƯA CÓ CÂU nào mới dùng số gõ tay (đề PDF tự chấm điểm riêng
+     * qua PdfAssessmentEditingService, cũng không có item nên không bị đụng).
+     */
+    private function derivedTotalPoints(Assessment $assessment): ?int
+    {
+        $assessment->loadMissing('items.question');
+
+        if ($assessment->items->isEmpty()) {
+            return null;
+        }
+
+        return (int) $assessment->items->sum(
+            fn ($item) => (int) ($item->points_override ?? $item->question?->points ?? 0)
+        );
+    }
+
     public function assessmentUpdate(Assessment $assessment, array $data): Assessment
     {
+        $derived = $this->derivedTotalPoints($assessment);
+
         return $this->assessments->update($assessment, [
             'title' => $data['title'],
             'type' => $data['type'],
             'content_mode' => $this->contentModeForType($data['type']),
-            'total_points' => $data['total_points'] ?? 0,
+            'total_points' => $derived ?? ($data['total_points'] ?? 0),
             'duration_minutes' => $data['duration_minutes'] ?: null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
         ]);

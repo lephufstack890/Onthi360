@@ -51,6 +51,7 @@
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>
                     <input id="total_points" name="total_points" type="number" min="0" value="{{ old('total_points', 10) }}"
                            class="admin-input">
+                    <p class="text-xs text-slate-500 mt-1">Khi gắn câu hỏi vào đề, tổng điểm sẽ tự tính lại theo các câu.</p>
                 </div>
             </div>
 

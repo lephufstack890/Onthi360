@@ -56,8 +56,14 @@
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="total_points">Tổng điểm</label>
+                    @php($hasItems = $assessment->items()->count() > 0)
                     <input id="total_points" name="total_points" type="number" min="0" value="{{ old('total_points', $assessment->total_points) }}"
-                           class="admin-input">
+                           class="admin-input" @if ($hasItems) readonly @endif>
+                    @if ($hasItems)
+                        <p class="text-xs text-slate-500 mt-1">Tự tính từ tổng điểm các câu trong đề. Muốn đổi thì sửa điểm ở bước chọn câu hỏi.</p>
+                    @else
+                        <p class="text-xs text-slate-500 mt-1">Khi gắn câu hỏi vào đề, tổng điểm sẽ tự tính lại theo các câu.</p>
+                    @endif
                 </div>
             </div>
 

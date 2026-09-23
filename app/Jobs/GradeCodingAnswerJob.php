@@ -19,7 +19,9 @@ use Throwable;
  *
  * · 1 câu = 1 job -> câu nào xong hiện điểm câu đó, một câu hỏng không kéo chết cả bài.
  * · Thử lại 2 lần, giãn cách 30 rồi 60 giây (máy chấm hay nghẽn nhất thời).
- * · Hỏng hẳn thì GIỮ NGUYÊN trạng thái "đang chấm", KHÔNG ghi 0 điểm — admin còn chấm lại được.
+ * · Hỏng hẳn (hết 3 lượt thử) thì ghi verdict "lỗi hệ thống chấm bài" để trang kết quả thôi
+ *   quay vòng "Đang chấm" mãi — KHÔNG ghi 0 điểm, chấm lại được bằng
+ *   php artisan attempt:regrade-stuck.
  *
  * Máy chủ chưa bật tiến trình chạy nền: đặt QUEUE_CONNECTION=sync trong .env, Laravel chạy
  * thẳng tại chỗ y như hành vi cũ.
@@ -56,5 +58,13 @@ class GradeCodingAnswerJob implements ShouldQueue
     public function failed(?Throwable $e): void
     {
         Log::error('Chấm nền thất bại cho câu trả lời #'.$this->attemptAnswerId, ['exception' => $e]);
+
+        $answer = AttemptAnswer::with('attempt')->find($this->attemptAnswerId);
+
+        if ($answer === null) {
+            return;
+        }
+
+        app(AttemptService::class)->markCodingAnswerSystemError($answer);
     }
 }

@@ -660,8 +660,6 @@ class AttemptService
          * Máy chủ chưa bật tiến trình chạy nền thì đặt QUEUE_CONNECTION=sync trong .env —
          * Laravel chạy thẳng tại chỗ, đúng y hành vi cũ, không cần sửa mã.
          */
-        $this->dispatchCodingGrading($attempt);
-
         // Trước đây đọc $attempt->status rồi mới ghi (check-then-write) KHÔNG có transaction/
         // khoá dòng — 2 request nộp bài đồng thời cho CÙNG 1 lượt làm (double-click, hoặc
         // client tự động retry khi mất mạng giữa chừng) có thể cùng đọc thấy 'in_progress'
@@ -693,9 +691,42 @@ class AttemptService
             return $locked;
         });
 
+        /*
+         * SỬA 23/9 (bản vá tiếp) — ĐẨY VIỆC CHẤM NỀN SAU KHI ĐÃ COMMIT nộp bài.
+         *
+         * Trước đó lệnh đẩy việc nằm TRƯỚC transaction: máy chạy nền nhanh tay có thể chấm
+         * xong một câu trong lúc submitted_at còn null, khiến refreshScoreAfterGrading() thoát
+         * sớm và tổng điểm chỉ được cộng lại nhờ may mắn. Đẩy sau khi commit thì việc nền luôn
+         * nhìn thấy lượt làm đã nộp.
+         */
+        $this->dispatchCodingGrading($locked);
+
         $this->recordCompetitionLeaderboardSafely($locked);
 
         return $locked;
+    }
+
+    /**
+     * SỬA 23/9 — việc chấm nền hỏng hẳn (máy chấm không tới được sau 3 lượt thử): ghi verdict
+     * "lỗi hệ thống chấm bài" cho câu đó để trang kết quả THÔI quay vòng "Đang chấm" mãi, rồi
+     * tổng kết lại điểm. Không ghi 0 điểm — score vẫn null, admin/giáo viên chấm lại được bằng
+     * php artisan attempt:regrade-stuck.
+     */
+    public function markCodingAnswerSystemError(AttemptAnswer $answer): void
+    {
+        $answer->loadMissing('attempt');
+
+        if ($answer->verdict->isFinal()) {
+            return;
+        }
+
+        $answer->verdict = VerdictStatus::SystemError->value;
+        $answer->graded_at = now();
+        $answer->save();
+
+        if ($answer->attempt !== null) {
+            $this->refreshScoreAfterGrading($answer->attempt);
+        }
     }
 
     /**
