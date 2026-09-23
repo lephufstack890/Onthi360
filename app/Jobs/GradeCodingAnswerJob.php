@@ -32,8 +32,14 @@ class GradeCodingAnswerJob implements ShouldQueue
 
     public int $tries = 3;
 
-    /** Máy chấm chạy 20 test có thể lâu — cho hẳn 5 phút mỗi lượt. */
-    public int $timeout = 300;
+    /**
+     * Máy chấm chạy 20 test có thể lâu. Con số này phải nằm GIỮA hai mốc:
+     *   · LỚN HƠN mức chờ tối đa của Judge0Client::runBatch() (tối đa 300s) — để khi máy chấm
+     *     chậm quá thì chính runBatch ném ra lỗi NÓI RÕ LÝ DO, thay vì việc bị giết ngang.
+     *   · NHỎ HƠN retry_after của hàng đợi (900s, xem config/queue.php) — để việc đang chạy
+     *     không bị tiến trình khác nhận lại giữa chừng.
+     */
+    public int $timeout = 600;
 
     public function __construct(public int $attemptAnswerId) {}
 

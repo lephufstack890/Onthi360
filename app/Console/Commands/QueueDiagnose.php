@@ -6,6 +6,7 @@ use App\Enums\QuestionType;
 use App\Models\AttemptAnswer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 /**
  * SỬA 23/9 (khách: "chấm hơn 15 phút chưa xong") — GÕ 1 LỆNH, XEM ĐƯỢC TOÀN CẢNH hàng đợi
@@ -37,6 +38,7 @@ class QueueDiagnose extends Command
         }
 
         $this->line('  Máy chấm Judge0     : '.config('judge0.base_url'));
+        $this->line('  '.$this->judge0Health());
         $this->newLine();
 
         if ($connection === 'database') {
@@ -93,5 +95,32 @@ class QueueDiagnose extends Command
         $this->line('  Chấm lại ngay: php artisan attempt:regrade-stuck --minutes=0 --now');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Gọi thử máy chấm 1 phát để biết nó CÒN SỐNG hay không, và trả lời nhanh cỡ nào — câu
+     * kẹt "Đang chấm" mà Judge0 không trả lời thì khỏi phải đoán thêm.
+     */
+    private function judge0Health(): string
+    {
+        $baseUrl = rtrim((string) config('judge0.base_url'), '/');
+        $headers = [(string) config('judge0.auth_header') => (string) config('judge0.auth_token')];
+
+        $startedAt = microtime(true);
+
+        try {
+            $response = Http::baseUrl($baseUrl)->withHeaders($headers)
+                ->connectTimeout(5)->timeout(10)->get('/about');
+        } catch (\Throwable $e) {
+            return 'Trạng thái máy chấm  : KHÔNG GỌI ĐƯỢC — '.$e->getMessage();
+        }
+
+        $ms = (int) round((microtime(true) - $startedAt) * 1000);
+
+        if ($response->failed()) {
+            return 'Trạng thái máy chấm  : lỗi HTTP '.$response->status().' ('.$ms.' ms)';
+        }
+
+        return 'Trạng thái máy chấm  : OK — trả lời sau '.$ms.' ms';
     }
 }

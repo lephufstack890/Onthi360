@@ -795,7 +795,14 @@ class AttemptService
         $attempt->load(['answers.question', 'assessment.items']);
 
         foreach ($attempt->answers as $answer) {
-            $this->gradeCodingAnswer($answer);
+            // Luồng CŨ (chấm đồng bộ lúc nộp) cố ý NUỐT lỗi máy chấm: một lỗi mạng không được
+            // phép làm hỏng việc nộp bài của học sinh. Luồng chạy nền thì ngược lại — phải để
+            // lỗi ném ra thì mới thử lại và mới hiện được trạng thái hỏng (xem gradeCodingAnswer()).
+            try {
+                $this->gradeCodingAnswer($answer);
+            } catch (Throwable $e) {
+                Log::error('Bỏ qua lỗi chấm đồng bộ cho câu trả lời #'.$answer->id, ['exception' => $e]);
+            }
         }
     }
 
@@ -843,7 +850,23 @@ class AttemptService
                 'raw_result' => ['error' => $e->getMessage()],
             ]);
 
-            return;
+            /*
+             * SỬA 23/9 (khách: "câu vẫn Đang chấm" dù hàng đợi trống trơn, failed_jobs = 0) —
+             * TRƯỚC ĐÂY CHỖ NÀY `return;`, tức NUỐT LỖI.
+             *
+             * Hậu quả đúng như hiện trường: máy chấm lỗi (không tới được, hoặc chấm quá lâu)
+             * -> ghi log rồi thoát êm -> việc chạy nền coi như XONG, bị xoá khỏi bảng jobs,
+             * không rơi vào failed_jobs, mà verdict thì vẫn nguyên 'judging'. Kết quả là câu
+             * đó kẹt "Đang chấm" VĨNH VIỄN và không còn dấu vết nào ở hàng đợi để lần ra.
+             *
+             * Giờ ném lỗi ra ngoài: việc chạy nền tự thử lại (30s, rồi 60s — máy chấm hay
+             * nghẽn nhất thời), hết 3 lượt thì rơi vào failed_jobs và GradeCodingAnswerJob::
+             * failed() ghi verdict "lỗi hệ thống chấm bài" để trang kết quả thôi quay vòng.
+             *
+             * Nơi gọi nào KHÔNG muốn lỗi ném ra thì tự bọc try/catch (xem
+             * gradePendingCodingAnswers() bên dưới).
+             */
+            throw $e;
         }
 
         [$score, $passed, $totalTests] = $this->scoreFromTestResults(
