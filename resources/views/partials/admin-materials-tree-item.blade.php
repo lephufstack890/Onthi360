@@ -14,7 +14,7 @@
         <span class="shrink-0">{{ $depth === 0 ? '📄' : '↳' }}</span>
         <p class="text-sm flex-1 {{ $depth === 0 ? 'font-medium text-slate-700' : 'text-slate-600' }}">{{ $item['title'] }}</p>
         <x-status-badge :tone="$statusMeta['tone']">{{ $statusMeta['label'] }}</x-status-badge>
-        <a href="{{ route('admin.content.show', $item['id']) }}" class="text-sm text-rose-600 font-medium shrink-0">Xem</a>
+        <a href="{{ route('admin.content.show', ['content' => $item['id'], 'kind' => 'material']) }}" class="text-sm text-rose-600 font-medium shrink-0">Xem</a>
         <form method="POST" action="{{ route('admin.content.materials.destroy', $item['id']) }}" class="inline shrink-0" onsubmit="return confirm('Xoá vĩnh viễn học liệu này cùng toàn bộ bài con và file PDF liên quan? Không thể khôi phục.');">
             @csrf
             @method('DELETE')

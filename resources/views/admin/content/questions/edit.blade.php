@@ -25,7 +25,7 @@
         $actionRoute = $hasBeenAttempted ? route('admin.content.questions.newVersion', $question->id) : route('admin.content.questions.update', $question->id);
     @endphp
 
-    <a href="{{ route('admin.content.show', $question->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
+    <a href="{{ route('admin.content.show', ['content' => $question->id, 'kind' => 'question']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
     <x-ws.page-header title="Sửa câu hỏi" icon="pencil" :subtitle="$question->code.' · '.$question->title" />
 

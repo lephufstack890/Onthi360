@@ -273,6 +273,8 @@ class ContentService
                     'status' => $label,
                     'tone' => $tone,
                     'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
+                    // SỬA 23/9 — loại nội dung của dòng này, để link "Xem" trỏ đúng bảng.
+                    'kind' => 'question',
                 ];
             })->all();
 
@@ -291,6 +293,7 @@ class ContentService
                     // duyệt thêm (xem assessmentPromoteToShared() bên dưới + nút bấm ở
                     // admin/content/index.blade.php).
                     'canPromoteToShared' => $isTeacherOwned,
+                    'kind' => 'assessment',
                 ];
             })->all();
         } elseif ($tab === 'drafts') {
@@ -309,7 +312,7 @@ class ContentService
                 // SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu mới có nút
                 // Xoá (khách xác nhận phạm vi CHỈ Học liệu, không áp dụng Câu hỏi/Đề/Tag) —
                 // xem materialDelete() bên dưới + nút bấm ở admin/content/index.blade.php.
-                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true];
+                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true, 'kind' => 'material'];
             })->all();
         }
 
@@ -465,7 +468,39 @@ class ContentService
      *
      * @return array{type: string, typeLabel: string, model: mixed, item: array, publishErrors: array, hasBeenAttempted: bool}
      */
-    public function showData(int $id): array
+    public function showData(int $id, ?string $kind = null): array
+    {
+        /*
+         * SỬA 23/9 (khách: "thêm xong bấm Xem nó lại ra trang khác, sai rồi") — LỖI THẬT:
+         * route admin.content.show dùng CHUNG cho 3 loại nội dung (Học liệu / Câu hỏi / Đề) mà
+         * chỉ nhận mỗi con số id, nên hàm này phải ĐOÁN: dò bảng materials trước, rồi questions,
+         * cuối cùng mới tới assessments. Ba bảng đánh id riêng nên id trùng nhau là chuyện
+         * thường — bấm "Xem" đề số 1 lại ra câu hỏi số 1, đúng như khách gặp.
+         *
+         * Giờ nơi gọi truyền kèm $kind ('material' | 'question' | 'assessment') để tra đúng một
+         * bảng, hết đoán. Vẫn giữ nhánh đoán cũ khi $kind rỗng để link cũ (bookmark, thông báo)
+         * không gãy.
+         */
+        if ($kind === 'question') {
+            return $this->showQuestionData($id) ?? $this->showNotFoundData($id);
+        }
+
+        if ($kind === 'assessment') {
+            return $this->showAssessmentData($id) ?? $this->showNotFoundData($id);
+        }
+
+        if ($kind === 'material') {
+            return $this->showMaterialData($id) ?? $this->showNotFoundData($id);
+        }
+
+        return $this->showMaterialData($id)
+            ?? $this->showQuestionData($id)
+            ?? $this->showAssessmentData($id)
+            ?? $this->showNotFoundData($id);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function showMaterialData(int $id): ?array
     {
         $material = $this->materials->findWithProduct($id);
         if ($material !== null) {
@@ -481,6 +516,12 @@ class ContentService
             ];
         }
 
+        return null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function showQuestionData(int $id): ?array
+    {
         /** @var Question|null $question */
         $question = $this->questions->query()->with('bank')->find($id);
         if ($question !== null) {
@@ -497,6 +538,12 @@ class ContentService
             ];
         }
 
+        return null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function showAssessmentData(int $id): ?array
+    {
         // SỬA 18/8: thêm eager-load items.question — trước đây chỉ load 'creator', nên màn
         // show.blade.php không có gì để hiện danh sách câu hỏi trong đề (chỉ hiện được TODO).
         // SỬA 18/8 (2, đề PDF): thêm eager-load answerKeys/codingItems.testCases — chỉ có dữ
@@ -523,6 +570,12 @@ class ContentService
             ];
         }
 
+        return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function showNotFoundData(int $id): array
+    {
         return [
             'type' => null,
             'typeLabel' => '',

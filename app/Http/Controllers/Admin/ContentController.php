@@ -52,7 +52,9 @@ class ContentController extends Controller
     /** admin.content.show — 6.2 (chặn phát hành khi thiếu cấu hình). */
     public function show(Request $request, int $content): View
     {
-        return view('admin.content.show', $this->contentService->showData($content));
+        // SỬA 23/9 — 'kind' nói rõ đang xem Học liệu / Câu hỏi / Đề, vì 3 bảng đánh id riêng
+        // nên chỉ có id là đoán sai loại (xem ContentService::showData()).
+        return view('admin.content.show', $this->contentService->showData($content, $request->query('kind')));
     }
 
     // ================= Học liệu (Material) =================
@@ -139,7 +141,7 @@ class ContentController extends Controller
     {
         $this->contentService->materialPublish($material);
 
-        return redirect()->route('admin.content.show', $material->id)->with('status', 'material-published');
+        return redirect()->route('admin.content.show', ['content' => $material->id, 'kind' => 'material'])->with('status', 'material-published');
     }
 
     public function materialsReject(Request $request, Material $material): RedirectResponse
@@ -147,7 +149,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->materialReject($material, $data['reason']);
 
-        return redirect()->route('admin.content.show', $material->id)->with('status', 'material-rejected');
+        return redirect()->route('admin.content.show', ['content' => $material->id, 'kind' => 'material'])->with('status', 'material-rejected');
     }
 
     public function materialsArchive(Request $request, Material $material): RedirectResponse
@@ -155,7 +157,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->materialArchive($material, $data['reason']);
 
-        return redirect()->route('admin.content.show', $material->id)->with('status', 'material-archived');
+        return redirect()->route('admin.content.show', ['content' => $material->id, 'kind' => 'material'])->with('status', 'material-archived');
     }
 
     public function materialsDestroy(Material $material): RedirectResponse
@@ -253,7 +255,7 @@ class ContentController extends Controller
 
         $question = $this->contentService->questionStore(Auth::user(), $data);
 
-        return redirect()->route('admin.content.show', $question->id)->with('status', 'question-created');
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-created');
     }
 
     public function questionsEdit(int $question): View
@@ -277,7 +279,7 @@ class ContentController extends Controller
 
         $this->contentService->questionUpdate($question, $data);
 
-        return redirect()->route('admin.content.show', $question->id)->with('status', 'question-updated');
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-updated');
     }
 
     /** admin.content.questions.newVersion — 6.2: câu đã có người làm phải tạo version mới. */
@@ -298,7 +300,7 @@ class ContentController extends Controller
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
 
-        return redirect()->route('admin.content.show', $newQuestion->id)->with('status', 'question-versioned');
+        return redirect()->route('admin.content.show', ['content' => $newQuestion->id, 'kind' => 'question'])->with('status', 'question-versioned');
     }
 
     public function questionsPublish(Question $question): RedirectResponse
@@ -306,10 +308,10 @@ class ContentController extends Controller
         $result = $this->contentService->questionPublish($question);
 
         if (! $result['ok']) {
-            return redirect()->route('admin.content.show', $question->id)->withErrors(['publish' => $result['message']]);
+            return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->withErrors(['publish' => $result['message']]);
         }
 
-        return redirect()->route('admin.content.show', $question->id)->with('status', 'question-published');
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-published');
     }
 
     public function questionsReject(Request $request, Question $question): RedirectResponse
@@ -317,7 +319,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->questionReject($question, $data['reason']);
 
-        return redirect()->route('admin.content.show', $question->id)->with('status', 'question-rejected');
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-rejected');
     }
 
     public function questionsArchive(Request $request, Question $question): RedirectResponse
@@ -325,7 +327,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->questionArchive($question, $data['reason']);
 
-        return redirect()->route('admin.content.show', $question->id)->with('status', 'question-archived');
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-archived');
     }
 
     // ================= Câu hỏi lập trình — "Nhập từ gói ZIP" (24/8) =================
@@ -548,7 +550,7 @@ class ContentController extends Controller
 
         $assessment = $this->contentService->assessmentStore(Auth::user(), $data);
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-created');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-created');
     }
 
     public function assessmentsEdit(int $assessment): View
@@ -571,7 +573,7 @@ class ContentController extends Controller
 
         $this->contentService->assessmentItemsUpdate($assessment, $data);
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-updated');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
     }
 
     public function assessmentsUpdate(Request $request, Assessment $assessment): RedirectResponse
@@ -586,7 +588,7 @@ class ContentController extends Controller
 
         $this->contentService->assessmentUpdate($assessment, $data);
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-updated');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
     }
 
     public function assessmentsPublish(Assessment $assessment): RedirectResponse
@@ -594,10 +596,10 @@ class ContentController extends Controller
         $result = $this->contentService->assessmentPublish($assessment);
 
         if (! $result['ok']) {
-            return redirect()->route('admin.content.show', $assessment->id)->withErrors(['publish' => $result['message']]);
+            return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->withErrors(['publish' => $result['message']]);
         }
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-published');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-published');
     }
 
     public function assessmentsReject(Request $request, Assessment $assessment): RedirectResponse
@@ -605,7 +607,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->assessmentReject($assessment, $data['reason']);
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-rejected');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-rejected');
     }
 
     public function assessmentsArchive(Request $request, Assessment $assessment): RedirectResponse
@@ -613,7 +615,7 @@ class ContentController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->contentService->assessmentArchive($assessment, $data['reason']);
 
-        return redirect()->route('admin.content.show', $assessment->id)->with('status', 'assessment-archived');
+        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-archived');
     }
 
     /**

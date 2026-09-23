@@ -13,7 +13,7 @@
         $chapterLabelByProduct = $chapterLabelByProduct ?? [];
     @endphp
 
-    <a href="{{ route('admin.content.show', $material->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
+    <a href="{{ route('admin.content.show', ['content' => $material->id, 'kind' => 'material']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
 
     <x-ws.page-header title="Sửa học liệu" icon="pencil" :subtitle="$material->title" />
 
@@ -132,7 +132,7 @@
 
             <div class="flex gap-3 pt-2">
                 <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>
-                <a href="{{ route('admin.content.show', $material->id) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
+                <a href="{{ route('admin.content.show', ['content' => $material->id, 'kind' => 'material']) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
             </div>
         </form>
     </div>

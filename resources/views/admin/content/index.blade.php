@@ -266,7 +266,8 @@
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
                     <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
                     <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
-                        <a href="{{ route('admin.content.show', $r['id']) }}" class="text-blue-600 font-medium">Xem</a>
+                        {{-- SỬA 23/9 — kèm 'kind' để mở ĐÚNG loại nội dung, tránh trùng id giữa 3 bảng. --}}
+                        <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="text-blue-600 font-medium">Xem</a>
                         {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
                              này — xem ContentService::indexData()/assessmentPromoteToShared(). --}}
                         @if ($r['canPromoteToShared'] ?? false)
