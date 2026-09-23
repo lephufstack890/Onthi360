@@ -156,7 +156,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('classes/join', [StudentClassRoomController::class, 'join'])->name('classes.join');
         Route::get('classes/{class}', [StudentClassRoomController::class, 'show'])->name('classes.show');
         Route::get('schedule', [StudentScheduleController::class, 'index'])->name('schedule.index');
-        Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
         // SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt, duyệt xong học sinh vào
         // được màn không gian thi") — 2 lối duy nhất của học sinh với cuộc thi. Chặn THẬT khi
         // vào thi vẫn nằm ở AttemptService::competitionEntryDecision(), không phải ở route.
@@ -171,6 +170,41 @@ Route::middleware(['auth'])->group(function () {
         // .run / .submit) — chỉ khác cái view.
         Route::get('competitions/{competition}/vong/{exam}/lam-bai', [StudentCompetitionController::class, 'exam'])
             ->whereNumber(['competition', 'exam'])->name('competitions.exam');
+        // SỬA 25/8 ("đọc bài" — Sách/Chuyên đề/Đề thi): quyền đọc kiểm tra qua
+        // App\Services\AccessGateService::canAccessMaterial() (đúng 1 nơi kiểm tra quyền học
+        // liệu của toàn hệ thống, xem MaterialReadService). File PDF phục vụ qua route riêng
+        // (materials.file), gọi bằng fetch() từ trang đọc — không phải link tải trực tiếp.
+        Route::get('materials/{material}', [StudentMaterialController::class, 'read'])->name('materials.read');
+        Route::get('materials/{material}/file', [StudentMaterialController::class, 'pdfFile'])->name('materials.file');
+        // SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang public, chỉ xem trong khu vực
+        // học sinh"): "Tài liệu của tôi" — tab Sách/Chuyên đề/Bộ đề, chỉ liệt kê sản phẩm đã
+        // mua (App\Services\Student\LibraryService), gộp cả Mục lục (đọc bài — vẫn qua
+        // materials.read/file phía trên) VÀ 3 tài nguyên đính kèm (content/exercise/media —
+        // guide bị chặn hẳn cho học sinh, xem AccessService::downloadResource()).
+        Route::get('tai-lieu-cua-toi', [StudentLibraryController::class, 'index'])->name('library.index');
+        Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
+        Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
+        Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
+    });
+
+    /*
+     * SỬA 23/9 (khách: "trang luyện tập ngoài public — học sinh, giáo viên, admin, phụ huynh
+     * đều làm được hết") — LUYỆN TẬP + LÀM ĐỀ mở cho MỌI tài khoản đã đăng nhập: nhóm này chỉ
+     * còn 'auth' của nhóm cha, KHÔNG kèm 'role:...'.
+     *
+     * Tách ra khỏi nhóm 'role:student' ở trên thay vì nới lỏng cả nhóm đó: những mục riêng
+     * của học sinh (lớp của tôi, tài liệu đã mua, hồ sơ, cuộc thi...) VẪN chỉ học sinh vào
+     * được. Quyền trên từng đối tượng (đề của sản phẩm phải mua, cuộc thi phải được duyệt...)
+     * vẫn do Service/AccessGate kiểm tra như cũ, route chỉ mở cửa vào.
+     *
+     * Giữ NGUYÊN prefix 'student' và tên route 'student.*' — mọi route() đang dùng ở view,
+     * controller, service không phải sửa một dòng nào.
+     */
+    Route::prefix('student')->name('student.')->group(function () {
+        // Màn "Luyện tập" trong khu đăng nhập — mọi nút "Thoát"/"Về danh sách" của màn làm bài
+        // đều quay về đây, nên phải mở cùng, không thì người không phải học sinh làm xong bấm
+        // thoát là dính 403.
+        Route::get('practice', [StudentPracticeController::class, 'index'])->name('practice.index');
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
@@ -209,21 +243,6 @@ Route::middleware(['auth'])->group(function () {
         // mã của 1 câu trong đề với dữ liệu vào tự gõ. Không chấm điểm, xem
         // Student\AssessmentService::runCodeOnce().
         Route::post('attempts/{attempt}/run', [StudentAssessmentController::class, 'runCode'])->name('assessment.take.run');
-        // SỬA 25/8 ("đọc bài" — Sách/Chuyên đề/Đề thi): quyền đọc kiểm tra qua
-        // App\Services\AccessGateService::canAccessMaterial() (đúng 1 nơi kiểm tra quyền học
-        // liệu của toàn hệ thống, xem MaterialReadService). File PDF phục vụ qua route riêng
-        // (materials.file), gọi bằng fetch() từ trang đọc — không phải link tải trực tiếp.
-        Route::get('materials/{material}', [StudentMaterialController::class, 'read'])->name('materials.read');
-        Route::get('materials/{material}/file', [StudentMaterialController::class, 'pdfFile'])->name('materials.file');
-        // SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang public, chỉ xem trong khu vực
-        // học sinh"): "Tài liệu của tôi" — tab Sách/Chuyên đề/Bộ đề, chỉ liệt kê sản phẩm đã
-        // mua (App\Services\Student\LibraryService), gộp cả Mục lục (đọc bài — vẫn qua
-        // materials.read/file phía trên) VÀ 3 tài nguyên đính kèm (content/exercise/media —
-        // guide bị chặn hẳn cho học sinh, xem AccessService::downloadResource()).
-        Route::get('tai-lieu-cua-toi', [StudentLibraryController::class, 'index'])->name('library.index');
-        Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
-        Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
-        Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
     });
 
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {

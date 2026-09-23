@@ -6,7 +6,6 @@ use App\Enums\QuestionType;
 use App\Models\AssessmentItem;
 use App\Models\AttemptAnswer;
 use App\Models\Question;
-use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
@@ -76,7 +75,11 @@ class PracticeService
         return array_merge([
             'items' => $items,
             'problems' => $this->problemRows($viewer),
-            'canTakeDirectly' => $viewer !== null && $viewer->hasRole(Role::STUDENT),
+            // SỬA 23/9 (khách: "học sinh, giáo viên, admin, phụ huynh đều làm được luyện tập
+            // hết") — ai đã đăng nhập cũng bấm được "Làm bài"/"Bắt đầu làm đề" ngay ở trang
+            // Luyện tập công khai, không bị đẩy sang màn đăng nhập nữa. Route tương ứng cũng
+            // đã bỏ ràng buộc vai trò, xem routes/web.php.
+            'canTakeDirectly' => $viewer !== null,
         ], PracticeFilters::options($this->tags));
     }
 

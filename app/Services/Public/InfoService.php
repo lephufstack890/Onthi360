@@ -203,7 +203,9 @@ class InfoService
     {
         return [
             'hotline' => '0978 729 962',
-            'email' => 'support@onthi360.edu.vn',
+            // SỬA 23/9 — tên miền chính thức là onthi360.vn (web chạy ở tinhoc.onthi360.vn), hộp thư
+            // hỗ trợ là hotro@onthi360.vn đã tạo trên cPanel. Địa chỉ .edu.vn cũ không tồn tại.
+            'email' => 'hotro@onthi360.vn',
             'facebook' => 'facebook.com/onthi360',
             'zalo' => 'zalo.me/onthi360',
             // Chưa có địa chỉ văn phòng chính thức để công bố — không bịa 1 địa chỉ giả.
