@@ -158,7 +158,7 @@
 
         <button type="button" @click="goToStep2()" :disabled="busy"
                 class="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-4 py-3 text-[12px] font-extrabold text-white shadow-[0_8px_18px_rgba(18,111,145,0.2)] transition hover:from-[#0F607E] hover:to-[#147D9B] disabled:cursor-not-allowed disabled:opacity-60 active:scale-[.98]">
-            <span x-text="busy ? 'Đang gửi mã…' : 'Tiếp tục xác minh'"></span>
+            <span x-text="busy ? 'Đang gửi mã…' : (verificationEnabled ? 'Tiếp tục xác minh' : 'Tiếp tục')"></span>
             <x-lucide name="arrow-right" class="h-4 w-4" x-show="!busy" />
         </button>
     </div>
@@ -204,19 +204,44 @@
             </div>
         </template>
 
-        {{-- Chưa cấu hình gửi thư: nói thật, cho đi tiếp --}}
+        {{-- SỬA 23/9 (khách: "hiện như vậy người ta sợ, không dám đăng ký") — khi bước nhập mã
+             đang TẮT, màn này KHÔNG nói chuyện nội bộ của hệ thống nữa (trước đây hiện
+             "Hệ thống chưa bật gửi thư xác minh" — đúng sự thật nhưng làm người dùng chột dạ,
+             tưởng web đang hỏng). Thay bằng bước "Xác nhận thông tin": cho họ soát lại đúng
+             những gì vừa nhập rồi bấm tiếp, một bước bình thường của mọi form đăng ký. --}}
         <template x-if="!verificationEnabled">
             <div>
-                <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                    <x-lucide name="info" class="h-5 w-5 text-amber-600" />
-                    <p class="auth-form-label mt-1.5 text-[11px] font-bold text-amber-900">Hệ thống chưa bật gửi thư xác minh</p>
-                    <p class="auth-form-helper mt-1 text-[11px] leading-4 text-amber-800">
-                        Bạn có thể tiếp tục tạo tài khoản ngay. Khi quản trị viên bật gửi thư, bước xác minh email sẽ tự động áp dụng.
+                <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                    <x-lucide name="shield-check" class="h-5 w-5 text-emerald-600" />
+                    <p class="auth-form-label mt-1.5 text-[11px] font-bold text-emerald-800">Xác nhận thông tin của bạn</p>
+                    <p class="auth-form-helper mt-1 text-[11px] leading-4 text-emerald-800">
+                        Kiểm tra lại một lượt trước khi tạo tài khoản. Cần sửa gì thì bấm "Quay lại".
                     </p>
                 </div>
+
+                <dl class="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-white px-4">
+                    <div class="flex items-center justify-between gap-3 py-2.5">
+                        <dt class="text-[11px] font-bold text-slate-500">Họ và tên</dt>
+                        <dd class="truncate text-[12px] font-bold text-slate-800" x-text="form.name"></dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 py-2.5">
+                        <dt class="text-[11px] font-bold text-slate-500">Email</dt>
+                        <dd class="truncate text-[12px] font-bold text-slate-800" x-text="form.email"></dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 py-2.5" x-show="form.phone.trim()">
+                        <dt class="text-[11px] font-bold text-slate-500">Số điện thoại</dt>
+                        <dd class="truncate text-[12px] font-bold text-slate-800" x-text="form.phone"></dd>
+                    </div>
+                </dl>
+
+                <p class="auth-form-helper mt-2.5 flex items-start gap-1.5 text-[11px] leading-4 text-slate-500">
+                    <x-lucide name="lock" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    Thông tin của bạn chỉ dùng để tạo và bảo vệ tài khoản, không chia sẻ cho bên thứ ba.
+                </p>
+
                 <button type="button" @click="step = 3"
                         class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#126F91] to-[#188DB0] px-4 py-3 text-[12px] font-extrabold text-white shadow-[0_8px_18px_rgba(18,111,145,0.2)] transition hover:from-[#0F607E] hover:to-[#147D9B] active:scale-[.98]">
-                    Tiếp tục <x-lucide name="arrow-right" class="h-4 w-4" />
+                    Thông tin đã đúng, tiếp tục <x-lucide name="arrow-right" class="h-4 w-4" />
                 </button>
                 <button type="button" @click="step = 1" class="auth-form-helper mt-2.5 block text-[11px] font-bold text-slate-500 hover:text-slate-700">Quay lại</button>
             </div>
@@ -233,6 +258,14 @@
         <input type="hidden" name="password" :value="form.password">
         <input type="hidden" name="password_confirmation" :value="form.passwordConfirmation">
         <input type="hidden" name="verification_token" :value="verificationToken">
+
+        {{-- SỬA 23/9 — Ô MỒI chống bot: người dùng không nhìn thấy, không tab tới được, trình
+             duyệt không tự điền -> luôn rỗng. Bot điền mọi ô nên tự lộ. Xem
+             AuthController::guardAgainstRegistrationSpam(). KHÔNG dùng type="hidden" vì bot bỏ qua. --}}
+        <div class="absolute h-0 w-0 overflow-hidden opacity-0" aria-hidden="true">
+            <label for="website">Website (bỏ trống)</label>
+            <input id="website" name="website" type="text" value="" tabindex="-1" autocomplete="off">
+        </div>
 
         <p class="type-body leading-5">Chọn một vai trò để cá nhân hoá lộ trình và quyền sử dụng. Bạn luôn có thể cập nhật trong hồ sơ.</p>
 

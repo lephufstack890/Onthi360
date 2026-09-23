@@ -87,6 +87,34 @@ class AuthService
     }
 
     /**
+     * SỬA 23/9 (khách sợ spam) — tài khoản CHƯA xác minh email thì không cho đăng nhập, nhưng
+     * CHỈ với tài khoản tạo từ mốc ngày cấu hình trở đi (config/registration.php ->
+     * require_verified_login_from / .env AUTH_REQUIRE_VERIFIED_FROM). Không đặt mốc = không
+     * chặn ai: tài khoản cũ tạo khi chưa bật xác minh vẫn đăng nhập bình thường, tránh khoá
+     * nhầm toàn bộ người dùng hiện có.
+     */
+    public function needsEmailVerification(?User $user): bool
+    {
+        if ($user === null || $user->email_verified_at !== null) {
+            return false;
+        }
+
+        $from = config('registration.require_verified_login_from');
+
+        if (blank($from)) {
+            return false;
+        }
+
+        try {
+            $since = \Illuminate\Support\Carbon::parse((string) $from)->startOfDay();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $user->created_at !== null && $user->created_at->gte($since);
+    }
+
+    /**
      * Tạo tài khoản thật từ bản ghi đăng ký tạm đã qua xác minh (bước 3 của luồng đăng ký).
      * Mật khẩu trong bản ghi tạm ĐÃ băm từ bước 1 nên truyền thẳng, không băm lại.
      *

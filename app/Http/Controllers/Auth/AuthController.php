@@ -67,6 +67,19 @@ class AuthController extends Controller
             ]);
         }
 
+        // SỬA 23/9 — tài khoản tạo TỪ NGÀY bật xác minh mà chưa xác minh email thì không cho
+        // vào (chốt an toàn). Tài khoản cũ hơn mốc này không bị ảnh hưởng, xem
+        // config/registration.php -> require_verified_login_from.
+        if ($this->authService->needsEmailVerification($user)) {
+            $this->authService->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'identifier' => 'Tài khoản chưa xác minh email. Vui lòng kiểm tra hộp thư để lấy mã, hoặc liên hệ hỗ trợ.',
+            ]);
+        }
+
         $request->session()->regenerate();
 
         // "Mỗi học sinh chỉ được đăng nhập trên 1 máy" (note họp 13/8, mục 7).
@@ -79,8 +92,12 @@ class AuthController extends Controller
         return redirect()->intended(route('home'));
     }
 
-    public function showRegister(): View
+    public function showRegister(Request $request): View
     {
+        // SỬA 23/9 — mốc thời gian MỞ form giữ ở session, không đặt trong form: dữ liệu trong
+        // form thì bot sửa được, session thì không.
+        $request->session()->put('register_form_opened_at', now()->timestamp);
+
         return view('auth.register', [
             'verificationEnabled' => $this->registrationService->enabled(),
             'resendCooldown' => RegistrationService::RESEND_COOLDOWN_SECONDS,
@@ -109,8 +126,31 @@ class AuthController extends Controller
             $data['phone'] = AuthService::normalizePhone($data['phone']);
         }
 
+        // SỬA 23/9 (khách sợ spam) — 3 chốt chặn trước khi gửi mã, xem config/registration.php.
+        if ($this->registrationService->isBlockedEmailDomain($data['email'])) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Email dùng một lần không đăng ký được. Hãy dùng email thật (Gmail, email trường, email công ty).',
+            ], 422);
+        }
+
+        if (($wait = $this->registrationService->ipCooldownSeconds((string) $request->ip())) > 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Thiết bị này đã đăng ký quá nhiều lần. Vui lòng thử lại sau '.ceil($wait / 60).' phút.',
+            ], 429);
+        }
+
+        if (($wait = $this->registrationService->codeCooldownSeconds($data['email'])) > 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Email này đã nhận quá nhiều mã. Vui lòng thử lại sau '.ceil($wait / 60).' phút.',
+            ], 429);
+        }
+
         $this->registrationService->pruneExpired();
         $pending = $this->registrationService->start($data);
+        $this->registrationService->recordAttempt($data['email'], (string) $request->ip());
 
         return response()->json([
             'ok' => true,
@@ -130,9 +170,19 @@ class AuthController extends Controller
             return response()->json(['ok' => false, 'message' => 'Không tìm thấy yêu cầu đăng ký. Hãy quay lại bước 1.'], 422);
         }
 
+        // SỬA 23/9 — nút "Gửi lại mã" cũng tính vào trần mã/giờ của email đó.
+        if (($wait = $this->registrationService->codeCooldownSeconds($data['email'])) > 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Email này đã nhận quá nhiều mã. Vui lòng thử lại sau '.ceil($wait / 60).' phút.',
+            ], 429);
+        }
+
         if (! $this->registrationService->resend($pending)) {
             return response()->json(['ok' => false, 'message' => 'Vui lòng đợi hết thời gian chờ rồi gửi lại mã.'], 429);
         }
+
+        $this->registrationService->recordAttempt($data['email'], (string) $request->ip());
 
         return response()->json(['ok' => true]);
     }
@@ -192,6 +242,19 @@ class AuthController extends Controller
             $data['phone'] = AuthService::normalizePhone($data['phone']);
         }
 
+        // SỬA 23/9 (khách: "chưa cần OTP, check IP trước") — khi bước nhập mã đang TẮT thì đây
+        // là chốt chặn DUY NHẤT: giao diện đi thẳng bước 1 -> bước 3, KHÔNG gọi
+        // sendRegistrationCode() nữa (xem partials/register-wizard-script.blade.php), nên mọi
+        // kiểm tra phải đặt ở đây chứ không chỉ ở hàm gửi mã.
+        $this->guardAgainstRegistrationSpam($request);
+
+        // Chặn lại lần nữa ở bước cuối, phòng trường hợp gọi thẳng POST /register.
+        if ($this->registrationService->isBlockedEmailDomain($data['email'])) {
+            throw ValidationException::withMessages([
+                'email' => 'Email dùng một lần không đăng ký được. Hãy dùng email thật.',
+            ]);
+        }
+
         $pending = $this->registrationService->claim($data['email'], $data['verification_token'] ?? null);
 
         if ($this->registrationService->enabled() && $pending === null) {
@@ -207,11 +270,61 @@ class AuthController extends Controller
             $user = $this->authService->register($data, $data['role']);
         }
 
+        $this->registrationService->recordRegistration((string) $request->ip());
+        $request->session()->forget('register_form_opened_at');
+
         $this->authService->login($user);
         $request->session()->regenerate();
         $this->authService->enforceSingleDeviceForStudents($user, $request->session()->getId());
 
         return redirect()->intended(route('dashboard'))->with('status', 'register-success');
+    }
+
+    /**
+     * SỬA 23/9 — 4 lớp chặn spam đăng ký, KHÔNG cần gửi email:
+     *   1. ô mồi ẩn 'website' — người dùng không nhìn thấy nên luôn để trống, bot điền mọi ô;
+     *   2. thời gian điền form — dưới vài giây là máy, không phải người;
+     *   3. trần số lần đăng ký của 1 IP trong 1 GIỜ;
+     *   4. trần số tài khoản của 1 IP trong 1 NGÀY.
+     * Báo lỗi cố tình chung chung để người viết bot không biết mình vướng lớp nào.
+     */
+    private function guardAgainstRegistrationSpam(Request $request): void
+    {
+        if (filled($request->input('website'))) {
+            throw ValidationException::withMessages([
+                'email' => 'Không gửi được biểu mẫu. Vui lòng tải lại trang và thử lại.',
+            ]);
+        }
+
+        $minSeconds = (int) config('registration.min_form_seconds', 4);
+        $openedAt = (int) $request->session()->get('register_form_opened_at', 0);
+
+        if ($minSeconds > 0 && $openedAt > 0 && (now()->timestamp - $openedAt) < $minSeconds) {
+            throw ValidationException::withMessages([
+                'email' => 'Bạn gửi biểu mẫu quá nhanh. Vui lòng kiểm tra lại thông tin rồi gửi lại.',
+            ]);
+        }
+
+        $ip = (string) $request->ip();
+
+        foreach ([
+            $this->registrationService->ipCooldownSeconds($ip),
+            $this->registrationService->ipDailyCooldownSeconds($ip),
+        ] as $wait) {
+            if ($wait > 0) {
+                $minutes = (int) ceil($wait / 60);
+
+                throw ValidationException::withMessages([
+                    'email' => $minutes >= 60
+                        ? 'Thiết bị này đã đăng ký quá nhiều tài khoản. Vui lòng thử lại sau '.(int) ceil($minutes / 60).' giờ.'
+                        : 'Thiết bị này đã đăng ký quá nhiều lần. Vui lòng thử lại sau '.$minutes.' phút.',
+                ]);
+            }
+        }
+
+        // Lượt này tính vào trần theo GIỜ ngay cả khi bước sau lỗi — bot dò email/số điện thoại
+        // hợp lệ bằng cách thử liên tục cũng bị chặn.
+        $this->registrationService->recordAttempt((string) $request->input('email', 'unknown'), $ip);
     }
 
     public function logout(Request $request): RedirectResponse

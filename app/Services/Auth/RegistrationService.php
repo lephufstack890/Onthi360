@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 /**
@@ -41,7 +42,93 @@ class RegistrationService
      */
     public function enabled(): bool
     {
+        // SỬA 23/9 — công tắc trong config/registration.php thắng: khách muốn tạm tắt bước nhập
+        // mã trong lúc chờ khai DNS, nhưng vẫn giữ cấu hình gửi thư thật để chạy thử mail:ping.
+        $flag = config('registration.email_verification');
+
+        if ($flag !== null && $flag !== '') {
+            return filter_var($flag, FILTER_VALIDATE_BOOLEAN);
+        }
+
         return ! in_array(config('mail.default'), ['log', 'array', null], true);
+    }
+
+    /**
+     * SỬA 23/9 (khách sợ spam) — email dùng một lần (tempmail, yopmail...) làm bước xác minh
+     * mất tác dụng vì ai cũng tạo được trong 5 giây. Danh sách ở config/registration.php.
+     */
+    public function isBlockedEmailDomain(string $email): bool
+    {
+        $domain = strtolower(trim(substr(strrchr($email, '@') ?: '', 1)));
+
+        if ($domain === '') {
+            return false;
+        }
+
+        $list = array_map('strtolower', array_merge(
+            (array) config('registration.default_blocked_email_domains', []),
+            (array) config('registration.blocked_email_domains', []),
+        ));
+
+        foreach ($list as $blocked) {
+            if ($domain === $blocked || str_ends_with($domain, '.'.$blocked)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * SỬA 23/9 — trần số MÃ gửi tới CÙNG MỘT EMAIL trong 1 giờ. Khác với throttle theo IP ở
+     * routes/web.php: chốt này chặn việc đổi IP liên tục để dội thư vào hộp thư người khác.
+     * Trả về số giây phải chờ, hoặc 0 nếu còn lượt.
+     */
+    public function codeCooldownSeconds(string $email): int
+    {
+        $key = 'register-code:'.strtolower($email);
+        $max = max(1, (int) config('registration.max_codes_per_email_per_hour', 3));
+
+        return RateLimiter::tooManyAttempts($key, $max) ? RateLimiter::availableIn($key) : 0;
+    }
+
+    /** SỬA 23/9 — trần số lần BẮT ĐẦU đăng ký của 1 địa chỉ IP trong 1 giờ. */
+    public function ipCooldownSeconds(string $ip): int
+    {
+        $key = 'register-ip:'.$ip;
+        $max = max(1, (int) config('registration.max_starts_per_ip_per_hour', 5));
+
+        return RateLimiter::tooManyAttempts($key, $max) ? RateLimiter::availableIn($key) : 0;
+    }
+
+    /**
+     * SỬA 23/9 — trần số TÀI KHOẢN mà 1 IP tạo được trong 1 NGÀY. Chốt theo giờ ở trên chặn
+     * đợt dồn dập, chốt theo ngày chặn kiểu rải đều cả ngày. Trả về số giây phải chờ.
+     */
+    public function ipDailyCooldownSeconds(string $ip): int
+    {
+        $key = 'register-ip-day:'.$ip;
+        $max = max(1, (int) config('registration.max_registrations_per_ip_per_day', 10));
+
+        return RateLimiter::tooManyAttempts($key, $max) ? RateLimiter::availableIn($key) : 0;
+    }
+
+    /** Ghi nhận 1 tài khoản vừa tạo từ IP này (đếm theo ngày). */
+    public function recordRegistration(?string $ip): void
+    {
+        if ($ip !== null) {
+            RateLimiter::hit('register-ip-day:'.$ip, 86400);
+        }
+    }
+
+    /** Ghi nhận 1 lượt gửi mã / 1 lượt đăng ký để 2 hàm đếm ở trên trừ dần. */
+    public function recordAttempt(string $email, ?string $ip = null): void
+    {
+        RateLimiter::hit('register-code:'.strtolower($email), 3600);
+
+        if ($ip !== null) {
+            RateLimiter::hit('register-ip:'.$ip, 3600);
+        }
     }
 
     /**
