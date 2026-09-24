@@ -42,7 +42,9 @@
                 @if (! empty($feedback['codingErrorMessage']))
                     <p class="mt-1 break-words font-mono text-[12px] leading-relaxed text-[#B42318]">{{ $feedback['codingErrorMessage'] }}</p>
                 @endif
-                <p class="mt-1.5 text-[12px] text-[#7A271A]">Chưa chấm test nào — sửa lỗi rồi bấm "Ghi nhận bài làm" lại.</p>
+                {{-- SỬA 24/9 — nút nộp trong panel đã đổi thành "Chạy test"; chấm bài giờ bấm
+                     "Nộp bài" trên thanh trên cùng. Câu này phải gọi đúng tên nút đang có. --}}
+                <p class="mt-1.5 text-[12px] text-[#7A271A]">Chưa chấm test nào — sửa lỗi rồi bấm "Nộp bài" ở thanh trên cùng để chấm lại.</p>
                 <details class="mt-2">
                     <summary class="cursor-pointer text-[11px] font-bold text-[#B42318]">Xem toàn bộ thông báo của trình biên dịch</summary>
                     <pre class="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2 font-mono text-[11px] text-[#B42318] ring-1 ring-[#FECDCA]">{{ $feedback['codingCompileError'] }}</pre>
@@ -113,20 +115,22 @@
             </div>
 
             {{--
-                SỬA 19/9 (8) (khách: "đâu thấy được test 19 20 đâu") — BỎ max-h-[320px] +
-                overflow-y-auto ở đây.
+                SỬA 24/9 (khách: "hiển thị ô nhỏ vậy thôi rồi scroll lên xuống là được") — danh
+                sách test trở lại dạng Ô CÓ THANH CUỘN RIÊNG, cao tối đa 288px.
 
-                Lỗi cũ là CUỘN LỒNG NHAU: danh sách test tự cuộn trong một ô cao 320px, mà bản
-                thân ô 320px đó lại nằm dưới khu soạn mã cao 420px, nên nửa dưới của chính cái ô
-                đã nằm ngoài vùng nhìn thấy. Kéo chuột trong danh sách thì các dòng có chạy,
-                nhưng dòng cuối cùng nhìn thấy được luôn là dòng chạm mép cắt (Test 17/18) —
-                Test 19, 20 không bao giờ hiện ra, dù thanh cuộn bên trong đã ở đáy.
+                Lần trước (19/9) đã phải bỏ max-height vì lỗi CUỘN LỒNG NHAU: ô cao 320px nằm
+                dưới khu soạn mã cao 420px, cộng thêm nút "Hoàn tất bài tập" phía dưới, nên nửa
+                dưới của chính cái ô đã nằm ngoài vùng nhìn thấy — kéo chuột trong danh sách thì
+                dòng có chạy nhưng Test 19, 20 không bao giờ hiện ra.
 
-                Giờ danh sách đổ thẳng, chỉ còn MỘT thanh cuộn duy nhất của khung ngoài (xem
-                exercise-play.blade.php, chỗ bỏ lg:overflow-hidden), cuộn tới đâu cũng tới được,
-                kể cả nút "Hoàn tất bài tập" ở cuối.
+                Giờ an toàn vì hai việc: nút "Hoàn tất bài tập" đã bỏ hẳn, và ô thấp hơn trước
+                (288px thay vì 320px) — cả khối kết quả vừa trong tầm nhìn sau khi cuộn khung
+                ngoài xuống, nên thanh cuộn bên trong lúc nào cũng dùng được tới đáy.
+
+                CỐ Ý KHÔNG dùng overscroll-contain: cuộn hết danh sách rồi thì để trang cuộn
+                tiếp cho tự nhiên, thay vì khựng lại giữa chừng.
             --}}
-            <div class="divide-y divide-[#EEF3F6]">
+            <div class="max-h-72 divide-y divide-[#EEF3F6] overflow-y-auto">
                 @foreach ($tcs as $tc)
                     <div data-test-case-row>
                         <button type="button"
@@ -182,13 +186,12 @@
         @endif
     @endif
 
-    {{-- Bấm xong bài — nút này nằm ngoài form chấm (form lồng nhau là HTML không hợp lệ, trình
-         duyệt sẽ bỏ form trong), nên đặt ở cuối khối kết quả. --}}
-    <div class="border-t border-[#E7EFF3] bg-white p-3">
-        <button type="submit" form="practice-finish-form"
-                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">
-            Hoàn tất bài tập
-            <x-lucide name="arrow-right" class="h-3.5 w-3.5" />
-        </button>
-    </div>
+    {{-- SỬA 24/9 (khách: "bỏ nút hoàn tất bài tập đi, chấm lỗi hay chấm xong đều không cần")
+         — ĐÃ BỎ nút "Hoàn tất bài tập" ở cuối khối kết quả.
+
+         Nút đó trỏ tới student.practiceByQuestion.next (kết thúc/đi tiếp), nhưng thanh trên
+         cùng đã có sẵn "Thoát bài tập" làm đúng việc rời bài — bày hai lối ra cạnh nhau chỉ
+         làm học sinh phân vân, lại chen ngay dưới danh sách test nên hay bị bấm nhầm khi đang
+         đọc test sai. Form #practice-finish-form vẫn còn trong exercise-play.blade.php vì
+         partials.practice-answer-review (các dạng câu KHÔNG phải lập trình) vẫn dùng. --}}
 </section>

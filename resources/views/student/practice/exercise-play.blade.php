@@ -550,7 +550,11 @@
                             {{-- SỬA 18/9 — form "Hoàn tất bài tập" đặt NGOÀI form chấm bài: HTML không
                                  cho lồng <form> vào nhau (trình duyệt sẽ âm thầm bỏ form bên trong).
                                  Nút bấm nằm ở cuối khối kết quả và trỏ ngược lên đây bằng thuộc tính
-                                 form="practice-finish-form" — xem partials.practice-coding-result. --}}
+                                 form="practice-finish-form" — xem partials.practice-answer-review.
+
+                                 SỬA 24/9 — khối kết quả bài LẬP TRÌNH (partials.practice-coding-result)
+                                 đã bỏ nút này theo yêu cầu khách; form giữ lại vì các dạng câu còn lại
+                                 vẫn dùng. --}}
                             @if ($feedback !== null)
                                 <form id="practice-finish-form" method="POST" action="{{ route('student.practiceByQuestion.next') }}" class="hidden">
                                     @csrf
@@ -569,7 +573,8 @@
                             <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
                             <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
                             <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
-                            <li>· Chấm xong bấm <span class="font-bold">Hoàn tất bài tập</span> để kết thúc phiên luyện.</li>
+                            <li>· Câu lập trình: bấm <span class="font-bold">Chạy test</span> để chạy thử với dữ liệu bạn tự gõ (không tính điểm), bấm <span class="font-bold">Nộp bài</span> để chấm thật.</li>
+                            <li>· Làm xong bấm <span class="font-bold">Thoát bài tập</span> ở thanh trên cùng để kết thúc phiên luyện.</li>
                         </ul>
                         <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng bài chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của bài đang làm.</p>
                     </article>
