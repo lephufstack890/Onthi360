@@ -115,18 +115,70 @@ class AssessmentController extends Controller
     }
 
     /** student.assessment.take.submit — nộp bài, khoá lượt làm bài rồi sang trang kết quả. */
-    public function submit(Request $request, int $attempt): RedirectResponse
+    /**
+     * SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang result đâu") —
+     * nộp đề giờ trả JSON khi được gọi bằng AJAX, để màn làm bài hiện điểm NGAY trong hộp
+     * "đang chấm" thay vì đá học sinh sang một trang khác.
+     *
+     * Vẫn GIỮ NGUYÊN đường cũ (redirect sang trang kết quả) cho request thường: form nộp thật
+     * vẫn nằm trong trang, JavaScript hỏng hoặc bị chặn thì nộp bài vẫn phải chạy được — đây là
+     * thao tác không được phép lệ thuộc vào JS.
+     */
+    public function submit(Request $request, int $attempt): RedirectResponse|JsonResponse
     {
         $user = $request->user();
         $answers = $request->input('answers', []);
+        $wantsJson = $request->ajax() || $request->wantsJson();
 
         try {
             $attemptModel = $this->assessmentService->submitAttempt($user, $attempt, $answers);
         } catch (ValidationException $e) {
+            if ($wantsJson) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => collect($e->errors())->flatten()->first() ?? 'Không nộp được bài.',
+                ], 422);
+            }
+
             return redirect()->back(fallback: route('dashboard'))->withErrors($e->errors());
         }
 
+        if ($wantsJson) {
+            return response()->json(['ok' => true] + $this->attemptSummary($attemptModel));
+        }
+
         return redirect()->route('student.assessment.result', $attemptModel->id);
+    }
+
+    /**
+     * SỬA 24/9 — student.assessment.status: điểm hiện tại của một lượt làm bài, dạng JSON.
+     *
+     * Câu lập trình chấm chạy nền (App\Jobs\GradeCodingAnswerJob) nên lúc vừa nộp xong điểm
+     * mới là TẠM TÍNH. Hộp kết quả trên màn làm bài hỏi lại route này vài giây một lần để con
+     * số tự nhích lên, thay vì bắt học sinh tải lại trang.
+     */
+    public function status(Request $request, int $attempt): JsonResponse
+    {
+        $attemptModel = $this->assessmentService->attemptForUser($request->user(), $attempt);
+
+        return response()->json(['ok' => true] + $this->attemptSummary($attemptModel));
+    }
+
+    /** @return array<string, mixed> */
+    private function attemptSummary(\App\Models\Attempt $attempt): array
+    {
+        $total = $attempt->assessment?->total_points;
+
+        return [
+            'attemptId' => $attempt->id,
+            // Điểm cắt đuôi số 0 cho gọn: "30" thay vì "30.00".
+            'score' => $attempt->total_score === null
+                ? '—'
+                : rtrim(rtrim(number_format((float) $attempt->total_score, 2, '.', ''), '0'), '.'),
+            'totalPoints' => $total === null ? '—' : (string) $total,
+            'isProvisional' => (bool) $attempt->is_provisional,
+            'resultUrl' => route('student.assessment.result', $attempt->id),
+        ];
     }
 
     /** student.assessment.oj (STU-06/07) — làm câu lập trình đơn lẻ. */

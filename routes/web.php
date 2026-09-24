@@ -262,6 +262,13 @@ Route::middleware(['auth'])->group(function () {
         // mã của 1 câu trong đề với dữ liệu vào tự gõ. Không chấm điểm, xem
         // Student\AssessmentService::runCodeOnce().
         Route::post('attempts/{attempt}/run', [StudentAssessmentController::class, 'runCode'])->name('assessment.take.run');
+        /*
+         * SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang result") —
+         * điểm hiện tại của lượt làm bài, dạng JSON. Câu lập trình chấm chạy nền nên lúc vừa
+         * nộp xong điểm mới là tạm tính; hộp kết quả trên màn làm bài hỏi lại route này vài
+         * giây một lần cho con số tự nhích lên. Xem Student\AssessmentController::status().
+         */
+        Route::get('attempts/{attempt}/status', [StudentAssessmentController::class, 'status'])->name('assessment.status');
     });
 
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {

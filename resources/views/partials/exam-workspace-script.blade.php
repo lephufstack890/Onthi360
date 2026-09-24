@@ -70,6 +70,21 @@
                 expired: false,
                 submitting: false,
                 confirmOpen: false,
+                /*
+                 * SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang
+                 * result đâu") — nộp xong thì Ở LẠI màn làm bài, điểm hiện ngay trong hộp.
+                 *
+                 * submitDone  : đã có kết quả -> hộp đổi từ "đang chấm" sang "đã nộp".
+                 * submitResult: {score, totalPoints, isProvisional, resultUrl} lấy từ máy chủ.
+                 * statusUrl   : chỉ có khi view truyền vào; không có thì giữ NGUYÊN cách cũ
+                 *               (gửi form thật rồi chuyển sang trang kết quả) — phòng thi Cuộc
+                 *               thi vẫn dùng đường đó, không đụng tới.
+                 */
+                submitDone: false,
+                submitResult: { score: '—', totalPoints: '—', isProvisional: false, resultUrl: '#' },
+                statusUrl: config.statusUrl || null,
+                submitUrl: config.submitUrl || null,
+                statusTimer: null,
                 saving: false,
                 timerId: null,
                 inFlight: 0,
@@ -471,7 +486,110 @@
                 doSubmit() {
                     this.submitting = true;
                     this.syncForm();
-                    this.$nextTick(() => this.$refs.examForm.submit());
+
+                    // View không truyền submitUrl -> đường CŨ: gửi form thật, trình duyệt
+                    // chuyển sang trang kết quả. Giữ nguyên để phòng thi Cuộc thi không đổi.
+                    if (! this.submitUrl) {
+                        this.$nextTick(() => this.$refs.examForm.submit());
+
+                        return;
+                    }
+
+                    this.$nextTick(() => this.submitViaFetch());
+                },
+
+                /**
+                 * SỬA 24/9 — nộp bằng AJAX rồi hiện điểm ngay trong hộp, không rời màn hình.
+                 *
+                 * Hỏng ở bất kỳ khâu nào (mất mạng, máy chủ lỗi, phiên hết hạn) thì QUAY VỀ
+                 * cách cũ: gửi form thật. Nộp bài là thao tác không được phép mất — thà chuyển
+                 * trang còn hơn để học sinh ngồi nhìn hộp quay mãi rồi mất bài.
+                 */
+                async submitViaFetch() {
+                    try {
+                        var res = await fetch(this.submitUrl, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                            body: new FormData(this.$refs.examForm),
+                        });
+
+                        if (! res.ok) throw new Error('HTTP ' + res.status);
+
+                        var data = await res.json();
+
+                        if (! data || data.ok !== true) throw new Error('payload');
+
+                        this.submitResult = {
+                            score: data.score,
+                            totalPoints: data.totalPoints,
+                            isProvisional: data.isProvisional === true,
+                            resultUrl: data.resultUrl,
+                        };
+                        this.submitDone = true;
+
+                        // Bài đã nộp xong rồi thì đừng cảnh báo "rời phòng thi" nữa.
+                        this.warnOnLeave = false;
+
+                        if (this.submitResult.isProvisional) {
+                            this.watchGrading();
+                        }
+                    } catch (e) {
+                        this.$refs.examForm.submit();
+                    }
+                },
+
+                /**
+                 * SỬA 24/9 — câu lập trình chấm chạy nền nên điểm vừa nộp xong là TẠM TÍNH.
+                 * Hỏi lại máy chủ 3 giây một lần cho con số tự nhích lên, tối đa 2 phút rồi
+                 * thôi — chấm lâu hơn thế là có trục trặc, lúc đó trang kết quả (tự làm mới)
+                 * mới là chỗ nên xem.
+                 */
+                watchGrading() {
+                    if (! this.statusUrl) return;
+
+                    var self = this;
+                    var tries = 0;
+
+                    clearInterval(this.statusTimer);
+                    this.statusTimer = setInterval(async function () {
+                        tries++;
+
+                        if (tries > 40) {
+                            clearInterval(self.statusTimer);
+
+                            return;
+                        }
+
+                        try {
+                            var res = await fetch(self.statusUrl, {
+                                credentials: 'same-origin',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                            });
+
+                            if (! res.ok) return;
+
+                            var data = await res.json();
+
+                            if (! data || data.ok !== true) return;
+
+                            self.submitResult = {
+                                score: data.score,
+                                totalPoints: data.totalPoints,
+                                isProvisional: data.isProvisional === true,
+                                resultUrl: data.resultUrl,
+                            };
+
+                            if (! self.submitResult.isProvisional) {
+                                clearInterval(self.statusTimer);
+                            }
+                        } catch (e) {
+                            // Mạng chập chờn một nhịp thì thôi, vòng sau hỏi lại.
+                        }
+                    }, 3000);
                 },
             };
         }

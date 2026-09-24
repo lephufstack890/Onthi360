@@ -349,6 +349,17 @@ class AssessmentService
         return ['ok' => true] + $result;
     }
 
+    /**
+     * SỬA 24/9 — một lượt làm bài CỦA CHÍNH người đang đăng nhập, cho route
+     * student.assessment.status (hộp kết quả trên màn làm bài hỏi lại điểm vài giây một lần).
+     *
+     * Kiểm quyền sở hữu y như mọi chỗ khác: không tin việc "đang mở đúng màn đó" là đủ.
+     */
+    public function attemptForUser(User $user, int $attemptId): Attempt
+    {
+        return $this->ownedAttemptOrFail($user, $attemptId)->loadMissing('assessment');
+    }
+
     private function ownedAttemptOrFail(User $user, int $attemptId): Attempt
     {
         $attempt = $this->attempts->find($attemptId);

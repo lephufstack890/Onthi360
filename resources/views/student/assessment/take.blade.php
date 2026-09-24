@@ -36,6 +36,12 @@
              serverNow: @js($serverNow ?? null),
              saveUrl: @js(route('student.assessment.take.save', $attempt->id)),
              runUrl: @js(route('student.assessment.take.run', $attempt->id)),
+             {{-- SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang
+                  result đâu") — có 2 khoá này thì doSubmit() nộp bằng AJAX rồi hiện điểm ngay
+                  trong hộp, không rời màn hình. Màn nào KHÔNG truyền (phòng thi Cuộc thi) vẫn
+                  chạy đường cũ: gửi form thật, chuyển sang trang kết quả. --}}
+             submitUrl: @js(route('student.assessment.take.submit', $attempt->id)),
+             statusUrl: @js(route('student.assessment.status', $attempt->id)),
              questions: @js($vm),
              answers: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['kind'] === 'fill' ? (string) ($q['textAnswer'] ?? '') : (($q['selectedOption'] === null) ? '' : (string) $q['selectedOption'])])),
              codes: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => (string) ($q['codeSource'] ?? '')])),
@@ -408,7 +414,7 @@
              PHẢI nằm TRONG khối x-data thì x-show="submitting" mới đọc được biến. Kiểu dáng
              dùng chung với màn Luyện tập theo câu. --}}
         @include('partials.grading-overlay', [
-            'overlayMode' => 'alpine',
+            'overlayMode' => 'alpine-result',
             'overlayTitle' => 'Đang nộp và chấm bài…',
             'overlayText' => 'Các câu lập trình được máy chấm chạy qua từng bộ test. Đừng đóng cửa sổ này nhé — điểm sẽ hiện ngay khi xong.',
         ])

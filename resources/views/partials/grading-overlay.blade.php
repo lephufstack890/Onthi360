@@ -79,6 +79,59 @@
         animation: oi-grading-slide 1.15s ease-in-out infinite;
     }
 
+    /* ── Trạng thái ĐÃ CHẤM XONG (chế độ alpine-result) ── */
+    .oi-grading-done {
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #E7F6EF;
+        color: #2F8A6B;
+        animation: oi-grading-pop 0.28s cubic-bezier(.2, .9, .3, 1.3);
+    }
+    .oi-grading-done--wait { background: #EAF4F8; color: #126F91; }
+
+    .oi-grading-score {
+        margin-top: 10px;
+        font-size: 30px;
+        font-weight: 900;
+        line-height: 1.1;
+        color: #123B68;
+    }
+    .oi-grading-score small { font-size: 15px; font-weight: 700; color: #8FA3B3; }
+
+    .oi-grading-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 8px;
+    }
+    .oi-grading-btn {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        background: #126F91;
+        color: #fff;
+        border: 1px solid #126F91;
+        transition: background-color .15s ease;
+    }
+    .oi-grading-btn:hover { background: #0D5B77; }
+    .oi-grading-btn--ghost {
+        background: #fff;
+        color: #45657D;
+        border-color: #DDEAF0;
+    }
+    .oi-grading-btn--ghost:hover { background: #F4F9FB; }
+
     @keyframes oi-grading-spin { to { transform: rotate(360deg); } }
     @keyframes oi-grading-slide {
         0%   { transform: translateX(-110%); }
@@ -98,12 +151,61 @@
     }
 </style>
 
-<div id="oi-grading-overlay" class="oi-grading-overlay" role="status" aria-live="polite"
-     @if ($overlayMode === 'alpine') x-cloak x-show="submitting" @else hidden @endif>
-    <div class="oi-grading-card">
-        <div class="oi-grading-ring" aria-hidden="true"></div>
-        <p class="oi-grading-title">{{ $overlayTitle }}</p>
-        <p class="oi-grading-text">{{ $overlayText }}</p>
-        <div class="oi-grading-bar" aria-hidden="true"><span></span></div>
+@if ($overlayMode === 'alpine-result')
+    {{-- Hai trạng thái trong cùng một hộp: đang chấm -> đã xong (hiện điểm ngay tại chỗ). --}}
+    <div class="oi-grading-overlay" role="status" aria-live="polite" x-cloak x-show="submitting || submitDone">
+        <div class="oi-grading-card">
+            <template x-if="! submitDone">
+                <div>
+                    <div class="oi-grading-ring" aria-hidden="true"></div>
+                    <p class="oi-grading-title">{{ $overlayTitle }}</p>
+                    <p class="oi-grading-text">{{ $overlayText }}</p>
+                    <div class="oi-grading-bar" aria-hidden="true"><span></span></div>
+                </div>
+            </template>
+
+            <template x-if="submitDone">
+                <div>
+                    <div class="oi-grading-done" :class="submitResult.isProvisional ? 'oi-grading-done--wait' : ''" aria-hidden="true">
+                        {{-- Hai SVG riêng, bật/tắt bằng x-show. CỐ Ý KHÔNG lồng <template> vào
+                             trong <svg>: thẻ đó không thuộc mô hình nội dung của SVG, trình
+                             duyệt có thể tự đẩy nó ra ngoài và làm hỏng hình. --}}
+                        <svg x-show="! submitResult.isProvisional" xmlns="http://www.w3.org/2000/svg" width="26" height="26"
+                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <svg x-show="submitResult.isProvisional" x-cloak xmlns="http://www.w3.org/2000/svg" width="26" height="26"
+                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    </div>
+
+                    <p class="oi-grading-title"
+                       x-text="submitResult.isProvisional ? 'Đã nộp bài — đang chấm phần lập trình' : 'Đã nộp bài xong'"></p>
+
+                    <p class="oi-grading-score">
+                        <span x-text="submitResult.score"></span><small> / <span x-text="submitResult.totalPoints"></span></small>
+                    </p>
+
+                    <p class="oi-grading-text"
+                       x-text="submitResult.isProvisional
+                           ? 'Điểm tạm tính — mấy câu lập trình còn đang chạy, con số sẽ tự cập nhật ngay đây.'
+                           : 'Xem chi tiết từng câu và đáp án ở trang kết quả.'"></p>
+
+                    <div class="oi-grading-actions">
+                        <a class="oi-grading-btn oi-grading-btn--ghost" href="{{ route('student.practice.index') }}">Thoát</a>
+                        <a class="oi-grading-btn" :href="submitResult.resultUrl">Xem chi tiết</a>
+                    </div>
+                </div>
+            </template>
+        </div>
     </div>
-</div>
+@else
+    <div id="oi-grading-overlay" class="oi-grading-overlay" role="status" aria-live="polite"
+         @if ($overlayMode === 'alpine') x-cloak x-show="submitting" @else hidden @endif>
+        <div class="oi-grading-card">
+            <div class="oi-grading-ring" aria-hidden="true"></div>
+            <p class="oi-grading-title">{{ $overlayTitle }}</p>
+            <p class="oi-grading-text">{{ $overlayText }}</p>
+            <div class="oi-grading-bar" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
+@endif
