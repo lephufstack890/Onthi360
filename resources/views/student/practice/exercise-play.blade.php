@@ -255,13 +255,21 @@
                                         'text-[#2F8A6B]' => $mainPercent >= 50,
                                         'text-[#2C6BB0]' => $mainPercent < 50,
                                     ])>{{ $mainPercent }}%</p>
+                                    {{-- SỬA 24/9 (khách: "khi nộp bài trong luyện tập thì không cần hiển
+                                         thị số câu 0/.. bỏ cái này đi") — phiên luyện tập chỉ có ĐÚNG MỘT
+                                         câu, nên dòng "Đúng 0/1 câu" chẳng nói lên điều gì mà lại là thứ
+                                         học sinh đọc thấy đầu tiên sau khi nộp. Bỏ hẳn; giữ tỉ lệ TEST và
+                                         số điểm — hai con số thật sự có nghĩa với bài lập trình.
+
+                                         Phiên NHIỀU câu (nếu sau này có) vẫn cần biết đúng mấy câu, nên
+                                         dòng đó chỉ ẩn khi phiên đúng 1 câu. --}}
                                     <p class="mt-1 text-[12px] font-bold text-[#607A90]">
                                         @if ($soloTest !== null)
                                             Qua {{ $soloTest['passedTests'] }}/{{ $soloTest['totalTests'] }} test ({{ $soloTest['testPercent'] }}%)
-                                        @else
+                                        @elseif ($total > 1)
                                             Đúng {{ $correct }}/{{ $total }} câu
                                         @endif
-                                        {{ $hasPoints ? ' · '.$summary['earned'].'/'.$summary['maxPoints'].' điểm' : '' }}
+                                        {{ $hasPoints ? trim(($soloTest !== null || $total > 1) ? ' · ' : '').$summary['earned'].'/'.$summary['maxPoints'].' điểm' : '' }}
                                     </p>
 
                                     <div class="mx-auto mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-[#EAF0F3]">
@@ -272,7 +280,9 @@
                                         ]) style="width: {{ $mainPercent }}%"></div>
                                     </div>
 
-                                    @if ($answered < $total)
+                                    {{-- Cũng vì lý do trên: phiên 1 câu mà báo "Còn 1 câu bạn chưa trả
+                                         lời" thì thừa — đã bỏ trống thì tỉ lệ 0% ở trên nói rõ rồi. --}}
+                                    @if ($total > 1 && $answered < $total)
                                         <p class="mt-3 text-[11px] font-bold text-[#A4621B]">Còn {{ $total - $answered }} câu bạn chưa trả lời.</p>
                                     @endif
 
