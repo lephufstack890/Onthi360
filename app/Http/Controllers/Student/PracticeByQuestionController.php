@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\Student;
 
 use App\Enums\ContentStatus;
+use App\Enums\VerdictStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Services\AccessGateService;
 use App\Services\Student\PracticeByQuestionService;
+use App\Support\PracticeFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -126,6 +129,52 @@ class PracticeByQuestionController extends Controller
      * dùng khắp nơi trong hệ thống, ví dụ AccessService::downloadResource()) — chặn cả việc học
      * sinh tự gõ URL vào thẳng 1 bài tập của sản phẩm mình chưa mua.
      */
+    /**
+     * SỬA 24/9 (khách: "nút Làm bài ngay ở trang Luyện tập công khai — bấm vào là vào 1 câu
+     * bất ngờ random cho người ta làm") — MỞ THẲNG MỘT CÂU NGẪU NHIÊN.
+     *
+     * Trước đây nút đó dẫn sang màn setup (chọn dạng câu + chuyên đề rồi mới bắt đầu). Đúng cho
+     * người biết mình muốn luyện gì, nhưng người mới vào thì khựng lại ngay ở bước chọn — mà
+     * nút tên là "Làm bài NGAY".
+     *
+     * Bốc từ ĐÚNG kho câu mà trang công khai đang bày ra (Public\PracticeService::problemRows():
+     * đã phát hành, không thuộc sản phẩm nào, thuộc các dạng có trong danh mục luyện tập) nên
+     * không bao giờ bốc trúng câu học sinh chưa có quyền xem.
+     *
+     * ƯU TIÊN CÂU CHƯA TỪNG LÀM ĐÚNG: bốc ngẫu nhiên thuần thì người làm nhiều sẽ liên tục gặp
+     * lại bài mình đã giải xong — hết "bất ngờ". Làm hết kho rồi mới quay vòng lại toàn bộ.
+     */
+    public function random(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        $pool = fn () => Question::query()
+            ->where('status', ContentStatus::Published->value)
+            ->whereNull('product_id')
+            ->whereIn('type', array_keys(PracticeFilters::TYPE_META));
+
+        // Một truy vấn gọn thay cho whereHas lồng nhau: các câu người này đã từng làm ĐÚNG.
+        $solvedIds = DB::table('attempt_answers')
+            ->join('attempts', 'attempts.id', '=', 'attempt_answers.attempt_id')
+            ->where('attempts.user_id', $user->id)
+            ->where('attempt_answers.verdict', VerdictStatus::Accepted->value)
+            ->distinct()
+            ->pluck('attempt_answers.question_id')
+            ->all();
+
+        $question = $pool()->whereNotIn('id', $solvedIds)->inRandomOrder()->first()
+            ?? $pool()->inRandomOrder()->first();
+
+        if ($question === null) {
+            return redirect()->route('practice.index')
+                ->withErrors(['practice' => 'Kho luyện tập chưa có câu nào đang phát hành.']);
+        }
+
+        $this->service->startForQuestion($question->id, route('practice.index'), 'Về Luyện tập');
+
+        return redirect()->route('student.practiceByQuestion.play');
+    }
+
     public function startExercise(Request $request, Question $exercise): RedirectResponse
     {
         abort_if($exercise->product_id === null, 404);

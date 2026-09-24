@@ -219,6 +219,14 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('practice-by-question')->name('practiceByQuestion.')->group(function () {
             Route::get('/', [StudentPracticeByQuestionController::class, 'setup'])->name('setup');
             Route::post('/', [StudentPracticeByQuestionController::class, 'start'])->name('start');
+            /*
+             * SỬA 24/9 (khách: "nút Làm bài ngay ở trang Luyện tập public — bấm vào là vào 1
+             * câu bất ngờ random cho người ta làm") — mở thẳng MỘT câu ngẫu nhiên, bỏ qua màn
+             * chọn chuyên đề. POST vì nó GHI phiên luyện vào session, không phải chỉ đọc; để
+             * GET thì trình duyệt/trình quét link có thể tự mở và đạp mất bài đang làm dở.
+             * Xem Student\PracticeByQuestionController::random().
+             */
+            Route::post('/random', [StudentPracticeByQuestionController::class, 'random'])->name('random');
             // SỬA 31/8 ("Làm bài" 1 bài tập cụ thể của sản phẩm, từ "Tài liệu của tôi") — mở
             // phiên luyện CHỈ 1 câu (khác start() ở trên vốn xáo trộn cả pool theo tag/dạng
             // câu), có kiểm tra quyền sở hữu sản phẩm — xem

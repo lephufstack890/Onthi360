@@ -86,10 +86,27 @@
                 </p>
 
                 <div class="mt-4 flex flex-wrap items-center gap-2.5">
-                    <a href="{{ $canTakeDirectly ? route('student.practiceByQuestion.setup') : route('login') }}"
-                       class="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[11px] font-black text-[#126F91] shadow-[0_5px_12px_rgba(4,45,105,0.14)] transition hover:-translate-y-0.5 hover:bg-[#F4FBFF] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40 active:scale-[.98]">
-                        <x-lucide name="code-2" class="h-3.5 w-3.5" />Làm bài ngay<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                    </a>
+                    {{-- SỬA 24/9 (khách: "bấm vào đó thì vào 1 câu bất ngờ random cho người ta
+                         làm") — trước đây nút này dẫn sang màn chọn chuyên đề, mà tên nút là
+                         "Làm bài NGAY". Giờ bốc thẳng một câu ngẫu nhiên (ưu tiên câu chưa từng
+                         làm đúng) — xem Student\PracticeByQuestionController::random().
+
+                         Dùng form POST chứ không phải thẻ <a>: hành động này GHI phiên luyện vào
+                         session. Khách chưa đăng nhập thì vẫn là liên kết sang trang đăng nhập. --}}
+                    @if ($canTakeDirectly)
+                        <form method="POST" action="{{ route('student.practiceByQuestion.random') }}">
+                            @csrf
+                            <button type="submit"
+                                    class="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[11px] font-black text-[#126F91] shadow-[0_5px_12px_rgba(4,45,105,0.14)] transition hover:-translate-y-0.5 hover:bg-[#F4FBFF] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40 active:scale-[.98]">
+                                <x-lucide name="shuffle" class="h-3.5 w-3.5" />Làm bài ngay<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                            </button>
+                        </form>
+                    @else
+                        <a href="{{ route('login') }}"
+                           class="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[11px] font-black text-[#126F91] shadow-[0_5px_12px_rgba(4,45,105,0.14)] transition hover:-translate-y-0.5 hover:bg-[#F4FBFF] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40 active:scale-[.98]">
+                            <x-lucide name="code-2" class="h-3.5 w-3.5" />Làm bài ngay<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                        </a>
+                    @endif
                     <div class="flex min-h-9 items-center gap-1.5 rounded-lg border border-white/20 bg-white/15 px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm">
                         <x-lucide name="check-circle" class="w-4 h-4 text-emerald-300" />
                         <span>Đã hoàn thành: {{ $acCount }} bài</span>
