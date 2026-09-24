@@ -57,7 +57,26 @@ class QueueDiagnose extends Command
                 : round(($now - (int) $oldest->created_at) / 60, 1).' phút trước, đã thử '.$oldest->attempts.' lượt'));
 
             if ($pending > 0 && $reserved === 0) {
-                $this->warn('  ⚠ Có việc chờ nhưng KHÔNG máy nào đang chạy — tiến trình chấm nền không hoạt động (kiểm tra crontab).');
+                $this->warn('  ⚠ Có việc chờ nhưng KHÔNG máy nào đang chạy — tiến trình chấm nền không hoạt động.');
+            }
+
+            /*
+             * SỬA 24/9 (khách: "chấm đề hơn 1 phút") — đo luôn KHOẢNG CHẾT CHỜ NHẬN VIỆC.
+             *
+             * Chấm 1 câu chỉ ~3 giây, nhưng nếu hàng đợi do cron gọi mỗi phút thì việc nằm im
+             * trung bình 30 giây trước khi có ai ngó tới — nhiều hơn cả thời gian chấm thật.
+             * Việc cũ nhất mà chờ lâu bất thường chính là dấu hiệu đó.
+             */
+            if ($oldest !== null) {
+                $waited = $now - (int) $oldest->created_at;
+
+                if ($waited > 15) {
+                    $this->warn(sprintf(
+                        '  ⚠ Việc đã chờ %d giây mới được nhận — nhiều khả năng hàng đợi vẫn do cron gọi mỗi phút.',
+                        $waited
+                    ));
+                    $this->warn('    Chạy thường trú thì nhặt việc trong 1 giây: xem deploy/onthi360-queue@.service.');
+                }
             }
 
             $this->newLine();

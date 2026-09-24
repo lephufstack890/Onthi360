@@ -1,0 +1,66 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SỬA 24/9 (khách: "chấm đề hơn 1 phút, lâu quá — muốn dưới 30s")
+#
+# VÌ SAO CẦN FILE NÀY
+#
+# Chấm 1 câu lập trình giờ chỉ mất ~3 giây (đã đo: judge0:bench). Đề 5 câu chạy 2 luồng
+# là ~8-16 giây. Nhưng khách bấm nộp lại thấy hơn 1 phút — phần dôi ra KHÔNG nằm ở máy
+# chấm, mà ở chỗ CHỜ ĐƯỢC NHẬN VIỆC:
+#
+#   crontab chạy `queue:work --stop-when-empty` MỖI PHÚT. Nộp bài lúc 10:00:05 thì việc
+#   nằm im trong bảng `jobs` tới 10:01:00 mới có tiến trình nào ngó tới. Trung bình mất
+#   không 30 giây, xui thì 59 giây — nhiều hơn cả thời gian chấm thật.
+#
+# Tiến trình chạy thường trú (`--sleep=1`) nhặt việc trong vòng 1 giây. Cùng một máy chấm,
+# cùng một lượng việc, chỉ bỏ đi khoảng chết.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# CÁCH CÀI (chạy với quyền root trên VPS)
+#
+#   1. Chép file này vào systemd và tạo 2 tiến trình:
+#        cp /var/www/onthi360/deploy/onthi360-queue@.service /etc/systemd/system/
+#        systemctl daemon-reload
+#        systemctl enable --now onthi360-queue@1 onthi360-queue@2
+#
+#   2. GỠ 2 dòng queue:work trong crontab (`crontab -e`) — để cả hai cùng chạy là thừa
+#      tiến trình, tốn CPU của máy chấm một cách vô ích.
+#
+#   3. Kiểm tra:
+#        systemctl status onthi360-queue@1
+#        tail -f /var/www/onthi360/storage/logs/queue.log
+#
+#   4. Mỗi lần deploy code mới, nhớ nạp lại tiến trình (worker giữ code cũ trong bộ nhớ):
+#        cd /var/www/onthi360 && php artisan queue:restart
+#      Lệnh này KHÔNG giết tiến trình, nó báo worker tự thoát sau việc đang làm, rồi
+#      systemd bật lại ngay — không có bài nào bị chấm dở dang.
+#
+# LƯU Ý: User/Group phải khớp chủ sở hữu thư mục dự án. Kiểm tra bằng:
+#        stat -c '%U %G' /var/www/onthi360
+#        which php
+# rồi sửa 3 dòng User=/Group=/ExecStart cho khớp trước khi bật.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[Unit]
+Description=onthi360 — tiến trình chấm bài nền #%i
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/onthi360
+
+# --sleep=1     : hàng đợi trống thì ngủ 1 giây rồi hỏi lại -> nhặt việc gần như tức thì.
+# --tries=3     : khớp GradeCodingAnswerJob::$tries.
+# --max-time    : tự thoát sau 1 giờ cho systemd dựng lại — chống rò rỉ bộ nhớ của tiến
+#                 trình PHP sống lâu, và chắc chắn code mới được nạp.
+ExecStart=/usr/bin/php /var/www/onthi360/artisan queue:work --sleep=1 --tries=3 --max-time=3600
+
+Restart=always
+RestartSec=3
+
+StandardOutput=append:/var/www/onthi360/storage/logs/queue.log
+StandardError=append:/var/www/onthi360/storage/logs/queue.log
+
+[Install]
+WantedBy=multi-user.target

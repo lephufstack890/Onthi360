@@ -86,6 +86,10 @@
         ];
     @endphp
 
+    {{-- ⚠ TỪ ĐÂY TỚI CUỐI LÀ KHỐI ĐƯỢC THAY MỚI KHI CHẤM XONG (AJAX) — xem script cuối trang.
+         data-final: 1 = đã chấm xong, thôi hỏi lại. --}}
+    <div id="result-container" data-final="{{ $isFinal ? '1' : '0' }}">
+
     {{-- ══════ THẺ ĐẦU TRANG ══════ --}}
     <header class="relative overflow-hidden rounded-2xl border border-[#0B4E6B] bg-gradient-to-r from-[#064C99] via-[#0066CC] to-[#0891B2] px-4 py-4 shadow-[0_2px_10px_rgba(18,59,104,0.08)] sm:px-5 sm:py-5">
         <span class="pointer-events-none absolute -right-7 -top-7 h-24 w-24 rounded-full bg-white/10"></span>
@@ -120,11 +124,10 @@
             --}}
             <div class="relative mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
                 <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-white">
-                    <x-lucide name="refresh-cw" class="h-3.5 w-3.5" />Kết quả tạm tính — còn câu lập trình đang chấm
+                    <span class="oi-dot-pulse" aria-hidden="true"></span>Kết quả tạm tính — còn câu lập trình đang chấm
                 </span>
-                <span class="text-[11px] text-sky-50">Trang tự cập nhật sau vài giây.</span>
+                <span class="text-[11px] text-sky-50">Điểm tự cập nhật ngay tại đây, bạn không cần tải lại trang.</span>
             </div>
-            <meta http-equiv="refresh" content="5">
         @endif
     </header>
 
@@ -225,4 +228,96 @@
     @else
         <div class="mb-8"></div>
     @endif
+
+    </div>{{-- /#result-container --}}
 @endsection
+
+@push('scripts')
+    {{-- CSS thường: bản CSS trên máy chủ là bản build sẵn (VPS không chạy được vite). --}}
+    <style>
+        .oi-dot-pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+            animation: oi-dot-pulse 1s ease-in-out infinite;
+        }
+        @keyframes oi-dot-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: .35; transform: scale(.7); }
+        }
+    </style>
+
+    <script>
+        /*
+         * SỬA 24/9 (khách: "khi chấm đừng có load đi load lại trang mà chấm ngầm xong tự ajax
+         * rồi cập nhật điểm đi, chứ load đi load lại trải nghiệm không tốt").
+         *
+         * TRƯỚC ĐÂY trang này dùng <meta http-equiv="refresh" content="5">: cứ 5 giây tải lại
+         * TOÀN BỘ trang — màn hình chớp trắng, vị trí cuộn nhảy về đầu, ai đang đọc dở test sai
+         * thì mất chỗ. Mà nó tải lại kể cả khi chưa có gì thay đổi.
+         *
+         * GIỜ: hỏi lại chính trang này bằng fetch rồi CHỈ thay ruột #result-container. Không
+         * chớp, không mất vị trí cuộn, và tự dừng hẳn khi chấm xong (data-final="1").
+         *
+         * Cố ý tải lại HTML của chính trang thay vì dựng một API JSON riêng: điểm, nhãn verdict,
+         * số test, màu sắc... đã có đúng một nơi sinh ra ở Blade. Thêm API nữa là thêm một bản
+         * sao của cùng logic, rồi hai bên lệch nhau lúc nào không biết.
+         */
+        (function () {
+            var INTERVAL_MS = 4000;
+            var MAX_TRIES = 45; // ~3 phút rồi thôi; lâu hơn thế là máy chấm có trục trặc.
+
+            var tries = 0;
+            var timer = null;
+
+            function container() {
+                return document.getElementById('result-container');
+            }
+
+            function done() {
+                var el = container();
+
+                return ! el || el.getAttribute('data-final') === '1';
+            }
+
+            async function tick() {
+                tries++;
+
+                if (tries > MAX_TRIES || done()) {
+                    clearInterval(timer);
+
+                    return;
+                }
+
+                try {
+                    var res = await fetch(window.location.href, {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        cache: 'no-store',
+                    });
+
+                    if (! res.ok) return;
+
+                    var html = await res.text();
+                    var fresh = new DOMParser().parseFromString(html, 'text/html')
+                        .querySelector('#result-container');
+                    var current = container();
+
+                    if (! fresh || ! current) return;
+
+                    current.replaceWith(fresh);
+
+                    if (done()) clearInterval(timer);
+                } catch (e) {
+                    // Mạng chập chờn một nhịp thì thôi, vòng sau hỏi lại.
+                }
+            }
+
+            if (! done()) {
+                timer = setInterval(tick, INTERVAL_MS);
+            }
+        })();
+    </script>
+@endpush
