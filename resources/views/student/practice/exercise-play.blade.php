@@ -391,14 +391,11 @@
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- SỬA 18/9 (khách: "chỗ chạy test không được") — nút này trước
-                                                         đây bị khoá cứng vì CHƯA có route chạy thử. Giờ đã có
-                                                         student.practiceByQuestion.run (chạy thật trên Judge0 với dữ
-                                                         liệu vào tự gõ, không chấm điểm) — xem script cuối trang. --}}
-                                                    <button type="button" data-run-test
-                                                            data-run-url="{{ route('student.practiceByQuestion.run') }}"
-                                                            title="Chạy thử mã với dữ liệu vào bên dưới (không tính điểm)"
-                                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50"><x-lucide name="play" class="h-3.5 w-3.5" /><span data-run-test-label>Chạy test</span></button>
+                                                    {{-- SỬA 24/9 (khách: "xoá nút chạy test đó đi, thay nút ghi nhận
+                                                         bài làm thành nút chạy test") — nút "Chạy test" 10px nhét ở
+                                                         góc này quá kín, học sinh không thấy. Đã chuyển xuống thành
+                                                         nút chạy hết chiều ngang dưới ô OUTPUT. --}}
+                                                    <span class="text-[10px] font-bold text-[#7A92A3]">Dữ liệu bạn tự gõ để chạy thử</span>
                                                 </div>
                                                 {{-- KHÔNG đổ sẵn test từ database: test_cases là test CHẤM ĐIỂM, không có
                                                      cờ phân biệt test mẫu/test ẩn. --}}
@@ -414,11 +411,22 @@
                                                 </div>
                                                 <pre data-run-output class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
                                                 <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
-                                                    {{-- Đã chấm 1 lần rồi thì đổi chữ: học sinh sửa code xong bấm lại
-                                                         là chấm lại, không phải rời màn hình đi đâu cả. --}}
-                                                    <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
-                                                        <x-lucide name="send" class="h-3.5 w-3.5" />{{ $feedback !== null ? 'Chấm lại' : 'Ghi nhận bài làm' }}
+                                                    {{-- SỬA 24/9 (khách) — CHỖ NÀY GIỜ LÀ "CHẠY TEST".
+                                                         Chạy thử với dữ liệu tự gõ, KHÔNG tính điểm, bấm bao nhiêu
+                                                         lần cũng được. Muốn chấm thì bấm "Nộp bài" ở thanh trên. --}}
+                                                    <button type="button" data-run-test
+                                                            data-run-url="{{ route('student.practiceByQuestion.run') }}"
+                                                            title="Chạy thử mã với dữ liệu vào ở ô Input (không tính điểm)"
+                                                            class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50">
+                                                        <x-lucide name="play" class="h-3.5 w-3.5" /><span data-run-test-label>Chạy test</span>
                                                     </button>
+                                                    <p class="mt-1.5 text-center text-[10px] text-[#7A92A3]">Chạy thử không tính điểm — chấm bài thì bấm <span class="font-bold text-[#126F91]">Nộp bài</span> ở trên.</p>
+
+                                                    {{-- Nút nộp THẬT của form: ẩn đi nhưng PHẢI còn trong DOM —
+                                                         nút "Nộp bài" trên thanh header hoạt động bằng cách bấm hộ
+                                                         nút này (xem panelButton() ở script cuối trang), và trình
+                                                         duyệt cũng cần một nút submit để bắt phím Enter. --}}
+                                                    <button type="submit" class="hidden" tabindex="-1" aria-hidden="true">{{ $feedback !== null ? 'Chấm lại' : 'Nộp bài' }}</button>
                                                     <p data-ajax-error class="mt-2 hidden text-center text-[11px] text-[#B42318]"></p>
                                                 </div>
                                             </section>
@@ -584,6 +592,27 @@
         </div>
         </div>
     </div>
+
+    {{-- ══════════════════ SỬA 24/9 — MÀN "ĐANG CHẤM" ══════════════════
+         Khách: "khi click nộp bài thì nó phải hiển thị popup đang xoay xoay để họ biết là bài
+         đang chấm".
+
+         Trước đây lúc chấm chỉ có mỗi nút đổi chữ thành "Đang chấm..." — mà từ khi nút nộp thật
+         bị ẩn đi (nộp bằng nút trên thanh header) thì KHÔNG CÒN DẤU HIỆU NÀO: bấm xong màn hình
+         đứng im vài chục giây, học sinh tưởng treo rồi bấm lại.
+
+         Đặt NGOÀI #practice-container — khối đó bị thay mới sau mỗi lần chấm, để trong đó thì
+         lớp phủ biến mất giữa chừng. Dựng bằng CSS thường chứ không dùng class Tailwind, cùng lý
+         do với .oi-btn-spinner ở dưới: bản CSS trên máy chủ là bản build sẵn, class mới thêm sẽ
+         không có trong đó. --}}
+    <div id="oi-grading-overlay" class="oi-grading-overlay" hidden role="status" aria-live="polite">
+        <div class="oi-grading-card">
+            <div class="oi-grading-ring" aria-hidden="true"></div>
+            <p class="oi-grading-title">Đang chấm bài của bạn…</p>
+            <p class="oi-grading-text">Máy chấm đang chạy chương trình qua từng bộ test. Bài nhiều test có thể mất một lúc — đừng đóng cửa sổ này nhé.</p>
+            <div class="oi-grading-bar" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
@@ -612,6 +641,95 @@
         }
         @keyframes oi-btn-spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* ── Màn "đang chấm" (SỬA 24/9) ── */
+        .oi-grading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(12, 44, 66, 0.55);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            animation: oi-grading-fade 0.18s ease-out;
+        }
+        .oi-grading-overlay[hidden] { display: none; }
+
+        .oi-grading-card {
+            width: 100%;
+            max-width: 340px;
+            border-radius: 20px;
+            background: #fff;
+            padding: 28px 24px 24px;
+            text-align: center;
+            box-shadow: 0 18px 50px rgba(12, 44, 66, 0.28);
+            animation: oi-grading-pop 0.22s cubic-bezier(.2, .9, .3, 1.2);
+        }
+
+        .oi-grading-ring {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            border: 4px solid #E3EFF4;
+            border-top-color: #126F91;
+            border-right-color: #2F8A6B;
+            animation: oi-btn-spin 0.85s linear infinite;
+        }
+
+        .oi-grading-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #123B68;
+        }
+
+        .oi-grading-text {
+            margin-top: 6px;
+            font-size: 11.5px;
+            line-height: 1.6;
+            color: #607A90;
+        }
+
+        /* Thanh chạy tới chạy lui: không phải tiến độ thật (máy chấm không báo % nào),
+           chỉ để màn hình có nhịp sống, khỏi trông như bị treo. */
+        .oi-grading-bar {
+            margin-top: 18px;
+            height: 4px;
+            border-radius: 999px;
+            background: #EDF4F7;
+            overflow: hidden;
+        }
+        .oi-grading-bar > span {
+            display: block;
+            width: 40%;
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #126F91, #2F8A6B);
+            animation: oi-grading-slide 1.15s ease-in-out infinite;
+        }
+
+        @keyframes oi-grading-slide {
+            0%   { transform: translateX(-110%); }
+            100% { transform: translateX(260%); }
+        }
+        @keyframes oi-grading-fade {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes oi-grading-pop {
+            from { opacity: 0; transform: translateY(10px) scale(.96); }
+            to   { opacity: 1; transform: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .oi-grading-overlay,
+            .oi-grading-card { animation: none; }
+            .oi-grading-ring { animation-duration: 2s; }
+            .oi-grading-bar > span { animation: none; width: 100%; }
         }
     </style>
 
@@ -672,6 +790,20 @@
         // trực tiếp vào 1 form cố định) vì form thật sự tồn tại lúc chạy đoạn script này có thể
         // bị THAY MỚI hoàn toàn sau mỗi lần nộp bài (xem replaceWith() bên dưới) — gắn listener
         // kiểu delegation thì luôn bắt được form MỚI mà không cần gắn lại tay.
+        /**
+         * SỬA 24/9 — bật/tắt màn "đang chấm" (xem khối #oi-grading-overlay ở cuối phần thân).
+         *
+         * Khoá cuộn trang lúc đang bật: lớp phủ che hết màn hình rồi, cuộn phía sau chỉ gây
+         * cảm giác trang bị rơi vỡ.
+         */
+        function showGradingOverlay(on) {
+            var overlay = document.getElementById('oi-grading-overlay');
+            if (!overlay) return;
+
+            overlay.hidden = !on;
+            document.documentElement.style.overflow = on ? 'hidden' : '';
+        }
+
         document.addEventListener('submit', function (event) {
             var form = event.target;
             if (!(form instanceof HTMLFormElement) || !form.matches('[data-ajax-answer]')) return;
@@ -690,6 +822,11 @@
                 button.disabled = true;
                 button.innerHTML = '<span class="oi-btn-spinner"></span>Đang chấm...';
             }
+
+            // SỬA 24/9 — bật màn "đang chấm". Nút nộp thật giờ ẩn (nộp bằng nút trên thanh
+            // header) nên lớp phủ này là DẤU HIỆU DUY NHẤT cho biết máy đang chạy; thiếu nó là
+            // học sinh tưởng treo rồi bấm nộp lại.
+            showGradingOverlay(true);
 
             fetch(form.action, {
                 method: 'POST',
@@ -720,8 +857,11 @@
 
                     oldContainer.replaceWith(newContainer);
                     initCodeEditor();
+                    showGradingOverlay(false);
                 })
                 .catch(function () {
+                    showGradingOverlay(false);
+
                     if (button) {
                         button.disabled = false;
                         button.innerHTML = originalButtonHtml;
@@ -812,7 +952,14 @@
                 var answering = container ? container.querySelector('form[data-ajax-answer]') : null;
                 var target = panelButton();
                 headerBtn.disabled = target === null;
-                labelEl.textContent = answering ? 'Nộp bài' : (target ? 'Hoàn tất bài tập' : 'Đã xong');
+
+                // SỬA 24/9 — lấy chữ ngay trên nút nộp thật (giờ đã ẩn) nên chấm xong nút
+                // header tự đổi thành "Chấm lại", khớp với việc học sinh sửa code rồi chấm tiếp.
+                var targetLabel = target ? target.textContent.trim() : '';
+
+                labelEl.textContent = answering
+                    ? (targetLabel !== '' ? targetLabel : 'Nộp bài')
+                    : (target ? 'Hoàn tất bài tập' : 'Đã xong');
             }
 
             headerBtn.addEventListener('click', function () {
