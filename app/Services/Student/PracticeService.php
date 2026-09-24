@@ -135,6 +135,14 @@ class PracticeService
                         'takeRoute' => $isSelfPractice
                             ? route('practice.index')
                             : route('student.assessment.result', $attempt->id),
+                        // SỬA 24/9 (khách: "chưa hiển thị được chuyên đề nào") — cột Chuyên đề
+                        // của mục Lịch sử trước đây LUÔN rỗng vì nhánh này không gắn 'topics'
+                        // như các mục khác (xem withQuestionMeta()). Lượt làm đề lấy tag từ các
+                        // câu TRONG ĐỀ; lượt tự luyện không thuộc đề nào nên lấy từ chính các
+                        // câu đã làm.
+                        'topics' => $this->attemptTopics($attempt, $isSelfPractice),
+                        // SỬA 24/9 (khách: "thêm cột làm thời gian trong bao lâu").
+                        'duration' => self::durationLabel($attempt->started_at, $attempt->submitted_at),
                     ];
                 })->items(),
             default => $this->assessments->publishedPractice(30)
@@ -191,6 +199,55 @@ class PracticeService
      * tags(), xem class docblock) vào 1 item danh sách — dùng để lọc theo dạng câu hỏi/chuyên
      * đề mà KHÔNG cần truy vấn DB thêm (đã eager-load items.question.tags ở repository).
      */
+    /**
+     * SỬA 24/9 — CHUYÊN ĐỀ của một lượt làm bài, cho cột "Chuyên đề" ở mục Lịch sử.
+     *
+     * Lượt làm ĐỀ: gom tag của mọi câu trong đề. Lượt TỰ LUYỆN (assessment_id = null, xem
+     * Student\PracticeByQuestionService::recordSubmission()): gom tag của chính những câu học
+     * sinh đã làm. Cả hai nguồn đều đã eager-load ở AttemptRepository::paginateSubmittedForUser()
+     * nên hàm này KHÔNG bắn thêm truy vấn nào.
+     *
+     * @return array<int, string>
+     */
+    private function attemptTopics($attempt, bool $isSelfPractice): array
+    {
+        $topics = [];
+
+        $questions = $isSelfPractice
+            ? collect($attempt->answers ?? [])->map(fn ($a) => $a->question)
+            : collect($attempt->assessment?->items ?? [])->map(fn ($i) => $i->question);
+
+        foreach ($questions as $question) {
+            foreach ($question?->tags ?? [] as $tag) {
+                $topics[$tag->name] = true;
+            }
+        }
+
+        return array_keys($topics);
+    }
+
+    /**
+     * SỬA 24/9 (khách: "thêm cột làm thời gian trong bao lâu") — khoảng thời gian làm bài, viết
+     * cho người đọc chứ không phải số thô: dưới 1 phút ghi theo giây, từ 60 phút trở lên tách
+     * giờ và phút. Cùng luật với trang Kết quả (student/assessment/result.blade.php) để hai nơi
+     * không nói hai kiểu về cùng một lượt làm.
+     */
+    private static function durationLabel($startedAt, $submittedAt): ?string
+    {
+        if ($startedAt === null || $submittedAt === null) {
+            return null;
+        }
+
+        $seconds = max(0, (int) round($startedAt->diffInSeconds($submittedAt)));
+        $minutes = intdiv($seconds, 60);
+
+        return match (true) {
+            $minutes < 1 => $seconds.' giây',
+            $minutes < 60 => $minutes.' phút',
+            default => intdiv($minutes, 60).' giờ '.($minutes % 60).' phút',
+        };
+    }
+
     private function withQuestionMeta(array $item, ?Assessment $assessment): array
     {
         $types = [];

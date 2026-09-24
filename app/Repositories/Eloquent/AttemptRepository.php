@@ -28,7 +28,13 @@ class AttemptRepository extends EloquentRepository implements AttemptRepositoryI
         return $this->query()
             ->where('user_id', $userId)
             ->whereNotNull('submitted_at')
-            ->with('assessment')
+            // SỬA 24/9 (khách: "chưa hiển thị được chuyên đề nào") — nạp sẵn tag của các câu
+            // trong đề VÀ của các câu đã làm ở lượt tự luyện, để trang Lịch sử điền được cột
+            // Chuyên đề mà không bắn thêm truy vấn cho từng dòng.
+            ->with([
+                'assessment.items.question.tags',
+                'answers.question.tags',
+            ])
             ->withCount('answers')
             ->latest('submitted_at')
             ->orderByDesc('id')

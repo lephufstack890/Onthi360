@@ -103,15 +103,19 @@
     @if ($isHistory)
         {{-- ══════ LỊCH SỬ LÀM BÀI ══════ --}}
         <div class="mt-3 mb-6 divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
+            {{-- SỬA 24/9 (khách: "bỏ cột hành động đi", "thêm cột làm thời gian trong bao lâu")
+                 — bỏ cột Hành động, cả DÒNG giờ là một liên kết đi thẳng tới trang kết quả
+                 (vùng bấm rộng hơn hẳn cái nút cũ), chỗ trống dành cho cột Thời gian làm. --}}
             <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid lg:grid-cols-[minmax(0,1fr)_180px_170px_150px]">
                 <span>Bài đã nộp</span>
                 <span>Chuyên đề</span>
+                <span>Thời gian làm</span>
                 <span>Kết quả</span>
-                <span class="text-right">Hành động</span>
             </div>
 
             @forelse ($items as $it)
-                <div class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-3 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 lg:grid-cols-[minmax(0,1fr)_180px_170px_150px] lg:items-center">
+                <a href="{{ $it['takeRoute'] ?? $catalogHref }}"
+                   class="group grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-3 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 lg:grid-cols-[minmax(0,1fr)_180px_170px_150px] lg:items-center">
                     <div class="min-w-0">
                         <p class="line-clamp-2 text-[14px] font-semibold leading-5 text-[#123B68]">{{ $it['typeIcon'] ?? '' }} {{ $it['title'] }}</p>
                         <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#6B8295]">
@@ -135,17 +139,26 @@
                     </div>
 
                     <div class="min-w-0">
-                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Kết quả</span>
-                        <x-ws.badge :tone="$it['tone'] ?? 'info'">{{ $it['status'] }}</x-ws.badge>
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Thời gian làm</span>
+                        @if (! empty($it['duration']))
+                            <span class="inline-flex items-center gap-1 text-[12px] font-semibold text-[#45657D]">
+                                <x-lucide name="clock" class="h-3 w-3 shrink-0 text-[#8FA3B3]" />{{ $it['duration'] }}
+                            </span>
+                        @else
+                            <span class="text-[12px] text-[#8FA3B3]">—</span>
+                        @endif
                     </div>
 
-                    <div class="lg:text-right">
-                        <a href="{{ $it['takeRoute'] ?? $catalogHref }}"
-                           class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3.5 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
-                            Xem kết quả<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                        </a>
+                    <div class="flex min-w-0 items-center justify-between gap-2">
+                        <span class="min-w-0">
+                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Kết quả</span>
+                            <x-ws.badge :tone="$it['tone'] ?? 'info'">{{ $it['status'] }}</x-ws.badge>
+                        </span>
+                        {{-- Mũi tên thay cho nút "Xem kết quả" cũ: vẫn nói được "bấm vào đây"
+                             mà không chiếm hẳn một cột. --}}
+                        <x-lucide name="chevron-right" class="h-4 w-4 shrink-0 text-[#8FA3B3] transition-colors group-hover:text-[#126F91]" />
                     </div>
-                </div>
+                </a>
             @empty
                 <div class="px-4 py-12 text-center">
                     <span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="history" class="h-5 w-5" /></span>
