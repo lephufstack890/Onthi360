@@ -1,4 +1,4 @@
-@extends('layouts.student')
+@extends('layouts.workspace-auto')
 
 @section('title', 'Luyện tập')
 @section('page-title', 'Luyện tập')

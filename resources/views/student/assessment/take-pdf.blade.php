@@ -1,4 +1,4 @@
-@extends('layouts.student')
+@extends('layouts.workspace-auto')
 
 @section('title', 'Làm bài')
 @section('page-title', '')

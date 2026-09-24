@@ -7,7 +7,7 @@
   TODO controller: truyền $gates thật từ App\Services\AccessGateService
   (mỗi gate là 1 App\Support\AccessDecision).
 --}}
-@extends('layouts.student')
+@extends('layouts.workspace-auto')
 
 @section('title', 'Bài bị khóa')
 @section('page-title', '')

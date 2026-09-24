@@ -6,7 +6,7 @@
   App\Services\Access\AccessService::myAccessData().
 
   SỬA 14/9 — CHỈ ĐỔI GIAO DIỆN, KHÔNG ĐỔI LOGIC:
-    · Trước đây @extends('layouts.student') nên giáo viên / phụ huynh mở trang này cũng bị
+    · Trước đây @extends('layouts.workspace-auto') nên giáo viên / phụ huynh mở trang này cũng bị
       đưa vào vỏ khu học sinh. Giờ khung khu làm việc chọn theo đúng vai trò người đang
       đăng nhập (như Ví token, Kích hoạt mã, Lịch sử đặt mua).
     · Dựng lại theo bộ thẻ x-ws.*; vẫn nguyên $tab / $tabs / $rights và mọi khoá bên trong.
