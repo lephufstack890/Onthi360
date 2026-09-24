@@ -14,6 +14,21 @@
     $tcTotal = count($tcs);
     $tcFailed = collect($tcs)->reject(fn ($t) => $t['isAccepted'])->values();
     $passPercent = $tcTotal > 0 ? (int) round($tcPassed / $tcTotal * 100) : 0;
+
+    /*
+     * SỬA 24/9 (khách: "sao giờ chấm sai hết thế này") — BẮT ĐÚNG MỘT CÁI BẪY IM LẶNG.
+     *
+     * Hiện trường hôm nay: bài dùng freopen("TONG.INP"/"TONG.OUT") nhưng đề lại khai vào/ra
+     * CHUẨN. freopen vào file không tồn tại thì THẤT BẠI VÀ ĐÓNG LUÔN stdin (cin chết), còn
+     * freopen ra file thì THÀNH CÔNG (nó tự tạo file) — thế là mọi thứ cout in ra chui hết vào
+     * file, màn hình trống trơn. Máy chấm chỉ đọc màn hình nên sai sạch 20 test, mỗi test đều
+     * ghi "(không có gì)".
+     *
+     * Nhìn vào bảng kết quả thì không tài nào đoán ra. Sai TẤT CẢ các test mà test nào cũng
+     * không in ra chữ nào là một dấu hiệu rất riêng — nói thẳng cho học sinh chỗ cần xem.
+     */
+    $allFailed = $tcTotal > 0 && $tcPassed === 0;
+    $allSilent = $allFailed && collect($tcs)->every(fn ($t) => trim((string) ($t['actualOutput'] ?? '')) === '');
 @endphp
 
 <section class="flex min-w-0 flex-col overflow-hidden rounded-xl bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)] ring-1 ring-[#DDEAF0]">
@@ -86,6 +101,17 @@
                 @endif
             </div>
         </div>
+
+        @if ($allSilent)
+            <div class="flex items-start gap-3 border-t border-[#E7EFF3] bg-amber-50 px-4 py-3">
+                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
+                <div class="min-w-0 text-[12px] leading-relaxed text-amber-900">
+                    <p class="font-bold">Chương trình chạy xong nhưng không in ra gì — ở tất cả các test.</p>
+                    <p class="mt-1">Hay gặp nhất là do <span class="font-mono font-bold">freopen</span>: bài này nhận dữ liệu qua <span class="font-bold">màn hình (nhập/xuất chuẩn)</span>, mà mã của bạn lại đang đọc/ghi ra tệp. Khi đó <span class="font-mono">freopen</span> đọc tệp sẽ thất bại và làm <span class="font-mono">cin</span> chết, còn <span class="font-mono">freopen</span> ghi tệp lại thành công — nên kết quả chui hết vào tệp thay vì ra màn hình.</p>
+                    <p class="mt-1">Bỏ hai dòng <span class="font-mono">freopen</span> đi, dùng thẳng <span class="font-mono">cin</span> / <span class="font-mono">cout</span> là chạy được.</p>
+                </div>
+            </div>
+        @endif
 
         @if ($tcTotal > 0)
             {{-- ── Dải ô vuông: liếc một cái là thấy hỏng ở quãng nào ── --}}
