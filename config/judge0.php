@@ -50,4 +50,36 @@ return [
         'python' => (int) env('JUDGE0_LANGUAGE_ID_PYTHON', 71),
     ],
 
+    /*
+     |--------------------------------------------------------------------------
+     | CHẤM GỘP — biên dịch 1 lần, chạy hết test (SỬA 24/9)
+     |--------------------------------------------------------------------------
+     |
+     | Khách: "chấm lâu quá, muốn 3-6s/bài". Cách chấm cũ gửi MỖI TEST là MỘT bài nộp riêng,
+     | nên bài 20 test bắt Judge0 BIÊN DỊCH LẠI 20 LẦN cùng một file — đo thực tế 1,15 giây
+     | mỗi lần với bits/stdc++.h, tức ~23 giây chỉ để biên dịch, cộng ~6 giây phụ phí dựng 20
+     | hộp cách ly. Chương trình chạy thật chỉ tốn 0,03 giây.
+     |
+     | Chấm gộp gửi ĐÚNG MỘT bài nộp kiểu "Multi-file program" của Judge0: một gói ZIP gồm mã
+     | nguồn, toàn bộ dữ liệu vào, và 2 script `compile`/`run`. Judge0 biên dịch một lần rồi
+     | script tự lặp qua từng test. 20 lần biên dịch + 20 hộp -> còn 1.
+     |
+     | Bật/tắt bằng .env, KHÔNG phải sửa mã: chạy không ổn thì đặt lại false là về y như cũ.
+     | Trước khi bật trên máy thật, chạy `php artisan judge0:compare-bundled <id câu>` để chấm
+     | cùng một bài bằng cả hai đường rồi so từng test — khớp hết mới bật.
+     |
+     | Yêu cầu phía Judge0: ENABLE_ADDITIONAL_FILES=true trong judge0.conf.
+     */
+    'bundled_run' => (bool) env('JUDGE0_BUNDLED_RUN', false),
+
+    // 89 = "Multi-file program" của Judge0 CE 1.13.x. Kiểm lại bằng GET {base_url}/languages/all.
+    'multifile_language_id' => (int) env('JUDGE0_LANGUAGE_ID_MULTIFILE', 89),
+
+    /*
+     | Tổng dung lượng dữ liệu vào tối đa được nhét vào gói ZIP (byte). Vượt mức này thì TỰ
+     | QUAY VỀ cách chấm từng test — gói quá to sẽ đụng MAX_EXTRACT_SIZE của Judge0 và hỏng cả
+     | lượt chấm, thà chấm chậm còn hơn chấm trượt.
+     */
+    'bundled_max_input_bytes' => (int) env('JUDGE0_BUNDLED_MAX_INPUT_BYTES', 4194304),
+
 ];

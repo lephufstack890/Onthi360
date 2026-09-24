@@ -18,6 +18,103 @@ class Judge0Client
      *
      * @throws RuntimeException 
      */
+    /**
+     * SỬA 24/9 (khách: "chấm lâu quá, muốn 3-6s/bài") — CHẤM GỘP: gửi ĐÚNG MỘT bài nộp kiểu
+     * "Multi-file program" của Judge0 (một gói ZIP gồm mã nguồn + toàn bộ dữ liệu vào + 2
+     * script compile/run), thay cho việc gửi mỗi test một bài nộp.
+     *
+     * Vì sao: đo thật trên máy chủ ngày 24/9 — 1 bài nộp mất 3,09 giây, trong đó CHẠY chương
+     * trình chỉ 0,01 giây; toàn bộ phần còn lại là biên dịch (~2 giây với bits/stdc++.h) cộng
+     * phụ phí dựng hộp cách ly (~1 giây). Nhân 20 test thành 28,9 giây. Gộp lại một bài nộp
+     * thì biên dịch 1 lần, phụ phí 1 lần -> về đúng ~3 giây.
+     *
+     * Yêu cầu ENABLE_ADDITIONAL_FILES=true trong judge0.conf.
+     *
+     * @param  string  $zipBinary  Nội dung NHỊ PHÂN của gói ZIP (chưa base64 — hàm này tự mã hoá).
+     * @return array{stdout:?string, stderr:?string, compile_output:?string, status:array{id:int,description:string}, time:?string, memory:?int}
+     *
+     * @throws RuntimeException khi không gọi được Judge0 hoặc chờ quá lâu.
+     */
+    public function runBundled(string $zipBinary, float $cpuTimeLimit, float $wallTimeLimit, int $memoryLimit): array
+    {
+        $languageId = (int) config('judge0.multifile_language_id');
+        $connectTimeout = (int) config('judge0.connect_timeout');
+        $perRequestTimeout = max(10, min(30, $connectTimeout + 20));
+
+        // Chờ tối đa = đúng ngân sách đã cấp cho bài nộp, cộng biên an toàn cho lúc máy chấm
+        // đang bận (bài nằm hàng đợi Redis chưa tới lượt).
+        $totalWaitSeconds = (int) min(300, $wallTimeLimit + 30);
+        @set_time_limit($totalWaitSeconds + $perRequestTimeout + 10);
+
+        $baseUrl = rtrim((string) config('judge0.base_url'), '/');
+        $headers = [(string) config('judge0.auth_header') => (string) config('judge0.auth_token')];
+
+        $client = fn () => Http::baseUrl($baseUrl)->withHeaders($headers)
+            ->timeout($perRequestTimeout)->connectTimeout($connectTimeout);
+
+        try {
+            $createResponse = $client()->post('/submissions?base64_encoded=true&wait=false', [
+                // Ngôn ngữ 89 lấy mã nguồn từ trong gói ZIP; trường này chỉ để Judge0 khỏi từ chối.
+                'source_code' => base64_encode(''),
+                'language_id' => $languageId,
+                'additional_files' => base64_encode($zipBinary),
+                'cpu_time_limit' => $cpuTimeLimit,
+                'wall_time_limit' => $wallTimeLimit,
+                'memory_limit' => $memoryLimit,
+            ]);
+        } catch (Throwable $e) {
+            throw new RuntimeException('Không kết nối được máy chấm Judge0 (chấm gộp): '.$e->getMessage(), previous: $e);
+        }
+
+        if ($createResponse->failed()) {
+            throw new RuntimeException('Máy chấm Judge0 trả lỗi HTTP '.$createResponse->status().' khi tạo bài nộp gộp: '.$createResponse->body());
+        }
+
+        $token = (string) ($createResponse->json('token') ?? '');
+
+        if ($token === '') {
+            throw new RuntimeException('Máy chấm Judge0 không trả về token cho bài nộp gộp.');
+        }
+
+        $deadlineAt = microtime(true) + $totalWaitSeconds;
+
+        while (true) {
+            try {
+                $pollResponse = $client()->get('/submissions/'.$token, [
+                    'base64_encoded' => 'true',
+                    'fields' => self::RESULT_FIELDS,
+                ]);
+            } catch (Throwable $e) {
+                throw new RuntimeException('Không kết nối được máy chấm Judge0 (khi chờ kết quả gộp): '.$e->getMessage(), previous: $e);
+            }
+
+            if ($pollResponse->failed()) {
+                throw new RuntimeException('Máy chấm Judge0 trả lỗi HTTP '.$pollResponse->status().' khi chờ kết quả gộp: '.$pollResponse->body());
+            }
+
+            $r = (array) $pollResponse->json();
+            $statusId = (int) ($r['status']['id'] ?? 1);
+
+            // 1 = In Queue, 2 = Processing. Lớn hơn 2 là đã xong (dù đúng hay sai).
+            if ($statusId > 2) {
+                return [
+                    'stdout' => isset($r['stdout']) ? base64_decode((string) $r['stdout']) : null,
+                    'stderr' => isset($r['stderr']) ? base64_decode((string) $r['stderr']) : null,
+                    'compile_output' => isset($r['compile_output']) ? base64_decode((string) $r['compile_output']) : null,
+                    'status' => $r['status'] ?? ['id' => 13, 'description' => 'Internal Error'],
+                    'time' => $r['time'] ?? null,
+                    'memory' => $r['memory'] ?? null,
+                ];
+            }
+
+            if (microtime(true) >= $deadlineAt) {
+                throw new RuntimeException("Máy chấm Judge0 chấm quá lâu (gộp), chưa xong sau {$totalWaitSeconds}s.");
+            }
+
+            usleep(self::POLL_INTERVAL_US);
+        }
+    }
+
     public function runBatch(array $submissions): array
     {
         if ($submissions === []) {

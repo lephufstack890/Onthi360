@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\VerdictStatus;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Throwable;
 
 class CodeJudgingService
 {
@@ -32,6 +34,26 @@ class CodeJudgingService
         $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
         $wallTimeLimit = min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10);
         $memoryLimit = min((int) config('judge0.max_memory_limit_kb'), max(16384, $memoryLimitKb));
+
+        /*
+         * SỬA 24/9 (khách: "chấm lâu quá, muốn 3-6s/bài") — thử CHẤM GỘP trước.
+         *
+         * Đo thật trên máy chủ: 1 bài nộp 3,09 giây mà chạy chương trình chỉ 0,01 giây — phần
+         * còn lại là biên dịch + dựng hộp cách ly. Gửi 20 test = 20 bài nộp = 28,9 giây. Chấm
+         * gộp gửi đúng 1 bài nộp (biên dịch 1 lần, script tự lặp qua 20 test) -> ~3 giây.
+         *
+         * Trả null nghĩa là "không gộp được lượt này" (ngôn ngữ lạ, thiếu ext-zip, dữ liệu vào
+         * quá to, ngân sách thời gian vượt trần Judge0, hoặc gói chạy ra kết quả không đọc được)
+         * — khi đó rơi xuống cách chấm cũ ngay bên dưới. CỐ Ý không ném lỗi: thà chấm chậm còn
+         * hơn không chấm được.
+         */
+        if ((bool) config('judge0.bundled_run')) {
+            $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo);
+
+            if ($bundled !== null) {
+                return $bundled;
+            }
+        }
 
         $submissions = array_map(static fn (array $tc) => [
             'source_code' => $sourceCode,
@@ -275,6 +297,146 @@ PY;
      * @param  array<string, mixed>|null  $result
      * @return array<string, mixed>
      */
+    /**
+     * SỬA 24/9 — CHẤM GỘP: 1 bài nộp cho cả bài, biên dịch 1 lần.
+     *
+     * @param  array<int, array{input:string, expected_output:string}>  $testCases
+     * @return array{verdict: VerdictStatus, isAccepted: bool, details: array}|null  null = không gộp được, hãy dùng cách cũ
+     */
+    private function judgeBundled(string $sourceCode, ?string $langKey, array $testCases, float $perTestCpu, int $memoryLimit, ?array $fileIo): ?array
+    {
+        if (! BundledJudgePackage::supports($langKey) || ! BundledJudgePackage::available()) {
+            return null;
+        }
+
+        $count = count($testCases);
+
+        $inputBytes = 0;
+        foreach ($testCases as $tc) {
+            $inputBytes += strlen((string) ($tc['input'] ?? ''));
+        }
+
+        // Gói quá to sẽ đụng MAX_EXTRACT_SIZE của Judge0 và hỏng CẢ lượt chấm — thà chấm chậm.
+        if ($inputBytes > (int) config('judge0.bundled_max_input_bytes')) {
+            return null;
+        }
+
+        $perTestSeconds = (int) max(1, ceil($perTestCpu));
+
+        // Ngân sách cho cả gói = thời gian từng test × số test + chỗ cho 1 lần biên dịch.
+        // bits/stdc++.h đo được ~2 giây, để rộng 20 giây cho chắc.
+        $cpuTimeLimit = $perTestSeconds * $count + 20;
+        $maxCpu = (float) config('judge0.max_cpu_time_limit');
+
+        // Vượt trần Judge0 (MAX_CPU_TIME_LIMIT) thì gộp không nổi — bài giới hạn 5 giây × 20
+        // test đã là 120 giây, quá 60 giây trần. Quay về chấm từng test.
+        if ($cpuTimeLimit > $maxCpu) {
+            return null;
+        }
+
+        $wallTimeLimit = min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 20);
+
+        $package = new BundledJudgePackage();
+
+        try {
+            $zip = $package->build($sourceCode, (string) $langKey, $testCases, $perTestSeconds);
+            $result = $this->client->runBundled($zip, (float) $cpuTimeLimit, $wallTimeLimit, $memoryLimit);
+        } catch (Throwable $e) {
+            Log::warning('Chấm gộp không chạy được, quay về chấm từng test: '.$e->getMessage());
+
+            return null;
+        }
+
+        $statusId = (int) ($result['status']['id'] ?? 13);
+
+        // 6 = Compilation Error — script `compile` thất bại. Dừng luôn, y như cách cũ.
+        if ($statusId === 6) {
+            return $this->compileErrorResult($result, $count, $langKey, $fileIo);
+        }
+
+        $rows = $package->parse((string) ($result['stdout'] ?? ''));
+
+        /*
+         * Số test đọc được không khớp số test của bài: script chạy dở chừng (hết ngân sách
+         * thời gian cho cả gói), hoặc stdout bị Judge0 cắt vì quá dài. Không đoán bừa — quay về
+         * cách chấm cũ để học sinh nhận điểm ĐÚNG, dù chậm.
+         */
+        if (count($rows) !== $count) {
+            Log::warning(sprintf(
+                'Chấm gộp đọc được %d/%d test (trạng thái Judge0: %s) — quay về chấm từng test.',
+                count($rows),
+                $count,
+                (string) ($result['status']['description'] ?? '?')
+            ));
+
+            return null;
+        }
+
+        $verdict = VerdictStatus::Accepted;
+        $details = [];
+
+        foreach ($rows as $i => $row) {
+            $expected = (string) ($testCases[$i]['expected_output'] ?? '');
+            $actual = (string) $row['output'];
+
+            $caseVerdict = match (true) {
+                // 124 = timeout trả về, 137 = bị KILL (128+9) khi timeout -s KILL ra tay.
+                in_array($row['exitCode'], [124, 137], true) => VerdictStatus::TimeLimitExceeded,
+                $row['exitCode'] !== 0 => VerdictStatus::RuntimeError,
+                self::outputsMatch($actual, $expected) => VerdictStatus::Accepted,
+                default => VerdictStatus::WrongAnswer,
+            };
+
+            $verdict = $this->worseOf($verdict, $caseVerdict);
+
+            $details[] = [
+                'index' => $i + 1,
+                'isAccepted' => $caseVerdict === VerdictStatus::Accepted,
+                'statusLabel' => $caseVerdict->label(),
+                'status' => $caseVerdict->label(),
+                'time' => $row['ms'] >= 0 ? number_format($row['ms'] / 1000, 3, '.', '') : null,
+                // Judge0 chỉ báo mức bộ nhớ cao nhất của CẢ lượt chạy, không tách được từng
+                // test — để trống còn hơn ghi một con số không đúng của test đó.
+                'memory' => null,
+                'input' => $testCases[$i]['input'] ?? '',
+                'expectedOutput' => $expected,
+                'actualOutput' => $actual,
+                'stderr' => null,
+                'compileOutput' => null,
+            ];
+        }
+
+        return [
+            'verdict' => $verdict,
+            'isAccepted' => $verdict === VerdictStatus::Accepted,
+            'details' => $details,
+        ];
+    }
+
+    /**
+     * SỬA 24/9 — so khớp đáp án Ở MÁY CHỦ MÌNH (chấm gộp không gửi đáp án lên Judge0 nữa).
+     *
+     * Theo đúng luật Judge0 vẫn dùng bấy lâu nay để hai cách chấm cho cùng kết quả: bỏ qua
+     * khác biệt về ký tự xuống dòng (CRLF/LF), khoảng trắng thừa ở CUỐI mỗi dòng, và dòng
+     * trống ở cuối tệp. Khoảng trắng GIỮA dòng vẫn tính — "1 2" khác "1  2".
+     */
+    private static function outputsMatch(string $actual, string $expected): bool
+    {
+        $normalize = static function (string $text): string {
+            $text = str_replace(["\r\n", "\r"], "\n", $text);
+            $lines = explode("\n", $text);
+            $lines = array_map(static fn ($line) => rtrim($line, " \t"), $lines);
+
+            while ($lines !== [] && end($lines) === '') {
+                array_pop($lines);
+            }
+
+            return implode("\n", $lines);
+        };
+
+        return $normalize($actual) === $normalize($expected);
+    }
+
     private function compileErrorResult(?array $result, int $testCount, ?string $languageKey, ?array $fileIo): array
     {
         $raw = trim((string) ($result['compile_output'] ?? ''));
