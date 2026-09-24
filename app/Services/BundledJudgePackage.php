@@ -63,7 +63,7 @@ class BundledJudgePackage
      *
      * @throws RuntimeException khi máy chủ thiếu ext-zip hoặc không ghi được tệp tạm.
      */
-    public function build(string $sourceCode, string $langKey, array $testCases, int $perTestSeconds): string
+    public function build(string $sourceCode, string $langKey, array $testCases, int $perTestSeconds, int $runBudgetSeconds, int $outputCapBytes): string
     {
         if (! self::available()) {
             throw new RuntimeException('Máy chủ chưa bật phần mở rộng PHP "zip" nên không dựng được gói chấm.');
@@ -86,7 +86,7 @@ class BundledJudgePackage
 
         $zip->addFromString($sourceName, $sourceCode);
         $this->addScript($zip, 'compile', $this->compileScript($langKey));
-        $this->addScript($zip, 'run', $this->runScript($langKey, count($testCases), $perTestSeconds));
+        $this->addScript($zip, 'run', $this->runScript($langKey, count($testCases), $perTestSeconds, $runBudgetSeconds, $outputCapBytes));
 
         foreach (array_values($testCases) as $i => $tc) {
             $zip->addFromString('t'.($i + 1).'.in', (string) ($tc['input'] ?? ''));
@@ -103,26 +103,26 @@ class BundledJudgePackage
     /**
      * Bóc stdout của gói thành kết quả từng test.
      *
-     * @return array<int, array{index:int, exitCode:int, ms:int, output:string}>
+     * @return array<int, array{index:int, exitCode:int, ms:int, bytes:int, output:string}>
      */
     public function parse(string $stdout): array
     {
         $quoted = preg_quote($this->mark, '/');
         $parts = preg_split(
-            '/^'.$quoted.' T (\d+) (-?\d+) (-?\d+)$\R/m',
+            '/^'.$quoted.' T (\d+) (-?\d+) (-?\d+) (\d+)$\R/m',
             $stdout,
             -1,
             PREG_SPLIT_DELIM_CAPTURE
         );
 
-        if ($parts === false || count($parts) < 5) {
+        if ($parts === false || count($parts) < 6) {
             return [];
         }
 
         $out = [];
-        // $parts[0] là phần đầu (thường rỗng); sau đó cứ 4 phần tử là 1 test.
-        for ($i = 1; $i + 3 < count($parts) + 1 && isset($parts[$i + 3]); $i += 4) {
-            $body = (string) $parts[$i + 3];
+        // $parts[0] là phần đầu (thường rỗng); sau đó cứ 5 phần tử là 1 test.
+        for ($i = 1; isset($parts[$i + 4]); $i += 5) {
+            $body = (string) $parts[$i + 4];
 
             // Cắt bỏ dòng mốc kết thúc và dấu xuống dòng mà script tự thêm vào.
             $endPos = strpos($body, $this->mark.' E ');
@@ -135,6 +135,8 @@ class BundledJudgePackage
                 'index' => (int) $parts[$i],
                 'exitCode' => (int) $parts[$i + 1],
                 'ms' => (int) $parts[$i + 2],
+                // Kích thước THẬT của những gì bài in ra; 'output' có thể đã bị cắt bớt.
+                'bytes' => (int) $parts[$i + 3],
                 'output' => $body,
             ];
         }
@@ -193,10 +195,27 @@ SH;
      *    kịp ghi, thế là file cũ của test 7 bị lấy làm kết quả của test 8 — chấm sai mà không
      *    dấu vết. Chạy trong thư mục con rồi xoá đi là hết đường lẫn.
      *
-     * 2. MỖI TEST MỘT `timeout` RIÊNG. Giới hạn thời gian của Judge0 giờ áp cho CẢ gói, nên
-     *    không tự chặn từng test thì một bài lặp vô hạn ăn sạch ngân sách của 19 test còn lại.
+     * 2. MỖI TEST MỘT ĐỒNG HỒ RIÊNG. Giới hạn thời gian của Judge0 giờ áp cho CẢ gói, nên không
+     *    tự chặn từng test thì một bài lặp vô hạn ăn sạch ngân sách của 19 test còn lại.
+     *
+     *    SỬA 24/9 (khách: "lỡ học sinh viết chạy vô hạn thì sao, chắc lag máy luôn") — tự canh
+     *    giờ bằng tiến trình nền `sleep` + `kill -9` thay vì gọi `timeout`. Không phải vì
+     *    `timeout` tồi, mà vì nó là MỘT ĐIỀU KIỆN CÓ THỂ THIẾU: hộp cách ly của Judge0 không
+     *    hứa có coreutils, mà nhánh "không có timeout" thì gần như không bao giờ chạy nên hỏng
+     *    lúc nào không ai biết. Một đường chạy duy nhất, thử được, hơn hai đường mà một đường
+     *    chỉ nằm chờ. `kill -9` là SIGKILL — chương trình KHÔNG bắt hay lờ đi được.
+     *
+     * 3. CHẶN LƯỢNG IN RA (`ulimit -f`). Vòng lặp vô hạn NGUY HIỂM NHẤT không phải loại treo im
+     *    mà loại vừa lặp vừa in: `stdout.txt` phình tới lúc đầy đĩa của hộp cách ly, Judge0 hỏng
+     *    cả lượt chấm, và máy chủ è cổ ghi vài GB rác. Vượt hạn mức thì hệ điều hành bắn SIGXFSZ
+     *    giết ngay tiến trình đó, các test còn lại vẫn chạy bình thường.
+     *
+     * 4. NGÂN SÁCH CHUNG CHO CẢ LƯỢT. Nếu vì lý do nào đó các test vẫn chạy lâu hơn dự tính, hết
+     *    ngân sách là ghi nốt các test còn lại thành "quá thời gian" rồi thoát ĐẸP. Thà trả về
+     *    kết quả đọc được còn hơn để Judge0 giết ngang cả gói — lúc đó không đọc được test nào
+     *    và phải chấm lại từ đầu bằng đường cũ, tốn gấp nhiều lần.
      */
-    private function runScript(string $langKey, int $count, int $perTestSeconds): string
+    private function runScript(string $langKey, int $count, int $perTestSeconds, int $runBudgetSeconds, int $outputCapBytes): string
     {
         // Chạy từ trong thư mục con nên đường dẫn phải lùi một cấp.
         $exec = $langKey === 'python' ? '"$PY" ../main.py' : '../main';
@@ -214,31 +233,70 @@ SH
 MARK='__MARK__'
 TL=__TL__
 N=__N__
+BUDGET=__BUDGET__
+FLIMIT=__FLIMIT__
+OUTCAP=__OUTCAP__
 __PREPARE__
-TO=$(command -v timeout 2>/dev/null)
+
+START=$(date +%s 2>/dev/null)
+case "$START" in ''|*[!0-9]*) START=0 ;; esac
+
+# Ghi nốt các test chưa chạy thành "quá thời gian" (mã 124) rồi thoát đẹp.
+emit_rest() {
+    k=$1
+    while [ "$k" -le "$N" ]; do
+        printf '%s T %s 124 -1 0\n' "$MARK" "$k"
+        printf '\n%s E %s\n' "$MARK" "$k"
+        k=$((k + 1))
+    done
+}
 
 i=1
 while [ "$i" -le "$N" ]; do
-    # Thư mục sạch cho riêng test này — xem ghi chú (1) ở hàm dựng script.
+    NOW=$(date +%s 2>/dev/null)
+    case "$NOW" in ''|*[!0-9]*) NOW=$START ;; esac
+
+    if [ "$START" -gt 0 ] && [ $((NOW - START)) -ge "$BUDGET" ]; then
+        emit_rest "$i"
+        break
+    fi
+
     W="w$i"
     rm -rf "$W" 2>/dev/null
     mkdir -p "$W" || exit 1
 
     S=$(date +%s%N 2>/dev/null)
 
-    if [ -n "$TO" ]; then
-        ( cd "$W" && "$TO" -s KILL "$TL" __EXEC__ < "../t$i.in" > stdout.txt 2> stderr.txt )
-    else
-        ( cd "$W" && __EXEC__ < "../t$i.in" > stdout.txt 2> stderr.txt )
-    fi
+    # ulimit -f tính theo khối 512 byte; exec để $! trỏ ĐÚNG tiến trình bài làm,
+    # không phải cái vỏ shell bọc ngoài — có vậy kill -9 mới trúng.
+    (
+        cd "$W" || exit 1
+        ulimit -f "$FLIMIT" 2>/dev/null
+        exec __EXEC__ < "../t$i.in" > stdout.txt 2> stderr.txt
+    ) &
+    PID=$!
+
+    ( sleep "$TL"; kill -9 "$PID" 2>/dev/null ) &
+    KILLER=$!
+
+    wait "$PID"
     RC=$?
+
+    kill -9 "$KILLER" 2>/dev/null
+    wait "$KILLER" 2>/dev/null
 
     E=$(date +%s%N 2>/dev/null)
     MS=-1
     case "$S" in ''|*[!0-9]*) ;; *) case "$E" in ''|*[!0-9]*) ;; *) MS=$(( (E - S) / 1000000 )) ;; esac ;; esac
 
-    printf '%s T %s %s %s\n' "$MARK" "$i" "$RC" "$MS"
-    cat "$W/stdout.txt" 2>/dev/null
+    # Đo NGUYÊN kích thước nhưng chỉ in phần đầu: bài lặp vô hạn mà in có thể đẻ ra hàng MB,
+    # nhồi hết vào kết quả trả về là ép Judge0 và máy chủ cõng đống rác. Con số SZ để phía PHP
+    # biết bài đã in vượt mức mà xử đúng, thay vì so nhầm một chuỗi bị cắt dở.
+    SZ=$(wc -c < "$W/stdout.txt" 2>/dev/null | tr -d ' ')
+    case "$SZ" in ''|*[!0-9]*) SZ=0 ;; esac
+
+    printf '%s T %s %s %s %s\n' "$MARK" "$i" "$RC" "$MS" "$SZ"
+    head -c "$OUTCAP" "$W/stdout.txt" 2>/dev/null
     printf '\n%s E %s\n' "$MARK" "$i"
 
     rm -rf "$W" 2>/dev/null
@@ -248,8 +306,19 @@ exit 0
 SH;
 
         return str_replace(
-            ['__MARK__', '__TL__', '__N__', '__PREPARE__', '__EXEC__'],
-            [$this->mark, (string) max(1, $perTestSeconds), (string) $count, $prepare, $exec],
+            ['__MARK__', '__TL__', '__N__', '__BUDGET__', '__FLIMIT__', '__OUTCAP__', '__PREPARE__', '__EXEC__'],
+            [
+                $this->mark,
+                (string) max(1, $perTestSeconds),
+                (string) $count,
+                (string) max(5, $runBudgetSeconds),
+                // 8192 khối × 512 byte = 4 MB cho mỗi test. Bài in ra đúng đắn không bao giờ
+                // chạm tới mức này; chạm tới nghĩa là đang lặp vô hạn mà in.
+                '8192',
+                (string) max(4096, $outputCapBytes),
+                $prepare,
+                $exec,
+            ],
             $template
         );
     }

@@ -338,8 +338,26 @@ PY;
 
         $package = new BundledJudgePackage();
 
+        // Ngân sách cho RIÊNG chặng chạy test: đủ cho mọi test đều chạm trần thời gian, cộng
+        // 5 giây dư. Hết ngân sách thì script tự ghi nốt các test còn lại thành "quá thời gian"
+        // rồi thoát đẹp — thà trả về kết quả đọc được còn hơn để Judge0 giết ngang cả gói.
+        $runBudget = $perTestSeconds * $count + 5;
+
+        /*
+         * SỬA 24/9 — trần lượng in ra được MANG VỀ của mỗi test.
+         *
+         * Lấy theo chính đáp án dài nhất của bài (gấp đôi + 64 KB dự phòng): luôn đủ rộng để so
+         * khớp đúng, mà bài lặp vô hạn rồi in cũng không nhồi được hàng MB rác qua Judge0. Bài
+         * in dài hơn trần này thì chắc chắn KHÔNG khớp đáp án — dài gấp đôi đáp án là sai rồi.
+         */
+        $longestExpected = 0;
+        foreach ($testCases as $tc) {
+            $longestExpected = max($longestExpected, strlen((string) ($tc['expected_output'] ?? '')));
+        }
+        $outputCap = max(65536, $longestExpected * 2 + 65536);
+
         try {
-            $zip = $package->build($sourceCode, (string) $langKey, $testCases, $perTestSeconds);
+            $zip = $package->build($sourceCode, (string) $langKey, $testCases, $perTestSeconds, $runBudget, $outputCap);
             $result = $this->client->runBundled($zip, (float) $cpuTimeLimit, $wallTimeLimit, $memoryLimit);
         } catch (Throwable $e) {
             Log::warning('Chấm gộp không chạy được, quay về chấm từng test: '.$e->getMessage());
@@ -379,12 +397,32 @@ PY;
             $expected = (string) ($testCases[$i]['expected_output'] ?? '');
             $actual = (string) $row['output'];
 
+            /*
+             * SỬA 24/9 (khách: "lỡ học sinh viết chạy vô hạn thì sao") — đọc mã thoát của tiến
+             * trình để biết bài hỏng KIỂU GÌ:
+             *
+             *   124 : script tự ghi vì hết ngân sách chung, chưa kịp chạy test này.
+             *   137 : bị SIGKILL — đồng hồ canh giờ ra tay vì chạy quá thời gian cho phép.
+             *   153 : bị SIGXFSZ — in ra vượt 4 MB, tức là vừa lặp vô hạn vừa in.
+             *   khác: chương trình tự chết (chia 0, tràn mảng, con trỏ hỏng...).
+             */
+            // Bị cắt bớt lúc mang về -> KHÔNG so khớp chuỗi dở dang, xử luôn là sai kết quả.
+            $truncated = ($row['bytes'] ?? 0) > $outputCap;
+
             $caseVerdict = match (true) {
-                // 124 = timeout trả về, 137 = bị KILL (128+9) khi timeout -s KILL ra tay.
                 in_array($row['exitCode'], [124, 137], true) => VerdictStatus::TimeLimitExceeded,
                 $row['exitCode'] !== 0 => VerdictStatus::RuntimeError,
+                $truncated => VerdictStatus::WrongAnswer,
                 self::outputsMatch($actual, $expected) => VerdictStatus::Accepted,
                 default => VerdictStatus::WrongAnswer,
+            };
+
+            $note = match (true) {
+                $row['exitCode'] === 124 => 'Không chạy test này vì cả lượt chấm đã quá thời gian cho phép.',
+                $row['exitCode'] === 137 => 'Chương trình chạy quá thời gian cho phép nên bị dừng.',
+                $row['exitCode'] === 153 => 'Chương trình in ra quá nhiều dữ liệu nên bị dừng — thường là do lặp vô hạn mà vẫn in.',
+                $truncated => 'Chương trình in ra dài hơn đáp án rất nhiều; phần hiện dưới đây đã bị cắt bớt.',
+                default => null,
             };
 
             $verdict = $this->worseOf($verdict, $caseVerdict);
@@ -401,7 +439,7 @@ PY;
                 'input' => $testCases[$i]['input'] ?? '',
                 'expectedOutput' => $expected,
                 'actualOutput' => $actual,
-                'stderr' => null,
+                'stderr' => $note,
                 'compileOutput' => null,
             ];
         }
