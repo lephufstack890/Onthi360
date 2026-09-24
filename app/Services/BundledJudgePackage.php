@@ -184,13 +184,22 @@ SH;
     /**
      * Script chạy — lặp qua từng test, in kết quả kèm mốc phân tách.
      *
-     * Mỗi test bọc trong `timeout` riêng: giới hạn thời gian của Judge0 giờ áp cho CẢ gói, nên
-     * nếu không tự chặn từng test thì một bài lặp vô hạn sẽ ăn hết ngân sách của cả 20 test và
-     * làm hỏng kết quả những test phía sau.
+     * Hai điều bắt buộc phải làm, vì gộp 20 test vào MỘT lượt chạy làm mất hai thứ mà cách chấm
+     * cũ vốn được Judge0 cho không:
+     *
+     * 1. MỖI TEST MỘT THƯ MỤC RIÊNG. Cách cũ mỗi test là một hộp cách ly mới tinh nên luôn sạch.
+     *    Gộp lại thì 20 test dùng chung một thư mục, mà đề kiểu HSG có file_io (TONG.INP/
+     *    TONG.OUT) thì chương trình GHI RA FILE: test 7 ghi TONG.OUT xong, test 8 sập trước khi
+     *    kịp ghi, thế là file cũ của test 7 bị lấy làm kết quả của test 8 — chấm sai mà không
+     *    dấu vết. Chạy trong thư mục con rồi xoá đi là hết đường lẫn.
+     *
+     * 2. MỖI TEST MỘT `timeout` RIÊNG. Giới hạn thời gian của Judge0 giờ áp cho CẢ gói, nên
+     *    không tự chặn từng test thì một bài lặp vô hạn ăn sạch ngân sách của 19 test còn lại.
      */
     private function runScript(string $langKey, int $count, int $perTestSeconds): string
     {
-        $exec = $langKey === 'python' ? '"$PY" main.py' : './main';
+        // Chạy từ trong thư mục con nên đường dẫn phải lùi một cấp.
+        $exec = $langKey === 'python' ? '"$PY" ../main.py' : '../main';
 
         $prepare = $langKey === 'python'
             ? <<<'SH'
@@ -210,12 +219,17 @@ TO=$(command -v timeout 2>/dev/null)
 
 i=1
 while [ "$i" -le "$N" ]; do
+    # Thư mục sạch cho riêng test này — xem ghi chú (1) ở hàm dựng script.
+    W="w$i"
+    rm -rf "$W" 2>/dev/null
+    mkdir -p "$W" || exit 1
+
     S=$(date +%s%N 2>/dev/null)
 
     if [ -n "$TO" ]; then
-        "$TO" -s KILL "$TL" __EXEC__ < "t$i.in" > "o$i.out" 2> "e$i.err"
+        ( cd "$W" && "$TO" -s KILL "$TL" __EXEC__ < "../t$i.in" > stdout.txt 2> stderr.txt )
     else
-        __EXEC__ < "t$i.in" > "o$i.out" 2> "e$i.err"
+        ( cd "$W" && __EXEC__ < "../t$i.in" > stdout.txt 2> stderr.txt )
     fi
     RC=$?
 
@@ -224,10 +238,10 @@ while [ "$i" -le "$N" ]; do
     case "$S" in ''|*[!0-9]*) ;; *) case "$E" in ''|*[!0-9]*) ;; *) MS=$(( (E - S) / 1000000 )) ;; esac ;; esac
 
     printf '%s T %s %s %s\n' "$MARK" "$i" "$RC" "$MS"
-    cat "o$i.out" 2>/dev/null
+    cat "$W/stdout.txt" 2>/dev/null
     printf '\n%s E %s\n' "$MARK" "$i"
 
-    rm -f "o$i.out" "e$i.err" 2>/dev/null
+    rm -rf "$W" 2>/dev/null
     i=$((i + 1))
 done
 exit 0
