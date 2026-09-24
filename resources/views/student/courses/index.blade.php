@@ -4,8 +4,24 @@
 @section('page-title', 'Khóa học của tôi')
 
 @section('content')
+    {{--
+      SỬA 24/9 (khách: "xem source mới nhất trong học sinh, xây lại trang khoá học cho giống UI
+      source mới, logic vẫn giữ nguyên").
+
+      DỰNG LẠI THEO education-main/src/components/RoleWorkspace.jsx — nhánh
+      StudentContent(active === "Khóa học của tôi"): lưới 2 cột, mỗi lớp là một thẻ NGANG (ảnh
+      bên trái, nội dung bên phải), nhãn nhỏ IN HOA màu xanh ở trên, thanh tiến độ mảnh và dòng
+      "% tiến độ" bên dưới.
+
+      LOGIC KHÔNG ĐỔI: vẫn đúng các khoá của Student\ClassRoomService (id, course, class,
+      teacher, percent, nextSession), vẫn cùng route, vẫn giữ nguyên 2 thông báo session và
+      khối "Có mã lớp?" đang tạm ẩn.
+    --}}
     @php
         $classes = $classes ?? [];
+        // Ảnh bìa xoay vòng theo VỊ TRÍ để mỗi lớp luôn nhận đúng một ảnh, không nhảy lung tung
+        // mỗi lần tải trang.
+        $covers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
     @endphp
 
     <x-ws.page-header title="Khóa học của tôi" icon="book-open" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">
@@ -43,22 +59,46 @@
     @if (empty($classes))
         <x-ws.empty-state title="Bạn chưa tham gia lớp nào" description="Mở trang Lớp học, chọn lớp phù hợp rồi bấm &quot;Đăng ký học&quot; — giáo viên duyệt là bạn vào học được ngay." actionLabel="Xem các lớp đang mở" :actionHref="route('courses.index')" />
     @else
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            @foreach ($classes as $c)
-                <a href="{{ route('student.classes.show', $c['id']) }}" class="rounded-3xl bg-white border border-sky-100 p-5 hover:shadow-md hover:border-blue-200 transition block">
-                    <div class="flex items-start gap-3">
-                        <x-ws.icon-tile icon="graduation-cap" tone="rose" />
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-medium text-blue-600 uppercase tracking-wide">{{ $c['course'] }}</p>
-                            <h3 class="font-semibold text-slate-800 mt-0.5">{{ $c['class'] }}</h3>
-                            <p class="text-xs text-slate-400 mt-1.5">{{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}</p>
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            @foreach ($classes as $i => $c)
+                @php($percent = max(0, min(100, (int) ($c['percent'] ?? 0))))
+                <a href="{{ route('student.classes.show', $c['id']) }}"
+                   class="student-course-card flex flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] sm:flex-row">
+                    <img src="{{ asset('assets/'.$covers[$i % count($covers)]) }}" alt="" decoding="async"
+                         class="student-course-cover h-28 w-full object-cover">
+
+                    <div class="min-w-0 flex-1 p-4">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-blue-600">
+                            {{ $c['course'] !== '' ? $c['course'] : 'Khóa đang học' }}
+                        </span>
+                        <h2 class="mt-1 text-sm font-black text-slate-800">{{ $c['class'] }}</h2>
+                        <p class="mt-1 text-[11px] text-slate-500">
+                            {{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}
+                        </p>
+
+                        <div class="mt-3">
+                            <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                <div class="h-full rounded-full bg-blue-500" style="width: {{ $percent }}%"></div>
+                            </div>
+                            <p class="mt-1 text-[10px] text-slate-400">{{ $percent }}% tiến độ</p>
                         </div>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-slate-100">
-                        <x-ws.progress-bar :percent="$c['percent']" label="Tiến độ" tone="brand" />
                     </div>
                 </a>
             @endforeach
         </div>
     @endif
 @endsection
+
+@push('scripts')
+    {{-- Bề ngang cố định của ảnh bìa ở khổ màn hình lớn (sm:w-28 của bản mẫu) + hiệu ứng rê
+         chuột. Viết CSS thường vì bản CSS trên máy chủ là bản build sẵn. --}}
+    <style>
+        .student-course-card { transition: border-color 160ms ease, box-shadow 160ms ease; }
+        .student-course-card:hover { border-color: #BFDBFE; box-shadow: 0 6px 18px rgba(0, 90, 180, .10); }
+
+        @media (min-width: 640px) {
+            /* sm:w-28 + sm:h-auto của bản mẫu — cả hai đều chưa có trong bản CSS build sẵn. */
+            .student-course-cover { width: 7rem; height: auto; flex-shrink: 0; }
+        }
+    </style>
+@endpush
