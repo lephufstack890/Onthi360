@@ -265,14 +265,11 @@
                                             <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                                 <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
                                                     <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- SỬA 18/9 (2) (khách: "chỗ bắt đầu làm đề, chỗ chạy test không chạy
-                                                         được") — nút này trước đây khoá cứng vì CHƯA có route chạy thử. Giờ đã
-                                                         có student.assessment.take.run: chạy thật trên máy chấm với dữ liệu vào
-                                                         tự gõ, KHÔNG chấm điểm và không tính là một lần nộp. --}}
-                                                    <button type="button" @click="runTest({{ $qid }})"
-                                                            :disabled="expired || testRunning[{{ $qid }}]"
-                                                            title="Chạy thử mã với dữ liệu vào bên dưới (không tính điểm)"
-                                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[#2F8A6B] px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50"><x-lucide name="play" class="h-3.5 w-3.5" /><span x-text="testRunning[{{ $qid }}] ? 'Đang chạy…' : 'Chạy test'">Chạy test</span></button>
+                                                    {{-- SỬA 24/9 (khách: "bên chỗ làm đề cũng thế, xoá nút chạy test đi,
+                                                         chuyển xuống vị trí như làm câu hỏi ở luyện tập") — nút "Chạy test"
+                                                         10px nhét ở góc này quá kín. Đã chuyển xuống thành nút chạy hết
+                                                         chiều ngang dưới ô OUTPUT, giống hệt màn Luyện tập theo câu. --}}
+                                                    <span class="text-[10px] font-bold text-[#7A92A3]">Dữ liệu bạn tự gõ để chạy thử</span>
                                                 </div>
                                                 {{-- Ô này KHÔNG đổ sẵn test từ database: test_cases trong grading_config là
                                                      test CHẤM ĐIỂM, không có cờ phân biệt test mẫu/test ẩn, in ra đây là
@@ -289,6 +286,19 @@
                                                     <span x-text="testStatus[{{ $qid }}]" class="text-[10px] font-bold text-[#7A92A3]"></span>
                                                 </div>
                                                 <pre x-text="testOutputs[{{ $qid }}]" class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
+
+                                                {{-- SỬA 24/9 — "Chạy test" chuyển xuống đây, chạy hết chiều ngang, đúng
+                                                     chỗ như màn Luyện tập theo câu. Chạy thử với dữ liệu tự gõ, KHÔNG tính
+                                                     điểm; chấm thật thì bấm "Nộp đề" ở thanh trên cùng. --}}
+                                                <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
+                                                    <button type="button" @click="runTest({{ $qid }})"
+                                                            :disabled="expired || submitting || testRunning[{{ $qid }}]"
+                                                            title="Chạy thử mã với dữ liệu vào ở ô Input (không tính điểm)"
+                                                            class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50">
+                                                        <x-lucide name="play" class="h-3.5 w-3.5" /><span x-text="testRunning[{{ $qid }}] ? 'Đang chạy…' : 'Chạy test'">Chạy test</span>
+                                                    </button>
+                                                    <p class="mt-1.5 text-center text-[10px] text-[#7A92A3]">Chạy thử không tính điểm — chấm bài thì bấm <span class="font-bold text-[#126F91]">Nộp đề</span> ở trên.</p>
+                                                </div>
                                             </section>
                                         </div>
                                     </div>
@@ -390,6 +400,18 @@
                 @endif
             @endforeach
         </form>
+
+        {{-- SỬA 24/9 (khách: "khi nộp đề nó cũng hiển thị modal đang chấm như chỗ làm câu hỏi")
+             — doSubmit() đặt submitting = true rồi mới gửi form thật, nên lớp phủ này hiện suốt
+             lúc trình duyệt đang chờ máy chủ chấm, tới khi chuyển sang trang kết quả.
+
+             PHẢI nằm TRONG khối x-data thì x-show="submitting" mới đọc được biến. Kiểu dáng
+             dùng chung với màn Luyện tập theo câu. --}}
+        @include('partials.grading-overlay', [
+            'overlayMode' => 'alpine',
+            'overlayTitle' => 'Đang nộp và chấm bài…',
+            'overlayText' => 'Các câu lập trình được máy chấm chạy qua từng bộ test. Đừng đóng cửa sổ này nhé — điểm sẽ hiện ngay khi xong.',
+        ])
         </div>
     </div>
 @endsection
