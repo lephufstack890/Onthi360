@@ -16,6 +16,7 @@ use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Repositories\Contracts\TestimonialRepositoryInterface;
+use Illuminate\Support\Facades\Route;
 
 /**
  * home (PUB-01/02, 12.1: hero → lộ trình → năng lực chấm → khóa/tài liệu nổi bật → cuộc thi
@@ -399,6 +400,8 @@ class HomeService
          * không phải lỗi trắng trang.
          */
         $defaults = [
+            'workspaceHref' => null,
+            'workspaceLabel' => '',
             'showProgress' => true,
             'progressLabel' => 'Tiến độ tổng thể',
             'progress' => 0,
@@ -410,8 +413,27 @@ class HomeService
             'stats' => [],
         ];
 
+        /*
+         * SỬA 24/9 (khách: "thêm cho tôi cái button, học sinh thì vào không gian học tập,
+         * giáo viên/phụ huynh/quản trị tương tự") — mỗi bảng có một nút đi thẳng vào khu làm
+         * việc của ĐÚNG vai trò đó.
+         *
+         * Thẻ "Tiếp tục học" phía trên chỉ trỏ tới MỘT việc cụ thể (bài sắp đến hạn, hàng chờ
+         * đông nhất...); người dùng nhìn khối này lại hay muốn vào thẳng khu của mình chứ
+         * không phải một bài lẻ. Nút lấy theo roleKey nên thêm vai trò mới chỉ cần khai thêm
+         * một dòng ở ROLE_WORKSPACE.
+         */
         foreach ($panels as $key => $panel) {
-            $panels[$key] = $panel + $defaults;
+            $workspace = self::ROLE_WORKSPACE[$key] ?? null;
+
+            $panels[$key] = $panel + [
+                // Route::has() để một khu chưa dựng xong không làm vỡ trang chủ — trang này ai
+                // cũng thấy, thà thiếu nút còn hơn lỗi trắng trang.
+                'workspaceHref' => ($workspace !== null && Route::has($workspace['route']))
+                    ? route($workspace['route'])
+                    : null,
+                'workspaceLabel' => $workspace['label'] ?? '',
+            ] + $defaults;
         }
 
         $defaultRole = array_key_first($panels);
@@ -424,6 +446,18 @@ class HomeService
             'multiRole' => count($panels) > 1,
         ];
     }
+
+    /**
+     * SỬA 24/9 — khu làm việc của từng vai trò, cho nút "vào khu của tôi" ở khối [HOME-06].
+     * Nhãn cố ý nói đúng tên khu mà vai trò đó thấy trong thanh điều hướng, không dùng chung
+     * một chữ "Vào khu làm việc" chung chung.
+     */
+    private const ROLE_WORKSPACE = [
+        'student' => ['route' => 'student.dashboard', 'label' => 'Vào không gian học tập'],
+        'parent' => ['route' => 'parent.dashboard', 'label' => 'Vào khu phụ huynh'],
+        'teacher' => ['route' => 'teacher.dashboard', 'label' => 'Vào khu giáo viên'],
+        'admin' => ['route' => 'admin.dashboard', 'label' => 'Vào bảng điều khiển'],
+    ];
 
     /** Nhãn + biểu tượng của từng tab vai trò — khớp bảng của source (JOURNEY_ROLE_VIEWS). */
     private const ROLE_VIEW_META = [

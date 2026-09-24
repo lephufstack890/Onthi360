@@ -627,6 +627,18 @@
                                     </div>
                                 @endforeach
                             </div>
+
+                            {{-- [HOME-06E] SỬA 24/9 (khách: "thêm cho tôi cái button") — lối vào thẳng khu
+                                 làm việc của ĐÚNG vai trò đang xem. Thẻ "Tiếp tục học" ở trên chỉ trỏ tới
+                                 một việc cụ thể; nút này là lối về nhà. --}}
+                            @if (! empty($panel['workspaceHref']))
+                                <a href="{{ $panel['workspaceHref'] }}"
+                                   class="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#126F91] px-3.5 py-2.5 text-xs font-bold text-white shadow-[0_2px_7px_rgba(64,125,151,0.08)] transition-colors hover:bg-[#0F5E7B]">
+                                    <x-lucide :name="$panel['roleIcon']" class="h-3.5 w-3.5 shrink-0" />
+                                    {{ $panel['workspaceLabel'] }}
+                                    <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
+                                </a>
+                            @endif
                         </div>
                     @endforeach
                 @endif

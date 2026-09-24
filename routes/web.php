@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
 use App\Http\Controllers\Public\CourseController as PublicCourseController;
@@ -147,6 +148,16 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
+        /*
+         * SỬA 24/9 (khách: "thêm cho tôi cái button ... học sinh thì vào không gian học tập")
+         * — lối vào khu HỌC SINH có địa chỉ riêng.
+         *
+         * Trước đây khu học sinh chỉ tới được qua /dashboard, mà route đó là BỘ CHIA THEO VAI
+         * TRÒ (DashboardRoutingService): tài khoản vừa là quản trị vừa là học sinh bấm vào sẽ
+         * bị đá sang bảng quản trị. Nút mới trên trang chủ nằm trong đúng tab vai trò nên phải
+         * tới đúng khu của vai trò đó, không qua bộ chia.
+         */
+        Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
         // SỬA 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp... bấm đăng ký học thì giáo viên duyệt")
         // — lối vào lớp MỚI. Route mã lớp bên dưới vẫn được đăng ký để route() ở chỗ khác không
