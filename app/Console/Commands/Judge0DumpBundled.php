@@ -10,17 +10,6 @@ use App\Services\Judge0Client;
 use Illuminate\Console\Command;
 use Throwable;
 
-/**
- * SỬA 24/9 (khách: "sao giờ chấm sai hết thế này") — SOI TẬN MẮT cái gói chấm gộp trả về.
- *
- * compare-bundled chỉ nói ĐÚNG hay SAI. Lệnh này in ra nguyên văn những gì hộp cách ly của
- * Judge0 nhả ra: trạng thái, thông báo biên dịch, stdout thô, và từng test đọc được — để biết
- * script chạy tới đâu thì hỏng, thay vì đoán.
- *
- *   php artisan judge0:dump-bundled 23
- *   php artisan judge0:dump-bundled 23 --tests=3   (chỉ lấy 3 test đầu cho gọn)
- *   php artisan judge0:dump-bundled 23 --save=/tmp/goi.zip   (ghi luôn gói ZIP ra để mở xem)
- */
 class Judge0DumpBundled extends Command
 {
     protected $signature = 'judge0:dump-bundled

@@ -8,15 +8,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-/**
- * SỬA 23/9 (khách: "chấm hơn 15 phút chưa xong") — GÕ 1 LỆNH, XEM ĐƯỢC TOÀN CẢNH hàng đợi
- * chấm bài, thay vì phải chạy 5-6 lệnh mysql/tail rời rạc rồi tự ghép.
- *
- *   php artisan queue:diagnose
- *
- * In ra: cấu hình hàng đợi đang dùng, số việc đang chờ / đang bị giữ / đã hỏng, việc cũ nhất
- * chờ bao lâu, và danh sách câu Lập trình còn kẹt "Đang chấm" kèm số phút đã kẹt.
- */
 class QueueDiagnose extends Command
 {
     protected $signature = 'queue:diagnose';

@@ -6,23 +6,6 @@ use App\Models\Question;
 use App\Support\SubjectCatalog;
 use Illuminate\Console\Command;
 
-/**
- * SỬA 8/9 (3) (khách: "kho câu hỏi giờ làm sao để phân loại được các môn") — 2 cột phân loại
- * mới (questions.subject/grade, xem migration add_subject_grade_to_questions_table) chỉ được
- * điền cho câu tạo/nhập TỪ NAY VỀ SAU. Lệnh này điền ngược cho câu ĐÃ có sẵn trong kho, theo
- * đúng thứ tự ưu tiên:
- *
- *   1. metadata.taxonomy của gói ZIP OT360-QPACK (chính xác — do người đóng gói khai báo).
- *   2. Đoán từ tiền tố mã câu hỏi ("TOAN6UOC_CHUNG_001" -> Toán/lớp 6).
- *
- * Không ra được cả 2 thì ĐỂ TRỐNG — câu đó nằm nhóm "Chưa phân loại" ở bộ lọc tab Câu hỏi để
- * người thật gán tay, cố ý KHÔNG đoán bừa vì gán sai môn tệ hơn là để trống.
- *
- * php artisan questions:backfill-subject --dry-run   — CHỈ xem sẽ gán gì, không ghi gì cả
- * php artisan questions:backfill-subject             — điền cho câu chưa có môn
- * php artisan questions:backfill-subject --force     — gán ĐÈ cả câu đã có môn (dùng khi đã sửa
- *                                                      lại danh mục môn trong SubjectCatalog)
- */
 class BackfillQuestionSubject extends Command
 {
     protected $signature = 'questions:backfill-subject

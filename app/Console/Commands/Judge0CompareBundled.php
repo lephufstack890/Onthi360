@@ -8,20 +8,6 @@ use App\Services\CodeJudgingService;
 use Illuminate\Console\Command;
 use Throwable;
 
-/**
- * SỬA 24/9 (khách: "chấm lâu quá, muốn 3-6s/bài") — ĐỐI CHIẾU hai cách chấm trên CÙNG một bài
- * làm, trước khi dám bật chấm gộp trên máy thật.
- *
- *   php artisan judge0:compare-bundled 12                  (lấy mã nguồn của lượt làm gần nhất)
- *   php artisan judge0:compare-bundled 12 --answer=44      (một câu trả lời cụ thể)
- *   php artisan judge0:compare-bundled 12 --file=/tmp/a.cpp --language=cpp
- *
- * Chấm 2 lần: một lần ép TẮT chấm gộp (cách cũ), một lần ép BẬT. Rồi so verdict tổng và kết
- * quả TỪNG test. Lệch một test cũng báo đỏ.
- *
- * Chấm nhanh mà sai thì tệ hơn chấm chậm — đừng bật JUDGE0_BUNDLED_RUN=true khi lệnh này chưa
- * báo khớp.
- */
 class Judge0CompareBundled extends Command
 {
     protected $signature = 'judge0:compare-bundled

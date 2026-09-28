@@ -9,17 +9,6 @@ use App\Services\AttemptService;
 use Illuminate\Console\Command;
 use Throwable;
 
-/**
- * SỬA 23/9 (khách: "chấm hơn 15p rồi chưa xong") — gom các câu Lập trình còn kẹt "Đang chấm"
- * (hoặc đã báo lỗi hệ thống chấm bài) của những lượt ĐÃ NỘP và chấm lại.
- *
- *   php artisan attempt:regrade-stuck --minutes=10            (đẩy lại vào hàng đợi)
- *   php artisan attempt:regrade-stuck --minutes=10 --now      (chấm NGAY tại chỗ, không qua hàng đợi)
- *   php artisan attempt:regrade-stuck --attempt=123 --now     (chỉ 1 lượt làm bài)
- *
- * --now dùng khi nghi tiến trình chạy nền không chạy: chấm thẳng trong lệnh này, thấy ngay
- * lỗi thật nếu máy chấm Judge0 không tới được. Không đụng câu đã chấm xong.
- */
 class AttemptRegradeStuck extends Command
 {
     protected $signature = 'attempt:regrade-stuck

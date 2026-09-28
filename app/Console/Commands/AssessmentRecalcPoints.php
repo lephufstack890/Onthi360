@@ -5,18 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Assessment;
 use Illuminate\Console\Command;
 
-/**
- * SỬA 23/9 (khách báo "30.00 / 10 · 300% số điểm") — tính lại assessments.total_points cho
- * các đề CÓ CÂU HỎI RỜI, vì trước đây ô "Tổng điểm" trên form Sửa đề ghi đè con số tự tính
- * (xem Admin\ContentService::assessmentUpdate()). Đề đã lỡ bị đạp sai thì chạy lệnh này 1 lần:
- *
- *   php artisan assessment:recalc-points --dry-run     (chỉ xem, không ghi)
- *   php artisan assessment:recalc-points               (ghi lại cho mọi đề lệch)
- *   php artisan assessment:recalc-points --id=12       (chỉ 1 đề)
- *
- * Không đụng đề PDF (đề PDF không có assessment_items, điểm do PdfAssessmentEditingService
- * tính riêng) và không đụng bài làm cũ — điểm lượt làm cũ giữ nguyên, chỉ MẪU SỐ của đề đúng lại.
- */
 class AssessmentRecalcPoints extends Command
 {
     protected $signature = 'assessment:recalc-points
@@ -45,14 +33,6 @@ class AssessmentRecalcPoints extends Command
 
                 $checked++;
 
-                /*
-                 * SỬA 23/9 (khách: "nhập điểm cho từng câu") — CHỐT ĐIỂM VÀO ĐỀ.
-                 *
-                 * Các đề cũ có assessment_items.points_override = null, nghĩa là lúc chấm mới
-                 * đi đọc questions.points. Sửa điểm gốc của một câu trong kho (cho đề khác) là
-                 * điểm của mọi đề cũ dùng câu đó âm thầm đổi theo. Ghi hẳn số hiện tại vào đề
-                 * thì từ nay đề nào chốt điểm của đề đó.
-                 */
                 $filled = 0;
                 foreach ($assessment->items as $item) {
                     if ($item->points_override !== null) {

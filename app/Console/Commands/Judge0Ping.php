@@ -7,21 +7,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
-/**
- * SỬA 18/9 (khách: "ghi nhận bài làm máy chấm vẫn không chấm được") — kiểm tra máy chấm bằng
- * MỘT lệnh, thay vì nộp thử một bài rồi mò trong storage/logs/laravel.log xem lỗi gì.
- *
- * Chạy: php artisan judge0:ping
- *
- * Lệnh làm đúng 3 bước, dừng ngay ở bước hỏng đầu tiên và nói rõ phải sửa gì:
- *   1. Gọi GET /about  -> có mở được cổng tới Judge0 không (đường hầm SSH/máy chấm đã bật chưa).
- *   2. Gọi GET /languages -> token đúng chưa, và 2 language_id trong config có thật không.
- *   3. Chạy thử 1 chương trình C++ in "OK" -> toàn bộ đường chấm chạy được từ đầu tới cuối.
- *
- * Nhắc lại bối cảnh (xem config/judge0.php): trên máy lập trình, Judge0 KHÔNG chạy cục bộ —
- * phải mở đường hầm trước thì 127.0.0.1:2358 mới có gì để gọi:
- *     ssh -N -L 2358:127.0.0.1:2358 root@<IP-VPS>
- */
 class Judge0Ping extends Command
 {
     protected $signature = 'judge0:ping';
@@ -35,7 +20,6 @@ class Judge0Ping extends Command
         $token = (string) config('judge0.auth_token');
 
         $this->line('Máy chấm: <options=bold>'.$baseUrl.'</>');
-        // CỐ Ý không in token ra màn hình/log — chỉ nói đã có hay chưa.
         $this->line('Token   : '.($token !== '' ? 'đã cấu hình ('.strlen($token).' ký tự)' : '<fg=red>CHƯA cấu hình (JUDGE0_AUTH_TOKEN)</>'));
         $this->newLine();
 
@@ -44,7 +28,6 @@ class Judge0Ping extends Command
             ->connectTimeout((int) config('judge0.connect_timeout'))
             ->timeout(15);
 
-        // ── Bước 1: có tới được máy chấm không ────────────────────────────────────────────
         try {
             $about = $client()->get('/about');
         } catch (Throwable $e) {
@@ -67,7 +50,6 @@ class Judge0Ping extends Command
 
         $this->info('✓ Bước 1 — kết nối được tới máy chấm.');
 
-        // ── Bước 2: token đúng chưa + 2 language_id có thật không ─────────────────────────
         $languages = $client()->get('/languages');
 
         if ($languages->status() === 401 || $languages->status() === 403) {

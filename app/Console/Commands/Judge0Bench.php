@@ -6,19 +6,6 @@ use App\Services\Judge0Client;
 use Illuminate\Console\Command;
 use Throwable;
 
-/**
- * SỬA 24/9 (khách: "chấm lâu quá, khách muốn 3-6s/bài") — THƯỚC ĐO máy chấm.
- *
- * Gọi thẳng Judge0 đúng cách mà lúc chấm thật đang gọi, rồi bóc tách xem giây nào đi đâu:
- * bao nhiêu cho biên dịch, bao nhiêu là phụ phí mỗi lần nộp, và máy chấm có THẬT SỰ chạy
- * song song hay không.
- *
- *   php artisan judge0:bench                 (20 test, C++ có bits/stdc++.h — giống bài thật)
- *   php artisan judge0:bench --tests=20 --light   (C++ chỉ <iostream> — để so chi phí thư viện)
- *
- * Con số quan trọng nhất ở cuối: "Mức chạy song song thật". Bằng ~1 nghĩa là COUNT=1 (xếp
- * hàng nối đuôi), bằng ~2 nghĩa là COUNT=2 đã ăn.
- */
 class Judge0Bench extends Command
 {
     protected $signature = 'judge0:bench {--tests=20 : Số test giả lập} {--light : Dùng <iostream> thay cho bits/stdc++.h}';

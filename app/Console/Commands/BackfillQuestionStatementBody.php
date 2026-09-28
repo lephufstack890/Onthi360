@@ -7,20 +7,6 @@ use App\Services\PdfTextExtractor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * SỬA 3/9 (khách chốt: "hiển thị thẳng đề bài dạng text, khỏi hiển thị file") — pipeline trích
- * text mới (App\Services\PdfTextExtractor, xem Admin\ContentService/Teacher\QuestionService
- * ::placeholderBodyForZipImport()) chỉ áp dụng cho câu hỏi nhập ZIP TỪ NAY VỀ SAU. Câu hỏi đã
- * nhập TRƯỚC đó (vd "Tổng hai số" — báo cáo lỗi hiển thị gốc của việc này) vẫn đang giữ dòng
- * ghi chú cũ làm body — chạy lệnh này 1 lần để "chấm lại" (re-extract) body từ đúng
- * statement.pdf đã lưu sẵn trên disk, không cần nhập lại ZIP.
- *
- * php artisan questions:backfill-statement-body {id}       — 1 câu theo ID
- * php artisan questions:backfill-statement-body --all       — MỌI câu có đính kèm statement.pdf
- * php artisan questions:backfill-statement-body --all --force — như trên, NHƯNG ghi đè cả câu
- *   mà body KHÔNG còn giữ nguyên dòng ghi chú cũ (vd giáo viên/admin đã tự sửa tay sau khi
- *   nhập) — mặc định KHÔNG đụng tới những câu đó, tránh mất nội dung đã sửa tay.
- */
 class BackfillQuestionStatementBody extends Command
 {
     protected $signature = 'questions:backfill-statement-body

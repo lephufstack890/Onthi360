@@ -5,15 +5,6 @@ namespace App\Concerns;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * Gắn vào model cần audit log theo yêu cầu 16 mục 4. Chỉ ghi log — KHÔNG chặn
- * hành động (việc chặn thuộc về Policy/Service ở tầng nghiệp vụ, ví dụ
- * AccessGateService, TeacherAttachMaterialAction).
- *
- * Cách dùng: `use Auditable;` trong model, tùy chọn set `public static
- * ?string $auditReason = null;` trước khi save() nếu muốn ghi lý do (ví dụ
- * admin từ chối đơn) — trait tự đọc thuộc tính này nếu có.
- */
 trait Auditable
 {
     public static function bootAuditable(): void

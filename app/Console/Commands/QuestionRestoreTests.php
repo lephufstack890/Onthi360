@@ -5,18 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Question;
 use Illuminate\Console\Command;
 
-/**
- * SỬA 21/9 (khách: "chấm sai hết mặc dù chạy test ok") — câu Lập trình bị form Sửa cũ xoá mất
- * dữ liệu vào của test (input rỗng). Nếu đã có bản test đúng ở câu khác (thường là PHIÊN BẢN
- * MỚI được tạo khi sửa câu đã có người làm — bản Nháp, học sinh không dùng tới), lệnh này chép
- * test đúng về lại câu đang dùng.
- *
- *   php artisan question:restore-tests 1              (tự tìm phiên bản mới hơn của câu #1)
- *   php artisan question:restore-tests 1 --from=45    (chép từ câu #45)
- *
- * Chỉ chép test_cases (+ time/memory limit, languages, file_io nếu nguồn có), hỏi xác nhận
- * trước khi ghi. Không đụng tới bài làm cũ.
- */
 class QuestionRestoreTests extends Command
 {
     protected $signature = 'question:restore-tests {target : ID câu đang bị hỏng test} {--from= : ID câu có test đúng}';

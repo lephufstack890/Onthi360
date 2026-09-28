@@ -6,15 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
-/**
- * SỬA 23/9 (khách: "không thấy email được gửi về") — kiểm tra đường gửi thư bằng 1 lệnh, thay
- * vì đăng ký thử rồi mò trong storage/logs/laravel.log.
- *
- *   php artisan mail:ping                      (xem cấu hình + thử mở TỪNG cổng)
- *   php artisan mail:ping ban@gmail.com        (gửi thật 1 thư thử)
- *
- * KHÔNG in mật khẩu ra màn hình, chỉ nói đã điền hay chưa và dài bao nhiêu ký tự.
- */
 class MailPing extends Command
 {
     protected $signature = 'mail:ping {to? : Email nhận thư thử}';

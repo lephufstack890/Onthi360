@@ -7,16 +7,6 @@ use App\Services\CodeJudgingService;
 use Illuminate\Console\Command;
 use Throwable;
 
-/**
- * SỬA 21/9 (khách: "20 test đều sai hết") — soi MỘT câu Lập trình từ đầu tới cuối bằng 1 lệnh:
- * in từng test đang lưu trong DB (dạng JSON để thấy rõ chuỗi rỗng / xuống dòng / khoảng trắng),
- * rồi chấm thật qua Judge0 và in trạng thái + output thật của từng test.
- *
- *   php artisan judge0:debug-question 27
- *   php artisan judge0:debug-question 27 --file=bai.cpp
- *
- * Không có --file thì dùng sẵn chương trình a+b (long long). KHÔNG in token/secret nào.
- */
 class Judge0DebugQuestion extends Command
 {
     protected $signature = 'judge0:debug-question {question : ID hoặc mã câu hỏi} {--file= : File mã nguồn muốn chấm thử} {--lang=cpp : cpp hoặc python}';
