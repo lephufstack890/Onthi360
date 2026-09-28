@@ -25,15 +25,80 @@ use Illuminate\View\View;
  */
 class AuthController extends Controller
 {
+    /** Khoá session lưu trang cần quay lại sau khi đăng nhập — xem rememberPreviousPage(). */
+    private const ONTHI360_BACK_KEY = 'onthi360.login_back_to';
+
+    /** Các trang KHÔNG dùng làm đích quay lại sau khi đăng nhập. */
+    private const SKIP_RETURN_PATHS = [
+        '/login',
+        '/logout',
+        '/register',
+        '/quen-mat-khau',
+        '/dat-lai-mat-khau',
+    ];
+
     public function __construct(
         private readonly AuthService $authService,
         private readonly RegistrationService $registrationService,
     ) {
     }
 
-    public function showLogin(): View
+    public function showLogin(Request $request): View
     {
+        $this->rememberPreviousPage($request);
+
         return view('auth.login');
+    }
+
+    /**
+     * SỬA 28/9 (khách báo) — "đăng nhập xong không quay lại trang đang xem".
+     *
+     * redirect()->intended() chỉ quay lại được khi đã có ai ghi url.intended vào session, và
+     * việc đó CHỈ xảy ra khi người dùng mở một trang cần đăng nhập rồi bị middleware auth đẩy
+     * sang /login. Người dùng đang xem một trang CÔNG KHAI (ví dụ trang Luyện tập) rồi tự bấm
+     * "Đăng nhập" thì không có gì được ghi, nên đăng nhập xong rơi về đích mặc định là trang chủ.
+     *
+     * Hàm này ghi trang trước đó (header Referer) vào session làm đích quay lại, kèm các chốt:
+     *   · dùng khoá riêng ONTHI360_BACK_KEY, không ghi đè url.intended của middleware (đích đó
+     *     chính xác hơn) và cũng không làm đổi hành vi của luồng đăng ký
+     *   · chỉ nhận URL CÙNG TÊN MIỀN — chặn open redirect: kẻ xấu gửi link /login từ site của
+     *     họ, người dùng đăng nhập xong bị đẩy sang trang ngoài
+     *   · bỏ qua chính các trang đăng nhập/đăng ký/quên mật khẩu, không thì bấm qua lại giữa
+     *     mấy trang này sẽ tự quay về đúng trang đăng nhập
+     */
+    private function rememberPreviousPage(Request $request): void
+    {
+        $referer = trim((string) $request->headers->get('referer', ''));
+
+        if ($referer === '') {
+            return;
+        }
+
+        $parts = parse_url($referer);
+
+        if (! is_array($parts) || ! isset($parts['host'])) {
+            return;
+        }
+
+        // So cả cổng để bản chạy ở localhost:8000 vẫn đúng.
+        $host = strtolower($parts['host']).(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+        if ($host !== strtolower($request->getHttpHost())) {
+            return;
+        }
+
+        $path = '/'.ltrim((string) ($parts['path'] ?? '/'), '/');
+
+        foreach (self::SKIP_RETURN_PATHS as $skip) {
+            if ($path === $skip || str_starts_with($path, $skip.'/')) {
+                return;
+            }
+        }
+
+        $request->session()->put(
+            self::ONTHI360_BACK_KEY,
+            url($path.(isset($parts['query']) ? '?'.$parts['query'] : ''))
+        );
     }
 
     public function login(Request $request): RedirectResponse
@@ -89,7 +154,13 @@ class AuthController extends Controller
         // học tập nữa. Vẫn giữ intended() để trường hợp người dùng bấm vào 1 trang cần đăng
         // nhập rồi bị đẩy sang /login thì đăng nhập xong quay lại đúng trang đó — chỉ đổi
         // đích MẶC ĐỊNH (khi không có trang nào đang chờ) từ dashboard sang trang chủ.
-        return redirect()->intended(route('home'));
+        //
+        // SỬA 28/9 — thứ tự ưu tiên đích quay lại: (1) url.intended do middleware auth ghi khi
+        // người dùng bị đá khỏi trang cần đăng nhập, (2) trang công khai họ đang xem trước khi
+        // bấm "Đăng nhập" (rememberPreviousPage() ghi ở GET /login), (3) trang chủ.
+        $fallback = (string) $request->session()->pull(self::ONTHI360_BACK_KEY, route('home'));
+
+        return redirect()->intended($fallback);
     }
 
     public function showRegister(Request $request): View
