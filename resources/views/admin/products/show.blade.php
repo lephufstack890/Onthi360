@@ -95,14 +95,12 @@
                     // Cột content_pdf_path trong DB CỐ Ý giữ lại, không xoá: sản phẩm cũ đã tải
                     // tệp tổng vẫn đọc được (ProductReadService::partsFor() dùng làm tệp dự phòng
                     // khi chưa chương nào có PDF), khỏi phải chuyển dữ liệu trước khi lên bản mới.
+                    // SỬA 29/9 (2) — khách: "bỏ File PDF tổng (kiểu cũ) đi, không cần hiển thị".
+                    // Chỉ ẩn khỏi màn hình; dữ liệu vẫn nguyên trong DB và trang đọc vẫn dùng tệp
+                    // này làm nội dung dự phòng khi sản phẩm chưa chương nào có PDF.
                     $extraResources = [
                         ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
                     ];
-                    if ($product->content_pdf_path) {
-                        $extraResources[] = [
-                            'label' => 'File PDF tổng (kiểu cũ)', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name,
-                        ];
-                    }
                     if ($product->exercise_zip_path) {
                         $extraResources[] = [
                             'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
