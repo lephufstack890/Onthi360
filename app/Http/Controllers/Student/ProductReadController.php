@@ -46,4 +46,22 @@ class ProductReadController extends Controller
 
         return $this->productRead->streamPdf($this->productRead->resolvePartOrFail($productModel, $material));
     }
+
+    /**
+     * SỬA 29/9 (2) — trả tệp AUDIO/ẢNH của 1 học liệu cho cột "Học liệu" ở trang đọc. Tệp nằm ở
+     * disk riêng tư 'local' nên trước đây không có đường nào xem được trong khu học sinh; kiểm
+     * tra quyền y như route file() ở trên (mua HOẶC được cấp qua lớp).
+     */
+    public function asset(Request $request, int $product, int $material, string $kind): StreamedResponse
+    {
+        $user = $request->user();
+        $productModel = $this->productRead->findOrFail($product);
+
+        abort_unless($this->productRead->decisionFor($user, $productModel)->allowed, 403);
+
+        return $this->productRead->streamAsset(
+            $this->productRead->resolveAssetOrFail($productModel, $material, $kind),
+            $kind
+        );
+    }
 }

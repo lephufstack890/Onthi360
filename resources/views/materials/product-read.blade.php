@@ -28,6 +28,20 @@
         $chapterWord = $chapterWord ?? 'Phần';
         $libraryRoute = $libraryRoute ?? 'student.library.index';
         $typeLabels = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề', 'course' => 'Khóa học'];
+
+        // SỬA 29/9 (2) — dữ liệu cho cột bên phải (xem ProductReadService::buildReadData()).
+        $exercises = $exercises ?? [];
+        $attachments = $attachments ?? [];
+        $access = $access ?? ['owned' => false, 'remainingLabel' => null];
+        $isTeacherView = $isTeacherView ?? false;
+        $doneExercises = collect($exercises)->where('status', 'done')->count();
+        $exercisePercent = count($exercises) > 0 ? (int) round($doneExercises / count($exercises) * 100) : 0;
+        // 3 trạng thái bài tập — dùng y bảng màu của trang đọc 1 bài.
+        $statusMeta = [
+            'done' => ['Đã hoàn thành', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'check-circle-2'],
+            'progress' => ['Đang làm', 'border-amber-200 bg-amber-50 text-amber-700', 'play-circle'],
+            'open' => ['Sẵn sàng', 'border-sky-200 bg-sky-50 text-sky-700', 'play-circle'],
+        ];
     @endphp
 
     <style>
@@ -140,7 +154,7 @@
         }
         @keyframes oi-spin-kf { to { transform: rotate(360deg); } }
 
-        .oi-toc { max-height: min(720px, calc(100dvh - 230px)); overflow-y: auto; }
+        .oi-side-scroll { max-height: min(640px, calc(100dvh - 300px)); overflow-y: auto; }
         .oi-toc-item {
             display: block;
             width: 100%;
@@ -169,7 +183,7 @@
         .oi-toc-state { display: block; font-size: .65rem; color: #93A9B7; margin-top: 2px; }
     </style>
 
-    <div x-data="{ focus: false }" class="reader-ui bg-[#F7F9FB] text-[#466278]">
+    <div x-data="{ focus: false, tab: 'toc', q: '', filter: 'all' }" class="reader-ui bg-[#F7F9FB] text-[#466278]">
 
         {{-- ══════ THANH ĐẦU TRANG ══════ --}}
         <header x-show="! focus"
@@ -197,6 +211,11 @@
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-[#B7DDCD] bg-[#DFF2E9] px-2.5 py-1.5 text-[11px] font-semibold text-[#287B5F]">
                     <x-lucide name="check-circle-2" class="h-3 w-3" /><span>{{ count($parts) }} tệp nội dung</span>
                 </span>
+                @if ($access['owned'] && $access['remainingLabel'])
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[#F2E1B6] bg-[#FFF7E3] px-2.5 py-1.5 text-[11px] font-semibold text-[#8E6B2E]" title="Thời hạn còn lại">
+                        <x-lucide name="clock" class="h-3 w-3" /><span>{{ $access['remainingLabel'] }}</span>
+                    </span>
+                @endif
 
                 <a href="{{ route($libraryRoute) }}" aria-label="Đóng trình đọc"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-[#FFF1F1] hover:text-[#B42318]">
@@ -259,16 +278,29 @@
                         </div>
                     </section>
 
-                    {{-- ══════ CỘT PHẢI: MỤC LỤC ══════ --}}
+                    {{-- ══════ CỘT PHẢI: MỤC LỤC · BÀI TẬP · HỌC LIỆU ══════
+                         SỬA 29/9 (2) (khách: "chưa thấy chỗ làm bài tập với học liệu, hiển thị đầy
+                         đủ, thiết kế bố cục sao cho hợp lý") — 3 thẻ trong CÙNG 1 cột thay vì xếp
+                         dọc chồng nhau: cột phải chỉ cao bằng khung đọc PDF, xếp dọc thì mục lục
+                         sách 20 chương đã chiếm hết chỗ, bài tập bị đẩy xuống dưới không ai thấy.
+                         Bài tập giữ NGUYÊN bố cục thẻ của trang đọc 1 bài (tìm kiếm + 3 bộ lọc +
+                         nút Làm bài) để học sinh không phải học 2 cách trình bày. --}}
                     <aside class="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D5E8ED] bg-white shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
-                        <div class="flex items-center gap-2 border-b border-[#E5EEF3] px-4 py-3">
-                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#FFF7E3] text-[#AF7C32]"><x-lucide name="list" class="h-3.5 w-3.5" /></span>
-                            <div class="min-w-0">
-                                <p class="text-[13px] font-semibold text-[#123B68]">Mục lục</p>
-                                <p class="text-[11px] text-[#7FA5B8]">Bấm để nhảy tới {{ mb_strtolower($chapterWord) }}</p>
+                        <div class="border-b border-[#E5EEF3] p-3 sm:px-4">
+                            <div class="flex gap-1 rounded-xl border border-[#DCE9EE] bg-[#F2F6F8] p-1">
+                                @foreach ([['toc', 'Mục lục', 'list', count($parts)], ['ex', 'Bài tập', 'target', count($exercises)], ['media', 'Học liệu', 'library', count($attachments)]] as [$tKey, $tLabel, $tIcon, $tCount])
+                                    <button type="button" @click="tab = '{{ $tKey }}'"
+                                            class="flex-1 rounded-lg px-2 py-2 text-[10px] font-bold transition"
+                                            :class="tab === '{{ $tKey }}' ? 'bg-[#EAF5F8] text-[#126F91] shadow-[0_2px_7px_rgba(64,105,125,0.1)]' : 'text-[#61798B] hover:bg-white hover:text-[#126F91]'">
+                                        <x-lucide :name="$tIcon" class="mx-auto h-3.5 w-3.5 sm:mr-1.5 sm:inline" /><span class="hidden sm:inline">{{ $tLabel }}</span>
+                                        <span class="ml-0.5">({{ $tCount }})</span>
+                                    </button>
+                                @endforeach
                             </div>
                         </div>
-                        <div class="oi-toc p-3" id="reader-toc">
+
+                        {{-- ─── Thẻ 1: MỤC LỤC (giữ nguyên id/lớp mà script bộ đọc bám vào) ─── --}}
+                        <div x-show="tab === 'toc'" class="oi-side-scroll p-3" id="reader-toc">
                             @foreach ($parts as $i => $part)
                                 <button type="button" class="oi-toc-item{{ $part['sub'] ? ' is-sub' : '' }}" data-part-index="{{ $i }}">
                                     @if ($part['label'] && ! $part['sub'])
@@ -278,6 +310,145 @@
                                     <span class="oi-toc-state" data-state-for="{{ $i }}">Chưa tải</span>
                                 </button>
                             @endforeach
+                        </div>
+
+                        {{-- ─── Thẻ 2: BÀI TẬP ─── --}}
+                        <div x-show="tab === 'ex'" x-cloak class="flex min-h-0 flex-col">
+                            @if (count($exercises) > 0)
+                                <div class="border-b border-[#E5EEF3] px-3.5 py-3 sm:px-4">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="flex items-center gap-2 text-[#126F91]">
+                                            <x-lucide name="target" class="h-4 w-4" /><span class="text-xs font-semibold">Tiến độ bài tập</span>
+                                        </div>
+                                        <span class="rounded-xl bg-[#EAF5F8] px-2.5 py-1.5 text-[10px] font-semibold text-[#126F91]">{{ $doneExercises }}/{{ count($exercises) }}</span>
+                                    </div>
+                                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-[#EAF0F5]">
+                                        <div class="h-full rounded-full bg-gradient-to-r from-[#2F9E72] to-[#68C69A]" style="width: {{ $exercisePercent }}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2.5 p-3.5 sm:p-4">
+                                    <div class="relative">
+                                        <x-lucide name="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9AAEBC]" />
+                                        <input x-model="q" placeholder="Tìm bài tập, hashtag..." aria-label="Tìm bài tập"
+                                               class="w-full rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] py-2.5 pl-9 pr-3 text-[11px] text-[#183D5E] outline-none transition placeholder:text-[#9AAEBC] focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
+                                    </div>
+
+                                    <div class="flex gap-1 rounded-xl border border-[#DCE9EE] bg-[#F2F6F8] p-1">
+                                        @foreach ([['all', 'Tất cả', 'filter'], ['todo', 'Chưa xong', 'play-circle'], ['done', 'Đã xong', 'check-circle-2']] as [$fKey, $fLabel, $fIcon])
+                                            <button type="button" @click="filter = '{{ $fKey }}'"
+                                                    class="flex-1 rounded-lg px-2 py-2 text-[10px] font-bold transition"
+                                                    :class="filter === '{{ $fKey }}' ? 'bg-[#EAF5F8] text-[#126F91] shadow-[0_2px_7px_rgba(64,105,125,0.1)]' : 'text-[#61798B] hover:bg-white hover:text-[#126F91]'">
+                                                <x-lucide :name="$fIcon" class="mx-auto h-3.5 w-3.5 sm:mr-1.5 sm:inline" /><span class="hidden sm:inline">{{ $fLabel }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="oi-side-scroll space-y-2.5 px-3.5 pb-4 sm:px-4">
+                                    @foreach ($exercises as $ex)
+                                        @php
+                                            [$exStatusLabel, $exStatusClass, $exStatusIcon] = $statusMeta[$ex['status']] ?? $statusMeta['open'];
+                                            $exSearch = mb_strtolower($ex['title'].' '.implode(' ', $ex['tags']));
+                                        @endphp
+                                        <div x-show="(filter === 'all' || (filter === 'done' ? '{{ $ex['status'] }}' === 'done' : '{{ $ex['status'] }}' !== 'done'))
+                                                     && (q.trim() === '' || @js($exSearch).includes(q.trim().toLowerCase()))"
+                                             class="flex w-full items-stretch gap-2 rounded-2xl border border-[#F0E1BC] bg-[#FFFAF0] p-2.5 text-left transition hover:border-[#E8CF91] hover:bg-[#FFF4D8]">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#E9F7F8] text-[#23869B]">
+                                                        <x-lucide name="file-text" class="h-4 w-4" />
+                                                    </span>
+                                                    <div class="min-w-0 flex-1">
+                                                        <p class="text-[14px] font-semibold leading-5 text-[#123B68]">{{ $ex['title'] }}</p>
+                                                        @if (count($ex['tags']) > 0)
+                                                            <p class="mt-1.5 flex flex-wrap gap-1">
+                                                                @foreach ($ex['tags'] as $tag)
+                                                                    <span class="inline-flex items-center gap-0.5 rounded-full bg-[#FFF7E3] px-1.5 py-0.5 text-[10px] font-medium text-[#806F55]">
+                                                                        <x-lucide name="hash" class="h-2.5 w-2.5" />{{ $tag }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </p>
+                                                        @endif
+                                                        <p class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#61798B]">
+                                                            <span>{{ $ex['difficultyLabel'] }}</span>
+                                                            <span class="h-1 w-1 rounded-full bg-[#B8C8D3]"></span>
+                                                            <span>{{ $ex['points'] }} điểm</span>
+                                                        </p>
+                                                    </div>
+                                                    <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[9px] font-extrabold {{ $exStatusClass }}" title="{{ $exStatusLabel }}">
+                                                        <x-lucide :name="$exStatusIcon" class="h-3 w-3" />
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            @if ($isTeacherView)
+                                                {{-- Giáo viên KHÔNG có nút "Làm bài" (đúng như "Tài liệu của tôi" bên giáo
+                                                     viên): chỉ xem đề bài, học sinh mới là người làm. --}}
+                                                <a href="{{ route('access.resource.exerciseAttachment', [$product->id, $ex['id'], 'statement']) }}"
+                                                   target="_blank" rel="noopener" title="Xem đề bài"
+                                                   class="inline-flex shrink-0 items-center justify-center gap-1 self-center rounded-xl border border-[#DDEAF0] bg-white px-2.5 py-2 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                                    <x-lucide name="file-text" class="h-3.5 w-3.5" /><span>Xem đề</span>
+                                                </a>
+                                            @else
+                                                {{-- Giữ NGUYÊN đường đi cũ của nút Làm bài: POST kèm return_url tương đối
+                                                     để làm xong quay lại đúng trang đọc này. --}}
+                                                <form method="POST" action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" class="shrink-0 self-center">
+                                                    @csrf
+                                                    <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
+                                                    <button type="submit" title="Làm bài"
+                                                            class="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-[#2F9E72] bg-[#2F9E72] px-2.5 py-2 text-[13px] font-semibold text-white transition hover:border-[#278761] hover:bg-[#278761] active:scale-[0.98]">
+                                                        <x-lucide name="play-circle" class="h-3.5 w-3.5" /><span>Làm bài</span>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="p-4">
+                                    <div class="rounded-2xl border border-dashed border-[#C9DFE8] bg-[#F8FBFE] p-6 text-center text-[11px] text-[#61798B]">
+                                        Tài liệu này chưa gắn bài tập nào.
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- ─── Thẻ 3: HỌC LIỆU (audio/ảnh của từng chương + tệp gắn sản phẩm) ─── --}}
+                        <div x-show="tab === 'media'" x-cloak class="oi-side-scroll p-3.5 sm:p-4">
+                            @forelse ($attachments as $item)
+                                <div class="mb-2.5 rounded-2xl border border-[#DDEAF0] bg-[#F8FBFC] p-3">
+                                    <div class="flex items-start gap-2">
+                                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#E9F7F8] text-[#23869B]">
+                                            <x-lucide :name="$item['kind'] === 'audio' ? 'volume-2' : ($item['kind'] === 'image' ? 'image' : 'paperclip')" class="h-3.5 w-3.5" />
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-[12.5px] font-semibold text-[#123B68]">{{ $item['title'] }}</p>
+                                            @if ($item['chapterTitle'])
+                                                <p class="truncate text-[10.5px] text-[#7FA5B8]">{{ $item['chapterTitle'] }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    @if ($item['kind'] === 'audio')
+                                        {{-- Nghe ngay trong trang (bài nghe-hiểu), không phải tải về. --}}
+                                        <audio controls preload="none" src="{{ $item['url'] }}" class="mt-2 w-full"></audio>
+                                    @elseif ($item['kind'] === 'image')
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener" class="mt-2 block overflow-hidden rounded-xl border border-[#DDEAF0]">
+                                            <img src="{{ $item['url'] }}" alt="{{ $item['title'] }}" loading="lazy" class="w-full">
+                                        </a>
+                                    @else
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener"
+                                           class="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-white px-3 py-1.5 text-[11.5px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                            <x-lucide name="download" class="h-3.5 w-3.5" />Mở tệp
+                                        </a>
+                                    @endif
+                                </div>
+                            @empty
+                                <div class="rounded-2xl border border-dashed border-[#C9DFE8] bg-[#F8FBFE] p-6 text-center text-[11px] text-[#61798B]">
+                                    Tài liệu này chưa có học liệu audio/ảnh hay tệp đính kèm nào.
+                                </div>
+                            @endforelse
                         </div>
                     </aside>
                 </div>

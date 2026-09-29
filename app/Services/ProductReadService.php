@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\AccessRightStatus;
+use App\Enums\AccessScope;
 use App\Enums\ContentStatus;
+use App\Models\AttemptAnswer;
 use App\Models\Material;
 use App\Models\Product;
+use App\Models\Question;
 use App\Models\User;
 use App\Support\AccessDecision;
 use Illuminate\Support\Facades\Storage;
@@ -149,20 +153,219 @@ class ProductReadService
      * + nút Quay lại — cùng cơ chế MaterialReadService::buildReadData() đang dùng, để 1 view
      * dùng chung cho 2 vai trò mà không hard-code route của vai trò nào.
      *
-     * @return array{product: Product, parts: array, chapterWord: string, watermarkText: string, layoutView: string, libraryRoute: string}
+     * SỬA 29/9 (2) (khách: "chưa thấy chỗ làm bài tập với học liệu") — trả thêm 3 khối cho cột
+     * bên phải: BÀI TẬP của sản phẩm (kèm trạng thái làm bài của chính người đang đọc), HỌC LIỆU
+     * đính kèm (audio/ảnh của từng chương + tệp gắn thẳng sản phẩm), và viên quyền sở hữu.
+     *
+     * @return array{product: Product, parts: array, exercises: array, attachments: array, access: array, chapterWord: string, watermarkText: string, layoutView: string, libraryRoute: string, isTeacherView: bool}
      */
     public function buildReadData(User $user, Product $product, string $routePrefix = 'student'): array
     {
+        $isTeacherView = $routePrefix === 'teacher';
+
         return [
             'product' => $product,
             'parts' => $this->partsFor($product, $routePrefix),
+            'exercises' => $this->exercisesFor($user, $product),
+            'attachments' => $this->attachmentsFor($product, $routePrefix, $isTeacherView),
+            'access' => $this->accessChip($user, $product),
             'chapterWord' => $product->chapterLabel() ?: 'Phần',
             // Đóng dấu mờ tên + email người đang đọc lên từng trang — y như trang đọc 1 bài
             // (MaterialReadService): không chặn được chụp màn hình, chỉ để TRUY VẾT nguồn rò rỉ.
             'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
             'layoutView' => 'layouts.'.$routePrefix,
             'libraryRoute' => $routePrefix.'.library.index',
+            'isTeacherView' => $isTeacherView,
         ];
+    }
+
+    /**
+     * BÀI TẬP của sản phẩm đang đọc + trạng thái làm bài CỦA CHÍNH người đang đọc.
+     *
+     * Chép đúng cách tính của Student\MaterialReadService::exercisesFor() (trang đọc 1 bài) để
+     * 2 màn không bao giờ lệch nhau: nguồn là Question có product_id = sản phẩm này và đã phát
+     * hành — cùng tập bài mà "Tài liệu của tôi" đang liệt kê; trạng thái tính từ attempt_answers
+     * thật (có câu đúng -> Đã hoàn thành, có nộp mà chưa đúng -> Đang làm, chưa nộp -> Sẵn sàng).
+     *
+     * @return array<int, array{id:int,title:string,tags:array,points:int,difficultyLabel:string,status:string,statusLabel:string}>
+     */
+    private function exercisesFor(User $user, Product $product): array
+    {
+        $questions = Question::query()
+            ->where('product_id', $product->id)
+            ->where('status', ContentStatus::Published->value)
+            ->with(['tags:id,name'])
+            ->orderBy('id')
+            ->get();
+
+        if ($questions->isEmpty()) {
+            return [];
+        }
+
+        $mine = AttemptAnswer::query()
+            ->selectRaw('question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted', ['accepted'])
+            ->whereIn('question_id', $questions->pluck('id')->all())
+            ->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id))
+            ->groupBy('question_id')
+            ->get()
+            ->keyBy('question_id');
+
+        return $questions->map(function (Question $question) use ($mine) {
+            $row = $mine->get($question->id);
+            $count = (int) ($row->mine ?? 0);
+            $accepted = (int) ($row->mine_accepted ?? 0);
+
+            [$statusKey, $statusLabel] = match (true) {
+                $accepted > 0 => ['done', 'Đã hoàn thành'],
+                $count > 0 => ['progress', 'Đang làm'],
+                default => ['open', 'Sẵn sàng'],
+            };
+
+            $meta = $question->metadata ?? [];
+            $level = (int) ($meta['difficulty'] ?? 0);
+            if ($level < 1 || $level > 5) {
+                $level = max(1, min(5, (int) ceil(($question->points ?: 10) / 20)));
+            }
+
+            return [
+                'id' => $question->id,
+                'title' => $question->title,
+                'tags' => $question->tags->pluck('name')->take(3)->values()->all(),
+                'points' => (int) $question->points,
+                'difficultyLabel' => match (true) {
+                    $level <= 2 => 'Cơ bản',
+                    $level === 3 => 'Trung bình',
+                    default => 'Khó',
+                },
+                'status' => $statusKey,
+                'statusLabel' => $statusLabel,
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * HỌC LIỆU đính kèm — 2 nguồn, gộp về 1 danh sách cho cột bên phải:
+     *   · audio/ảnh của từng học liệu trong sản phẩm (Material::audio_path/image_path, tải ở
+     *     trang "Thêm học liệu") — phát/xem TRỰC TIẾP trong trang đọc, qua route asset có kiểm
+     *     tra quyền, vì đây là tệp riêng tư ở disk 'local';
+     *   · tệp gắn thẳng vào sản phẩm: ZIP bài tập, học liệu media, và PDF hướng dẫn (CHỈ giáo
+     *     viên — luật thật nằm ở AccessService::downloadResource(), đây chỉ là chỗ hiển thị).
+     *
+     * @return array<int, array{kind:string,title:string,chapterTitle:?string,url:string}>
+     */
+    private function attachmentsFor(Product $product, string $routePrefix, bool $isTeacherView): array
+    {
+        $items = [];
+
+        $medias = Material::query()
+            ->where('product_id', $product->id)
+            ->where('status', ContentStatus::Published->value)
+            ->where(fn ($q) => $q->whereNotNull('audio_path')->orWhereNotNull('image_path'))
+            ->with('parent:id,title')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($medias as $media) {
+            foreach (['audio', 'image'] as $kind) {
+                if (blank($media->{$kind.'_path'})) {
+                    continue;
+                }
+
+                $items[] = [
+                    'kind' => $kind,
+                    'title' => $media->title,
+                    'chapterTitle' => $media->parent?->title,
+                    'url' => route($routePrefix.'.products.read.asset', [
+                        'product' => $product->id,
+                        'material' => $media->id,
+                        'kind' => $kind,
+                    ]),
+                ];
+            }
+        }
+
+        $productFiles = [
+            ['exercise', 'ZIP bài tập', filled($product->exercise_zip_path)],
+            ['media', 'Học liệu (ảnh động/audio)', filled($product->media_path)],
+            ['guide', 'PDF hướng dẫn (giáo viên)', $isTeacherView && filled($product->guide_pdf_path)],
+        ];
+
+        foreach ($productFiles as [$kind, $label, $present]) {
+            if (! $present) {
+                continue;
+            }
+
+            $items[] = [
+                'kind' => 'file',
+                'title' => $label,
+                'chapterTitle' => null,
+                'url' => route('access.resource', ['product' => $product->id, 'kind' => $kind]),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Viên "Đã sở hữu / còn N ngày" ở thanh đầu trang — chép cách tính của
+     * MaterialReadService::accessChip(). expires_at = NULL là quyền vĩnh viễn nên in "Không
+     * giới hạn" chứ không bịa ra một con số ngày. Vào được đây qua lớp học (không có quyền cá
+     * nhân) thì trả owned = false, thanh đầu trang tự in "Cấp qua lớp học".
+     *
+     * @return array{owned:bool, remainingLabel:?string}
+     */
+    private function accessChip(User $user, Product $product): array
+    {
+        $right = $user->accessRights()
+            ->where('product_id', $product->id)
+            ->whereIn('scope', [AccessScope::PersonalLearning->value, AccessScope::TeacherTeaching->value])
+            ->where('status', AccessRightStatus::Active)
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByRaw('expires_at IS NULL DESC')
+            ->orderByDesc('expires_at')
+            ->first();
+
+        if ($right === null) {
+            return ['owned' => false, 'remainingLabel' => null];
+        }
+
+        return [
+            'owned' => true,
+            'remainingLabel' => $right->expires_at === null
+                ? 'Không giới hạn'
+                : 'Còn '.max(0, (int) now()->diffInDays($right->expires_at, false)).' ngày',
+        ];
+    }
+
+    /**
+     * Trả tệp audio/ảnh của 1 học liệu cho trang đọc. Cùng luật với streamPdf(): tệp nằm ở disk
+     * riêng tư 'local', chỉ ra khỏi máy chủ sau khi controller đã kiểm tra quyền sản phẩm.
+     */
+    public function streamAsset(Material $material, string $kind): StreamedResponse
+    {
+        $path = $kind === 'audio' ? $material->audio_path : $material->image_path;
+        abort_if(blank($path), 404);
+
+        return Storage::disk('local')->response($path);
+    }
+
+    /**
+     * Học liệu có tệp audio/ảnh thuộc đúng sản phẩm này — KHÁC resolvePartOrFail() (đòi có PDF).
+     */
+    public function resolveAssetOrFail(Product $product, int $materialId, string $kind): Material
+    {
+        $column = $kind === 'audio' ? 'audio_path' : 'image_path';
+
+        $material = Material::query()
+            ->where('product_id', $product->id)
+            ->where('status', ContentStatus::Published->value)
+            ->whereNotNull($column)
+            ->find($materialId);
+
+        abort_if($material === null, 404);
+
+        return $material;
     }
 
     /**

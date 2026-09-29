@@ -200,6 +200,11 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('product')->name('products.read');
         Route::get('tai-lieu-cua-toi/{product}/doc/{material}/file', [StudentProductReadController::class, 'file'])
             ->whereNumber(['product', 'material'])->name('products.read.file');
+        // SỬA 29/9 (2) — tệp audio/ảnh của học liệu, cho cột "Học liệu" ở trang đọc (tệp riêng
+        // tư ở disk 'local', trước đây không có route nào xem được trong khu vực người học).
+        Route::get('tai-lieu-cua-toi/{product}/doc/{material}/asset/{kind}', [StudentProductReadController::class, 'asset'])
+            ->whereNumber(['product', 'material'])->whereIn('kind', ['audio', 'image'])
+            ->name('products.read.asset');
         // SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang public, chỉ xem trong khu vực
         // học sinh"): "Tài liệu của tôi" — tab Sách/Chuyên đề/Bộ đề, chỉ liệt kê sản phẩm đã
         // mua (App\Services\Student\LibraryService), gộp cả Mục lục (đọc bài — vẫn qua
@@ -305,6 +310,11 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('product')->name('products.read');
         Route::get('tai-lieu-cua-toi/{product}/doc/{material}/file', [TeacherProductReadController::class, 'file'])
             ->whereNumber(['product', 'material'])->name('products.read.file');
+        // SỬA 29/9 (2) — tệp audio/ảnh của học liệu, cho cột "Học liệu" ở trang đọc (tệp riêng
+        // tư ở disk 'local', trước đây không có route nào xem được trong khu vực người học).
+        Route::get('tai-lieu-cua-toi/{product}/doc/{material}/asset/{kind}', [TeacherProductReadController::class, 'asset'])
+            ->whereNumber(['product', 'material'])->whereIn('kind', ['audio', 'image'])
+            ->name('products.read.asset');
         // SỬA 28/8 (2 — "bên giáo viên cũng xem tài liệu giống như học sinh, chỉ khác được
         // xem thêm file hướng dẫn") — "Tài liệu của tôi" bên giáo viên, tái dùng nguyên
         // App\Services\Student\LibraryService (xem Teacher\LibraryController), chỉ khác gọi
