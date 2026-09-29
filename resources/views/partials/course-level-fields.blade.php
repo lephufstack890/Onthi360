@@ -54,14 +54,25 @@
                 @error('outcome')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
             </div>
 
+            {{-- SỬA 30/9 (khách: "số buổi nó kiểu 33-50 buổi nên tôi thêm không được") — số buổi
+                 nhập được theo KHOẢNG: ô đầu là cận dưới, ô sau là cận trên (bỏ trống nếu khoá
+                 có số buổi cố định). Trang công khai in "33-50 buổi" hay "40 buổi" tuỳ theo. --}}
             <div>
                 <label class="mb-1 block text-[11px] font-bold text-slate-600" for="session_count">Tổng số buổi</label>
-                <input id="session_count" name="session_count" type="number" min="1" max="999" class="admin-input"
-                       value="{{ old('session_count', $course->session_count ?? '') }}" placeholder="120">
+                <div class="flex items-center gap-2">
+                    <input id="session_count" name="session_count" type="number" min="1" max="999" class="admin-input"
+                           value="{{ old('session_count', $course->session_count ?? '') }}" placeholder="33">
+                    <span class="shrink-0 text-[11px] font-bold text-slate-400">đến</span>
+                    <input id="session_count_max" name="session_count_max" type="number" min="1" max="999" class="admin-input"
+                           value="{{ old('session_count_max', $course->session_count_max ?? '') }}" placeholder="50">
+                </div>
                 <p class="mt-1 text-[10px] leading-relaxed text-slate-400">
-                    Ô "Tổng buổi". Là số buổi <strong>theo chương trình</strong> — bỏ trống thì trang tự đếm số buổi đã xếp lịch thật của lớp dài nhất.
+                    Ô "Tổng buổi". Là số buổi <strong>theo chương trình</strong>. Khoá có số buổi cố định thì
+                    chỉ điền ô đầu (vd 40 buổi); khoá ghi theo khoảng thì điền cả hai (vd 33 đến 50 buổi).
+                    Bỏ trống cả hai thì trang tự đếm số buổi đã xếp lịch thật của lớp dài nhất.
                 </p>
                 @error('session_count')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                @error('session_count_max')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
             </div>
         </div>
     </div>

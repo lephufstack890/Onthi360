@@ -41,15 +41,7 @@
                                placeholder="Ví dụ: Tin học, Toán"
                                class="admin-input">
                     </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-ws.select id="grade" name="grade" icon="🎓">
-                            <option value="">— Không chỉ định —</option>
-                            @foreach ($grades as $g)
-                                <option value="{{ $g }}" @selected(old('grade') === $g)>{{ $g }}</option>
-                            @endforeach
-                        </x-ws.select>
-                    </div>
+                    @include('partials.course-grade-field')
                 </div>
 
                 @include('partials.course-cover-field')

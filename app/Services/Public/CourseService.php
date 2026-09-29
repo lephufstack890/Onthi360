@@ -139,8 +139,10 @@ class CourseService
             ->values()
             ->all();
 
+        // SỬA 30/9 — 1 khoá giờ gắn được NHIỀU khối ("Lớp 6, Lớp 7"), nên phải tách ra để mỗi
+        // khối là 1 viên lọc riêng, thay vì in nguyên cụm thành một viên không ai bấm.
         $grades = collect($courseFilters)
-            ->pluck('grade')
+            ->flatMap(fn (array $cf) => Course::splitGrades($cf['grade']))
             ->filter(fn (string $g) => $g !== '')
             ->unique()
             // Xếp theo SỐ chứ không theo chữ — theo chữ thì "Lớp 10" đứng trước "Lớp 6".
@@ -345,12 +347,15 @@ class CourseService
             'activeSubject' => $subject,
             // Khối lớp có thật trong dữ liệu — dải lọc "Khối lớp" của giao diện mới dựng từ đây,
             // không phải danh sách cứng, nên không bao giờ lọc ra 0 kết quả một cách vô nghĩa.
+            // SỬA 30/9 — tách chuỗi nhiều khối của từng khoá rồi mới gom, xếp theo SỐ.
             'grades' => $this->courses->query()
                 ->where('status', 'published')
                 ->whereNotNull('grade')
-                ->distinct()
-                ->orderBy('grade')
                 ->pluck('grade')
+                ->flatMap(fn (?string $g) => Course::splitGrades($g))
+                ->unique()
+                ->sortBy(fn (string $g) => ((int) preg_replace('/\D/', '', $g)) ?: 99)
+                ->values()
                 ->all(),
         ];
     }
@@ -452,8 +457,9 @@ class CourseService
             ->all();
 
         // Xếp khối lớp theo SỐ chứ không theo chữ — xếp theo chữ thì "Lớp 10" đứng trước "Lớp 6".
+        // SỬA 30/9 — khoá nhiều khối: tách ra để mỗi khối là 1 mục lọc riêng.
         $grades = collect($rows)
-            ->pluck('grade')
+            ->flatMap(fn (array $r) => $r['grade'] === 'Chưa phân khối' ? ['Chưa phân khối'] : Course::splitGrades($r['grade']))
             ->unique()
             ->sortBy(fn (string $g) => ((int) preg_replace('/\D/', '', $g)) ?: 99)
             ->values()
@@ -474,15 +480,19 @@ class CourseService
      *   · số tuần       — khoảng cách buổi đầu tới buổi cuối của lớp dài nhất, làm tròn lên.
      *                     Lớp chưa xếp lịch thì không có số tuần, view giấu dòng nhịp học.
      *
-     * @return array{totalStudents:int, openClassCount:int, sessionTotal:int, weekSpan:int, sessionsPerWeek:?float}
+     * @return array{totalStudents:int, openClassCount:int, sessionTotal:int, sessionTotalLabel:string, weekSpan:int, sessionsPerWeek:?float}
      */
     private function headlineFigures(Course $course): array
     {
         $classRooms = $course->classRooms;
 
         $sessionTotal = (int) ($course->session_count ?? 0);
+        // SỬA 30/9 — khoá ghi số buổi theo KHOẢNG thì in "33-50 buổi" thay vì chỉ cận dưới.
+        // Nhãn rỗng = quản trị chưa nhập, rơi về đếm số buổi đã xếp lịch thật như trước.
+        $sessionTotalLabel = $course->sessionCountLabel('');
         if ($sessionTotal <= 0) {
             $sessionTotal = (int) $classRooms->max('sessions_count');
+            $sessionTotalLabel = '';
         }
 
         // Lớp dài nhất quyết định độ dài khoá — lớp mới mở xếp lịch chưa đủ không kéo con số xuống.
@@ -502,6 +512,7 @@ class CourseService
             'totalStudents' => (int) $classRooms->sum('students_count'),
             'openClassCount' => $classRooms->count(),
             'sessionTotal' => $sessionTotal,
+            'sessionTotalLabel' => $sessionTotalLabel !== '' ? $sessionTotalLabel : (string) $sessionTotal,
             'weekSpan' => $weekSpan,
             'sessionsPerWeek' => $weekSpan > 0 && $sessionTotal > 0
                 ? round($sessionTotal / $weekSpan, 1)

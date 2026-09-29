@@ -89,12 +89,17 @@
                                 {{-- SỬA 15/9 (A10) — đối chiếu số buổi ĐÃ XẾP LỊCH của lớp với số buổi
                                      THEO CHƯƠNG TRÌNH của khoá. Lệch thì báo ngay tại đây, thay vì đợi
                                      học sinh kêu thiếu buổi. --}}
-                                @php $designed = (int) ($designedSessions ?? 0); $scheduled = (int) ($c['scheduledSessions'] ?? 0); @endphp
+                                @php
+                                    $designed = (int) ($designedSessions ?? 0);
+                                    // SỬA 30/9 — khoá ghi số buổi theo khoảng thì in "33-50"; đối chiếu vẫn theo cận dưới.
+                                    $designedLabel = ($designedSessionsLabel ?? '') !== '' ? $designedSessionsLabel : (string) $designed;
+                                    $scheduled = (int) ($c['scheduledSessions'] ?? 0);
+                                @endphp
                                 @if ($designed > 0)
                                     <p class="mt-1 inline-flex items-center gap-1 text-[11px] font-bold
                                               {{ $scheduled >= $designed ? 'text-emerald-600' : 'text-amber-600' }}">
                                         <x-lucide name="calendar-days" class="h-3 w-3" />
-                                        Đã xếp {{ $scheduled }}/{{ $designed }} buổi
+                                        Đã xếp {{ $scheduled }}/{{ $designedLabel }} buổi
                                         @if ($scheduled < $designed)
                                             · còn thiếu {{ $designed - $scheduled }}
                                         @endif

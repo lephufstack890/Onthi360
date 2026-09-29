@@ -40,13 +40,20 @@ class CourseController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'subject' => ['nullable', 'string', 'max:60'],
-            'grade' => ['nullable', 'string', 'max:20'],
+            // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['string', 'max:20'],
+            'grade' => ['nullable', 'string', 'max:120'],
             'status' => ['required', 'string', 'in:draft,published'],
             // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
             'level_code' => ['nullable', 'string', 'max:60'],
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+            // SỬA 30/9 (khách: "số buổi nó kiểu 33-50 buổi") — cận trên của khoảng số buổi.
+            // gte:session_count để không ai nhập ngược thành "50 đến 33".
+            'session_count_max' => ['nullable', 'integer', 'min:1', 'max:999', 'gte:session_count'],
             // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
             // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
@@ -57,6 +64,7 @@ class CourseController extends Controller
             'remove_cover' => ['nullable', 'boolean'],
         ], [
             'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
+            'session_count_max.gte' => 'Số buổi ở ô sau phải lớn hơn hoặc bằng ô trước (ví dụ 33 đến 50).',
         ]);
 
         $course = $this->courseService->store(Auth::user(), $data, $request->file('cover'));
@@ -75,13 +83,20 @@ class CourseController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'subject' => ['nullable', 'string', 'max:60'],
-            'grade' => ['nullable', 'string', 'max:20'],
+            // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['string', 'max:20'],
+            'grade' => ['nullable', 'string', 'max:120'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
             // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
             'level_code' => ['nullable', 'string', 'max:60'],
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+            // SỬA 30/9 (khách: "số buổi nó kiểu 33-50 buổi") — cận trên của khoảng số buổi.
+            // gte:session_count để không ai nhập ngược thành "50 đến 33".
+            'session_count_max' => ['nullable', 'integer', 'min:1', 'max:999', 'gte:session_count'],
             // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
             // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
@@ -92,6 +107,7 @@ class CourseController extends Controller
             'remove_cover' => ['nullable', 'boolean'],
         ], [
             'product_id.exists' => 'Sản phẩm bán khoá học phải là một sản phẩm loại "Khóa học".',
+            'session_count_max.gte' => 'Số buổi ở ô sau phải lớn hơn hoặc bằng ô trước (ví dụ 33 đến 50).',
         ]);
 
         $this->courseService->update(

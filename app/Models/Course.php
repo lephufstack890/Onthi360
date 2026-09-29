@@ -22,6 +22,9 @@ class Course extends Model
         // SỬA 15/9 — bốn trường "bậc" khi khoá học nằm trong một lộ trình, xem migration
         // add_level_fields_to_courses_table.
         'level_code', 'level_subtitle', 'outcome', 'session_count',
+        // SỬA 30/9 — cận TRÊN của số buổi khi khoá ghi theo khoảng ("33-50 buổi"), xem
+        // migration add_session_range_and_multi_grade_to_courses_table.
+        'session_count_max',
         // C1 — sản phẩm loại 'course' dùng để bán khoá này, xem migration
         // add_product_id_to_courses_table.
         'product_id',
@@ -30,7 +33,47 @@ class Course extends Model
     protected $casts = [
         'status' => ContentStatus::class,
         'session_count' => 'integer',
+        'session_count_max' => 'integer',
     ];
+
+    /**
+     * SỬA 30/9 — số buổi in ra màn hình: "33-50 buổi" khi khoá ghi theo khoảng, "40 buổi" khi
+     * cố định, chuỗi rỗng khi chưa nhập (nơi gọi tự giấu ô đó đi thay vì in "0 buổi").
+     */
+    public function sessionCountLabel(string $suffix = ' buổi'): string
+    {
+        $min = (int) ($this->session_count ?? 0);
+        $max = (int) ($this->session_count_max ?? 0);
+
+        if ($min <= 0) {
+            return '';
+        }
+
+        return ($max > $min ? $min.'-'.$max : (string) $min).$suffix;
+    }
+
+    /**
+     * SỬA 30/9 — cột grade giờ chứa được NHIỀU khối ngăn bằng dấu phẩy ("Lớp 6, Lớp 7"). Hàm
+     * này tách ra mảng để form tick sẵn ô đã chọn và để trang công khai dựng dải lọc theo
+     * TỪNG khối thay vì một viên ghi cả cụm.
+     *
+     * @return array<int, string>
+     */
+    public function gradeList(): array
+    {
+        return self::splitGrades($this->grade);
+    }
+
+    /** @return array<int, string> */
+    public static function splitGrades(?string $raw): array
+    {
+        return collect(explode(',', (string) $raw))
+            ->map(fn ($g) => trim($g))
+            ->filter(fn ($g) => $g !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
 
     /**
      * Đọc bởi App\Concerns\Auditable — set trước khi delete() để ghi lý do xóa mềm

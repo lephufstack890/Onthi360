@@ -1,4 +1,17 @@
 <script>
+    /*
+     * SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — 1 khoá học giờ gắn được
+     * nhiều khối, cột grade lưu dạng "Lớp 6, Lớp 7". Hàm này so khối đang lọc với TỪNG khối
+     * trong chuỗi đó; so nguyên cụm như trước thì bấm viên "Lớp 6" sẽ ra 0 lớp.
+     */
+    function gradeMatches(raw, wanted) {
+        return String(raw || '')
+            .split(',')
+            .map(function (g) { return g.trim(); })
+            .filter(function (g) { return g !== ''; })
+            .indexOf(wanted) !== -1;
+    }
+
     function onthiCoursesPage(config) {
         return {
             rows: config.rows,
@@ -30,7 +43,9 @@
                 const q = this.searchQuery.trim().toLowerCase();
                 return this.rows.filter((r) => {
                     const matchCat = this.selectedCategory === 'all' || r.subject === this.selectedCategory;
-                    const matchGrade = this.selectedGrade === 'all' || r.grade === this.selectedGrade;
+                    // SỬA 30/9 — 1 khoá gắn được nhiều khối ("Lớp 6, Lớp 7"), nên phải so theo
+                    // TỪNG khối trong chuỗi, không so cả cụm (so cả cụm thì bấm "Lớp 6" ra 0 lớp).
+                    const matchGrade = this.selectedGrade === 'all' || gradeMatches(r.grade, this.selectedGrade);
                     const matchCourse = this.selectedCourse === 'all' || r.courseId === this.selectedCourse;
                     const matchSearch = !q || r.search.includes(q);
                     return matchCat && matchGrade && matchCourse && matchSearch;
@@ -66,7 +81,7 @@
             /** Các khoá còn hợp lệ với khối lớp đang chọn — dải chip "Khoá học" dựng từ đây. */
             get visibleCourses() {
                 if (this.selectedGrade === 'all') return this.courses;
-                return this.courses.filter((c) => c.grade === this.selectedGrade);
+                return this.courses.filter((c) => gradeMatches(c.grade, this.selectedGrade));
             },
             async openClassDetail(id) {
                 this.detail.open = true;

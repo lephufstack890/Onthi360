@@ -154,6 +154,10 @@ class CourseService
             'totalStudents' => $classRooms->sum('students'),
             // Số buổi theo chương trình của khoá, để view so với từng lớp.
             'designedSessions' => (int) $course->session_count,
+            // SỬA 30/9 — nhãn in ra màn hình: "33-50" khi khoá ghi theo khoảng, "40" khi cố
+            // định. Phép ĐỐI CHIẾU vẫn lấy cận dưới ('designedSessions') — xếp đủ mức tối
+            // thiểu là coi như đạt, không bắt phải chạm cận trên.
+            'designedSessionsLabel' => $course->sessionCountLabel(''),
         ];
     }
 
@@ -177,7 +181,7 @@ class CourseService
             'slug' => $slug,
             'description' => $data['description'] ?? null,
             'subject' => $data['subject'] ?? null,
-            'grade' => $data['grade'] ?? null,
+            'grade' => self::gradeValue($data),
             'status' => $data['status'],
             /*
              * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
@@ -218,7 +222,7 @@ class CourseService
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'subject' => $data['subject'] ?? null,
-            'grade' => $data['grade'] ?? null,
+            'grade' => self::gradeValue($data),
             'status' => $data['status'],
             /*
              * Bốn trường "bậc" — chỉ có ý nghĩa khi khoá học được xếp vào một lộ trình.
@@ -267,6 +271,28 @@ class CourseService
      *
      * @return array<string, string|int|null>
      */
+    /**
+     * SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — gộp các khối đã tick thành
+     * MỘT chuỗi lưu ở cột courses.grade ("Lớp 6, Lớp 7"). Vẫn chấp nhận 'grade' dạng chuỗi đơn
+     * để các chỗ gọi cũ (nếu còn) không gãy. Không tick gì -> null = "không chỉ định khối".
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function gradeValue(array $data): ?string
+    {
+        $grades = $data['grades'] ?? null;
+
+        if (is_array($grades)) {
+            $list = Course::splitGrades(implode(',', $grades));
+
+            return $list === [] ? null : implode(', ', $list);
+        }
+
+        $single = trim((string) ($data['grade'] ?? ''));
+
+        return $single === '' ? null : $single;
+    }
+
     private function levelAttributes(array $data): array
     {
         $attributes = [];
@@ -277,6 +303,14 @@ class CourseService
             $attributes['level_code'] = $data['level_code'] ?? null;
             $attributes['outcome'] = $data['outcome'] ?? null;
             $attributes['session_count'] = ($sessionCount !== null && $sessionCount !== '') ? (int) $sessionCount : null;
+
+            // SỬA 30/9 — cận TRÊN của khoảng số buổi ("33-50 buổi"). Bỏ trống, hoặc không lớn
+            // hơn cận dưới, thì để null = khoá có số buổi cố định (in đúng 1 con số như cũ).
+            $sessionMax = $data['session_count_max'] ?? null;
+            $sessionMax = ($sessionMax !== null && $sessionMax !== '') ? (int) $sessionMax : null;
+            $attributes['session_count_max'] = ($sessionMax !== null && $attributes['session_count'] !== null && $sessionMax > $attributes['session_count'])
+                ? $sessionMax
+                : null;
         }
 
         if (self::SHOW_LEVEL_FIELDS) {

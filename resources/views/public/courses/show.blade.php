@@ -49,6 +49,8 @@
         $totalStudents = $totalStudents ?? 0;
         $openClassCount = $openClassCount ?? count($classes);
         $sessionTotal = $sessionTotal ?? 0;
+        // SỬA 30/9 — khoá ghi số buổi theo khoảng thì in "33-50", khoá cố định in đúng 1 số.
+        $sessionTotalLabel = $sessionTotalLabel ?? (string) $sessionTotal;
         $weekSpan = $weekSpan ?? 0;
         $sessionsPerWeek = $sessionsPerWeek ?? null;
 
@@ -186,7 +188,7 @@
                 $figureTiles = [
                     ['label' => 'Khối lớp', 'value' => $course->grade ?: '—', 'icon' => 'graduation-cap'],
                     ['label' => 'Lớp đang mở', 'value' => $openClassCount > 0 ? $openClassCount : '—', 'icon' => 'school'],
-                    ['label' => 'Tổng buổi', 'value' => $sessionTotal > 0 ? $sessionTotal : '—', 'icon' => 'calendar-days'],
+                    ['label' => 'Tổng buổi', 'value' => $sessionTotal > 0 ? $sessionTotalLabel : '—', 'icon' => 'calendar-days'],
                     ['label' => 'Học viên', 'value' => $totalStudents > 0 ? $totalStudents : '—', 'icon' => 'users'],
                 ];
             @endphp
