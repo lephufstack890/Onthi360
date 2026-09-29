@@ -548,6 +548,18 @@
                         </div>
                     </div>
 
+                    {{-- SỬA 29/9 (khách chốt: "giáo viên gắn vào lớp học thì từng file pdf sẽ ghép dài
+                         để lướt lên lướt xuống đọc") — vào thẳng trang đọc liền mạch của sản phẩm.
+                         Trước đây tab này chỉ có link tải tệp PDF tổng ở mục Tài nguyên. --}}
+                    @if ($p['readHref'] ?? null)
+                        <a href="{{ $p['readHref'] }}"
+                           class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium">
+                            <x-lucide name="book-open" class="h-3.5 w-3.5" /> Đọc tài liệu
+                        </a>
+                    @else
+                        <p class="mt-4 text-xs text-slate-400">Tài liệu này chưa có nội dung đọc.</p>
+                    @endif
+
                     @if (count($p['resources']) > 0)
                         <div class="mt-4">
                             <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Tài nguyên đính kèm</p>

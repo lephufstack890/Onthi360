@@ -22,6 +22,7 @@ use App\Repositories\Contracts\ClassSessionRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
+use App\Services\ProductReadService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 
@@ -60,6 +61,8 @@ class ClassRoomService
         private readonly AssessmentService $assessmentService,
         // SỬA 16/9 — luồng "học sinh xin vào lớp, giáo viên duyệt" thay cho mã lớp.
         private readonly ClassEnrollmentRepositoryInterface $classEnrollments,
+        // SỬA 29/9 — biết sản phẩm gắn lớp có tệp nào để đọc không, dựng link trang đọc liền mạch.
+        private readonly ProductReadService $productRead,
     ) {}
 
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
@@ -223,7 +226,13 @@ class ClassRoomService
                 ->map(fn ($cm) => [
                     'id' => $cm->id,
                     'productId' => $cm->product_id,
-                    'hasContent' => filled($cm->product?->content_pdf_path),
+                    // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, mỗi chương 1 file pdf") — cờ
+                    // 'hasContent' cũ chỉ xét tệp PDF TỔNG của sản phẩm nên sách đã chia chương
+                    // sẽ không hiện link nào. Thay bằng link thẳng vào trang đọc liền mạch, có
+                    // khi và chỉ khi sản phẩm thực sự có tệp để đọc (ProductReadService).
+                    'readHref' => $cm->product !== null && $this->productRead->hasReadableParts($cm->product)
+                        ? route('teacher.products.read', $cm->product_id)
+                        : null,
                     'title' => $cm->product->title ?? 'Học liệu',
                     'typeLabel' => self::TYPE_LABELS[$cm->product?->type?->value] ?? '',
                     'scope' => 'Đang dùng ở lớp này',

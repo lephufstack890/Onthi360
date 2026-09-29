@@ -89,10 +89,20 @@
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="file-text" class="h-4 w-4" /></span> Tài nguyên đính kèm</h2>
                 @php
+                    // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm
+                    // từng file pdf") — bỏ dòng "File PDF" (tệp tổng của cả sản phẩm) khỏi đây.
+                    // Nội dung đọc giờ nằm ở PDF của TỪNG chương/phần/đề, xem khối bên dưới.
+                    // Cột content_pdf_path trong DB CỐ Ý giữ lại, không xoá: sản phẩm cũ đã tải
+                    // tệp tổng vẫn đọc được (ProductReadService::partsFor() dùng làm tệp dự phòng
+                    // khi chưa chương nào có PDF), khỏi phải chuyển dữ liệu trước khi lên bản mới.
                     $extraResources = [
-                        ['label' => 'File PDF', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name],
                         ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
                     ];
+                    if ($product->content_pdf_path) {
+                        $extraResources[] = [
+                            'label' => 'File PDF tổng (kiểu cũ)', 'path' => $product->content_pdf_path, 'name' => $product->content_pdf_original_name,
+                        ];
+                    }
                     if ($product->exercise_zip_path) {
                         $extraResources[] = [
                             'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
@@ -125,15 +135,22 @@
                         <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="book-open" class="h-4 w-4" /></span> {{ $chapterLabel }}</h2>
                         <span class="text-xs text-slate-400">{{ count($chapters) }} mục</span>
                     </div>
+                    {{-- SỬA 29/9 (khách chốt: "chỗ chương mỗi chương là thêm từng file pdf") — mỗi
+                         mục giờ mang LUÔN tệp PDF nội dung của nó. Học sinh/giáo viên mở trang đọc
+                         sẽ thấy các tệp này nối lại thành một dải cuộn liền mạch theo đúng thứ tự
+                         ở đây (xem App\Services\ProductReadService). --}}
                     <p class="text-xs text-slate-400 mb-3">
-                        Chỉ cần đặt tên — dùng để gắn bài tập/học liệu vào đúng {{ mb_strtolower($chapterLabel) }} này.
+                        Đặt tên + tải tệp PDF nội dung của {{ mb_strtolower($chapterLabel) }} này. Người học đọc liền
+                        mạch tất cả {{ mb_strtolower($chapterLabel) }} theo thứ tự bên dưới — cần đổi thứ tự thì bấm Sửa.
                     </p>
 
-                    <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST"
+                    <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data"
                           class="flex items-center gap-3 flex-wrap mb-4 p-3 rounded-xl bg-slate-50 border border-dashed border-sky-100">
                         @csrf
                         <input type="text" name="title" required maxlength="255" placeholder="Tên {{ mb_strtolower($chapterLabel) }} mới..."
                                class="flex-1 min-w-[200px] rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition">
+                        <input type="file" name="pdf" accept="application/pdf"
+                               class="text-[13px] text-slate-600 flex-1 min-w-[200px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-600 file:text-[13px]">
                         <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium shrink-0">
                             + Thêm {{ mb_strtolower($chapterLabel) }}
                         </button>
@@ -148,7 +165,17 @@
                                     <div class="flex items-center justify-between gap-3 flex-wrap">
                                         <div class="min-w-0">
                                             <p class="text-[13px] font-medium text-slate-700 truncate">{{ $c['title'] }}</p>
-                                            <p class="text-xs text-slate-400">{{ $c['questionsCount'] }} bài tập</p>
+                                            <p class="text-xs text-slate-400">
+                                                @if ($c['hasPdf'])
+                                                    <span class="text-emerald-600 font-medium">✓ {{ $c['pdfName'] ?: 'Đã có PDF' }}</span>
+                                                @else
+                                                    <span class="text-amber-600 font-medium">⚠ Chưa có PDF nội dung</span>
+                                                @endif
+                                                · {{ $c['questionsCount'] }} bài tập
+                                                @if (($c['materialsCount'] ?? 0) > 0)
+                                                    · {{ $c['materialsCount'] }} học liệu
+                                                @endif
+                                            </p>
                                         </div>
                                         <div class="flex items-center gap-3 shrink-0">
                                             <button type="button" @click="editing = {{ $c['id'] }}" class="text-[13px] text-blue-600 font-medium">Sửa</button>
@@ -161,13 +188,21 @@
                                     </div>
                                 </div>
                                 <div class="py-2.5" x-show="editing === {{ $c['id'] }}" x-cloak>
-                                    <form action="{{ route('admin.products.chapters.update', [$product->id, $c['id']]) }}" method="POST" class="flex items-center gap-2 flex-wrap">
+                                    <form action="{{ route('admin.products.chapters.update', [$product->id, $c['id']]) }}" method="POST" enctype="multipart/form-data" class="flex items-center gap-2 flex-wrap">
                                         @csrf
                                         @method('PUT')
                                         <input type="text" name="title" value="{{ $c['title'] }}" required maxlength="255"
                                                class="flex-1 min-w-[160px] rounded-xl border border-sky-100 text-[13px] p-2">
                                         <input type="number" name="order" value="{{ $c['order'] }}" min="0"
                                                class="w-20 rounded-xl border border-sky-100 text-[13px] p-2" title="Thứ tự">
+                                        {{-- SỬA 29/9 — thay/thêm tệp PDF của chính mục này. Bỏ trống = giữ tệp đang có. --}}
+                                        <input type="file" name="pdf" accept="application/pdf"
+                                               class="text-[13px] text-slate-600 flex-1 min-w-[180px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-600 file:text-[13px]">
+                                        @if ($c['hasPdf'])
+                                            <label class="flex items-center gap-1.5 text-xs text-slate-500">
+                                                <input type="checkbox" name="remove_pdf" value="1"> Xoá PDF
+                                            </label>
+                                        @endif
                                         <button type="submit" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-xs font-semibold">Lưu</button>
                                         <button type="button" @click="editing = null" class="px-3 py-2 rounded-xl border border-sky-100 text-slate-500 text-xs font-medium hover:border-blue-200 hover:text-blue-600 transition-colors">Huỷ</button>
                                     </form>

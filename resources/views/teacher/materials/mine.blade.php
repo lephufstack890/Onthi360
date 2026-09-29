@@ -50,7 +50,22 @@
                         @if (count($p['exercises']) > 0)
                             · {{ count($p['exercises']) }} bài tập
                         @endif
+                        @if ($p['lessonCount'] > 0)
+                            · {{ $p['lessonCount'] }} tệp nội dung
+                        @endif
                     </p>
+
+                    {{-- SỬA 29/9 — giáo viên cũng đọc liền mạch cả sản phẩm như học sinh (cùng
+                         ProductReadService, chỉ khác layout) — trước đây bên giáo viên không có
+                         nút đọc nào, phải bấm từng tệp ở mục Tài nguyên. --}}
+                    @if ($p['readHref'])
+                        <div class="px-5 pb-4">
+                            <a href="{{ $p['readHref'] }}"
+                               class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium">
+                                <x-lucide name="book-open" class="h-3.5 w-3.5" /> Đọc tài liệu
+                            </a>
+                        </div>
+                    @endif
 
                     @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
                         <button type="button" @click="open = ! open"

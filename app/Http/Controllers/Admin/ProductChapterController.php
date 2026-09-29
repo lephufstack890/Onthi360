@@ -27,14 +27,24 @@ class ProductChapterController extends Controller
         abort_unless($chapter->product_id === $product->id && $chapter->type === 'chapter', 404);
     }
 
+    /**
+     * SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng file pdf")
+     * — thêm ô tệp PDF cho chính chương/phần/đề. Vẫn TÙY CHỌN: tạo mục lục rỗng rồi tải tệp
+     * sau vẫn được. Giới hạn dung lượng dùng chung ContentService::maxPdfKb() như mọi ô PDF khác.
+     */
     public function store(Request $request, Product $product): RedirectResponse
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'order' => ['nullable', 'integer', 'min:0'],
-        ]);
+            'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+        ], [], ['pdf' => 'Tệp PDF nội dung']);
 
-        $this->contentService->productChapterStore($product, $data);
+        try {
+            $this->contentService->productChapterStore($product, $data);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-created');
     }
@@ -46,9 +56,16 @@ class ProductChapterController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'order' => ['nullable', 'integer', 'min:0'],
-        ]);
+            // SỬA 29/9 — thay tệp PDF của chương, hoặc tích 'remove_pdf' để bỏ tệp hiện có.
+            'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.ContentService::maxPdfKb()],
+            'remove_pdf' => ['nullable', 'boolean'],
+        ], [], ['pdf' => 'Tệp PDF nội dung']);
 
-        $this->contentService->productChapterUpdate($chapter, $data);
+        try {
+            $this->contentService->productChapterUpdate($chapter, $data);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-updated');
     }

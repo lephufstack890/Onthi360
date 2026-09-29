@@ -12,6 +12,7 @@ use App\Models\Question;
 use App\Models\User;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Services\AccessGateService;
+use App\Services\ProductReadService;
 use Illuminate\Support\Collection;
 
 /**
@@ -52,6 +53,9 @@ class LibraryService
         // dùng classGrantedProducts() để gộp thêm sản phẩm được cấp quyền MIỄN PHÍ qua lớp
         // vào danh sách "đang sở hữu", xem ownedProducts() bên dưới.
         private AccessGateService $accessGate,
+        // SỬA 29/9 — dùng để biết 1 sản phẩm có gì để đọc không (nút "Đọc tài liệu" ở thẻ sản
+        // phẩm trong lớp học), xem ProductReadService::hasReadableParts().
+        private ProductReadService $productRead,
     ) {}
 
     /**
@@ -122,7 +126,16 @@ class LibraryService
             // $materialsByProduct đã orderBy('order') nên first() đúng là bài mở đầu.
             $readable = $materialsByProduct->get($p->id, collect())
                 ->filter(fn (Material $m) => $m->status === ContentStatus::Published && filled($m->pdf_path));
-            $firstReadable = $readable->first();
+
+            // SỬA 29/9 (khách chốt: "khi mua xong hoặc giáo viên gắn vào lớp thì từng file pdf sẽ
+            // ghép dài để lướt lên lướt xuống đọc") — nút "Đọc tài liệu" KHÔNG còn mở 1 bài lẻ
+            // (student|teacher.materials.read) mà mở TRANG ĐỌC CẢ SẢN PHẨM: PDF của từng
+            // chương/phần/đề nối thành một dải cuộn (xem ProductReadService). Sản phẩm cũ chỉ có
+            // tệp PDF tổng vẫn đọc được — tính là 1 mảnh nội dung.
+            $partCount = $readable->count();
+            if ($partCount === 0 && filled($p->content_pdf_path)) {
+                $partCount = 1;
+            }
 
             return [
                 'id' => $p->id,
@@ -133,10 +146,10 @@ class LibraryService
                 'exercises' => $this->exercisesFor($exercisesByProduct->get($p->id, collect())),
                 // Số bài đọc được + ĐÚNG danh từ của từng loại sản phẩm (Chương/Phần/Đề) —
                 // dùng lại ProductType::chapterLabel() đang có, không đặt thêm nhãn mới.
-                'lessonCount' => $readable->count(),
+                'lessonCount' => $partCount,
                 'lessonWord' => mb_strtolower($p->type?->chapterLabel() ?? 'bài'),
-                'readHref' => $firstReadable !== null
-                    ? route($readPrefix.'.materials.read', $firstReadable->id)
+                'readHref' => $partCount > 0
+                    ? route($readPrefix.'.products.read', $p->id)
                     : null,
                 // Huy hiệu như bản mẫu (MaterialsPage.jsx): "Đã sở hữu" + hạn dùng. Sản phẩm
                 // được cấp MIỄN PHÍ qua lớp không có AccessRight cá nhân nên không có trong
@@ -168,9 +181,9 @@ class LibraryService
      * $includeGuide luôn false — trang lớp là của học sinh, không có khái niệm "giáo viên
      * xem PDF hướng dẫn" ở đây (khác teacher.library.index).
      *
-     * @return array{id:int,title:string,coverPath:?string,resources:array,exercises:array}
+     * @return array{id:int,title:string,coverPath:?string,resources:array,exercises:array,readHref:?string}
      */
-    public function productCard(Product $product): array
+    public function productCard(Product $product, string $readPrefix = 'student'): array
     {
         $exercises = Question::query()
             ->where('product_id', $product->id)
@@ -184,6 +197,12 @@ class LibraryService
             'coverPath' => $product->cover_image_path,
             'resources' => $this->resources($product, false),
             'exercises' => $this->exercisesFor($exercises),
+            // SỬA 29/9 — nút "Đọc tài liệu" ngay trong tab Học liệu của lớp: sản phẩm được giáo
+            // viên gắn vào lớp thì học sinh đọc được y như sản phẩm tự mua (quyền qua lớp đã được
+            // AccessGateService::canAccessProduct() công nhận, xem ProductReadService::decisionFor()).
+            'readHref' => $this->productRead->hasReadableParts($product)
+                ? route($readPrefix.'.products.read', $product->id)
+                : null,
         ];
     }
 
@@ -220,7 +239,11 @@ class LibraryService
     private function resources(Product $product, bool $includeGuide): array
     {
         $items = collect([
-            ['kind' => 'content', 'icon' => '📄', 'label' => 'File PDF', 'present' => filled($product->content_pdf_path)],
+            // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi") — BỎ viên "📄 File PDF" (tệp tổng của
+            // cả sản phẩm, mở ra là tải được nguyên quyển). Nội dung đọc giờ vào bằng nút "Đọc
+            // tài liệu" -> trang đọc liền mạch, có đóng dấu mờ theo người đọc và không tải về
+            // được. Route access.resource kind=content vẫn còn (sách cũ + trang đọc dùng làm tệp
+            // dự phòng, xem ProductReadService::partsFor()), chỉ không còn link trực tiếp ở đây.
             ['kind' => 'exercise', 'icon' => '🗂️', 'label' => 'ZIP bài tập', 'present' => filled($product->exercise_zip_path)],
             ['kind' => 'media', 'icon' => '🎬', 'label' => 'Học liệu (ảnh động/audio)', 'present' => filled($product->media_path)],
         ]);

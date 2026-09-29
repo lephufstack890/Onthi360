@@ -97,13 +97,12 @@
                     </div>
                 </div>
 
+                {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng
+                     file pdf") — ĐÃ BỎ ô "File PDF" (tệp tổng của cả sản phẩm). Nội dung đọc giờ
+                     tải theo TỪNG chương/phần/đề ở trang chi tiết sản phẩm, người học đọc liền mạch
+                     các tệp đó (xem App\Services\ProductReadService). Ô "PDF hướng dẫn" giữ nguyên
+                     — đó là giáo án cho giáo viên, không phải nội dung để học sinh đọc. --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="content_pdf">File PDF</label>
-                        <input id="content_pdf" name="content_pdf" type="file" accept="application/pdf"
-                               class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
-                        <p class="text-xs text-slate-400 mt-1">PDF, tối đa 50MB.</p>
-                    </div>
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="guide_pdf">File PDF hướng dẫn</label>
                         <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf"

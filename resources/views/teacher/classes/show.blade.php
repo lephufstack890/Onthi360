@@ -88,13 +88,13 @@
                     </div>
                     <div class="flex items-center gap-2 text-[13px]">
                         <x-ws.badge tone="success">{{ $m['linkedStatus'] }}</x-ws.badge>
-                        {{-- Xem NGUYÊN sản phẩm qua đúng route học sinh/giáo viên đang tải PDF
-                             nội dung (access.resource, kind=content) — giáo viên đã có quyền
-                             dạy sản phẩm này nên không bị chặn. Mở tab mới cùng kiểu với "Xem
-                             đề bài ↗" ở mục Bài tập bên dưới, tiện xem sách/chuyên đề/bộ đề
-                             nhiều cuốn cùng lúc. --}}
-                        @if ($m['hasContent'] ?? false)
-                            <a href="{{ route('access.resource', ['product' => $m['productId'], 'kind' => 'content']) }}" target="_blank" rel="noopener" class="text-blue-600 font-medium">Xem ↗</a>
+                        {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, mỗi chương 1 file pdf") —
+                             trước đây link này mở tệp PDF TỔNG của sản phẩm (access.resource,
+                             kind=content), giờ tệp tổng đã bỏ nên mở TRANG ĐỌC LIỀN MẠCH: PDF của
+                             từng chương/phần/đề nối thành một dải cuộn (teacher.products.read).
+                             Mở tab mới cùng kiểu "Xem đề bài ↗" ở mục Bài tập bên dưới. --}}
+                        @if ($m['readHref'] ?? null)
+                            <a href="{{ $m['readHref'] }}" target="_blank" rel="noopener" class="text-blue-600 font-medium">Đọc ↗</a>
                         @endif
                         <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}" class="inline">
                             @csrf

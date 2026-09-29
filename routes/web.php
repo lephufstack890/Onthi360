@@ -22,6 +22,7 @@ use App\Http\Controllers\Student\CompetitionController as StudentCompetitionCont
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\LibraryController as StudentLibraryController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
+use App\Http\Controllers\Student\ProductReadController as StudentProductReadController;
 use App\Http\Controllers\Student\NotificationController as StudentNotificationController;
 use App\Http\Controllers\Student\PracticeByQuestionController as StudentPracticeByQuestionController;
 use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionCont
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\Teacher\LibraryController as TeacherLibraryController;
 use App\Http\Controllers\Teacher\MaterialController as TeacherMaterialController;
+use App\Http\Controllers\Teacher\ProductReadController as TeacherProductReadController;
 use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
 use App\Http\Controllers\Teacher\ScheduleController as TeacherScheduleController;
@@ -187,6 +189,17 @@ Route::middleware(['auth'])->group(function () {
         // (materials.file), gọi bằng fetch() từ trang đọc — không phải link tải trực tiếp.
         Route::get('materials/{material}', [StudentMaterialController::class, 'read'])->name('materials.read');
         Route::get('materials/{material}/file', [StudentMaterialController::class, 'pdfFile'])->name('materials.file');
+        /*
+         * SỬA 29/9 (khách chốt: "mỗi chương thêm từng file pdf... khi mua xong hoặc giáo viên
+         * gắn vào lớp thì từng file pdf sẽ ghép dài để lướt lên lướt xuống đọc") — ĐỌC LIỀN
+         * MẠCH CẢ SẢN PHẨM: 1 trang nối PDF của mọi chương/phần/đề theo thứ tự. Quyền xét bằng
+         * AccessGateService::canAccessProduct() (đã mua HOẶC được cấp qua lớp), KHÁC 2 route
+         * materials.* ngay trên vốn chỉ xét quyền cá nhân cho 1 bài lẻ — xem ProductReadService.
+         */
+        Route::get('tai-lieu-cua-toi/{product}/doc', [StudentProductReadController::class, 'read'])
+            ->whereNumber('product')->name('products.read');
+        Route::get('tai-lieu-cua-toi/{product}/doc/{material}/file', [StudentProductReadController::class, 'file'])
+            ->whereNumber(['product', 'material'])->name('products.read.file');
         // SỬA 28/8 ("ẩn mục lục + tài nguyên đính kèm khỏi trang public, chỉ xem trong khu vực
         // học sinh"): "Tài liệu của tôi" — tab Sách/Chuyên đề/Bộ đề, chỉ liệt kê sản phẩm đã
         // mua (App\Services\Student\LibraryService), gộp cả Mục lục (đọc bài — vẫn qua
@@ -286,6 +299,12 @@ Route::middleware(['auth'])->group(function () {
         // App\Http\Controllers\Teacher\MaterialController — tái dùng MaterialReadService.
         Route::get('materials/{material}', [TeacherMaterialController::class, 'read'])->name('materials.read');
         Route::get('materials/{material}/file', [TeacherMaterialController::class, 'pdfFile'])->name('materials.file');
+        // SỬA 29/9 — đọc liền mạch cả sản phẩm, bản cho giáo viên (cùng ProductReadService,
+        // chỉ khác layout/route lấy tệp — xem Teacher\ProductReadController).
+        Route::get('tai-lieu-cua-toi/{product}/doc', [TeacherProductReadController::class, 'read'])
+            ->whereNumber('product')->name('products.read');
+        Route::get('tai-lieu-cua-toi/{product}/doc/{material}/file', [TeacherProductReadController::class, 'file'])
+            ->whereNumber(['product', 'material'])->name('products.read.file');
         // SỬA 28/8 (2 — "bên giáo viên cũng xem tài liệu giống như học sinh, chỉ khác được
         // xem thêm file hướng dẫn") — "Tài liệu của tôi" bên giáo viên, tái dùng nguyên
         // App\Services\Student\LibraryService (xem Teacher\LibraryController), chỉ khác gọi

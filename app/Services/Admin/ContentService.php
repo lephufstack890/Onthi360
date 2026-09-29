@@ -1687,14 +1687,25 @@ class ContentService
     // bảng mới. Sản phẩm loại "Khóa học" không có khái niệm này (chapterLabel() trả null),
     // route/view tự ẩn khối này khi đó (xem admin/products/show.blade.php).
 
-    /** Danh sách chương/phần/đề của 1 sản phẩm, kèm số bài tập đang gắn vào (để cảnh báo trước khi xoá). */
+    /**
+     * Danh sách chương/phần/đề của 1 sản phẩm, kèm số bài tập đang gắn vào (để cảnh báo trước
+     * khi xoá).
+     *
+     * SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng file
+     * pdf") — thêm 'hasPdf'/'pdfName': từ nay NỘI DUNG ĐỌC nằm ở PDF của TỪNG chương, không
+     * còn ở 1 tệp "File PDF" tổng gắn thẳng vào sản phẩm. Trang đọc nối các tệp này lại thành
+     * một dải cuộn, xem App\Services\ProductReadService.
+     */
     public function productChaptersFor(Product $product): array
     {
-        return $product->chapters()->withCount('questions')->get()->map(fn (Material $m) => [
+        return $product->chapters()->withCount(['questions', 'children'])->get()->map(fn (Material $m) => [
             'id' => $m->id,
             'title' => $m->title,
             'order' => $m->order,
             'questionsCount' => $m->questions_count,
+            'materialsCount' => $m->children_count,
+            'hasPdf' => filled($m->pdf_path),
+            'pdfName' => $m->pdf_original_name,
         ])->all();
     }
 
@@ -1728,27 +1739,70 @@ class ContentService
             })->all();
     }
 
+    /**
+     * SỬA 29/9 — $data['pdf'] (UploadedFile, tùy chọn): tệp PDF NỘI DUNG của chính chương/phần/
+     * đề này. Tái dùng nguyên resolveMaterialCode() + storeMaterialPdf() của học liệu thường
+     * (cùng disk 'local', cùng quy ước đặt tên materials/{product}/{code}.pdf) — không thêm
+     * bảng/đường dẫn mới. Chưa có tệp thì vẫn tạo được chương rỗng như trước.
+     */
     public function productChapterStore(Product $product, array $data): Material
     {
-        return $this->materials->create([
+        $pdf = $data['pdf'] ?? null;
+        $code = $this->resolveMaterialCode($product->id, $data['code'] ?? null, $pdf);
+
+        $attributes = [
             'product_id' => $product->id,
             'parent_id' => null,
             'type' => 'chapter',
             'title' => $data['title'],
             'order' => $data['order'] ?? 0,
             'assessment_id' => null,
+            'code' => $code,
             // Published ngay — khái niệm "chương/phần/đề" ở đây chỉ là mục lục nội bộ để gắn
             // bài tập/học liệu, không qua vòng duyệt nội dung như Material dạng nội dung thật.
             'status' => ContentStatus::Published->value,
-        ]);
+        ];
+
+        if ($pdf !== null) {
+            $attributes = array_merge($attributes, $this->storeMaterialPdf($product->id, (string) $code, $pdf));
+        }
+
+        return $this->materials->create($attributes);
     }
 
+    /**
+     * SỬA 29/9 — sửa tên/thứ tự như trước, THÊM 2 việc với tệp PDF của chương:
+     *  - tải tệp mới ($data['pdf']) -> xoá tệp cũ trên disk rồi lưu tệp mới (y như
+     *    materialUpdate(), không để file rác lại trên đĩa);
+     *  - tích "xoá PDF" ($data['remove_pdf']) -> xoá tệp và trả 2 cột về null, chương thành
+     *    mục lục rỗng trở lại. Tải tệp mới thì việc xoá bị bỏ qua (ý người dùng rõ ràng là THAY).
+     */
     public function productChapterUpdate(Material $chapter, array $data): Material
     {
-        return $this->materials->update($chapter, [
+        $pdf = $data['pdf'] ?? null;
+        $attributes = [
             'title' => $data['title'],
             'order' => $data['order'] ?? $chapter->order,
-        ]);
+        ];
+
+        if ($pdf !== null) {
+            if ($chapter->pdf_path) {
+                Storage::disk('local')->delete($chapter->pdf_path);
+            }
+
+            $code = $this->resolveMaterialCode($chapter->product_id, $chapter->code, $pdf, $chapter->id);
+            $attributes['code'] = $code;
+            $attributes = array_merge($attributes, $this->storeMaterialPdf($chapter->product_id, (string) $code, $pdf));
+        } elseif (! empty($data['remove_pdf'])) {
+            if ($chapter->pdf_path) {
+                Storage::disk('local')->delete($chapter->pdf_path);
+            }
+
+            $attributes['pdf_path'] = null;
+            $attributes['pdf_original_name'] = null;
+        }
+
+        return $this->materials->update($chapter, $attributes);
     }
 
     /**
@@ -1764,6 +1818,12 @@ class ContentService
             throw ValidationException::withMessages([
                 'chapter' => 'Không thể xoá — vẫn còn học liệu hoặc bài tập đang gắn vào mục này. Gỡ/chuyển hết rồi thử lại.',
             ]);
+        }
+
+        // SỬA 29/9 — chương giờ có thể mang tệp PDF riêng: xoá bản ghi thì xoá luôn tệp, không
+        // để file mồ côi trên disk (cùng cách materialDestroy() đang dọn file của học liệu).
+        if ($chapter->pdf_path) {
+            Storage::disk('local')->delete($chapter->pdf_path);
         }
 
         $chapter->delete();
