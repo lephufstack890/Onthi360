@@ -336,6 +336,8 @@ class ContentService
                 'status' => $filters['status'] ?? null,
                 // SỬA 18/9 — ô lọc Độ khó mới, xem QuestionRepository::applyDifficultyFilter().
                 'difficulty' => $filters['difficulty'] ?? null,
+                // SỬA 30/9 — ô lọc Chuyên đề (tag), xem applyQuestionBankFilters().
+                'tag' => $filters['tag'] ?? null,
                 'q' => $filters['q'] ?? null,
             ],
             'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
@@ -344,6 +346,12 @@ class ContentService
             'statusOptions' => $tab === 'questions' ? self::CONTENT_STATUS_OPTIONS : [],
             'difficultyOptions' => $tab === 'questions' ? QuestionDifficulty::LEVELS : [],
             'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject() : [],
+            // SỬA 30/9 — dữ liệu cho 2 thứ mới ở thanh lọc: dải TAB theo dạng câu (kèm số
+            // lượng từng dạng) và ô lọc Chuyên đề.
+            'typeCounts' => $tab === 'questions' ? $this->questions->countsByType() : [],
+            'tagOptions' => $tab === 'questions'
+                ? $this->tags->query()->orderBy('name')->pluck('name', 'id')->all()
+                : [],
         ];
     }
 
@@ -1069,6 +1077,9 @@ class ContentService
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
+            // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
+            // add_display_order_to_questions_table.
+            'display_order' => (int) ($data['display_order'] ?? 0),
             'grading_config' => $this->buildGradingConfig($data['type'], $data),
             'owner_type' => OwnerType::Shared->value,
             'owner_id' => null,
@@ -1122,6 +1133,9 @@ class ContentService
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
+            // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
+            // add_display_order_to_questions_table.
+            'display_order' => (int) ($data['display_order'] ?? 0),
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
             // SỬA 18/9 — sửa Độ khó ngay ở form Sửa. GỘP vào metadata hiện có của câu (giữ
             // nguyên 'assets'/'attachments' đã nhập từ ZIP), xem mergeDifficultyIntoMetadata().
@@ -1157,6 +1171,9 @@ class ContentService
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
+            // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
+            // add_display_order_to_questions_table.
+            'display_order' => (int) ($data['display_order'] ?? 0),
             'visibility' => $data['visibility'] ?? Visibility::Public->value,
             // SỬA 18/9 — bản version mới giữ đúng Độ khó đang chọn trên form (replicate() đã
             // copy metadata cũ sang, gộp thêm để sửa được luôn khi tạo version mới).
@@ -1195,9 +1212,11 @@ class ContentService
     private function mergeDifficultyIntoMetadata(?array $current, array $data): array
     {
         $metadata = $current ?? [];
-        $value = $data['difficulty'] ?? null;
+        // SỬA 30/9 — chuẩn hoá trước khi lưu: form/link đời cũ còn gửi 'medium', lưu nguyên si
+        // thì DB lẫn 2 hệ khoá. normalize() quy về khoá mới cùng số sao ('fair'/Khá).
+        $value = QuestionDifficulty::normalize($data['difficulty'] ?? null);
 
-        if (QuestionDifficulty::isValidKey($value)) {
+        if ($value !== null) {
             $metadata['difficulty'] = $value;
         } else {
             unset($metadata['difficulty']);

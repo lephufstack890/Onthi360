@@ -21,14 +21,24 @@
     $practiceTotal = $practiceTotal ?? 0;
     $canTakeDirectly = $canTakeDirectly ?? false;
 
-    // 5 mức độ khó của bản mẫu.
+    // SỬA 30/9 (khách: "độ khó phân thành 1-5 sao: Cơ bản, Dễ, Khá, Khó, Rất khó") — dải chip
+    // này trước đây gõ tay 4 mức, lệch với bộ lọc/độ khó ở kho. Giờ sinh thẳng từ
+    // App\Support\QuestionDifficulty::LEVELS (nơi DUY NHẤT định nghĩa độ khó) — thêm/bớt mức
+    // chỉ sửa 1 chỗ, không bao giờ có chuyện chip lọc ra 0 bài vì tên mức không khớp.
+    $difficultyChipStyles = [
+        'basic' => ['circle', 'text-[#4A7D9B] bg-[#F0F8FB] border-[#D5E8ED]'],
+        'easy' => ['check-circle', 'text-[#397C68] bg-[#EFF9F5] border-[#D4EDE2]'],
+        'fair' => ['trending-up', 'text-[#376B98] bg-[#EEF5FF] border-[#D4E3F7]'],
+        'hard' => ['flame', 'text-[#8E6B2E] bg-[#FFF7E3] border-[#F2E1B6]'],
+        'expert' => ['award', 'text-[#A15B5B] bg-[#FFF1F0] border-[#F3D8D6]'],
+    ];
     $difficulties = [
         ['id' => 'all', 'label' => 'Mọi độ khó', 'icon' => null, 'color' => 'border-[#DDEAF0] bg-[#F8FAFB] text-[#45657D]'],
-        ['id' => 'easy', 'label' => 'Dễ', 'icon' => 'check-circle', 'color' => 'text-[#397C68] bg-[#EFF9F5] border-[#D4EDE2]'],
-        ['id' => 'medium', 'label' => 'Trung bình', 'icon' => 'trending-up', 'color' => 'text-[#376B98] bg-[#EEF5FF] border-[#D4E3F7]'],
-        ['id' => 'hard', 'label' => 'Khó', 'icon' => 'flame', 'color' => 'text-[#8E6B2E] bg-[#FFF7E3] border-[#F2E1B6]'],
-        ['id' => 'expert', 'label' => 'Cực khó', 'icon' => 'award', 'color' => 'text-[#A15B5B] bg-[#FFF1F0] border-[#F3D8D6]'],
     ];
+    foreach (\App\Support\QuestionDifficulty::LEVELS as $dKey => $dLabel) {
+        [$dIcon, $dColor] = $difficultyChipStyles[$dKey] ?? ['circle', 'border-[#DDEAF0] bg-[#F8FAFB] text-[#45657D]'];
+        $difficulties[] = ['id' => $dKey, 'label' => $dLabel, 'icon' => $dIcon, 'color' => $dColor];
+    }
 
     // Dải chuyên đề: "Tất cả" + các chuyên đề có thật trong kho (tối đa 12 chuyên đề đầu).
     $topicChipIcons = ['route', 'git-branch', 'database', 'calculator', 'route', 'text-cursor-input'];
@@ -351,7 +361,7 @@
                                         <x-lucide name="star" class="h-3.5 w-3.5 {{ $star < $prob['difficultyLevel'] ? 'fill-amber-400 text-amber-500' : 'text-slate-200' }}" />
                                     @endfor
                                 </div>
-                                <span class="text-[11px] font-semibold text-[#607A90]">{{ $prob['difficultyLabel'] ?? 'Trung bình' }}</span>
+                                <span class="text-[11px] font-semibold text-[#607A90]">{{ $prob['difficultyLabel'] ?? 'Khá' }}</span>
                             </div>
                         </div>
 

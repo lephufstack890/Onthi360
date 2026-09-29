@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\QuestionDifficulty;
 
 class ContentController extends Controller
 {
@@ -43,6 +44,8 @@ class ContentController extends Controller
             // SỬA 18/9 (khách: "admin thêm lọc theo độ khó nữa nha") — xem
             // QuestionRepository::applyDifficultyFilter(); 'none' = chưa ai đặt độ khó.
             'difficulty' => $request->query('difficulty') ?: null,
+            // SỬA 30/9 (khách: "nên thêm phần lọc theo chuyên đề vào") — id tag, hoặc 'none'.
+            'tag' => $request->query('tag') ?: null,
             'q' => $request->query('q') ?: null,
         ];
 
@@ -244,12 +247,14 @@ class ContentController extends Controller
             'type' => ['required', 'string', 'in:coding,mcq,fill_blank'],
             // SỬA 18/9 — ô "Độ khó" mới ở form câu hỏi. Rỗng = chưa đặt (hệ thống tự suy
             // theo điểm), 4 khoá còn lại khớp đúng bộ lọc ngoài trang Luyện tập.
-            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
+            'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
+            // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'visibility' => ['required', 'string', 'in:public,private'],
         ], $this->questionGradingRules(), $this->tagRules()));
 
@@ -268,12 +273,14 @@ class ContentController extends Controller
         $data = $request->validate(array_merge([
             'code' => ['required', 'string', 'max:40'],
             // SỬA 18/9 — Độ khó sửa được ở màn Sửa, không chỉ lúc tạo.
-            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
+            'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
+            // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'visibility' => ['required', 'string', 'in:public,private'],
         ], $this->questionGradingRules(), $this->tagRules()));
 
@@ -291,11 +298,13 @@ class ContentController extends Controller
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
+            // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'visibility' => ['required', 'string', 'in:public,private'],
             // SỬA 18/9 — PHẢI có ở đây nữa: form "Tạo phiên bản mới" dùng CHUNG màn Sửa (có ô
             // Độ khó). Thiếu luật này thì giá trị gửi lên bị validate() loại bỏ, và
             // questionCreateNewVersion() hiểu là "bỏ trống" -> XOÁ mất độ khó của bản mới.
-            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
+            'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
         ], $this->questionGradingRules(), $this->tagRules()));
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
@@ -791,6 +800,8 @@ class ContentController extends Controller
             'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
             'memory_limit_kb' => ['nullable', 'integer', 'min:16384', 'max:1048576'],
             'points' => ['nullable', 'integer', 'min:0'],
+            // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
         ];
     }
 

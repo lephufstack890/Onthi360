@@ -93,6 +93,9 @@ class PracticeService
             ->whereNull('product_id')
             ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
             ->with(['tags:id,name'])
+            // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao
+            // hiện lên đầu trang Luyện tập; phần còn lại giữ nguyên thứ tự cũ (mới nhất trước).
+            ->orderByDesc('display_order')
             ->latest()
             ->limit(60)
             ->get();

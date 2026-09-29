@@ -9,6 +9,7 @@ use App\Models\AttemptAnswer;
 use App\Models\Material;
 use App\Models\Question;
 use App\Models\User;
+use App\Support\QuestionDifficulty;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Services\AccessGateService;
 use App\Support\AccessDecision;
@@ -144,24 +145,18 @@ class MaterialReadService
                 default => ['open', 'Sẵn sàng'],
             };
 
-            // Độ khó: ưu tiên giá trị quản trị nhập; chưa nhập thì suy từ ĐIỂM của câu — cùng
-            // công thức Public\PracticeService đang dùng, không bịa thêm thang riêng.
-            $meta = $question->metadata ?? [];
-            $level = (int) ($meta['difficulty'] ?? 0);
-            if ($level < 1 || $level > 5) {
-                $level = max(1, min(5, (int) ceil(($question->points ?: 10) / 20)));
-            }
 
             return [
                 'id' => $question->id,
                 'title' => $question->title,
                 'tags' => $question->tags->pluck('name')->take(3)->values()->all(),
                 'points' => (int) $question->points,
-                'difficultyLabel' => match (true) {
-                    $level <= 2 => 'Cơ bản',
-                    $level === 3 => 'Trung bình',
-                    default => 'Khó',
-                },
+                // SỬA 30/9 — nhãn độ khó lấy từ App\Support\QuestionDifficulty (nơi DUY NHẤT
+                // định nghĩa 5 mức), thay cho 3 nhãn tự tính ở đây vốn lệch với kho và trang
+                // Luyện tập (mức 1-2 sao đều ra "Cơ bản", 4-5 sao đều ra "Khó").
+                'difficultyLabel' => QuestionDifficulty::label(
+                    QuestionDifficulty::resolve($question->metadata, (int) $question->points)
+                ),
                 'status' => $statusKey,
                 'statusLabel' => $statusLabel,
             ];

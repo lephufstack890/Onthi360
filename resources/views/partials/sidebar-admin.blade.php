@@ -6,7 +6,7 @@
     $items = [
         ['label' => 'Tổng quan', 'route' => 'admin.dashboard', 'icon' => 'layout-dashboard'],
         ['label' => 'Người dùng', 'route' => 'admin.users.index', 'icon' => 'users', 'also' => ['admin.users.show', 'admin.teacher-approvals.index', 'admin.teacher-approvals.show']],
-        ['label' => 'Kho câu hỏi và đề', 'route' => 'admin.content.index', 'icon' => 'library', 'also' => ['admin.content.show'], 'editorOk' => true],
+        ['label' => 'Kho bài tập / câu hỏi và đề', 'route' => 'admin.content.index', 'icon' => 'library', 'also' => ['admin.content.show'], 'editorOk' => true],
         /*
          * SỬA 15/9 — Lộ trình là cấp trên của Khoá học nên đứng ngay trước.
          * Cùng ngày, khách chốt quay lại cách bán cũ nên mục này ĐANG ẨN. Ẩn chứ không xoá:

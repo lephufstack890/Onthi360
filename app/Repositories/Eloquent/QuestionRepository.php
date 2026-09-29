@@ -62,7 +62,11 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      */
     public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection
     {
+        // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao hiện
+        // lên đầu kho; phần còn lại giữ nguyên thứ tự cũ (mới nhất trước), xem migration
+        // add_display_order_to_questions_table.
         return $this->applyQuestionBankFilters($this->query()->with('owner'), $filters)
+            ->orderByDesc('display_order')
             ->latest()->limit($limit)->get();
     }
 
@@ -144,9 +148,40 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             });
         }
 
+        // SỬA 30/9 (khách: "nên thêm phần lọc theo chuyên đề vào") — lọc theo 1 tag/chuyên đề.
+        // Dùng whereHas trên quan hệ nhiều-nhiều có sẵn (bảng question_tag), KHÔNG join tay để
+        // không nhân đôi dòng khi 1 câu mang nhiều tag.
+        $tagId = $filters['tag'] ?? null;
+        if ($tagId === 'none') {
+            $query->whereDoesntHave('tags');
+        } elseif ($tagId !== null && $tagId !== '') {
+            $query->whereHas('tags', fn (Builder $sub) => $sub->where('tags.id', (int) $tagId));
+        }
+
         $this->applyDifficultyFilter($query, $filters['difficulty'] ?? null);
 
         return $query;
+    }
+
+    /**
+     * SỬA 30/9 (khách: "dạng câu ở dưới làm tab phân chia dạng câu") — đếm số câu theo TỪNG
+     * dạng để in ngay trên mỗi tab. Cùng cách làm với countsBySubject(): 1 câu GROUP BY duy
+     * nhất, và nhận $scope ('owner_id'/'owner_type') để trang giáo viên đếm đúng kho đang xem.
+     *
+     * @param  array<string, mixed>  $scope
+     * @return array<string, int> mã dạng câu => số câu
+     */
+    public function countsByType(array $scope = []): array
+    {
+        return $this->query()
+            ->whereNull('product_id')
+            ->when(! empty($scope['owner_id']), fn (Builder $q) => $q->where('owner_id', (int) $scope['owner_id']))
+            ->when(! empty($scope['owner_type']), fn (Builder $q) => $q->where('owner_type', $scope['owner_type']))
+            ->selectRaw('type, COUNT(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type')
+            ->mapWithKeys(fn ($count, $type) => [(string) $type => (int) $count])
+            ->all();
     }
 
     /**
@@ -178,7 +213,11 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             return;
         }
 
-        if (! QuestionDifficulty::isValidKey($difficulty)) {
+        // SỬA 30/9 — quy khoá đời cũ ("medium") về khoá mới trước khi lọc, để link/bookmark cũ
+        // vẫn ra đúng mức thay vì im lặng bỏ lọc.
+        $difficulty = QuestionDifficulty::filterKey($difficulty);
+
+        if ($difficulty === null) {
             return; // khoá lạ (link bị sửa tay) -> coi như không lọc, không trả bảng rỗng khó hiểu
         }
 

@@ -29,11 +29,16 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
      *   'q'       => từ khoá, khớp tên HOẶC mã câu hỏi
      *
      * SỬA 18/9 — thêm 3 khoá nữa (dùng chung cho Kho câu hỏi của Admin VÀ của Giáo viên):
-     *   'difficulty' => 'easy'|'medium'|'hard'|'expert' (khớp giá trị đã đặt HOẶC suy theo
+     *   'difficulty' => khoá trong QuestionDifficulty::LEVELS — SỬA 30/9: 5 mức
+     *                   'basic'|'easy'|'fair'|'hard'|'expert' (khoá cũ 'medium' vẫn nhận, quy
+     *                   về 'fair') (khớp giá trị đã đặt HOẶC suy theo
      *                   điểm khi câu chưa đặt) hoặc 'none' = chưa ai đặt độ khó.
      *                   Xem App\Support\QuestionDifficulty.
      *   'owner_id'   => chỉ lấy câu của 1 giáo viên (kho riêng)
      *   'owner_type' => 'shared' = chỉ Kho chung
+     *
+     * SỬA 30/9 — thêm khoá:
+     *   'tag' => id chuyên đề (bảng tags) hoặc 'none' = câu chưa gắn chuyên đề nào.
      */
     public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection;
 
@@ -50,6 +55,14 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
      * @return array<string, int> mã môn => số câu; khoá '' là nhóm chưa phân loại
      */
     public function countsBySubject(array $scope = []): array;
+
+    /**
+     * SỬA 30/9 ("dạng câu làm tab") — đếm số câu theo từng dạng, để in số ngay trên tab.
+     *
+     * @param  array<string, mixed>  $scope  như countsBySubject()
+     * @return array<string, int> mã dạng câu => số câu
+     */
+    public function countsByType(array $scope = []): array;
 
     /**
      * "Luyện tập theo câu" (Giai đoạn 6) — chỉ lấy ID câu hỏi ĐÃ PHÁT HÀNH + dạng Trắc nghiệm/

@@ -17,13 +17,27 @@ namespace App\Support;
  */
 class QuestionDifficulty
 {
-    /** Khoá => nhãn tiếng Việt. Thứ tự khai báo cũng là thứ tự hiện trên dropdown/bộ lọc. */
+    /**
+     * Khoá => nhãn tiếng Việt. Thứ tự khai báo cũng là thứ tự hiện trên dropdown/bộ lọc.
+     *
+     * SỬA 30/9 (khách: "độ khó thì phân thành 1-5 sao tương ứng: Cơ bản, Dễ, Khá, Khó, Rất
+     * khó") — 4 mức cũ (Dễ/Trung bình/Khó/Cực khó) thành 5 mức, mỗi mức đúng 1 sao. KHÔNG cần
+     * chạy lệnh chuyển dữ liệu: normalize() ở dưới tự quy giá trị cũ về khoá mới (mức
+     * "medium" cũ = 3 sao -> "fair"/Khá cũng 3 sao), và mọi chỗ lọc/hiển thị đều đi qua lớp này.
+     */
     public const LEVELS = [
+        'basic' => 'Cơ bản',
         'easy' => 'Dễ',
-        'medium' => 'Trung bình',
+        'fair' => 'Khá',
         'hard' => 'Khó',
-        'expert' => 'Cực khó',
+        'expert' => 'Rất khó',
     ];
+
+    /**
+     * Khoá CŨ => khoá mới. Dữ liệu đã lưu trong metadata.difficulty vẫn còn chữ "medium", và
+     * link/bộ lọc cũ người dùng đã lưu (?difficulty=medium) vẫn phải chạy đúng.
+     */
+    public const LEGACY_KEYS = ['medium' => 'fair'];
 
     /** Giá trị lọc đặc biệt: "chưa ai đặt độ khó" (để admin/giáo viên dò ra mà gán dần). */
     public const UNSET = 'none';
@@ -36,32 +50,62 @@ class QuestionDifficulty
      * @var array<string, array{0:int, 1:int}>
      */
     public const POINT_RANGES = [
-        'easy' => [0, 40],
-        'medium' => [41, 60],
+        'basic' => [0, 20],
+        'easy' => [21, 40],
+        'fair' => [41, 60],
         'hard' => [61, 80],
         'expert' => [81, PHP_INT_MAX],
     ];
 
-    /** Số sao hiển thị (thang 5) cho từng mức. */
-    public const STARS = ['easy' => 2, 'medium' => 3, 'hard' => 4, 'expert' => 5];
+    /** Số sao hiển thị (thang 5) cho từng mức — SỬA 30/9: giờ đúng 1 mức 1 sao. */
+    public const STARS = ['basic' => 1, 'easy' => 2, 'fair' => 3, 'hard' => 4, 'expert' => 5];
 
     /** Số 1-5 kiểu cũ ứng với từng mức — dùng cả khi đọc dữ liệu cũ lẫn khi lọc. */
-    public const LEGACY_NUMBERS = ['easy' => [1, 2], 'medium' => [3], 'hard' => [4], 'expert' => [5]];
+    public const LEGACY_NUMBERS = ['basic' => [1], 'easy' => [2], 'fair' => [3], 'hard' => [4], 'expert' => [5]];
 
     public static function isValidKey(mixed $key): bool
     {
         return is_string($key) && array_key_exists($key, self::LEVELS);
     }
 
-    /** Nhãn tiếng Việt; khoá lạ -> "Trung bình" (không bao giờ trả chuỗi rỗng ra giao diện). */
+    /**
+     * SỬA 30/9 — luật validate cho ô "Độ khó" ở các form câu hỏi. Sinh từ LEVELS (+ khoá đời
+     * cũ) thay vì gõ tay "in:easy,medium,hard,expert" ở 4 controller — thêm/bớt 1 mức chỉ phải
+     * sửa đúng 1 chỗ, không bao giờ có chuyện form cho chọn mà validate chặn.
+     */
+    public static function validationRule(): string
+    {
+        return 'in:'.implode(',', array_merge(array_keys(self::LEVELS), array_keys(self::LEGACY_KEYS)));
+    }
+
+    /**
+     * SỬA 30/9 — khoá lọc hợp lệ SAU KHI quy đổi khoá đời cũ: link/bookmark cũ dạng
+     * ?difficulty=medium vẫn phải lọc ra đúng mức "Khá", không rơi về "không lọc gì".
+     */
+    public static function filterKey(mixed $key): ?string
+    {
+        if (! is_string($key)) {
+            return null;
+        }
+
+        $key = self::LEGACY_KEYS[$key] ?? $key;
+
+        return self::isValidKey($key) ? $key : null;
+    }
+
+    /** Nhãn tiếng Việt; khoá lạ -> "Khá" (không bao giờ trả chuỗi rỗng ra giao diện). */
     public static function label(?string $key): string
     {
-        return self::LEVELS[$key] ?? self::LEVELS['medium'];
+        $key = self::LEGACY_KEYS[$key] ?? $key;
+
+        return self::LEVELS[$key] ?? self::LEVELS['fair'];
     }
 
     public static function stars(?string $key): int
     {
-        return self::STARS[$key] ?? self::STARS['medium'];
+        $key = self::LEGACY_KEYS[$key] ?? $key;
+
+        return self::STARS[$key] ?? self::STARS['fair'];
     }
 
     /**
@@ -72,6 +116,11 @@ class QuestionDifficulty
     {
         if (self::isValidKey($raw)) {
             return $raw;
+        }
+
+        // Khoá đời cũ ("medium") — quy về khoá mới cùng số sao, không để mất độ khó đã đặt.
+        if (is_string($raw) && isset(self::LEGACY_KEYS[$raw])) {
+            return self::LEGACY_KEYS[$raw];
         }
 
         // Dữ liệu cũ lưu số 1-5 — không để mất độ khó chỉ vì hệ thống đổi cách lưu.
@@ -96,8 +145,9 @@ class QuestionDifficulty
         $guess = max(1, min(5, (int) ceil(($points ?: 10) / 20)));
 
         return match ($guess) {
-            1, 2 => 'easy',
-            3 => 'medium',
+            1 => 'basic',
+            2 => 'easy',
+            3 => 'fair',
             4 => 'hard',
             default => 'expert',
         };
@@ -131,6 +181,11 @@ class QuestionDifficulty
     {
         $values = array_keys(self::LEVELS);
 
+        // Cả khoá đời cũ còn nằm trong DB — thiếu nó thì câu lưu "medium" bị coi là "chưa đặt".
+        foreach (self::LEGACY_KEYS as $oldKey => $newKey) {
+            $values[] = $oldKey;
+        }
+
         foreach (self::LEGACY_NUMBERS as $numbers) {
             foreach ($numbers as $n) {
                 $values[] = $n;
@@ -149,6 +204,12 @@ class QuestionDifficulty
     public static function storedValuesFor(string $key): array
     {
         $values = [$key];
+
+        foreach (self::LEGACY_KEYS as $oldKey => $newKey) {
+            if ($newKey === $key) {
+                $values[] = $oldKey;
+            }
+        }
 
         foreach (self::LEGACY_NUMBERS[$key] ?? [] as $n) {
             $values[] = $n;

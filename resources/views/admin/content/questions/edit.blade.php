@@ -167,6 +167,14 @@
                     <label class="block text-[13px] text-slate-600 mb-1" for="points">Điểm</label>
                     <input id="points" name="points" type="number" min="0" value="{{ old('points', $question->points) }}" class="admin-input">
                 </div>
+                {{-- SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — SỐ CÀNG LỚN CÀNG HIỆN
+                     TRƯỚC trong kho và ngoài trang Luyện tập; 0 = bình thường (xếp theo mới nhất
+                     như trước). Xem migration add_display_order_to_questions_table. --}}
+                <div>
+                    <label class="block text-[13px] text-slate-600 mb-1" for="display_order">Thứ tự ưu tiên hiển thị</label>
+                    <input id="display_order" name="display_order" type="number" min="0" max="65535" value="{{ old('display_order', $question->display_order) }}" class="admin-input">
+                    <p class="text-xs text-slate-400 mt-1">Số càng lớn càng hiện trước. Để 0 nếu không cần ưu tiên.</p>
+                </div>
                 <div>
                     @php
                         $currentDifficulty = \App\Support\QuestionDifficulty::stored($question->metadata ?? null) ?? '';

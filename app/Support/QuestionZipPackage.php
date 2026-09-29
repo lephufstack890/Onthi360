@@ -303,14 +303,16 @@ class QuestionZipPackage
     }
 
     /**
-     * SỬA 18/9 — độ khó khai báo sẵn trong gói ZIP (pedagogy.difficulty: "easy"/"medium"/
-     * "hard"/"expert"). Trả null nếu gói không khai (hoặc khai giá trị lạ) — khi đó trang Luyện
-     * tập public tự suy độ khó theo điểm như trước, xem Public\PracticeService::problemRows().
+     * SỬA 18/9 — độ khó khai báo sẵn trong gói ZIP (pedagogy.difficulty). Trả null nếu gói
+     * không khai (hoặc khai giá trị lạ) — khi đó trang Luyện tập public tự suy độ khó theo
+     * điểm như trước, xem Public\PracticeService::problemRows().
+     *
+     * SỬA 30/9 — thôi gõ tay danh sách 4 khoá ở đây, giao hẳn cho
+     * App\Support\QuestionDifficulty::normalize(): hệ thống giờ có 5 mức, và gói ZIP đời cũ
+     * khai "medium" (hoặc số 1-5) vẫn phải nhận đúng thay vì bị bỏ qua thành "chưa đặt".
      */
     public static function difficultyFrom(array $json): ?string
     {
-        $value = $json['pedagogy']['difficulty'] ?? null;
-
-        return is_string($value) && in_array($value, ['easy', 'medium', 'hard', 'expert'], true) ? $value : null;
+        return QuestionDifficulty::normalize($json['pedagogy']['difficulty'] ?? null);
     }
 }

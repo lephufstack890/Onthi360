@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Kho câu hỏi và đề')
-@section('page-title', 'Kho câu hỏi và đề')
+@section('title', 'Kho bài tập / câu hỏi và đề')
+@section('page-title', 'Kho bài tập / câu hỏi và đề')
 
 @section('content')
     @php
@@ -21,10 +21,31 @@
         $statusOptions = $statusOptions ?? [];
         $difficultyOptions = $difficultyOptions ?? [];
         $subjectCounts = $subjectCounts ?? [];
+        // SỬA 30/9 — dải TAB theo dạng câu + ô lọc Chuyên đề (xem ContentService::indexData()).
+        $typeCounts = $typeCounts ?? [];
+        $tagOptions = $tagOptions ?? [];
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
+
+        // Dựng link cho các chip/tab mà GIỮ NGUYÊN những bộ lọc đang bật — trước đây mỗi chip tự
+        // liệt kê tay từng khoá, thêm 1 bộ lọc mới là phải sửa 3 chỗ và rất dễ sót (chip Môn từng
+        // làm mất bộ lọc Độ khó theo kiểu đó).
+        $filterLink = function (array $override = []) use ($filters) {
+            $query = array_merge([
+                'tab' => 'questions',
+                'subject' => $filters['subject'] ?? null,
+                'grade' => $filters['grade'] ?? null,
+                'type' => $filters['type'] ?? null,
+                'status' => $filters['status'] ?? null,
+                'difficulty' => $filters['difficulty'] ?? null,
+                'tag' => $filters['tag'] ?? null,
+                'q' => $filters['q'] ?? null,
+            ], $override);
+
+            return route('admin.content.index', array_filter($query, fn ($v) => $v !== null && $v !== ''));
+        };
     @endphp
 
-    <x-ws.page-header title="Kho câu hỏi và đề" icon="library" subtitle="Quản lý câu hỏi và đề — sửa là cập nhật trực tiếp.">
+    <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" subtitle="Quản lý câu hỏi và đề — sửa là cập nhật trực tiếp.">
         <x-slot:actions>
             @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>
@@ -65,14 +86,14 @@
         <div class="bg-white rounded-3xl border border-sky-100 p-4 mb-4 space-y-3">
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin.content.index', ['tab' => 'questions']) }}"
+                <a href="{{ $filterLink(['subject' => null]) }}"
                    class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ! ($filters['subject'] ?? null) ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
                     Tất cả môn
                 </a>
                 @foreach ($subjectOptions as $code => $label)
                     @php $count = $subjectCounts[$code] ?? 0; @endphp
                     @if ($count > 0 || ($filters['subject'] ?? null) === $code)
-                        <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => $code, 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'difficulty' => $filters['difficulty'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                        <a href="{{ $filterLink(['subject' => $code]) }}"
                            class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === $code ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
                             {{ $label }} <span class="opacity-70">({{ $count }})</span>
                         </a>
@@ -81,11 +102,27 @@
                 @if (($subjectCounts[''] ?? 0) > 0 || ($filters['subject'] ?? null) === 'none')
                     {{-- Nhóm "Chưa phân loại" (subject IS NULL) — chỗ để dọn dần câu cũ, xem lệnh
                          `php artisan questions:backfill-subject --all`. --}}
-                    <a href="{{ route('admin.content.index', array_filter(['tab' => 'questions', 'subject' => 'none', 'grade' => $filters['grade'] ?? null, 'type' => $filters['type'] ?? null, 'status' => $filters['status'] ?? null, 'difficulty' => $filters['difficulty'] ?? null, 'q' => $filters['q'] ?? null])) }}"
+                    <a href="{{ $filterLink(['subject' => 'none']) }}"
                        class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === 'none' ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400' }}">
                         Chưa phân loại <span class="opacity-70">({{ $subjectCounts[''] ?? 0 }})</span>
                     </a>
                 @endif
+            </div>
+
+            {{-- SỬA 30/9 (khách: "dạng câu ở dưới làm tab phân chia dạng câu") — dạng câu giờ là
+                 TAB, không còn là 1 ô chọn trong hàng bộ lọc. Mỗi tab in luôn số câu của dạng đó
+                 để nhìn phát biết kho đang nặng dạng nào. --}}
+            <div class="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                <a href="{{ $filterLink(['type' => null]) }}"
+                   class="px-3.5 py-2 rounded-xl border text-xs font-bold transition {{ ! ($filters['type'] ?? null) ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
+                    Tất cả dạng <span class="opacity-70">({{ array_sum($typeCounts) }})</span>
+                </a>
+                @foreach ($questionTypeOptions as $value => $label)
+                    <a href="{{ $filterLink(['type' => $value]) }}"
+                       class="px-3.5 py-2 rounded-xl border text-xs font-bold transition {{ ($filters['type'] ?? null) === $value ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
+                        {{ $label }} <span class="opacity-70">({{ $typeCounts[$value] ?? 0 }})</span>
+                    </a>
+                @endforeach
             </div>
 
             <form method="GET" action="{{ route('admin.content.index') }}" class="flex flex-wrap items-end gap-3 pt-3 border-t border-slate-100">
@@ -110,15 +147,10 @@
                         <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
                     </x-ws.select>
                 </div>
-                <div class="min-w-[150px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-type">Dạng câu</label>
-                    <x-ws.select id="filter-type" name="type">
-                        <option value="">Tất cả dạng</option>
-                        @foreach ($questionTypeOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(($filters['type'] ?? null) === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </div>
+                {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
+                     làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
+                     các ô còn lại không làm mất tab đang đứng. --}}
+                <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
                 <div class="min-w-[140px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-status">Trạng thái</label>
                     <x-ws.select id="filter-status" name="status">
@@ -139,6 +171,18 @@
                             <option value="{{ $value }}" @selected(($filters['difficulty'] ?? null) === $value)>{{ $label }}</option>
                         @endforeach
                         <option value="{{ \App\Support\QuestionDifficulty::UNSET }}" @selected(($filters['difficulty'] ?? null) === \App\Support\QuestionDifficulty::UNSET)>Chưa đặt độ khó</option>
+                    </x-ws.select>
+                </div>
+                {{-- SỬA 30/9 (khách: "nên thêm phần lọc theo chuyên đề vào") — lọc theo tag/chuyên
+                     đề đang gắn cho câu hỏi; "Chưa gắn chuyên đề" để dò ra câu còn thiếu mà gán dần. --}}
+                <div class="min-w-[150px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-tag">Chuyên đề</label>
+                    <x-ws.select id="filter-tag" name="tag">
+                        <option value="">Tất cả chuyên đề</option>
+                        @foreach ($tagOptions as $tagId => $tagName)
+                            <option value="{{ $tagId }}" @selected((string) ($filters['tag'] ?? '') === (string) $tagId)>{{ $tagName }}</option>
+                        @endforeach
+                        <option value="none" @selected(($filters['tag'] ?? null) === 'none')>Chưa gắn chuyên đề</option>
                     </x-ws.select>
                 </div>
                 <div class="flex-1 min-w-[200px]">

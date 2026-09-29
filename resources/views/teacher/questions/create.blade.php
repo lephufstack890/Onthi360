@@ -197,6 +197,15 @@
                     <input id="points" name="points" type="number" value="{{ old('points', $question->points ?? 10) }}" min="1" max="100" class="admin-input">
                 </div>
 
+                {{-- SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — số càng lớn càng hiện
+                     trước trong kho và ngoài trang Luyện tập; 0 = bình thường. --}}
+                <div class="mb-4">
+                    <label class="block text-[13px] text-slate-600 mb-1" for="display_order">Thứ tự ưu tiên hiển thị</label>
+                    <input id="display_order" name="display_order" type="number" min="0" max="65535"
+                           value="{{ old('display_order', $question->display_order ?? 0) }}" class="admin-input">
+                    <p class="text-xs text-slate-400 mt-1">Số càng lớn càng hiện trước. Để 0 nếu không cần ưu tiên.</p>
+                </div>
+
                 <div class="mb-4">
                     {{-- SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó,
                          thêm cho tôi phần này") — lưu vào metadata.difficulty dạng KHOÁ, đúng

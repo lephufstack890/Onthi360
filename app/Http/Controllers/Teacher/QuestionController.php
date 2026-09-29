@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\QuestionDifficulty;
 
 class QuestionController extends Controller
 {
@@ -169,7 +170,7 @@ class QuestionController extends Controller
             'type' => ['required', 'in:mcq,fill_blank,coding,composite'],
             // SỬA 18/9 — ô "Độ khó" mới ở form câu hỏi. Rỗng = chưa đặt (hệ thống tự suy
             // theo điểm), 4 khoá còn lại khớp đúng bộ lọc ngoài trang Luyện tập.
-            'difficulty' => ['nullable', 'string', 'in:easy,medium,hard,expert'],
+            'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
             'title' => ['required', 'string', 'max:255'],
             // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — cả 2 đều tuỳ chọn; giá trị được
             // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
@@ -177,6 +178,8 @@ class QuestionController extends Controller
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             'body' => ['required', 'string'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
+            // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'action' => ['required', 'in:draft,publish'],
             // SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): xem
             // Teacher\QuestionService::resolveTagIds() — tag_ids là ID có sẵn (tick), new_tags

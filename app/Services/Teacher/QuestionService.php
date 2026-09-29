@@ -313,6 +313,8 @@ class QuestionService
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'],
             'points' => (int) $data['points'],
+            // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), giống bên Admin.
+            'display_order' => (int) ($data['display_order'] ?? 0),
             // SỬA 18/9 (khách: "tạo câu hỏi chỗ giáo viên cũng không thấy Độ khó") — độ khó do
             // giáo viên chọn, lưu vào metadata.difficulty giống Admin\ContentService.
             'metadata' => $this->mergeDifficultyIntoMetadata($current?->metadata, $data),

@@ -24,6 +24,9 @@ class Question extends Model
 
     protected $fillable = [
         'bank_id', 'code', 'type', 'title', 'body', 'points', 'grading_config', 'metadata',
+        // SỬA 30/9 — độ ưu tiên hiển thị: số càng lớn càng hiện trước, 0 = bình thường.
+        // Xem migration add_display_order_to_questions_table.
+        'display_order',
         // SỬA 8/9 (3) ("phân loại câu hỏi theo môn") — MÃ môn (App\Support\SubjectCatalog::SUBJECTS,
         // vd "TOAN") + khối lớp 6-12. Xem migration add_subject_grade_to_questions_table.
         'subject', 'grade',
