@@ -448,6 +448,11 @@ class CourseService
             ->map(fn (Course $c) => [
                 'id' => $c->id,
                 'grade' => $c->grade ?: 'Chưa phân khối',
+                // SỬA 30/9 (2) — khoá gắn nhiều khối ("Lớp 8, Lớp 9") thì gửi luôn MẢNG khối
+                // ra cho ô chọn ngoài trang chủ. Trước đây bên đó so sánh nguyên chuỗi nên
+                // khoá nhiều khối không bao giờ khớp với khối đang chọn, chọn Lớp 8 mà
+                // danh sách lộ trình lại rỗng.
+                'gradeList' => $c->grade ? Course::splitGrades($c->grade) : ['Chưa phân khối'],
                 'goal' => $c->outcome ?: $c->title,
                 'title' => $c->title,
                 'href' => route('courses.show', $c->id),

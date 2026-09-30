@@ -355,7 +355,9 @@
                 </div>
             </section>
 
-            <section class="rounded-[22px] border border-[#DFEBF0] bg-white px-3.5 py-3 sm:px-4 shadow-[0_5px_20px_rgba(45,96,145,0.045)]">
+            {{-- SỬA 30/9 (2) — oi-pick-card: đặt z-index cho cả thẻ, nếu không bảng chọn thả
+                 xuống sẽ bị thẻ "Nội dung học" ngay dưới (vẽ sau nên nằm trên) che mất. --}}
+            <section class="oi-pick-card rounded-[22px] border border-[#DFEBF0] bg-white px-3.5 py-3 sm:px-4 shadow-[0_5px_20px_rgba(45,96,145,0.045)]">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
                         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#CDE8EC] bg-[#E9F7F8] text-[#23869B]">
@@ -367,26 +369,87 @@
                         </div>
                     </div>
 
-                    <button type="button" @click="cycleGrade()" aria-label="Đổi lớp hiện tại"
-                            class="group flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-[#DCE8ED] bg-[#F8FAFB] px-2.5 text-left transition-all hover:border-[#BFDDE4] hover:bg-[#F2F8F9]">
-                        <x-lucide name="graduation-cap" class="h-3.5 w-3.5 text-[#23869B]" />
-                        <span class="text-[11px] font-bold leading-none text-[#123B68]" x-text="grade"></span>
-                        <x-lucide name="chevron-down" class="h-3 w-3 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
-                    </button>
+                    {{-- SỬA 30/9 (2) — khách: "cho kiểu chọn lớp thì nó xổ ra danh sách dropdown".
+                         Trước đây mỗi lần bấm là nhảy sang khối kế tiếp, muốn về Lớp 6 phải bấm
+                         7 lần và không nhìn thấy trước có những khối nào. Giờ bấm một cái ra cả
+                         danh sách, chọn thẳng khối mình cần. --}}
+                    <div class="relative shrink-0" @click.outside="gradeOpen = false" @keydown.escape.window="gradeOpen = false">
+                        <button type="button" @click="openGrade()" aria-haspopup="listbox"
+                                :aria-expanded="gradeOpen ? 'true' : 'false'" aria-label="Chọn khối lớp"
+                                class="group flex h-8 w-full items-center gap-1.5 rounded-xl border bg-[#F8FAFB] px-2.5 text-left transition-all hover:border-[#BFDDE4] hover:bg-[#F2F8F9] cursor-pointer"
+                                :class="gradeOpen ? 'border-[#BFDDE4] bg-white' : 'border-[#DCE8ED]'">
+                            <x-lucide name="graduation-cap" class="h-3.5 w-3.5 text-[#23869B]" />
+                            <span class="text-[11px] font-bold leading-none text-[#123B68]" x-text="grade || 'Chọn khối'"></span>
+                            <span class="oi-pick-caret flex" :class="gradeOpen ? 'oi-flip' : ''">
+                                <x-lucide name="chevron-down" class="h-3 w-3 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
+                            </span>
+                        </button>
+
+                        <div x-show="gradeOpen" x-cloak x-transition.opacity
+                             class="oi-pick-menu oi-pick-menu--grade" role="listbox" aria-label="Danh sách khối lớp">
+                            <p class="oi-pick-head">Khối lớp</p>
+                            <template x-for="(g, i) in grades" :key="'grade-' + i">
+                                <button type="button" role="option" @click="pickGrade(i)"
+                                        :aria-selected="gradeIndex === i ? 'true' : 'false'"
+                                        class="oi-pick-item" :class="gradeIndex === i ? 'is-on' : ''">
+                                    <span class="oi-pick-item__body">
+                                        <span class="oi-pick-item__text" x-text="g"></span>
+                                    </span>
+                                    <span class="oi-pick-item__tick" x-show="gradeIndex === i">
+                                        <x-lucide name="check" class="h-3.5 w-3.5" />
+                                    </span>
+                                </button>
+                            </template>
+                            <p x-show="grades.length === 0" class="oi-pick-empty">Chưa có khối lớp nào</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button type="button" @click="cycleGoal()" aria-label="Đổi mục tiêu học"
-                            class="group flex min-h-[42px] h-auto min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#DFEAEE] bg-[#F8FAFB] px-2.5 py-2 text-left transition-all hover:border-[#C6E0E6] hover:bg-[#F3F8F9]">
-                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E7F5F6] text-[#23869B]">
-                            <x-lucide name="target" class="h-3.5 w-3.5" />
-                        </span>
-                        <span class="min-w-0 flex-1">
-                            <span class="block text-[10px] font-semibold leading-none text-[#71869A]">Mục tiêu</span>
-                            <span class="mt-1 block whitespace-normal break-words text-xs sm:text-[13px] font-semibold leading-tight text-[#123B68]" x-text="goal"></span>
-                        </span>
-                        <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
-                    </button>
+                    {{-- SỬA 30/9 (2) — ô "Mục tiêu" cũng thả danh sách. Danh sách này LỌC THEO KHỐI
+                         đang chọn ở trên (getter coursesForGrade trong partials/home-script), nên
+                         đổi khối là danh sách lộ trình đổi theo ngay — đúng yêu cầu của khách. --}}
+                    <div class="relative min-w-0 flex-1" @click.outside="goalOpen = false" @keydown.escape.window="goalOpen = false">
+                        <button type="button" @click="openGoal()" aria-haspopup="listbox"
+                                :aria-expanded="goalOpen ? 'true' : 'false'" aria-label="Chọn lộ trình học"
+                                class="group flex min-h-[42px] h-auto w-full min-w-0 items-center gap-2 rounded-xl border bg-[#F8FAFB] px-2.5 py-2 text-left transition-all hover:border-[#C6E0E6] hover:bg-[#F3F8F9] cursor-pointer"
+                                :class="goalOpen ? 'border-[#BFDDE4] bg-white' : 'border-[#DFEAEE]'">
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E7F5F6] text-[#23869B]">
+                                <x-lucide name="target" class="h-3.5 w-3.5" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-[10px] font-semibold leading-none text-[#71869A]">Mục tiêu</span>
+                                <span class="mt-1 block whitespace-normal break-words text-xs sm:text-[13px] font-semibold leading-tight text-[#123B68]"
+                                      x-text="goal || 'Chọn lộ trình phù hợp'"></span>
+                            </span>
+                            <span class="oi-pick-caret flex shrink-0" :class="goalOpen ? 'oi-flip' : ''">
+                                <x-lucide name="chevron-down" class="h-3.5 w-3.5 text-[#8BA0B5] transition-colors group-hover:text-[#126F91]" />
+                            </span>
+                        </button>
+
+                        <div x-show="goalOpen" x-cloak x-transition.opacity
+                             class="oi-pick-menu oi-pick-menu--goal" role="listbox" aria-label="Danh sách lộ trình">
+                            <p class="oi-pick-head">
+                                Lộ trình cho <span class="oi-pick-head__grade" x-text="grade"></span>
+                            </p>
+                            <template x-for="(row, i) in goalRows" :key="'goal-' + i">
+                                <button type="button" role="option" @click="pickGoal(i)"
+                                        :aria-selected="goalIndex === i ? 'true' : 'false'"
+                                        class="oi-pick-item oi-pick-item--goal" :class="goalIndex === i ? 'is-on' : ''">
+                                    <span class="oi-pick-item__body">
+                                        <span class="oi-pick-item__text" x-text="row.goal"></span>
+                                        <span class="oi-pick-item__sub" x-show="row.sub" x-text="row.sub"></span>
+                                    </span>
+                                    <span class="oi-pick-item__tick" x-show="goalIndex === i">
+                                        <x-lucide name="check" class="h-3.5 w-3.5" />
+                                    </span>
+                                </button>
+                            </template>
+                            <p x-show="goalRows.length === 0" class="oi-pick-empty">
+                                Khối này chưa có lộ trình nào, bạn chọn khối khác nhé.
+                            </p>
+                        </div>
+                    </div>
 
                     <a href="{{ route('courses.index') }}" :href="pickerHref"
                        class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#ECD78F] bg-[#FFF4C7] px-4 text-xs font-bold text-[#765C18] shadow-[0_2px_7px_rgba(183,143,37,0.09)] transition-all hover:border-[#DFC56F] hover:bg-[#FFEDAA] active:scale-[0.98]">
@@ -970,5 +1033,88 @@
 @endsection
 
 @push('scripts')
+    {{-- SỬA 30/9 (2) — CSS của hai bảng chọn thả xuống ở [HOME-04].
+         Viết CSS thường chứ không dùng class Tailwind mới: máy chủ KHÔNG chạy được vite nên
+         class nào chưa có sẵn trong public/build/assets/app-*.css sẽ không có tác dụng. --}}
+    <style>
+        /* Thẻ chứa hai ô chọn phải nổi lên trên khối "Nội dung học" vẽ ngay sau nó. */
+        .oi-pick-card { position: relative; z-index: 30; }
+
+        .oi-pick-caret { transition: transform .18s ease; }
+        .oi-flip { transform: rotate(180deg); }
+
+        .oi-pick-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            z-index: 40;
+            padding: 4px;
+            max-height: 264px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            border: 1px solid #D7E6EC;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 14px 34px rgba(38, 80, 100, .16);
+        }
+        /* Bảng khối lớp bám mép phải của nút cho khỏi tràn ra ngoài thẻ. */
+        .oi-pick-menu--grade { right: 0; min-width: 152px; }
+        /* Bảng lộ trình rộng đúng bằng ô chọn. */
+        .oi-pick-menu--goal { left: 0; right: 0; }
+
+        .oi-pick-head {
+            padding: 6px 8px 5px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #8BA0B5;
+        }
+        .oi-pick-head__grade { color: #126F91; }
+
+        .oi-pick-item {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 8px;
+            border: 0;
+            border-radius: 11px;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color .15s ease;
+        }
+        .oi-pick-item:hover { background: #F2F8FA; }
+        .oi-pick-item.is-on { background: #E9F5F8; }
+        .oi-pick-item__body { min-width: 0; flex: 1 1 auto; }
+        .oi-pick-item__text {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 700;
+            line-height: 1.35;
+            color: #123B68;
+        }
+        .oi-pick-item--goal .oi-pick-item__text { white-space: normal; overflow-wrap: anywhere; }
+        .oi-pick-item__sub {
+            display: block;
+            margin-top: 2px;
+            font-size: 10.5px;
+            font-weight: 500;
+            line-height: 1.4;
+            color: #7A92A3;
+        }
+        .oi-pick-item__tick { flex: 0 0 auto; color: #126F91; }
+        .oi-pick-empty {
+            padding: 12px 8px;
+            font-size: 11px;
+            line-height: 1.5;
+            text-align: center;
+            color: #7A92A3;
+        }
+
+        .oi-pick-menu::-webkit-scrollbar { width: 6px; }
+        .oi-pick-menu::-webkit-scrollbar-thumb { background: #CFE0E8; border-radius: 99px; }
+    </style>
+
     @include('partials.home-script')
 @endpush

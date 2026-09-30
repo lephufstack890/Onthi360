@@ -31,6 +31,10 @@
             coursesHref: config.coursesHref || '#',
             gradeIndex: 0,
             goalIndex: 0,
+            // SỬA 30/9 (2) — hai ô chọn ở [HOME-04] đổi từ "bấm-xoay-vòng" sang THẢ DANH SÁCH.
+            // Mỗi lúc chỉ mở được một bảng: mở bảng này thì đóng bảng kia (xem openGrade/openGoal).
+            gradeOpen: false,
+            goalOpen: false,
 
             mainTab: 'courses',
             mainTabPaused: false,
@@ -77,6 +81,8 @@
                  * lựa chọn của người dùng ngay dưới tay họ và nút vàng trỏ sang khoá khác.
                  */
                 if (this.hasCourses) return;
+                // Bảng chọn đang mở thì để yên, đừng đổi dòng đang sáng ngay dưới con trỏ.
+                if (this.goalOpen) return;
 
                 if (this.slideIndex < this.goals.length) {
                     this.goalIndex = this.slideIndex;
@@ -109,30 +115,66 @@
              * "Mục tiêu" không bao giờ rỗng.
              */
             get coursesForGrade() {
-                const hit = this.pickerCourses.filter((c) => c.grade === this.grade);
-                return hit.length > 0 ? hit : this.pickerCourses;
+                /*
+                 * SỬA 30/9 (2) — so theo MẢNG khối (gradeList) do máy chủ gửi kèm. Từ hôm
+                 * cho phép một khoá gắn nhiều khối, trường grade có thể là "Lớp 8, Lớp 9";
+                 * so nguyên chuỗi với "Lớp 8" sẽ không khớp, và danh sách lộ trình rơi về
+                 * hiện TẤT CẢ khoá — đúng là thứ khách phàn nàn.
+                 */
+                const hit = this.pickerCourses.filter((c) => this.gradesOf(c).includes(this.grade));
+                return hit.length > 0 ? hit : [];
             },
-            get goals() { return this.hasCourses ? this.coursesForGrade.map((c) => c.goal) : this.fallbackGoals; },
+
+            gradesOf(course) {
+                if (Array.isArray(course.gradeList) && course.gradeList.length > 0) return course.gradeList;
+                return String(course.grade || '').split(',').map((g) => g.trim()).filter(Boolean);
+            },
+            get goals() { return this.goalRows.map((r) => r.goal); },
+
+            /*
+             * Từng dòng của bảng "Lộ trình" thả xuống: tên lộ trình + dòng phụ (tên khoá và
+             * số lớp đang mở) để người xem biết mình đang chọn cái gì. Chưa có khoá nào đã
+             * phát hành thì rơi về danh sách viết cứng của bản thiết kế, không có dòng phụ.
+             */
+            get goalRows() {
+                if (! this.hasCourses) {
+                    return this.fallbackGoals.map((g) => ({ goal: g, sub: '' }));
+                }
+
+                return this.coursesForGrade.map((c) => {
+                    const bits = [];
+                    if (c.title && c.title !== c.goal) bits.push(c.title);
+                    if (c.openClasses > 0) bits.push(c.openClasses + ' lớp đang mở');
+
+                    return { goal: c.goal, sub: bits.join(' · ') };
+                });
+            },
 
             get grade() { return this.grades[this.gradeIndex] || ''; },
             get goal() { return this.goals[this.goalIndex] || ''; },
 
-            // Đổi khối lớp -> danh sách mục tiêu đổi theo, nên đưa con trỏ về đầu, tránh trỏ
+            openGrade() { this.gradeOpen = ! this.gradeOpen; this.goalOpen = false; },
+            openGoal() { this.goalOpen = ! this.goalOpen; this.gradeOpen = false; },
+
+            // Đổi khối lớp -> danh sách lộ trình đổi theo, nên đưa con trỏ về đầu, tránh trỏ
             // vào một vị trí không còn tồn tại ở khối mới.
-            cycleGrade() {
-                if (this.grades.length === 0) return;
-                this.gradeIndex = (this.gradeIndex + 1) % this.grades.length;
+            pickGrade(i) {
+                if (i < 0 || i >= this.grades.length) return;
+                this.gradeIndex = i;
                 this.goalIndex = 0;
+                this.gradeOpen = false;
             },
-            cycleGoal() {
-                if (this.goals.length === 0) return;
-                this.goalIndex = (this.goalIndex + 1) % this.goals.length;
+            pickGoal(i) {
+                if (i < 0 || i >= this.goals.length) return;
+                this.goalIndex = i;
+                this.goalOpen = false;
             },
 
             // Khoá học ứng với cặp (khối lớp, mục tiêu) đang chọn — cũng là đích của nút vàng.
             get pickedCourse() {
                 if (! this.hasCourses) return null;
                 const list = this.coursesForGrade;
+                if (list.length === 0) return null;
                 return list[this.goalIndex] || list[0] || null;
             },
             /*
