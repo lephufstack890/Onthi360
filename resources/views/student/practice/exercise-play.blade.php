@@ -99,9 +99,10 @@
                  this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
                  try { window.localStorage.setItem('onthi360-exam-theme', this.theme); } catch (e) {}
              },
-         }" x-init="init()">
+         }" x-init="init(); $watch('tab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
 
-        <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl">
+        <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl"
+             data-activity-key="{{ $headCode ?: 'exercise' }}">
 
         {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
         <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">
@@ -134,20 +135,30 @@
                 <button type="submit" class="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] transition hover:bg-[#F4F9FB] sm:flex">Thoát bài tập</button>
             </form>
 
-            {{-- Nút chính trên header BẤM HỘ nút submit đang nằm trong #practice-container (khối
-                 này bị thay mới sau mỗi lần chấm nên không thể trỏ cứng vào 1 form). Nhãn được
-                 một MutationObserver nhỏ ở cuối trang đồng bộ lại — xem script. --}}
-            <button type="button" data-header-submit
-                    class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-not-allowed disabled:opacity-50">
-                <x-lucide name="send" class="h-4 w-4" /><span data-header-submit-label>Nộp bài</span>
-            </button>
+            {{-- SỬA 30/9 — đúng bản mẫu mới: thanh trên KHÔNG còn nút "Nộp bài" (đã chuyển
+                 xuống thanh dưới cùng), thay vào đó là ĐỒNG HỒ + chip trạng thái lưu bài. --}}
+            <div class="hidden shrink-0 items-center gap-2 rounded-xl bg-[#FFF5DE] px-3 py-2 text-[#A4621B] sm:flex"
+                 title="Thời gian bạn đã mở bài này (tính từ lúc mở trang)">
+                <x-lucide name="clock-3" class="h-4 w-4" />
+                <span class="text-xs font-black" data-work-timer>00:00:00</span>
+            </div>
+
+            {{-- Bản mẫu để cứng chữ "Đã lưu bài". Ở đây CHỈ hiện sau khi đã nộp — lúc đó bài mới
+                 thật sự được ghi vào lịch sử làm bài. Nói "đã lưu" khi chưa nộp là sai sự thật,
+                 học sinh tin thế rồi đóng tab là mất mã đang gõ. --}}
+            @if ($feedback !== null)
+                <span class="hidden shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] sm:flex">
+                    <x-lucide name="save" class="h-4 w-4" />Đã lưu bài
+                </span>
+            @endif
         </header>
 
         {{-- ═══════════════════ RAIL 4 TAB + NỘI DUNG ═══════════════════ --}}
         <div class="assessment-modal-main flex min-h-0 flex-1 flex-col md:flex-row">
             <aside class="assessment-modal-tabs shrink-0 border-b border-[#DDEAF0] bg-white md:w-12 md:border-b-0 md:border-r">
-                <div class="grid h-full grid-cols-4 gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
-                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu']] as [$tabId, $tabLabel])
+                {{-- SỬA 30/9 — bản mẫu mới có 5 tab: thêm "Nhật ký" (tín hiệu trong lúc làm bài). --}}
+                <div class="grid h-full grid-cols-5 gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
+                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
                         <button type="button" @click="tab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
                                 :class="tab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
@@ -188,9 +199,6 @@
                 <section x-show="tab === 'work'" class="assessment-work-panel flex h-full min-h-0 flex-col overflow-hidden p-1.5 sm:p-2">
                     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]">{{ $isCode ? 'Soạn mã' : 'Trả lời câu hỏi' }}</span>
-                        @if (! $finished)
-                            <span class="shrink-0 text-[10px] font-bold text-[#7A92A3]">{{ $headPoints }} điểm</span>
-                        @endif
                     </div>
 
                     {{--
@@ -600,8 +608,54 @@
                         </div>
                     </article>
                 </section>
+                {{-- ───────── TAB: NHẬT KÝ ─────────
+                     SỬA 30/9 — tab thứ 5 của bản mẫu mới (ActivityPanel). Ghi lại các mốc trong
+                     lúc làm bài ngay TẠI TRÌNH DUYỆT (sessionStorage), KHÔNG gửi gì về máy chủ:
+                     mở bài, chuyển tab, dán/sao chép, cửa sổ mất tiêu điểm, phím Print Screen,
+                     rời trang, nộp bài. Danh sách do JS ở cuối trang vẽ (không dùng Alpine bên
+                     trong để khỏi vướng #practice-container bị thay mới sau mỗi lần chấm). --}}
+                <section x-show="tab === 'activity'" x-cloak class="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+                    <div class="mx-auto max-w-3xl rounded-xl border border-[#DDEAF0] bg-white px-3">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#DDEAF0] py-2.5">
+                            <h3 class="text-xs font-bold text-[#123B68]">Nhật ký làm bài</h3>
+                            <span class="text-[10px] text-[#607A90]" data-activity-count>0 sự kiện · 0 dấu hiệu cần xem xét</span>
+                            <button type="button" data-activity-download class="ml-auto min-h-8 text-[10px] font-semibold text-[#126F91] underline underline-offset-2">Tải nhật ký</button>
+                        </div>
+                        <div class="flex gap-3 border-b border-[#DDEAF0] py-2 text-[10px]" aria-label="Lọc nhật ký">
+                            <button type="button" data-activity-filter="all" class="font-bold text-[#126F91] underline underline-offset-2">Tất cả</button>
+                            <button type="button" data-activity-filter="signals" class="text-[#607A90]">Dấu hiệu (<span data-activity-signal-count>0</span>)</button>
+                        </div>
+                        <ol class="divide-y divide-[#EEF3F6]" data-activity-list></ol>
+                        <p class="border-t border-[#DDEAF0] py-2 text-[10px] text-[#7A92A3]">
+                            Đây là tín hiệu để đối chiếu, không tự kết luận vi phạm. Nhật ký chỉ nằm trong phiên trình duyệt này.
+                        </p>
+                    </div>
+                </section>
+
             </main>
         </div>
+
+        {{-- ═══════════════════ THANH DƯỚI CÙNG ═══════════════════
+             SỬA 30/9 — bản mẫu mới có thanh này (footer của AssessmentModal): bên trái là tên
+             bài + câu nhắc, bên phải là nút "Nộp bài". Nút nộp đã CHUYỂN từ thanh trên xuống
+             đây, giữ NGUYÊN 2 thuộc tính data-header-submit / data-header-submit-label nên
+             script bấm hộ + đồng bộ nhãn ở cuối trang không phải sửa một dòng nào.
+
+             Cặp nút "Bài trước / Bài tiếp theo" của bản mẫu CỐ Ý không dựng: bản mẫu chỉ hiện
+             chúng khi có danh sách bài để chuyển (hasNavigation), còn phiên luyện 1 bài ở đây
+             không có bài trước/bài sau — bày ra sẽ là 2 nút bấm không đi đâu cả. --}}
+        <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
+            <div class="min-w-0">
+                <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $headTitle }}</p>
+                <p class="hidden text-[10px] text-[#607A90] sm:block" x-text="tab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : 'Nộp bài để xem kết quả chấm.'">Nộp bài để xem kết quả chấm.</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <button type="button" data-header-submit
+                        class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4">
+                    <x-lucide name="send" class="h-4 w-4" /><span data-header-submit-label>Nộp bài</span>
+                </button>
+            </div>
+        </footer>
         </div>
     </div>
 
@@ -727,6 +781,9 @@
 
             var button = form.querySelector('button[type="submit"]');
             var errorEl = form.querySelector('[data-ajax-error]');
+            // SỬA 30/9 — ghi vào Nhật ký làm bài (tab thứ 5 của bản mẫu mới). Chỉ ghi ở trình
+            // duyệt, không đổi gì trong luồng chấm.
+            if (window.oiWorkLog) window.oiWorkLog.add('event', 'Nộp bài', 'Gửi bài làm lên máy chấm.');
             var originalButtonHtml = button ? button.innerHTML : '';
             if (errorEl) errorEl.classList.add('hidden');
             if (button) {
@@ -963,6 +1020,198 @@
             // #practice-container bị thay mới sau mỗi lần chấm -> nối lại cho ô mã mới.
             var host = document.querySelector('#practice-container');
             if (host && host.parentNode) new MutationObserver(wire).observe(host.parentNode, { childList: true, subtree: true });
+        })();
+    </script>
+
+    {{-- ══════ SỬA 30/9 — ĐỒNG HỒ + NHẬT KÝ LÀM BÀI (bản mẫu mới) ══════
+         Hai thứ của bản mẫu mới, cả hai đều CHỈ CHẠY Ở TRÌNH DUYỆT — không thêm một lời gọi
+         máy chủ nào, không đụng vào luồng chấm bài:
+           · đồng hồ đếm lên từ lúc mở trang (thanh trên cùng);
+           · nhật ký: mở bài, chuyển tab, dán/sao chép, cửa sổ mất tiêu điểm rồi quay lại, phím
+             Print Screen, rời trang, nộp bài. Lưu ở sessionStorage theo mã bài, đóng trình
+             duyệt là hết — giống hệt cách bản mẫu làm (assessmentLogKey).
+
+         Dùng thuần JS (không Alpine) vì phần lớn sự kiện đến từ #practice-container — khối bị
+         thay mới sau mỗi lần chấm, mà Alpine 3 không khởi tạo DOM do JS chèn vào. --}}
+    <script>
+        (function () {
+            // ── Đồng hồ ──
+            var timerEl = document.querySelector('[data-work-timer]');
+            if (timerEl) {
+                var startedAt = Date.now();
+                var pad2 = function (n) { return n < 10 ? '0' + n : String(n); };
+                setInterval(function () {
+                    var s = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+                    timerEl.textContent = pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60);
+                }, 1000);
+            }
+
+            // ── Nhật ký ──
+            var listEl = document.querySelector('[data-activity-list]');
+            var countEl = document.querySelector('[data-activity-count]');
+            var signalEl = document.querySelector('[data-activity-signal-count]');
+            var shell = document.querySelector('.assessment-modal-shell');
+            if (!listEl) return;
+
+            var KEY = 'onthi360:practice-activity:' + (document.querySelector('[data-activity-key]')?.getAttribute('data-activity-key') || 'exercise');
+            var filter = 'all';
+            var entries = [];
+            try {
+                var saved = JSON.parse(window.sessionStorage.getItem(KEY) || '[]');
+                if (Array.isArray(saved)) entries = saved.filter(function (e) { return e && typeof e.title === 'string'; }).slice(0, 100);
+            } catch (e) { entries = []; }
+
+            var fmt = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            function persist() {
+                try { window.sessionStorage.setItem(KEY, JSON.stringify(entries.slice(0, 100))); } catch (e) {}
+            }
+
+            function render() {
+                var signals = entries.filter(function (e) { return e.kind === 'signal'; }).length;
+                if (countEl) countEl.textContent = entries.length + ' sự kiện · ' + signals + ' dấu hiệu cần xem xét';
+                if (signalEl) signalEl.textContent = String(signals);
+
+                var visible = filter === 'signals' ? entries.filter(function (e) { return e.kind === 'signal'; }) : entries;
+                listEl.innerHTML = '';
+
+                if (visible.length === 0) {
+                    var empty = document.createElement('li');
+                    empty.className = 'py-3 text-[11px] text-[#607A90]';
+                    empty.textContent = filter === 'signals' ? 'Chưa có dấu hiệu nào cần xem xét.' : 'Chưa có sự kiện nào.';
+                    listEl.appendChild(empty);
+                    return;
+                }
+
+                visible.forEach(function (entry) {
+                    var li = document.createElement('li');
+                    li.className = 'flex flex-wrap gap-x-2 gap-y-1 py-2 text-[11px] leading-5';
+                    var time = document.createElement('time');
+                    time.className = 'shrink-0 text-[10px] text-[#7A92A3]';
+                    time.setAttribute('datetime', entry.occurredAt || '');
+                    time.textContent = entry.time || '';
+                    var title = document.createElement('span');
+                    title.className = entry.kind === 'signal' ? 'font-semibold text-amber-700' : 'font-semibold text-[#123B68]';
+                    title.textContent = (entry.kind === 'signal' ? '• ' : '') + entry.title;
+                    var detail = document.createElement('span');
+                    detail.className = 'text-[#607A90]';
+                    detail.textContent = entry.detail || '';
+                    li.appendChild(time); li.appendChild(title); li.appendChild(detail);
+                    listEl.appendChild(li);
+                });
+            }
+
+            function add(kind, title, detail) {
+                var now = new Date();
+                entries.unshift({
+                    id: now.getTime() + '-' + Math.random().toString(36).slice(2, 7),
+                    kind: kind, title: title, detail: detail,
+                    occurredAt: now.toISOString(), time: fmt.format(now),
+                });
+                entries = entries.slice(0, 100);
+                persist();
+                render();
+            }
+
+            // Cho Alpine gọi khi đổi tab + cho script chấm bài gọi khi nộp.
+            window.oiWorkLog = {
+                add: add,
+                tabChanged: function (tab) {
+                    var label = { pdf: 'Đề bài PDF', work: 'Làm bài', guide: 'Hướng dẫn', sample: 'Bài mẫu', activity: 'Nhật ký' }[tab] || tab;
+                    add('event', 'Chuyển tab', 'Mở tab "' + label + '".');
+                },
+            };
+
+            add('event', 'Mở bài làm', 'Bắt đầu hoặc tiếp tục phiên làm bài.');
+
+            // ── Các tín hiệu (giống bản mẫu) ──
+            var inactive = null;
+            function elapsed(startedAt) {
+                var s = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+                return s < 60 ? s + ' giây' : Math.floor(s / 60) + ' phút ' + (s % 60) + ' giây';
+            }
+            function markInactive(title, detail) {
+                if (inactive) return;
+                inactive = Date.now();
+                add('signal', title, detail);
+            }
+            function markActive() {
+                if (!inactive || document.hidden || !document.hasFocus()) return;
+                var started = inactive;
+                inactive = null;
+                add('event', 'Trở lại bài làm', 'Trang được chú ý trở lại sau ' + elapsed(started) + '.');
+            }
+
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    markInactive('Trang mất hiển thị', 'Trang làm bài không còn hiển thị; không xác định được trang khác đã mở.');
+                } else {
+                    markActive();
+                }
+            });
+            window.addEventListener('blur', function () {
+                if (!document.hidden) markInactive('Cửa sổ mất tiêu điểm', 'Cửa sổ làm bài không còn được chọn; cần đối chiếu nguyên nhân.');
+            });
+            window.addEventListener('focus', markActive);
+            window.addEventListener('pagehide', function () {
+                add('signal', 'Rời trang làm bài', 'Trang làm bài được đóng hoặc chuyển đi nơi khác.');
+            });
+
+            function clipboardSignal(event) {
+                if (!shell || !event.target || !event.target.closest || !event.target.closest('.assessment-modal-shell')) return;
+                if (event.type === 'paste') {
+                    var len = (event.clipboardData && event.clipboardData.getData('text/plain') || '').length;
+                    add('signal', 'Dán nội dung', len + ' ký tự được dán; nội dung không được lưu lại.');
+                } else {
+                    var t = event.target;
+                    var n = (typeof t.selectionStart === 'number' && typeof t.selectionEnd === 'number')
+                        ? Math.abs(t.selectionEnd - t.selectionStart)
+                        : ((window.getSelection() || '').toString().length || 0);
+                    add('signal', 'Sao chép nội dung', n + ' ký tự được chọn để sao chép; nội dung không được lưu lại.');
+                }
+            }
+            document.addEventListener('paste', clipboardSignal, true);
+            document.addEventListener('copy', clipboardSignal, true);
+            document.addEventListener('keydown', function (event) {
+                if (!event.repeat && (event.key === 'PrintScreen' || event.code === 'PrintScreen')) {
+                    add('signal', 'Phím chụp màn hình', 'Trang nhận được phím Print Screen; không xác nhận được ảnh đã chụp hay chưa.');
+                }
+            }, true);
+
+            // ── Bộ lọc + tải nhật ký ──
+            document.querySelectorAll('[data-activity-filter]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    filter = btn.getAttribute('data-activity-filter');
+                    document.querySelectorAll('[data-activity-filter]').forEach(function (other) {
+                        var on = other === btn;
+                        var signals = other.getAttribute('data-activity-filter') === 'signals';
+                        other.className = on
+                            ? (signals ? 'font-bold text-amber-700 underline underline-offset-2' : 'font-bold text-[#126F91] underline underline-offset-2')
+                            : 'text-[#607A90]';
+                    });
+                    render();
+                });
+            });
+
+            var downloadBtn = document.querySelector('[data-activity-download]');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function () {
+                    var lines = entries.map(function (e) {
+                        return [e.time, e.kind === 'signal' ? 'DẤU HIỆU' : 'Sự kiện', e.title, e.detail].join(' | ');
+                    });
+                    var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'nhat-ky-lam-bai.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            }
+
+            render();
         })();
     </script>
 
