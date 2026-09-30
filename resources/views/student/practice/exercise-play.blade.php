@@ -351,10 +351,10 @@
                             <form method="POST" action="{{ route('student.practiceByQuestion.answer') }}" class="min-h-full" data-ajax-answer>
                                 @csrf
                                 @if ($isCode)
-                                  <div class="flex min-h-full flex-col gap-2">
+                                  <div class="oi-work-fill gap-2">
                                     {{-- Lưới 2 cột ĐÚNG như WorkPanel của bản mẫu mới:
                                          [trình soạn mã 1.6fr | kết quả chấm 0.9fr]. --}}
-                                    <div class="grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                    <div class="oi-work-grid grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
                                         {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
@@ -454,7 +454,7 @@
                                          Kết quả giờ CHỈ nằm ở cột phải — xem khối "CỘT KẾT QUẢ CHẤM" phía trên. --}}
                                   </div>
                                 @else
-                                    <div class="flex min-h-full flex-col gap-2">
+                                    <div class="oi-work-fill gap-2">
                                         {{-- ── ResponsePanel của bản mẫu ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                             <div class="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Cách trả lời</div>
@@ -670,7 +670,38 @@
 @endsection
 
 @push('scripts')
+    {{-- SỬA 30/9 (3) (khách: "cho full dài ra như tôi vẽ") — KÉO 2 CỘT DÀI HẾT KHUNG.
+
+         Trước đây cột soạn mã và cột kết quả dừng ở 420px, dưới đó là một mảng trống to tướng.
+         Nguyên nhân: chuỗi chiều cao bị ĐỨT ở giữa — khung ngoài có chiều cao thật, nhưng
+         #practice-container (khối bị thay mới sau mỗi lần chấm) và <form> bên trong lại để cao
+         tự động, nên min-h-full của các lớp dưới không bám vào đâu, rơi về đúng 420px tối thiểu.
+
+         Viết bằng CSS thường vì 4 lớp Tailwind cần dùng (grid-rows-1, lg:grid-rows-1,
+         lg:min-h-0, lg:h-full) KHÔNG có trong CSS đã build, mà VPS không chạy được vite. --}}
     <style>
+        /* min-height (KHÔNG phải height) để màn hẹp — 2 khối xếp dọc, cao hơn khung — vẫn nở
+           ra rồi cuộn bình thường, thay vì bị ép đúng 100% rồi cắt mất phần dưới. */
+        #practice-container { display: flex; flex-direction: column; min-height: 100%; }
+        #practice-container > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+        .oi-work-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+
+        /* Chỉ ép hàng lưới cao bằng khung ở MÀN RỘNG — màn hẹp xếp dọc 2 khối, để cao tự nhiên
+           rồi cuộn như cũ.
+
+           flex-basis 0 (không phải auto) là chỗ quan trọng: có vậy chiều cao của lưới mới do
+           KHUNG quyết định chứ không do nội dung, nên danh sách 20 test dài không đẩy 2 cột
+           phình ra khỏi khung mà cuộn bên trong ô kết quả — đã đo bằng trình duyệt thật, để
+           'auto' thì cột tràn xuống dưới cả thanh Nộp bài. min-height:0 cho các cột con để
+           chúng co theo khung thay vì giữ cứng 420px. */
+        @media (min-width: 1024px) {
+            #practice-container { height: 100%; min-height: 0; }
+            #practice-container > form { min-height: 0; }
+            .oi-work-fill { min-height: 0; }
+            .oi-work-grid { min-height: 0; flex: 1 1 0%; grid-template-rows: minmax(0, 1fr); }
+            .oi-work-grid > * { min-height: 0; }
+        }
+
         .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content p { margin-bottom: 0.5rem; }
