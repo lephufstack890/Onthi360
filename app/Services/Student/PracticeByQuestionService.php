@@ -253,7 +253,66 @@ class PracticeByQuestionService
             'backLabel' => $state['backLabel'] ?? null,
             // SỬA 30/9 (6) — dữ liệu cho hai nút "Bài trước / Bài tiếp theo" ở thanh dưới cùng.
             'siblingNav' => $this->siblingNav($state, (int) $question->id),
+            // SỬA 30/9 (8) — viên "Đã làm · Điểm gần nhất" ở thanh dưới cùng.
+            'lastResult' => $this->lastResultFor($question),
         ];
+    }
+
+    /**
+     * SỬA 30/9 (8) (khách: "hiển thị thêm chỗ đã làm: điểm gần nhất, đúng bao nhiêu test thì
+     * hiển thị số test đúng / tổng test") — LẦN CHẤM GẦN NHẤT của chính người đang học với
+     * ĐÚNG câu này, đọc từ cơ sở dữ liệu chứ không từ session.
+     *
+     * Vì sao đọc từ CSDL: session chỉ giữ kết quả của lần nộp TRONG phiên đang mở. Học sinh
+     * làm bài này hôm qua rồi hôm nay mở lại thì session trống trơn, mà cái người ta muốn
+     * biết ngay khi mở bài lại chính là "lần trước mình được bao nhiêu".
+     *
+     * Trả null khi chưa từng nộp — view ẩn hẳn viên đó thay vì hiện "0/100", vì 0 điểm và
+     * chưa làm là hai chuyện khác hẳn nhau.
+     *
+     * @return array{scoreLabel:string, maxLabel:string, passed:?int, total:?int}|null
+     */
+    private function lastResultFor(Question $question): ?array
+    {
+        $user = Auth::user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        $answer = AttemptAnswer::query()
+            ->where('question_id', $question->id)
+            ->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id))
+            // graded_at chưa có (bài ghi nhận mà chưa chấm xong) thì xuống cuối: sắp giảm dần
+            // nên NULL nằm sau. Thêm id để hai lần chấm cùng giây vẫn ra thứ tự cố định.
+            ->orderByDesc('graded_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($answer === null || $answer->graded_at === null) {
+            return null;
+        }
+
+        // Câu lập trình mới có 2 cột này. Bài nộp trước ngày thêm cột, hoặc máy chủ chưa chạy
+        // migration, thì để null -> view ẩn phần "x/y test" thay vì in "0/0 test" gây hiểu
+        // nhầm là bài không có test nào.
+        $total = $answer->total_tests !== null ? (int) $answer->total_tests : null;
+        $passed = $answer->passed_tests !== null ? (int) $answer->passed_tests : null;
+
+        return [
+            'scoreLabel' => self::trimNumber((float) $answer->score),
+            'maxLabel' => self::trimNumber((float) $question->points),
+            'passed' => $total !== null && $total > 0 ? ($passed ?? 0) : null,
+            'total' => $total !== null && $total > 0 ? $total : null,
+        ];
+    }
+
+    /** 66.666 -> "66.67", 100.00 -> "100" — bỏ số 0 thừa cho khỏi rườm rà trên viên nhỏ. */
+    private static function trimNumber(float $value): string
+    {
+        $text = number_format($value, 2, '.', '');
+
+        return str_contains($text, '.') ? rtrim(rtrim($text, '0'), '.') : $text;
     }
 
     /**
