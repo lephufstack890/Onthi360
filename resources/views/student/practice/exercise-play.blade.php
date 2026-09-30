@@ -717,7 +717,12 @@
                 <span data-done-chip @class(['oi-done-chip', 'hidden' => $last === null])>
                     @if ($last)
                         <span class="oi-done-chip__dot"></span>
-                        <span>Đã làm · Điểm gần nhất: <span class="font-black">{{ $last['scoreLabel'] }}</span>/{{ $last['maxLabel'] }}@if ($last['total']) · <span class="font-black">{{ $last['passed'] }}/{{ $last['total'] }}</span> test đúng@endif</span>
+                        <span>Đã làm · Điểm gần nhất: <span class="font-black">{{ $last['scoreLabel'] }}</span>/{{ $last['maxLabel'] }}@if ($last['total']) · <span class="font-black">{{ $last['passed'] }}/{{ $last['total'] }}</span> test đúng
+                            {{-- @endif PHẢI đứng sau khoảng trắng: Blade dùng \B trước @ nên
+                                 directive dính ngay sau một CHỮ CÁI ("đúng@endif") thì nó không
+                                 nhận ra, để nguyên văn @endif rồi @if ở trên thành không có
+                                 lệnh đóng -> trang 500. --}}
+                        @endif</span>
                     @endif
                 </span>
 
