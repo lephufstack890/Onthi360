@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Support\ImageOptimizer;
 use App\Enums\ContentStatus;
 use App\Models\Testimonial;
 use App\Models\User;
@@ -64,11 +65,11 @@ class TestimonialService
         $attributes['is_sample'] = false;
 
         if ($avatar !== null) {
-            $attributes['avatar_path'] = $avatar->store(self::DIR, self::DISK);
+            $attributes['avatar_path'] = ImageOptimizer::store($avatar, self::DIR, self::DISK, ImageOptimizer::MAX_WIDTH_AVATAR);
         }
 
         if ($banner !== null) {
-            $attributes['banner_path'] = $banner->store(self::DIR, self::DISK);
+            $attributes['banner_path'] = ImageOptimizer::store($banner, self::DIR, self::DISK);
         }
 
         return Testimonial::create($attributes);
@@ -85,12 +86,12 @@ class TestimonialService
         // Tải ảnh mới thì xoá ảnh cũ để không tồn rác trong storage.
         if ($avatar !== null) {
             $this->forget($testimonial->avatar_path);
-            $attributes['avatar_path'] = $avatar->store(self::DIR, self::DISK);
+            $attributes['avatar_path'] = ImageOptimizer::store($avatar, self::DIR, self::DISK, ImageOptimizer::MAX_WIDTH_AVATAR);
         }
 
         if ($banner !== null) {
             $this->forget($testimonial->banner_path);
-            $attributes['banner_path'] = $banner->store(self::DIR, self::DISK);
+            $attributes['banner_path'] = ImageOptimizer::store($banner, self::DIR, self::DISK);
         }
 
         // Đã sửa nội dung thì không còn là dòng mẫu của seeder nữa.

@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Support\ImageOptimizer;
 use App\Enums\ContentStatus;
 use App\Models\ClassRoom;
 use App\Models\Course;
@@ -349,7 +350,7 @@ class CourseService
         if ($cover !== null) {
             $this->forgetCover($existing?->cover_image_path);
 
-            return ['cover_image_path' => $cover->store(self::COVER_DIR, self::COVER_DISK)];
+            return ['cover_image_path' => ImageOptimizer::store($cover, self::COVER_DIR, self::COVER_DISK)];
         }
 
         if ($remove) {

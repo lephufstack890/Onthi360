@@ -4,6 +4,14 @@
 @section('meta-description', \Illuminate\Support\Str::limit($path->subtitle ?: ($path->goal_label.' · '.$path->gradeLabel().' · '.count($steps).' bậc'), 155))
 @section('meta-image', $path->shareImageUrl() ?: ($path->coverUrl() ?: asset('og-image.png')))
 
+{{-- SỬA 30/9 (3) — xin trình duyệt tải ảnh bìa NGAY khi vừa đọc phần đầu trang, không
+     phải đợi dựng xong bố cục mới thấy thẻ <img>. Đây là tấm nặng nhất của trang này. --}}
+@if ($path->coverUrl())
+    @push('head')
+        <link rel="preload" as="image" href="{{ $path->coverUrl() }}" fetchpriority="high">
+    @endpush
+@endif
+
 @section('content')
 {{-- ═══════════════ [PATH-SHOW] CHI TIẾT LỘ TRÌNH (B4) ═══════════════
 
@@ -218,8 +226,11 @@
                  Dùng object-cover cho cao bằng cột bên cạnh thì tấm áp phích bị xén mất mép —
                  mà mép phải của nó lại đang là viên mục tiêu và cái cúp. --}}
             <figure class="self-start overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_6px_24px_rgba(24,74,120,.08)]">
+                {{-- SỬA 30/9 (3) — khách kêu ảnh trang này về chậm. fetchpriority="high" cộng
+                     với thẻ preload ở cuối tệp để trình duyệt xin tấm này TRƯỚC, thay vì đợi
+                     dựng xong bố cục mới thấy nó. --}}
                 <img src="{{ $coverUrl }}" alt="Lộ trình {{ $path->title }} — {{ $path->gradeLabel() }}, {{ $stepCount }} bậc"
-                     loading="eager" decoding="async" class="block h-auto w-full">
+                     loading="eager" fetchpriority="high" decoding="async" class="block h-auto w-full">
             </figure>
         @elseif ($stepCount > 0)
             <section class="lp-board">

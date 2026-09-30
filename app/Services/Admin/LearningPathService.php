@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Support\ImageOptimizer;
 use App\Enums\ContentStatus;
 use App\Enums\PathLanguage;
 use App\Models\Course;
@@ -155,11 +156,11 @@ class LearningPathService
         $attributes['created_by'] = $actor?->id;
 
         if ($cover !== null) {
-            $attributes['cover_image_path'] = $cover->store(self::DIR, self::DISK);
+            $attributes['cover_image_path'] = ImageOptimizer::store($cover, self::DIR, self::DISK);
         }
 
         if ($shareImage !== null) {
-            $attributes['share_image_path'] = $shareImage->store(self::DIR, self::DISK);
+            $attributes['share_image_path'] = ImageOptimizer::store($shareImage, self::DIR, self::DISK);
         }
         $attributes['sort_order'] = $data['sort_order'] ?? ($this->paths->maxSortOrder() + 1);
         // Lộ trình mới luôn bắt đầu ở bản nháp — chưa có bậc nào thì không thể đăng được.
@@ -175,12 +176,12 @@ class LearningPathService
         // Tải ảnh mới thì xoá ảnh cũ để không tồn rác trong storage.
         if ($cover !== null) {
             $this->forgetFile($path->cover_image_path);
-            $attributes['cover_image_path'] = $cover->store(self::DIR, self::DISK);
+            $attributes['cover_image_path'] = ImageOptimizer::store($cover, self::DIR, self::DISK);
         }
 
         if ($shareImage !== null) {
             $this->forgetFile($path->share_image_path);
-            $attributes['share_image_path'] = $shareImage->store(self::DIR, self::DISK);
+            $attributes['share_image_path'] = ImageOptimizer::store($shareImage, self::DIR, self::DISK);
         }
 
         // Ô đánh dấu "gỡ ảnh" — cho phép quay về không có ảnh, không phải tải ảnh khác đè lên.

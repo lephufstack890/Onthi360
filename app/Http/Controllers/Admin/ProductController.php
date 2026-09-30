@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Support\ImageOptimizer;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\Admin\ProductService;
@@ -99,7 +100,7 @@ class ProductController extends Controller
         $data = $request->validate($this->validationRules());
 
         if ($request->hasFile('cover_image')) {
-            $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
+            $data['cover_image_path'] = ImageOptimizer::store($request->file('cover_image'), 'products/covers', 'public');
         }
         unset($data['cover_image']);
 
@@ -123,7 +124,7 @@ class ProductController extends Controller
             if ($product->cover_image_path) {
                 Storage::disk('public')->delete($product->cover_image_path);
             }
-            $data['cover_image_path'] = $request->file('cover_image')->store('products/covers', 'public');
+            $data['cover_image_path'] = ImageOptimizer::store($request->file('cover_image'), 'products/covers', 'public');
         }
         unset($data['cover_image']);
 

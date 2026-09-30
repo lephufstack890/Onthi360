@@ -531,7 +531,7 @@
                          :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
                          class="group flex min-h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(28,91,121,0.09)] {{ $borderClass }}">
                     <div class="relative flex h-32 items-center justify-center overflow-hidden bg-[#F8FBFC] p-2">
-                        <img src="{{ asset('assets/book-img-'.(($i % 4) + 1).'.png') }}" alt="{{ $exam['title'] }}"
+                        <img src="{{ asset('assets/book-img-'.(($i % 4) + 1).'.jpg') }}" alt="{{ $exam['title'] }}"
                              class="h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]">
                         <span class="absolute left-3 top-3 rounded-lg border px-2 py-1 text-[11px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                         <span class="absolute bottom-2 left-3 rounded-md bg-white/90 px-2 py-1 font-mono text-[10px] font-bold text-[#45657D]">#{{ $exam['id'] }}</span>

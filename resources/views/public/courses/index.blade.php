@@ -52,7 +52,7 @@
     // Ảnh minh hoạ mặc định khi khoá chưa có ảnh bìa thật — xoay vòng 5 ảnh của bản mẫu theo
     // MÃ KHOÁ (không phải mã lớp) để mọi lớp cùng khoá dùng chung một ảnh, và trùng đúng ảnh
     // mà trang chi tiết khoá đang hiện.
-    $fallbackCovers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+    $fallbackCovers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
 
     // Bảng màu 6 chip của bản mẫu, gán lần lượt cho các môn có thật.
     $chipTones = [

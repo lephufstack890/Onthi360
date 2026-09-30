@@ -62,7 +62,7 @@ class Testimonial extends Model
     public function bannerUrl(): string
     {
         return $this->publicUrl($this->banner_path)
-            ?? asset('assets/testi-banner-'.(($this->id % 3) + 1).'.png');
+            ?? asset('assets/testi-banner-'.(($this->id % 3) + 1).'.jpg');
     }
 
     private function publicUrl(?string $path): ?string

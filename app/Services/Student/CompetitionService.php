@@ -278,7 +278,7 @@ class CompetitionService
             'statusLabel' => $this->competitionStatusLabel($competition),
             // Không có cột ảnh cho cuộc thi — dùng đúng bộ ảnh của bản mẫu, chia đều theo id để
             // mỗi cuộc thi luôn ra cùng một ảnh (không nhảy ảnh mỗi lần tải trang).
-            'image' => asset('assets/contest-img-'.(($competition->id % 3) + 1).'.png'),
+            'image' => asset('assets/contest-img-'.(($competition->id % 3) + 1).'.jpg'),
             'rounds' => $rounds,
             'selectedRound' => $selected,
             'completedRounds' => $completedRounds,

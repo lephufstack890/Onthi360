@@ -16,7 +16,7 @@
      partials/courses-script.blade.php bắt sự kiện ở thẻ bao ngoài. --}}
 @php
     $cl = $class;
-    $fallbackCovers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+    $fallbackCovers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
     $cover = $cl['image'] ?: asset('assets/'.$fallbackCovers[$cl['courseId'] % count($fallbackCovers)]);
 
     [$stateLabel, $stateChip, $stateIcon] = $cl['isMember']

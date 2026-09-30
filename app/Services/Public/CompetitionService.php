@@ -413,7 +413,7 @@ class CompetitionService
             'statusStyle' => $meta['style'],
             // Không có cột ảnh cho cuộc thi — dùng đúng bộ ảnh của source, chia đều theo id để
             // mỗi cuộc thi luôn ra cùng một ảnh (không đổi mỗi lần tải trang).
-            'image' => asset('assets/contest-img-'.(($c->id % 3) + 1).'.png'),
+            'image' => asset('assets/contest-img-'.(($c->id % 3) + 1).'.jpg'),
             // Bản mẫu ghi "🏆 Đấu trường cấp Tỉnh" (dữ liệu giả) — ở đây lấy đơn vị tổ chức thật.
             'tag' => $c->isExternallyOrganized() && $c->organizer_name
                 ? '🤝 '.Str::limit($c->organizer_name, 28)

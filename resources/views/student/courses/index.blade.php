@@ -21,7 +21,7 @@
         $classes = $classes ?? [];
         // Ảnh bìa xoay vòng theo VỊ TRÍ để mỗi lớp luôn nhận đúng một ảnh, không nhảy lung tung
         // mỗi lần tải trang.
-        $covers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+        $covers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
     @endphp
 
     <x-ws.page-header title="Khóa học của tôi" icon="book-open" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">

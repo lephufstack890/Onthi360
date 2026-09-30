@@ -52,7 +52,7 @@
         ];
 
         // Ảnh bìa xoay vòng theo vị trí để mỗi bài luôn nhận đúng một ảnh.
-        $covers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+        $covers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
 
         // "Việc cần xử lý" — gom từ dữ liệu THẬT đang có, không bịa thêm mục nào.
         $todos = [];

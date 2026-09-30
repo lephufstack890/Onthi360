@@ -36,7 +36,7 @@
         $chooseClassHref = $chooseClassHref ?? null;
 
         // Cùng bộ ảnh dự phòng với trang danh sách khoá học để hai màn nhìn liền mạch.
-        $fallbackCovers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+        $fallbackCovers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
         $coverUrl = $course->cover_image_path
             ? asset('storage/'.$course->cover_image_path)
             : asset('assets/'.$fallbackCovers[$course->id % count($fallbackCovers)]);

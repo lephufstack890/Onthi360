@@ -68,9 +68,13 @@
         {{-- [GLOBAL-01A] Logo Ôn Thi 360 --}}
         <div class="flex shrink-0 items-center min-w-[144px]">
             <a href="{{ route('home') }}" class="flex items-center gap-2 cursor-pointer shrink-0 group">
+                {{-- SỬA 30/9 (3) — khai width/height đúng tỉ lệ tệp (640x168): trình duyệt chừa
+                     sẵn đúng chỗ nên tiêu đề bên dưới không bị nhảy khi ảnh về. fetchpriority
+                     cao vì đây là ảnh đầu tiên người ta nhìn thấy ở mọi trang. --}}
                 <img src="{{ asset('assets/header-logo.png') }}"
                      alt="Ôn Thi 360 - Học cùng mục tiêu – Vươn xa ước mơ"
-                     class="h-7 sm:h-8 lg:h-8.5 object-contain group-hover:scale-102 transition-transform">
+                     width="640" height="168" fetchpriority="high" decoding="async"
+                     class="h-7 sm:h-8 lg:h-8.5 w-auto object-contain group-hover:scale-102 transition-transform">
             </a>
         </div>
 

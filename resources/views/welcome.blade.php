@@ -91,23 +91,23 @@
 
     // [HOME-05A] 5 thẻ "Chương trình học nổi bật" — mỗi thẻ dẫn sang đúng trang thật.
     $featuredPrograms = [
-        ['title' => 'Bài tập tự luyện', 'desc' => 'Hệ thống bài tập tự luyện phong phú theo từng chuyên đề từ cơ bản đến nâng cao', 'btnText' => 'Luyện tập ngay', 'bgClass' => 'from-[#EAF4FE] to-[#D8EAFD] border-[#BAE0FD]', 'image' => asset('assets/course-img-1.png'), 'href' => route('practice.index')],
-        ['title' => 'Tài liệu', 'desc' => 'Sách, chuyên đề, bộ đề, giáo viên và chuyên gia uy tín hỗ trợ và đồng hành', 'btnText' => 'Khám phá', 'bgClass' => 'from-[#E8FBF6] to-[#D0F5E7] border-[#A7F3D0]', 'image' => asset('assets/course-img-2.png'), 'href' => route('materials.index')],
-        ['title' => 'Lớp học', 'desc' => 'Lớp học chuyên nghiệp, quản lý và theo dõi tiến độ học sinh chuẩn mực', 'btnText' => 'Vào lớp học', 'bgClass' => 'from-[#F3EFFF] to-[#E5DEFF] border-[#DDD6FE]', 'image' => asset('assets/course-img-3.png'), 'href' => route('courses.index')],
-        ['title' => 'Giáo viên & Chuyên gia', 'desc' => 'Đội ngũ giáo viên chuyên nghiệp & chuyên gia uy tín đồng hành tận tâm', 'btnText' => 'Xem đội ngũ', 'bgClass' => 'from-[#FFF7E6] to-[#FEEAD0] border-[#FED7AA]', 'image' => asset('assets/course-img-4.png'), 'href' => route('teachers.index')],
-        ['title' => 'Cuộc thi', 'desc' => 'Cuộc thi, khảo sát được tổ chức thường xuyên và công bằng', 'btnText' => 'Tìm hiểu', 'bgClass' => 'from-[#E6F7FF] to-[#CCEFFF] border-[#BAE6FD]', 'image' => asset('assets/course-img-5.png'), 'href' => route('competitions.index')],
+        ['title' => 'Bài tập tự luyện', 'desc' => 'Hệ thống bài tập tự luyện phong phú theo từng chuyên đề từ cơ bản đến nâng cao', 'btnText' => 'Luyện tập ngay', 'bgClass' => 'from-[#EAF4FE] to-[#D8EAFD] border-[#BAE0FD]', 'image' => asset('assets/course-img-1.jpg'), 'href' => route('practice.index')],
+        ['title' => 'Tài liệu', 'desc' => 'Sách, chuyên đề, bộ đề, giáo viên và chuyên gia uy tín hỗ trợ và đồng hành', 'btnText' => 'Khám phá', 'bgClass' => 'from-[#E8FBF6] to-[#D0F5E7] border-[#A7F3D0]', 'image' => asset('assets/course-img-2.jpg'), 'href' => route('materials.index')],
+        ['title' => 'Lớp học', 'desc' => 'Lớp học chuyên nghiệp, quản lý và theo dõi tiến độ học sinh chuẩn mực', 'btnText' => 'Vào lớp học', 'bgClass' => 'from-[#F3EFFF] to-[#E5DEFF] border-[#DDD6FE]', 'image' => asset('assets/course-img-3.jpg'), 'href' => route('courses.index')],
+        ['title' => 'Giáo viên & Chuyên gia', 'desc' => 'Đội ngũ giáo viên chuyên nghiệp & chuyên gia uy tín đồng hành tận tâm', 'btnText' => 'Xem đội ngũ', 'bgClass' => 'from-[#FFF7E6] to-[#FEEAD0] border-[#FED7AA]', 'image' => asset('assets/course-img-4.jpg'), 'href' => route('teachers.index')],
+        ['title' => 'Cuộc thi', 'desc' => 'Cuộc thi, khảo sát được tổ chức thường xuyên và công bằng', 'btnText' => 'Tìm hiểu', 'bgClass' => 'from-[#E6F7FF] to-[#CCEFFF] border-[#BAE6FD]', 'image' => asset('assets/course-img-5.jpg'), 'href' => route('competitions.index')],
     ];
 
     $learningPathCards = $learningPathCards ?? [];
-    $stepFallbackImages = ['step-1.png', 'step-2.png', 'step-3.png', 'step-4.png', 'step-5.png'];
+    $stepFallbackImages = ['step-1.jpg', 'step-2.jpg', 'step-3.jpg', 'step-4.jpg', 'step-5.jpg'];
 
     if (! \App\Services\Public\LearningPathService::PUBLIC_ENABLED) {
         $learningSteps = [
-            ['step' => '1. Lựa chọn mục tiêu', 'desc' => 'Chọn mục tiêu lớp phù hợp', 'img' => asset('assets/step-1.png'), 'href' => route('courses.index')],
-            ['step' => '2. Chọn lộ trình phù hợp', 'desc' => 'Học theo năng lực & mục tiêu', 'img' => asset('assets/step-2.png'), 'href' => route('courses.index')],
-            ['step' => '3. Luyện tập & học liệu', 'desc' => 'Bài tập, giáo trình, chuyên đề', 'img' => asset('assets/step-3.png'), 'href' => route('practice.index')],
-            ['step' => '4. Lớp học & giáo viên', 'desc' => 'Học cùng giáo viên, nhận hỗ trợ', 'img' => asset('assets/step-4.png'), 'href' => route('teachers.index')],
-            ['step' => '5. Thi & Đánh giá', 'desc' => 'Cuộc thi, đánh giá phát năng lực', 'img' => asset('assets/step-5.png'), 'href' => route('competitions.index')],
+            ['step' => '1. Lựa chọn mục tiêu', 'desc' => 'Chọn mục tiêu lớp phù hợp', 'img' => asset('assets/step-1.jpg'), 'href' => route('courses.index')],
+            ['step' => '2. Chọn lộ trình phù hợp', 'desc' => 'Học theo năng lực & mục tiêu', 'img' => asset('assets/step-2.jpg'), 'href' => route('courses.index')],
+            ['step' => '3. Luyện tập & học liệu', 'desc' => 'Bài tập, giáo trình, chuyên đề', 'img' => asset('assets/step-3.jpg'), 'href' => route('practice.index')],
+            ['step' => '4. Lớp học & giáo viên', 'desc' => 'Học cùng giáo viên, nhận hỗ trợ', 'img' => asset('assets/step-4.jpg'), 'href' => route('teachers.index')],
+            ['step' => '5. Thi & Đánh giá', 'desc' => 'Cuộc thi, đánh giá phát năng lực', 'img' => asset('assets/step-5.jpg'), 'href' => route('competitions.index')],
         ];
     } else {
         $learningSteps = [];
@@ -129,9 +129,9 @@
 
     if ($testimonialsAreSamples) {
         $testimonials = [
-            ['quote' => '“ Nhờ Ôn Thi 360, mình tự tin hơn rất nhiều trong học tập và đạt kết quả tốt ở kỳ thi HSG cấp tỉnh. Nền tảng giúp mình có lộ trình rõ ràng và bài tập chất lượng. ”', 'author' => 'Nguyễn Hà Phương', 'role' => 'Học sinh lớp 12', 'banner' => asset('assets/testi-banner-1.png'), 'avatar' => asset('assets/testi-av-1.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
-            ['quote' => '“ Tôi rất yên tâm khi con học tại Ôn Thi 360. Con tiến bộ rõ rệt, chúng tôi có thể theo dõi tiến độ và nhận được sự hỗ trợ tận tình từ đội ngũ giáo viên. ”', 'author' => 'Chị Trần Thị Mai', 'role' => 'Phụ huynh học sinh', 'banner' => asset('assets/testi-banner-2.png'), 'avatar' => asset('assets/testi-av-2.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
-            ['quote' => '“ Ôn Thi 360 là nền tảng hữu ích, giúp học sinh tiếp cận kiến thức Tin học một cách hệ thống, hiện đại và hiệu quả. ”', 'author' => 'Thầy Lê Minh Đức', 'role' => 'Giáo viên Tin học', 'banner' => asset('assets/testi-banner-3.png'), 'avatar' => asset('assets/testi-av-3.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+            ['quote' => '“ Nhờ Ôn Thi 360, mình tự tin hơn rất nhiều trong học tập và đạt kết quả tốt ở kỳ thi HSG cấp tỉnh. Nền tảng giúp mình có lộ trình rõ ràng và bài tập chất lượng. ”', 'author' => 'Nguyễn Hà Phương', 'role' => 'Học sinh lớp 12', 'banner' => asset('assets/testi-banner-1.jpg'), 'avatar' => asset('assets/testi-av-1.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+            ['quote' => '“ Tôi rất yên tâm khi con học tại Ôn Thi 360. Con tiến bộ rõ rệt, chúng tôi có thể theo dõi tiến độ và nhận được sự hỗ trợ tận tình từ đội ngũ giáo viên. ”', 'author' => 'Chị Trần Thị Mai', 'role' => 'Phụ huynh học sinh', 'banner' => asset('assets/testi-banner-2.jpg'), 'avatar' => asset('assets/testi-av-2.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
+            ['quote' => '“ Ôn Thi 360 là nền tảng hữu ích, giúp học sinh tiếp cận kiến thức Tin học một cách hệ thống, hiện đại và hiệu quả. ”', 'author' => 'Thầy Lê Minh Đức', 'role' => 'Giáo viên Tin học', 'banner' => asset('assets/testi-banner-3.jpg'), 'avatar' => asset('assets/testi-av-3.png'), 'rating' => null, 'verified' => false, 'publishedAt' => null],
         ];
     }
 
@@ -759,7 +759,7 @@
                     @endif
 
                     <a href="{{ route('leaderboard.index') }}" class="block overflow-hidden rounded-2xl border border-sky-100 cursor-pointer hover:shadow-md transition-shadow">
-                        <img src="{{ asset('assets/achieve-banner.png') }}" alt="Cùng chinh phục thành tích cao hơn!" class="w-full h-auto object-cover">
+                        <img src="{{ asset('assets/achieve-banner.jpg') }}" alt="Cùng chinh phục thành tích cao hơn!" class="w-full h-auto object-cover">
                     </a>
                 </div>
 
@@ -797,7 +797,7 @@
                     @forelse (array_slice($featuredMaterials, 0, 2) as $book)
                         <a href="{{ route('materials.show', $book['id']) }}"
                            class="group w-full flex items-center gap-2.5 rounded-2xl border border-[#E1EBF0] bg-[#F8FAFB] p-2 text-left transition-all hover:border-[#C9DFE8] hover:bg-[#F3F8FA] hover:shadow-sm cursor-pointer">
-                            <img src="{{ $book['image'] ?: asset('assets/book-img-1.png') }}" alt="{{ $book['title'] }}"
+                            <img src="{{ $book['image'] ?: asset('assets/book-img-1.jpg') }}" alt="{{ $book['title'] }}"
                                  class="w-12 h-14 rounded-xl object-cover border border-sky-100 shrink-0">
                             <span class="min-w-0 flex-1 block">
                                 <span class="type-card-title line-clamp-2 group-hover:text-blue-600 block">{{ $book['title'] }}</span>
@@ -843,7 +843,7 @@
                         <a href="{{ route('competitions.show', $c['id']) }}"
                            class="group w-full overflow-hidden rounded-2xl border border-[#E7E5DE] bg-[#FAFBFB] text-left transition-all hover:border-[#E6D6AD] hover:bg-[#FFFCF4] hover:shadow-sm cursor-pointer block">
                             <span class="flex items-stretch">
-                                <img src="{{ asset('assets/contest-img-'.(($i % 3) + 1).'.png') }}" alt="{{ $c['title'] }}" class="w-16 min-h-18 object-cover shrink-0">
+                                <img src="{{ asset('assets/contest-img-'.(($i % 3) + 1).'.jpg') }}" alt="{{ $c['title'] }}" class="w-16 min-h-18 object-cover shrink-0">
                                 <span class="min-w-0 flex-1 p-2.5 block">
                                     <span class="type-card-title line-clamp-2 group-hover:text-blue-600 block">{{ $c['title'] }}</span>
                                     <span class="type-meta mt-1 flex items-center gap-1 truncate text-slate-500">

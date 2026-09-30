@@ -59,7 +59,7 @@
         // Ảnh lớp: bản mẫu dùng course.image. Lấy ảnh bìa THẬT của khoá, chưa có thì xoay vòng 5
         // ảnh minh hoạ của bản mẫu theo MÃ KHOÁ — đúng ảnh mà trang Lớp học công khai và trang
         // chi tiết khoá đang hiện, để học sinh nhận ra cùng một lớp.
-        $fallbackCovers = ['course-img-1.png', 'course-img-2.png', 'course-img-3.png', 'course-img-4.png', 'course-img-5.png'];
+        $fallbackCovers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
         $coverUrl = ($classRoom->course?->coverUrl())
             ?: asset('assets/'.$fallbackCovers[((int) ($classRoom->course_id ?? 0)) % count($fallbackCovers)]);
 

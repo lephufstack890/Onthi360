@@ -154,7 +154,7 @@
                     </div>
 
                     <div class="student-dashboard-next flex flex-col gap-4 rounded-2xl border border-sky-100 p-4 sm:flex-row sm:items-center">
-                        <img src="{{ asset('assets/course-img-1.png') }}" alt="" decoding="async"
+                        <img src="{{ asset('assets/course-img-1.jpg') }}" alt="" decoding="async"
                              class="h-16 w-16 shrink-0 rounded-xl object-cover sm:h-20 sm:w-20">
                         <div class="min-w-0 flex-1">
                             @if ($focusClass !== null)

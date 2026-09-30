@@ -3,7 +3,10 @@
      Các nút điều hướng của bản mẫu được thay bằng link thật tới đúng trang. --}}
 <footer class="footer-typography w-full relative overflow-hidden border-t border-sky-200/80 bg-white mt-3 sm:mt-4">
     {{-- [GLOBAL-02A] Ảnh nền footer --}}
-    <img src="{{ asset('assets/footer-bg.jpg') }}" alt=""
+    {{-- SỬA 30/9 (3) — chân trang nằm dưới cùng, loading="lazy" để nó không giành đường
+         truyền với nội dung người ta đang đọc ở đầu trang. --}}
+    <img src="{{ asset('assets/footer-bg.jpg') }}" alt="" loading="lazy" decoding="async"
+         width="1280" height="222"
          class="absolute inset-0 w-full h-full object-cover object-bottom pointer-events-none select-none z-0">
 
     <div class="relative z-10 max-w-[1780px] mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-7">
@@ -13,7 +16,8 @@
             <div class="md:col-span-2">
                 <a href="{{ route('home') }}">
                     <img src="{{ asset('assets/header-logo.png') }}" alt="Ôn Thi 360"
-                         class="h-9 sm:h-10 object-contain mb-2.5 cursor-pointer">
+                         width="640" height="168" loading="lazy" decoding="async"
+                         class="h-9 sm:h-10 w-auto object-contain mb-2.5 cursor-pointer">
                 </a>
                 <p class="text-[13px] sm:text-sm font-semibold leading-relaxed text-blue-700 mb-1.5">
                     Học cùng mục tiêu – Vươn xa ước mơ
