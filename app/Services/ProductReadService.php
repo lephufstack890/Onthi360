@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Question;
 use App\Models\User;
 use App\Support\QuestionDifficulty;
+use App\Support\QuestionOrder;
 use App\Support\AccessDecision;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -192,12 +193,16 @@ class ProductReadService
      */
     private function exercisesFor(User $user, Product $product): array
     {
-        $questions = Question::query()
-            ->where('product_id', $product->id)
-            ->where('status', ContentStatus::Published->value)
-            ->with(['tags:id,name'])
-            ->orderBy('id')
-            ->get();
+        // SỬA 30/9 (6) — xếp theo ĐÚNG thứ tự hiển thị chuẩn (gom theo dạng bài, trong dạng thì
+        // theo thứ tự ưu tiên hiển thị), thay cho xếp theo id như trước. Dùng chung một hàm với
+        // hai nút "Bài trước / Bài tiếp theo" ở màn làm bài, nếu không thì bấm "Bài tiếp theo"
+        // sẽ nhảy sang một bài không nằm ngay dưới trong danh sách này.
+        $questions = QuestionOrder::apply(
+            Question::query()
+                ->where('product_id', $product->id)
+                ->where('status', ContentStatus::Published->value)
+                ->with(['tags:id,name'])
+        )->get();
 
         if ($questions->isEmpty()) {
             return [];

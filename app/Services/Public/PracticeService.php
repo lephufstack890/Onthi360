@@ -11,6 +11,7 @@ use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Support\PracticeFilters;
+use App\Support\QuestionOrder;
 use App\Support\QuestionDifficulty;
 
 
@@ -88,17 +89,19 @@ class PracticeService
      */
     private function problemRows(?User $viewer): array
     {
-        $questions = Question::query()
-            ->where('status', 'published')
-            ->whereNull('product_id')
-            ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
-            ->with(['tags:id,name'])
-            // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao
-            // hiện lên đầu trang Luyện tập; phần còn lại giữ nguyên thứ tự cũ (mới nhất trước).
-            ->orderByDesc('display_order')
-            ->latest()
-            ->limit(60)
-            ->get();
+        // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao hiện
+        // lên đầu trang Luyện tập.
+        // SỬA 30/9 (6) — xếp qua App\Support\QuestionOrder: gom theo DẠNG BÀI rồi mới tới thứ
+        // tự ưu tiên. Phải dùng chung đúng một thứ tự với hai nút "Bài trước / Bài tiếp theo"
+        // ở màn làm bài, nếu không thì danh sách bày ra một kiểu mà bấm "Bài tiếp theo" lại
+        // nhảy theo kiểu khác.
+        $questions = QuestionOrder::apply(
+            Question::query()
+                ->where('status', 'published')
+                ->whereNull('product_id')
+                ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
+                ->with(['tags:id,name'])
+        )->limit(60)->get();
 
         if ($questions->isEmpty()) {
             return [];

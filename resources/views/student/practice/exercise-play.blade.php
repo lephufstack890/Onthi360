@@ -645,15 +645,52 @@
              đây, giữ NGUYÊN 2 thuộc tính data-header-submit / data-header-submit-label nên
              script bấm hộ + đồng bộ nhãn ở cuối trang không phải sửa một dòng nào.
 
-             Cặp nút "Bài trước / Bài tiếp theo" của bản mẫu CỐ Ý không dựng: bản mẫu chỉ hiện
-             chúng khi có danh sách bài để chuyển (hasNavigation), còn phiên luyện 1 bài ở đây
-             không có bài trước/bài sau — bày ra sẽ là 2 nút bấm không đi đâu cả. --}}
+             SỬA 30/9 (6) (khách: "dưới thiếu nút bài tiếp theo và bài trước") — ĐÃ DỰNG cặp nút
+             chuyển bài của bản mẫu. Danh sách bài để chuyển do
+             Student\PracticeByQuestionService::siblingIdsFor() dựng: bài tập của sản phẩm thì
+             chuyển trong phạm vi sản phẩm đó, câu ở kho chung thì chuyển trong kho chung — xếp
+             theo ĐÚNG thứ tự hiển thị (gom theo dạng bài, trong dạng thì theo thứ tự ưu tiên),
+             cùng một hàm với danh sách bài tập nên bấm "Bài tiếp theo" đi đúng bài nằm ngay dưới.
+
+             Đây là FORM POST chứ không phải link: bấm là GHI lại phiên luyện (mở bài khác, xoá
+             kết quả chấm cũ) — để link GET thì trình duyệt nạp trước hoặc bấm nhầm F5 là đạp
+             mất bài đang làm dở. Đầu/cuối danh sách thì nút vẫn hiện nhưng mờ và không bấm được,
+             đúng như bản mẫu (disabled khi !canGoPrevious / !canGoNext). --}}
+        @php
+            $nav = $siblingNav ?? ['prev' => null, 'next' => null, 'position' => 0, 'total' => 0];
+        @endphp
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
-                <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $headTitle }}</p>
+                <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $headTitle }}@if (($nav['total'] ?? 0) > 1) <span class="font-semibold text-[#607A90]">· bài {{ $nav['position'] }}/{{ $nav['total'] }}</span>@endif</p>
                 <p class="hidden text-[10px] text-[#607A90] sm:block" x-text="tab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : 'Nộp bài để xem kết quả chấm.'">Nộp bài để xem kết quả chấm.</p>
             </div>
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                @if (($nav['total'] ?? 0) > 1)
+                    <nav aria-label="Chuyển bài" class="flex items-center gap-1">
+                        @foreach ([['prev', 'Bài trước', 'chevron-left'], ['next', 'Bài tiếp theo', 'chevron-right']] as [$dir, $label, $icon])
+                            @php $target = $nav[$dir] ?? null; @endphp
+                            @if ($target)
+                                <form method="POST" action="{{ route('student.practiceByQuestion.sibling', $target['id']) }}">
+                                    @csrf
+                                    <button type="submit" aria-label="{{ $label }}" title="{{ $target['title'] }}"
+                                            class="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[#DDEAF0] px-2 text-[11px] font-semibold transition hover:bg-[#EAF5F8] {{ $dir === 'next' ? 'text-[#126F91]' : 'text-[#45657D]' }}">
+                                        @if ($dir === 'prev')<x-lucide name="chevron-left" class="h-4 w-4" />@endif
+                                        <span class="hidden sm:inline">{{ $label }}</span>
+                                        @if ($dir === 'next')<x-lucide name="chevron-right" class="h-4 w-4" />@endif
+                                    </button>
+                                </form>
+                            @else
+                                <span aria-hidden="true"
+                                      class="inline-flex min-h-9 cursor-not-allowed items-center gap-1 rounded-lg border border-[#DDEAF0] px-2 text-[11px] font-semibold text-[#45657D] opacity-40">
+                                    @if ($dir === 'prev')<x-lucide name="chevron-left" class="h-4 w-4" />@endif
+                                    <span class="hidden sm:inline">{{ $label }}</span>
+                                    @if ($dir === 'next')<x-lucide name="chevron-right" class="h-4 w-4" />@endif
+                                </span>
+                            @endif
+                        @endforeach
+                    </nav>
+                @endif
+
                 <button type="button" data-header-submit
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4">
                     <x-lucide name="send" class="h-4 w-4" /><span data-header-submit-label>Nộp bài</span>
@@ -670,6 +707,7 @@
 
          Kiểu dáng nằm ở partial dùng chung với trang Làm đề — sửa một lần, hai nơi đổi theo. --}}
     @include('partials.grading-overlay')
+
 
 @endsection
 
@@ -907,45 +945,9 @@
                 return;
             }
 
-            var downloadBtn = event.target.closest('[data-download-failed-tests]');
-            if (downloadBtn) {
-                var tests = [];
-                try {
-                    tests = JSON.parse(downloadBtn.getAttribute('data-tests') || '[]');
-                } catch (e) {
-                    tests = [];
-                }
-
-                var lines = [];
-                tests.forEach(function (t) {
-                    lines.push('=== Test ' + t.index + ' (' + t.statusLabel + ') ===');
-                    lines.push('--- Dữ liệu vào ---');
-                    lines.push(t.input !== '' ? t.input : '(rỗng)');
-                    lines.push('--- Kết quả mong đợi ---');
-                    lines.push(String(t.expectedOutput));
-                    lines.push('--- Chương trình của bạn in ra ---');
-                    lines.push(t.actualOutput ? t.actualOutput : '(không có gì)');
-                    if (t.compileOutput || t.stderr) {
-                        lines.push('--- Lỗi ---');
-                        lines.push(((t.compileOutput || '') + '\n' + (t.stderr || '')).trim());
-                    }
-                    lines.push('');
-                });
-
-                var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                // SỬA 30/9 (4) — nút "Tải test" giờ nằm trên TỪNG DÒNG test sai (theo bản mẫu
-                // mới), nên tải 1 test thì đặt tên theo số test cho khỏi ghi đè lên nhau khi
-                // học sinh tải lần lượt vài test.
-                var qid = downloadBtn.getAttribute('data-question-id') || 'x';
-                a.download = (tests.length === 1 ? 'test-' + tests[0].index : 'test-sai') + '-cau-' + qid + '.txt';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            }
+            // SỬA 30/9 (6) — phần tải test sai ĐÃ CHUYỂN sang
+            // partials/practice-test-download (tải .in/.out thay vì một tệp .txt gộp),
+            // nghe cùng kiểu delegation ở document nên không cần gọi gì thêm ở đây.
         });
     </script>
 @endpush
@@ -1004,6 +1006,9 @@
 
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
     @include('partials.code-editor-runtime')
+
+    {{-- SỬA 30/9 (6) — tải test sai về máy dưới dạng .in/.out. --}}
+    @include('partials.practice-test-download')
 
     <script>
         // SỬA 18/9 — nối trình soạn mã kiểu bản mẫu (textarea trong suốt chồng lên lớp <pre> tô

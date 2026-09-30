@@ -256,6 +256,11 @@ Route::middleware(['auth'])->group(function () {
             // ở ô Input, trả JSON cho ô Output. Không chấm điểm, xem
             // Student\PracticeByQuestionService::runOnce().
             Route::post('/run', [StudentPracticeByQuestionController::class, 'run'])->name('run');
+            // SỬA 30/9 (6) (khách: "thiếu nút bài tiếp theo và bài trước") — chuyển sang bài
+            // liền trước/liền sau trong cùng danh sách. POST vì nó GHI lại phiên luyện (mở bài
+            // khác, xoá kết quả chấm cũ), y như startExercise ở trên; để GET thì trình duyệt
+            // nạp trước link hoặc học sinh bấm nhầm F5 là đạp mất bài đang làm dở.
+            Route::post('/sibling/{exercise}', [StudentPracticeByQuestionController::class, 'sibling'])->name('sibling');
             Route::post('/next', [StudentPracticeByQuestionController::class, 'next'])->name('next');
             Route::post('/stop', [StudentPracticeByQuestionController::class, 'stop'])->name('stop');
             // SỬA 31/8 (2, "mở rộng ZIP bài tập" — audio/ảnh...): phát/hiện asset đính kèm câu

@@ -12,7 +12,9 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\CodeJudgingService;
 use App\Services\QuestionGrader;
+use App\Enums\ContentStatus;
 use App\Support\PracticeFilters;
+use App\Support\QuestionOrder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -90,7 +92,105 @@ class PracticeByQuestionService
             'mode' => 'single_question',
             'returnUrl' => $returnUrl,
             'backLabel' => $backLabel,
+            // SỬA 30/9 (6) (khách: "thiếu nút bài tiếp theo và bài trước") — danh sách các bài
+            // ĐỨNG CÙNG CHỖ với bài đang mở, xếp theo đúng thứ tự hiển thị (xem siblingIdsFor).
+            // Chỉ để dựng hai nút chuyển bài; phiên luyện vẫn chỉ gồm 1 câu như trước.
+            'siblings' => $this->siblingIdsFor($questionId),
         ]);
+    }
+
+    /**
+     * Các bài NẰM CÙNG CHỖ với bài đang mở, theo đúng thứ tự người ta nhìn thấy ở danh sách.
+     *
+     *   · bài tập của một sản phẩm  -> mọi bài đã phát hành của SẢN PHẨM ĐÓ;
+     *   · câu ở kho luyện tập chung -> các câu đã phát hành không thuộc sản phẩm nào,
+     *     đúng phạm vi mà trang Luyện tập công khai đang bày ra.
+     *
+     * Thứ tự do App\Support\QuestionOrder quyết định (gom theo dạng bài, trong dạng thì theo
+     * thứ tự ưu tiên hiển thị) — cùng một hàm với danh sách bài tập ở "Tài liệu của tôi", nên
+     * bấm "Bài tiếp theo" đi đúng bài nằm ngay dưới trong danh sách.
+     *
+     * @return list<int>
+     */
+    private function siblingIdsFor(int $questionId): array
+    {
+        $question = Question::find($questionId);
+
+        if ($question === null) {
+            return [$questionId];
+        }
+
+        $query = Question::query()->where('status', ContentStatus::Published->value);
+
+        if ($question->product_id !== null) {
+            $query->where('product_id', $question->product_id);
+        } else {
+            $query->whereNull('product_id')
+                ->whereIn('type', QuestionOrder::typeOrder())
+                // Cùng trần với Public\PracticeService::problemRows(): danh sách người ta
+                // nhìn thấy chỉ tới đó, hai nút chuyển bài cũng không nên đi xa hơn.
+                ->limit(60);
+        }
+
+        $ids = QuestionOrder::apply($query)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return in_array($questionId, $ids, true) ? $ids : [$questionId];
+    }
+
+    /**
+     * Chuyển sang một bài KHÁC trong cùng danh sách, GIỮ NGUYÊN lối quay lại và nhãn nút quay
+     * lại của phiên hiện tại — nếu không, đang làm bài tập của sản phẩm mà bấm "Bài tiếp theo"
+     * sẽ bị ném về trang Luyện tập chung.
+     *
+     * Trả về false khi bài đó không nằm trong danh sách của phiên đang mở — controller lấy đó
+     * làm căn cứ trả 404, không tin id người dùng gửi lên.
+     */
+    public function switchToSibling(int $questionId): bool
+    {
+        $state = Session::get(self::SESSION_KEY);
+
+        if (! is_array($state) || ! in_array($questionId, array_map('intval', $state['siblings'] ?? []), true)) {
+            return false;
+        }
+
+        $this->startForQuestion($questionId, $state['returnUrl'] ?? null, $state['backLabel'] ?? null);
+
+        return true;
+    }
+
+    /**
+     * Bài liền trước / liền sau trong danh sách, kèm nhan đề để đặt vào thuộc tính title của
+     * hai nút. Trả null cho đầu danh sách và cuối danh sách (nút hiện ra nhưng mờ đi).
+     *
+     * @return array{prev: ?array{id:int,title:string}, next: ?array{id:int,title:string}, position:int, total:int}
+     */
+    private function siblingNav(array $state, int $currentId): array
+    {
+        $ids = array_values(array_map('intval', $state['siblings'] ?? []));
+        $at = array_search($currentId, $ids, true);
+
+        $empty = ['prev' => null, 'next' => null, 'position' => 0, 'total' => count($ids)];
+
+        if ($at === false) {
+            return $empty;
+        }
+
+        $pick = function (?int $id): ?array {
+            if ($id === null) {
+                return null;
+            }
+
+            $q = Question::select('id', 'title')->find($id);
+
+            return $q === null ? null : ['id' => (int) $q->id, 'title' => (string) $q->title];
+        };
+
+        return [
+            'prev' => $pick($at > 0 ? $ids[$at - 1] : null),
+            'next' => $pick($at < count($ids) - 1 ? $ids[$at + 1] : null),
+            'position' => $at + 1,
+            'total' => count($ids),
+        ];
     }
 
     /**
@@ -151,6 +251,8 @@ class PracticeByQuestionService
             'mode' => $state['mode'] ?? null,
             'returnUrl' => $state['returnUrl'] ?? null,
             'backLabel' => $state['backLabel'] ?? null,
+            // SỬA 30/9 (6) — dữ liệu cho hai nút "Bài trước / Bài tiếp theo" ở thanh dưới cùng.
+            'siblingNav' => $this->siblingNav($state, (int) $question->id),
         ];
     }
 

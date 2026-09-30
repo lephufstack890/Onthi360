@@ -175,6 +175,30 @@ class PracticeByQuestionController extends Controller
         return redirect()->route('student.practiceByQuestion.play');
     }
 
+    /**
+     * SỬA 30/9 (6) (khách: "thiếu nút bài tiếp theo và bài trước... click bài tiếp theo thì nó
+     * hiển thị theo thứ tự hiển thị theo dạng bài") — chuyển sang bài liền trước/liền sau.
+     *
+     * Ba cửa kiểm, đi theo đúng nguyên tắc "2 request độc lập" dùng khắp hệ thống — KHÔNG tin
+     * rằng hai nút hiện ra ở thanh dưới đã được lọc đúng:
+     *   1. bài phải ĐANG PHÁT HÀNH;
+     *   2. bài thuộc một sản phẩm thì phải có quyền với sản phẩm đó;
+     *   3. bài phải NẰM TRONG danh sách của phiên đang mở (switchToSibling trả false thì 404) —
+     *      chặn việc sửa id trên form để nhảy sang một bài mình không được mở.
+     */
+    public function sibling(Question $exercise): RedirectResponse
+    {
+        abort_if($exercise->status !== ContentStatus::Published, 404);
+
+        if ($exercise->product_id !== null) {
+            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $exercise->product)->allowed, 403);
+        }
+
+        abort_unless($this->service->switchToSibling($exercise->id), 404);
+
+        return redirect()->route('student.practiceByQuestion.play');
+    }
+
     public function startExercise(Request $request, Question $exercise): RedirectResponse
     {
         abort_if($exercise->product_id === null, 404);

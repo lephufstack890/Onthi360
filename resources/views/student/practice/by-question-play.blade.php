@@ -479,7 +479,7 @@
                                             data-download-failed-tests
                                             data-question-id="{{ $question->id }}"
                                             data-tests="{{ $tcFailed->toJson() }}">
-                                        <x-lucide name="download" class="h-3.5 w-3.5 shrink-0" />Tải test sai (.txt)
+                                        <x-lucide name="download" class="h-3.5 w-3.5 shrink-0" />Tải test sai (.in/.out)
                                     </button>
                                 @endif
                             @endif
@@ -700,41 +700,13 @@
                 return;
             }
 
-            var downloadBtn = event.target.closest('[data-download-failed-tests]');
-            if (downloadBtn) {
-                var tests = [];
-                try {
-                    tests = JSON.parse(downloadBtn.getAttribute('data-tests') || '[]');
-                } catch (e) {
-                    tests = [];
-                }
-
-                var lines = [];
-                tests.forEach(function (t) {
-                    lines.push('=== Test ' + t.index + ' (' + t.statusLabel + ') ===');
-                    lines.push('--- Dữ liệu vào ---');
-                    lines.push(t.input !== '' ? t.input : '(rỗng)');
-                    lines.push('--- Kết quả mong đợi ---');
-                    lines.push(String(t.expectedOutput));
-                    lines.push('--- Chương trình của bạn in ra ---');
-                    lines.push(t.actualOutput ? t.actualOutput : '(không có gì)');
-                    if (t.compileOutput || t.stderr) {
-                        lines.push('--- Lỗi ---');
-                        lines.push(((t.compileOutput || '') + '\n' + (t.stderr || '')).trim());
-                    }
-                    lines.push('');
-                });
-
-                var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'test-sai-cau-' + (downloadBtn.getAttribute('data-question-id') || 'x') + '.txt';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            }
+            // SỬA 30/9 (6) — phần tải test sai ĐÃ CHUYỂN sang
+            // partials/practice-test-download (tải .in/.out thay vì một tệp .txt gộp),
+            // nghe cùng kiểu delegation ở document nên không cần gọi gì thêm ở đây.
         });
     </script>
+
+    {{-- SỬA 30/9 (6) — tải test sai về máy dưới dạng .in/.out. --}}
+    @include('partials.practice-test-download')
+
 @endpush
