@@ -344,7 +344,7 @@
                              này mà hiển thị kết quả bên chỗ modal luôn") — ĐÃ BỎ nhánh "màn kết quả
                              riêng chiếm trọn khung" ở đây. Mọi dạng câu giờ giữ nguyên panel trả lời
                              và hiện kết quả TẠI CHỖ:
-                               · Lập trình        -> partials.practice-coding-result (dưới khu soạn mã)
+                               · Lập trình        -> partials.practice-coding-result (CỘT PHẢI khu soạn mã)
                                · 3 dạng còn lại   -> partials.practice-answer-review (trong panel trả lời)
                              Nhờ vậy không còn cảm giác bị nhảy sang một trang khác sau mỗi lần chấm. --}}
                         @else
@@ -448,10 +448,10 @@
                                         </div>
                                     </div>
 
-                                    {{-- SỬA 18/9 — KẾT QUẢ CHẤM nằm NGAY ĐÂY, dưới khu soạn mã. --}}
-                                    @if ($feedback !== null)
-                                        @include('partials.practice-coding-result')
-                                    @endif
+                                    {{-- SỬA 30/9 (2) (khách khoanh đỏ: "hiển thị bên cạnh là ok rồi") — ĐÃ BỎ bản
+                                         kết quả thứ hai từng nằm ở ĐÂY, dưới khu soạn mã. Lần trước chuyển khối kết
+                                         quả sang cột phải nhưng quên xoá bản cũ, thành ra chấm xong hiện y hệt 2 lần.
+                                         Kết quả giờ CHỈ nằm ở cột phải — xem khối "CỘT KẾT QUẢ CHẤM" phía trên. --}}
                                   </div>
                                 @else
                                     <div class="flex min-h-full flex-col gap-2">
