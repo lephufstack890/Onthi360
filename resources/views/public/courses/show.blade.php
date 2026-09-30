@@ -4,14 +4,6 @@
 @section('meta-description', \Illuminate\Support\Str::limit(strip_tags((string) $course->description), 155) ?: 'Khoá học '.$course->title.' trên Ôn Thi 360 — nội dung, lớp đang mở, học phí và đánh giá của học viên.')
 
 @section('content')
-{{-- ═══════════════ [COURSE-SHOW] CHI TIẾT KHOÁ HỌC ═══════════════
-     SỬA 14/9 — CHỈ ĐỔI GIAO DIỆN: dựng lại theo ngôn ngữ thị giác của trang Khoá học và các
-     trang công khai đã làm. Ba thứ được sửa kèm vì cùng là lỗi hiển thị:
-       · ẢNH: bỏ picsum.photos (ảnh ngẫu nhiên từ máy chủ ngoài) — dùng ảnh bìa thật của khoá
-         học, thiếu thì lấy bộ ảnh sẵn có như ở trang danh sách.
-       · AVATAR GIÁO VIÊN: bỏ ui-avatars.com — dịch vụ này nhận HỌ TÊN THẬT của giáo viên qua
-         URL ở mỗi lần tải trang. Thay bằng x-ws.avatar vẽ chữ cái đầu ngay tại chỗ.
-     Logic, route và mọi điều kiện hiển thị giữ nguyên. --}}
     @php
         $classes = $classes ?? [];
         $ratingAverage = $ratingAverage ?? null;
@@ -19,16 +11,6 @@
         $isStudent = $isStudent ?? false;
         $myClassRoomIdsInThisCourse = $myClassRoomIdsInThisCourse ?? [];
         $isEnrolledInThisCourse = count($myClassRoomIdsInThisCourse) > 0;
-
-        // B6/C2 (15/9) — dải bậc trong lộ trình + nút mua thật.
-        //
-        // SỬA 15/9 (khách đổi ý, tạm dừng lộ trình công khai) — Public\CourseService::showData()
-        // KHÔNG còn trả 'pathStrips' nữa, nên $pathStrips luôn rỗng và KHỐI B6 bên dưới không
-        // bao giờ hiện. Cố ý GIỮ NGUYÊN mã khối B6: bật lại chỉ cần trả khoá đó về trong
-        // showData() (xem App\Services\Public\LearningPathService::PUBLIC_ENABLED).
-        //
-        // Ngược lại, 'buyHref'/'priceLabel'/'chooseClassHref' (KHỐI C — mua khoá rồi chọn lớp)
-        // VẪN được trả về và vẫn chạy: phần đó không dính gì tới lộ trình.
         $pathStrips = $pathStrips ?? [];
         $mainStrip = $pathStrips[0] ?? null;
         $buyHref = $buyHref ?? null;
@@ -40,12 +22,6 @@
         $coverUrl = $course->cover_image_path
             ? asset('storage/'.$course->cover_image_path)
             : asset('assets/'.$fallbackCovers[$course->id % count($fallbackCovers)]);
-
-        /*
-         * SỬA 15/9 — 5 số liệu dưới đây do Public\CourseService::headlineFigures() tính từ
-         * dữ liệu THẬT (class_enrollments + class_sessions), view chỉ in ra. Vẫn để ?? mặc
-         * định phòng khi view được gọi từ chỗ khác chưa truyền đủ.
-         */
         $totalStudents = $totalStudents ?? 0;
         $openClassCount = $openClassCount ?? count($classes);
         $sessionTotal = $sessionTotal ?? 0;
@@ -53,40 +29,19 @@
         $sessionTotalLabel = $sessionTotalLabel ?? (string) $sessionTotal;
         $weekSpan = $weekSpan ?? 0;
         $sessionsPerWeek = $sessionsPerWeek ?? null;
-
-        // Viên nhãn cam ở góc bảng thông tin (chỗ chữ "SASH" trong mẫu khách gửi): ưu tiên mã
-        // bậc do quản trị đặt, không có thì lấy môn học. Không có cả hai thì giấu hẳn viên nhãn
-        // chứ không in chữ chống chế.
         $brandChip = $course->level_code ?: $course->subject;
-
-        // Câu tóm tắt dưới tiêu đề — lấy chữ thật từ mô tả, cắt gọn. Mô tả đầy đủ (có định
-        // dạng) vẫn in nguyên ở khối "Giới thiệu khoá học" bên dưới.
         $shortIntro = \Illuminate\Support\Str::limit(trim(strip_tags((string) $course->description)), 160);
     @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-{{-- gap-5 = 20px, đúng bằng mt-5 mà source dùng giữa các <section>. --}}
 <div class="flex flex-col gap-5">
-
-    {{-- ══════ 1. ĐƯỜNG DẪN ══════
-         SỬA 15/9 — đổi nút "Quay lại" thành breadcrumb đủ 3 cấp đúng mẫu khách gửi: người vào
-         thẳng từ Google cần biết mình đang đứng ở đâu, không chỉ cần một lối lùi. --}}
-    {{-- -mb-2 bù lại: khung ngoài của trang giãn các khối 20px, còn source để breadcrumb
-         cách khối dưới đúng 12px (mb-3). Trừ 8px là ra đúng khoảng của source. --}}
     <nav aria-label="Breadcrumb" class="-mb-2 flex items-center gap-2 px-1 text-[11px] font-medium text-[#7890A3] sm:text-xs">
         <a href="{{ route('home') }}" class="transition-colors hover:text-[#126F91]">Trang chủ</a>
         <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
-        <a href="{{ route('courses.index') }}" class="transition-colors hover:text-[#126F91] text-[#123B68]">Lớp học</a>
+        <a href="{{ route('courses.index') }}" class="transition-colors hover:text-[#126F91] text-[#123B68]">Lộ trình</a>
         <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
         <span class="min-w-0 truncate text-[#123B68]">{{ $course->title }}</span>
     </nav>
-
-    {{-- ══════ B6 · DẢI BẬC TRONG LỘ TRÌNH ══════
-         Đặt NGAY TRÊN hero: người vào từ tìm kiếm Google thường rơi thẳng vào một khoá lẻ mà
-         không biết nó nằm ở đâu trong cả chặng đường. Dòng "Bậc 2/6" trả lời câu đó trước khi
-         họ đọc bất cứ thứ gì khác.
-         Một khoá dùng lại được ở nhiều lộ trình — in dải đầu tiên, các lộ trình còn lại gom
-         thành một dòng liên kết nhỏ phía dưới. --}}
     @if ($mainStrip)
         <section class="flex flex-col gap-2.5 rounded-3xl border bg-white p-3.5 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:flex-row sm:items-center sm:gap-3"
                  style="border-color: {{ $mainStrip['color']['ring'] }}">
@@ -140,12 +95,6 @@
             </p>
         @endif
     @endif
-
-    {{-- ══════ 2. BẢNG ĐẦU TRANG: ẢNH + THÔNG TIN ══════
-         SỬA 15/9 (khách: "copy design màn này từ source, làm design in đúc vậy") — chép ĐÚNG
-         TỪNG CHUỖI CLASS của education-main/src/components/RoadmapPage.jsx: cùng lưới
-         1.42fr/0.88fr, cùng gap-5, cùng bo góc, cùng đổ bóng, cùng cỡ chữ và mã màu.
-         Chỉ dữ liệu là của khoá học thay vì lộ trình. --}}
     <section class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(300px,0.88fr)]">
 
         <div class="h-full overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_18px_rgba(34,105,132,0.06)]">
