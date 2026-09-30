@@ -177,18 +177,24 @@
                      SỬA 18/9 — tự vẽ bằng pdf.js cho VỪA CHIỀU NGANG khung; trình xem PDF của
                      trình duyệt dùng kiểu "vừa cả trang" nên đề khổ lớn hiện bé tí, mà ép bằng
                      tham số mở tệp thì Chrome không nghe. Xem partials/pdf-fit-viewer. --}}
-                <section x-show="tab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-y-auto bg-[#EAF4F8] p-2 sm:p-3">
-                    @if ($statementUrl)
-                        <div data-pdf-fit data-pdf-url="{{ $statementUrl }}" class="min-h-full"></div>
-                    @else
-                        <div class="grid h-full place-items-center p-8 text-center">
-                            <div>
-                                <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
-                                <p class="mt-3 text-sm font-extrabold text-[#123B68]">Bài này không có bản PDF</p>
-                                <p class="mt-1 text-[11px] text-[#607A90]">Toàn bộ nội dung đề nằm ở tab <span class="font-bold">Làm bài</span>.</p>
+                {{-- SỬA 30/9 (7) (khách: "tab đề, hướng dẫn, bài mẫu hiển thị UI vừa vừa như này
+                     thôi") — trang đề KHÔNG kéo căng hết bề ngang nữa mà nằm gọn giữa khung như
+                     một tờ A4 đặt trên mặt bàn, đúng <A4Document> của bản mẫu: khung lõm màu
+                     xanh nhạt ở ngoài, tờ giấy trắng rộng tối đa 820px canh giữa ở trong. --}}
+                <section x-show="tab === 'pdf'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
+                    <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                        @if ($statementUrl)
+                            <div data-pdf-fit data-pdf-url="{{ $statementUrl }}" data-pdf-max-width="820" class="oi-doc-col"></div>
+                        @else
+                            <div class="grid h-full place-items-center p-8 text-center">
+                                <div>
+                                    <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
+                                    <p class="mt-3 text-sm font-extrabold text-[#123B68]">Bài này không có bản PDF</p>
+                                    <p class="mt-1 text-[11px] text-[#607A90]">Toàn bộ nội dung đề nằm ở tab <span class="font-bold">Làm bài</span>.</p>
+                                </div>
                             </div>
-                        </div>
-                    @endif
+                        @endif
+                    </div>
                 </section>
 
                 {{-- ───────── TAB: LÀM BÀI ─────────
@@ -585,10 +591,14 @@
                 </section>
 
                 {{-- ───────── TAB: HƯỚNG DẪN ───────── --}}
-                <section x-show="tab === 'guide'" x-cloak class="h-full min-h-0 overflow-y-auto p-2 sm:p-3">
-                    <article class="min-h-full rounded-xl bg-white p-4 sm:p-6">
-                        <h3 class="text-sm font-extrabold text-[#123B68]">Hướng dẫn làm bài</h3>
-                        <ul class="mt-3 space-y-2 text-[13px] leading-7 text-[#45657D]">
+                <section x-show="tab === 'guide'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
+                    <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                    <article class="assessment-a4-page oi-doc-col oi-doc-page rounded-lg bg-white shadow-xl">
+                        <div class="flex items-start justify-between gap-3 border-b-2 border-[#126F91] pb-3">
+                            <h3 class="text-sm font-extrabold text-[#123B68]">Hướng dẫn làm bài</h3>
+                            <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">Hướng dẫn</span>
+                        </div>
+                        <ul class="mt-4 space-y-2 text-[13px] leading-7 text-[#45657D]">
                             <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
                             <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
                             <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
@@ -597,11 +607,13 @@
                         </ul>
                         <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng bài chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của bài đang làm.</p>
                     </article>
+                    </div>
                 </section>
 
                 {{-- ───────── TAB: BÀI MẪU ───────── --}}
-                <section x-show="tab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-y-auto p-2 sm:p-3">
-                    <article class="grid min-h-full place-items-center rounded-xl bg-white p-6 text-center">
+                <section x-show="tab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-hidden p-1 sm:p-2">
+                    <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                    <article class="assessment-a4-page oi-doc-col oi-doc-page grid place-items-center rounded-lg bg-white text-center shadow-xl">
                         <div>
                             <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="book-open" class="h-5 w-5" /></span>
                             <p class="mt-3 text-sm font-extrabold text-[#123B68]">Đáp án hiện sau khi chấm</p>
@@ -611,6 +623,7 @@
                             <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Bấm Nộp bài xong, đáp án đúng và kết quả từng test sẽ hiện ngay ở tab <span class="font-bold">Làm bài</span>.</p>
                         </div>
                     </article>
+                    </div>
                 </section>
                 {{-- ───────── TAB: NHẬT KÝ ─────────
                      SỬA 30/9 — tab thứ 5 của bản mẫu mới (ActivityPanel). Ghi lại các mốc trong
@@ -724,6 +737,24 @@
     <style>
         /* min-height (KHÔNG phải height) để màn hẹp — 2 khối xếp dọc, cao hơn khung — vẫn nở
            ra rồi cuộn bình thường, thay vì bị ép đúng 100% rồi cắt mất phần dưới. */
+        /* SỬA 30/9 (7) — cột nội dung của ba tab Đề bài / Hướng dẫn / Bài mẫu.
+           Viết CSS thường vì max-w-[820px] và sm:py-6 CHƯA CÓ trong public/build/assets/app-*.css
+           mà máy chủ thì không chạy được vite — dùng class Tailwind mới là mất tác dụng. */
+        .oi-doc-col { margin-left: auto; margin-right: auto; width: 100%; max-width: 820px; }
+        .oi-doc-page { padding: 18px 16px; }
+        @media (min-width: 640px) { .oi-doc-page { padding: 26px 32px; } }
+
+        /* Nền tối: TỜ GIẤY VẪN SÁNG (luật .assessment-a4-page trong app.css — cố ý, giống
+           mọi trình đọc PDF), nên chữ nằm trên giấy phải giữ màu tối. Luật chung của nền tối
+           đổi mấy màu chữ này sang màu sáng cho hợp nền tối — đúng ở mọi chỗ khác, nhưng ở
+           trong tờ giấy thì thành chữ nhạt trên nền sáng, nhìn không ra. Ba dòng dưới kéo
+           chúng về lại, chỉ trong phạm vi tờ giấy. */
+        html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#123B68]"] { color: #123b68 !important; }
+        html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#607A90]"],
+        html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#7A92A3]"] { color: #5a7183 !important; }
+        html.theme-dark .assessment-modal .assessment-a4-page [class~="bg-[#EAF5F8]"] { background-color: #eaf5f8 !important; }
+        html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#126F91]"] { color: #126f91 !important; }
+
         #practice-container { display: flex; flex-direction: column; min-height: 100%; }
         #practice-container > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
         .oi-work-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }

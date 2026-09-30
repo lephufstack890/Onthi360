@@ -13,7 +13,8 @@
      Tiện thêm: pdf.js vẽ ra canvas nên KHÔNG có thanh công cụ kèm nút tải về — đúng yêu cầu
      "đề bài chỉ xem trên web", chặt hơn cả mẹo toolbar=0 của iframe.
 
-     Dùng: <div data-pdf-fit data-pdf-url="{{ $url }}" class="..."></div> --}}
+     Dùng: <div data-pdf-fit data-pdf-url="{{ $url }}" class="..."></div>
+     Thêm data-pdf-max-width="820" để chặn bề ngang hiển thị của trang (mặc định 1600). --}}
 <script type="module">
     (function () {
         var LIB = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/legacy/build/pdf.min.mjs';
@@ -78,24 +79,52 @@
                         var base = page.getViewport({ scale: 1 });
                         // -16 chừa khoảng đệm hai bên. CHẶN Ở 1600px: màn siêu rộng mà vẽ tràn
                         // hết bề ngang thì mỗi trang là một canvas ~2000x2800 ≈ 22MB bộ nhớ —
-                        // đề chục trang là treo máy. 1600px đã quá đủ nét, trang canh giữa
-                        // giống mọi trình đọc PDF. Chặn trên 4 lần để trang khổ nhỏ không vỡ nét.
-                        var targetWidth = Math.min(width - 16, 1600);
-                        var scale = Math.min(4, Math.max(0.05, targetWidth / base.width));
+                        // đề chục trang là treo máy. Trang canh giữa giống mọi trình đọc PDF.
+                        //
+                        // SỬA 30/9 (7) (khách: "tab đề hiển thị UI vừa vừa thôi") — thêm
+                        // data-pdf-max-width: chặn BỀ NGANG HIỂN THỊ của trang, để đề nằm gọn
+                        // giữa khung như một tờ A4 thay vì kéo căng hết màn hình.
+                        var cap = Math.max(240, parseInt(box.dataset.pdfMaxWidth || '1600', 10) || 1600);
+                        var cssWidth = Math.min(width - 16, cap);
+
+                        // Vẽ ở độ phân giải cao hơn bề ngang hiển thị rồi thu lại: tờ giấy hẹp
+                        // mà vẽ 1:1 thì chữ trong đề rỗ, nhất là trên màn Retina.
+                        //
+                        // NGƯỠNG 1600px LÀ TRẦN CỨNG CHO SỐ ĐIỂM ẢNH THẬT, không phải cho bề
+                        // ngang hiển thị: một trang A4 vẽ ở 1600px đã ngốn ~14MB bộ nhớ, đề vài
+                        // chục trang là sát mép treo máy. Nhờ trần này, trang thu về 820px được
+                        // vẽ gần gấp đôi cho nét, còn trang kéo hết màn rộng vẫn tốn đúng bằng
+                        // trước chứ không phình thêm.
+                        var dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+                        var pixelWidth = Math.min(cssWidth * dpr, 1600);
+                        var scale = Math.min(4, Math.max(0.05, pixelWidth / base.width));
                         var viewport = page.getViewport({ scale: scale });
 
                         var canvas = document.createElement('canvas');
                         canvas.width = Math.floor(viewport.width);
                         canvas.height = Math.floor(viewport.height);
-                        canvas.className = 'mx-auto mb-3 block max-w-full rounded-lg shadow-[0_6px_18px_rgba(15,40,60,.18)]';
+                        canvas.className = 'mx-auto block max-w-full rounded-lg shadow-[0_6px_18px_rgba(15,40,60,.18)]';
+                        canvas.style.width = Math.round(cssWidth) + 'px';
+                        canvas.style.height = 'auto';
                         // Nền trang đặt bằng style TRỰC TIẾP, KHÔNG dùng lớp bg-white: chế độ tối
                         // có luật lật mọi .bg-white sang #1b2d38 — dính vào là nền trang đề hoá
                         // đen trong khi chữ trong PDF vẫn màu đen, không đọc được gì.
                         canvas.style.backgroundColor = '#ffffff';
 
+                        // Số trang ghi dưới mỗi tờ, giống viên "A4 · 1/1" của bản mẫu — đề nhiều
+                        // trang thì cuộn tới đâu cũng biết mình đang ở trang nào.
+                        var sheet = document.createElement('figure');
+                        sheet.className = 'mb-3';
+                        sheet.appendChild(canvas);
+
+                        var cap2 = document.createElement('figcaption');
+                        cap2.className = 'mt-1 text-center text-[10px] font-bold text-[#607A90]';
+                        cap2.textContent = 'A4 · ' + pageNum + '/' + doc.numPages;
+                        sheet.appendChild(cap2);
+
                         page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function () {
                             if (token !== renderToken) return;
-                            frag.appendChild(canvas);
+                            frag.appendChild(sheet);
                             pageNum++;
                             next();
                         }, function (err) {
