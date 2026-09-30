@@ -201,12 +201,12 @@
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]" x-text="currentKind() === 'code' ? 'Soạn mã' : 'Trả lời câu hỏi'"></span>
                     </div>
 
-                    <div class="mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+                    <div class="oi-exam-body mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
                         @foreach ($questions as $q)
                             @php $qid = $q['questionId']; @endphp
-                            <div x-show="activeId === {{ $qid }}" class="min-h-full">
+                            <div x-show="activeId === {{ $qid }}" class="oi-exam-fill min-h-full">
                                 @if ($q['kind'] === 'code')
-                                    <div class="grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                    <div class="oi-exam-grid grid min-h-full gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
                                         {{-- ── Trình soạn mã ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
@@ -289,7 +289,7 @@
                                         </div>
                                     </div>
                                 @else
-                                    <div class="flex min-h-full flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)]">
+                                    <div class="oi-exam-grid flex min-h-full flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)]">
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
                                             <div class="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Cách trả lời</div>
                                             <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
@@ -451,6 +451,33 @@
 @endsection
 
 @push('scripts')
+    {{-- SỬA 30/9 (11) (khách khoanh đỏ vùng trống: "chỗ này full ra giống UI modal làm bài tập
+         chuyên đề, full chiều cao ra") — NỐI LẠI CHUỖI CHIỀU CAO cho khu làm bài.
+
+         Trước đây hai cột dừng ở 420px rồi chừa một mảng trống to tướng xuống tận thanh dưới.
+         Nguyên nhân: khung ngoài có chiều cao thật, nhưng mấy lớp ở giữa chỉ đặt min-height:100%
+         — mà min-height KHÔNG làm cho thuộc tính height hết "auto", nên tới lượt cái lưới bên
+         trong thì "100%" của nó quy về 0, hai cột rơi về đúng trần 420px của chính mình.
+
+         Cách chữa giống hệt màn làm bài tập chuyên đề: cho từng lớp ở giữa thành flex cột và
+         để cái lưới nở bằng flex thay vì bằng phần trăm.
+
+         flex-basis 0 (KHÔNG phải auto) là chỗ quan trọng: có vậy chiều cao lưới mới do KHUNG
+         quyết định chứ không do nội dung — để 'auto' thì đề dài sẽ đẩy hai cột tràn xuống dưới
+         cả thanh Nộp đề. Chỉ ép ở màn rộng; màn hẹp vẫn xếp dọc và cuộn tự nhiên như cũ. --}}
+    <style>
+        .oi-exam-body { display: flex; flex-direction: column; }
+        /* Màn hẹp: KHÔNG cho co (flex-shrink 0). Khung ngoài mới là chỗ cuộn, để nó co được
+           thì đề dài sẽ bị cắt cụt đúng phần nằm ngoài khung. */
+        .oi-exam-fill { display: flex; flex-direction: column; flex: 1 0 auto; }
+
+        @media (min-width: 1024px) {
+            .oi-exam-fill { min-height: 0; flex: 1 1 auto; }
+            .oi-exam-grid { min-height: 0; flex: 1 1 0%; grid-template-rows: minmax(0, 1fr); }
+            .oi-exam-grid > * { min-height: 0; }
+        }
+    </style>
+
     @include('partials.assessment-chip-style')
     @include('partials.exam-workspace-script')
 @endpush
