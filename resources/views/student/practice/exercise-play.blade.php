@@ -344,9 +344,9 @@
                                 @csrf
                                 @if ($isCode)
                                   <div class="flex min-h-full flex-col gap-2">
-                                    {{-- data-work-panel: mốc để script "Chạy test" tìm 4 ô (mã nguồn / ngôn ngữ /
-                                         Input / Output) trong CÙNG panel này thay vì dò cả trang — xem cuối tệp. --}}
-                                    <div data-work-panel class="grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
+                                    {{-- Lưới 2 cột ĐÚNG như WorkPanel của bản mẫu mới:
+                                         [trình soạn mã 1.6fr | kết quả chấm 0.9fr]. --}}
+                                    <div class="grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
                                         {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
@@ -396,50 +396,47 @@
                                             </div>
                                         </section>
 
-                                        {{-- ── INPUT / OUTPUT (TestInputPanel + TestOutputPanel) ── --}}
-                                        <div class="grid min-h-[420px] min-w-0 grid-rows-2 gap-2 overflow-hidden">
-                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
-                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
-                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- SỬA 24/9 (khách: "xoá nút chạy test đó đi, thay nút ghi nhận
-                                                         bài làm thành nút chạy test") — nút "Chạy test" 10px nhét ở
-                                                         góc này quá kín, học sinh không thấy. Đã chuyển xuống thành
-                                                         nút chạy hết chiều ngang dưới ô OUTPUT. --}}
-                                                    <span class="text-[10px] font-bold text-[#7A92A3]">Dữ liệu bạn tự gõ để chạy thử</span>
-                                                </div>
-                                                {{-- KHÔNG đổ sẵn test từ database: test_cases là test CHẤM ĐIỂM, không có
-                                                     cờ phân biệt test mẫu/test ẩn. --}}
-                                                <textarea data-run-input spellcheck="false" placeholder="Nhập dữ liệu vào để thử nghiệm…" aria-label="Dữ liệu đầu vào test"
-                                                          class="min-h-0 flex-1 resize-none bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#123B68] outline-none"></textarea>
-                                            </section>
+                                        {{-- ── CỘT KẾT QUẢ CHẤM (JudgingResultPanel) ──
+                                             SỬA 30/9 (khách: "giờ họ không muốn để phần chạy test vô, họ có
+                                             update lại UI modal trên source mới") — bản mẫu mới
+                                             (education-main/src/components/AssessmentModal.jsx, hàm WorkPanel) đã
+                                             ĐỔI cột phải của khu soạn mã: trước là TestInputPanel + TestOutputPanel
+                                             (ô Input tự gõ + ô Output + nút "Chạy test"), giờ là JudgingResultPanel
+                                             — chỗ này chỉ còn KẾT QUẢ CHẤM.
 
-                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#F7F9FA]">
-                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
-                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#607A90]">Output</span>
-                                                    {{-- Nhãn trạng thái lần chạy gần nhất: "Chạy xong · 0.03s" hoặc lý do lỗi. --}}
-                                                    <span data-run-status class="text-[10px] font-bold text-[#7A92A3]"></span>
-                                                </div>
-                                                <pre data-run-output class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
-                                                <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
-                                                    {{-- SỬA 24/9 (khách) — CHỖ NÀY GIỜ LÀ "CHẠY TEST".
-                                                         Chạy thử với dữ liệu tự gõ, KHÔNG tính điểm, bấm bao nhiêu
-                                                         lần cũng được. Muốn chấm thì bấm "Nộp bài" ở thanh trên. --}}
-                                                    <button type="button" data-run-test
-                                                            data-run-url="{{ route('student.practiceByQuestion.run') }}"
-                                                            title="Chạy thử mã với dữ liệu vào ở ô Input (không tính điểm)"
-                                                            class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50">
-                                                        <x-lucide name="play" class="h-3.5 w-3.5" /><span data-run-test-label>Chạy test</span>
-                                                    </button>
-                                                    <p class="mt-1.5 text-center text-[10px] text-[#7A92A3]">Chạy thử không tính điểm — chấm bài thì bấm <span class="font-bold text-[#126F91]">Nộp bài</span> ở trên.</p>
+                                             Vì vậy ở đây đã BỎ HẲN: ô Input, ô Output, nút "Chạy test" và đoạn
+                                             script gọi student.practiceByQuestion.run. Route + service chạy thử vẫn
+                                             còn nguyên trong mã nguồn (không xoá gì của phần logic), chỉ là giao
+                                             diện không còn lối vào — khách cần bật lại thì mở lại đúng khối này.
 
-                                                    {{-- Nút nộp THẬT của form: ẩn đi nhưng PHẢI còn trong DOM —
-                                                         nút "Nộp bài" trên thanh header hoạt động bằng cách bấm hộ
-                                                         nút này (xem panelButton() ở script cuối trang), và trình
-                                                         duyệt cũng cần một nút submit để bắt phím Enter. --}}
-                                                    <button type="submit" class="hidden" tabindex="-1" aria-hidden="true">{{ $feedback !== null ? 'Chấm lại' : 'Nộp bài' }}</button>
-                                                    <p data-ajax-error class="mt-2 hidden text-center text-[11px] text-[#B42318]"></p>
+                                             Khối kết quả CHI TIẾT vẫn là partials.practice-coding-result như cũ
+                                             (lỗi biên dịch kèm số dòng, cảnh báo freopen, dải ô test, bấm test sai
+                                             xem dữ liệu vào/mong đợi/bạn in ra, tải test sai) — chỉ chuyển từ
+                                             "nằm dưới khu soạn mã" sang "nằm ở cột phải" cho khớp bản mẫu. --}}
+                                        <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
+                                            @if ($feedback !== null)
+                                                <div class="min-h-0 flex-1 overflow-y-auto">
+                                                    @include('partials.practice-coding-result')
                                                 </div>
-                                            </section>
+                                            @else
+                                                <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-3">
+                                                    <p class="text-[11px] font-bold text-[#45657D]">Kết quả chấm sẽ hiển thị sau khi nộp bài.</p>
+                                                    <p class="mt-2 text-[11px] leading-5 text-[#7A92A3]">
+                                                        Viết mã ở cột bên trái rồi bấm <span class="font-bold text-[#126F91]">Nộp bài</span>
+                                                        ở thanh trên cùng. Máy chấm chạy toàn bộ test của bài và trả về
+                                                        từng test đúng/sai ngay tại đây.
+                                                    </p>
+                                                </div>
+                                            @endif
+
+                                            {{-- Nút nộp THẬT của form: ẩn đi nhưng PHẢI còn trong DOM — nút "Nộp bài"
+                                                 trên thanh header hoạt động bằng cách bấm hộ nút này (xem panelButton()
+                                                 ở script cuối trang), và trình duyệt cũng cần một nút submit để bắt
+                                                 phím Enter. Nhãn của nó chính là nhãn mà nút header đồng bộ theo. --}}
+                                            <div class="shrink-0">
+                                                <button type="submit" class="hidden" tabindex="-1" aria-hidden="true">{{ $feedback !== null ? 'Chấm lại' : 'Nộp bài' }}</button>
+                                                <p data-ajax-error class="hidden text-center text-[11px] text-[#B42318]"></p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -583,7 +580,7 @@
                             <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
                             <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
                             <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
-                            <li>· Câu lập trình: bấm <span class="font-bold">Chạy test</span> để chạy thử với dữ liệu bạn tự gõ (không tính điểm), bấm <span class="font-bold">Nộp bài</span> để chấm thật.</li>
+                            <li>· Kết quả chấm hiện ở <span class="font-bold">cột bên phải</span> khu soạn mã, ngay sau khi bấm Nộp bài.</li>
                             <li>· Làm xong bấm <span class="font-bold">Thoát bài tập</span> ở thanh trên cùng để kết thúc phiên luyện.</li>
                         </ul>
                         <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng bài chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của bài đang làm.</p>
@@ -969,102 +966,8 @@
         })();
     </script>
 
-    {{-- ══════ SỬA 18/9 — NÚT "CHẠY TEST" (khách: "chỗ chạy test không được") ══════
-         Gửi mã + dữ liệu vào ô Input lên student.practiceByQuestion.run, in stdout ra ô Output.
-         Chạy thử KHÔNG chấm điểm, không đụng tiến trình phiên luyện.
-
-         Nghe click kiểu DELEGATION trên document (không gắn thẳng vào nút): #practice-container
-         bị thay mới hoàn toàn sau mỗi lần chấm bài (xem script AJAX ở trên), gắn thẳng thì sau
-         lần chấm đầu tiên nút mới sẽ không còn listener. Cùng lý do không dùng Alpine ở đây:
-         Alpine 3 không tự khởi tạo DOM do JS chèn vào. --}}
-    <script>
-        document.addEventListener('click', function (event) {
-            var button = event.target.closest ? event.target.closest('[data-run-test]') : null;
-            if (!button || button.disabled) return;
-
-            event.preventDefault();
-
-            // 4 ô này luôn nằm cùng trong panel "Làm bài" -> tìm từ chính vùng chứa nút, không
-            // querySelector toàn trang (tránh vớ nhầm nếu sau này có 2 khối cùng kiểu).
-            var panel = button.closest('[data-work-panel]') || document;
-            var codeEl = panel.querySelector('[data-code-source]');
-            var langEl = panel.querySelector('select[name="language"]');
-            var inputEl = panel.querySelector('[data-run-input]');
-            var outputEl = panel.querySelector('[data-run-output]');
-            var statusEl = panel.querySelector('[data-run-status]');
-            var labelEl = button.querySelector('[data-run-test-label]');
-
-            if (!outputEl) return;
-
-            var meta = document.querySelector('meta[name="csrf-token"]');
-            var body = new FormData();
-            body.append('_token', meta ? meta.getAttribute('content') : '');
-            body.append('code_source', codeEl ? codeEl.value : '');
-            body.append('language', langEl ? langEl.value : 'cpp');
-            body.append('stdin', inputEl ? inputEl.value : '');
-
-            button.disabled = true;
-            if (labelEl) labelEl.textContent = 'Đang chạy…';
-            if (statusEl) statusEl.textContent = '';
-            outputEl.textContent = 'Đang chạy…';
-
-            fetch(button.getAttribute('data-run-url'), {
-                method: 'POST',
-                body: body,
-                credentials: 'same-origin',
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            })
-                .then(function (response) {
-                    // SỬA 18/9 (2) — KHÔNG gọi thẳng response.json(). Máy chủ trả 404 (route chưa
-                    // nạp lại sau khi cập nhật mã), 419 (phiên hết hạn) hay 500 đều là HTML, khi
-                    // đó response.json() ném lỗi và rơi xuống catch() -> báo "lỗi mạng" SAI SỰ
-                    // THẬT, người dùng đi kiểm tra wifi trong khi lỗi nằm ở máy chủ. Đọc mã HTTP
-                    // trước để nói đúng chuyện gì đã xảy ra.
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (!data || !data.ok) {
-                        outputEl.textContent = (data && data.message) ? data.message : 'Chạy thử thất bại.';
-                        if (statusEl) statusEl.textContent = 'Không chạy được';
-                        return;
-                    }
-
-                    // Ưu tiên hiện lỗi biên dịch/lỗi chạy — đó mới là cái học sinh cần đọc;
-                    // stdout rỗng mà không nói gì thì người dùng tưởng nút hỏng.
-                    var text = '';
-                    if (data.compileOutput) text += 'Lỗi biên dịch:\n' + data.compileOutput + '\n';
-                    if (data.stderr) text += 'Lỗi khi chạy:\n' + data.stderr + '\n';
-                    if (data.output) text += data.output;
-                    outputEl.textContent = text !== '' ? text : '(chương trình không in ra gì)';
-
-                    if (statusEl) {
-                        var parts = [data.statusLabel || ''];
-                        if (data.time) parts.push(data.time + 's');
-                        if (data.memory) parts.push(Math.round(data.memory / 1024) + 'MB');
-                        statusEl.textContent = parts.filter(Boolean).join(' · ');
-                    }
-                })
-                .catch(function (error) {
-                    var reason = String((error && error.message) || '');
-
-                    if (reason === 'HTTP 419') {
-                        outputEl.textContent = 'Phiên làm việc đã hết hạn — tải lại trang rồi bấm chạy lại (bài đang gõ sẽ mất, nhớ chép mã ra trước).';
-                    } else if (reason === 'HTTP 404') {
-                        outputEl.textContent = 'Máy chủ chưa nhận ra chức năng chạy thử (404) — báo quản trị viên nạp lại máy chủ sau khi cập nhật mã.';
-                    } else if (reason.indexOf('HTTP ') === 0) {
-                        outputEl.textContent = 'Máy chủ báo lỗi (' + reason + ') — báo quản trị viên xem storage/logs/laravel.log.';
-                    } else {
-                        // Chỉ ĐẾN ĐÂY mới thật sự là không gửi đi được (mất mạng, server sập hẳn).
-                        outputEl.textContent = 'Không gửi được yêu cầu chạy thử — kiểm tra kết nối mạng rồi thử lại.';
-                    }
-
-                    if (statusEl) statusEl.textContent = reason !== '' ? reason : 'Không gửi được';
-                })
-                .finally(function () {
-                    button.disabled = false;
-                    if (labelEl) labelEl.textContent = 'Chạy test';
-                });
-        });
-    </script>
+    {{-- SỬA 30/9 — ĐÃ GỠ đoạn script của nút "Chạy test" (gửi mã + dữ liệu ô Input lên
+         student.practiceByQuestion.run rồi in ra ô Output). Bản mẫu mới bỏ hẳn cụm Input/Output
+         khỏi khu soạn mã (xem ghi chú ở cột kết quả phía trên), nên script này không còn thẻ nào
+         để bám. Route/service chạy thử vẫn còn nguyên trong mã nguồn. --}}
 @endpush
