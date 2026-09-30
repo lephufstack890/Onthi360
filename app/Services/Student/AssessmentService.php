@@ -140,7 +140,56 @@ class AssessmentService
             // server (AttemptService::isExpired()/saveAnswer()) — đồng hồ này chỉ để hiển thị.
             'deadlineAt' => $this->attemptService->deadlineFor($attempt)?->toIso8601String(),
             'serverNow' => now()->toIso8601String(),
+            // SỬA 30/9 (10) — viên "Đã làm · Điểm gần nhất" ở thanh dưới phòng thi.
+            'lastResult' => $this->lastAttemptResult(
+                $user,
+                $assessmentModel,
+                $attempt,
+                (float) ($assessmentModel->total_points ?? collect($questions)->sum('points'))
+            ),
         ];
+    }
+
+    /**
+     * SỬA 30/9 (10) (khách: "thêm Đã làm · Điểm gần nhất, nhưng bên chấm đề thì BỎ số test
+     * đúng") — điểm của LẦN LÀM ĐỀ TRƯỚC ĐÓ của chính người đang thi với đúng đề này.
+     *
+     * Khác hẳn viên ở màn làm bài tập chuyên đề: ở đó là điểm của MỘT CÂU nên nói được "mấy
+     * test đúng"; ở đây là điểm của CẢ ĐỀ gồm nhiều câu đủ dạng, cộng số test của các câu lập
+     * trình lại với nhau thì con số chẳng có nghĩa gì — nên chỉ có điểm, đúng như khách dặn.
+     *
+     * Bỏ qua lượt ĐANG LÀM (chưa nộp thì chưa có điểm) và mọi lượt chưa chấm xong.
+     *
+     * @return array{scoreLabel:string, maxLabel:string}|null
+     */
+    private function lastAttemptResult(User $user, Assessment $assessment, Attempt $current, float $maxPoints): ?array
+    {
+        $previous = Attempt::query()
+            ->where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->whereKeyNot($current->id)
+            ->whereNotNull('submitted_at')
+            ->whereNotNull('total_score')
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($previous === null) {
+            return null;
+        }
+
+        return [
+            'scoreLabel' => self::trimNumber((float) $previous->total_score),
+            'maxLabel' => self::trimNumber($maxPoints),
+        ];
+    }
+
+    /** 66.666 -> "66.67", 100.00 -> "100" — bỏ số 0 thừa cho khỏi rườm rà trên viên nhỏ. */
+    private static function trimNumber(float $value): string
+    {
+        $text = number_format($value, 2, '.', '');
+
+        return str_contains($text, '.') ? rtrim(rtrim($text, '0'), '.') : $text;
     }
 
     /**

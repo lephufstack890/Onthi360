@@ -766,40 +766,8 @@
         .oi-doc-page { padding: 18px 16px; }
         @media (min-width: 640px) { .oi-doc-page { padding: 26px 32px; } }
 
-        /* SỬA 30/9 (8) — viên "Đã làm · Điểm gần nhất" ở thanh dưới cùng. Viết CSS thường vì
-           bộ màu xanh lá nhạt này chưa có trong public/build/assets/app-*.css. */
-        .oi-done-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            min-height: 34px;
-            padding: 4px 11px;
-            border: 1px solid #CBE8D8;
-            border-radius: 12px;
-            background: #EAF7F0;
-            color: #2F8A6B;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1.35;
-            white-space: nowrap;
-        }
-        .oi-done-chip__dot {
-            flex: 0 0 auto;
-            width: 7px;
-            height: 7px;
-            border-radius: 999px;
-            background: #34A853;
-        }
-        /* .hidden của Tailwind cùng độ ưu tiên với .oi-done-chip mà lại đứng TRƯỚC trong
-           tệp CSS, nên không có dòng này thì viên "chưa làm" vẫn hiện ra (rỗng). */
-        .oi-done-chip.hidden { display: none !important; }
-        /* Màn hẹp: giấu bớt cho thanh dưới khỏi chật, nút Nộp bài vẫn là thứ quan trọng nhất. */
-        @media (max-width: 767px) { .oi-done-chip { display: none; } }
-        html.theme-dark .assessment-modal .oi-done-chip {
-            border-color: #2f5f4c;
-            background: #1d3b30;
-            color: #8ed6b4;
-        }
+        /* Viên "Đã làm · Điểm gần nhất" nằm ở partials/assessment-chip-style (dùng chung
+           với phòng thi) — nạp ở cuối tệp này. */
 
         /* Nền tối: TỜ GIẤY VẪN SÁNG (luật .assessment-a4-page trong app.css — cố ý, giống
            mọi trình đọc PDF), nên chữ nằm trên giấy phải giữ màu tối. Luật chung của nền tối
@@ -1103,6 +1071,7 @@
     @include('partials.pdf-fit-viewer')
 
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
+    @include('partials.assessment-chip-style')
     @include('partials.code-editor-runtime')
 
     {{-- SỬA 30/9 (6) — tải test sai về máy dưới dạng .in/.out. --}}

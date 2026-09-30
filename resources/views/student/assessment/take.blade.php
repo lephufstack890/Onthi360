@@ -151,10 +151,8 @@
                 <x-lucide name="save" class="h-4 w-4" /><span x-text="saving ? 'Đang lưu…' : 'Đã lưu đề'"></span>
             </span>
 
-            <button type="button" @click="confirmOpen = true" :disabled="expired || submitting"
-                    class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60">
-                <x-lucide name="send" class="h-4 w-4" />Nộp đề
-            </button>
+            {{-- SỬA 30/9 (10) (khách: "chuyển chỗ nộp bài xuống dưới") — nút "Nộp đề" ĐÃ CHUYỂN
+                 xuống thanh dưới cùng, đúng như modal làm bài tập chuyên đề. --}}
         </header>
 
         {{-- ═══════════════════ RAIL 4 TAB + NỘI DUNG ═══════════════════ --}}
@@ -196,14 +194,11 @@
 
                 {{-- ───────── TAB: LÀM BÀI ───────── --}}
                 <section x-show="activeTab === 'work'" class="assessment-work-panel flex h-full min-h-0 flex-col overflow-hidden p-1.5 sm:p-2">
+                    {{-- SỬA 30/9 (10) — ĐÃ BỎ cặp mũi tên nhỏ ở đây. Chuyển câu giờ có hai nút
+                         CÓ NHÃN ở thanh dưới cùng, cộng với dải số câu trên thanh đầu (giữ
+                         nguyên theo yêu cầu) — ba chỗ làm cùng một việc là thừa. --}}
                     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]" x-text="currentKind() === 'code' ? 'Soạn mã' : 'Trả lời câu hỏi'"></span>
-                        <div class="flex items-center gap-1">
-                            <button type="button" @click="goPrev()" :disabled="activeId === firstId"
-                                    class="grid h-7 w-7 place-items-center rounded-lg text-[#607A90] transition hover:bg-white disabled:opacity-30" aria-label="Câu trước" title="Câu trước"><x-lucide name="chevron-left" class="h-4 w-4" /></button>
-                            <button type="button" @click="goNext()" :disabled="activeId === lastId"
-                                    class="grid h-7 w-7 place-items-center rounded-lg bg-white text-[#126F91] transition hover:bg-[#EAF5F8] disabled:opacity-30" aria-label="Câu tiếp" title="Câu tiếp"><x-lucide name="chevron-right" class="h-4 w-4" /></button>
-                        </div>
                     </div>
 
                     <div class="mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
@@ -267,46 +262,30 @@
                                             </div>
                                         </section>
 
-                                        {{-- ── INPUT / OUTPUT ── --}}
-                                        <div class="grid min-h-[420px] min-w-0 grid-rows-2 gap-2 overflow-hidden">
-                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#EEF6F8]">
-                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
-                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#126F91]">Input</span>
-                                                    {{-- SỬA 24/9 (khách: "bên chỗ làm đề cũng thế, xoá nút chạy test đi,
-                                                         chuyển xuống vị trí như làm câu hỏi ở luyện tập") — nút "Chạy test"
-                                                         10px nhét ở góc này quá kín. Đã chuyển xuống thành nút chạy hết
-                                                         chiều ngang dưới ô OUTPUT, giống hệt màn Luyện tập theo câu. --}}
-                                                    <span class="text-[10px] font-bold text-[#7A92A3]">Dữ liệu bạn tự gõ để chạy thử</span>
-                                                </div>
-                                                {{-- Ô này KHÔNG đổ sẵn test từ database: test_cases trong grading_config là
-                                                     test CHẤM ĐIỂM, không có cờ phân biệt test mẫu/test ẩn, in ra đây là
-                                                     đưa luôn dữ liệu chấm cho học sinh. --}}
-                                                <textarea x-model="testInputs[{{ $qid }}]" :disabled="expired" spellcheck="false"
-                                                          placeholder="Nhập dữ liệu vào để thử nghiệm…" aria-label="Dữ liệu đầu vào test"
-                                                          class="min-h-0 flex-1 resize-none bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#123B68] outline-none disabled:cursor-not-allowed disabled:opacity-60"></textarea>
-                                            </section>
+                                        {{-- ── CỘT KẾT QUẢ CHẤM ──
+                                             SỬA 30/9 (10) (khách: "xoá chỉ chạy test") — ĐÃ BỎ hai ô
+                                             INPUT/OUTPUT và nút "Chạy test". Hai ô đó chỉ tồn tại để
+                                             phục vụ nút chạy thử; bỏ nút mà giữ ô thì còn lại hai
+                                             khung trống không làm gì.
 
-                                            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#F7F9FA]">
-                                                <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
-                                                    <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#607A90]">Output</span>
-                                                    {{-- Nhãn lần chạy gần nhất: "Chạy xong · 0.03s · 3MB" hoặc lý do hỏng. --}}
-                                                    <span x-text="testStatus[{{ $qid }}]" class="text-[10px] font-bold text-[#7A92A3]"></span>
-                                                </div>
-                                                <pre x-text="testOutputs[{{ $qid }}]" class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap bg-white/80 px-3 py-3 font-mono text-[11px] leading-5 text-[#45657D]">Chưa chạy test</pre>
-
-                                                {{-- SỬA 24/9 — "Chạy test" chuyển xuống đây, chạy hết chiều ngang, đúng
-                                                     chỗ như màn Luyện tập theo câu. Chạy thử với dữ liệu tự gõ, KHÔNG tính
-                                                     điểm; chấm thật thì bấm "Nộp đề" ở thanh trên cùng. --}}
-                                                <div class="shrink-0 border-t border-[#DDEAF0] bg-white p-2.5">
-                                                    <button type="button" @click="runTest({{ $qid }})"
-                                                            :disabled="expired || submitting || testRunning[{{ $qid }}]"
-                                                            title="Chạy thử mã với dữ liệu vào ở ô Input (không tính điểm)"
-                                                            class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#256F56] disabled:cursor-not-allowed disabled:opacity-50">
-                                                        <x-lucide name="play" class="h-3.5 w-3.5" /><span x-text="testRunning[{{ $qid }}] ? 'Đang chạy…' : 'Chạy test'">Chạy test</span>
-                                                    </button>
-                                                    <p class="mt-1.5 text-center text-[10px] text-[#7A92A3]">Chạy thử không tính điểm — chấm bài thì bấm <span class="font-bold text-[#126F91]">Nộp đề</span> ở trên.</p>
-                                                </div>
-                                            </section>
+                                             Chỗ này giờ là cột kết quả, đúng bố cục modal làm bài tập
+                                             chuyên đề. Khác một điểm: phòng thi chấm CẢ ĐỀ một lượt
+                                             khi bấm "Nộp đề" rồi chuyển sang trang kết quả, nên ở đây
+                                             chỉ nói trước điều đó chứ không có kết quả tại chỗ. --}}
+                                        <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
+                                            <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-3">
+                                                <p class="text-[11px] font-bold text-[#45657D]">Kết quả chấm hiện sau khi nộp đề.</p>
+                                                <p class="mt-2 text-[11px] leading-5 text-[#7A92A3]">
+                                                    Viết mã ở cột bên trái. Bài làm được
+                                                    <span class="font-bold text-[#126F91]">tự động lưu</span> ngay khi bạn gõ, nên
+                                                    chuyển qua câu khác rồi quay lại vẫn còn nguyên.
+                                                </p>
+                                                <p class="mt-2 text-[11px] leading-5 text-[#7A92A3]">
+                                                    Bấm <span class="font-bold text-[#126F91]">Nộp đề</span> ở thanh dưới khi làm xong
+                                                    toàn bộ đề — máy chấm chạy từng bộ test của các câu lập trình rồi đưa bạn sang
+                                                    trang kết quả.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 @else
@@ -392,6 +371,54 @@
             </main>
         </div>
 
+        {{-- ═══════════════════ THANH DƯỚI CÙNG ═══════════════════
+             SỬA 30/9 (10) (khách: "chuyển chỗ nộp bài xuống dưới vs thêm bài làm trước, bài tiếp
+             theo") — dựng đúng thanh dưới của modal làm bài tập chuyên đề.
+
+             Hai nút chuyển câu gọi lại ĐÚNG goPrev()/goNext() mà dải số câu trên thanh đầu vẫn
+             đang dùng, nên ba chỗ luôn cùng một trạng thái — không có đường đi nào mới.
+
+             Viên "Đã làm · Điểm gần nhất" ở đây CỐ Ý KHÔNG có phần "x/y test đúng" (khách dặn
+             rõ): đây là điểm của CẢ ĐỀ gồm nhiều câu đủ dạng, cộng số test của các câu lập trình
+             lại với nhau thì con số chẳng có nghĩa gì. --}}
+        @php $last = $lastResult ?? null; @endphp
+        <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
+            <div class="min-w-0">
+                <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $assessmentTitle }}</p>
+                <p class="hidden text-[10px] text-[#607A90] sm:block"
+                   x-text="activeTab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : 'Bài làm tự lưu — bấm Nộp đề khi xong.'">Bài làm tự lưu — bấm Nộp đề khi xong.</p>
+            </div>
+
+            <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                @if (count($questions) > 1)
+                    <nav aria-label="Chuyển câu" class="flex items-center gap-1">
+                        <button type="button" @click="goPrev()" :disabled="activeId === firstId || expired || submitting"
+                                aria-label="Câu trước" title="Câu trước"
+                                class="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[#DDEAF0] px-2 text-[11px] font-semibold text-[#45657D] transition hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                            <x-lucide name="chevron-left" class="h-4 w-4" /><span class="hidden sm:inline">Câu trước</span>
+                        </button>
+                        <button type="button" @click="goNext()" :disabled="activeId === lastId || expired || submitting"
+                                aria-label="Câu tiếp theo" title="Câu tiếp theo"
+                                class="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[#DDEAF0] px-2 text-[11px] font-semibold text-[#126F91] transition hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                            <span class="hidden sm:inline">Câu tiếp theo</span><x-lucide name="chevron-right" class="h-4 w-4" />
+                        </button>
+                    </nav>
+                @endif
+
+                <span @class(['oi-done-chip', 'hidden' => $last === null])>
+                    @if ($last)
+                        <span class="oi-done-chip__dot"></span>
+                        <span>Đã làm · Điểm gần nhất: <span class="font-black">{{ $last['scoreLabel'] }}</span>/{{ $last['maxLabel'] }}</span>
+                    @endif
+                </span>
+
+                <button type="button" @click="confirmOpen = true" :disabled="expired || submitting"
+                        class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60 sm:px-4">
+                    <x-lucide name="send" class="h-4 w-4" />Nộp đề
+                </button>
+            </div>
+        </footer>
+
         {{-- ══════ FORM NỘP THẬT — giữ NGUYÊN hợp đồng tên trường như bản cũ ══════ --}}
         <form method="POST" action="{{ route('student.assessment.take.submit', $attempt->id) }}" id="take-form" x-ref="examForm" class="hidden">
             @csrf
@@ -424,5 +451,6 @@
 @endsection
 
 @push('scripts')
+    @include('partials.assessment-chip-style')
     @include('partials.exam-workspace-script')
 @endpush
