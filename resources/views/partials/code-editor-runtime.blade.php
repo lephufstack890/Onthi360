@@ -69,4 +69,94 @@
             cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main()\n{\n    ios_base::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}',
             python: 'print("Hello, World!")'
         };
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        // SỬA 30/9 (4) (khách: "soạn code bấm tab nó nhảy sang cái input khác")
+        //
+        // Trong biểu mẫu, Tab mặc định có nghĩa "nhảy sang ô kế tiếp" — gõ code được vài
+        // dòng là con trỏ văng ra khỏi ô soạn mã. Ở ô soạn mã, Tab phải là THỤT DÒNG.
+        //
+        // Nghe kiểu delegation ở document nên ăn cho CẢ BA màn dùng chung partial này
+        // (luyện 1 bài, phòng thi, cuộc thi) và vẫn chạy sau khi khối soạn mã bị thay mới
+        // bằng AJAX, không phải gọi lại hàm init nào.
+        //
+        // Dùng execCommand('insertText') chứ không gán thẳng textarea.value vì hai lẽ:
+        //   · Ctrl+Z vẫn hoàn tác được (gán thẳng value là xoá sạch lịch sử hoàn tác);
+        //   · trình duyệt tự bắn sự kiện 'input', nhờ đó lớp tô màu vẽ lại và x-model của
+        //     Alpine ở màn phòng thi cập nhật theo — không phải đụng vào hai chỗ đó.
+        //
+        // Vẫn chừa lối thoát cho người dùng bàn phím: bấm Esc rồi bấm Tab thì Tab nhảy ô
+        // như thường (quy ước quen thuộc, để người dùng bàn phím/trình đọc màn hình không
+        // bị kẹt cứng trong ô soạn mã).
+        // ══════════════════════════════════════════════════════════════════════════════
+        (function () {
+            if (window.__oiCodeTabWired) return;
+            window.__oiCodeTabWired = true;
+
+            var INDENT = '    ';
+            var escaped = false;
+
+            function replaceRange(ta, from, to, text) {
+                ta.selectionStart = from;
+                ta.selectionEnd = to;
+                var ok = false;
+                try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
+                if (!ok) {
+                    // Trình duyệt không cho execCommand: gán tay rồi tự bắn 'input'.
+                    ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            document.addEventListener('keydown', function (event) {
+                var ta = event.target;
+                if (!ta || ta.tagName !== 'TEXTAREA' || !ta.hasAttribute('data-code-source')) return;
+
+                if (event.key === 'Escape') { escaped = true; return; }
+                if (event.key !== 'Tab') { escaped = false; return; }
+                if (escaped) { escaped = false; return; }
+                if (event.ctrlKey || event.altKey || event.metaKey) return;
+                if (ta.disabled || ta.readOnly) return;
+
+                event.preventDefault();
+
+                var value = ta.value;
+                var start = ta.selectionStart;
+                var end = ta.selectionEnd;
+                var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                var multiline = value.slice(start, end).indexOf('\n') >= 0;
+
+                // Bôi đen nhiều dòng, hoặc Shift+Tab: thụt/lùi CẢ KHỐI như mọi trình soạn mã.
+                if (event.shiftKey || multiline) {
+                    var blockEnd = value.indexOf('\n', end);
+                    if (blockEnd === -1) blockEnd = value.length;
+
+                    var lines = value.slice(lineStart, blockEnd).split('\n');
+                    var firstDelta = 0;
+                    var total = 0;
+
+                    var out = lines.map(function (line, i) {
+                        var changed;
+                        if (event.shiftKey) {
+                            var m = line.match(/^ {1,4}|^\t/);
+                            changed = m ? line.slice(m[0].length) : line;
+                        } else {
+                            // Dòng trống giữa khối thì để yên, khỏi sinh khoảng trắng thừa.
+                            changed = (line === '' && lines.length > 1) ? line : INDENT + line;
+                        }
+                        var d = changed.length - line.length;
+                        if (i === 0) firstDelta = d;
+                        total += d;
+                        return changed;
+                    }).join('\n');
+
+                    replaceRange(ta, lineStart, blockEnd, out);
+                    ta.selectionStart = Math.max(lineStart, start + firstDelta);
+                    ta.selectionEnd = Math.max(ta.selectionStart, end + total);
+                } else {
+                    replaceRange(ta, start, end, INDENT);
+                    ta.selectionStart = ta.selectionEnd = start + INDENT.length;
+                }
+            });
+        })();
 </script>

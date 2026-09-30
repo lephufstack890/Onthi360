@@ -1,189 +1,139 @@
 {{--
-  SỬA 18/9 (khách: "khi ghi nhận làm bài xong hiển thị kết quả test bên dưới luôn, khỏi cần
-  phải qua trang này") — KẾT QUẢ CHẤM của bài Lập trình, hiện NGAY dưới khu soạn mã thay vì
-  thay cả màn hình bằng một trang kết quả riêng. Nhờ vậy học sinh đọc test sai và sửa code ngay
-  tại chỗ, không phải nhớ rồi bấm quay lại.
+  KẾT QUẢ CHẤM của bài Lập trình, hiện ngay ở cột phải khu soạn mã.
 
-  Cần $feedback (xem Student\PracticeByQuestionService::answer()). Các thẻ data-test-case-* ăn
-  theo script đóng/mở chi tiết + tải test sai đã có sẵn ở cuối exercise-play.blade.php — cố ý
-  giữ nguyên tên để không phải thêm dòng JS nào.
+  SỬA 30/9 (4) (khách: "chỗ kết quả khi làm bài lập trình xong thì hiển thị theo UI này,
+  check source mới cho kỹ") — dựng lại theo ĐÚNG <JudgingResultPanel> của bản mẫu mới
+  (education-main/src/components/AssessmentModal.jsx, dòng 246–258):
+
+      <section class="overflow-y-auto bg-white px-3 py-2 text-[11px] h-full rounded-xl border">
+        <p><strong>Kết quả chấm: {trạng thái}.</strong> {đúng}/{tổng} test đúng.</p>
+        <ul class="mt-2 divide-y border-t">
+          <li class="flex items-center gap-2 py-1">
+            <span class="min-w-0 flex-1 truncate">{tên test}</span>
+            <strong>Đúng|Sai</strong>
+            {sai thì có} <button>Tải test</button>
+          </li>
+        </ul>
+      </section>
+
+  Bản cũ có băng kết quả to kèm thanh phần trăm, dải 20 ô vuông và nút "Tải N test sai" —
+  BỎ HẾT, bản mẫu mới không có.
+
+  KHÁC bản mẫu ở ba chỗ, đều là chỗ bản mẫu không thể có vì nó chỉ là bản dựng hình:
+    1. Bản mẫu in "Kết quả minh họa; chưa kết nối máy chấm bài." — ở đây máy chấm Judge0
+       chạy thật nên in câu đó là nói sai, đã bỏ.
+    2. Giữ khối "lỗi biên dịch" (có số dòng) và mách nước freopen — đây là thứ học sinh
+       cần nhất khi bí, bản mẫu không có vì nó không chấm thật.
+    3. Bấm vào tên một test SAI vẫn xổ ra dữ liệu vào / mong đợi / bạn in ra như cũ.
+       Lúc chưa bấm thì dòng đó trông y hệt bản mẫu.
+
+  Cần $feedback (xem Student\PracticeByQuestionService::answer()). Các thẻ data-test-case-*
+  và data-download-failed-tests ăn theo script đã có sẵn ở cuối exercise-play.blade.php.
 --}}
 @php
     $tcs = $feedback['codingTestCases'] ?? [];
     $tcPassed = collect($tcs)->where('isAccepted', true)->count();
     $tcTotal = count($tcs);
-    $tcFailed = collect($tcs)->reject(fn ($t) => $t['isAccepted'])->values();
-    $passPercent = $tcTotal > 0 ? (int) round($tcPassed / $tcTotal * 100) : 0;
 
     /*
      * SỬA 24/9 (khách: "sao giờ chấm sai hết thế này") — BẮT ĐÚNG MỘT CÁI BẪY IM LẶNG.
      *
-     * Hiện trường hôm nay: bài dùng freopen("TONG.INP"/"TONG.OUT") nhưng đề lại khai vào/ra
+     * Hiện trường hôm đó: bài dùng freopen("TONG.INP"/"TONG.OUT") nhưng đề lại khai vào/ra
      * CHUẨN. freopen vào file không tồn tại thì THẤT BẠI VÀ ĐÓNG LUÔN stdin (cin chết), còn
      * freopen ra file thì THÀNH CÔNG (nó tự tạo file) — thế là mọi thứ cout in ra chui hết vào
      * file, màn hình trống trơn. Máy chấm chỉ đọc màn hình nên sai sạch 20 test, mỗi test đều
-     * ghi "(không có gì)".
-     *
-     * Nhìn vào bảng kết quả thì không tài nào đoán ra. Sai TẤT CẢ các test mà test nào cũng
-     * không in ra chữ nào là một dấu hiệu rất riêng — nói thẳng cho học sinh chỗ cần xem.
+     * ghi "(không có gì)". Nhìn bảng kết quả thì không tài nào đoán ra, nên nói thẳng.
      */
     $allFailed = $tcTotal > 0 && $tcPassed === 0;
     $allSilent = $allFailed && collect($tcs)->every(fn ($t) => trim((string) ($t['actualOutput'] ?? '')) === '');
+
+    $headline = $feedback['isCorrect'] ? 'Tất cả test đúng' : 'Có test sai';
 @endphp
 
-<section class="flex min-w-0 flex-col overflow-hidden rounded-xl bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)] ring-1 ring-[#DDEAF0]">
+<section class="h-full overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-2 text-[11px]">
 
     @if (! empty($feedback['codingError']))
         {{-- Không chấm được (máy chấm chưa kết nối / bài chưa có test / chưa viết mã). --}}
-        <div class="flex items-start gap-3 bg-amber-50 p-4">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
-            <div class="min-w-0">
-                <p class="text-[13px] font-bold text-amber-800">Chưa chấm được bài</p>
-                <p class="mt-0.5 text-[12px] leading-relaxed text-amber-800">{{ $feedback['codingError'] }}</p>
-            </div>
-        </div>
+        <p role="status" aria-atomic="true" class="text-[#45657D]">
+            <strong class="text-amber-700">Kết quả chấm: Chưa chấm được bài.</strong>
+        </p>
+        <p class="mt-1 leading-5 text-[#607A90]">{{ $feedback['codingError'] }}</p>
+
     @elseif (! empty($feedback['codingCompileError']))
         {{--
           SỬA 23/9 (khách: "chương trình lỗi thì ngừng chấm luôn... lỗi code là báo lỗi ở dòng
-          bao nhiêu") — mã không biên dịch được: KHÔNG vẽ dải 20 ô test (máy chấm cũng đã dừng
-          sau test đầu), chỉ nói thẳng sai ở dòng nào và sai gì.
+          bao nhiêu") — mã không biên dịch được thì máy chấm dừng sau test đầu, không có bảng
+          test nào để vẽ. Chỉ nói thẳng sai ở dòng nào và sai gì.
         --}}
-        <div class="flex items-start gap-3 bg-[#FEF3F2] p-4">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FEE4E2] text-[#B42318]"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
-            <div class="min-w-0 flex-1">
-                <p class="text-[13px] font-bold text-[#B42318]">
-                    Mã nguồn chưa biên dịch được @if (! empty($feedback['codingErrorLine']))— lỗi ở <span class="rounded bg-[#FEE4E2] px-1.5 py-0.5">dòng {{ $feedback['codingErrorLine'] }}</span>@endif
-                </p>
-                @if (! empty($feedback['codingErrorMessage']))
-                    <p class="mt-1 break-words font-mono text-[12px] leading-relaxed text-[#B42318]">{{ $feedback['codingErrorMessage'] }}</p>
-                @endif
-                {{-- SỬA 24/9 — nút nộp trong panel đã đổi thành "Chạy test"; chấm bài giờ bấm
-                     "Nộp bài" trên thanh trên cùng. Câu này phải gọi đúng tên nút đang có. --}}
-                <p class="mt-1.5 text-[12px] text-[#7A271A]">Chưa chấm test nào — sửa lỗi rồi bấm "Nộp bài" ở thanh trên cùng để chấm lại.</p>
-                <details class="mt-2">
-                    <summary class="cursor-pointer text-[11px] font-bold text-[#B42318]">Xem toàn bộ thông báo của trình biên dịch</summary>
-                    <pre class="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2 font-mono text-[11px] text-[#B42318] ring-1 ring-[#FECDCA]">{{ $feedback['codingCompileError'] }}</pre>
-                </details>
-            </div>
-        </div>
-    @else
-        {{-- ── Băng kết quả chung ── --}}
-        <div @class([
-            'flex flex-wrap items-center gap-3 p-4',
-            'bg-[#EFF9F5]' => $feedback['isCorrect'],
-            'bg-[#EEF4FC]' => ! $feedback['isCorrect'],
-        ])>
-            <span @class([
-                'grid h-10 w-10 shrink-0 place-items-center rounded-full',
-                'bg-[#D4EDE2] text-[#2F8A6B]' => $feedback['isCorrect'],
-                'bg-[#DCE8F8] text-[#2C6BB0]' => ! $feedback['isCorrect'],
-            ])><x-lucide :name="$feedback['isCorrect'] ? 'check' : 'x'" class="h-5 w-5" /></span>
+        <p role="status" aria-atomic="true" class="text-[#45657D]">
+            <strong class="text-rose-700">Kết quả chấm: Mã chưa biên dịch được.</strong>
+            @if (! empty($feedback['codingErrorLine']))Lỗi ở dòng {{ $feedback['codingErrorLine'] }}.@endif
+        </p>
+        @if (! empty($feedback['codingErrorMessage']))
+            <p class="mt-1 break-words font-mono leading-5 text-rose-700">{{ $feedback['codingErrorMessage'] }}</p>
+        @endif
+        <p class="mt-1 text-[#607A90]">Chưa chấm test nào — sửa lỗi rồi bấm "Nộp bài" ở thanh dưới để chấm lại.</p>
+        <details class="mt-2">
+            <summary class="cursor-pointer font-semibold text-[#126F91]">Xem toàn bộ thông báo của trình biên dịch</summary>
+            <pre class="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-[#FEF3F2] p-2 font-mono text-[10px] leading-5 text-rose-700">{{ $feedback['codingCompileError'] }}</pre>
+        </details>
 
-            <div class="min-w-0 flex-1">
-                <p @class([
-                    'text-[15px] font-extrabold',
-                    'text-[#2F8A6B]' => $feedback['isCorrect'],
-                    'text-[#2C6BB0]' => ! $feedback['isCorrect'],
-                ])>
-                    {{ $feedback['isCorrect'] ? 'Chính xác!' : ($feedback['codingVerdictLabel'] ?: 'Chưa đúng') }}
-                </p>
-                @if ($tcTotal > 0)
-                    <div class="mt-1.5 flex items-center gap-2">
-                        <div class="h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-white/70">
-                            <div @class([
-                                'h-full rounded-full transition-all',
-                                'bg-[#2F8A6B]' => $feedback['isCorrect'],
-                                'bg-[#4C87CE]' => ! $feedback['isCorrect'],
-                            ]) style="width: {{ $passPercent }}%"></div>
-                        </div>
-                        <span class="shrink-0 text-[11px] font-bold text-[#607A90]">Đúng {{ $tcPassed }}/{{ $tcTotal }}</span>
-                    </div>
-                @endif
-            </div>
-        </div>
+    @else
+        {{-- ── Dòng trạng thái: đúng cấu trúc câu của bản mẫu ── --}}
+        <p role="status" aria-atomic="true" class="text-[#45657D]">
+            <strong class="{{ $feedback['isCorrect'] ? 'text-emerald-700' : 'text-rose-700' }}">Kết quả chấm: {{ $headline }}.</strong>
+            @if ($tcTotal > 0){{ $tcPassed }}/{{ $tcTotal }} test đúng.@endif
+        </p>
 
         @if ($allSilent)
-            <div class="flex items-start gap-3 border-t border-[#E7EFF3] bg-amber-50 px-4 py-3">
-                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700"><x-lucide name="alert-triangle" class="h-4 w-4" /></span>
-                <div class="min-w-0 text-[12px] leading-relaxed text-amber-900">
-                    <p class="font-bold">Chương trình chạy xong nhưng không in ra gì — ở tất cả các test.</p>
-                    <p class="mt-1">Hay gặp nhất là do <span class="font-mono font-bold">freopen</span>: bài này nhận dữ liệu qua <span class="font-bold">màn hình (nhập/xuất chuẩn)</span>, mà mã của bạn lại đang đọc/ghi ra tệp. Khi đó <span class="font-mono">freopen</span> đọc tệp sẽ thất bại và làm <span class="font-mono">cin</span> chết, còn <span class="font-mono">freopen</span> ghi tệp lại thành công — nên kết quả chui hết vào tệp thay vì ra màn hình.</p>
-                    <p class="mt-1">Bỏ hai dòng <span class="font-mono">freopen</span> đi, dùng thẳng <span class="font-mono">cin</span> / <span class="font-mono">cout</span> là chạy được.</p>
-                </div>
-            </div>
+            <p class="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 leading-5 text-amber-900">
+                <span class="font-bold">Chương trình chạy xong nhưng không in ra gì — ở tất cả các test.</span>
+                Hay gặp nhất là do <span class="font-mono font-bold">freopen</span>: bài này nhận dữ liệu qua
+                <span class="font-bold">màn hình (nhập/xuất chuẩn)</span>, mà mã của bạn lại đang đọc/ghi ra tệp.
+                Bỏ hai dòng <span class="font-mono">freopen</span> đi, dùng thẳng
+                <span class="font-mono">cin</span> / <span class="font-mono">cout</span> là chạy được.
+            </p>
         @endif
 
         @if ($tcTotal > 0)
-            {{-- ── Dải ô vuông: liếc một cái là thấy hỏng ở quãng nào ── --}}
-            <div class="flex flex-wrap items-center gap-1 border-t border-[#E7EFF3] px-4 py-2.5">
+            <ul class="mt-2 divide-y divide-[#E7EFF3] border-t border-[#E7EFF3]">
                 @foreach ($tcs as $tc)
-                    <span title="Test {{ $tc['index'] }} — {{ $tc['statusLabel'] }}"
-                          @class([
-                              'grid h-5 w-5 place-items-center rounded text-[9px] font-black',
-                              'bg-[#D4EDE2] text-[#2F8A6B]' => $tc['isAccepted'],
-                              'bg-[#DCE8F8] text-[#2C6BB0]' => ! $tc['isAccepted'],
-                          ])>{{ $tc['index'] }}</span>
-                @endforeach
-            </div>
+                    @php
+                        $tcNo = 'Test '.str_pad((string) $tc['index'], 2, '0', STR_PAD_LEFT);
+                        // Test sai: ghi luôn lý do (Wrong Answer / quá giờ / lỗi chạy…) — đó là
+                        // thông tin duy nhất giúp học sinh biết sửa gì. Test đúng: ghi thời gian
+                        // và bộ nhớ, vì với bài nặng đó mới là con số đáng nhìn.
+                        $tcNote = $tc['isAccepted']
+                            ? trim(implode(' · ', array_filter([
+                                $tc['time'] !== null ? $tc['time'].'s' : null,
+                                $tc['memory'] !== null ? round($tc['memory'] / 1024).'MB' : null,
+                            ])))
+                            : $tc['statusLabel'];
+                    @endphp
+                    <li data-test-case-row>
+                        <div class="flex items-center gap-2 py-1 text-[#607A90]">
+                            @if ($tc['isAccepted'])
+                                <span class="min-w-0 flex-1 truncate">{{ $tcNo }}@if ($tcNote) · {{ $tcNote }}@endif</span>
+                            @else
+                                {{-- Trông y hệt một dòng chữ thường của bản mẫu; bấm vào mới xổ chi tiết. --}}
+                                <button type="button" data-test-case-toggle
+                                        title="Bấm để xem dữ liệu vào, kết quả mong đợi và kết quả chương trình in ra"
+                                        class="min-w-0 flex-1 truncate text-left hover:text-[#126F91]">{{ $tcNo }}@if ($tcNote) · {{ $tcNote }}@endif<span data-test-case-arrow class="ml-1 text-[#8AA0B0]">▾</span></button>
+                            @endif
 
-            {{-- ── Danh sách chi tiết: test ĐÚNG khoá cứng, test SAI bấm mới xổ ra ── --}}
-            <div class="flex items-center justify-between gap-2 border-t border-[#E7EFF3] bg-[#F4F8FB] px-4 py-2">
-                <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#365B7A]">Kết quả từng test</span>
-                @if ($tcFailed->isNotEmpty())
-                    <button type="button"
-                            class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-[#126F91] transition hover:bg-[#E3F0F5]"
-                            data-download-failed-tests
-                            data-question-id="{{ $question->id }}"
-                            data-tests="{{ $tcFailed->toJson() }}">
-                        <x-lucide name="download" class="h-3.5 w-3.5" />Tải {{ $tcFailed->count() }} test sai
-                    </button>
-                @endif
-            </div>
+                            <strong class="{{ $tc['isAccepted'] ? 'text-emerald-700' : 'text-rose-700' }}">{{ $tc['isAccepted'] ? 'Đúng' : 'Sai' }}</strong>
 
-            {{--
-                SỬA 24/9 (khách: "hiển thị ô nhỏ vậy thôi rồi scroll lên xuống là được") — danh
-                sách test trở lại dạng Ô CÓ THANH CUỘN RIÊNG, cao tối đa 288px.
+                            @unless ($tc['isAccepted'])
+                                <button type="button"
+                                        data-download-failed-tests
+                                        data-question-id="{{ $question->id }}"
+                                        data-tests="{{ json_encode([$tc], JSON_UNESCAPED_UNICODE) }}"
+                                        class="inline-flex min-h-7 items-center px-1.5 font-semibold text-[#126F91] underline underline-offset-2 hover:text-[#0F607E]">Tải test</button>
+                            @endunless
+                        </div>
 
-                Lần trước (19/9) đã phải bỏ max-height vì lỗi CUỘN LỒNG NHAU: ô cao 320px nằm
-                dưới khu soạn mã cao 420px, cộng thêm nút "Hoàn tất bài tập" phía dưới, nên nửa
-                dưới của chính cái ô đã nằm ngoài vùng nhìn thấy — kéo chuột trong danh sách thì
-                dòng có chạy nhưng Test 19, 20 không bao giờ hiện ra.
-
-                Giờ an toàn vì hai việc: nút "Hoàn tất bài tập" đã bỏ hẳn, và ô thấp hơn trước
-                (288px thay vì 320px) — cả khối kết quả vừa trong tầm nhìn sau khi cuộn khung
-                ngoài xuống, nên thanh cuộn bên trong lúc nào cũng dùng được tới đáy.
-
-                CỐ Ý KHÔNG dùng overscroll-contain: cuộn hết danh sách rồi thì để trang cuộn
-                tiếp cho tự nhiên, thay vì khựng lại giữa chừng.
-            --}}
-            <div data-test-list class="max-h-72 divide-y divide-[#EEF3F6] overflow-y-auto">
-                @foreach ($tcs as $tc)
-                    <div data-test-case-row>
-                        <button type="button"
-                                @class([
-                                    'flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-[12px] transition-colors',
-                                    'text-[#2F8A6B]' => $tc['isAccepted'],
-                                    'text-[#2C6BB0] hover:bg-[#F4F8FB]' => ! $tc['isAccepted'],
-                                ])
-                                @if ($tc['isAccepted']) disabled @else data-test-case-toggle @endif>
-                            <span class="inline-flex min-w-0 items-center gap-2">
-                                <span @class([
-                                    'grid h-5 w-5 shrink-0 place-items-center rounded-full',
-                                    'bg-[#D4EDE2] text-[#2F8A6B]' => $tc['isAccepted'],
-                                    'bg-[#DCE8F8] text-[#2C6BB0]' => ! $tc['isAccepted'],
-                                ])><x-lucide :name="$tc['isAccepted'] ? 'check' : 'x'" class="h-3 w-3" /></span>
-                                <span class="truncate font-semibold">Test {{ $tc['index'] }}</span>
-                                <span class="truncate text-[#607A90]">— {{ $tc['statusLabel'] }}</span>
-                            </span>
-                            <span class="inline-flex shrink-0 items-center gap-2 text-[10px] font-semibold text-[#8AA0B0]">
-                                @if ($tc['time'] !== null){{ $tc['time'] }}s @endif
-                                @if ($tc['memory'] !== null)· {{ round($tc['memory'] / 1024) }}MB @endif
-                                @if (! $tc['isAccepted'])<span data-test-case-arrow class="text-[#8AA0B0]">▾</span>@endif
-                            </span>
-                        </button>
-
-                        @if (! $tc['isAccepted'])
-                            <div class="hidden space-y-2 border-t border-[#EEF3F6] bg-[#F9FBFC] px-4 py-3 text-[11px]" data-test-case-detail>
+                        @unless ($tc['isAccepted'])
+                            <div class="hidden space-y-2 bg-[#F9FBFC] px-1 py-2" data-test-case-detail>
                                 <div class="grid gap-2 sm:grid-cols-3">
                                     <div class="min-w-0">
                                         <p class="mb-1 text-[10px] font-black uppercase tracking-wide text-[#8AA0B0]">Dữ liệu vào</p>
@@ -200,24 +150,15 @@
                                 </div>
                                 @if ($tc['compileOutput'] || $tc['stderr'])
                                     <div>
-                                        <p class="mb-1 text-[10px] font-black uppercase tracking-wide text-[#B42318]">Lỗi</p>
-                                        <pre class="max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-[#FEF3F2] p-2 font-mono text-[#B42318] ring-1 ring-[#FECDCA]">{{ trim(($tc['compileOutput'] ?? '')."\n".($tc['stderr'] ?? '')) }}</pre>
+                                        <p class="mb-1 text-[10px] font-black uppercase tracking-wide text-rose-700">Lỗi</p>
+                                        <pre class="max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-[#FEF3F2] p-2 font-mono text-rose-700 ring-1 ring-[#FECDCA]">{{ trim(($tc['compileOutput'] ?? '')."\n".($tc['stderr'] ?? '')) }}</pre>
                                     </div>
                                 @endif
                             </div>
-                        @endif
-                    </div>
+                        @endunless
+                    </li>
                 @endforeach
-            </div>
+            </ul>
         @endif
     @endif
-
-    {{-- SỬA 24/9 (khách: "bỏ nút hoàn tất bài tập đi, chấm lỗi hay chấm xong đều không cần")
-         — ĐÃ BỎ nút "Hoàn tất bài tập" ở cuối khối kết quả.
-
-         Nút đó trỏ tới student.practiceByQuestion.next (kết thúc/đi tiếp), nhưng thanh trên
-         cùng đã có sẵn "Thoát bài tập" làm đúng việc rời bài — bày hai lối ra cạnh nhau chỉ
-         làm học sinh phân vân, lại chen ngay dưới danh sách test nên hay bị bấm nhầm khi đang
-         đọc test sai. Form #practice-finish-form vẫn còn trong exercise-play.blade.php vì
-         partials.practice-answer-review (các dạng câu KHÔNG phải lập trình) vẫn dùng. --}}
 </section>

@@ -86,7 +86,10 @@
          không mất bài đang làm) nhưng nhìn y hệt modal của bản mẫu. --}}
     <div class="assessment-modal fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-0 sm:p-2"
          x-data="{
-             tab: 'work',
+             {{-- SỬA 30/9 (4) (khách: "mặc định tab hiển thị đầu tiên là tab đề bài") — bản mẫu
+                  mở ở tab Đề bài (AssessmentModal.jsx: useState(\"pdf\")). Bài KHÔNG có bản PDF
+                  thì vẫn mở thẳng Làm bài, chứ mở vào một tab trống thì vô duyên. --}}
+             tab: '{{ $statementUrl ? 'pdf' : 'work' }}',
              theme: 'light',
              init() {
                  try { if (window.localStorage.getItem('onthi360-exam-theme') === 'dark') this.setTheme('dark'); } catch (e) {}
@@ -423,7 +426,7 @@
                                              "nằm dưới khu soạn mã" sang "nằm ở cột phải" cho khớp bản mẫu. --}}
                                         <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
                                             @if ($feedback !== null)
-                                                <div class="oi-result-fill min-h-0 flex-1 overflow-y-auto">
+                                                <div class="oi-result-fill min-h-0 flex-1 overflow-hidden">
                                                     @include('partials.practice-coding-result')
                                                 </div>
                                             @else
@@ -708,7 +711,6 @@
                sách, không phải cuộn cả thẻ. */
             .oi-result-fill { display: flex; flex-direction: column; }
             .oi-result-fill > section { min-height: 0; flex: 1 1 0%; }
-            .oi-result-fill [data-test-list] { max-height: none; min-height: 0; flex: 1 1 0%; }
         }
 
         /* Màn hẹp: thẻ kết quả chỉ cần cao ÍT NHẤT bằng khung, nội dung dài thì cứ nở ra rồi
@@ -933,7 +935,11 @@
                 var url = URL.createObjectURL(blob);
                 var a = document.createElement('a');
                 a.href = url;
-                a.download = 'test-sai-cau-' + (downloadBtn.getAttribute('data-question-id') || 'x') + '.txt';
+                // SỬA 30/9 (4) — nút "Tải test" giờ nằm trên TỪNG DÒNG test sai (theo bản mẫu
+                // mới), nên tải 1 test thì đặt tên theo số test cho khỏi ghi đè lên nhau khi
+                // học sinh tải lần lượt vài test.
+                var qid = downloadBtn.getAttribute('data-question-id') || 'x';
+                a.download = (tests.length === 1 ? 'test-' + tests[0].index : 'test-sai') + '-cau-' + qid + '.txt';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
