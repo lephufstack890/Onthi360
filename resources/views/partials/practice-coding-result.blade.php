@@ -156,7 +156,7 @@
                 CỐ Ý KHÔNG dùng overscroll-contain: cuộn hết danh sách rồi thì để trang cuộn
                 tiếp cho tự nhiên, thay vì khựng lại giữa chừng.
             --}}
-            <div class="max-h-72 divide-y divide-[#EEF3F6] overflow-y-auto">
+            <div data-test-list class="max-h-72 divide-y divide-[#EEF3F6] overflow-y-auto">
                 @foreach ($tcs as $tc)
                     <div data-test-case-row>
                         <button type="button"

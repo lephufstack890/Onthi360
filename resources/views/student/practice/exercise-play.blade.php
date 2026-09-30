@@ -423,7 +423,7 @@
                                              "nằm dưới khu soạn mã" sang "nằm ở cột phải" cho khớp bản mẫu. --}}
                                         <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
                                             @if ($feedback !== null)
-                                                <div class="min-h-0 flex-1 overflow-y-auto">
+                                                <div class="oi-result-fill min-h-0 flex-1 overflow-y-auto">
                                                     @include('partials.practice-coding-result')
                                                 </div>
                                             @else
@@ -700,7 +700,20 @@
             .oi-work-fill { min-height: 0; }
             .oi-work-grid { min-height: 0; flex: 1 1 0%; grid-template-rows: minmax(0, 1fr); }
             .oi-work-grid > * { min-height: 0; }
+
+            /* SỬA 30/9 (4) (khách: "chấm xong cũng phải hiển thị cho full chiều cao") — chấm
+               xong, THẺ KẾT QUẢ phải cao bằng cột chứ không dừng ở chiều cao nội dung rồi chừa
+               một mảng trống bên dưới. Danh sách test cũng bỏ trần 288px (max-h-72) để nở hết
+               chỗ còn lại — vẫn có thanh cuộn riêng khi nhiều test, nhưng là cuộn TRONG danh
+               sách, không phải cuộn cả thẻ. */
+            .oi-result-fill { display: flex; flex-direction: column; }
+            .oi-result-fill > section { min-height: 0; flex: 1 1 0%; }
+            .oi-result-fill [data-test-list] { max-height: none; min-height: 0; flex: 1 1 0%; }
         }
+
+        /* Màn hẹp: thẻ kết quả chỉ cần cao ÍT NHẤT bằng khung, nội dung dài thì cứ nở ra rồi
+           cuộn khung ngoài như cũ. */
+        .oi-result-fill > section { min-height: 100%; }
 
         .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
