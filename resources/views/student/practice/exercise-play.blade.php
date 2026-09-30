@@ -364,7 +364,7 @@
                                                 {{-- Chỉ 2 ngôn ngữ vì máy chấm CHỈ nhận 2 (config/judge0.php) — bày
                                                      thêm là hứa cái hệ thống không chấm được. Giá trị gửi lên giữ
                                                      nguyên 'cpp'/'python' như cũ. --}}
-                                                <select name="language" aria-label="Chọn ngôn ngữ lập trình"
+                                                <select name="language" data-code-language aria-label="Chọn ngôn ngữ lập trình"
                                                         class="rounded-lg bg-[#F4F9FB] px-2 py-1.5 text-[10px] font-bold text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
                                                     <option value="cpp" @selected(($feedback['yourLanguage'] ?? 'cpp') === 'cpp')>C++17</option>
                                                     <option value="python" @selected(($feedback['yourLanguage'] ?? null) === 'python')>Python 3</option>
@@ -402,6 +402,7 @@
                                                      không đè lên bài của học sinh. --}}
                                                 <textarea name="code_source" data-code-source spellcheck="false"
                                                           aria-label="Trình soạn mã có tô màu cú pháp"
+                                                          title="Tab thụt dòng · Shift+Tab lùi · Enter tự giữ mức thụt · Ctrl+/ chú thích · Alt+↑↓ đẩy dòng · Shift+Alt+↑↓ nhân đôi dòng · Esc rồi Tab để nhảy ô"
                                                           style="color: transparent; -webkit-text-fill-color: transparent;"
                                                           class="absolute inset-0 z-10 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6 outline-none selection:bg-[#2F8A6B]/40">{{ $feedback['yourCode'] ?? '' }}</textarea>
                                             </div>

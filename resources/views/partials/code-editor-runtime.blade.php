@@ -71,91 +71,332 @@
         };
 
         // ══════════════════════════════════════════════════════════════════════════════
+        // PHÍM TẮT CHO Ô SOẠN MÃ
+        //
         // SỬA 30/9 (4) (khách: "soạn code bấm tab nó nhảy sang cái input khác")
+        // SỬA 30/9 (5) (khách: "check kỹ hết luôn, còn thiếu thì bổ sung cho tôi khi họ code")
         //
-        // Trong biểu mẫu, Tab mặc định có nghĩa "nhảy sang ô kế tiếp" — gõ code được vài
-        // dòng là con trỏ văng ra khỏi ô soạn mã. Ở ô soạn mã, Tab phải là THỤT DÒNG.
+        // Ô soạn mã ở đây là <textarea> trơn chồng lên lớp tô màu (đúng cách bản mẫu làm),
+        // nên nó KHÔNG tự có những nết mà ai gõ code cũng coi là đương nhiên. Đoạn này bù
+        // lại đúng những nết đó:
         //
-        // Nghe kiểu delegation ở document nên ăn cho CẢ BA màn dùng chung partial này
-        // (luyện 1 bài, phòng thi, cuộc thi) và vẫn chạy sau khi khối soạn mã bị thay mới
-        // bằng AJAX, không phải gọi lại hàm init nào.
+        //   Tab              thụt dòng; bôi đen nhiều dòng thì thụt cả khối
+        //   Shift+Tab        lùi lại một mức (không cần bôi đen cũng được)
+        //   Enter            xuống dòng GIỮ NGUYÊN mức thụt của dòng trên; sau "{" (hoặc sau
+        //                    ":" với Python) thì thụt thêm một mức; đang kẹp giữa "{" và "}"
+        //                    thì mở ra ba dòng và đặt con trỏ ở dòng giữa
+        //   Backspace        đang ở phần thụt đầu dòng thì xoá NGUYÊN một mức thay vì từng
+        //                    dấu cách; đang kẹp giữa cặp ngoặc rỗng thì xoá cả cặp
+        //   ( [ { " '        tự đóng; đang bôi đen thì BỌC phần bôi đen vào cặp đó
+        //   ) ] } " '        gõ đúng dấu đóng đang nằm ngay trước mặt thì chỉ bước qua, không
+        //                    sinh thêm dấu thừa
+        //   Ctrl+/ (Cmd+/)   bật/tắt chú thích cho các dòng đang chọn (// hoặc # tuỳ ngôn ngữ)
+        //   Alt+↑ / Alt+↓    đẩy dòng (hoặc khối đang chọn) lên/xuống
+        //   Shift+Alt+↑/↓    nhân đôi dòng lên trên / xuống dưới
+        //   Home             về ký tự đầu tiên KHÁC khoảng trắng; bấm lần nữa mới về cột 0
+        //   Esc rồi Tab      Tab nhảy ô như biểu mẫu thường — lối thoát cho người dùng bàn
+        //                    phím và trình đọc màn hình, để không bị kẹt cứng trong ô
         //
-        // Dùng execCommand('insertText') chứ không gán thẳng textarea.value vì hai lẽ:
-        //   · Ctrl+Z vẫn hoàn tác được (gán thẳng value là xoá sạch lịch sử hoàn tác);
-        //   · trình duyệt tự bắn sự kiện 'input', nhờ đó lớp tô màu vẽ lại và x-model của
-        //     Alpine ở màn phòng thi cập nhật theo — không phải đụng vào hai chỗ đó.
-        //
-        // Vẫn chừa lối thoát cho người dùng bàn phím: bấm Esc rồi bấm Tab thì Tab nhảy ô
-        // như thường (quy ước quen thuộc, để người dùng bàn phím/trình đọc màn hình không
-        // bị kẹt cứng trong ô soạn mã).
+        // Ba điều quan trọng về cách cài:
+        //   1. Nghe kiểu delegation ở document nên ăn cho CẢ BA màn dùng chung partial này
+        //      (luyện 1 bài, phòng thi, cuộc thi) và vẫn chạy sau khi khối soạn mã bị thay
+        //      mới bằng AJAX — không phải gọi lại hàm init nào.
+        //   2. Mọi thay đổi đi qua execCommand chứ không gán thẳng textarea.value, vì hai lẽ:
+        //      Ctrl+Z vẫn hoàn tác được (gán thẳng value là xoá sạch lịch sử hoàn tác), và
+        //      trình duyệt tự bắn sự kiện 'input' — nhờ đó lớp tô màu vẽ lại và x-model của
+        //      Alpine ở màn phòng thi cập nhật theo.
+        //   3. Bỏ qua khi bộ gõ tiếng Việt đang ghép chữ (isComposing / keyCode 229), nếu
+        //      không thì gõ dấu bằng Telex trong dòng chú thích sẽ loạn.
         // ══════════════════════════════════════════════════════════════════════════════
         (function () {
-            if (window.__oiCodeTabWired) return;
-            window.__oiCodeTabWired = true;
+            if (window.__oiCodeKeysWired) return;
+            window.__oiCodeKeysWired = true;
 
             var INDENT = '    ';
+            var OPEN = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+            var CLOSERS = ')]}"\'';
             var escaped = false;
 
-            function replaceRange(ta, from, to, text) {
+            function isEditor(el) {
+                return !!el && el.tagName === 'TEXTAREA' && el.hasAttribute('data-code-source')
+                    && !el.disabled && !el.readOnly;
+            }
+
+            function norm(v) {
+                return String(v || '').toLowerCase().indexOf('py') === 0 ? 'python' : 'cpp';
+            }
+
+            // Ngôn ngữ lấy từ ô chọn GẦN NHẤT — màn phòng thi có nhiều câu, mỗi câu một ô chọn.
+            function langOf(ta) {
+                var node = ta.parentElement;
+                for (var i = 0; i < 8 && node; i++) {
+                    var near = node.querySelector && node.querySelector('select[data-code-language]');
+                    if (near) return norm(near.value);
+                    node = node.parentElement;
+                }
+                var any = document.querySelector('select[data-code-language]');
+                return any ? norm(any.value) : 'cpp';
+            }
+
+            function escapeForRegExp(text) {
+                return text.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+            }
+
+            function replaceRange(ta, from, to, text, selFrom, selTo) {
                 ta.selectionStart = from;
                 ta.selectionEnd = to;
+
                 var ok = false;
-                try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
+                try {
+                    ok = text === ''
+                        ? document.execCommand('delete')
+                        : document.execCommand('insertText', false, text);
+                } catch (e) {
+                    ok = false;
+                }
+
                 if (!ok) {
                     // Trình duyệt không cho execCommand: gán tay rồi tự bắn 'input'.
                     ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                 }
+
+                if (selFrom !== undefined) {
+                    ta.selectionStart = selFrom;
+                    ta.selectionEnd = selTo === undefined ? selFrom : selTo;
+                }
+            }
+
+            function lineStart(v, pos) { return v.lastIndexOf('\n', pos - 1) + 1; }
+            function lineEnd(v, pos) { var i = v.indexOf('\n', pos); return i === -1 ? v.length : i; }
+            function indentOf(line) { var m = line.match(/^[ \t]*/); return m ? m[0] : ''; }
+
+            // ─────────────────── Tab / Shift+Tab: thụt cả khối ───────────────────
+            function indentBlock(ta, outdent) {
+                var v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+                var from = lineStart(v, start), to = lineEnd(v, end);
+                var lines = v.slice(from, to).split('\n');
+                var firstDelta = 0, total = 0;
+
+                var out = lines.map(function (line, i) {
+                    var changed;
+                    if (outdent) {
+                        var m = line.match(/^ {1,4}|^\t/);
+                        changed = m ? line.slice(m[0].length) : line;
+                    } else {
+                        // Dòng trống giữa khối để yên, khỏi sinh khoảng trắng thừa.
+                        changed = (line === '' && lines.length > 1) ? line : INDENT + line;
+                    }
+                    var d = changed.length - line.length;
+                    if (i === 0) firstDelta = d;
+                    total += d;
+                    return changed;
+                }).join('\n');
+
+                var a = Math.max(from, start + firstDelta);
+                replaceRange(ta, from, to, out, a, Math.max(a, end + total));
+            }
+
+            // ─────────────────── Enter: giữ mức thụt ───────────────────
+            function smartEnter(ta, lang) {
+                var v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+                var from = lineStart(v, start);
+                var indent = indentOf(v.slice(from, start));
+                var before = v.slice(from, start).replace(/\s+$/, '');
+
+                var opensBlock = /[{([]$/.test(before) || (lang === 'python' && /:$/.test(before));
+                var inner = opensBlock ? indent + INDENT : indent;
+                var next = v.charAt(end);
+
+                // Kẹp đúng giữa cặp ngoặc -> mở ra ba dòng, con trỏ nằm ở dòng giữa.
+                if (opensBlock && (next === '}' || next === ')' || next === ']')) {
+                    replaceRange(ta, start, end, '\n' + inner + '\n' + indent, start + 1 + inner.length);
+                    return;
+                }
+
+                replaceRange(ta, start, end, '\n' + inner, start + 1 + inner.length);
+            }
+
+            // ─────────────────── Backspace ───────────────────
+            function smartBackspace(ta) {
+                var v = ta.value, pos = ta.selectionStart;
+                var head = v.slice(lineStart(v, pos), pos);
+
+                // Đang ở phần thụt đầu dòng -> xoá nguyên một mức.
+                if (head.length > 0 && /^ +$/.test(head)) {
+                    var back = head.length % INDENT.length || INDENT.length;
+                    replaceRange(ta, pos - back, pos, '', pos - back);
+                    return true;
+                }
+
+                // Kẹp giữa một cặp ngoặc rỗng -> xoá cả cặp.
+                var prev = v.charAt(pos - 1);
+                if (OPEN[prev] && OPEN[prev] === v.charAt(pos)) {
+                    replaceRange(ta, pos - 1, pos + 1, '', pos - 1);
+                    return true;
+                }
+
+                return false;
+            }
+
+            // ─────────────────── Ngoặc và nháy ───────────────────
+            function autoPair(ta, ch) {
+                var v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+
+                // Gõ đúng dấu đóng đang nằm ngay trước mặt -> chỉ bước qua.
+                if (start === end && CLOSERS.indexOf(ch) >= 0 && v.charAt(start) === ch) {
+                    ta.selectionStart = ta.selectionEnd = start + 1;
+                    return true;
+                }
+
+                if (!OPEN[ch]) return false;
+
+                // Đang bôi đen -> bọc phần bôi đen vào cặp đó.
+                if (start !== end) {
+                    replaceRange(ta, start, end, ch + v.slice(start, end) + OPEN[ch], start + 1, end + 1);
+                    return true;
+                }
+
+                var prev = v.charAt(start - 1), next = v.charAt(start);
+
+                // Nháy đơn/kép: không tự đóng khi đang dính vào một chữ — gõ "don't" trong dòng
+                // chú thích mà thành "don''t" thì phiền hơn là tiện.
+                if ((ch === '"' || ch === "'") && (/[\w\\]/.test(prev) || /\w/.test(next))) return false;
+
+                // Chỉ tự đóng khi phía sau là hết dòng, khoảng trắng hoặc một dấu đóng khác.
+                if (next !== '' && !/[\s)\]},;]/.test(next)) return false;
+
+                replaceRange(ta, start, start, ch + OPEN[ch], start + 1);
+                return true;
+            }
+
+            // ─────────────────── Ctrl+/ bật tắt chú thích ───────────────────
+            function toggleComment(ta, lang) {
+                var token = lang === 'python' ? '#' : '//';
+                var v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+                var from = lineStart(v, start), to = lineEnd(v, end);
+                var lines = v.slice(from, to).split('\n');
+                var live = lines.filter(function (l) { return l.trim() !== ''; });
+                if (live.length === 0) return;
+
+                var allCommented = live.every(function (l) { return l.trim().indexOf(token) === 0; });
+                var strip = new RegExp('^(\\s*)' + escapeForRegExp(token) + ' ?');
+                var pad = live.reduce(function (min, l) {
+                    var n = indentOf(l).length;
+                    return n < min ? n : min;
+                }, Infinity);
+
+                var out = lines.map(function (line) {
+                    if (line.trim() === '') return line;
+                    return allCommented
+                        ? line.replace(strip, '$1')
+                        : line.slice(0, pad) + token + ' ' + line.slice(pad);
+                }).join('\n');
+
+                replaceRange(ta, from, to, out, from, from + out.length);
+            }
+
+            // ─────────────────── Alt+↑/↓ đẩy dòng, Shift+Alt nhân đôi ───────────────────
+            function moveLines(ta, dir, duplicate) {
+                var v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+                var from = lineStart(v, start), to = lineEnd(v, end);
+                var block = v.slice(from, to);
+
+                if (duplicate) {
+                    var at = dir < 0 ? from : to;
+                    var copy = dir < 0 ? block + '\n' : '\n' + block;
+                    var shift = dir < 0 ? 0 : block.length + 1;
+                    replaceRange(ta, at, at, copy, start + shift, end + shift);
+                    return;
+                }
+
+                if (dir < 0) {
+                    if (from === 0) return;
+                    var prevFrom = lineStart(v, from - 1);
+                    var prev = v.slice(prevFrom, from - 1);
+                    replaceRange(ta, prevFrom, to, block + '\n' + prev,
+                        start - (prev.length + 1), end - (prev.length + 1));
+                } else {
+                    if (to >= v.length) return;
+                    var nextTo = lineEnd(v, to + 1);
+                    var after = v.slice(to + 1, nextTo);
+                    replaceRange(ta, from, nextTo, after + '\n' + block,
+                        start + (after.length + 1), end + (after.length + 1));
+                }
+            }
+
+            // ─────────────────── Home thông minh ───────────────────
+            function smartHome(ta, extend) {
+                var v = ta.value, pos = ta.selectionStart;
+                var from = lineStart(v, pos);
+                var first = from + indentOf(v.slice(from, lineEnd(v, pos))).length;
+                var target = (pos === first) ? from : first;
+
+                if (extend) {
+                    ta.setSelectionRange(Math.min(target, ta.selectionEnd), Math.max(target, ta.selectionEnd));
+                } else {
+                    ta.setSelectionRange(target, target);
+                }
             }
 
             document.addEventListener('keydown', function (event) {
                 var ta = event.target;
-                if (!ta || ta.tagName !== 'TEXTAREA' || !ta.hasAttribute('data-code-source')) return;
+                if (!isEditor(ta)) return;
+                if (event.isComposing || event.keyCode === 229) return;   // bộ gõ tiếng Việt
 
-                if (event.key === 'Escape') { escaped = true; return; }
-                if (event.key !== 'Tab') { escaped = false; return; }
-                if (escaped) { escaped = false; return; }
-                if (event.ctrlKey || event.altKey || event.metaKey) return;
-                if (ta.disabled || ta.readOnly) return;
+                var key = event.key;
+                var ctrl = event.ctrlKey || event.metaKey;
 
-                event.preventDefault();
+                if (key === 'Escape') { escaped = true; return; }
 
-                var value = ta.value;
-                var start = ta.selectionStart;
-                var end = ta.selectionEnd;
-                var lineStart = value.lastIndexOf('\n', start - 1) + 1;
-                var multiline = value.slice(start, end).indexOf('\n') >= 0;
+                if (key === 'Tab') {
+                    if (escaped) { escaped = false; return; }   // để Tab nhảy ô
+                    if (ctrl || event.altKey) return;
+                    event.preventDefault();
 
-                // Bôi đen nhiều dòng, hoặc Shift+Tab: thụt/lùi CẢ KHỐI như mọi trình soạn mã.
-                if (event.shiftKey || multiline) {
-                    var blockEnd = value.indexOf('\n', end);
-                    if (blockEnd === -1) blockEnd = value.length;
+                    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+                    if (event.shiftKey || v.slice(s, e).indexOf('\n') >= 0) {
+                        indentBlock(ta, event.shiftKey);
+                    } else {
+                        replaceRange(ta, s, e, INDENT, s + INDENT.length);
+                    }
+                    return;
+                }
 
-                    var lines = value.slice(lineStart, blockEnd).split('\n');
-                    var firstDelta = 0;
-                    var total = 0;
+                escaped = false;
 
-                    var out = lines.map(function (line, i) {
-                        var changed;
-                        if (event.shiftKey) {
-                            var m = line.match(/^ {1,4}|^\t/);
-                            changed = m ? line.slice(m[0].length) : line;
-                        } else {
-                            // Dòng trống giữa khối thì để yên, khỏi sinh khoảng trắng thừa.
-                            changed = (line === '' && lines.length > 1) ? line : INDENT + line;
-                        }
-                        var d = changed.length - line.length;
-                        if (i === 0) firstDelta = d;
-                        total += d;
-                        return changed;
-                    }).join('\n');
+                if (key === 'Enter' && !ctrl && !event.altKey && !event.shiftKey) {
+                    event.preventDefault();
+                    smartEnter(ta, langOf(ta));
+                    return;
+                }
 
-                    replaceRange(ta, lineStart, blockEnd, out);
-                    ta.selectionStart = Math.max(lineStart, start + firstDelta);
-                    ta.selectionEnd = Math.max(ta.selectionStart, end + total);
-                } else {
-                    replaceRange(ta, start, end, INDENT);
-                    ta.selectionStart = ta.selectionEnd = start + INDENT.length;
+                if (key === 'Backspace' && !ctrl && !event.altKey && ta.selectionStart === ta.selectionEnd) {
+                    if (smartBackspace(ta)) event.preventDefault();
+                    return;
+                }
+
+                if (ctrl && (key === '/' || key === '?')) {
+                    event.preventDefault();
+                    toggleComment(ta, langOf(ta));
+                    return;
+                }
+
+                if (event.altKey && !ctrl && (key === 'ArrowUp' || key === 'ArrowDown')) {
+                    event.preventDefault();
+                    moveLines(ta, key === 'ArrowUp' ? -1 : 1, event.shiftKey);
+                    return;
+                }
+
+                if (key === 'Home' && !ctrl && !event.altKey) {
+                    event.preventDefault();
+                    smartHome(ta, event.shiftKey);
+                    return;
+                }
+
+                if (!ctrl && !event.altKey && key.length === 1
+                    && (OPEN[key] || CLOSERS.indexOf(key) >= 0)) {
+                    if (autoPair(ta, key)) event.preventDefault();
                 }
             });
         })();
