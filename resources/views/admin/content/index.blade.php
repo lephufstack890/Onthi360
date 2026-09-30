@@ -310,8 +310,15 @@
                     <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
                     <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
                     <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
+                        {{-- SỬA 30/9 (khách: "thêm nút sửa bên này nữa để người ta tiện sửa câu hỏi")
+                             — vào thẳng màn Sửa, khỏi phải bấm "Xem" rồi tìm nút Sửa trong trang chi
+                             tiết. Link do ContentService::indexData() dựng sẵn theo đúng loại nội dung
+                             của từng dòng (câu hỏi / đề / học liệu). --}}
+                        @if ($r['editHref'] ?? null)
+                            <a href="{{ $r['editHref'] }}" class="text-blue-600 font-medium">Sửa</a>
+                        @endif
                         {{-- SỬA 23/9 — kèm 'kind' để mở ĐÚNG loại nội dung, tránh trùng id giữa 3 bảng. --}}
-                        <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="text-blue-600 font-medium">Xem</a>
+                        <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="text-slate-500 font-medium hover:text-blue-600">Xem</a>
                         {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
                              này — xem ContentService::indexData()/assessmentPromoteToShared(). --}}
                         @if ($r['canPromoteToShared'] ?? false)

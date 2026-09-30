@@ -275,6 +275,9 @@ class ContentService
                     'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
                     // SỬA 23/9 — loại nội dung của dòng này, để link "Xem" trỏ đúng bảng.
                     'kind' => 'question',
+                    // SỬA 30/9 (khách: "thêm nút sửa bên này nữa cho tiện sửa câu hỏi") — trước
+                    // đây muốn sửa phải bấm "Xem" rồi tìm nút Sửa trong trang chi tiết.
+                    'editHref' => route('admin.content.questions.edit', $q->id),
                 ];
             })->all();
 
@@ -294,6 +297,8 @@ class ContentService
                     // admin/content/index.blade.php).
                     'canPromoteToShared' => $isTeacherOwned,
                     'kind' => 'assessment',
+                    // SỬA 30/9 — nút Sửa ngay trên bảng, cùng lý do với dòng câu hỏi ở trên.
+                    'editHref' => route('admin.content.assessments.edit', $a->id),
                 ];
             })->all();
         } elseif ($tab === 'drafts') {
@@ -312,7 +317,7 @@ class ContentService
                 // SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu mới có nút
                 // Xoá (khách xác nhận phạm vi CHỈ Học liệu, không áp dụng Câu hỏi/Đề/Tag) —
                 // xem materialDelete() bên dưới + nút bấm ở admin/content/index.blade.php.
-                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true, 'kind' => 'material'];
+                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true, 'kind' => 'material', 'editHref' => route('admin.content.materials.edit', $m->id)];
             })->all();
         }
 
