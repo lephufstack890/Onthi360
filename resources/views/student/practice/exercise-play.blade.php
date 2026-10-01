@@ -922,9 +922,9 @@
 
             var button = form.querySelector('button[type="submit"]');
             var errorEl = form.querySelector('[data-ajax-error]');
-            // SỬA 30/9 — ghi vào Nhật ký làm bài (tab thứ 5 của bản mẫu mới). Chỉ ghi ở trình
-            // duyệt, không đổi gì trong luồng chấm.
-            if (window.oiWorkLog) window.oiWorkLog.add('event', 'Nộp bài', 'Gửi bài làm lên máy chấm.');
+            // SỬA 1/10 (khách chốt danh sách việc cần ghi nhật ký) — ĐÃ BỎ dòng ghi "Nộp bài".
+            // Nộp bài không nằm trong 4 thứ khách muốn theo dõi, mà lịch sử nộp thì đã có sẵn
+            // trong cơ sở dữ liệu rồi.
             var originalButtonHtml = button ? button.innerHTML : '';
             if (errorEl) errorEl.classList.add('hidden');
             if (button) {
@@ -1237,70 +1237,102 @@
                 render();
             }
 
-            // Cho Alpine gọi khi đổi tab + cho script chấm bài gọi khi nộp.
+            /*
+             * SỬA 1/10 (khách: "chỉ muốn lưu nhật ký nếu chuyển tab giữa Hướng dẫn và Bài mẫu,
+             * chụp màn hình, bật tab mới, quay chụp ảnh màn hình — chỉ cần vậy thôi").
+             *
+             * ĐÃ BỎ HẲN: mở bài làm, nộp bài, trở lại bài làm, rời trang, sao chép, dán, và
+             * chuyển sang các tab Đề bài / Làm bài / Nhật ký. Mấy thứ đó đẻ ra hàng chục dòng
+             * mỗi phiên, lấp mất đúng những dấu hiệu khách cần nhìn.
+             *
+             * CÒN LẠI ĐÚNG 4 VIỆC:
+             *   1. mở tab Hướng dẫn hoặc Bài mẫu;
+             *   2. bấm phím chụp màn hình;
+             *   3. trang làm bài bị ẩn (mở tab/cửa sổ khác);
+             *   4. có yêu cầu quay/chụp màn hình từ trình duyệt.
+             */
             window.oiWorkLog = {
                 add: add,
                 tabChanged: function (tab) {
-                    var label = { pdf: 'Đề bài PDF', work: 'Làm bài', guide: 'Hướng dẫn', sample: 'Bài mẫu', activity: 'Nhật ký' }[tab] || tab;
-                    add('event', 'Chuyển tab', 'Mở tab "' + label + '".');
+                    // CHỈ hai tab này. Đề bài / Làm bài / Nhật ký là chỗ phải qua lại liên tục
+                    // trong lúc làm, ghi vào thì nhật ký thành một dải vô nghĩa.
+                    var label = { guide: 'Hướng dẫn', sample: 'Bài mẫu' }[tab];
+                    if (!label) return;
+                    add('event', 'Mở tab ' + label, 'Chuyển sang xem "' + label + '".');
                 },
             };
 
-            add('event', 'Mở bài làm', 'Bắt đầu hoặc tiếp tục phiên làm bài.');
+            // ── 3. Mở tab/cửa sổ khác ──────────────────────────────────────────────────
+            // Trình duyệt KHÔNG cho biết người ta mở trang nào, chỉ cho biết trang này bị ẩn.
+            // Nên câu chữ phải nói đúng chừng đó, không được đoán thêm.
+            //
+            // Lúc quay lại thì KHÔNG thêm dòng mới (khách không xin) mà ghi thẳng khoảng thời
+            // gian vắng mặt vào chính dòng cũ — vẫn biết đi bao lâu mà nhật ký không phình.
+            var away = null;
 
-            // ── Các tín hiệu (giống bản mẫu) ──
-            var inactive = null;
             function elapsed(startedAt) {
                 var s = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
                 return s < 60 ? s + ' giây' : Math.floor(s / 60) + ' phút ' + (s % 60) + ' giây';
             }
-            function markInactive(title, detail) {
-                if (inactive) return;
-                inactive = Date.now();
-                add('signal', title, detail);
-            }
-            function markActive() {
-                if (!inactive || document.hidden || !document.hasFocus()) return;
-                var started = inactive;
-                inactive = null;
-                add('event', 'Trở lại bài làm', 'Trang được chú ý trở lại sau ' + elapsed(started) + '.');
-            }
 
             document.addEventListener('visibilitychange', function () {
                 if (document.hidden) {
-                    markInactive('Trang mất hiển thị', 'Trang làm bài không còn hiển thị; không xác định được trang khác đã mở.');
-                } else {
-                    markActive();
+                    if (away) return;
+                    // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
+                    add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.');
+                    away = { at: Date.now(), entry: entries[0] };
+                    return;
                 }
-            });
-            window.addEventListener('blur', function () {
-                if (!document.hidden) markInactive('Cửa sổ mất tiêu điểm', 'Cửa sổ làm bài không còn được chọn; cần đối chiếu nguyên nhân.');
-            });
-            window.addEventListener('focus', markActive);
-            window.addEventListener('pagehide', function () {
-                add('signal', 'Rời trang làm bài', 'Trang làm bài được đóng hoặc chuyển đi nơi khác.');
+
+                if (!away) return;
+                var gone = elapsed(away.at);
+                if (away.entry) {
+                    away.entry.detail = 'Trang làm bài bị ẩn đi ' + gone + '.';
+                    persist();
+                    render();
+                }
+                away = null;
             });
 
-            function clipboardSignal(event) {
-                if (!shell || !event.target || !event.target.closest || !event.target.closest('.assessment-modal-shell')) return;
-                if (event.type === 'paste') {
-                    var len = (event.clipboardData && event.clipboardData.getData('text/plain') || '').length;
-                    add('signal', 'Dán nội dung', len + ' ký tự được dán; nội dung không được lưu lại.');
-                } else {
-                    var t = event.target;
-                    var n = (typeof t.selectionStart === 'number' && typeof t.selectionEnd === 'number')
-                        ? Math.abs(t.selectionEnd - t.selectionStart)
-                        : ((window.getSelection() || '').toString().length || 0);
-                    add('signal', 'Sao chép nội dung', n + ' ký tự được chọn để sao chép; nội dung không được lưu lại.');
-                }
-            }
-            document.addEventListener('paste', clipboardSignal, true);
-            document.addEventListener('copy', clipboardSignal, true);
+            // ── 2 + 4. Chụp màn hình / quay màn hình ───────────────────────────────────
             document.addEventListener('keydown', function (event) {
-                if (!event.repeat && (event.key === 'PrintScreen' || event.code === 'PrintScreen')) {
-                    add('signal', 'Phím chụp màn hình', 'Trang nhận được phím Print Screen; không xác nhận được ảnh đã chụp hay chưa.');
+                if (event.repeat) return;
+
+                if (event.key === 'PrintScreen' || event.code === 'PrintScreen') {
+                    add('signal', 'Bấm phím chụp màn hình', 'Trang nhận được phím Print Screen.');
+                    return;
+                }
+
+                /*
+                 * Tổ hợp chụp/quay màn hình của hệ điều hành:
+                 *   · macOS   Cmd+Shift+3 / 4 / 5  (5 là quay màn hình)
+                 *   · Windows Win+Shift+S          (Snipping Tool)
+                 *
+                 * LƯU Ý THẬT LÒNG: hệ điều hành thường nuốt mấy tổ hợp này trước khi tới trang,
+                 * nên bắt được là may chứ KHÔNG chắc chắn. Không bắt được cũng không có nghĩa
+                 * là người ta không chụp — câu chữ trong nhật ký nói đúng mức đó.
+                 */
+                if (event.shiftKey && (event.metaKey || event.ctrlKey)
+                    && ['3', '4', '5', 'S', 's'].indexOf(event.key) >= 0) {
+                    add('signal', 'Tổ hợp phím chụp/quay màn hình', 'Trang nhận được tổ hợp phím chụp hoặc quay màn hình.');
                 }
             }, true);
+
+            /*
+             * Quay/chụp màn hình bằng chính trình duyệt (chia sẻ màn hình): chỉ bắt được khi
+             * lời gọi xuất phát TỪ TRANG NÀY. Phần mềm quay màn hình cài ngoài thì không trang
+             * web nào biết được — đó là giới hạn của trình duyệt, không phải thiếu sót ở đây.
+             */
+            try {
+                var media = navigator.mediaDevices;
+                if (media && typeof media.getDisplayMedia === 'function') {
+                    var original = media.getDisplayMedia.bind(media);
+                    media.getDisplayMedia = function () {
+                        add('signal', 'Yêu cầu quay/chụp màn hình', 'Trang nhận được yêu cầu chia sẻ hoặc quay màn hình.');
+                        return original.apply(null, arguments);
+                    };
+                }
+            } catch (e) {}
 
             // ── Bộ lọc + tải nhật ký ──
             document.querySelectorAll('[data-activity-filter]').forEach(function (btn) {
