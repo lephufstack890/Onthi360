@@ -37,6 +37,10 @@
                 'type' => $filters['type'] ?? null,
                 'status' => $filters['status'] ?? null,
                 'difficulty' => $filters['difficulty'] ?? null,
+                // SỬA 1/10 — 2 bộ lọc mới PHẢI có ở đây, nếu không bấm chip Môn/dải tab Dạng câu
+                // là mất lọc Tỉnh thành/Năm đang bật (đúng lỗi đã ghi trong ghi chú ngay trên).
+                'province' => $filters['province'] ?? null,
+                'exam_year' => $filters['exam_year'] ?? null,
                 'tag' => $filters['tag'] ?? null,
                 'q' => $filters['q'] ?? null,
             ], $override);
@@ -147,6 +151,7 @@
                         <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
                     </x-ws.select>
                 </div>
+                @include('partials.question-province-year-filter')
                 {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
                      làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
                      các ô còn lại không làm mất tab đang đứng. --}}
@@ -276,7 +281,8 @@
     @else
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm 2 cột Môn/Khối (và mã câu hỏi dưới tên) để nhìn
              bảng là biết ngay câu nào chưa phân loại; các tab khác giữ nguyên bộ cột cũ. --}}
-        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
+        {{-- SỬA 1/10 — thêm 2 cột Tỉnh thành/Năm để nhìn bảng là kiểm chứng được ngay 2 ô lọc mới. --}}
+        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">
@@ -294,6 +300,8 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['grade'] }}</td>
+                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['province'] ?? '—' }}</td>
+                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['examYear'] ?? '—' }}</td>
                     @endif
                     <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
                     @if ($isQuestions)

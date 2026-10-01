@@ -60,6 +60,32 @@ class QuestionDifficulty
     /** Số sao hiển thị (thang 5) cho từng mức — SỬA 30/9: giờ đúng 1 mức 1 sao. */
     public const STARS = ['basic' => 1, 'easy' => 2, 'fair' => 3, 'hard' => 4, 'expert' => 5];
 
+    /**
+     * SỬA 1/10 (khách: "khi chọn cơ bản là 2 điểm, Dễ là 4 điểm, khá 6 điểm, khó 8 điểm, rất khó
+     * 10 điểm và khi chọn thì nó tự active vô field điểm luôn không cho nhập điểm") — ĐIỂM do
+     * ĐỘ KHÓ quyết định, người soạn không gõ tay nữa.
+     *
+     * Đây là nơi DUY NHẤT giữ bảng quy đổi: ô "Điểm" trên form chỉ hiện lại con số (readonly),
+     * còn giá trị thật LUÔN được tính lại ở server bằng pointsFor() — xem
+     * Admin\ContentService::questionStore()/questionUpdate()/questionCreateNewVersion() và
+     * Teacher\QuestionService::buildAttributes(). Cố ý không tin ô input: ô readonly vẫn sửa
+     * được bằng DevTools, mà điểm thì ảnh hưởng trực tiếp tới kết quả chấm.
+     *
+     * @var array<string, int>
+     */
+    public const POINTS = ['basic' => 2, 'easy' => 4, 'fair' => 6, 'hard' => 8, 'expert' => 10];
+
+    /**
+     * Điểm ứng với 1 mức độ khó; null khi chưa chọn độ khó (nơi gọi giữ nguyên điểm đang có).
+     * Nhận cả khoá đời cũ ("medium") qua normalize().
+     */
+    public static function pointsFor(mixed $key): ?int
+    {
+        $key = self::normalize($key);
+
+        return $key !== null ? self::POINTS[$key] : null;
+    }
+
     /** Số 1-5 kiểu cũ ứng với từng mức — dùng cả khi đọc dữ liệu cũ lẫn khi lọc. */
     public const LEGACY_NUMBERS = ['basic' => [1], 'easy' => [2], 'fair' => [3], 'hard' => [4], 'expert' => [5]];
 
@@ -139,6 +165,13 @@ class QuestionDifficulty
      * Suy độ khó theo ĐIỂM khi câu chưa được đặt — giữ NGUYÊN công thức đã chạy từ trước
      * (thang 5 bậc, mỗi bậc 20 điểm; câu 0 điểm coi như 10 điểm). Đổi công thức ở đây thì
      * PHẢI sửa POINT_RANGES ở trên cho khớp.
+     *
+     * SỬA 1/10 — ĐỪNG sửa hàm này theo thang điểm mới 2/4/6/8/10 của POINTS ở trên, dù trông
+     * như là chỗ cần sửa. Hàm này CHỈ dùng cho câu CHƯA đặt độ khó, tức là câu CŨ — mà câu cũ
+     * đang mang điểm theo thang cũ (mặc định 10, có câu 100). Theo thang mới thì 10 điểm = "Rất
+     * khó", nên đổi công thức là MỌI câu cũ chưa gán độ khó nhảy từ "Cơ bản" sang "Rất khó" chỉ
+     * sau một lần deploy. Câu MỚI thì luôn có độ khó chọn sẵn ở form nên không bao giờ đi qua
+     * đây. Hai thang điểm sống song song mà không đụng nhau chính là nhờ vậy.
      */
     public static function derive(int $points): string
     {

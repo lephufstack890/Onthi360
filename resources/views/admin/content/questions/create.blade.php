@@ -92,6 +92,12 @@
                     </div>
                 </div>
 
+                {{-- SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm nha") —
+                     2 ô phân loại mới, ghi vào cột questions.province/exam_year (KHÔNG phải
+                     metadata) để bộ lọc ở admin/giáo viên và 2 cột mới ngoài trang Luyện tập
+                     chạy nhanh. Xem partial + App\Support\ProvinceCatalog. --}}
+                @include('partials.question-province-year', ['province' => null, 'examYear' => null])
+
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên câu hỏi</label>
                     <input id="title" name="title" type="text" value="{{ old('title') }}" required maxlength="255"
@@ -219,10 +225,7 @@
 
             <div class="bg-white rounded-3xl border border-sky-100 p-5 h-fit space-y-4">
                 <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="target" class="h-4 w-4" /></span> Điểm & hiển thị</h3>
-                <div>
-                    <label class="block text-[13px] text-slate-600 mb-1" for="points">Điểm</label>
-                    <input id="points" name="points" type="number" min="0" value="{{ old('points', 10) }}" class="admin-input">
-                </div>
+                @include('partials.question-difficulty-points', ['selected' => null])
                 {{-- SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — SỐ CÀNG LỚN CÀNG HIỆN
                      TRƯỚC trong kho và ngoài trang Luyện tập; 0 = bình thường (xếp theo mới nhất
                      như trước). Xem migration add_display_order_to_questions_table. --}}
@@ -230,16 +233,6 @@
                     <label class="block text-[13px] text-slate-600 mb-1" for="display_order">Thứ tự ưu tiên hiển thị</label>
                     <input id="display_order" name="display_order" type="number" min="0" max="65535" value="{{ old('display_order', 0) }}" class="admin-input">
                     <p class="text-xs text-slate-400 mt-1">Số càng lớn càng hiện trước. Để 0 nếu không cần ưu tiên.</p>
-                </div>
-                <div>
-                    @php $currentDifficulty = ''; @endphp
-                    <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
-                    <x-ws.select id="difficulty" name="difficulty">
-                        <option value="">— Tự suy theo điểm —</option>
-                        @foreach (\App\Support\QuestionDifficulty::LEVELS as $dkey => $dlabel)
-                            <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
-                        @endforeach
-                    </x-ws.select>
                 </div>
                 <div>
                     <label class="block text-[13px] text-slate-600 mb-1" for="visibility">Hiển thị</label>

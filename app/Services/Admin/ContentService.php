@@ -33,6 +33,7 @@ use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
 use App\Support\QuestionDifficulty;
+use App\Support\ProvinceCatalog;
 use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
 use App\Support\UniqueCodeFromFilename;
@@ -266,6 +267,10 @@ class ContentService
                     'code' => $q->code,
                     'subject' => $q->subjectLabel(),
                     'grade' => $q->gradeLabel(),
+                    // SỬA 1/10 — hiện luôn Tỉnh thành/Năm trên bảng để nhìn là kiểm chứng được
+                    // ngay 2 ô lọc mới (giống lý do đã hiện Độ khó từ 18/9).
+                    'province' => $q->provinceLabel(),
+                    'examYear' => $q->examYearLabel(),
                     // SỬA 18/9 — hiện luôn Độ khó để nhìn bảng là kiểm chứng được ngay bộ lọc mới.
                     // 'difficultySet' = false: chưa ai đặt, đang SUY theo điểm (view hiện mờ đi).
                     'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
@@ -338,6 +343,9 @@ class ContentService
             'filters' => [
                 'subject' => $filters['subject'] ?? null,
                 'grade' => $filters['grade'] ?? null,
+                // SỬA 1/10 — 2 ô lọc mới, xem QuestionRepository::applyQuestionBankFilters().
+                'province' => $filters['province'] ?? null,
+                'exam_year' => $filters['exam_year'] ?? null,
                 'type' => $filters['type'] ?? null,
                 'status' => $filters['status'] ?? null,
                 // SỬA 18/9 — ô lọc Độ khó mới, xem QuestionRepository::applyDifficultyFilter().
@@ -348,6 +356,10 @@ class ContentService
             ],
             'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
             'gradeOptions' => $tab === 'questions' ? SubjectCatalog::GRADES : [],
+            // SỬA 1/10 — nguồn cho 2 ô lọc mới. provinceGroups chia <optgroup> (hiện hành / tên
+            // cũ trước sáp nhập 2025) để danh sách 63 mục không thành một khối rối mắt.
+            'provinceGroups' => $tab === 'questions' ? ProvinceCatalog::groups() : [],
+            'examYearOptions' => $tab === 'questions' ? ProvinceCatalog::years() : [],
             'questionTypeOptions' => $tab === 'questions' ? self::QUESTION_TYPE_LABELS : [],
             'statusOptions' => $tab === 'questions' ? self::CONTENT_STATUS_OPTIONS : [],
             'difficultyOptions' => $tab === 'questions' ? QuestionDifficulty::LEVELS : [],
@@ -1082,7 +1094,17 @@ class ContentService
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
             'body' => $data['body'] ?? null,
-            'points' => $data['points'] ?? 0,
+            // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
+            // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
+            // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
+            // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
+            // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).
+            // Bảng quy đổi ở QuestionDifficulty::POINTS. Rơi về $data['points'] chỉ khi KHÔNG
+            // chọn độ khó — giữ cho các luồng cũ (câu Composite, script) không bị về 0 điểm.
+            'points' => QuestionDifficulty::pointsFor($data['difficulty'] ?? null) ?? ($data['points'] ?? 0),
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
             // add_display_order_to_questions_table.
             'display_order' => (int) ($data['display_order'] ?? 0),
@@ -1145,7 +1167,17 @@ class ContentService
             // gửi ô body rỗng" (người dùng CỐ Ý xoá). Trước đây dòng này là `$data['body'] ?? null`
             // nên chỉ cần ẩn ô đi là mỗi lần bấm Lưu XOÁ SẠCH đề bài của câu hỏi.
             'body' => array_key_exists('body', $data) ? $data['body'] : $question->body,
-            'points' => $data['points'] ?? 0,
+            // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
+            // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
+            // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
+            // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
+            // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).
+            // Bảng quy đổi ở QuestionDifficulty::POINTS. Rơi về $data['points'] chỉ khi KHÔNG
+            // chọn độ khó — giữ cho các luồng cũ (câu Composite, script) không bị về 0 điểm.
+            'points' => QuestionDifficulty::pointsFor($data['difficulty'] ?? null) ?? ($data['points'] ?? 0),
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
             // add_display_order_to_questions_table.
             'display_order' => (int) ($data['display_order'] ?? 0),
@@ -1189,7 +1221,17 @@ class ContentService
             // SỬA 1/10 — cùng lý do ở questionUpdate(): ô body bị ẩn (không gửi lên) thì bản
             // version mới thừa hưởng đề bài của bản gốc, không bị xoá trắng.
             'body' => array_key_exists('body', $data) ? $data['body'] : $question->body,
-            'points' => $data['points'] ?? 0,
+            // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
+            // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
+            // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
+            // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
+            // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).
+            // Bảng quy đổi ở QuestionDifficulty::POINTS. Rơi về $data['points'] chỉ khi KHÔNG
+            // chọn độ khó — giữ cho các luồng cũ (câu Composite, script) không bị về 0 điểm.
+            'points' => QuestionDifficulty::pointsFor($data['difficulty'] ?? null) ?? ($data['points'] ?? 0),
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
             // add_display_order_to_questions_table.
             'display_order' => (int) ($data['display_order'] ?? 0),

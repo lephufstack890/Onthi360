@@ -14,6 +14,7 @@ use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\ProvinceCatalog;
 use App\Support\QuestionDifficulty;
 use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
@@ -99,6 +100,9 @@ class QuestionService
             'type' => $filters['type'] ?? null,
             'status' => $status,
             'difficulty' => $filters['difficulty'] ?? null,
+            // SỬA 1/10 — 2 chiều lọc mới, xem QuestionRepository::applyQuestionBankFilters().
+            'province' => $filters['province'] ?? null,
+            'exam_year' => $filters['exam_year'] ?? null,
             'q' => $filters['q'] ?? null,
         ];
 
@@ -114,6 +118,9 @@ class QuestionService
             'grade' => $filters['grade'] ?? null,
             'type' => $filters['type'] ?? null,
             'difficulty' => $filters['difficulty'] ?? null,
+            // SỬA 1/10 — 2 chiều lọc mới, xem QuestionRepository::applyQuestionBankFilters().
+            'province' => $filters['province'] ?? null,
+            'exam_year' => $filters['exam_year'] ?? null,
             'q' => $filters['q'] ?? null,
         ], fn ($v) => $v !== null && $v !== '');
 
@@ -141,6 +148,9 @@ class QuestionService
                 'type' => $filters['type'] ?? null,
                 'status' => $status,
                 'difficulty' => $filters['difficulty'] ?? null,
+                // SỬA 1/10 — 2 ô lọc mới trên thanh bộ lọc, xem teacher/questions/index.blade.php.
+                'province' => $filters['province'] ?? null,
+                'exam_year' => $filters['exam_year'] ?? null,
                 'q' => $filters['q'] ?? null,
             ],
             'isShared' => $isShared,
@@ -149,6 +159,10 @@ class QuestionService
             'questionTypeOptions' => collect(QuestionType::cases())->mapWithKeys(fn (QuestionType $t) => [$t->value => $t->label()])->all(),
             'statusOptions' => self::STATUS_FILTER_OPTIONS,
             'difficultyOptions' => QuestionDifficulty::LEVELS,
+            // SỬA 1/10 — nguồn cho 2 ô lọc mới. provinceGroups chia <optgroup> (hiện hành / tên
+            // cũ trước sáp nhập 2025) để danh sách 63 mục không thành một khối rối mắt.
+            'provinceGroups' => ProvinceCatalog::groups(),
+            'examYearOptions' => ProvinceCatalog::years(),
             'subjectCounts' => $this->questions->countsBySubject($scope),
         ];
     }
@@ -164,6 +178,9 @@ class QuestionService
             'code' => $q->code,
             'subject' => $q->subjectLabel(),
             'grade' => $q->gradeLabel(),
+            // SỬA 1/10 — hiện luôn Tỉnh thành/Năm để nhìn bảng là kiểm chứng được 2 ô lọc mới.
+            'province' => $q->provinceLabel(),
+            'examYear' => $q->examYearLabel(),
             'owner' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
             'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
             // false = chưa ai đặt, đang SUY theo điểm câu hỏi (view hiện mờ đi cho khỏi nhầm).
@@ -320,12 +337,20 @@ class QuestionService
             // phân loại". Chuẩn hoá qua SubjectCatalog, giá trị lạ -> null (giống Admin\ContentService).
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
+            // SỬA 1/10 — chuẩn hoá qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị
+            // sửa tay/link cũ) thành null = "Chưa gán", không lưu rác vào cột lọc.
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
             // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
             // đang ẩn ở form, nên PHẢI phân biệt "form không gửi ô body" (GIỮ NGUYÊN đề bài cũ)
             // với "form gửi ô body rỗng" (CỐ Ý xoá). Trước đây dòng này là `$data['body']` nên
             // ẩn ô đi là mỗi lần Lưu xoá sạch đề bài. Giống Admin\ContentService::questionUpdate().
             'body' => array_key_exists('body', $data) ? $data['body'] : $current?->body,
-            'points' => (int) $data['points'],
+            // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
+            // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input (ô
+            // readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm). Bảng quy
+            // đổi ở QuestionDifficulty::POINTS. Rơi về ô input chỉ khi KHÔNG chọn độ khó.
+            'points' => QuestionDifficulty::pointsFor($data['difficulty'] ?? null) ?? (int) ($data['points'] ?? 0),
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), giống bên Admin.
             'display_order' => (int) ($data['display_order'] ?? 0),
             // SỬA 18/9 (khách: "tạo câu hỏi chỗ giáo viên cũng không thấy Độ khó") — độ khó do

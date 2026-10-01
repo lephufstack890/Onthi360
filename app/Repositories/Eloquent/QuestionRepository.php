@@ -129,6 +129,27 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             $query->where('grade', (int) $grade);
         }
 
+        /*
+         * SỬA 1/10 (khách: "chỗ lọc danh sách trong admin cũng cho lọc theo tỉnh thành và năm
+         * luôn nha. Giáo viên cũng tương tự") — 2 chiều lọc mới, viết cùng khuôn subject/grade ở
+         * trên: 'none' = CHƯA GÁN (cột NULL), để admin dò ra mà gán dần; chuỗi rỗng = không lọc.
+         * Đặt ở đây (applyQuestionBankFilters) nên admin và giáo viên dùng CHUNG một luật, không
+         * có bản thứ hai để lệch nhau — lý do y như ghi chú 18/9 ngay phía trên.
+         */
+        $province = $filters['province'] ?? null;
+        if ($province === 'none') {
+            $query->whereNull('province');
+        } elseif (is_string($province) && $province !== '') {
+            $query->where('province', $province);
+        }
+
+        $examYear = $filters['exam_year'] ?? null;
+        if ($examYear === 'none') {
+            $query->whereNull('exam_year');
+        } elseif ($examYear !== null && $examYear !== '') {
+            $query->where('exam_year', (int) $examYear);
+        }
+
         if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }

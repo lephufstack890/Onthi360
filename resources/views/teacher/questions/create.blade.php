@@ -137,6 +137,12 @@
                     </div>
                 </div>
 
+                {{-- SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm nha…
+                     Giáo viên cũng tương tự nhé") — 2 ô phân loại mới, ghi vào cột
+                     questions.province/exam_year (KHÔNG phải metadata) để bộ lọc và 2 cột mới
+                     ngoài trang Luyện tập chạy nhanh. Xem App\Support\ProvinceCatalog. --}}
+                @include('partials.question-province-year', ['province' => $question->province ?? null, 'examYear' => $question->exam_year ?? null])
+
                 {{-- SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn nha") — ẩn TẠM ô
                      "Nội dung đề bài" đúng như Kho chung bên admin; đề bài nhập bằng tệp PDF ở
                      mục "Tệp đính kèm" bên dưới. ĐÃ SỬA KÈM 2 chỗ, thiếu 1 trong 2 là hỏng:
@@ -263,9 +269,16 @@
 
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h3 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="target" class="h-4 w-4" /></span> Điểm & trạng thái</h3>
+                {{-- SỬA 1/10 — Độ khó LÊN TRƯỚC, Điểm nằm DƯỚI và readonly (điểm do độ khó
+                     quyết định). $selected lấy resolve() chứ không phải stored(): câu CŨ chưa đặt
+                     độ khó thì điền sẵn ĐÚNG mức đang hiển thị khắp hệ thống (suy theo điểm), để
+                     mở form Sửa rồi bấm Lưu không làm câu đó nhảy sang mức đầu danh sách. --}}
                 <div class="mb-4">
-                    <label class="block text-[13px] text-slate-600 mb-1" for="points">Điểm</label>
-                    <input id="points" name="points" type="number" value="{{ old('points', $question->points ?? 10) }}" min="1" max="100" class="admin-input">
+                    @include('partials.question-difficulty-points', [
+                        'selected' => $question
+                            ? \App\Support\QuestionDifficulty::resolve($question->metadata, (int) $question->points)
+                            : null,
+                    ])
                 </div>
 
                 {{-- SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — số càng lớn càng hiện
@@ -277,25 +290,6 @@
                     <p class="text-xs text-slate-400 mt-1">Số càng lớn càng hiện trước. Để 0 nếu không cần ưu tiên.</p>
                 </div>
 
-                <div class="mb-4">
-                    {{-- SỬA 18/9 (khách: "tạo câu hỏi ở admin và giáo viên không thấy Độ khó,
-                         thêm cho tôi phần này") — lưu vào metadata.difficulty dạng KHOÁ, đúng
-                         bằng 4 mức của bộ lọc ngoài trang Luyện tập công khai, nên đặt xong là
-                         lọc được ngay. Để trống = chưa đặt, hệ thống tự suy từ điểm câu hỏi
-                         (xem Public\PracticeService). --}}
-                    @php
-                        // Giá trị đang lưu của câu (nếu là màn Sửa) — metadata giữ nguyên các
-                        // khoá khác (assets/attachments của gói ZIP), chỉ đọc ra 'difficulty'.
-                        $currentDifficulty = \App\Support\QuestionDifficulty::stored($question->metadata ?? null) ?? '';
-                    @endphp
-                    <label class="block text-[13px] text-slate-600 mb-1" for="difficulty">Độ khó</label>
-                    <x-ws.select id="difficulty" name="difficulty">
-                        <option value="">— Tự suy theo điểm —</option>
-                        @foreach (\App\Support\QuestionDifficulty::LEVELS as $dkey => $dlabel)
-                            <option value="{{ $dkey }}" @selected(old('difficulty', $currentDifficulty ?? '') === $dkey)>{{ $dlabel }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </div>
 
                 @if ($question && $question->status->value === 'published')
                     <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-700 mb-4">✓ Đã phát hành.</div>

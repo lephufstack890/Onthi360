@@ -114,6 +114,7 @@
                     <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
                 </x-ws.select>
             </div>
+            @include('partials.question-province-year-filter')
             <div class="min-w-[150px]">
                 <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-type">Dạng câu</label>
                 <x-ws.select id="filter-type" name="type">
@@ -166,7 +167,8 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu trữ câu hỏi.'])
     @endif
 
-    <x-ws.table :columns="['Tên câu hỏi', 'Môn', 'Khối', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', '']">
+    {{-- SỬA 1/10 — thêm 2 cột Tỉnh thành/Năm để nhìn bảng là kiểm chứng được ngay 2 ô lọc mới. --}}
+    <x-ws.table :columns="['Tên câu hỏi', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', '']">
         @forelse ($questions as $q)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-700">
@@ -183,6 +185,8 @@
                     @endif
                 </td>
                 <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $q['grade'] }}</td>
+                <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $q['province'] ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $q['examYear'] ?? '—' }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $q['type'] }}</td>
                 {{-- Chưa đặt thì hiện mờ + chú thích: giá trị đang được SUY theo điểm câu hỏi,
                      chưa phải do người soạn chọn. --}}

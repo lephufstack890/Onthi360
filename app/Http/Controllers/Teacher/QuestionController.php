@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\ProvinceCatalog;
 use App\Support\QuestionDifficulty;
 
 class QuestionController extends Controller
@@ -31,6 +32,11 @@ class QuestionController extends Controller
             'type' => $request->query('type') ?: null,
             'status' => $request->query('status') ?: null,
             'difficulty' => $request->query('difficulty') ?: null,
+            // SỬA 1/10 (khách: "chỗ lọc danh sách trong admin cũng cho lọc theo tỉnh thành và
+            // năm luôn nha. Giáo viên cũng tương tự") — xem
+            // QuestionRepository::applyQuestionBankFilters(); 'none' = chưa gán.
+            'province' => $request->query('province') ?: null,
+            'exam_year' => $request->query('exam_year') ?: null,
             'q' => $request->query('q') ?: null,
         ];
 
@@ -176,12 +182,23 @@ class QuestionController extends Controller
             // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
+            // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm… Giáo viên cũng
+            // tương tự nhé") — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề.
+            // KHÔNG dùng 'in:...' danh sách mã: QuestionService chuẩn hoá lại qua
+            // ProvinceCatalog::normalize()/normalizeYear(), mã lạ thành null = "Chưa gán" thay vì
+            // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
+            'province' => ['nullable', 'string', 'max:20'],
+            'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
             // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
             // đang ẩn ở form (đề bài nhập bằng tệp PDF), nên KHÔNG còn 'required': để 'required'
             // thì mọi lần Lưu đều bị chặn "Nội dung đề bài là bắt buộc". Teacher\QuestionService
             // ::buildAttributes() chỉ ghi 'body' khi form CÓ gửi ô đó, nên đề bài cũ không mất.
             'body' => ['nullable', 'string'],
-            'points' => ['required', 'integer', 'min:1', 'max:100'],
+            // SỬA 1/10 — ô Điểm giờ là readonly, giá trị thật được TÍNH LẠI ở
+            // QuestionService::buildAttributes() theo Độ khó (QuestionDifficulty::POINTS), nên
+            // luật ở đây chỉ còn để chặn rác. Bỏ 'required': ô readonly vẫn gửi lên bình thường,
+            // nhưng không đáng để cả form bị chặn nếu trình duyệt/tiện ích nào đó bỏ qua nó.
+            'points' => ['nullable', 'integer', 'min:0', 'max:100'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
             'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'action' => ['required', 'in:draft,publish'],

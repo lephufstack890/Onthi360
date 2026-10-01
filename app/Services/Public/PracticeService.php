@@ -187,6 +187,12 @@ class PracticeService
                 'subject' => $q->subject,
                 'subjectLabel' => $q->subjectLabel(),
                 'grade' => $q->grade,
+                // SỬA 1/10 (khách: "ngoài trang luyện tập public thêm 2 cột tỉnh thành và năm
+                // luôn nha đổ dữ liệu ra luôn nha") — đọc từ CỘT questions.province/exam_year
+                // (xem migration add_province_exam_year_to_questions_table), không phải metadata.
+                // Chưa gán -> provinceLabel()/examYearLabel() trả "—", cột vẫn có chỗ, không rỗng trơn.
+                'provinceLabel' => $q->provinceLabel(),
+                'examYearLabel' => $q->examYearLabel(),
             ];
         })->values()->all();
     }

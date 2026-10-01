@@ -30,6 +30,10 @@ class Question extends Model
         // SỬA 8/9 (3) ("phân loại câu hỏi theo môn") — MÃ môn (App\Support\SubjectCatalog::SUBJECTS,
         // vd "TOAN") + khối lớp 6-12. Xem migration add_subject_grade_to_questions_table.
         'subject', 'grade',
+        // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — MÃ tỉnh thành
+        // (App\Support\ProvinceCatalog, vd "HANOI") + năm của đề. Xem migration
+        // add_province_exam_year_to_questions_table.
+        'province', 'exam_year',
         'owner_type', 'owner_id', 'visibility', 'status', 'version', 'parent_version_id', 'created_by',
         // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — product_id khác null nghĩa là câu hỏi
         // này là bài tập riêng của 1 sản phẩm, không thuộc Kho câu hỏi dùng chung. Mọi nơi lấy
@@ -67,6 +71,18 @@ class Question extends Model
     public function gradeLabel(): string
     {
         return $this->grade !== null ? 'Lớp '.$this->grade : '—';
+    }
+
+    /** SỬA 1/10 — nhãn tỉnh thành ("HANOI" -> "Hà Nội"); chưa gán hoặc mã lạ -> "—". */
+    public function provinceLabel(): string
+    {
+        return \App\Support\ProvinceCatalog::label($this->province) ?? '—';
+    }
+
+    /** SỬA 1/10 — nhãn năm của đề; chưa gán -> "—". */
+    public function examYearLabel(): string
+    {
+        return $this->exam_year !== null ? (string) $this->exam_year : '—';
     }
 
     /** SỬA 31/8 — sản phẩm sở hữu câu hỏi này (khi đây là "bài tập đính kèm sản phẩm"). */

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\ProvinceCatalog;
 use App\Support\QuestionDifficulty;
 
 class ContentController extends Controller
@@ -39,6 +40,11 @@ class ContentController extends Controller
         $filters = [
             'subject' => $request->query('subject') ?: null,
             'grade' => $request->query('grade') ?: null,
+            // SỬA 1/10 (khách: "chỗ lọc danh sách trong admin cũng cho lọc theo tỉnh thành và
+            // năm luôn nha") — xem QuestionRepository::applyQuestionBankFilters(); 'none' =
+            // chưa gán.
+            'province' => $request->query('province') ?: null,
+            'exam_year' => $request->query('exam_year') ?: null,
             'type' => $request->query('type') ?: null,
             'status' => $request->query('status') ?: null,
             // SỬA 18/9 (khách: "admin thêm lọc theo độ khó nữa nha") — xem
@@ -284,6 +290,12 @@ class ContentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
+            // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
+            // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua
+            // ProvinceCatalog::normalize()/normalizeYear(), mã lạ thành null = "Chưa gán" thay vì
+            // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
+            'province' => ['nullable', 'string', 'max:20'],
+            'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
@@ -310,6 +322,12 @@ class ContentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
+            // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
+            // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua
+            // ProvinceCatalog::normalize()/normalizeYear(), mã lạ thành null = "Chưa gán" thay vì
+            // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
+            'province' => ['nullable', 'string', 'max:20'],
+            'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
@@ -329,6 +347,12 @@ class ContentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
+            // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
+            // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua
+            // ProvinceCatalog::normalize()/normalizeYear(), mã lạ thành null = "Chưa gán" thay vì
+            // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
+            'province' => ['nullable', 'string', 'max:20'],
+            'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.

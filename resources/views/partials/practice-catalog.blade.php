@@ -13,6 +13,26 @@
 @php
     $showCatalogHero = $showCatalogHero ?? true;
 @endphp
+
+{{-- SỬA 1/10 (khách: "ngoài trang luyện tập public thêm 2 cột tỉnh thành và năm luôn nha") —
+     Bảng bài tập trước đây là lưới 5 cột, giờ 7 cột. VÌ SAO viết CSS thường chứ không đổi class
+     Tailwind tuỳ ý (lg:grid-cols-[...]): máy chủ KHÔNG chạy được vite, mọi class phải có sẵn
+     trong public/build/assets/app-*.css đã build — class tuỳ ý với bộ số MỚI không có trong đó
+     nên sẽ không ra style nào, bảng vỡ thành 1 cột. Dùng đúng mốc 1024px để khớp breakpoint lg.
+
+     Hai cột mới hẹp (Tỉnh thành 120px, Năm 64px) và các cột cũ co lại một chút, để cột Tên bài
+     vẫn còn ~290px ở màn 1024px thay vì bị bóp mất. --}}
+<style>
+    @media (min-width: 1024px) {
+        .oi-prob-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 148px 120px 64px 100px 132px 140px;
+            align-items: center;
+            gap: .625rem;
+        }
+    }
+</style>
+
 @php
     $items = $items ?? [];
     $problems = $problems ?? [];
@@ -284,9 +304,11 @@
         @endauth
 
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
-            <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid lg:grid-cols-[minmax(0,1fr)_150px_100px_136px_144px]">
+            <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid">
                 <span>Tên bài tập &amp; Mã</span>
                 <span>Chuyên đề</span>
+                <span>Tỉnh thành</span>
+                <span>Năm</span>
                 <span>Độ khó</span>
                 <span>Tỷ lệ AC</span>
                 <span class="text-right">Hành động</span>
@@ -319,7 +341,7 @@
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
                      :class="visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]'"
-                     class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 lg:grid-cols-[minmax(0,1fr)_150px_100px_136px_144px] lg:items-center lg:gap-2.5">
+                     class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid lg:items-center lg:gap-2.5">
 
                     {{-- Tên bài --}}
                     <div class="min-w-0">
@@ -359,6 +381,19 @@
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
                             <span class="block truncate rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A] lg:inline-block" title="{{ $prob['topicLabel'] }}">{{ $prob['topicLabel'] }}</span>
+                        </div>
+
+                        {{-- SỬA 1/10 — 2 ô mới. Trên mobile là ô có nhãn như các ô khác, lên lg
+                             thì hoà vào đúng 2 cột của bảng nhờ lg:contents ở thẻ cha. Câu chưa
+                             gán hiện "—" (Question::provinceLabel()/examYearLabel()). --}}
+                        <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tỉnh thành</span>
+                            <span class="block truncate text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['provinceLabel'] ?? '—' }}">{{ $prob['provinceLabel'] ?? '—' }}</span>
+                        </div>
+
+                        <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Năm</span>
+                            <span class="block text-[12px] font-semibold text-[#365B7A]">{{ $prob['examYearLabel'] ?? '—' }}</span>
                         </div>
 
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
