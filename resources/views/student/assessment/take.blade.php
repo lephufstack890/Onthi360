@@ -478,6 +478,7 @@
         }
     </style>
 
+    @include('partials.assessment-dark-tune')
     @include('partials.assessment-chip-style')
     @include('partials.exam-workspace-script')
 @endpush

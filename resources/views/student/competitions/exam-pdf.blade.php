@@ -462,5 +462,6 @@
         .no-scrollbar { scrollbar-width: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
+    @include('partials.assessment-dark-tune')
     @include('partials.exam-pdf-workspace-script')
 @endpush

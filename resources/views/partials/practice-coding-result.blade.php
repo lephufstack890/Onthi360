@@ -124,11 +124,20 @@
                             <strong class="{{ $tc['isAccepted'] ? 'text-emerald-700' : 'text-rose-700' }}">{{ $tc['isAccepted'] ? 'Đúng' : 'Sai' }}</strong>
 
                             @unless ($tc['isAccepted'])
-                                <button type="button"
-                                        data-download-failed-tests
-                                        data-question-id="{{ $question->id }}"
-                                        data-tests="{{ json_encode([$tc], JSON_UNESCAPED_UNICODE) }}"
-                                        class="inline-flex min-h-7 items-center px-1.5 font-semibold text-[#126F91] underline underline-offset-2 hover:text-[#0F607E]">Tải test</button>
+                                {{-- SỬA 1/10 (khách: "bỏ Tải test đi, thêm Tải input và Tải output;
+                                     bấm Tải input thì tải .in, bấm Tải output thì tải .out") — tách
+                                     thành HAI nút, mỗi nút đúng một tệp. Trước đây một nút bắn ra
+                                     cả hai tệp một lúc, trình duyệt hỏi "cho phép tải nhiều tệp?"
+                                     và học sinh không chủ động được muốn lấy tệp nào. --}}
+                                @foreach ([['in', 'Tải input'], ['out', 'Tải output']] as [$part, $partLabel])
+                                    <button type="button"
+                                            data-download-failed-tests
+                                            data-part="{{ $part }}"
+                                            data-question-id="{{ $question->id }}"
+                                            data-tests="{{ json_encode([$tc], JSON_UNESCAPED_UNICODE) }}"
+                                            title="Tải tệp {{ $part === 'in' ? 'dữ liệu vào' : 'kết quả mong đợi' }} của test {{ $tc['index'] }} (.{{ $part }})"
+                                            class="inline-flex min-h-7 items-center px-1.5 font-semibold text-[#126F91] underline underline-offset-2 hover:text-[#0F607E]">{{ $partLabel }}</button>
+                                @endforeach
                             @endunless
                         </div>
 

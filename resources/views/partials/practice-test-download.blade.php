@@ -6,7 +6,9 @@
      quả mong đợi" ra một tệp nữa.
 
      Giờ đúng quy ước của dân lập trình thi đấu:
-       · 1 test  -> hai tệp test07.in và test07.out, chạy thẳng được:
+       · nút "Tải input" / "Tải output" ở từng dòng test (data-part="in"/"out") -> đúng
+                    MỘT tệp, tên test07.in hoặc test07.out;
+       · 1 test, không kèm data-part -> hai tệp test07.in và test07.out, chạy thẳng được:
                     ./a.out < test07.in > ket-qua.txt  rồi so với test07.out
        · nhiều test -> một tệp .zip gọn gồm đủ các cặp .in/.out
                     (KHÔNG bắn ra hàng chục tệp rời — trình duyệt sẽ hỏi cho phép tải nhiều
@@ -116,6 +118,16 @@
             if (!tests.length) return;
 
             var qid = btn.getAttribute('data-question-id') || 'x';
+            var part = btn.getAttribute('data-part');   // 'in' | 'out' | null
+
+            // SỬA 1/10 — nút "Tải input" / "Tải output" ở từng dòng test: mỗi nút đúng MỘT tệp.
+            if (part === 'in' || part === 'out') {
+                var one = tests[0];
+                var name = 'test' + pad2(Number(one.index) || 1) + '.' + part;
+                var body = part === 'in' ? one.input : one.expectedOutput;
+                saveBlob(new Blob([endLine(body)], { type: 'text/plain;charset=utf-8' }), name);
+                return;
+            }
 
             if (tests.length === 1) {
                 var t = tests[0];

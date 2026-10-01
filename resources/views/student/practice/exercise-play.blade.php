@@ -1071,6 +1071,7 @@
     @include('partials.pdf-fit-viewer')
 
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
+    @include('partials.assessment-dark-tune')
     @include('partials.assessment-chip-style')
     @include('partials.code-editor-runtime')
 

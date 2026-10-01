@@ -531,5 +531,6 @@
 @endsection
 
 @push('scripts')
+    @include('partials.assessment-dark-tune')
     @include('partials.exam-workspace-script')
 @endpush
