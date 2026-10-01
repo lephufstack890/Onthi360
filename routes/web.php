@@ -272,6 +272,13 @@ Route::middleware(['auth'])->group(function () {
             // riêng" ở by-question-play.blade.php nhưng CHƯA thực ra route/hàm nào) — xem
             // Student\PracticeByQuestionController::statement().
             Route::get('/statement/{question}', [StudentPracticeByQuestionController::class, 'statement'])->name('statement');
+            // SỬA 1/10 (khách: "tab Hướng dẫn thì lấy đổ dữ liệu field lời giải ra, tab bài mẫu
+            // thì lấy ở field code mẫu ra") — 2 tệp này TRƯỚC ĐÂY BỊ CHẶN với học sinh (chúng là
+            // đáp án); khách chốt mở ở màn luyện tập. Phòng thi/chấm đề vẫn chặn như cũ. Quyền
+            // kiểm y hệt route statement ngay trên, xem
+            // Student\PracticeByQuestionController::solution()/sampleCode().
+            Route::get('/solution/{question}', [StudentPracticeByQuestionController::class, 'solution'])->name('solution');
+            Route::get('/sample-code/{question}', [StudentPracticeByQuestionController::class, 'sampleCode'])->name('sampleCode');
         });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])

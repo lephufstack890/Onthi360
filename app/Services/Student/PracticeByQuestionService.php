@@ -8,6 +8,8 @@ use App\Enums\VerdictStatus;
 use App\Models\Attempt;
 use App\Models\AttemptAnswer;
 use App\Models\Question;
+use App\Models\Role;
+use App\Models\User;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\CodeJudgingService;
@@ -18,6 +20,7 @@ use App\Support\QuestionOrder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class PracticeByQuestionService
@@ -238,6 +241,11 @@ class PracticeByQuestionService
             'compositeParts' => $question->type->value === 'composite'
                 ? $this->sanitizedCompositeParts($question->grading_config['parts'] ?? [])
                 : [],
+            // SỬA 1/10 (khách: "tab Hướng dẫn thì lấy đổ dữ liệu field lời giải ra có sẵn trong
+            // database rồi, tab bài mẫu thì lấy ở field code mẫu ra") — 2 tab trước đây là chữ
+            // mô tả gõ cứng, giờ đổ từ metadata.attachments.solution / .reference.
+            'guideDoc' => $this->guideAttachment($question, 'solution'),
+            'sampleDoc' => $this->guideAttachment($question, 'reference'),
             'assets' => collect($question->metadata['assets'] ?? [])->map(fn ($a) => [
                 'id' => $a['id'] ?? null,
                 'kind' => $a['kind'] ?? 'file',
@@ -313,6 +321,95 @@ class PracticeByQuestionService
         $text = number_format($value, 2, '.', '');
 
         return str_contains($text, '.') ? rtrim(rtrim($text, '0'), '.') : $text;
+    }
+
+    /** Tệp lời giải/code mẫu lớn hơn mức này thì không in nội dung ra trang (chỉ cho tải về). */
+    private const GUIDE_TEXT_MAX_BYTES = 262144;
+
+    /**
+     * SỬA 1/10 (khách: "trang luyện tập public tab Hướng dẫn thì lấy đổ dữ liệu field lời giải
+     * ra có sẵn trong database rồi, tab bài mẫu thì lấy ở field code mẫu ra") — dữ liệu cho 2 tab
+     * đó ở màn làm bài, đọc từ metadata.attachments ('solution' = lời giải, 'reference' = code
+     * mẫu; đúng 2 tệp mà form câu hỏi và gói ZIP OT360-QPACK đang lưu).
+     *
+     * Trả null khi câu không có tệp đó -> view hiện khối "chưa có" như trước, không vỡ layout.
+     *
+     * @return array{url:string, filename:string, isPdf:bool, text:?string}|null
+     */
+    private function guideAttachment(Question $question, string $kind): ?array
+    {
+        if (! $this->canSeeGuideDocs($question, Auth::user())) {
+            return null;
+        }
+
+        $info = $question->attachmentInfo($kind);
+
+        if ($info === null) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($info['filename'], PATHINFO_EXTENSION));
+        $isPdf = $extension === 'pdf';
+
+        return [
+            // CỐ Ý luôn dùng route riêng của màn luyện tập, KHÔNG dùng
+            // access.resource.exerciseAttachment: route đó trả download() (ép tải xuống) nên
+            // không nhúng được vào trình xem PDF, và nó chặn học sinh với 2 kind này.
+            'url' => route(
+                $kind === 'solution' ? 'student.practiceByQuestion.solution' : 'student.practiceByQuestion.sampleCode',
+                $question->id,
+            ),
+            'filename' => $info['filename'],
+            'isPdf' => $isPdf,
+            // Tệp code mẫu là mã nguồn -> in thẳng nội dung ra trang cho dễ đọc. PDF thì không
+            // đọc chữ ở đây (đã có trình xem PDF ở view).
+            'text' => $isPdf ? null : $this->attachmentText($info['path']),
+        ];
+    }
+
+    /**
+     * SỬA 1/10 — LUẬT DUY NHẤT quyết định học sinh có được xem lời giải/code mẫu hay không
+     * (view và route cùng gọi hàm này, để không có đường nào lệch luật đường kia).
+     *
+     * Khách chốt MỞ 2 tệp này ở màn luyện tập (trước hôm nay bị chặn tuyệt đối với học sinh).
+     * NHƯNG giữ nguyên luật cũ cho "bài tập đính kèm sản phẩm" (product_id khác null):
+     * AccessService::downloadExerciseAttachment() vẫn trả 403 cho học sinh với 'solution'/
+     * 'reference' — đó là nội dung trả phí của sản phẩm, mở ra là chuyện khác hẳn với kho luyện
+     * tập công khai, nên không tự ý đổi kèm. Giáo viên/Admin vẫn xem được mọi trường hợp.
+     */
+    public function canSeeGuideDocs(Question $question, ?User $user): bool
+    {
+        if ($question->product_id === null) {
+            return true;
+        }
+
+        return $user !== null && $user->hasAnyRole(Role::TEACHER, Role::ADMIN, Role::SUPER_ADMIN);
+    }
+
+    /**
+     * Nội dung chữ của 1 tệp đính kèm, hoặc null nếu không nên in ra trang: không có tệp, quá
+     * lớn, hoặc là tệp nhị phân (không phải UTF-8 / có byte 0). Bọc try/catch vì đây chỉ là
+     * phần hiển thị thêm — tệp lỗi thì tab hiện link tải về, KHÔNG được làm sập màn làm bài.
+     */
+    private function attachmentText(string $path): ?string
+    {
+        try {
+            $disk = Storage::disk('local');
+
+            if (! $disk->exists($path) || $disk->size($path) > self::GUIDE_TEXT_MAX_BYTES) {
+                return null;
+            }
+
+            $raw = $disk->get($path);
+        } catch (Throwable $e) {
+            return null;
+        }
+
+        if ($raw === null || trim($raw) === '' || str_contains($raw, "\0") || ! mb_check_encoding($raw, 'UTF-8')) {
+            return null;
+        }
+
+        return $raw;
     }
 
     /**

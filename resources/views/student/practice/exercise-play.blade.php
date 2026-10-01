@@ -33,6 +33,13 @@
         $options = $options ?? [];
         $compositeParts = $compositeParts ?? [];
         $assets = $assets ?? [];
+        // SỬA 1/10 (khách: "tab Hướng dẫn thì lấy đổ dữ liệu field lời giải ra có sẵn trong
+        // database rồi, tab bài mẫu thì lấy ở field code mẫu ra") — 2 khoá do
+        // PracticeByQuestionService::playData() cấp (null khi câu không có tệp, hoặc khi là bài
+        // tập trả phí của sản phẩm — xem canSeeGuideDocs()). Màn "đã hoàn tất" không có 2 khoá
+        // này nên phải ?? null, nếu không là lỗi biến chưa định nghĩa.
+        $guideDoc = $guideDoc ?? null;
+        $sampleDoc = $sampleDoc ?? null;
         $backUrl = $returnUrl ?? route('student.library.index');
         // SỬA 18/9 — nhãn nút quay lại đi theo NƠI MỞ phiên luyện (xem
         // PracticeByQuestionService::startForQuestion). Không truyền thì giữ nguyên nhãn cũ.
@@ -594,39 +601,98 @@
                     </div>
                 </section>
 
-                {{-- ───────── TAB: HƯỚNG DẪN ───────── --}}
+                {{-- ───────── TAB: HƯỚNG DẪN ─────────
+                     SỬA 1/10 (khách: "tab Hướng dẫn thì lấy đổ dữ liệu field lời giải ra có sẵn
+                     trong database rồi") — trước đây tab này in 5 dòng hướng dẫn bấm nút gõ cứng,
+                     không liên quan gì tới bài đang làm. Giờ đổ tệp LỜI GIẢI của chính câu đó
+                     (metadata.attachments.solution — đúng ô "Lời giải (PDF)" ở form câu hỏi và
+                     solution.pdf trong gói ZIP).
+
+                     PDF thì nhúng trình xem y như tab "Đề bài PDF" (cùng data-pdf-fit, cùng khổ
+                     820px). Tệp không phải PDF mà đọc được chữ thì in thẳng chữ ra. Còn lại cho
+                     link tải về. Chưa có tệp thì vẫn giữ 5 dòng hướng dẫn cũ để tab không trống.
+
+                     MUỐN CHỈ CHO XEM SAU KHI NỘP: bọc nhánh @if ($guideDoc) bên dưới thêm điều
+                     kiện của riêng mình (biến $lastResult đã có sẵn ở view này), và sửa kèm
+                     PracticeByQuestionService::canSeeGuideDocs() cho route khớp luật — 2 chỗ đó
+                     cố ý dùng CHUNG một hàm để không lệch nhau. --}}
                 <section x-show="tab === 'guide'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
                     <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                    @if ($guideDoc && $guideDoc['isPdf'])
+                        <div data-pdf-fit data-pdf-url="{{ $guideDoc['url'] }}" data-pdf-max-width="820" class="oi-doc-col"></div>
+                    @else
                     <article class="assessment-a4-page oi-doc-col oi-doc-page rounded-lg bg-white shadow-xl">
                         <div class="flex items-start justify-between gap-3 border-b-2 border-[#126F91] pb-3">
-                            <h3 class="text-sm font-extrabold text-[#123B68]">Hướng dẫn làm bài</h3>
+                            <h3 class="text-sm font-extrabold text-[#123B68]">{{ $guideDoc ? 'Lời giải' : 'Hướng dẫn làm bài' }}</h3>
                             <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">Hướng dẫn</span>
                         </div>
-                        <ul class="mt-4 space-y-2 text-[13px] leading-7 text-[#45657D]">
-                            <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
-                            <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
-                            <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
-                            <li>· Kết quả chấm hiện ở <span class="font-bold">cột bên phải</span> khu soạn mã, ngay sau khi bấm Nộp bài.</li>
-                            <li>· Làm xong bấm <span class="font-bold">Thoát bài tập</span> ở thanh trên cùng để kết thúc phiên luyện.</li>
-                        </ul>
-                        <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng bài chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của bài đang làm.</p>
+                        @if ($guideDoc)
+                            @if ($guideDoc['text'] !== null)
+                                <pre class="oi-guide-pre mt-4">{{ $guideDoc['text'] }}</pre>
+                            @else
+                                <p class="mt-4 text-[13px] leading-7 text-[#45657D]">Lời giải của bài này là tệp <span class="font-bold">{{ $guideDoc['filename'] }}</span> — tải về để xem.</p>
+                            @endif
+                            <p class="mt-4">
+                                <a href="{{ $guideDoc['url'] }}" target="_blank" rel="noopener"
+                                   class="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#126F91] px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-[#0F5E7B]">
+                                    <x-lucide name="download" class="h-3.5 w-3.5" />Tải lời giải
+                                </a>
+                            </p>
+                        @else
+                            <ul class="mt-4 space-y-2 text-[13px] leading-7 text-[#45657D]">
+                                <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
+                                <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
+                                <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
+                                <li>· Kết quả chấm hiện ở <span class="font-bold">cột bên phải</span> khu soạn mã, ngay sau khi bấm Nộp bài.</li>
+                                <li>· Làm xong bấm <span class="font-bold">Thoát bài tập</span> ở thanh trên cùng để kết thúc phiên luyện.</li>
+                            </ul>
+                            <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Bài này chưa được nhập tệp lời giải — thêm ở ô <span class="font-bold">Lời giải (PDF)</span> trong form câu hỏi là phần này tự hiện đúng nội dung.</p>
+                        @endif
                     </article>
+                    @endif
                     </div>
                 </section>
 
-                {{-- ───────── TAB: BÀI MẪU ───────── --}}
+                {{-- ───────── TAB: BÀI MẪU ─────────
+                     SỬA 1/10 (khách: "tab bài mẫu thì lấy ở field code mẫu ra nhé trong database
+                     có sẵn rồi") — đổ tệp CODE MẪU của chính câu đó
+                     (metadata.attachments.reference — đúng ô "Code mẫu / lời giải tham khảo" ở
+                     form câu hỏi và reference/official.cpp trong gói ZIP).
+
+                     Ghi chú cũ ở đây viết "không dựng thêm nguồn bài mẫu nào, bày ra trước khi
+                     làm là đưa luôn đáp án cho học sinh" — khách đã chốt ĐỔI, nên bỏ. Cách chặn
+                     lại (chỉ cho xem sau khi nộp) ghi ở tab Hướng dẫn phía trên. --}}
                 <section x-show="tab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-hidden p-1 sm:p-2">
                     <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                    @if ($sampleDoc && $sampleDoc['isPdf'])
+                        <div data-pdf-fit data-pdf-url="{{ $sampleDoc['url'] }}" data-pdf-max-width="820" class="oi-doc-col"></div>
+                    @elseif ($sampleDoc)
+                    <article class="assessment-a4-page oi-doc-col oi-doc-page rounded-lg bg-white shadow-xl">
+                        <div class="flex items-start justify-between gap-3 border-b-2 border-[#126F91] pb-3">
+                            <h3 class="text-sm font-extrabold text-[#123B68]">Bài mẫu</h3>
+                            <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">{{ $sampleDoc['filename'] }}</span>
+                        </div>
+                        @if ($sampleDoc['text'] !== null)
+                            <pre class="oi-guide-pre mt-4">{{ $sampleDoc['text'] }}</pre>
+                        @else
+                            <p class="mt-4 text-[13px] leading-7 text-[#45657D]">Bài mẫu của bài này là tệp <span class="font-bold">{{ $sampleDoc['filename'] }}</span> — tải về để xem.</p>
+                        @endif
+                        <p class="mt-4">
+                            <a href="{{ $sampleDoc['url'] }}" target="_blank" rel="noopener"
+                               class="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#126F91] px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-[#0F5E7B]">
+                                <x-lucide name="download" class="h-3.5 w-3.5" />Tải bài mẫu
+                            </a>
+                        </p>
+                    </article>
+                    @else
                     <article class="assessment-a4-page oi-doc-col oi-doc-page grid place-items-center rounded-lg bg-white text-center shadow-xl">
                         <div>
                             <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="book-open" class="h-5 w-5" /></span>
-                            <p class="mt-3 text-sm font-extrabold text-[#123B68]">Đáp án hiện sau khi chấm</p>
-                            {{-- Không dựng thêm nguồn "bài mẫu" nào: đáp án đúng đã được khối kết quả
-                                 cũ in ra ngay tại tab "Làm bài" sau khi bấm nộp. Bày ra ở đây trước
-                                 khi làm là đưa luôn đáp án cho học sinh. --}}
-                            <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Bấm Nộp bài xong, đáp án đúng và kết quả từng test sẽ hiện ngay ở tab <span class="font-bold">Làm bài</span>.</p>
+                            <p class="mt-3 text-sm font-extrabold text-[#123B68]">Bài này chưa có bài mẫu</p>
+                            <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Thêm ở ô <span class="font-bold">Code mẫu / lời giải tham khảo</span> trong form câu hỏi là phần này tự hiện. Đáp án đúng và kết quả từng test vẫn hiện ở tab <span class="font-bold">Làm bài</span> sau khi bấm Nộp bài.</p>
                         </div>
                     </article>
+                    @endif
                     </div>
                 </section>
                 {{-- ───────── TAB: NHẬT KÝ ─────────
@@ -768,6 +834,32 @@
         .oi-doc-col { margin-left: auto; margin-right: auto; width: 100%; max-width: 820px; }
         .oi-doc-page { padding: 18px 16px; }
         @media (min-width: 640px) { .oi-doc-page { padding: 26px 32px; } }
+
+        /* SỬA 1/10 — khối chữ của tab Hướng dẫn / Bài mẫu khi tệp là MÃ NGUỒN (không phải PDF).
+           Viết CSS thường vì các class cần ở đây (whitespace-pre-wrap + break-words + cỡ chữ
+           mono 12.5px + nền xám) không có đủ trong app-*.css đã build, mà máy chủ không chạy
+           được vite. Dòng dài tự ngắt chứ KHÔNG cuộn ngang: khung tab đã hẹp 820px, thêm thanh
+           cuộn ngang là đọc code rất khó. */
+        .oi-guide-pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            margin: 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #DDEAF0;
+            background: #F7FAFC;
+            color: #1F3A52;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px;
+            line-height: 1.7;
+            tab-size: 4;
+        }
+        html.theme-dark .assessment-modal .oi-guide-pre {
+            border-color: #2C4257;
+            background: #16222E;
+            color: #D6E4EF;
+        }
 
         /* ══════ KHỐI "ĐANG CHẤM" NẰM NGAY TRONG CỘT KẾT QUẢ ══════
            SỬA 1/10 (khách: "nộp bài hoặc chấm lại thì khỏi cần popup xoay xoay, hiển thị quá

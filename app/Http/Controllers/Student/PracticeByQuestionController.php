@@ -351,6 +351,52 @@ class PracticeByQuestionController extends Controller
         return Storage::disk('local')->response($info['path'], $info['filename']);
     }
 
+    /**
+     * SỬA 1/10 (khách: "trang luyện tập public tab Hướng dẫn thì lấy đổ dữ liệu field lời giải
+     * ra có sẵn trong database rồi, tab bài mẫu thì lấy ở field code mẫu ra") — 2 route phục vụ
+     * tệp LỜI GIẢI và CODE MẪU cho học sinh ở màn làm bài.
+     *
+     * ĐÂY LÀ THAY ĐỔI CÓ CHỦ Ý VỀ CHÍNH SÁCH: trước hôm nay 2 tệp này bị chặn tuyệt đối với học
+     * sinh (xem ghi chú ở statement() ngay trên và ở Question::attachmentInfo()) vì chúng là đáp
+     * án. Khách chốt mở ra ở màn LUYỆN TẬP. Hai chỗ KHÁC vẫn chặn như cũ, cố ý:
+     *   · Student\AssessmentService (phòng thi / chấm đề) — chỉ 'statement';
+     *   · màn thi đấu (competitions) — không có 2 tab này.
+     * Muốn chỉ cho xem SAU KHI nộp thì xem ghi chú ở exercise-play.blade.php (có sẵn chỗ chặn).
+     *
+     * Kiểm tra quyền giữ y HỆT statement(): (1) câu phải Đã phát hành; (2) bài tập riêng của 1
+     * sản phẩm thì phải qua canAccessProduct(). Mỗi hàm GẮN CỨNG 1 kind, KHÔNG nhận kind từ
+     * client — để không bao giờ có đường nào đọc được kind khác qua tham số.
+     */
+    public function solution(Question $question)
+    {
+        return $this->guideAttachmentResponse($question, 'solution');
+    }
+
+    /** SỬA 1/10 — tệp "Code mẫu" (metadata.attachments.reference), xem solution() ngay trên. */
+    public function sampleCode(Question $question)
+    {
+        return $this->guideAttachmentResponse($question, 'reference');
+    }
+
+    /** Phần kiểm tra quyền + trả tệp dùng chung cho solution()/sampleCode() ở trên. */
+    private function guideAttachmentResponse(Question $question, string $kind)
+    {
+        abort_unless($question->status === ContentStatus::Published, 404);
+
+        if ($question->product_id !== null) {
+            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+        }
+
+        // LUẬT DUY NHẤT dùng chung với chỗ hiện 2 tab ở màn làm bài — view và route không được
+        // lệch nhau (tab hiện ra mà bấm vào 403 thì còn tệ hơn là không hiện).
+        abort_unless($this->service->canSeeGuideDocs($question, Auth::user()), 403);
+
+        $info = $question->attachmentInfo($kind);
+        abort_if($info === null, 404);
+
+        return Storage::disk('local')->response($info['path'], $info['filename']);
+    }
+
     /** SỬA 31/8 — nếu phiên vừa dừng là "Làm bài" 1 bài tập sản phẩm (có returnUrl lưu sẵn,
      *  xem startForQuestion()), quay lại ĐÚNG trang sản phẩm thay vì trang "Luyện tập" chung. */
     /**
