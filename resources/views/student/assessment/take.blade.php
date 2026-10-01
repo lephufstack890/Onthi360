@@ -386,7 +386,8 @@
             <div class="min-w-0">
                 <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $assessmentTitle }}</p>
                 <p class="hidden text-[10px] text-[#607A90] sm:block"
-                   x-text="activeTab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : 'Bài làm tự lưu — bấm Nộp đề khi xong.'">Bài làm tự lưu — bấm Nộp đề khi xong.</p>
+                   {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, câu nhắc phải nói rõ lý do. --}}
+                   x-text="activeTab === 'work' ? 'Bài làm tự lưu — bấm Nộp đề khi xong.' : 'Chuyển sang tab Làm bài để nộp đề.'">Bài làm tự lưu — bấm Nộp đề khi xong.</p>
             </div>
 
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -412,7 +413,12 @@
                     @endif
                 </span>
 
-                <button type="button" @click="confirmOpen = true" :disabled="expired || submitting"
+                {{-- SỬA 1/10 (khách: "button nộp bài và chấm lại khi ở tab bài làm thì mới click
+                     được thôi, sang tab khác thì disabled đi") — ở đây đơn giản hơn màn Luyện tập
+                     vì nút này do Alpine quản hoàn toàn, thêm 1 điều kiện là xong. --}}
+                <button type="button" @click="confirmOpen = true"
+                        :disabled="expired || submitting || activeTab !== 'work'"
+                        :title="activeTab === 'work' ? null : 'Chuyển sang tab Làm bài để nộp đề'"
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60 sm:px-4">
                     <x-lucide name="send" class="h-4 w-4" />Nộp đề
                 </button>

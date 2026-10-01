@@ -91,7 +91,15 @@
          lớp vỏ chép ĐÚNG 2 thẻ ngoài cùng của bản mẫu: nền tối phủ kín + khung bo góc thụt vào
          8px mỗi bên. Trang vẫn có URL riêng (bấm F5 hay nút Back của trình duyệt đều đúng,
          không mất bài đang làm) nhưng nhìn y hệt modal của bản mẫu. --}}
+    {{-- SỬA 1/10 (khách: "button nộp bài và chấm lại khi ở tab bài làm thì mới click được
+         thôi, sang tab khác thì disabled đi") — :data-active-tab phát tab đang mở ra DOM.
+         Vì sao phải qua thuộc tính data-* chứ không để Alpine khoá thẳng nút bằng
+         :disabled="tab !== 'work'": thuộc tính disabled của nút đó đang do đoạn JS cuối trang
+         quản (nó khoá nút lúc đang chấm, xem sync()). Hai bên cùng ghi một thuộc tính thì bên
+         nào chạy sau thắng — chấm bài xong là sync() mở khoá lại dù đang ở tab khác. Nên giữ
+         ĐÚNG MỘT nơi ghi disabled (sync), còn Alpine chỉ báo tab cho nó biết. --}}
     <div class="assessment-modal fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-0 sm:p-2"
+         :data-active-tab="tab"
          x-data="{
              {{-- SỬA 30/9 (4) (khách: "mặc định tab hiển thị đầu tiên là tab đề bài") — bản mẫu
                   mở ở tab Đề bài (AssessmentModal.jsx: useState(\"pdf\")). Bài KHÔNG có bản PDF
@@ -746,7 +754,9 @@
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
                 <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $headTitle }}@if (($nav['total'] ?? 0) > 1) <span class="font-semibold text-[#607A90]">· bài {{ $nav['position'] }}/{{ $nav['total'] }}</span>@endif</p>
-                <p class="hidden text-[10px] text-[#607A90] sm:block" x-text="tab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : 'Nộp bài để xem kết quả chấm.'">Nộp bài để xem kết quả chấm.</p>
+                {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, nên câu nhắc phải nói rõ lý do
+                     thay vì để người học bấm mãi không được. --}}
+                <p class="hidden text-[10px] text-[#607A90] sm:block" x-text="tab === 'work' ? 'Nộp bài để xem kết quả chấm.' : 'Chuyển sang tab Làm bài để nộp bài.'">Nộp bài để xem kết quả chấm.</p>
             </div>
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 @if (($nav['total'] ?? 0) > 1)
@@ -797,6 +807,7 @@
                 </span>
 
                 <button type="button" data-header-submit
+                        :title="tab === 'work' ? null : 'Chuyển sang tab Làm bài để nộp bài'"
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4">
                     <x-lucide name="send" class="h-4 w-4" /><span data-header-submit-label>Nộp bài</span>
                 </button>
@@ -1261,6 +1272,20 @@
                 return container ? container.querySelector('form button[type="submit"]') : null;
             }
 
+            // SỬA 1/10 (khách: "button nộp bài và chấm lại khi ở tab bài làm thì mới click được
+            // thôi, sang tab khác thì disabled đi") — tab đang mở do Alpine phát ra thuộc tính
+            // data-active-tab trên thẻ .assessment-modal (xem :data-active-tab ở đầu trang).
+            // KHÔNG đọc trạng thái trong của Alpine ($data/_x_dataStack) — đó là chi tiết nội bộ,
+            // nâng phiên bản Alpine là vỡ; thuộc tính DOM thì ổn định.
+            var modalRoot = document.querySelector('.assessment-modal');
+
+            function onWorkTab() {
+                // Chưa có thuộc tính (Alpine chưa kịp khởi tạo) thì coi như đang ở tab Làm bài:
+                // thà cho bấm còn hơn khoá cứng nút nộp vì JS chạy sớm hơn Alpine.
+                var t = modalRoot ? modalRoot.getAttribute('data-active-tab') : null;
+                return t === null || t === 'work';
+            }
+
             function sync() {
                 var container = document.querySelector('#practice-container');
                 var answering = container ? container.querySelector('form[data-ajax-answer]') : null;
@@ -1268,7 +1293,9 @@
                 // SỬA 1/10 — theo luôn trạng thái khoá của nút nộp thật. Trước đây lớp phủ che
                 // kín màn hình nên không bấm lại được; giờ bỏ lớp phủ thì nút này phải tự khoá
                 // lúc đang chấm, không thì bấm hai lần là gửi hai lượt chấm.
-                headerBtn.disabled = target === null || target.disabled;
+                // SỬA 1/10 (2) — và khoá luôn khi KHÔNG ở tab "Làm bài". Đây là NƠI DUY NHẤT ghi
+                // thuộc tính disabled của nút này.
+                headerBtn.disabled = ! onWorkTab() || target === null || target.disabled;
 
                 // SỬA 24/9 — lấy chữ ngay trên nút nộp thật (giờ đã ẩn) nên chấm xong nút
                 // header tự đổi thành "Chấm lại", khớp với việc học sinh sửa code rồi chấm tiếp.
@@ -1280,12 +1307,22 @@
             }
 
             headerBtn.addEventListener('click', function () {
+                // Chốt thứ hai ngoài thuộc tính disabled: nút bị khoá thì trình duyệt đã không
+                // phát click, nhưng Enter/space khi nút vừa đổi trạng thái, hoặc .click() gọi từ
+                // chỗ khác, thì vẫn lọt — kiểm lại ngay tại đây cho chắc.
+                if (! onWorkTab()) return;
+
                 var target = panelButton();
                 if (target) target.click();
             });
 
             document.addEventListener('DOMContentLoaded', sync);
             sync();
+
+            // Đổi tab -> Alpine ghi lại data-active-tab -> khoá/mở nút theo.
+            if (modalRoot) {
+                new MutationObserver(sync).observe(modalRoot, { attributes: true, attributeFilter: ['data-active-tab'] });
+            }
 
             // #practice-container bị replaceWith() nên phải theo dõi CHA của nó, không phải nó.
             var host = document.querySelector('#practice-container');
