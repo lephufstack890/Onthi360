@@ -432,20 +432,24 @@
                                              xem dữ liệu vào/mong đợi/bạn in ra, tải test sai) — chỉ chuyển từ
                                              "nằm dưới khu soạn mã" sang "nằm ở cột phải" cho khớp bản mẫu. --}}
                                         <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
+                                            {{-- SỬA 1/10 (khách: "nộp bài hoặc chấm lại thì đừng hiện popup xoay xoay
+                                                 nữa, hiển thị quá trình đang chấm ngay bên cột kết quả") — data-result-slot
+                                                 là CÁI Ô để script thay nội dung lúc đang chấm. Chấm xong thì cả
+                                                 #practice-container bị thay mới nên ô này tự mang kết quả thật. --}}
+                                            <div data-result-slot class="oi-result-fill min-h-0 flex-1 overflow-hidden">
                                             @if ($feedback !== null)
-                                                <div class="oi-result-fill min-h-0 flex-1 overflow-hidden">
-                                                    @include('partials.practice-coding-result')
-                                                </div>
+                                                @include('partials.practice-coding-result')
                                             @else
-                                                <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-3">
+                                                <div class="h-full overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-3">
                                                     <p class="text-[11px] font-bold text-[#45657D]">Kết quả chấm sẽ hiển thị sau khi nộp bài.</p>
                                                     <p class="mt-2 text-[11px] leading-5 text-[#7A92A3]">
                                                         Viết mã ở cột bên trái rồi bấm <span class="font-bold text-[#126F91]">Nộp bài</span>
-                                                        ở thanh trên cùng. Máy chấm chạy toàn bộ test của bài và trả về
+                                                        ở thanh dưới cùng. Máy chấm chạy toàn bộ test của bài và trả về
                                                         từng test đúng/sai ngay tại đây.
                                                     </p>
                                                 </div>
                                             @endif
+                                            </div>
 
                                             {{-- Nút nộp THẬT của form: ẩn đi nhưng PHẢI còn trong DOM — nút "Nộp bài"
                                                  trên thanh header hoạt động bằng cách bấm hộ nút này (xem panelButton()
@@ -735,13 +739,12 @@
         </div>
     </div>
 
-    {{-- SỬA 24/9 — MÀN "ĐANG CHẤM".
+    {{-- SỬA 1/10 (khách: "khỏi cần hiện popup đang chấm xoay xoay kia") — ĐÃ GỠ lớp phủ
+         "đang chấm" khỏi trang này. Quá trình chấm giờ hiện ngay trong cột kết quả (xem
+         gradingSlot ở script cuối trang, và khối .oi-judging trong phần style).
 
-         Đặt NGOÀI #practice-container: khối đó bị thay mới sau mỗi lần chấm, để bên trong thì
-         lớp phủ biến mất giữa chừng. Bật/tắt bằng showGradingOverlay() ở script cuối trang.
-
-         Kiểu dáng nằm ở partial dùng chung với trang Làm đề — sửa một lần, hai nơi đổi theo. --}}
-    @include('partials.grading-overlay')
+         partials/grading-overlay VẪN CÒN và vẫn được phòng thi + cuộc thi dùng: ở đó bấm nộp
+         là rời trang sang màn kết quả, không có cột nào để hiện tiến trình tại chỗ. --}}
 
 
 @endsection
@@ -765,6 +768,90 @@
         .oi-doc-col { margin-left: auto; margin-right: auto; width: 100%; max-width: 820px; }
         .oi-doc-page { padding: 18px 16px; }
         @media (min-width: 640px) { .oi-doc-page { padding: 26px 32px; } }
+
+        /* ══════ KHỐI "ĐANG CHẤM" NẰM NGAY TRONG CỘT KẾT QUẢ ══════
+           SỬA 1/10 (khách: "nộp bài hoặc chấm lại thì khỏi cần popup xoay xoay, hiển thị quá
+           trình đang chấm bên cột kết quả luôn").
+
+           Viết CSS thường vì máy chủ không chạy được vite. Màu lấy đúng bộ màu sẵn có nên
+           nền tối cũng tự khớp (nền #FFF và chữ #45657D/#7A92A3 đều đã có luật lật sẵn). */
+        .oi-judging {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            height: 100%;
+            padding: 20px 18px;
+            border: 1px solid #DDEAF0;
+            border-radius: 12px;
+            background: #fff;
+            text-align: center;
+        }
+        .oi-judging__ring {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 4px solid #E3EFF4;
+            border-top-color: #126F91;
+            border-right-color: #2F8A6B;
+            animation: oi-judging-spin .85s linear infinite;
+        }
+        .oi-judging__title { font-size: 13px; font-weight: 800; color: #123B68; }
+        .oi-judging__text { max-width: 320px; font-size: 11px; line-height: 1.6; color: #7A92A3; }
+        .oi-judging__time {
+            font-size: 11px;
+            font-weight: 700;
+            color: #45657D;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Thanh chạy KHÔNG phải phần trăm: máy chấm chạy xong cả lượt mới trả về một lần, không
+           có mốc nào để báo "đã xong mấy phần trăm". Vẽ thanh trượt qua lại cho đúng sự thật là
+           "đang chạy, chưa biết còn bao lâu" — đừng bịa ra con số. */
+        .oi-judging__bar {
+            position: relative;
+            width: 100%;
+            max-width: 240px;
+            height: 4px;
+            overflow: hidden;
+            border-radius: 99px;
+            background: #E3EFF4;
+        }
+        .oi-judging__bar::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 40%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #126F91, #2F8A6B);
+            animation: oi-judging-slide 1.15s ease-in-out infinite;
+        }
+        @keyframes oi-judging-spin { to { transform: rotate(360deg); } }
+        @keyframes oi-judging-slide {
+            0%   { left: -40%; }
+            100% { left: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .oi-judging__ring { animation: none; }
+            .oi-judging__bar::after { animation: none; left: 0; width: 100%; opacity: .5; }
+        }
+        /* Nền tối: khối này dùng màu viết thẳng (không phải class bg-white) nên luật lật màu
+           chung của nền tối không với tới — phải tự khai, nếu không nó là một thẻ trắng chói
+           nằm giữa giao diện tối. */
+        html.theme-dark .assessment-modal .oi-judging {
+            border-color: #365361;
+            background: #1b2d38;
+        }
+        html.theme-dark .assessment-modal .oi-judging__title { color: #eaf5f8; }
+        html.theme-dark .assessment-modal .oi-judging__text { color: #9eb4c0; }
+        html.theme-dark .assessment-modal .oi-judging__time { color: #c3d4dc; }
+        html.theme-dark .assessment-modal .oi-judging__ring {
+            border-color: #2a4654;
+            border-top-color: #4fb6d6;
+            border-right-color: #56c69b;
+        }
+        html.theme-dark .assessment-modal .oi-judging__bar { background: #2a4654; }
 
         /* Viên "Đã làm · Điểm gần nhất" nằm ở partials/assessment-chip-style (dùng chung
            với phòng thi) — nạp ở cuối tệp này. */
@@ -804,13 +891,16 @@
                một mảng trống bên dưới. Danh sách test cũng bỏ trần 288px (max-h-72) để nở hết
                chỗ còn lại — vẫn có thanh cuộn riêng khi nhiều test, nhưng là cuộn TRONG danh
                sách, không phải cuộn cả thẻ. */
+            /* SỬA 1/10 — đổi "> section" thành "> *": ô kết quả giờ chứa 3 thứ khác nhau tuỳ
+               lúc (lời nhắc khi chưa nộp, khối ĐANG CHẤM, khối kết quả thật). Chỉ nhắm riêng
+               thẻ section thì hai thứ đầu không nở hết cột, chừa khoảng trống phía dưới. */
             .oi-result-fill { display: flex; flex-direction: column; }
-            .oi-result-fill > section { min-height: 0; flex: 1 1 0%; }
+            .oi-result-fill > * { min-height: 0; flex: 1 1 0%; }
         }
 
         /* Màn hẹp: thẻ kết quả chỉ cần cao ÍT NHẤT bằng khung, nội dung dài thì cứ nở ra rồi
            cuộn khung ngoài như cũ. */
-        .oi-result-fill > section { min-height: 100%; }
+        .oi-result-fill > * { min-height: 100%; }
 
         .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
@@ -896,19 +986,64 @@
         // trực tiếp vào 1 form cố định) vì form thật sự tồn tại lúc chạy đoạn script này có thể
         // bị THAY MỚI hoàn toàn sau mỗi lần nộp bài (xem replaceWith() bên dưới) — gắn listener
         // kiểu delegation thì luôn bắt được form MỚI mà không cần gắn lại tay.
-        /**
-         * SỬA 24/9 — bật/tắt màn "đang chấm" (xem khối #oi-grading-overlay ở cuối phần thân).
+        /*
+         * SỬA 1/10 (khách: "nộp bài hoặc chấm lại giờ không muốn hiển thị popup chấm bài nữa,
+         * hiển thị quá trình đang chấm bên cột kết quả luôn").
          *
-         * Khoá cuộn trang lúc đang bật: lớp phủ che hết màn hình rồi, cuộn phía sau chỉ gây
-         * cảm giác trang bị rơi vỡ.
+         * Trước đây là một lớp phủ che kín màn hình kèm vòng xoay. Giờ vẽ thẳng vào CỘT KẾT
+         * QUẢ: học sinh vẫn nhìn thấy mã mình vừa viết, vẫn cuộn đọc được, và chỗ báo "đang
+         * chấm" nằm ĐÚNG chỗ lát nữa kết quả hiện ra.
+         *
+         * Chấm xong thì cả #practice-container bị thay mới bằng HTML máy chủ trả về, nên
+         * không phải dọn gì — chỉ khi hỏng mới trả lại nội dung cũ (xem gradingSlot.restore).
          */
-        function showGradingOverlay(on) {
-            var overlay = document.getElementById('oi-grading-overlay');
-            if (!overlay) return;
+        var gradingSlot = (function () {
+            var saved = null;
+            var ticker = null;
 
-            overlay.hidden = !on;
-            document.documentElement.style.overflow = on ? 'hidden' : '';
-        }
+            function slot() { return document.querySelector('[data-result-slot]'); }
+
+            return {
+                start: function () {
+                    var box = slot();
+                    if (!box) return;
+
+                    saved = box.innerHTML;
+                    box.innerHTML =
+                        '<div class="oi-judging" role="status" aria-live="polite">'
+                        + '<span class="oi-judging__ring"></span>'
+                        + '<p class="oi-judging__title">Đang chấm bài…</p>'
+                        + '<p class="oi-judging__text">Máy chấm đang chạy chương trình của bạn qua từng bộ test.'
+                        + ' Bài nhiều test có thể mất một lúc — đừng đóng cửa sổ này nhé.</p>'
+                        + '<span class="oi-judging__bar"></span>'
+                        + '<p class="oi-judging__time" data-judging-time>Đã chờ 0 giây</p>'
+                        + '</div>';
+
+                    var startedAt = Date.now();
+                    var timeEl = box.querySelector('[data-judging-time]');
+                    ticker = setInterval(function () {
+                        if (!timeEl || !timeEl.isConnected) return;
+                        var s = Math.round((Date.now() - startedAt) / 1000);
+                        timeEl.textContent = s < 60
+                            ? 'Đã chờ ' + s + ' giây'
+                            : 'Đã chờ ' + Math.floor(s / 60) + ' phút ' + (s % 60) + ' giây';
+                    }, 1000);
+                },
+
+                stop: function () {
+                    if (ticker) { clearInterval(ticker); ticker = null; }
+                },
+
+                // Chỉ dùng khi KHÔNG chấm được (mạng hỏng): trả cột kết quả về đúng như trước
+                // khi bấm, thay vì để nó quay mãi.
+                restore: function () {
+                    this.stop();
+                    var box = slot();
+                    if (box && saved !== null) box.innerHTML = saved;
+                    saved = null;
+                },
+            };
+        })();
 
         document.addEventListener('submit', function (event) {
             var form = event.target;
@@ -932,10 +1067,8 @@
                 button.innerHTML = '<span class="oi-btn-spinner"></span>Đang chấm...';
             }
 
-            // SỬA 24/9 — bật màn "đang chấm". Nút nộp thật giờ ẩn (nộp bằng nút trên thanh
-            // header) nên lớp phủ này là DẤU HIỆU DUY NHẤT cho biết máy đang chạy; thiếu nó là
-            // học sinh tưởng treo rồi bấm nộp lại.
-            showGradingOverlay(true);
+            // SỬA 1/10 — báo "đang chấm" NGAY TRONG cột kết quả thay cho lớp phủ cũ.
+            gradingSlot.start();
 
             fetch(form.action, {
                 method: 'POST',
@@ -976,10 +1109,12 @@
                     if (newChip && oldChip) oldChip.replaceWith(newChip);
 
                     initCodeEditor();
-                    showGradingOverlay(false);
+                    // Cột kết quả đã bị thay bằng kết quả thật rồi, chỉ cần tắt bộ đếm giờ.
+                    gradingSlot.stop();
                 })
                 .catch(function () {
-                    showGradingOverlay(false);
+                    // Không chấm được: trả cột kết quả về như trước khi bấm, đừng để nó quay mãi.
+                    gradingSlot.restore();
 
                     if (button) {
                         button.disabled = false;
@@ -1038,7 +1173,10 @@
                 var container = document.querySelector('#practice-container');
                 var answering = container ? container.querySelector('form[data-ajax-answer]') : null;
                 var target = panelButton();
-                headerBtn.disabled = target === null;
+                // SỬA 1/10 — theo luôn trạng thái khoá của nút nộp thật. Trước đây lớp phủ che
+                // kín màn hình nên không bấm lại được; giờ bỏ lớp phủ thì nút này phải tự khoá
+                // lúc đang chấm, không thì bấm hai lần là gửi hai lượt chấm.
+                headerBtn.disabled = target === null || target.disabled;
 
                 // SỬA 24/9 — lấy chữ ngay trên nút nộp thật (giờ đã ẩn) nên chấm xong nút
                 // header tự đổi thành "Chấm lại", khớp với việc học sinh sửa code rồi chấm tiếp.
