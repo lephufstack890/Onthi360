@@ -16,6 +16,22 @@
             examPageIndex: 1,
 
             init() {
+                /*
+                 * SỬA 1/10 (khách: "khi thoát làm đề thi thì nó lại nhảy ra trang admin, tôi
+                 * muốn nhảy ra lại trang luyện tập public ngay tab đề thi luyện tập luôn") —
+                 * ?tab=de-thi thì mở thẳng tab "Đề thi luyện tập" thay vì tab bài tập.
+                 *
+                 * Gán THẲNG practiceMode chứ không gọi changeMode(): changeMode() còn xoá ô tìm
+                 * kiếm và đặt lại mấy bộ lọc, ở đây không có gì để xoá mà gọi vào là thừa.
+                 * Nhận cả 'exams' cho link nào lỡ viết theo tên biến trong mã.
+                 */
+                try {
+                    const tab = new URLSearchParams(window.location.search).get('tab');
+                    if (tab === 'de-thi' || tab === 'exams') {
+                        this.practiceMode = 'exams';
+                    }
+                } catch (e) { /* trình duyệt cũ không có URLSearchParams: giữ tab mặc định */ }
+
                 this.$watch('searchQuery', () => { this.problemPageIndex = 1; this.examPageIndex = 1; });
             },
 

@@ -83,7 +83,13 @@
 
         {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
         <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">
-            <a href="{{ route('student.practice.index') }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
+            {{-- SỬA 1/10 (khách: "khi thoát làm đề thi thì nó lại nhảy ra trang admin, tôi muốn
+                 nhảy ra lại trang luyện tập public ngay tab đề thi luyện tập luôn") — trước đây
+                 trỏ về student.practice.index (màn Luyện tập TRONG khu đăng nhập). Màn đó bọc
+                 trong khung workspace theo VAI TRÒ của người đang đăng nhập, nên admin/giáo viên
+                 bấm Thoát là rơi vào giao diện quản trị. Trang /luyen-tap công khai không có
+                 khung đó, ai vào cũng ra đúng một trang. --}}
+            <a href="{{ route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
             <div class="min-w-0 flex-1">
@@ -235,18 +241,33 @@
                                                  cho chỗ gõ code. Câu KHÔNG có PDF vẫn in đề ở đây, vì đó là chỗ DUY
                                                  NHẤT học sinh đọc được đề. ($q['body'] là HTML do CKEditor lưu — giữ
                                                  nguyên cách render RAW như bản cũ.) --}}
-                                            <div class="shrink-0 px-4 pb-3 pt-3 text-xs leading-5 text-[#45657D]">
-                                                <p class="font-bold text-[#123B68]">Câu {{ $q['no'] }} · {{ $q['typeLabel'] }} · {{ $q['points'] }} điểm</p>
-                                                <p class="mt-1">{{ $q['title'] }}</p>
-                                                @if ($q['statementPdfUrl'])
-                                                    <p class="mt-1 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
-                                                @elseif ($q['body'])
-                                                    <div class="rich-content mt-1 max-h-[26vh] overflow-y-auto">{!! $q['body'] !!}</div>
-                                                @endif
-                                            </div>
+                                            {{-- SỬA 1/10 (khách: "UI này nó không khớp với UI của khi làm bài luyện tập,
+                                                 check lại UI + logic chỗ này cho giống khi click làm bài") — khối này
+                                                 trước đây chiếm 3 DÒNG trên đầu ô soạn mã (số câu + tên câu + chỉ chỗ
+                                                 đọc đề), đẩy chỗ gõ code xuống thấp hơn hẳn màn Luyện tập (ở đó chỉ có
+                                                 ĐÚNG MỘT dòng mảnh). Gộp còn một dòng cho khớp.
 
-                                            {{-- Lớp tô màu cú pháp nằm dưới, textarea trong suốt nằm trên — đúng cách bản mẫu làm. --}}
-                                            <div class="relative min-h-0 flex-1 overflow-hidden">
+                                                 GIỮ "Câu N · điểm" trong dòng đó, cố ý: phòng thi có nhiều câu, bỏ hẳn
+                                                 là học sinh không biết câu đang làm được mấy điểm. Tên câu thì đã có ở
+                                                 ô chọn câu trên thanh đầu nên không lặp lại nữa.
+
+                                                 Câu KHÔNG có PDF vẫn in đề ở đây (chỗ DUY NHẤT đọc được đề), bố cục
+                                                 chép đúng màn Luyện tập: khối cuộn riêng, cao tối đa 30% khung. --}}
+                                            @if ($q['statementPdfUrl'])
+                                                <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['points'] }} điểm · Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                            @else
+                                                <p class="shrink-0 px-4 pt-2 text-[11px] text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['points'] }} điểm</p>
+                                                @if ($q['body'])
+                                                    <div class="max-h-[30%] shrink-0 overflow-y-auto px-4 pb-3 pt-2 text-xs leading-5 text-[#45657D]">
+                                                        <div class="rich-content">{!! $q['body'] !!}</div>
+                                                    </div>
+                                                @endif
+                                            @endif
+
+                                            {{-- Lớp tô màu cú pháp nằm dưới, textarea trong suốt nằm trên — đúng cách bản mẫu làm.
+                                                 SỬA 1/10 — min-h-[240px] cho khớp màn Luyện tập: min-h-0 làm ô gõ code
+                                                 co lại rất thấp khi đề dài, đúng chỗ khách thấy "không khớp". --}}
+                                            <div class="relative min-h-[240px] flex-1 overflow-hidden">
                                                 <pre aria-hidden="true" x-ref="hl{{ $qid }}"
                                                      class="pointer-events-none absolute inset-0 z-20 overflow-auto whitespace-pre bg-transparent px-4 pb-4 font-mono text-[12px] leading-6"><code x-html="highlight(codes[{{ $qid }}], languages[{{ $qid }}])"></code></pre>
                                                 {{-- data-code-source: DẤU NHẬN BIẾT cho CSS, không có JS nào đọc.

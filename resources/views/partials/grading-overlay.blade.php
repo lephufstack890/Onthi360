@@ -191,7 +191,11 @@
                            : 'Xem chi tiết từng câu và đáp án ở trang kết quả.'"></p>
 
                     <div class="oi-grading-actions">
-                        <a class="oi-grading-btn oi-grading-btn--ghost" href="{{ route('student.practice.index') }}">Thoát</a>
+                        {{-- SỬA 1/10 — cùng lý do với nút X ở take.blade.php: về trang Luyện tập
+                             CÔNG KHAI (tab Đề thi), không về màn trong khu đăng nhập vì màn đó
+                             bọc theo vai trò nên admin/giáo viên bấm Thoát là rơi vào giao diện
+                             quản trị. Nơi gọi truyền $overlayExitUrl thì theo nơi gọi. --}}
+                        <a class="oi-grading-btn oi-grading-btn--ghost" href="{{ $overlayExitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}">Thoát</a>
                         <a class="oi-grading-btn" :href="submitResult.resultUrl">Xem chi tiết</a>
                     </div>
                 </div>
