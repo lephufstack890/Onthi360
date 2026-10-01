@@ -53,7 +53,7 @@
                   với màn Luyện tập (xem $statementUrl ở exercise-play). --}}
              initialTab: @js(collect($questions)->contains(fn ($q) => filled($q['statementPdfUrl'] ?? null)) ? 'pdf' : 'work'),
          })"
-         x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
+         x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); }); $watch('activeId', function (id) { scrollToStatement(id); })">
 
         {{-- SỬA 1/10 — data-activity-key: nhật ký lưu theo TỪNG LƯỢT THI (attempt), không lẫn
              với nhật ký của màn Luyện tập hay của lượt thi khác. --}}
@@ -194,23 +194,46 @@
                      bố cục tab Đề bài của màn Luyện tập: khung lõm xanh nhạt bo góc ở ngoài, tờ
                      đề rộng tối đa 820px canh giữa ở trong (data-pdf-max-width + .oi-doc-col).
                      Trước đây thiếu cả hai nên đề kéo căng hết bề ngang màn hình. --}}
+                {{-- SỬA 1/10 (khách: "đề bài pdf có thể cho hiển thị đọc hết đề bài của tổng
+                     toàn bộ câu trong đề được không") — trước đây mỗi câu bọc trong
+                     x-show="activeId === …" nên chỉ thấy đề của ĐÚNG câu đang chọn, muốn đọc
+                     trước cả đề phải bấm chuyển từng câu. Giờ xếp đề của MỌI CÂU thành một mạch
+                     cuộn, mỗi câu có dải tên ở trên để biết đang đọc câu nào.
+
+                     Đi kèm 2 thứ, thiếu là hỏng:
+                       · pdf-fit-viewer đã thêm TẢI LƯỜI (IntersectionObserver): đề 20 câu mà vẽ
+                         hết ngay lúc mở tab thì vừa chờ lâu vừa ngốn bộ nhớ — lý do đầy đủ ghi
+                         trong partial đó.
+                       · đổi câu ở thanh đầu thì tự cuộn tới khối đề của câu đó
+                         (examWorkspace.scrollToStatement, nối bằng $watch ở x-init). --}}
                 <section x-show="activeTab === 'pdf'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
                     <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
-                    @foreach ($questions as $q)
-                        <div x-show="activeId === {{ $q['questionId'] }}" class="min-h-full">
-                            @if ($q['statementPdfUrl'])
-                                <div data-pdf-fit data-pdf-url="{{ $q['statementPdfUrl'] }}" data-pdf-max-width="820" class="oi-doc-col min-h-full"></div>
-                            @else
-                                <div class="grid h-full min-h-[320px] place-items-center p-8 text-center">
-                                    <div>
-                                        <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
-                                        <p class="mt-3 text-sm font-extrabold text-[#123B68]">Câu này không có bản PDF</p>
-                                        <p class="mt-1 text-[11px] text-[#607A90]">Toàn bộ nội dung đề nằm ở tab <span class="font-bold">Làm bài</span>.</p>
+                        <div class="oi-doc-col flex flex-col gap-3">
+                            @foreach ($questions as $q)
+                                <section data-exam-statement="{{ $q['questionId'] }}" class="scroll-mt-2">
+                                    {{-- Dải tên câu: không có nó thì cuộn một mạch qua chục câu
+                                         là mất dấu đang đọc câu nào. Đổi màu theo câu đang chọn
+                                         để khớp với dải số câu trên thanh đầu. --}}
+                                    <div class="mb-2 flex items-center gap-2 rounded-xl border px-3 py-2"
+                                         :class="activeId === {{ $q['questionId'] }} ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#DDEAF0] bg-white text-[#123B68]'">
+                                        <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-extrabold"
+                                              :class="activeId === {{ $q['questionId'] }} ? 'bg-white/20 text-white' : 'bg-[#EAF5F8] text-[#126F91]'">{{ $q['no'] }}</span>
+                                        <span class="min-w-0 flex-1 truncate text-[12px] font-bold">{{ $q['title'] }}</span>
+                                        <span class="shrink-0 text-[11px] font-bold opacity-80">{{ $q['points'] }} điểm</span>
                                     </div>
-                                </div>
-                            @endif
+
+                                    @if ($q['statementPdfUrl'])
+                                        <div data-pdf-fit data-pdf-url="{{ $q['statementPdfUrl'] }}" data-pdf-max-width="820" class="min-h-[320px]"></div>
+                                    @else
+                                        <div class="rounded-xl border border-[#DDEAF0] bg-white px-4 py-6 text-center">
+                                            <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="file-text" class="h-5 w-5" /></span>
+                                            <p class="mt-3 text-sm font-extrabold text-[#123B68]">Câu này không có bản PDF</p>
+                                            <p class="mt-1 text-[11px] text-[#607A90]">Toàn bộ nội dung đề nằm ở tab <span class="font-bold">Làm bài</span>.</p>
+                                        </div>
+                                    @endif
+                                </section>
+                            @endforeach
                         </div>
-                    @endforeach
                     </div>
                 </section>
 

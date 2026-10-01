@@ -42,10 +42,43 @@
             box.appendChild(p);
         }
 
+        /*
+         * SỬA 1/10 (khách: "tab đề bài pdf cho hiển thị đọc hết đề bài của tổng toàn bộ câu
+         * trong đề") — phòng thi giờ xếp PDF của MỌI CÂU trong một mạch cuộn, nên phải TẢI
+         * LƯỜI: chỉ tải và vẽ khung nào sắp vào tầm nhìn.
+         *
+         * Vì sao bắt buộc: pdf.js vẽ từng trang ra canvas, mỗi trang A4 ở 820px đã ngốn vài MB
+         * bộ nhớ. Đề 20 câu, mỗi câu vài trang, mà vẽ hết ngay lúc mở tab thì vừa chờ lâu vừa
+         * sát mép treo máy — đúng cái trần 1600px trong draw() đang phải canh.
+         *
+         * rootMargin 600px: vẽ trước khi cuộn tới nên người đọc không thấy khoảng trống.
+         * Không có IntersectionObserver (trình duyệt cũ) thì chạy ngay như trước, không chặn ai.
+         *
+         * Tab đang ẩn (x-show -> display:none) thì không bao giờ "giao nhau", nên mở tab Đề bài
+         * mới bắt đầu tải — đúng điều mình muốn, không phải xử lý riêng.
+         */
         function setup(box) {
             if (box.dataset.pdfFitReady === '1') return;
             box.dataset.pdfFitReady = '1';
 
+            if (typeof IntersectionObserver !== 'function') {
+                start(box);
+
+                return;
+            }
+
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    io.disconnect();
+                    start(box);
+                });
+            }, { rootMargin: '600px 0px' });
+
+            io.observe(box);
+        }
+
+        function start(box) {
             var url = box.dataset.pdfUrl;
             if (!url) return;
 

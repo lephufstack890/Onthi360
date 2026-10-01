@@ -61,6 +61,19 @@
                 recording: {},
                 recordStatus: {},
 
+                /**
+                 * SỬA 1/10 — tab Đề bài giờ xếp đề của MỌI CÂU trong một mạch cuộn, nên đổi câu
+                 * thì cuộn tới đúng khối đề của câu đó (nếu đang mở tab Đề bài). Không tìm thấy
+                 * khối thì im lặng bỏ qua — màn Cuộc thi dùng chung tệp này và không có mấy
+                 * khối đó.
+                 */
+                scrollToStatement(questionId) {
+                    if (this.activeTab !== 'pdf') return;
+
+                    const el = document.querySelector('[data-exam-statement="' + questionId + '"]');
+                    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                },
+
                 // ── Trạng thái giao diện ──
                 activeId: config.firstId,
                 // SỬA 1/10 (khách: "mặc định khi bắt đầu làm đề thi ở tab đề bài nha") — tab mở
