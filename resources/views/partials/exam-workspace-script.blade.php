@@ -63,7 +63,11 @@
 
                 // ── Trạng thái giao diện ──
                 activeId: config.firstId,
-                activeTab: 'work',
+                // SỬA 1/10 (khách: "mặc định khi bắt đầu làm đề thi ở tab đề bài nha") — tab mở
+                // đầu tiên do VIEW quyết định (đề có bản PDF thì mở tab Đề bài, không có thì mở
+                // thẳng Làm bài — mở vào một tab trống thì vô duyên). Màn cuộc thi không truyền
+                // khoá này nên vẫn mở 'work' y như trước.
+                activeTab: config.initialTab || 'work',
                 theme: 'light',
                 remainingLabel: '',
                 tone: 'normal',

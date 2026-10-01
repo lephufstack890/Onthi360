@@ -48,10 +48,17 @@
              languages: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['language'] ?: 'cpp'])),
              firstId: @js($firstId),
              lastId: @js($lastId),
+             {{-- SỬA 1/10 (khách: "mặc định khi bắt đầu làm đề thi ở tab đề bài nha") — mở tab
+                  Đề bài khi đề CÓ bản PDF; đề không có PDF nào thì mở thẳng Làm bài. Cùng luật
+                  với màn Luyện tập (xem $statementUrl ở exercise-play). --}}
+             initialTab: @js(collect($questions)->contains(fn ($q) => filled($q['statementPdfUrl'] ?? null)) ? 'pdf' : 'work'),
          })"
-         x-init="init()">
+         x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
 
-        <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl">
+        {{-- SỬA 1/10 — data-activity-key: nhật ký lưu theo TỪNG LƯỢT THI (attempt), không lẫn
+             với nhật ký của màn Luyện tập hay của lượt thi khác. --}}
+        <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl"
+             data-activity-key="exam-{{ $attempt->id }}">
 
         {{-- ══════ LỚP PHỦ HẾT GIỜ (giữ nguyên hành vi cũ: chặn thật + tự nộp) ══════ --}}
         <div x-cloak x-show="expired" x-transition.opacity
@@ -164,8 +171,11 @@
         {{-- ═══════════════════ RAIL 4 TAB + NỘI DUNG ═══════════════════ --}}
         <div class="assessment-modal-main flex min-h-0 flex-1 flex-col md:flex-row">
             <aside class="assessment-modal-tabs shrink-0 border-b border-[#DDEAF0] bg-white md:w-12 md:border-b-0 md:border-r">
-                <div class="grid h-full grid-cols-4 gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
-                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu']] as [$tabId, $tabLabel])
+                {{-- SỬA 1/10 (khách: "các tab chỗ bắt đầu làm đề khi click vào nó phải như này
+                     nè cho đồng bộ") — thêm tab thứ 5 "Nhật ký" cho khớp màn Luyện tập. Khung +
+                     phần JS dùng CHUNG partial với màn đó (work-activity-panel/-log). --}}
+                <div class="oi-tab-rail grid h-full gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
+                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
                         <button type="button" @click="activeTab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
                                 :class="activeTab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
@@ -180,11 +190,16 @@
                 {{-- ───────── TAB: ĐỀ BÀI PDF ─────────
                      SỬA 18/9 — tự vẽ bằng pdf.js cho VỪA CHIỀU NGANG khung, xem
                      partials/pdf-fit-viewer (lý do đầy đủ ghi trong partial đó). --}}
-                <section x-show="activeTab === 'pdf'" x-cloak class="assessment-pdf-surface h-full min-h-0 overflow-y-auto bg-[#EAF4F8] p-2 sm:p-3">
+                {{-- SỬA 1/10 (khách: "đề nó phải hiển thị như này đừng to full nha") — chép ĐÚNG
+                     bố cục tab Đề bài của màn Luyện tập: khung lõm xanh nhạt bo góc ở ngoài, tờ
+                     đề rộng tối đa 820px canh giữa ở trong (data-pdf-max-width + .oi-doc-col).
+                     Trước đây thiếu cả hai nên đề kéo căng hết bề ngang màn hình. --}}
+                <section x-show="activeTab === 'pdf'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
+                    <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
                     @foreach ($questions as $q)
                         <div x-show="activeId === {{ $q['questionId'] }}" class="min-h-full">
                             @if ($q['statementPdfUrl'])
-                                <div data-pdf-fit data-pdf-url="{{ $q['statementPdfUrl'] }}" class="min-h-full"></div>
+                                <div data-pdf-fit data-pdf-url="{{ $q['statementPdfUrl'] }}" data-pdf-max-width="820" class="oi-doc-col min-h-full"></div>
                             @else
                                 <div class="grid h-full min-h-[320px] place-items-center p-8 text-center">
                                     <div>
@@ -196,6 +211,7 @@
                             @endif
                         </div>
                     @endforeach
+                    </div>
                 </section>
 
                 {{-- ───────── TAB: LÀM BÀI ───────── --}}
@@ -389,6 +405,9 @@
                         </div>
                     </article>
                 </section>
+                {{-- SỬA 1/10 — tab thứ 5 "Nhật ký", dùng CHUNG partial với màn Luyện tập. --}}
+                @include('partials.work-activity-panel', ['activityTabExpr' => "activeTab === 'activity'"])
+
             </main>
         </div>
 
@@ -505,7 +524,10 @@
         }
     </style>
 
+    @include('partials.work-doc-col-style')
     @include('partials.assessment-dark-tune')
     @include('partials.assessment-chip-style')
     @include('partials.exam-workspace-script')
+    {{-- SỬA 1/10 — đồng hồ + nhật ký làm bài, dùng CHUNG partial với màn Luyện tập. --}}
+    @include('partials.work-activity-log')
 @endpush

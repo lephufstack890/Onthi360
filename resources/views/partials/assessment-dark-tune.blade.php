@@ -10,13 +10,27 @@
      Nạp ở: exercise-play (làm bài tập), assessment/take (phòng thi),
             competitions/exam + exam-pdf (cuộc thi) — mọi màn có lớp .assessment-modal. --}}
 <style>
-    /* ── 1. Trang đề bị dìm quá tay ──────────────────────────────────────────────────
-       Nền tối có luật hạ chói cho trang đề (brightness .72) — đúng ý đồ chống chói,
-       nhưng .72 thì trang giấy trắng hoá xám chì, khách kêu mờ không đọc nổi. Nâng lên
-       mức chỉ còn dịu nhẹ: vẫn không chói mắt mà chữ đen trên giấy vẫn rõ. */
+    /* ── 1. Trang đề KHÔNG bị dìm ────────────────────────────────────────────────────
+       app.css (bản đã build trên máy chủ) hạ chói trang đề xuống brightness .72 — ý đồ
+       chống chói, nhưng tờ giấy trắng hoá xám chì.
+
+       SỬA 1/10 lần 1 nâng lên .94, khách xem lại vẫn thấy xám: "giao diện phải trắng sáng,
+       đừng bị lớp phủ đen lên khi ở chế độ tối". Nên BỎ HẲN bộ lọc — tờ đề giữ đúng màu
+       thật, trắng y như ở nền sáng. Phần khung ngoài vẫn tối nên không chói cả màn hình.
+
+       Giữ 'filter: none' chứ không xoá luật: luật trong app.css vẫn còn và máy chủ không
+       build lại vite được, phải có luật này đè lên mới ăn. */
     html.theme-dark .assessment-modal .assessment-pdf-surface canvas,
     html.theme-dark .assessment-modal .assessment-pdf-iframe {
-        filter: brightness(.94) saturate(.97) contrast(.99) !important;
+        filter: none !important;
+    }
+
+    /* Mặt khung chứa tờ đề cũng đừng ngả đen quá: giữ nền xanh nhạt như nền sáng, chỉ đậm
+       hơn chút cho đỡ chói viền. Nếu không, tờ giấy trắng nằm trên nền gần như đen trông
+       như bị "lớp phủ" đúng từ khách dùng. */
+    html.theme-dark .assessment-modal .assessment-pdf-surface {
+        background-color: #22404f !important;
+        border-color: #3d5d6d !important;
     }
 
     /* ── 2. Chữ đỏ (test sai, lỗi biên dịch) ─────────────────────────────────────────

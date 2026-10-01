@@ -175,7 +175,7 @@
         <div class="assessment-modal-main flex min-h-0 flex-1 flex-col md:flex-row">
             <aside class="assessment-modal-tabs shrink-0 border-b border-[#DDEAF0] bg-white md:w-12 md:border-b-0 md:border-r">
                 {{-- SỬA 30/9 — bản mẫu mới có 5 tab: thêm "Nhật ký" (tín hiệu trong lúc làm bài). --}}
-                <div class="grid h-full grid-cols-5 gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
+                <div class="oi-tab-rail grid h-full gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
                     @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
                         <button type="button" @click="tab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
@@ -703,29 +703,9 @@
                     @endif
                     </div>
                 </section>
-                {{-- ───────── TAB: NHẬT KÝ ─────────
-                     SỬA 30/9 — tab thứ 5 của bản mẫu mới (ActivityPanel). Ghi lại các mốc trong
-                     lúc làm bài ngay TẠI TRÌNH DUYỆT (sessionStorage), KHÔNG gửi gì về máy chủ:
-                     mở bài, chuyển tab, dán/sao chép, cửa sổ mất tiêu điểm, phím Print Screen,
-                     rời trang, nộp bài. Danh sách do JS ở cuối trang vẽ (không dùng Alpine bên
-                     trong để khỏi vướng #practice-container bị thay mới sau mỗi lần chấm). --}}
-                <section x-show="tab === 'activity'" x-cloak class="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
-                    <div class="mx-auto max-w-3xl rounded-xl border border-[#DDEAF0] bg-white px-3">
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#DDEAF0] py-2.5">
-                            <h3 class="text-xs font-bold text-[#123B68]">Nhật ký làm bài</h3>
-                            <span class="text-[10px] text-[#607A90]" data-activity-count>0 sự kiện · 0 dấu hiệu cần xem xét</span>
-                            <button type="button" data-activity-download class="ml-auto min-h-8 text-[10px] font-semibold text-[#126F91] underline underline-offset-2">Tải nhật ký</button>
-                        </div>
-                        <div class="flex gap-3 border-b border-[#DDEAF0] py-2 text-[10px]" aria-label="Lọc nhật ký">
-                            <button type="button" data-activity-filter="all" class="font-bold text-[#126F91] underline underline-offset-2">Tất cả</button>
-                            <button type="button" data-activity-filter="signals" class="text-[#607A90]">Dấu hiệu (<span data-activity-signal-count>0</span>)</button>
-                        </div>
-                        <ol class="divide-y divide-[#EEF3F6]" data-activity-list></ol>
-                        <p class="border-t border-[#DDEAF0] py-2 text-[10px] text-[#7A92A3]">
-                            Đây là tín hiệu để đối chiếu, không tự kết luận vi phạm. Nhật ký chỉ nằm trong phiên trình duyệt này.
-                        </p>
-                    </div>
-                </section>
+                {{-- SỬA 1/10 — khung tab "Nhật ký" đã chuyển sang partial dùng CHUNG với màn
+                     Phòng thi (khách: "các tab chỗ bắt đầu làm đề phải như này cho đồng bộ"). --}}
+                @include('partials.work-activity-panel', ['activityTabExpr' => "tab === 'activity'"])
 
             </main>
         </div>
@@ -839,12 +819,8 @@
     <style>
         /* min-height (KHÔNG phải height) để màn hẹp — 2 khối xếp dọc, cao hơn khung — vẫn nở
            ra rồi cuộn bình thường, thay vì bị ép đúng 100% rồi cắt mất phần dưới. */
-        /* SỬA 30/9 (7) — cột nội dung của ba tab Đề bài / Hướng dẫn / Bài mẫu.
-           Viết CSS thường vì max-w-[820px] và sm:py-6 CHƯA CÓ trong public/build/assets/app-*.css
-           mà máy chủ thì không chạy được vite — dùng class Tailwind mới là mất tác dụng. */
-        .oi-doc-col { margin-left: auto; margin-right: auto; width: 100%; max-width: 820px; }
-        .oi-doc-page { padding: 18px 16px; }
-        @media (min-width: 640px) { .oi-doc-page { padding: 26px 32px; } }
+        /* SỬA 1/10 — .oi-doc-col/.oi-doc-page đã chuyển sang partials/work-doc-col-style
+           để dùng CHUNG với màn Phòng thi (nạp ở cuối trang). */
 
         /* SỬA 1/10 — khối chữ của tab Hướng dẫn / Bài mẫu khi tệp là MÃ NGUỒN (không phải PDF).
            Viết CSS thường vì các class cần ở đây (whitespace-pre-wrap + break-words + cỡ chữ
@@ -1338,6 +1314,7 @@
     @include('partials.pdf-fit-viewer')
 
     {{-- Bộ tô màu cú pháp + mã khởi tạo, dùng chung với phòng thi. --}}
+    @include('partials.work-doc-col-style')
     @include('partials.assessment-dark-tune')
     @include('partials.assessment-chip-style')
     @include('partials.code-editor-runtime')
@@ -1346,7 +1323,7 @@
     @include('partials.practice-test-download')
 
     <script>
-        // SỬA 18/9 — nối trình soạn mã kiểu bản mẫu (textarea trong suốt chồng lên lớp <pre> tô
+        // SỬA 18/9 — nối trình soạn mã kiểu bản mẫu (textarea trong suốt chồng lên lớp tô
         // màu) cho màn luyện 1 bài. KHÔNG dùng CodeMirror nữa để đúng giao diện bản mẫu; textarea
         // name="code_source" giờ là ô nhập THẬT nên form gửi thẳng giá trị đang gõ — script chấm
         // bài cũ không phải đổi gì: initCodeEditor() không tìm thấy [data-code-editor] nên tự
@@ -1414,229 +1391,8 @@
         })();
     </script>
 
-    {{-- ══════ SỬA 30/9 — ĐỒNG HỒ + NHẬT KÝ LÀM BÀI (bản mẫu mới) ══════
-         Hai thứ của bản mẫu mới, cả hai đều CHỈ CHẠY Ở TRÌNH DUYỆT — không thêm một lời gọi
-         máy chủ nào, không đụng vào luồng chấm bài:
-           · đồng hồ đếm lên từ lúc mở trang (thanh trên cùng);
-           · nhật ký: mở bài, chuyển tab, dán/sao chép, cửa sổ mất tiêu điểm rồi quay lại, phím
-             Print Screen, rời trang, nộp bài. Lưu ở sessionStorage theo mã bài, đóng trình
-             duyệt là hết — giống hệt cách bản mẫu làm (assessmentLogKey).
-
-         Dùng thuần JS (không Alpine) vì phần lớn sự kiện đến từ #practice-container — khối bị
-         thay mới sau mỗi lần chấm, mà Alpine 3 không khởi tạo DOM do JS chèn vào. --}}
-    <script>
-        (function () {
-            // ── Đồng hồ ──
-            var timerEl = document.querySelector('[data-work-timer]');
-            if (timerEl) {
-                var startedAt = Date.now();
-                var pad2 = function (n) { return n < 10 ? '0' + n : String(n); };
-                setInterval(function () {
-                    var s = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-                    timerEl.textContent = pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60);
-                }, 1000);
-            }
-
-            // ── Nhật ký ──
-            var listEl = document.querySelector('[data-activity-list]');
-            var countEl = document.querySelector('[data-activity-count]');
-            var signalEl = document.querySelector('[data-activity-signal-count]');
-            var shell = document.querySelector('.assessment-modal-shell');
-            if (!listEl) return;
-
-            var KEY = 'onthi360:practice-activity:' + (document.querySelector('[data-activity-key]')?.getAttribute('data-activity-key') || 'exercise');
-            var filter = 'all';
-            var entries = [];
-            try {
-                var saved = JSON.parse(window.sessionStorage.getItem(KEY) || '[]');
-                if (Array.isArray(saved)) entries = saved.filter(function (e) { return e && typeof e.title === 'string'; }).slice(0, 100);
-            } catch (e) { entries = []; }
-
-            var fmt = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-            function persist() {
-                try { window.sessionStorage.setItem(KEY, JSON.stringify(entries.slice(0, 100))); } catch (e) {}
-            }
-
-            function render() {
-                var signals = entries.filter(function (e) { return e.kind === 'signal'; }).length;
-                if (countEl) countEl.textContent = entries.length + ' sự kiện · ' + signals + ' dấu hiệu cần xem xét';
-                if (signalEl) signalEl.textContent = String(signals);
-
-                var visible = filter === 'signals' ? entries.filter(function (e) { return e.kind === 'signal'; }) : entries;
-                listEl.innerHTML = '';
-
-                if (visible.length === 0) {
-                    var empty = document.createElement('li');
-                    empty.className = 'py-3 text-[11px] text-[#607A90]';
-                    empty.textContent = filter === 'signals' ? 'Chưa có dấu hiệu nào cần xem xét.' : 'Chưa có sự kiện nào.';
-                    listEl.appendChild(empty);
-                    return;
-                }
-
-                visible.forEach(function (entry) {
-                    var li = document.createElement('li');
-                    li.className = 'flex flex-wrap gap-x-2 gap-y-1 py-2 text-[11px] leading-5';
-                    var time = document.createElement('time');
-                    time.className = 'shrink-0 text-[10px] text-[#7A92A3]';
-                    time.setAttribute('datetime', entry.occurredAt || '');
-                    time.textContent = entry.time || '';
-                    var title = document.createElement('span');
-                    title.className = entry.kind === 'signal' ? 'font-semibold text-amber-700' : 'font-semibold text-[#123B68]';
-                    title.textContent = (entry.kind === 'signal' ? '• ' : '') + entry.title;
-                    var detail = document.createElement('span');
-                    detail.className = 'text-[#607A90]';
-                    detail.textContent = entry.detail || '';
-                    li.appendChild(time); li.appendChild(title); li.appendChild(detail);
-                    listEl.appendChild(li);
-                });
-            }
-
-            function add(kind, title, detail) {
-                var now = new Date();
-                entries.unshift({
-                    id: now.getTime() + '-' + Math.random().toString(36).slice(2, 7),
-                    kind: kind, title: title, detail: detail,
-                    occurredAt: now.toISOString(), time: fmt.format(now),
-                });
-                entries = entries.slice(0, 100);
-                persist();
-                render();
-            }
-
-            /*
-             * SỬA 1/10 (khách: "chỉ muốn lưu nhật ký nếu chuyển tab giữa Hướng dẫn và Bài mẫu,
-             * chụp màn hình, bật tab mới, quay chụp ảnh màn hình — chỉ cần vậy thôi").
-             *
-             * ĐÃ BỎ HẲN: mở bài làm, nộp bài, trở lại bài làm, rời trang, sao chép, dán, và
-             * chuyển sang các tab Đề bài / Làm bài / Nhật ký. Mấy thứ đó đẻ ra hàng chục dòng
-             * mỗi phiên, lấp mất đúng những dấu hiệu khách cần nhìn.
-             *
-             * CÒN LẠI ĐÚNG 4 VIỆC:
-             *   1. mở tab Hướng dẫn hoặc Bài mẫu;
-             *   2. bấm phím chụp màn hình;
-             *   3. trang làm bài bị ẩn (mở tab/cửa sổ khác);
-             *   4. có yêu cầu quay/chụp màn hình từ trình duyệt.
-             */
-            window.oiWorkLog = {
-                add: add,
-                tabChanged: function (tab) {
-                    // CHỈ hai tab này. Đề bài / Làm bài / Nhật ký là chỗ phải qua lại liên tục
-                    // trong lúc làm, ghi vào thì nhật ký thành một dải vô nghĩa.
-                    var label = { guide: 'Hướng dẫn', sample: 'Bài mẫu' }[tab];
-                    if (!label) return;
-                    add('event', 'Mở tab ' + label, 'Chuyển sang xem "' + label + '".');
-                },
-            };
-
-            // ── 3. Mở tab/cửa sổ khác ──────────────────────────────────────────────────
-            // Trình duyệt KHÔNG cho biết người ta mở trang nào, chỉ cho biết trang này bị ẩn.
-            // Nên câu chữ phải nói đúng chừng đó, không được đoán thêm.
-            //
-            // Lúc quay lại thì KHÔNG thêm dòng mới (khách không xin) mà ghi thẳng khoảng thời
-            // gian vắng mặt vào chính dòng cũ — vẫn biết đi bao lâu mà nhật ký không phình.
-            var away = null;
-
-            function elapsed(startedAt) {
-                var s = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-                return s < 60 ? s + ' giây' : Math.floor(s / 60) + ' phút ' + (s % 60) + ' giây';
-            }
-
-            document.addEventListener('visibilitychange', function () {
-                if (document.hidden) {
-                    if (away) return;
-                    // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
-                    add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.');
-                    away = { at: Date.now(), entry: entries[0] };
-                    return;
-                }
-
-                if (!away) return;
-                var gone = elapsed(away.at);
-                if (away.entry) {
-                    away.entry.detail = 'Trang làm bài bị ẩn đi ' + gone + '.';
-                    persist();
-                    render();
-                }
-                away = null;
-            });
-
-            // ── 2 + 4. Chụp màn hình / quay màn hình ───────────────────────────────────
-            document.addEventListener('keydown', function (event) {
-                if (event.repeat) return;
-
-                if (event.key === 'PrintScreen' || event.code === 'PrintScreen') {
-                    add('signal', 'Bấm phím chụp màn hình', 'Trang nhận được phím Print Screen.');
-                    return;
-                }
-
-                /*
-                 * Tổ hợp chụp/quay màn hình của hệ điều hành:
-                 *   · macOS   Cmd+Shift+3 / 4 / 5  (5 là quay màn hình)
-                 *   · Windows Win+Shift+S          (Snipping Tool)
-                 *
-                 * LƯU Ý THẬT LÒNG: hệ điều hành thường nuốt mấy tổ hợp này trước khi tới trang,
-                 * nên bắt được là may chứ KHÔNG chắc chắn. Không bắt được cũng không có nghĩa
-                 * là người ta không chụp — câu chữ trong nhật ký nói đúng mức đó.
-                 */
-                if (event.shiftKey && (event.metaKey || event.ctrlKey)
-                    && ['3', '4', '5', 'S', 's'].indexOf(event.key) >= 0) {
-                    add('signal', 'Tổ hợp phím chụp/quay màn hình', 'Trang nhận được tổ hợp phím chụp hoặc quay màn hình.');
-                }
-            }, true);
-
-            /*
-             * Quay/chụp màn hình bằng chính trình duyệt (chia sẻ màn hình): chỉ bắt được khi
-             * lời gọi xuất phát TỪ TRANG NÀY. Phần mềm quay màn hình cài ngoài thì không trang
-             * web nào biết được — đó là giới hạn của trình duyệt, không phải thiếu sót ở đây.
-             */
-            try {
-                var media = navigator.mediaDevices;
-                if (media && typeof media.getDisplayMedia === 'function') {
-                    var original = media.getDisplayMedia.bind(media);
-                    media.getDisplayMedia = function () {
-                        add('signal', 'Yêu cầu quay/chụp màn hình', 'Trang nhận được yêu cầu chia sẻ hoặc quay màn hình.');
-                        return original.apply(null, arguments);
-                    };
-                }
-            } catch (e) {}
-
-            // ── Bộ lọc + tải nhật ký ──
-            document.querySelectorAll('[data-activity-filter]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    filter = btn.getAttribute('data-activity-filter');
-                    document.querySelectorAll('[data-activity-filter]').forEach(function (other) {
-                        var on = other === btn;
-                        var signals = other.getAttribute('data-activity-filter') === 'signals';
-                        other.className = on
-                            ? (signals ? 'font-bold text-amber-700 underline underline-offset-2' : 'font-bold text-[#126F91] underline underline-offset-2')
-                            : 'text-[#607A90]';
-                    });
-                    render();
-                });
-            });
-
-            var downloadBtn = document.querySelector('[data-activity-download]');
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', function () {
-                    var lines = entries.map(function (e) {
-                        return [e.time, e.kind === 'signal' ? 'DẤU HIỆU' : 'Sự kiện', e.title, e.detail].join(' | ');
-                    });
-                    var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-                    var url = URL.createObjectURL(blob);
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'nhat-ky-lam-bai.txt';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                });
-            }
-
-            render();
-        })();
-    </script>
+    {{-- SỬA 1/10 — đồng hồ + nhật ký đã chuyển sang partial dùng CHUNG với màn Phòng thi. --}}
+    @include('partials.work-activity-log')
 
     {{-- SỬA 30/9 — ĐÃ GỠ đoạn script của nút "Chạy test" (gửi mã + dữ liệu ô Input lên
          student.practiceByQuestion.run rồi in ra ô Output). Bản mẫu mới bỏ hẳn cụm Input/Output

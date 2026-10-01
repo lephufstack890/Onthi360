@@ -12,6 +12,19 @@
        $showCatalogHero = false  -> ẩn hero tối đầu trang (khu học sinh đã có banner riêng). --}}
 @php
     $showCatalogHero = $showCatalogHero ?? true;
+
+    /*
+     * SỬA 1/10 (khách: "khi thoát ra thì nó về trang luyện tập public thì ok rồi nhưng mà nó
+     * phải hiển thị ở tab đề thi luyện tập") — tab mở đầu tiên quyết định Ở PHÍA MÁY CHỦ.
+     *
+     * Lần trước chỉ đọc ?tab bằng JS trong init() của Alpine; cách đó phụ thuộc vào lúc Alpine
+     * khởi tạo và vào bộ nhớ đệm của view/trình duyệt. Quyết ở đây thì giá trị nằm sẵn trong
+     * HTML máy chủ trả về: Alpine nhận đúng tab ngay từ lúc dựng, và khối không được chọn còn
+     * được ẩn sẵn bằng style nên không chớp nháy trong lúc chờ Alpine.
+     */
+    $catalogMode = request()->query('tab') === 'de-thi' || request()->query('tab') === 'exams'
+        ? 'exams'
+        : 'problems';
 @endphp
 
 {{-- SỬA 1/10 (khách: "ngoài trang luyện tập public thêm 2 cột tỉnh thành và năm luôn nha") —
@@ -93,7 +106,7 @@
 @endphp
 
 
-<div x-data="onthiPracticePage({{ Js::from(['problems' => $problemRows, 'exams' => $examRows, 'problemPageSize' => 5, 'examPageSize' => 4]) }})" class="flex flex-col gap-4 animate-fadeIn">
+<div x-data="onthiPracticePage({{ Js::from(['problems' => $problemRows, 'exams' => $examRows, 'problemPageSize' => 5, 'examPageSize' => 4, 'initialMode' => $catalogMode]) }})" class="flex flex-col gap-4 animate-fadeIn">
 
     {{-- ══════ [PRACTICE-01] HERO LUYỆN TẬP ══════ --}}
     @if ($showCatalogHero)
@@ -190,7 +203,7 @@
     </div>
 
     {{-- ══════════════ CHẾ ĐỘ: BÀI TẬP CHUYÊN ĐỀ ══════════════ --}}
-    <div x-show="practiceMode === 'problems'" class="flex flex-col gap-4">
+    <div x-show="practiceMode === 'problems'" @if ($catalogMode !== 'problems') style="display: none" @endif class="flex flex-col gap-4">
 
         {{-- [PRACTICE-02] TABS & BỘ LỌC --}}
         <div class="flex flex-col gap-3 rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)]">
@@ -483,7 +496,7 @@
     </div>
 
     {{-- ══════════════ CHẾ ĐỘ: ĐỀ THI LUYỆN TẬP ══════════════ --}}
-    <div x-show="practiceMode === 'exams'" x-cloak class="flex flex-col gap-4">
+    <div x-show="practiceMode === 'exams'" @if ($catalogMode !== 'exams') x-cloak @endif class="flex flex-col gap-4">
 
         {{-- [PRACTICE-05] BỘ LỌC ĐỀ THI --}}
         <div class="flex flex-col gap-3 rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)] md:flex-row md:items-center md:justify-between">
