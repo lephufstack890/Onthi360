@@ -43,7 +43,8 @@
             </form>
         </div>
 
-        <form method="POST" action="{{ route('admin.content.questions.store') }}" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form method="POST" action="{{ route('admin.content.questions.store') }}" enctype="multipart/form-data"
+              class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             @csrf
 
             <div class="lg:col-span-2 bg-white rounded-3xl border border-sky-100 p-5 space-y-4">
@@ -98,12 +99,21 @@
                            class="admin-input">
                 </div>
 
+                {{-- SỬA 1/10 (khách: "trong admin chỗ tạo câu hỏi tạm thời ẩn nội dung đề bài đi") —
+                     Ô "Nội dung đề bài" được ẩn TẠM ở form TẠO: đề bài nhập bằng tệp PDF ở mục
+                     "Tệp đính kèm" bên dưới (statement_file). Form SỬA vẫn còn ô này, CỐ Ý:
+                     ContentService::questionUpdate() ghi 'body' => $data['body'] ?? null, nên ẩn
+                     ô ở form Sửa sẽ XOÁ SẠCH đề bài cũ mỗi lần bấm Lưu.
+                     Bật lại: bỏ dấu mở ghi chú Blade ở đầu khối này và dấu đóng ở cuối khối
+                     (không cần sửa controller/service — luật 'body' vẫn còn ở questionsStore()).
+
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="body">Nội dung đề bài</label>
                     <textarea id="body" name="body" rows="5" data-rich-editor
                               placeholder="Nhập đề bài..."
                               class="admin-input">{{ old('body') }}</textarea>
                 </div>
+                --}}
 
                 {{-- MCQ --}}
                 <div x-show="type === 'mcq'" x-cloak>
@@ -151,6 +161,58 @@
                                   placeholder="Mỗi dòng 1 test: input|||output&#10;Ví dụ: 3 5|||8"
                                   class="admin-input font-mono">{{ old('test_cases_raw') }}</textarea>
                         <p class="text-xs text-slate-400 mt-1">Định dạng đơn giản để nhập nhanh — chưa hỗ trợ tải file test hàng loạt.</p>
+                    </div>
+                    {{-- SỬA 1/10 — quy ước tên tệp vào/ra. KHÔNG phải trường trang trí:
+                         CodeJudgingService::withFileIo() chèn đoạn mở/đóng tệp vào mã của học
+                         sinh dựa đúng vào 2 ô này, trước đây chỉ gói ZIP điền được nên bài nhập
+                         tay mà học sinh viết freopen("TONG.INP") bị chấm sai sạch. --}}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_input">Tên tệp dữ liệu vào</label>
+                            <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ old('file_io_input') }}"
+                                   placeholder="Ví dụ: TONG.INP" class="admin-input font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_output">Tên tệp dữ liệu ra</label>
+                            <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ old('file_io_output') }}"
+                                   placeholder="Ví dụ: TONG.OUT" class="admin-input font-mono">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400">Để trống nếu bài đọc/ghi bằng bàn phím và màn hình (stdin/stdout). Điền tên tệp thì máy chấm tự nối, bài dùng <code>freopen</code> vẫn chấm đúng. Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
+                </div>
+
+                {{-- SỬA 1/10 (khách: "nhập thủ công đang thiếu chọn file pdf, thiếu nhiều") —
+                     Trước đây 3 tệp đính kèm cố định + ảnh/âm thanh CHỈ nhập được qua gói ZIP,
+                     nên câu gõ tay không bao giờ có tab "Đề bài PDF" cho học sinh. Đường dẫn lưu
+                     dùng LẠI đúng quy ước của gói ZIP (questions/{id}/{kind}.{ext} trên disk
+                     'local'), xem ContentService::applyManualUploads(). --}}
+                <div class="pt-4 border-t border-sky-100 space-y-3">
+                    <h4 class="font-medium text-slate-700">📎 Tệp đính kèm</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="statement_file">Đề bài (PDF)</label>
+                            <input id="statement_file" name="statement_file" type="file" accept="application/pdf"
+                                   class="w-full text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px]">
+                            <p class="text-xs text-slate-400 mt-1">Học sinh đọc được ở tab "Đề bài" lúc làm bài. Tối đa 20 MB.</p>
+                        </div>
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="solution_file">Lời giải (PDF)</label>
+                            <input id="solution_file" name="solution_file" type="file" accept="application/pdf"
+                                   class="w-full text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px]">
+                            <p class="text-xs text-slate-400 mt-1">Chỉ Admin/Giáo viên tải được — không lộ cho học sinh. Tối đa 20 MB.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="reference_file">Code mẫu / lời giải tham khảo</label>
+                        <input id="reference_file" name="reference_file" type="file" accept=".cpp,.cc,.c,.py,.pas,.java,.js,.ts,.txt,.md"
+                               class="w-full text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px]">
+                        <p class="text-xs text-slate-400 mt-1">Tệp mã nguồn (.cpp, .py, .pas…), tối đa 2 MB. Chỉ Admin/Giáo viên tải được.</p>
+                    </div>
+                    <div>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="asset_files">Ảnh / âm thanh kèm câu hỏi</label>
+                        <input id="asset_files" name="asset_files[]" type="file" multiple accept="image/*,audio/*"
+                               class="w-full text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px]">
+                        <p class="text-xs text-slate-400 mt-1">Chọn được nhiều tệp (tối đa 20, mỗi tệp 20 MB) — hiện ảnh / phát audio ngay trong đề lúc làm bài. Cần ghi thêm lời thoại hoặc chú thích ảnh cho từng tệp thì phải nhập bằng gói ZIP.</p>
                     </div>
                 </div>
             </div>

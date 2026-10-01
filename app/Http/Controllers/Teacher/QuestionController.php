@@ -176,7 +176,11 @@ class QuestionController extends Controller
             // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
             'subject' => ['nullable', 'string', 'max:20'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
-            'body' => ['required', 'string'],
+            // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
+            // đang ẩn ở form (đề bài nhập bằng tệp PDF), nên KHÔNG còn 'required': để 'required'
+            // thì mọi lần Lưu đều bị chặn "Nội dung đề bài là bắt buộc". Teacher\QuestionService
+            // ::buildAttributes() chỉ ghi 'body' khi form CÓ gửi ô đó, nên đề bài cũ không mất.
+            'body' => ['nullable', 'string'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
             'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
@@ -187,6 +191,30 @@ class QuestionController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer'],
             'new_tags' => ['nullable', 'string', 'max:500'],
+            /*
+             * SỬA 1/10 — các ô tệp MỚI, giống hệt bên Kho chung của admin (xem
+             * Admin\ContentController::questionUploadRules()):
+             *   - statement_file: tệp PDF đề bài. QUAN TRỌNG NHẤT — nuôi tab "Đề bài" của học
+             *     sinh lúc làm bài (Question::attachmentInfo('statement')); trước đây chỉ gói
+             *     ZIP tạo được nên câu giáo viên gõ tay không bao giờ có.
+             *   - solution_file / reference_file: lời giải PDF + code mẫu, chỉ giáo viên tải.
+             *   - asset_files[]: ảnh/âm thanh cần để trả lời (Question::findAsset()).
+             *   - remove_attachments[] / remove_assets[]: ô bỏ tệp đang có.
+             *   - file_io_input / file_io_output: tên tệp vào/ra của câu Lập trình; regex khớp
+             *     ĐÚNG CodeJudgingService::withFileIo() để không có tên nào "lưu được mà máy
+             *     chấm lặng lẽ bỏ qua".
+             */
+            'statement_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'solution_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'reference_file' => ['nullable', 'file', 'max:2048', 'extensions:cpp,cc,c,py,pas,java,js,ts,txt,md'],
+            'remove_attachments' => ['nullable', 'array'],
+            'remove_attachments.*' => ['string', 'in:statement,solution,reference'],
+            'asset_files' => ['nullable', 'array', 'max:20'],
+            'asset_files.*' => ['file', 'max:20480', 'mimetypes:image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/mp4,audio/aac,audio/ogg,audio/wav,audio/x-wav,audio/webm'],
+            'remove_assets' => ['nullable', 'array'],
+            'remove_assets.*' => ['string', 'max:64'],
+            'file_io_input' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'file_io_output' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
         ];
 
         return match ($type) {

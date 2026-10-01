@@ -39,6 +39,7 @@ use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
@@ -1101,6 +1102,9 @@ class ContentService
 
         $question->tags()->sync($this->resolveTagIds($data));
 
+        // SỬA 1/10 — phải gọi SAU create() vì đường dẫn tệp lấy theo $question->id.
+        $this->applyManualUploads($question, $data);
+
         return $question;
     }
 
@@ -1136,7 +1140,11 @@ class ContentService
             // form Sửa, không cần lệnh backfill.
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
-            'body' => $data['body'] ?? null,
+            // SỬA 1/10 (khách: "nội dung đề bài bên chỗ cập nhật câu hỏi cũng ẩn đi") — PHẢI
+            // phân biệt "form không gửi ô body" (ô đang bị ẩn -> GIỮ NGUYÊN đề bài cũ) với "form
+            // gửi ô body rỗng" (người dùng CỐ Ý xoá). Trước đây dòng này là `$data['body'] ?? null`
+            // nên chỉ cần ẩn ô đi là mỗi lần bấm Lưu XOÁ SẠCH đề bài của câu hỏi.
+            'body' => array_key_exists('body', $data) ? $data['body'] : $question->body,
             'points' => $data['points'] ?? 0,
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
             // add_display_order_to_questions_table.
@@ -1162,6 +1170,10 @@ class ContentService
 
         $updated->tags()->sync($this->resolveTagIds($data));
 
+        // SỬA 1/10 — tệp đính kèm nhập tay. Chạy SAU update() ở trên (update() vừa ghi
+        // metadata.difficulty) và tự đọc lại metadata mới nhất để 2 bước không ghi đè nhau.
+        $this->applyManualUploads($updated, $data);
+
         return $updated;
     }
 
@@ -1174,7 +1186,9 @@ class ContentService
             // đã copy giá trị cũ sang, dòng này để sửa được luôn khi tạo version mới).
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
             'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
-            'body' => $data['body'] ?? null,
+            // SỬA 1/10 — cùng lý do ở questionUpdate(): ô body bị ẩn (không gửi lên) thì bản
+            // version mới thừa hưởng đề bài của bản gốc, không bị xoá trắng.
+            'body' => array_key_exists('body', $data) ? $data['body'] : $question->body,
             'points' => $data['points'] ?? 0,
             // SỬA 30/9 — độ ưu tiên hiển thị (số lớn hiện trước), xem migration
             // add_display_order_to_questions_table.
@@ -1200,6 +1214,10 @@ class ContentService
         // Phiên bản mới giữ NGUYÊN tag của bản gốc trừ khi form gửi kèm lựa chọn tag khác —
         // đổi nội dung câu hỏi (sửa lỗi/cập nhật) hiếm khi đổi luôn chủ đề của nó.
         $newVersion->tags()->sync($this->resolveTagIds($data));
+
+        // SỬA 1/10 — tệp mới tải lên ở form "Tạo phiên bản mới" ghi vào thư mục của BẢN MỚI
+        // (questions/{idMới}/…), không dùng chung đường dẫn với bản gốc.
+        $this->applyManualUploads($newVersion, $data);
 
         return $newVersion;
     }
@@ -1228,6 +1246,212 @@ class ContentService
         }
 
         return $metadata;
+    }
+
+    /**
+     * SỬA 1/10 (khách: "chỗ nhập thủ công đang thiếu vài trường… thiếu chọn file pdf") — trước
+     * đây CHỈ gói ZIP mới tạo được metadata.attachments (đề/lời giải/code mẫu) và
+     * metadata.assets (ảnh/âm thanh), nên câu gõ tay không bao giờ có tab "Đề bài PDF" cho học
+     * sinh (xem Question::attachmentInfo() + Student\AssessmentService). Giờ form Tạo/Sửa có ô
+     * chọn tệp, luồng lưu dùng LẠI đúng quy ước đường dẫn của storeZipAttachments()/
+     * storeZipAssets() để 2 nguồn (ZIP và gõ tay) đọc ra như nhau, không cần sửa nơi đọc.
+     *
+     * GỘP chứ không ghi đè: câu nhập ZIP rồi sửa tay vẫn giữ nguyên tệp cũ nếu lần lưu này
+     * không chọn tệp mới — cùng lý do ở mergeDifficultyIntoMetadata().
+     */
+    private function applyManualUploads(Question $question, array $data): void
+    {
+        $metadata = $question->metadata ?? [];
+        $currentAttachments = $metadata['attachments'] ?? [];
+        $currentAssets = $metadata['assets'] ?? [];
+
+        // Đọc bytes TRƯỚC khi lưu disk để dùng lại cho việc trích đề bài bên dưới (lưu bằng
+        // Storage::put() không di chuyển tệp tạm, nhưng đọc 1 lần vẫn gọn hơn đọc 2 lần).
+        $statementFile = $data[self::MANUAL_ATTACHMENT_FIELDS['statement']] ?? null;
+        $statementBytes = $statementFile instanceof UploadedFile ? $statementFile->get() : null;
+
+        $attachments = $this->mergeManualAttachments($question, $data, $currentAttachments);
+        $assets = $this->mergeManualAssets($question, $data, $currentAssets);
+
+        $attributes = [];
+
+        if ($attachments !== $currentAttachments || $assets !== $currentAssets) {
+            // Không ghi khoá rỗng: nơi đọc dùng `?? []` nên mảng rỗng và không có khoá là một,
+            // nhưng bỏ hẳn khoá giúp metadata của câu gõ tay không phình ra vô ích.
+            if ($attachments === []) {
+                unset($metadata['attachments']);
+            } else {
+                $metadata['attachments'] = $attachments;
+            }
+
+            if ($assets === []) {
+                unset($metadata['assets']);
+            } else {
+                $metadata['assets'] = $assets;
+            }
+
+            $attributes['metadata'] = $metadata;
+        }
+
+        /*
+         * SỬA 1/10 — BẮT BUỘC phải có, không phải tiện thêm: form TẠO đang ẩn ô "Nội dung đề
+         * bài" (khách yêu cầu), nên body về null, mà QuestionPublishGuard::canPublish() chặn
+         * phát hành khi body rỗng ("Thiếu toàn văn đề bài") -> mọi câu gõ tay sẽ KHÔNG BAO GIỜ
+         * phát hành được. Xử lý y như luồng nhập ZIP: trích chữ thật từ tệp PDF đề bài vừa tải
+         * lên làm body (placeholderBodyForZipImport() đã có sẵn, tái dùng nguyên), PDF scan
+         * không có lớp chữ thì rơi về dòng ghi chú — vẫn đủ điều kiện phát hành.
+         *
+         * Chỉ chạy khi body đang RỖNG: câu đã có đề bài (gõ tay hoặc nhập ZIP) không bị tệp PDF
+         * tải lên sau ghi đè mất nội dung.
+         */
+        if ($statementBytes !== null && blank($question->body)) {
+            $attributes['body'] = $this->placeholderBodyForZipImport(
+                ['title' => $question->title],
+                ['statement' => ['content' => $statementBytes]],
+            );
+        }
+
+        if ($attributes === []) {
+            return;
+        }
+
+        $this->questions->update($question, $attributes);
+    }
+
+    /**
+     * 3 tệp đính kèm CỐ ĐỊNH (statement/solution/reference) — cùng khoá, cùng đường dẫn
+     * "questions/{id}/{kind}.{ext}" như storeZipAttachments().
+     *
+     * Bỏ chọn (remove_attachments[]) chỉ XOÁ KHOÁ trong metadata, KHÔNG xoá tệp trên disk: bản
+     * version cũ của câu hỏi có thể đang trỏ vào đúng tệp đó (xem questionCreateNewVersion()),
+     * xoá thật sẽ làm bản cũ 404.
+     *
+     * @param  array<string, array{path:string, filename:string}>  $current
+     * @return array<string, array{path:string, filename:string}>
+     */
+    private function mergeManualAttachments(Question $question, array $data, array $current): array
+    {
+        $remove = array_map('strval', (array) ($data['remove_attachments'] ?? []));
+
+        foreach (self::MANUAL_ATTACHMENT_FIELDS as $kind => $field) {
+            if (in_array($kind, $remove, true)) {
+                unset($current[$kind]);
+            }
+
+            $file = $data[$field] ?? null;
+
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
+            $path = "questions/{$question->id}/{$kind}.{$extension}";
+            Storage::disk('local')->put($path, $file->get());
+
+            $current[$kind] = ['path' => $path, 'filename' => $file->getClientOriginalName()];
+        }
+
+        return $current;
+    }
+
+    /**
+     * Ảnh/âm thanh đính kèm (không giới hạn số lượng) — cùng cấu trúc storeZipAssets() để
+     * Question::findAsset() + Student\PracticeByQuestionService đọc được không cần sửa gì.
+     *
+     * KHÁC gói ZIP ở 2 điểm, đã cố ý: 'kind' suy từ loại tệp (ảnh/âm thanh/video) thay vì gói
+     * tự khai, và 'transcript'/'alt_text' để null vì form không có chỗ gõ cho từng tệp — cần
+     * lời thoại/chú thích ảnh thì vẫn phải nhập bằng gói ZIP.
+     *
+     * @param  array<int, array<string, mixed>>  $current
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeManualAssets(Question $question, array $data, array $current): array
+    {
+        $remove = array_map('strval', (array) ($data['remove_assets'] ?? []));
+
+        if ($remove !== []) {
+            $current = array_values(array_filter(
+                $current,
+                fn ($asset) => ! in_array((string) ($asset['id'] ?? ''), $remove, true)
+            ));
+        }
+
+        foreach ((array) ($data['asset_files'] ?? []) as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $id = (string) Str::uuid();
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
+            $path = "questions/{$question->id}/assets/{$id}.{$extension}";
+            Storage::disk('local')->put($path, $file->get());
+
+            $current[] = [
+                'id' => $id,
+                'kind' => $this->assetKindFor($file),
+                'path' => $path,
+                'filename' => $file->getClientOriginalName(),
+                'transcript' => null,
+                'alt_text' => null,
+            ];
+        }
+
+        return array_values($current);
+    }
+
+    /**
+     * 'kind' quyết định học sinh thấy ảnh hay nghe audio (xem Student\PracticeByQuestionService
+     * + blade làm bài), nên KHÔNG tin một mình getMimeType(): nó đoán theo nội dung tệp và trả
+     * về 'application/octet-stream'/'text/plain' với không ít tệp thật (đã gặp khi thử). Đoán
+     * theo mime trước, không ra thì xét đuôi tên tệp — bộ luật kiểm tra ở
+     * ContentController::questionUploadRules() đã chặn các loại ngoài ảnh/âm thanh từ trước.
+     */
+    private function assetKindFor(UploadedFile $file): string
+    {
+        $mime = (string) $file->getMimeType();
+
+        foreach (['image', 'audio', 'video'] as $kind) {
+            if (str_starts_with($mime, $kind.'/')) {
+                return $kind;
+            }
+        }
+
+        return match (strtolower($file->getClientOriginalExtension())) {
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg' => 'image',
+            'mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'opus', 'weba' => 'audio',
+            'mp4', 'webm', 'mov', 'm4v' => 'video',
+            default => 'file',
+        };
+    }
+
+    /**
+     * grading_config.file_io — quy ước tên tệp vào/ra cho câu Lập trình. ĐƯỢC DÙNG THẬT:
+     * CodeJudgingService::withFileIo() chèn đoạn mở/đóng tệp vào mã của học sinh, nên thiếu nó
+     * thì bài viết kiểu freopen("TONG.INP") chấm sai sạch.
+     *
+     * Form nhập tay gửi 2 ô rời 'file_io_input' / 'file_io_output'. Nhánh `$data['file_io']`
+     * giữ lại cho nguồn gửi sẵn cả mảng (QuestionZipPackage::gradingConfig() dùng khoá này) —
+     * lúc nhập ZIP thì grading_config build ở buildGradingConfigFromZipPackage(), KHÔNG qua đây,
+     * nhưng để nhánh đó thì hàm này an toàn với mọi nơi gọi buildGradingConfig().
+     * Chỉ điền 1 trong 2 ô vẫn hợp lệ — withFileIo() xử lý được riêng từng chiều.
+     *
+     * QUAN TRỌNG: form Sửa PHẢI điền sẵn 2 ô này từ grading_config.file_io (xem
+     * edit.blade.php). Để trống rồi bấm Lưu = CỐ Ý bỏ quy ước tên tệp của câu đó.
+     *
+     * @return array{input?:string, output?:string}|null
+     */
+    private function resolveFileIo(array $data): ?array
+    {
+        if (! array_key_exists('file_io_input', $data) && ! array_key_exists('file_io_output', $data)) {
+            return $data['file_io'] ?? null;
+        }
+
+        $io = array_filter([
+            'input' => trim((string) ($data['file_io_input'] ?? '')),
+            'output' => trim((string) ($data['file_io_output'] ?? '')),
+        ], fn ($v) => $v !== '');
+
+        return $io === [] ? null : $io;
     }
 
     /**
@@ -1302,7 +1526,10 @@ class ContentService
                 // chấm code thật sau này (ngôn ngữ cho phép / quy ước tên file input-output /
                 // chấm theo nhóm điểm subtasks). Không dùng ở đâu khác hiện tại — vô hại.
                 'languages' => $data['languages'] ?? null,
-                'file_io' => $data['file_io'] ?? null,
+                // SỬA 1/10 (khách: "nhập thủ công đang thiếu vài trường") — file_io KHÔNG
+                // còn là "chỉ gói ZIP điền được": form nhập tay giờ có 2 ô Tên tệp vào / Tên
+                // tệp ra. Xem resolveFileIo() ngay dưới buildGradingConfig().
+                'file_io' => $this->resolveFileIo($data),
                 'subtasks' => $data['subtasks'] ?? null,
             ], fn ($v) => $v !== null),
             default => [],
@@ -1398,6 +1625,19 @@ class ContentService
     // questions) và lưu 3 tệp đính kèm sau khi đã có $question->id.
 
     private const MAX_ZIP_PACKAGE_KB = 20480; // 20MB — gói ZIP gồm cả PDF đề+lời giải+nhiều test case
+
+    /**
+     * SỬA 1/10 — ánh xạ 3 tệp đính kèm cố định sang tên ô <input type="file"> trên form
+     * Tạo/Sửa câu hỏi. Dùng ở CẢ ContentService (lưu) lẫn ContentController (luật kiểm tra)
+     * để 2 chỗ không lệch tên ô.
+     *
+     * @var array<string, string>
+     */
+    public const MANUAL_ATTACHMENT_FIELDS = [
+        'statement' => 'statement_file',
+        'solution' => 'solution_file',
+        'reference' => 'reference_file',
+    ];
 
     public static function maxQuestionZipKb(): int
     {

@@ -27,6 +27,19 @@
         $timeLimitMs = old('time_limit_ms', $config['time_limit_ms'] ?? 1000);
         $memoryLimitMb = old('memory_limit_mb', $config['memory_limit_mb'] ?? 256);
         $testCasesText = old('test_cases', collect($config['test_cases'] ?? [])->map(fn ($tc) => ($tc['input'] ?? '').' => '.($tc['output'] ?? ''))->implode("\n"));
+        // SỬA 1/10 — PHẢI điền sẵn 2 ô Tên tệp vào/ra từ grading_config.file_io: để trống thì
+        // Teacher\QuestionService::resolveFileIo() hiểu là "cố ý bỏ quy ước tên tệp" và XOÁ mất
+        // cấu hình của câu nhập từ gói ZIP ngay lần bấm Lưu đầu tiên.
+        $fileIoInput = old('file_io_input', $config['file_io']['input'] ?? '');
+        $fileIoOutput = old('file_io_output', $config['file_io']['output'] ?? '');
+        $currentAttachments = $question->metadata['attachments'] ?? [];
+        $currentAssets = $question->metadata['assets'] ?? [];
+        $attachmentFields = [
+            'statement' => ['statement_file', 'Đề bài (PDF)', 'application/pdf', 'Học sinh đọc được ở tab "Đề bài" lúc làm bài. Tối đa 20 MB.'],
+            'solution' => ['solution_file', 'Lời giải (PDF)', 'application/pdf', 'Chỉ bạn tải được — không lộ cho học sinh. Tối đa 20 MB.'],
+            'reference' => ['reference_file', 'Code mẫu / lời giải tham khảo', '.cpp,.cc,.c,.py,.pas,.java,.js,.ts,.txt,.md', 'Tệp mã nguồn (.cpp, .py, .pas…), tối đa 2 MB. Chỉ bạn tải được.'],
+        ];
+        $fileInputClass = 'w-full text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px]';
         $canPublishNow = $question ? app(\App\Services\QuestionPublishGuard::class)->canPublish($question)->allowed : false;
         $selectedTagIds = old('tag_ids', $question?->tags?->pluck('id')->all() ?? []);
     @endphp
@@ -72,22 +85,9 @@
             <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
                     class="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
         </form>
-    @elseif ($question)
-        @php $zipAttachments = $question->metadata['attachments'] ?? []; @endphp
-        @if (! empty($zipAttachments))
-            <div class="mb-6 bg-slate-50 border border-sky-100 rounded-3xl p-4">
-                <p class="text-[13px] font-medium text-slate-600 mb-2"><x-lucide name="file-text" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Tệp đính kèm (nhập từ gói ZIP)</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($zipAttachments as $kind => $file)
-                        <a href="{{ route('teacher.questions.attachment', [$question->id, $kind]) }}"
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600 hover:border-blue-200 hover:text-blue-600">
-                            {{ match ($kind) { 'statement' => '📄 Đề bài', 'solution' => '📄 Lời giải', 'reference' => '💻 Code mẫu', default => $kind } }}
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
     @endif
+    {{-- SỬA 1/10 — dải "Tệp đính kèm (nhập từ gói ZIP)" chỉ-để-tải ở đây đã chuyển XUỐNG TRONG
+         form (mục "Tệp đính kèm"), nhờ vậy thay/bỏ được tệp chứ không chỉ tải về. --}}
 
     <div class="flex gap-3 mb-6">
         @foreach ($types as $t)
@@ -98,7 +98,8 @@
         @endforeach
     </div>
 
-    <form method="POST" action="{{ $question ? route('teacher.questions.update', $question->id) : route('teacher.questions.store') }}">
+    <form method="POST" enctype="multipart/form-data"
+          action="{{ $question ? route('teacher.questions.update', $question->id) : route('teacher.questions.store') }}">
         @csrf
         @if ($question)
             @method('PUT')
@@ -136,10 +137,20 @@
                     </div>
                 </div>
 
+                {{-- SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn nha") — ẩn TẠM ô
+                     "Nội dung đề bài" đúng như Kho chung bên admin; đề bài nhập bằng tệp PDF ở
+                     mục "Tệp đính kèm" bên dưới. ĐÃ SỬA KÈM 2 chỗ, thiếu 1 trong 2 là hỏng:
+                       - QuestionController::validationRules(): 'body' bỏ 'required', nếu không
+                         mọi lần Lưu bị chặn "Nội dung đề bài là bắt buộc";
+                       - QuestionService::buildAttributes(): 'body' chỉ ghi khi form CÓ gửi ô đó,
+                         nếu không mỗi lần Lưu sẽ XOÁ SẠCH đề bài cũ.
+                     Bật lại: bỏ dấu mở ghi chú Blade ở đầu khối này và dấu đóng ở cuối khối.
+
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="body">Nội dung đề bài</label>
                     <textarea id="body" name="body" rows="5" data-rich-editor class="admin-input" placeholder="Nhập đề bài...">{{ old('body', $question->body ?? '') }}</textarea>
                 </div>
+                --}}
 
                 @if ($type === 'mcq')
                     <div>
@@ -187,7 +198,67 @@
                         <textarea id="test_cases" name="test_cases" rows="4" class="w-full rounded-xl border border-sky-100 text-[13px] p-3 font-mono" placeholder="1 2 => 3&#10;5 5 => 10">{{ $testCasesText }}</textarea>
                         <p class="text-xs text-slate-400 mt-1">Thiếu test/giới hạn thời gian-bộ nhớ = chặn phát hành (6.2).</p>
                     </div>
+                    {{-- SỬA 1/10 — quy ước tên tệp vào/ra. KHÔNG phải trường trang trí:
+                         CodeJudgingService::withFileIo() chèn đoạn mở/đóng tệp vào mã của học
+                         sinh dựa đúng vào 2 ô này, trước đây chỉ gói ZIP điền được nên bài nhập
+                         tay mà học sinh viết freopen("TONG.INP") bị chấm sai sạch. --}}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_input">Tên tệp dữ liệu vào</label>
+                            <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ $fileIoInput }}"
+                                   placeholder="Ví dụ: TONG.INP" class="admin-input font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_output">Tên tệp dữ liệu ra</label>
+                            <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ $fileIoOutput }}"
+                                   placeholder="Ví dụ: TONG.OUT" class="admin-input font-mono">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400">Để trống nếu bài đọc/ghi bằng bàn phím và màn hình (stdin/stdout). Điền tên tệp thì máy chấm tự nối, bài dùng <code>freopen</code> vẫn chấm đúng. Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
                 @endif
+
+                {{-- SỬA 1/10 — 3 tệp đính kèm cố định + ảnh/âm thanh, trước đây CHỈ nhập được qua
+                     gói ZIP. Đường dẫn lưu dùng LẠI đúng quy ước của gói ZIP
+                     (questions/{id}/{kind}.{ext} trên disk 'local'), xem
+                     Teacher\QuestionService::applyManualUploads(). --}}
+                <div class="pt-4 border-t border-sky-100 space-y-3">
+                    <h4 class="font-medium text-slate-700">📎 Tệp đính kèm</h4>
+                    @foreach ($attachmentFields as $kind => [$field, $label, $accept, $hint])
+                        <div>
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="{{ $field }}">{{ $label }}</label>
+                            @if (isset($currentAttachments[$kind]['path']))
+                                <div class="flex flex-wrap items-center gap-3 mb-2">
+                                    <a href="{{ route('teacher.questions.attachment', [$question->id, $kind]) }}"
+                                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600 hover:border-blue-200 hover:text-blue-600">
+                                        ⬇ {{ $currentAttachments[$kind]['filename'] ?? 'Tệp đang có' }}
+                                    </a>
+                                    <label class="inline-flex items-center gap-1.5 text-xs text-rose-600">
+                                        <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"> Bỏ tệp này
+                                    </label>
+                                </div>
+                            @endif
+                            <input id="{{ $field }}" name="{{ $field }}" type="file" accept="{{ $accept }}" class="{{ $fileInputClass }}">
+                            <p class="text-xs text-slate-400 mt-1">{{ $hint }} Chọn tệp mới sẽ thay tệp đang có.</p>
+                        </div>
+                    @endforeach
+                    <div>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="asset_files">Ảnh / âm thanh kèm câu hỏi</label>
+                        @if (! empty($currentAssets))
+                            <div class="flex flex-wrap items-center gap-3 mb-2">
+                                @foreach ($currentAssets as $asset)
+                                    <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600">
+                                        <input type="checkbox" name="remove_assets[]" value="{{ $asset['id'] ?? '' }}">
+                                        {{ match ($asset['kind'] ?? 'file') { 'image' => '🖼', 'audio' => '🔊', 'video' => '🎬', default => '📄' } }}
+                                        {{ $asset['filename'] ?? ($asset['id'] ?? '') }}
+                                    </label>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-slate-400 mb-2">Tick tệp muốn bỏ rồi bấm Lưu. Tệp chọn thêm bên dưới được THÊM vào danh sách này, không thay thế.</p>
+                        @endif
+                        <input id="asset_files" name="asset_files[]" type="file" multiple accept="image/*,audio/*" class="{{ $fileInputClass }}">
+                        <p class="text-xs text-slate-400 mt-1">Chọn được nhiều tệp (tối đa 20, mỗi tệp 20 MB) — hiện ảnh / phát audio ngay trong đề lúc làm bài. Cần ghi thêm lời thoại hoặc chú thích ảnh cho từng tệp thì phải nhập bằng gói ZIP.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">

@@ -230,6 +230,39 @@ class ContentController extends Controller
         ];
     }
 
+    /**
+     * SỬA 1/10 (khách: "chỗ nhập thủ công đang thiếu vài trường… thiếu chọn file pdf") — luật
+     * kiểm tra cho các ô MỚI ở form Tạo/Sửa câu hỏi, trước đây chỉ gói ZIP mới điền được:
+     *
+     *   - statement_file / solution_file / reference_file: 3 tệp đính kèm cố định. 'statement'
+     *     là tệp QUAN TRỌNG NHẤT — nó nuôi tab "Đề bài PDF" của học sinh lúc làm bài (xem
+     *     Question::attachmentInfo() + Student\AssessmentService), thiếu nó thì học sinh chỉ
+     *     thấy phần đề gõ tay.
+     *   - remove_attachments[] / remove_assets[]: ô bỏ chọn tệp đang có ở form Sửa.
+     *   - asset_files[]: ảnh/âm thanh cần để trả lời (Question::findAsset()).
+     *   - file_io_input / file_io_output: quy ước tên tệp vào/ra của câu Lập trình. Khớp ĐÚNG
+     *     regex mà CodeJudgingService::withFileIo() dùng để lọc tên tệp — sai regex ở đây thì
+     *     tên lưu được nhưng máy chấm lặng lẽ bỏ qua.
+     *
+     * 3 action Tạo / Sửa / Tạo phiên bản mới dùng chung bộ luật này để không chỗ nào thiếu.
+     */
+    private function questionUploadRules(): array
+    {
+        return [
+            'statement_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'solution_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'reference_file' => ['nullable', 'file', 'max:2048', 'extensions:cpp,cc,c,py,pas,java,js,ts,txt,md'],
+            'remove_attachments' => ['nullable', 'array'],
+            'remove_attachments.*' => ['string', 'in:statement,solution,reference'],
+            'asset_files' => ['nullable', 'array', 'max:20'],
+            'asset_files.*' => ['file', 'max:20480', 'mimetypes:image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/mp4,audio/aac,audio/ogg,audio/wav,audio/x-wav,audio/webm'],
+            'remove_assets' => ['nullable', 'array'],
+            'remove_assets.*' => ['string', 'max:64'],
+            'file_io_input' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'file_io_output' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+        ];
+    }
+
     /** SỬA 19/8 (Giai đoạn 6) — tag có sẵn (tick chọn) + tag mới gõ tay, xem ContentService::resolveTagIds(). */
     private function tagRules(): array
     {
@@ -256,7 +289,7 @@ class ContentController extends Controller
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
             'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'visibility' => ['required', 'string', 'in:public,private'],
-        ], $this->questionGradingRules(), $this->tagRules()));
+        ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
 
         $question = $this->contentService->questionStore(Auth::user(), $data);
 
@@ -282,7 +315,7 @@ class ContentController extends Controller
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
             'display_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'visibility' => ['required', 'string', 'in:public,private'],
-        ], $this->questionGradingRules(), $this->tagRules()));
+        ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
 
         $this->contentService->questionUpdate($question, $data);
 
@@ -305,7 +338,7 @@ class ContentController extends Controller
             // Độ khó). Thiếu luật này thì giá trị gửi lên bị validate() loại bỏ, và
             // questionCreateNewVersion() hiểu là "bỏ trống" -> XOÁ mất độ khó của bản mới.
             'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
-        ], $this->questionGradingRules(), $this->tagRules()));
+        ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
 
