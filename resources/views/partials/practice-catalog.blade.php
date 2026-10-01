@@ -300,11 +300,19 @@
                     $openHref = $canTakeDirectly
                         ? route('student.practiceByQuestion.setup', ['question' => $prob['id']])
                         : route('login');
-                    $ctaLabel = match ($prob['status']) { 'ac' => 'Luyện lại', 'doing' => 'Tiếp tục', default => 'Làm bài' };
-                    // Bản mẫu mới bỏ màu hổ phách cho trạng thái "đang làm": chỉ còn 2 màu nút.
-                    $ctaClass = $prob['status'] === 'ac'
-                        ? 'bg-[#2F8A6B] hover:bg-[#28795E]'
-                        : 'bg-[#126F91] hover:bg-[#0F5E7B]';
+                    /*
+                     * SỬA 1/10 (khách: "cột hành động để mặc định là Làm bài luôn, đừng Luyện
+                     * lại hay gì hết") — nút này trước đây đổi chữ theo trạng thái
+                     * ("Luyện lại" khi đã AC, "Tiếp tục" khi đang làm dở) và đổi cả màu.
+                     * Giờ MỌI DÒNG đều là một nút "Làm bài" duy nhất, cùng một màu.
+                     *
+                     * Không mất thông tin gì: trạng thái đã nằm ngay ở cột Tên bài — dấu tích
+                     * xanh "Đã AC" và viên "Đã làm N lần" / "Chưa làm". Mà đằng nào cả ba nhãn
+                     * cũ cũng dẫn về đúng một chỗ, nên ba chữ khác nhau cho cùng một hành động
+                     * chỉ làm người ta phải nghĩ thêm.
+                     */
+                    $ctaLabel = 'Làm bài';
+                    $ctaClass = 'bg-[#126F91] hover:bg-[#0F5E7B]';
                 @endphp
                 <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
                      :style="{ order: visibleProblemIds.indexOf({{ $prob['id'] }}) }"
