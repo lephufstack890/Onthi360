@@ -73,6 +73,17 @@
                 @endif
             </div>
 
+            {{-- SỬA 1/10 — trang chi tiết phải xem được CẢ hai trường, nếu không sửa xong không
+                 có chỗ nào kiểm lại bài giới thiệu vừa soạn. --}}
+            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
+                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="pen-line" class="h-4 w-4" /></span> Giới thiệu khóa học</h2>
+                @if (\App\Models\Course::hasContent($course->intro))
+                    <div class="rich-content text-[13px] text-slate-600 leading-relaxed">{!! $course->intro !!}</div>
+                @else
+                    <p class="text-[13px] text-slate-400">Chưa có bài giới thiệu — trang công khai đang hiện lại phần Mô tả ở trên.</p>
+                @endif
+            </div>
+
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="graduation-cap" class="h-4 w-4" /></span> Lớp thuộc khóa này</h2>

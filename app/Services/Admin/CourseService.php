@@ -181,6 +181,9 @@ class CourseService
             'title' => $data['title'],
             'slug' => $slug,
             'description' => $data['description'] ?? null,
+            // SỬA 1/10 — "Giới thiệu khoá học" (bài đầy đủ ở giữa trang công khai), tách khỏi
+            // 'description' (tóm tắt dưới tên khoá). Xem migration add_intro_to_courses_table.
+            'intro' => $data['intro'] ?? null,
             'subject' => $data['subject'] ?? null,
             'grade' => self::gradeValue($data),
             'status' => $data['status'],
@@ -222,6 +225,9 @@ class CourseService
         return $this->courses->update($course, [
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
+            // SỬA 1/10 — "Giới thiệu khoá học" (bài đầy đủ ở giữa trang công khai), tách khỏi
+            // 'description' (tóm tắt dưới tên khoá). Xem migration add_intro_to_courses_table.
+            'intro' => $data['intro'] ?? null,
             'subject' => $data['subject'] ?? null,
             'grade' => self::gradeValue($data),
             'status' => $data['status'],

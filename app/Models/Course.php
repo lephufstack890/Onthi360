@@ -19,6 +19,10 @@ class Course extends Model
 
     protected $fillable = [
         'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'status', 'created_by',
+        // SỬA 1/10 — 'intro' = GIỚI THIỆU đầy đủ (mục "Giới thiệu khoá học" giữa trang công
+        // khai), tách khỏi 'description' = MÔ TẢ NGẮN (dòng tóm tắt dưới tên khoá). Xem
+        // migration add_intro_to_courses_table.
+        'intro',
         // SỬA 15/9 — bốn trường "bậc" khi khoá học nằm trong một lộ trình, xem migration
         // add_level_fields_to_courses_table.
         'level_code', 'level_subtitle', 'outcome', 'session_count',
@@ -187,5 +191,44 @@ class Course extends Model
     public function scheduledSessionCountFor(ClassRoom $classRoom): int
     {
         return $classRoom->sessions()->count();
+    }
+
+    /**
+     * SỬA 1/10 — Rút HTML do CKEditor soạn thành một đoạn chữ thuần, cắt đúng độ dài, dùng cho
+     * dòng tóm tắt dưới tên khoá và thẻ meta description.
+     *
+     * SỬA LUÔN MỘT LỖI HIỂN THỊ ĐÃ CÓ (khách gửi ảnh: dòng tóm tắt kết thúc bằng ".&..."):
+     * trước đây chỗ gọi làm strip_tags() rồi Str::limit() thẳng. CKEditor hay chèn &nbsp;, và
+     * strip_tags KHÔNG giải mã thực thể HTML — cắt đúng giữa chuỗi "&nbsp;" thì còn lại dấu "&"
+     * trơ ra màn hình. Phải GIẢI MÃ THỰC THỂ TRƯỚC rồi mới cắt.
+     *
+     * Gộp luôn khoảng trắng: xuống dòng trong HTML thành một dấu cách, để đoạn tóm tắt không bị
+     * ngắt dòng giữa chừng trong khung hẹp.
+     */
+    public static function plainSummary(?string $html, int $limit = 160): string
+    {
+        $text = html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // \x{00A0} (khoảng trắng không ngắt, chính là &nbsp; sau khi giải mã) cũng là khoảng trắng.
+        $text = trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $text) ?? '');
+
+        return $limit > 0 ? \Illuminate\Support\Str::limit($text, $limit) : $text;
+    }
+
+    /**
+     * SỬA 1/10 — "Ô soạn thảo này có nội dung thật không?" — dùng để quyết định mục "Giới thiệu
+     * khoá học" lấy trường intro hay rơi về description.
+     *
+     * KHÔNG đo bằng trim(strip_tags()): mở CKEditor rồi không gõ gì vẫn lưu xuống
+     * "<p>&nbsp;</p>", strip_tags để lại nguyên chuỗi "&nbsp;" nên bị coi là CÓ nội dung và
+     * trang công khai hiện ra một khung trống. plainSummary() giải mã thực thể trước nên chuỗi
+     * đó về rỗng đúng như mắt người thấy.
+     *
+     * Vế thứ hai cho trường hợp bài giới thiệu CHỈ có ảnh/bảng/video, không một chữ nào: vẫn là
+     * nội dung thật, rơi về mô tả là mất hẳn phần admin đã soạn.
+     */
+    public static function hasContent(?string $html): bool
+    {
+        return self::plainSummary($html, 0) !== ''
+            || preg_match('/<(img|iframe|video|table|picture|figure)\b/i', (string) $html) === 1;
     }
 }

@@ -39,6 +39,10 @@ class CourseController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            // SỬA 1/10 — "Giới thiệu khoá học": bài giới thiệu đầy đủ do CKEditor soạn, khác
+            // 'description' (tóm tắt 1-2 câu). Trần rộng hơn nhiều vì là HTML có thẻ, danh sách,
+            // đôi khi cả ảnh — xem migration add_intro_to_courses_table.
+            'intro' => ['nullable', 'string', 'max:200000'],
             'subject' => ['nullable', 'string', 'max:60'],
             // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
             // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.
@@ -82,6 +86,10 @@ class CourseController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            // SỬA 1/10 — "Giới thiệu khoá học": bài giới thiệu đầy đủ do CKEditor soạn, khác
+            // 'description' (tóm tắt 1-2 câu). Trần rộng hơn nhiều vì là HTML có thẻ, danh sách,
+            // đôi khi cả ảnh — xem migration add_intro_to_courses_table.
+            'intro' => ['nullable', 'string', 'max:200000'],
             'subject' => ['nullable', 'string', 'max:60'],
             // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
             // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.

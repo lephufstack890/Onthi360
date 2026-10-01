@@ -49,6 +49,22 @@
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="description">Mô tả khóa học</label>
                     <textarea id="description" name="description" rows="5" maxlength="5000" data-rich-editor
                               class="admin-input">{{ old('description', $course->description) }}</textarea>
+                    <p class="text-xs text-slate-400 mt-1">Ngắn gọn 1-2 câu — đây là dòng tóm tắt dưới tên khoá, dài quá sẽ bị cắt.</p>
+                </div>
+
+                {{-- SỬA 1/10 (khách: "thêm hộ tôi 1 field giới thiệu nữa nhé dạng ckeditor như
+                     mô tả nhé") — HAI ô khác việc nhau, đừng nhập trùng nội dung:
+                       · "Mô tả khoá học" (ô trên) = 1-2 câu tóm tắt, hiện ngay DƯỚI TÊN KHOÁ ở
+                         trang công khai và dùng làm mô tả cho Google/Facebook. Dài quá sẽ bị cắt.
+                       · "Giới thiệu khoá học" (ô này) = bài giới thiệu đầy đủ, hiện ở mục
+                         "Giới thiệu khoá học" giữa trang, không bị cắt.
+                     Để trống ô này thì mục giới thiệu ngoài trang tự lấy lại Mô tả như trước,
+                     nên khoá cũ không bị trống chỗ đó. --}}
+                <div>
+                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="intro">Giới thiệu khoá học</label>
+                    <textarea id="intro" name="intro" rows="10" data-rich-editor
+                              class="admin-input">{{ old('intro', $course->intro) }}</textarea>
+                    <p class="text-xs text-slate-400 mt-1">Hiện ở mục "Giới thiệu khoá học" giữa trang công khai. Để trống thì mục đó lấy lại Mô tả ở trên.</p>
                 </div>
 
                 @include('partials.course-level-fields')

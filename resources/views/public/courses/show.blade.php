@@ -1,7 +1,10 @@
 @extends('layouts.guest')
 
 @section('title', $course->title)
-@section('meta-description', \Illuminate\Support\Str::limit(strip_tags((string) $course->description), 155) ?: 'Khoá học '.$course->title.' trên Ôn Thi 360 — nội dung, lớp đang mở, học phí và đánh giá của học viên.')
+{{-- SỬA 1/10 — qua Course::plainSummary() thay vì strip_tags()+Str::limit() thẳng: CKEditor
+     hay chèn &nbsp;, cắt đúng giữa thực thể HTML thì meta còn dấu "&" trơ ra (xem ghi chú ở
+     chính hàm đó). --}}
+@section('meta-description', \App\Models\Course::plainSummary($course->description, 155) ?: 'Khoá học '.$course->title.' trên Ôn Thi 360 — nội dung, lớp đang mở, học phí và đánh giá của học viên.')
 
 @section('content')
     @php
@@ -30,7 +33,27 @@
         $weekSpan = $weekSpan ?? 0;
         $sessionsPerWeek = $sessionsPerWeek ?? null;
         $brandChip = $course->level_code ?: $course->subject;
-        $shortIntro = \Illuminate\Support\Str::limit(trim(strip_tags((string) $course->description)), 160);
+        /*
+         * SỬA 1/10 (khách: "mô tả đổ dữ liệu vô chỗ tôi khoanh đỏ đó còn giới thiệu đổ chỗ mục
+         * giới thiệu") — DÒNG TÓM TẮT ngay dưới tên khoá lấy từ MÔ TẢ (description), còn mục
+         * "Giới thiệu khoá học" ở giữa trang lấy từ trường GIỚI THIỆU mới (intro) — xem khối
+         * "3. GIỚI THIỆU KHOÁ HỌC" bên dưới. Trước đây cả hai chỗ cùng đổ từ description nên
+         * mục giới thiệu chỉ lặp lại đúng câu tóm tắt.
+         *
+         * plainSummary() còn sửa lỗi khách thấy trong ảnh: dòng tóm tắt kết thúc bằng ".&..."
+         * vì cắt trúng giữa chuỗi "&nbsp;" của CKEditor.
+         */
+        $shortIntro = \App\Models\Course::plainSummary($course->description, 160);
+
+        /*
+         * Khoá cũ chưa có bài giới thiệu riêng -> dùng lại Mô tả như trước, để không khoá nào bị
+         * trống mục "Giới thiệu khoá học" trong lúc chờ admin soạn lại.
+         *
+         * Đo "có nội dung" bằng Course::hasContent() chứ KHÔNG phải trim(strip_tags()) — lý do
+         * đầy đủ ghi ở chính hàm đó (CKEditor để trống vẫn lưu "<p>&nbsp;</p>", và bài giới
+         * thiệu chỉ có ảnh cũng phải tính là có nội dung).
+         */
+        $introHtml = \App\Models\Course::hasContent($course->intro) ? $course->intro : $course->description;
     @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
@@ -206,10 +229,14 @@
     </section>
 
     {{-- ══════ 3. GIỚI THIỆU KHOÁ HỌC ══════
-         Đúng thành phần <InfoCard> + khung bài viết nền kem của source. Mô tả là HTML do quản
+         Đúng thành phần <InfoCard> + khung bài viết nền kem của source. Nội dung là HTML do quản
          trị soạn bằng trình soạn thảo nên in bằng {!! !!}; class .course-intro ở cuối trang
-         chép lại cách source tô đậm/đánh dấu danh sách bên trong bài viết. --}}
-    @if (trim(strip_tags((string) $course->description)) !== '')
+         chép lại cách source tô đậm/đánh dấu danh sách bên trong bài viết.
+
+         SỬA 1/10 — nguồn là trường GIỚI THIỆU mới (courses.intro), KHÔNG phải mô tả nữa; mô tả
+         giờ chỉ nuôi dòng tóm tắt dưới tên khoá. $introHtml ở đầu trang lo phần rơi về mô tả cho
+         khoá cũ chưa soạn bài giới thiệu. --}}
+    @if (\App\Models\Course::hasContent($introHtml))
         <article class="min-w-0 rounded-2xl border border-[#DDEAF0] bg-white p-4 shadow-[0_4px_18px_rgba(34,105,132,0.05)] sm:p-5">
             <div class="flex items-center gap-2.5">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#eaf6fb] text-[#2c789a]">
@@ -219,7 +246,7 @@
             </div>
             <div class="mt-3 type-body">
                 <div class="course-intro max-w-none space-y-4 rounded-2xl border border-[#efe3c8] bg-gradient-to-br from-[#fffaf0] via-[#fffdf8] to-[#fff8e8] px-4 py-4 text-[13px] font-normal leading-6 text-[#3E79A4] sm:px-5 sm:py-5">
-                    {!! $course->description !!}
+                    {!! $introHtml !!}
                 </div>
             </div>
         </article>
