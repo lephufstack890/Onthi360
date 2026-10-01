@@ -11,6 +11,7 @@ use App\Enums\PublishAnswerRule;
 use App\Enums\QuestionType;
 use App\Enums\UploadedDocumentStatus;
 use App\Models\Assessment;
+use App\Support\QuestionDifficulty;
 use App\Models\AssessmentCodingItem;
 use App\Models\Assignment;
 use App\Models\UploadedDocument;
@@ -189,7 +190,11 @@ class AssessmentService
                 'id' => $q->id,
                 'title' => $q->title,
                 'type' => $q->type->value,
-                'points' => $q->points,
+                // SỬA 1/10 — điểm hiện trên màn chọn câu là điểm suy từ ĐỘ KHÓ, không phải cột
+                // questions.points. Dùng đúng hàm mà store() dùng để ghi vào đề, nên số nhìn
+                // thấy = số máy chấm. Xem QuestionDifficulty::pointsForQuestion().
+                'points' => QuestionDifficulty::pointsForQuestion($q->metadata, (int) $q->points),
+                'difficultyLabel' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
                 'status' => $q->status->value,
             ])->all();
 
@@ -223,8 +228,11 @@ class AssessmentService
             // trùng điểm gốc của câu trong kho. Để null thì lúc chấm sẽ đọc lại questions.points,
             // nên sửa điểm gốc của câu (cho đề khác) là điểm đề này âm thầm đổi theo. Xem
             // Admin\ContentService::assessmentItemsUpdate(), cùng một lý do.
-            $override = $data['points_override'][$questionId] ?? null;
-            $points = max(1, filled($override) ? (int) $override : (int) $question->points);
+            //
+            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ khó
+            // của câu đó") — con số không còn lấy từ ô nhập (đã bỏ) mà tính từ độ khó, đúng hàm
+            // mà màn chọn câu dùng để hiển thị.
+            $points = QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points);
             $items[] = ['question_id' => $question->id, 'order' => $order, 'points_override' => $points];
             $totalPoints += $points;
         }

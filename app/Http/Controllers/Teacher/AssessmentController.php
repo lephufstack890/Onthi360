@@ -220,10 +220,9 @@ class AssessmentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer'],
-            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — điểm từng câu là dữ liệu CHÍNH của
-            // đề, phải kiểm tra tử tế thay vì nhận bừa cả mảng.
-            'points_override' => ['nullable', 'array'],
-            'points_override.*' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ
+            // khó của câu đó") — ĐÃ BỎ HẲN 'points_override': form không còn ô nhập, điểm tính ở
+            // server từ độ khó. Bỏ luật này thì dù ai tự gửi lên, validate() cũng loại bỏ.
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],

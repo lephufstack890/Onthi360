@@ -86,6 +86,26 @@ class QuestionDifficulty
         return $key !== null ? self::POINTS[$key] : null;
     }
 
+    /**
+     * SỬA 1/10 (khách: "chỗ add câu hỏi cho chỗ tạo đề... đừng cho nhập nhé mà tự động active
+     * điểm của các câu theo độ khó của câu đó") — ĐIỂM CỦA 1 CÂU KHI GHÉP VÀO ĐỀ.
+     *
+     * NƠI DUY NHẤT tính con số này: màn chọn câu hỏi hiện nó ra, và service ghi
+     * assessment_items.points_override cũng lấy đúng nó — hai bên lệch nhau thì admin thấy một
+     * đằng mà máy chấm một nẻo.
+     *
+     * CỐ Ý đi qua resolve() chứ không đọc thẳng cột questions.points: câu CŨ chưa đặt độ khó còn
+     * mang điểm thang cũ (mặc định 10, có câu 100). resolve() suy ra mức theo đúng cách mọi màn
+     * khác đang hiển thị, rồi POINTS quy về thang mới 2/4/6/8/10 — nhờ vậy con số trên màn chọn
+     * câu luôn khớp với mức độ khó ghi ngay cạnh nó.
+     *
+     * @param  array<string, mixed>|null  $metadata  cột questions.metadata (đã cast array).
+     */
+    public static function pointsForQuestion(?array $metadata, int $points): int
+    {
+        return self::POINTS[self::resolve($metadata, $points)];
+    }
+
     /** Số 1-5 kiểu cũ ứng với từng mức — dùng cả khi đọc dữ liệu cũ lẫn khi lọc. */
     public const LEGACY_NUMBERS = ['basic' => [1], 'easy' => [2], 'fair' => [3], 'hard' => [4], 'expert' => [5]];
 

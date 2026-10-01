@@ -7,7 +7,6 @@
     @php
         $questions = $questions ?? [];
         $selectedIds = $selectedIds ?? [];
-        $pointsOverrides = $pointsOverrides ?? [];
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻'];
     @endphp
 
@@ -31,10 +30,9 @@
                   let t = 0, c = 0;
                   this.$el.querySelectorAll('[data-question-row]').forEach((row) => {
                       const picked = row.querySelector('input[type=checkbox]');
-                      const points = row.querySelector('input[type=number]');
                       if (picked && picked.checked) {
                           c += 1;
-                          t += parseInt(points && points.value ? points.value : '0', 10) || 0;
+                          t += parseInt(row.dataset.points || '0', 10) || 0;
                       }
                   });
                   this.total = t;
@@ -69,7 +67,7 @@
             @else
                 <div class="divide-y divide-slate-100 max-h-[32rem] overflow-y-auto">
                     @foreach ($questions as $q)
-                        <label class="flex items-center justify-between py-3 gap-3 cursor-pointer" data-question-row>
+                        <label class="flex items-center justify-between py-3 gap-3 cursor-pointer" data-question-row data-points="{{ $q['points'] }}">
                             <div class="flex items-center gap-3 min-w-0">
                                 <input type="checkbox" name="question_ids[]" value="{{ $q['id'] }}" @checked(in_array($q['id'], old('question_ids', $selectedIds)))>
                                 <span class="text-base shrink-0">{{ $typeIcons[$q['type']] ?? '❓' }}</span>
@@ -78,15 +76,22 @@
                                     <p class="text-xs text-slate-400">{{ $q['ownerLabel'] }} · {{ $q['status'] === 'published' ? 'Đã phát hành' : 'Nháp' }}</p>
                                 </div>
                             </div>
+                                {{-- SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu
+                                     theo độ khó của câu đó tại vì mỗi câu đều có điểm dựa vào độ khó rồi") —
+                                     ô nhập điểm đã BỎ. Con số dưới đây do
+                                     QuestionDifficulty::pointsForQuestion() tính từ độ khó, và service ghi
+                                     vào đề cũng gọi ĐÚNG hàm đó, nên số nhìn thấy = số máy chấm.
+                                     data-points để phần cộng tổng ở trên đọc được (trước đây nó đọc ô
+                                     input[type=number], giờ không còn ô nào). --}}
                             <div class="flex shrink-0 items-center gap-2">
-                                <span class="text-xs font-semibold text-slate-400">Điểm</span>
-                                <input type="number" name="points_override[{{ $q['id'] }}]" value="{{ old('points_override.'.$q['id'], $pointsOverrides[$q['id']] ?? $q['points']) }}" min="1" max="100"
-                                       class="w-16 rounded-xl border border-sky-100 text-[13px] p-1.5 text-center" onclick="event.stopPropagation()">
+                                <span class="rounded-full border border-sky-100 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-slate-500">{{ $q['difficultyLabel'] }}</span>
+                                <span class="w-16 rounded-xl border border-sky-100 bg-slate-50 p-1.5 text-center text-[13px] font-bold text-slate-600">{{ $q['points'] }} đ</span>
                             </div>
                         </label>
                     @endforeach
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Điểm gõ ở đây là điểm của câu <strong>trong đề này</strong> — không đụng tới điểm gốc của câu trong kho, nên cùng một câu có thể 10 điểm ở đề này và 5 điểm ở đề khác. Đây cũng chính là điểm máy dùng để chấm.</p>
+                <p class="text-xs text-slate-400 mt-2">Điểm từng câu <strong>tính theo độ khó</strong> của chính câu đó (Cơ bản 2 · Dễ 4 · Khá 6 · Khó 8 · Rất khó 10), không nhập tay. Muốn đổi điểm một câu thì sửa Độ khó của câu đó trong Kho câu hỏi.</p>
+                <p class="text-xs text-slate-400 mt-1">Số điểm được <strong>chốt vào đề</strong> lúc bấm Lưu: sau này đổi độ khó của câu trong kho thì đề đã lưu vẫn giữ nguyên điểm cũ, lưu lại màn này mới cập nhật theo.</p>
                 <p class="text-xs text-slate-400 mt-1">Câu còn "Nháp" vẫn gắn được vào đề, nhưng đề chỉ phát hành được khi mọi câu đã Phát hành (6.2).</p>
             @endif
         </div>

@@ -633,12 +633,12 @@ class ContentController extends Controller
         $data = $request->validate([
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer', 'exists:questions,id'],
-            // SỬA 23/9 (khách: "nhập điểm cho từng câu") — điểm từng câu là dữ liệu CHÍNH của
-            // đề (không còn ô "Tổng điểm" nào khác để sửa), nên phải kiểm tra tử tế thay vì
-            // nhận bừa cả mảng: 0 hay chữ lọt vào là đề chấm sai ngay.
-            'points_override' => ['nullable', 'array'],
-            'points_override.*' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ], [], ['question_ids' => 'Câu hỏi', 'points_override.*' => 'Điểm của câu']);
+            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ
+            // khó của câu đó") — ĐÃ BỎ HẲN 'points_override' khỏi đây: form không còn ô nhập, và
+            // điểm được tính ở server từ độ khó (ContentService::assessmentItemsUpdate ->
+            // QuestionDifficulty::pointsForQuestion). Bỏ luật này nghĩa là dù ai có tự gửi
+            // points_override lên thì validate() cũng loại bỏ, không có đường nào đặt điểm tay.
+        ], [], ['question_ids' => 'Câu hỏi']);
 
         $this->contentService->assessmentItemsUpdate($assessment, $data);
 

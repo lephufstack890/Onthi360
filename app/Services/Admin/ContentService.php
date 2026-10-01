@@ -2441,12 +2441,17 @@ class ContentService
                 'id' => $q->id,
                 'title' => $q->title,
                 'type' => $q->type->value,
-                'points' => $q->points,
+                // SỬA 1/10 — điểm hiện trên màn chọn câu KHÔNG phải cột questions.points nữa mà
+                // là điểm suy từ ĐỘ KHÓ (xem QuestionDifficulty::pointsForQuestion). Dùng đúng
+                // hàm mà assessmentItemsUpdate() dùng để ghi, nên số nhìn thấy = số được chấm.
+                'points' => QuestionDifficulty::pointsForQuestion($q->metadata, (int) $q->points),
+                'difficultyLabel' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
                 'status' => $q->status->value,
                 'ownerLabel' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
             ])->all(),
             'selectedIds' => $existingItems->keys()->all(),
-            'pointsOverrides' => $existingItems->map(fn ($item) => $item->points_override)->filter()->all(),
+            // SỬA 1/10 — 'pointsOverrides' đã BỎ: màn chọn câu không còn ô nhập điểm nên không
+            // cần điền lại điểm cũ của đề. Điểm hiển thị giờ tính từ độ khó ('points' ở trên).
         ];
     }
 
@@ -2459,7 +2464,6 @@ class ContentService
     public function assessmentItemsUpdate(Assessment $assessment, array $data): Assessment
     {
         $questionIds = $data['question_ids'];
-        $pointsOverride = $data['points_override'] ?? [];
 
         $validQuestions = $this->questions->query()->whereIn('id', $questionIds)->get()->keyBy('id');
 
@@ -2474,16 +2478,20 @@ class ContentService
 
             /*
              * SỬA 23/9 (khách: "nhập điểm cho từng câu") — LUÔN GHI points_override, kể cả khi
-             * điểm gõ vào trùng đúng điểm gốc của câu trong kho.
+             * trùng đúng điểm của câu trong kho.
              *
              * Trước đây để null trong trường hợp đó, và AttemptService::maxPointsFor() sẽ quay
              * về đọc questions.points. Hậu quả: sửa điểm gốc của câu trong kho (cho đề khác)
              * là điểm của ĐỀ NÀY âm thầm đổi theo, học sinh làm xong ra điểm khác hẳn tổng ghi
              * trên đề. Ghi hẳn số vào đề thì đề đã chốt điểm là chốt luôn.
+             *
+             * SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ khó
+             * của câu đó tại vì mỗi câu đều có điểm dựa vào độ khó rồi") — con số KHÔNG còn lấy
+             * từ ô nhập trên form nữa (ô đó đã bỏ), mà tính từ độ khó qua
+             * QuestionDifficulty::pointsForQuestion() — đúng hàm mà màn chọn câu dùng để hiển
+             * thị, nên số admin nhìn thấy chính là số máy chấm.
              */
-            $override = $pointsOverride[$questionId] ?? null;
-            $points = filled($override) ? (int) $override : (int) $question->points;
-            $points = max(1, $points);
+            $points = QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points);
 
             $assessment->items()->create([
                 'question_id' => $question->id,
