@@ -127,6 +127,20 @@ class AssessmentService
         return [
             'isPdfMode' => false,
             'assessmentModel' => $assessmentModel,
+            /*
+             * SỬA 2/10 lần 5 (khách: "chỗ tab đề bài PDF khi mà làm đề luyện tập á, đổ dữ liệu
+             * file PDF xem trước vô tab này") — tệp PDF người ra đề tải lên ở form đề.
+             *
+             * Dùng lại ĐÚNG route công khai practice.exam.preview (tệp giống hệt, không cần
+             * thêm đường dẫn thứ hai), nên chỉ đưa ra khi route đó chạy được: đề Luyện tập ĐÃ
+             * PHÁT HÀNH. Đề nháp đang thử thì tab vẫn rơi về đề bài PDF của từng câu như cũ —
+             * cố ý, thà thiếu còn hơn nhả ra một đường dẫn 404.
+             */
+            'examPdfUrl' => (
+                $assessmentModel->preview_pdf_path !== null
+                && $assessmentModel->type?->value === 'practice'
+                && $assessmentModel->status?->value === 'published'
+            ) ? route('practice.exam.preview', $assessmentModel->id) : null,
             'attempt' => $attempt,
             'questions' => $questions,
             // SỬA 18/9 — dòng nhãn nhỏ trên đầu phòng thi của bản mẫu ("EXAM_HSG_01 · 100 ĐIỂM").

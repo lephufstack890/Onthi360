@@ -51,7 +51,7 @@
              {{-- SỬA 1/10 (khách: "mặc định khi bắt đầu làm đề thi ở tab đề bài nha") — mở tab
                   Đề bài khi đề CÓ bản PDF; đề không có PDF nào thì mở thẳng Làm bài. Cùng luật
                   với màn Luyện tập (xem $statementUrl ở exercise-play). --}}
-             initialTab: @js(collect($questions)->contains(fn ($q) => filled($q['statementPdfUrl'] ?? null)) ? 'pdf' : 'work'),
+             initialTab: @js(filled($examPdfUrl ?? null) || collect($questions)->contains(fn ($q) => filled($q['statementPdfUrl'] ?? null)) ? 'pdf' : 'work'),
          })"
          x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); }); $watch('activeId', function (id) { scrollToStatement(id); })">
 
@@ -208,6 +208,19 @@
                          (examWorkspace.scrollToStatement, nối bằng $watch ở x-init). --}}
                 <section x-show="activeTab === 'pdf'" x-cloak class="h-full min-h-0 overflow-hidden p-1 sm:p-2">
                     <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                        {{-- SỬA 2/10 lần 5 (khách: "đổ dữ liệu file PDF xem trước vô tab này…
+                             chỉ cần hiển thị Tệp PDF xem trước là được rồi, không cần hiển thị
+                             gì khác") — đề đã có tệp PDF do người ra đề tải lên thì tab này CHỈ
+                             có đúng tệp đó: không dải tên câu, không đề bài PDF của từng câu,
+                             không ô "câu này không có bản PDF". Trang đề đọc liền một mạch.
+
+                             Đề KHÔNG có tệp đó (mọi đề cũ, đề của bài giao/cuộc thi) thì giữ
+                             nguyên cách cũ bên dưới, không đụng gì. --}}
+                        @if ($examPdfUrl ?? null)
+                            <div class="oi-doc-col">
+                                <div data-pdf-fit data-pdf-url="{{ $examPdfUrl }}" data-pdf-max-width="820" class="min-h-[320px]"></div>
+                            </div>
+                        @else
                         <div class="oi-doc-col flex flex-col gap-3">
                             @foreach ($questions as $q)
                                 <section data-exam-statement="{{ $q['questionId'] }}" class="scroll-mt-2">
@@ -234,6 +247,7 @@
                                 </section>
                             @endforeach
                         </div>
+                        @endif
                     </div>
                 </section>
 
@@ -293,6 +307,9 @@
                                                  Câu KHÔNG có PDF vẫn in đề ở đây (chỗ DUY NHẤT đọc được đề), bố cục
                                                  chép đúng màn Luyện tập: khối cuộn riêng, cao tối đa 30% khung. --}}
                                             @if ($q['statementPdfUrl'])
+                                                <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['points'] }} điểm · Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                            @elseif ($examPdfUrl ?? null)
+                                                {{-- Đề có tệp PDF chung: chỉ cột mốc, đề bài đọc ở tab Đề bài PDF. --}}
                                                 <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['points'] }} điểm · Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
                                             @else
                                                 <p class="shrink-0 px-4 pt-2 text-[11px] text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['points'] }} điểm</p>
@@ -356,9 +373,13 @@
                                                 <div class="mb-3 rounded-lg bg-white px-3 py-3">
                                                     <p class="text-[10px] font-bold uppercase tracking-wide text-[#7A92A3]">Câu {{ $q['no'] }} · {{ $q['typeLabel'] }} · {{ $q['points'] }} điểm</p>
                                                     <p class="mt-1 text-sm font-bold text-[#123B68]">{{ $q['title'] }}</p>
-                                                    @if ($q['statementPdfUrl'])
+                                                    @if ($q['statementPdfUrl'] || ($examPdfUrl ?? null))
                                                         <p class="mt-1 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
-                                                    @elseif ($q['body'])
+                                                    @endif
+                                                    {{-- Câu không có PDF riêng thì phần chữ vẫn in ở đây: đề có tệp PDF
+                                                         chung không có nghĩa là câu này đã nằm trong đó, bỏ đi là học
+                                                         sinh mất chỗ DUY NHẤT đọc được nội dung câu. --}}
+                                                    @if (! $q['statementPdfUrl'] && $q['body'])
                                                         <div class="rich-content mt-1 text-xs leading-6 text-[#45657D]">{!! $q['body'] !!}</div>
                                                     @endif
                                                 </div>

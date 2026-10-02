@@ -138,14 +138,16 @@
                      Ghép câu bằng PHP chứ không kẹp @if giữa dòng chữ: directive Blade dính ngay
                      sau một chữ cái (…trước@if) KHÔNG được Blade nhận ra, @endif sau đó thành
                      thừa và trang vỡ 500 — đúng cái bẫy đã làm hỏng màn làm bài hôm trước. --}}
+                {{-- SỬA 2/10 lần 5 — câu chữ phải khớp với sự thật MỚI: tệp PDF tải lên giờ
+                     cũng chính là đề bài trong phòng thi, nên không còn "phần còn lại" nào mở ra
+                     sau khi bấm nữa. Chỉ đề PDF cũ cắt theo khoảng trang mới đúng là xem một
+                     phần. Hứa sai còn tệ hơn không hứa gì. --}}
                 @php
                     $previewNote = $previewRange !== null
-                        ? 'Đây là bản xem trước (trang '.$previewRange['from'].'–'.$previewRange['to'].').'
-                        : 'Đây là bản xem trước của đề.';
+                        ? 'Đây là bản xem trước (trang '.$previewRange['from'].'–'.$previewRange['to'].'). Toàn bộ đề mở ra khi bạn bấm Bắt đầu làm bài.'
+                        : 'Đây là đề bài của đề thi này. Bấm Bắt đầu làm bài để vào phòng thi, tính giờ và nộp bài.';
                 @endphp
-                <p class="mt-2 px-1 text-[11px] text-[#61798B]">
-                    {{ $previewNote }} Toàn bộ đề mở ra khi bạn bấm <span class="font-bold text-[#126F91]">Bắt đầu làm bài</span>.
-                </p>
+                <p class="mt-2 px-1 text-[11px] text-[#61798B]">{{ $previewNote }}</p>
             @endif
         </section>
 
