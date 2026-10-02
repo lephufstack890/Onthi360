@@ -33,6 +33,8 @@ use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
 use App\Support\QuestionDifficulty;
+use App\Support\ExamCategory;
+use App\Support\ImageOptimizer;
 use App\Support\ProvinceCatalog;
 use App\Support\QuestionZipPackage;
 use App\Support\SubjectCatalog;
@@ -49,6 +51,16 @@ use ZipArchive;
  */
 class ContentService
 {
+    /** SỬA 2/10 — nơi cất ảnh bìa đề, cùng disk 'public' với ảnh khoá học để link asset() chạy. */
+    private const ASSESSMENT_COVER_DIR = 'assessments/covers';
+
+    private const ASSESSMENT_COVER_DISK = 'public';
+
+    // Tệp PDF xem trước nằm ở disk RIÊNG TƯ (local), không nằm trong public/ — ra ngoài qua
+    // route practice.exam.preview, giống đường đi của assessments.pdf_path.
+    private const ASSESSMENT_PREVIEW_DIR = 'assessments/previews';
+    private const ASSESSMENT_PREVIEW_DISK = 'local';
+
     public function __construct(
         private MaterialRepositoryInterface $materials,
         private QuestionRepositoryInterface $questions,
@@ -2398,8 +2410,10 @@ class ContentService
             : AssessmentContentMode::PdfAnswerSheet->value;
     }
 
-    public function assessmentStore(User $admin, array $data): Assessment
+    public function assessmentStore(User $admin, array $data, ?UploadedFile $cover = null): Assessment
     {
+        $removeCover = false;
+
         return $this->assessments->create([
             'title' => $data['title'],
             'type' => $data['type'],
@@ -2409,6 +2423,10 @@ class ContentService
             'total_points' => 0,
             'duration_minutes' => $data['duration_minutes'] ?: null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
+            // SỬA 2/10 — 6 trường mô tả đề cho bản mẫu UI mới. Tỉnh/thành và Loại đề chuẩn
+            // hoá qua catalog chứ không tin thẳng input: mã lạ thành null = "chưa gán", không
+            // lưu rác vào cột lọc (cùng cách đã làm với questions.subject/province).
+            ...$this->assessmentDetailAttributes($data, $cover, $removeCover, null),
             'status' => ContentStatus::Draft->value,
             'version' => 1,
             'owner_type' => OwnerType::Shared->value,
@@ -2532,7 +2550,7 @@ class ContentService
         );
     }
 
-    public function assessmentUpdate(Assessment $assessment, array $data): Assessment
+    public function assessmentUpdate(Assessment $assessment, array $data, ?UploadedFile $cover = null, bool $removeCover = false): Assessment
     {
         $derived = $this->derivedTotalPoints($assessment);
 
@@ -2545,7 +2563,78 @@ class ContentService
             'total_points' => $derived ?? $assessment->total_points,
             'duration_minutes' => $data['duration_minutes'] ?: null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? 'never',
+            // SỬA 2/10 — 6 trường mô tả đề cho bản mẫu UI mới. Tỉnh/thành và Loại đề chuẩn
+            // hoá qua catalog chứ không tin thẳng input: mã lạ thành null = "chưa gán", không
+            // lưu rác vào cột lọc (cùng cách đã làm với questions.subject/province).
+            ...$this->assessmentDetailAttributes($data, $cover, $removeCover, $assessment),
         ]);
+    }
+
+    /**
+     * SỬA 2/10 — 6 trường mô tả đề (mô tả ngắn / tác giả / tỉnh thành / năm học / loại đề / ảnh
+     * bìa) dùng CHUNG cho assessmentStore() và assessmentUpdate(), để hai đường không lệch nhau.
+     *
+     * Ảnh bìa đi theo đúng khuôn CourseService::coverAttribute(): KHÔNG trả khoá
+     * 'cover_image_path' khi người dùng không đụng gì tới ảnh (không chọn tệp mới, không tick
+     * gỡ ảnh) — nhờ vậy cột đó không nằm trong câu UPDATE và ảnh cũ được giữ nguyên. Ghi thẳng
+     * `$cover ?? null` là mỗi lần lưu form lại xoá mất ảnh đang có.
+     *
+     * @return array<string, mixed>
+     */
+    private function assessmentDetailAttributes(array $data, ?UploadedFile $cover, bool $removeCover, ?Assessment $existing): array
+    {
+        $attributes = [
+            'subtitle' => filled($data['subtitle'] ?? null) ? trim((string) $data['subtitle']) : null,
+            'author' => filled($data['author'] ?? null) ? trim((string) $data['author']) : null,
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'academic_year' => filled($data['academic_year'] ?? null) ? trim((string) $data['academic_year']) : null,
+            'exam_category' => ExamCategory::normalize($data['exam_category'] ?? null),
+        ];
+
+        /*
+         * SỬA 2/10 lần 3 — TỆP PDF XEM TRƯỚC. Lấy thẳng từ $data (Validator trả về đối tượng
+         * UploadedFile cho ô kiểu file) nên không phải nối thêm tham số qua 3 lớp gọi.
+         *
+         * Tệp cũ bị xoá khỏi disk khi thay tệp mới hoặc khi tích "Gỡ tệp", cùng nếp với ảnh bìa
+         * — không xoá thì mỗi lần sửa lại bỏ lại một tệp PDF chết trong storage.
+         */
+        $previewPdf = ($data['preview_pdf'] ?? null) instanceof UploadedFile ? $data['preview_pdf'] : null;
+
+        if ($previewPdf !== null) {
+            $this->forgetAssessmentPreviewPdf($existing?->preview_pdf_path);
+            $attributes['preview_pdf_path'] = $previewPdf->store(self::ASSESSMENT_PREVIEW_DIR, self::ASSESSMENT_PREVIEW_DISK);
+            $attributes['preview_pdf_original_name'] = $previewPdf->getClientOriginalName();
+        } elseif (! empty($data['remove_preview_pdf'])) {
+            $this->forgetAssessmentPreviewPdf($existing?->preview_pdf_path);
+            $attributes['preview_pdf_path'] = null;
+            $attributes['preview_pdf_original_name'] = null;
+        }
+
+        if ($cover !== null) {
+            $this->forgetAssessmentCover($existing?->cover_image_path);
+            $attributes['cover_image_path'] = ImageOptimizer::store($cover, self::ASSESSMENT_COVER_DIR, self::ASSESSMENT_COVER_DISK);
+        } elseif ($removeCover) {
+            $this->forgetAssessmentCover($existing?->cover_image_path);
+            $attributes['cover_image_path'] = null;
+        }
+
+        return $attributes;
+    }
+
+    /** Xoá tệp ảnh bìa cũ khỏi disk khi thay ảnh mới hoặc gỡ ảnh — tránh để lại rác. */
+    private function forgetAssessmentCover(?string $path): void
+    {
+        if ($path !== null && Storage::disk(self::ASSESSMENT_COVER_DISK)->exists($path)) {
+            Storage::disk(self::ASSESSMENT_COVER_DISK)->delete($path);
+        }
+    }
+
+    /** Như trên, cho tệp PDF xem trước. */
+    private function forgetAssessmentPreviewPdf(?string $path): void
+    {
+        if ($path !== null && Storage::disk(self::ASSESSMENT_PREVIEW_DISK)->exists($path)) {
+            Storage::disk(self::ASSESSMENT_PREVIEW_DISK)->delete($path);
+        }
     }
 
     /**

@@ -22,7 +22,8 @@
     @endif
 
     <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-        <form method="POST" action="{{ route('admin.content.assessments.update', $assessment->id) }}" class="space-y-4">
+        {{-- enctype: ô Ảnh bìa trong partial dưới là <input type="file">. --}}
+        <form method="POST" action="{{ route('admin.content.assessments.update', $assessment->id) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
             <div>
@@ -85,6 +86,11 @@
                     </x-ws.select>
                 </div>
             </div>
+
+            {{-- SỬA 2/10 — 6 ô mô tả đề cho bản mẫu UI mới (thẻ đề + màn chi tiết đề ngoài trang
+                 Luyện tập), dùng chung partial với form bên giáo viên. --}}
+            @include('partials.assessment-detail-fields')
+
 
             <div class="flex gap-3 pt-2">
                 <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>

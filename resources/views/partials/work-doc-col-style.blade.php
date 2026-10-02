@@ -24,4 +24,9 @@
     @media (max-width: 767.98px) {
         .oi-tab-rail { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     }
+
+    /* ── Chừa mép khi nhảy tới một câu ──────────────────────────────────────────────
+       SỬA 2/10 — `scroll-mt-2` cũng không có trong bản CSS đã build, nên khi bấm số câu
+       để nhảy tới, khung câu dán sát đỉnh vùng cuộn. Viết tay 1 dòng cho đúng ý ban đầu. */
+    .scroll-mt-2 { scroll-margin-top: .5rem; }
 </style>

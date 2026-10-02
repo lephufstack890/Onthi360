@@ -611,9 +611,24 @@ class ContentController extends Controller
             'type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'publish_answer_rule' => ['required', 'string', 'in:never,after_deadline,immediately'],
+            // SỬA 2/10 — 6 trường mô tả đề cho bản mẫu UI mới. 'province'/'exam_category' cố ý
+            // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua catalog, mã lạ
+            // thành null = "chưa gán" thay vì chặn cả form chỉ vì một ô phân loại tuỳ chọn.
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'author' => ['nullable', 'string', 'max:120'],
+            'province' => ['nullable', 'string', 'max:20'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'exam_category' => ['nullable', 'string', 'max:30'],
+            // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
+            // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
+            // trong partials/assessment-detail-fields.
+            'preview_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'mimes:pdf', 'max:20480'],
+            'remove_preview_pdf' => ['nullable', 'boolean'],
+            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
+            'remove_cover' => ['nullable', 'boolean'],
         ]);
 
-        $assessment = $this->contentService->assessmentStore(Auth::user(), $data);
+        $assessment = $this->contentService->assessmentStore(Auth::user(), $data, $request->file('cover'));
 
         return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-created');
     }
@@ -652,9 +667,24 @@ class ContentController extends Controller
             'type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'publish_answer_rule' => ['required', 'string', 'in:never,after_deadline,immediately'],
+            // SỬA 2/10 — 6 trường mô tả đề cho bản mẫu UI mới. 'province'/'exam_category' cố ý
+            // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua catalog, mã lạ
+            // thành null = "chưa gán" thay vì chặn cả form chỉ vì một ô phân loại tuỳ chọn.
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'author' => ['nullable', 'string', 'max:120'],
+            'province' => ['nullable', 'string', 'max:20'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'exam_category' => ['nullable', 'string', 'max:30'],
+            // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
+            // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
+            // trong partials/assessment-detail-fields.
+            'preview_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'mimes:pdf', 'max:20480'],
+            'remove_preview_pdf' => ['nullable', 'boolean'],
+            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
+            'remove_cover' => ['nullable', 'boolean'],
         ]);
 
-        $this->contentService->assessmentUpdate($assessment, $data);
+        $this->contentService->assessmentUpdate($assessment, $data, $request->file('cover'), $request->boolean('remove_cover'));
 
         return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
     }

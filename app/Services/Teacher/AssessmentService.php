@@ -11,6 +11,9 @@ use App\Enums\PublishAnswerRule;
 use App\Enums\QuestionType;
 use App\Enums\UploadedDocumentStatus;
 use App\Models\Assessment;
+use App\Support\ExamCategory;
+use App\Support\ImageOptimizer;
+use App\Support\ProvinceCatalog;
 use App\Support\QuestionDifficulty;
 use App\Models\AssessmentCodingItem;
 use App\Models\Assignment;
@@ -207,7 +210,7 @@ class AssessmentService
      *
      * @throws ValidationException nếu không chọn câu nào hoặc không câu nào hợp lệ.
      */
-    public function store(User $teacher, array $data): Assessment
+    public function store(User $teacher, array $data, ?UploadedFile $cover = null): Assessment
     {
         $questionIds = array_map('intval', $data['question_ids'] ?? []);
         $ownedQuestions = $this->questions->query()
@@ -248,6 +251,22 @@ class AssessmentService
             'duration_minutes' => filled($data['duration_minutes'] ?? null) ? (int) $data['duration_minutes'] : null,
             'resubmission_policy' => filled($data['max_resubmissions'] ?? null) ? ['max_attempts' => (int) $data['max_resubmissions']] : null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? PublishAnswerRule::AfterDeadline->value,
+            // SỬA 2/10 — 6 trường mô tả đề. Tỉnh/thành và Loại đề chuẩn hoá qua catalog chứ
+            // không tin thẳng input: mã lạ thành null = "chưa gán", không lưu rác vào cột lọc.
+            'subtitle' => filled($data['subtitle'] ?? null) ? trim((string) $data['subtitle']) : null,
+            'author' => filled($data['author'] ?? null) ? trim((string) $data['author']) : null,
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'academic_year' => filled($data['academic_year'] ?? null) ? trim((string) $data['academic_year']) : null,
+            'exam_category' => ExamCategory::normalize($data['exam_category'] ?? null),
+            'cover_image_path' => $cover !== null ? ImageOptimizer::store($cover, 'assessments/covers', 'public') : null,
+            // SỬA 2/10 lần 3 — tệp PDF xem trước (disk riêng tư 'local', ra ngoài qua route
+            // practice.exam.preview). Lấy thẳng từ $data vì Validator trả về UploadedFile.
+            'preview_pdf_path' => ($data['preview_pdf'] ?? null) instanceof UploadedFile
+                ? $data['preview_pdf']->store('assessments/previews', 'local')
+                : null,
+            'preview_pdf_original_name' => ($data['preview_pdf'] ?? null) instanceof UploadedFile
+                ? $data['preview_pdf']->getClientOriginalName()
+                : null,
             'status' => ContentStatus::Draft,
             'version' => 1,
             'owner_type' => OwnerType::Teacher,

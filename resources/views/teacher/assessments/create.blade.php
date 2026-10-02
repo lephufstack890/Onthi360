@@ -19,7 +19,9 @@
 
     {{-- SỬA 23/9 (khách: "thay vì nhập tổng điểm thì nhập điểm cho từng câu") — tổng điểm của
          đề là số CỘNG LẠI từ các câu được tick, chạy ngay trên màn hình. --}}
-    <form method="POST" action="{{ route('teacher.assessments.store') }}"
+    {{-- enctype: ô Ảnh bìa trong partial "assessment-detail-fields" là <input type="file">,
+         thiếu nó thì trình duyệt chỉ gửi tên tệp chứ không gửi nội dung. --}}
+    <form method="POST" action="{{ route('teacher.assessments.store') }}" enctype="multipart/form-data"
           x-data="{
               total: 0,
               count: 0,
@@ -104,6 +106,13 @@
                     <label class="block text-[13px] text-slate-600 mb-1" for="max_resubmissions">Nộp lại tối đa</label>
                     <input id="max_resubmissions" name="max_resubmissions" type="number" value="{{ old('max_resubmissions', 2) }}" min="1" max="10" class="admin-input">
                 </div>
+                {{-- SỬA 2/10 — 6 ô mô tả đề, dùng chung partial với form bên admin.
+                     CÓ Ý NGHĨA Ở ĐÂY dù đề giáo viên tạo là "Bài giao" (chưa hiện ở tab Đề thi
+                     luyện tập công khai): admin có thể duyệt đề giáo viên ra Kho chung và đổi
+                     Loại sang Luyện tập, lúc đó mấy trường này hiện ra ngay — nhập sẵn thì không
+                     phải quay lại gõ lại. --}}
+                @include('partials.assessment-detail-fields', ['assessment' => null])
+
                 <div>
                     <label class="block text-[13px] text-slate-600 mb-1" for="publish_answer_rule">Công bố đáp án/lời giải</label>
                     <x-ws.select id="publish_answer_rule" name="publish_answer_rule">

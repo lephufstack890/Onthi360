@@ -14,12 +14,17 @@
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
             selectedDifficulty: 'all',
             selectedExamType: 'all',
+            // SỬA 2/10 — ô sắp xếp đề của bản mẫu mới: 'default' | 'attempts' | 'newest'.
+            examSort: 'default',
             searchQuery: '',
             problemPageIndex: 1,
             examPageIndex: 1,
 
             init() {
                 this.$watch('searchQuery', () => { this.problemPageIndex = 1; this.examPageIndex = 1; });
+                // SỬA 2/10 — đổi cách sắp xếp thì về trang 1, nếu không đang ở trang 3 mà sắp xếp
+                // lại là nhìn vào giữa danh sách, tưởng mất đề.
+                this.$watch('examSort', () => { this.examPageIndex = 1; });
             },
 
             changeMode(mode) {
@@ -65,11 +70,26 @@
 
             get filteredExams() {
                 const q = this.searchQuery.trim().toLowerCase();
-                return this.exams.filter((e) => {
+                const list = this.exams.filter((e) => {
                     const matchType = this.selectedExamType === 'all' || e.type === this.selectedExamType;
                     const matchSearch = !q || e.search.includes(q);
                     return matchType && matchSearch;
                 });
+
+                /*
+                 * SỬA 2/10 — sắp xếp theo ô chọn mới. Luôn copy mảng trước khi sort: sort() đổi
+                 * TẠI CHỖ, mà this.exams là mảng gốc Alpine đang theo dõi — sắp xếp thẳng lên nó
+                 * là đổi luôn thứ tự mặc định, bấm về "Thứ tự mặc định" không còn quay lại được.
+                 */
+                if (this.examSort === 'attempts') {
+                    return [...list].sort((a, b) => (b.attempts - a.attempts) || (a.order - b.order));
+                }
+
+                if (this.examSort === 'title') {
+                    return [...list].sort((a, b) => a.title.localeCompare(b.title, 'vi'));
+                }
+
+                return list;
             },
 
             get problemTotalPages() { return Math.max(1, Math.ceil(this.filteredProblems.length / this.problemPageSize)); },

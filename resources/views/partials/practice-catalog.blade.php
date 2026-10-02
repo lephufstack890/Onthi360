@@ -46,6 +46,9 @@
     }
 </style>
 
+{{-- Bù các class Tailwind tuỳ ý MỚI chưa có trong bản CSS đã build (xem đầu tệp partial). --}}
+@include('partials.practice-ui-fallback-style')
+
 @php
     $items = $items ?? [];
     $problems = $problems ?? [];
@@ -89,11 +92,20 @@
         ];
     }
     $examRows = [];
+    // Thứ tự máy chủ trả về là MỚI NHẤT TRƯỚC (PracticeService dùng ->latest()), nên 'order'
+    // chính là thứ tự "mới nhất trước" — ô sắp xếp lấy luôn nó làm lựa chọn mặc định.
+    $loopOrder = 0;
     foreach ($items as $it) {
+        // SỬA 2/10 — 'type' giờ là LOẠI ĐỀ (hsg_quoc_gia/chuyen_tin/…) cho dải chip mới, không
+        // còn là coding/quiz. Thêm 'attempts' + 'order' cho ô sắp xếp, và ô tìm kiếm quét cả mô
+        // tả + mã đề đúng như bản mẫu ("${exam.title} ${exam.subtitle} ${exam.id}").
         $examRows[] = [
             'id' => $it['id'],
-            'type' => $it['hasCoding'] ? 'coding' : 'quiz',
-            'search' => mb_strtolower($it['title']),
+            'type' => $it['category'] ?? 'none',
+            'attempts' => (int) $it['attemptCount'],
+            'order' => $loopOrder++,
+            'title' => mb_strtolower(trim($it['title'])),
+            'search' => mb_strtolower(trim($it['title'].' '.($it['subtitle'] ?? '').' '.($it['examCode'] ?? ''))),
         ];
     }
 
@@ -505,13 +517,33 @@
                 <input type="text" aria-label="Tìm kiếm đề thi" placeholder="Tìm đề thi theo tên hoặc mã đề..." x-model="searchQuery"
                        class="min-h-10 w-full rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] py-2 pl-10 pr-4 text-xs text-slate-800 placeholder:text-[#6B8295] focus:border-[#9DC8D7] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
             </div>
+            {{-- SỬA 2/10 — dải chip lọc giờ theo LOẠI ĐỀ (HSG / Chuyên / Olympic…) đúng bản mẫu
+                 mới, thay cho 2 chip "Có bài lập trình"/"Trắc nghiệm" cũ. Danh sách chip dựng từ
+                 loại đề CÓ THẬT trong kho (xem PracticeService::indexData) — bày chip mà không
+                 đề nào thuộc loại đó thì bấm vào ra bảng rỗng. --}}
             <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                @foreach ([['all', 'Tất cả đề thi'], ['coding', 'Có bài lập trình'], ['quiz', 'Trắc nghiệm & điền đáp án']] as [$key, $label])
-                    <button type="button" @click="setExamType(@js($key))" :aria-pressed="selectedExamType === @js($key)"
+                <button type="button" @click="setExamType('all')" :aria-pressed="selectedExamType === 'all'"
+                        class="min-h-9 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-bold transition"
+                        :class="selectedExamType === 'all' ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">Tất cả đề thi</button>
+                @foreach ($examCategoryChips ?? [] as $chip)
+                    <button type="button" @click="setExamType(@js($chip['value']))" :aria-pressed="selectedExamType === @js($chip['value'])"
                             class="min-h-9 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-bold transition"
-                            :class="selectedExamType === @js($key) ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">{{ $label }}</button>
+                            :class="selectedExamType === @js($chip['value']) ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">{{ $chip['label'] }} ({{ $chip['count'] }})</button>
                 @endforeach
             </div>
+
+            {{-- SỬA 2/10 — ô sắp xếp của bản mẫu mới. "Đánh giá cao nhất" của bản mẫu chạy trên
+                 điểm sao mà bản mẫu tự ghi là dữ liệu minh hoạ; hệ thống này CHƯA có đánh giá cho
+                 đề nên thay bằng các tiêu chí có dữ liệu thật.
+
+                 Lưu ý: kho đề máy chủ trả về đã là MỚI NHẤT TRƯỚC, nên lựa chọn mặc định ghi
+                 thẳng là "Mới nhất trước" — không bày thêm một dòng "Đề mới nhất" cho ra vẻ
+                 nhiều lựa chọn rồi bấm vào chẳng thấy gì đổi. --}}
+            <x-ws.select aria-label="Sắp xếp đề thi" x-model="examSort" class="min-h-9 shrink-0 sm:w-[170px]">
+                <option value="default">Mới nhất trước</option>
+                <option value="attempts">Nhiều lượt làm nhất</option>
+                <option value="title">Tên đề A → Z</option>
+            </x-ws.select>
         </div>
 
         <div class="flex items-center justify-between gap-3 px-1">
@@ -522,15 +554,14 @@
             <span class="hidden text-[11px] text-[#6B8295] sm:inline">Mỗi đề mô phỏng một lượt thi hoàn chỉnh</span>
         </div>
 
-        {{-- [PRACTICE-06] TỔNG QUAN ĐỀ THI --}}
+        {{-- [PRACTICE-06] TỔNG QUAN ĐỀ THI
+             SỬA 2/10 — 3 ô đúng bản mẫu mới: Kho đề thi / Đang luyện / Điểm cao nhất. Bản mẫu để
+             cứng "86/100" cho ô thứ ba và tự ghi chú là số minh hoạ; ở đây lấy điểm tốt nhất THẬT
+             của chính người đang xem, chưa làm đề nào thì hiện "—" chứ không bịa số. --}}
         @php
-            $examTotal = count($items);
-            $examCoding = 0;
-            $examQuestions = 0;
-            foreach ($items as $it) {
-                if ($it['hasCoding']) { $examCoding++; }
-                $examQuestions += (int) $it['itemsCount'];
-            }
+            $examTotal = $examTotal ?? count($items);
+            $examDoingCount = $examDoingCount ?? 0;
+            $examBestScoreLabel = $examBestScoreLabel ?? null;
         @endphp
         <div class="grid gap-2 sm:grid-cols-3">
             <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
@@ -547,21 +578,21 @@
                 <div class="flex items-center gap-2">
                     <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#FFF7E3] text-[#B68032]"><x-lucide name="clock" class="h-4 w-4" /></span>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Có bài lập trình</p>
-                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examCoding }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Đang luyện</p>
+                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examDoingCount }}</p>
                     </div>
                 </div>
-                <p class="mt-2 text-[11px] text-[#45657D]">Chấm bằng bộ test tự động</p>
+                <p class="mt-2 text-[11px] text-[#45657D]">Tiếp tục từ nơi bạn đã dừng</p>
             </div>
             <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
                 <div class="flex items-center gap-2">
                     <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#EFF9F5] text-[#2F8A6B]"><x-lucide name="award" class="h-4 w-4" /></span>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Tổng số câu</p>
-                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ number_format($examQuestions) }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Điểm cao nhất</p>
+                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examBestScoreLabel ?: '—' }}</p>
                     </div>
                 </div>
-                <p class="mt-2 text-[11px] text-[#45657D]">Trong toàn bộ kho đề luyện tập</p>
+                <p class="mt-2 text-[11px] text-[#45657D]">{{ $examBestScoreLabel ? 'Kết quả tốt nhất của bạn' : 'Chưa có kết quả nào của bạn' }}</p>
             </div>
         </div>
 
@@ -573,77 +604,101 @@
             <span class="hidden text-[11px] text-[#6B8295] sm:inline"><span x-text="filteredExams.length"></span> đề phù hợp</span>
         </div>
 
-        {{-- [PRACTICE-07] CARD ĐỀ THI --}}
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            @foreach ($items as $i => $exam)
+        {{-- [PRACTICE-07] CARD ĐỀ THI
+             SỬA 2/10 — dựng lại theo bản mẫu mới (education-main/src/components/PracticePage.jsx).
+             Khác bản cũ 4 chỗ:
+               · ảnh bìa là ẢNH THẬT của đề (assessments.cover_image_path). Bản cũ lấy ảnh sách
+                 theo số thứ tự thẻ — ảnh không liên quan gì tới đề, nhìn như đề có ảnh riêng mà
+                 thật ra không phải. Đề chưa có ảnh thì vẽ khối trống, KHÔNG mượn ảnh của thứ khác;
+               · dòng mô tả lấy assessments.subtitle thật, thay cho chuỗi ghép "N câu · X điểm";
+               · ô thứ ba trong lưới 3 ô là "Lượt làm" (số thật, đếm lượt đã nộp) đúng bản mẫu;
+               · nút chính là "Xem chi tiết đề" dẫn sang MÀN CHI TIẾT, chỗ đó mới có nút
+                 "Bắt đầu làm bài" mở modal làm đề.
+
+             KHÔNG dựng khối điểm sao của bản mẫu: hệ thống chưa có đánh giá cho đề (bảng reviews
+             không nhận target 'assessment'), mà bản mẫu cũng tự ghi điểm sao là dữ liệu minh hoạ
+             — vẽ 5 ngôi sao rỗng hoặc bịa điểm đều tệ hơn là không vẽ. --}}
+        <div class="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
+            @foreach ($items as $exam)
                 @php
-                    $examHref = $canTakeDirectly ? route('student.assessment.take', $exam['id']) : route('login');
-                    $borderClass = $exam['hasCoding'] ? 'border-[#E7D6AB]' : 'border-[#BFDCE5]';
-                    $badgeClass = $exam['hasCoding'] ? 'border-[#F2E1B6] bg-[#FFF7E3] text-[#8E6B2E]' : 'border-[#D4EDE2] bg-[#EFF9F5] text-[#397C68]';
-                    $badgeLabel = $exam['hasCoding'] ? 'Có bài lập trình' : 'Chấm tự động';
-                    $btnClass = $exam['hasCoding'] ? 'bg-[#B68032] hover:bg-[#9F702A]' : 'bg-[#126F91] hover:bg-[#0F5E7B]';
+                    $tone = $exam['progressStatus'] === 'done'
+                        ? ['border' => 'border-[#CFE5D9]', 'badge' => 'border-[#D4EDE2] bg-[#EFF9F5] text-[#397C68]', 'text' => 'text-[#2F8A6B]', 'bar' => '#2F8A6B', 'label' => 'Đã hoàn thành']
+                        : ($exam['progressStatus'] === 'doing'
+                            ? ['border' => 'border-[#E7D6AB]', 'badge' => 'border-[#F2E1B6] bg-[#FFF7E3] text-[#8E6B2E]', 'text' => 'text-[#126F91]', 'bar' => '#B68032', 'label' => 'Đang làm dở']
+                            : ['border' => 'border-[#BFDCE5]', 'badge' => 'border-[#D4EDE2] bg-[#EFF9F5] text-[#397C68]', 'text' => 'text-[#126F91]', 'bar' => '#126F91', 'label' => 'Đang mở']);
                 @endphp
                 <article x-show="visibleExamIds.includes({{ $exam['id'] }})" x-cloak
                          :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
-                         class="group flex min-h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(28,91,121,0.09)] {{ $borderClass }}">
-                    <div class="relative flex h-32 items-center justify-center overflow-hidden bg-[#F8FBFC] p-2">
-                        <img src="{{ asset('assets/book-img-'.(($i % 4) + 1).'.jpg') }}" alt="{{ $exam['title'] }}"
-                             class="h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]">
-                        <span class="absolute left-3 top-3 rounded-lg border px-2 py-1 text-[11px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
-                        <span class="absolute bottom-2 left-3 rounded-md bg-white/90 px-2 py-1 font-mono text-[10px] font-bold text-[#45657D]">#{{ $exam['id'] }}</span>
-                    </div>
-                    <div class="flex flex-1 flex-col p-3.5">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#4C83B0]">
-                                <x-lucide name="file-text" class="h-3.5 w-3.5" />Đề luyện tập
+                         class="group flex h-full min-h-[430px] flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(28,91,121,0.09)] {{ $tone['border'] }}">
+                    <div class="relative flex h-32 w-full shrink-0 items-center justify-center overflow-hidden bg-[#F8FBFC] p-2">
+                        @if ($exam['coverUrl'])
+                            <img src="{{ $exam['coverUrl'] }}" alt="Ảnh bìa đề {{ $exam['title'] }}" loading="lazy" decoding="async"
+                                 class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]">
+                        @else
+                            <div class="flex flex-col items-center gap-1 text-[#9DC8D7]">
+                                <x-lucide name="file-text" class="h-8 w-8" />
+                                <span class="text-[10px] font-bold">Chưa có ảnh bìa</span>
                             </div>
-                            <span class="text-[10px] font-bold text-[#6B8295]">Thi mô phỏng</span>
+                        @endif
+                        <span class="absolute left-3 top-3 rounded-lg border px-2 py-1 text-[11px] font-bold {{ $tone['badge'] }}">{{ $tone['label'] }}</span>
+                        <span class="absolute bottom-2 left-3 rounded-md bg-white/90 px-2 py-1 font-mono text-[10px] font-bold text-[#45657D]">{{ $exam['examCode'] ?: '#'.$exam['id'] }}</span>
+                    </div>
+
+                    <div class="flex min-h-0 flex-1 flex-col p-3">
+                        <div class="flex min-h-5 items-center justify-between gap-2">
+                            <div class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[#2D7FA3]">
+                                <x-lucide name="file-text" class="h-3.5 w-3.5 shrink-0" /><span class="truncate">{{ $exam['categoryLabel'] ?: 'Đề luyện tập' }}</span>
+                            </div>
+                            <span class="shrink-0 text-[10px] font-bold text-[#6B8295]">Thi mô phỏng</span>
                         </div>
-                        <h3 class="mt-1 line-clamp-2 text-sm font-bold leading-5 text-[#123B68]">{{ $exam['title'] }}</h3>
-                        <p class="type-body mt-1 line-clamp-2 text-[11px]">
-                            {{ $exam['itemsCount'] }} câu · {{ $exam['totalPoints'] ?: '—' }} điểm{{ $exam['durationMinutes'] ? ' · '.$exam['durationMinutes'].' phút' : '' }}
+
+                        <h3 class="mt-1 line-clamp-2 h-10 overflow-hidden text-sm font-bold leading-5 text-[#123B68]">{{ $exam['title'] }}</h3>
+                        <p class="type-body mt-1 line-clamp-2 h-8 overflow-hidden text-[11px]">
+                            {{ $exam['subtitle'] ?: $exam['itemsCount'].' câu · '.($exam['totalPoints'] ?: '—').' điểm' }}
                         </p>
 
-                        <div class="mt-2.5 grid grid-cols-3 gap-1 rounded-xl border border-[#E7EFF3] bg-[#F8FBFC] p-1.5 text-center">
+                        {{-- Hàng nguồn đề: tỉnh/thành + năm học, chỉ hiện khi có nhập. --}}
+                        <p class="mt-1.5 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[#6B8295]">
+                            @if ($exam['provinceLabel'])
+                                <span class="inline-flex items-center gap-1"><x-lucide name="map-pin" class="h-3 w-3" />{{ $exam['provinceLabel'] }}</span>
+                            @endif
+                            @if ($exam['academicYear'])
+                                <span class="inline-flex items-center gap-1"><x-lucide name="calendar-days" class="h-3 w-3" />{{ $exam['academicYear'] }}</span>
+                            @endif
+                        </p>
+
+                        <div class="mt-2.5 grid min-h-[72px] grid-cols-3 gap-1 rounded-xl border border-[#E7EFF3] bg-[#F8FBFC] p-1.5 text-center">
                             <div>
                                 <x-lucide name="timer" class="mx-auto h-3.5 w-3.5 text-[#2D7FA3]" />
                                 <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ $exam['durationMinutes'] ? $exam['durationMinutes'].' phút' : 'Không giới hạn' }}</p>
                                 <p class="text-[9px] text-[#6B8295]">Thời lượng</p>
                             </div>
                             <div>
-                                <x-lucide name="code-2" class="mx-auto h-3.5 w-3.5 text-[#786BB1]" />
+                                <x-lucide name="code-2" class="mx-auto h-3.5 w-3.5 text-[#427EA1]" />
                                 <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ $exam['itemsCount'] }} bài</p>
                                 <p class="text-[9px] text-[#6B8295]">Cấu trúc đề</p>
                             </div>
                             <div>
                                 <x-lucide name="trending-up" class="mx-auto h-3.5 w-3.5 text-[#3B9374]" />
-                                <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ $exam['totalPoints'] ?: '—' }}</p>
-                                <p class="text-[9px] text-[#6B8295]">Tổng điểm</p>
+                                <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ number_format($exam['attemptCount']) }}</p>
+                                <p class="text-[9px] text-[#6B8295]">Lượt làm</p>
                             </div>
                         </div>
 
-                        {{-- SỬA 12/9 — khối "Tiến độ của bạn" theo source mới; số liệu từ attempts thật của chính người đang xem. --}}
-                        @php
-                            $progressTone = $exam['progressStatus'] === 'open' ? '#126F91' : ($exam['progressStatus'] === 'doing' ? '#B68032' : '#2F8A6B');
-                        @endphp
-                        <div class="mt-2.5">
+                        <div class="mt-2.5 min-h-[34px]">
                             <div class="flex items-center justify-between gap-2 text-[10px]">
                                 <span class="font-bold text-[#45657D]">Tiến độ của bạn</span>
-                                <span class="font-bold" style="color: {{ $progressTone }}">{{ $exam['progressLabel'] }}</span>
+                                <span class="font-bold {{ $tone['text'] }}">{{ $exam['progressLabel'] }}</span>
                             </div>
                             <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-[#EAF0F3]">
-                                <div class="h-full rounded-full" style="width: {{ $exam['progress'] }}%; background-color: {{ $progressTone }}"></div>
+                                <div class="h-full rounded-full" style="width: {{ $exam['progress'] }}%; background-color: {{ $tone['bar'] }}"></div>
                             </div>
                         </div>
 
-                        <div class="mt-2.5 flex items-center justify-between gap-2 border-t border-[#E7EFF3] pt-2.5 mt-auto">
-                            <div>
-                                <p class="text-[9px] text-[#6B8295]">Cách chấm</p>
-                                <p class="mt-0.5 text-[11px] font-bold text-[#123B68]">{{ $exam['hasCoding'] ? 'Bộ test tự động' : 'Chấm tự động ngay' }}</p>
-                            </div>
-                            <a href="{{ $examHref }}"
-                               class="flex min-h-10 min-w-[148px] items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_4px_10px_rgba(18,111,145,0.12)] transition hover:-translate-y-0.5 active:scale-[.98] {{ $btnClass }}">
-                                {{ $canTakeDirectly ? 'Bắt đầu làm đề' : 'Đăng nhập để làm' }}<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                        <div class="mt-auto border-t border-[#E7EFF3] pt-2.5">
+                            <a href="{{ $exam['detailHref'] }}"
+                               class="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_4px_10px_rgba(18,111,145,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0F5E7B] active:scale-[.98]">
+                                Xem chi tiết đề<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                             </a>
                         </div>
                     </div>

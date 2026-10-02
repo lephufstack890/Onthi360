@@ -89,6 +89,14 @@ Route::get('/khoa-hoc/{course}', [PublicCourseController::class, 'show'])->name(
 Route::get('/lo-trinh', [PublicLearningPathController::class, 'index'])->name('learningPaths.index');
 Route::get('/lo-trinh/{slug}', [PublicLearningPathController::class, 'show'])->name('learningPaths.show');
 Route::get('/luyen-tap', [PublicPracticeController::class, 'index'])->name('practice.index');
+// SỬA 2/10 (khách: "khi click vào xem chi tiết đề thi nó hiển thị ra màn UI mới giống như source
+// mới") — màn chi tiết đề LUYỆN TẬP (chỉ type=practice đã phát hành, service tự chặn loại khác)
+// và bản xem trước PDF theo đúng khoảng trang admin đã khai. Công khai như trang /luyen-tap:
+// xem được thông tin đề, còn bấm "Bắt đầu làm bài" thì phải đăng nhập.
+Route::get('/luyen-tap/de-thi/{assessment}', [PublicPracticeController::class, 'exam'])
+    ->whereNumber('assessment')->name('practice.exam.show');
+Route::get('/luyen-tap/de-thi/{assessment}/xem-truoc', [PublicPracticeController::class, 'examPreview'])
+    ->whereNumber('assessment')->name('practice.exam.preview');
 Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');

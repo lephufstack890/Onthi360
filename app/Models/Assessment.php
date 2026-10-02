@@ -28,6 +28,12 @@ class Assessment extends Model
         // SỬA 18/8 (đề PDF + phiếu đáp án) — xem App\Enums\AssessmentContentMode.
         'content_mode', 'exam_code', 'pdf_path', 'pdf_original_name', 'solution_pdf_path',
         'preview_page_from', 'preview_page_to',
+        // SỬA 2/10 — tệp PDF XEM TRƯỚC riêng của đề (người ra đề tự tải lên), xem migration
+        // add_preview_pdf_to_assessments_table.
+        'preview_pdf_path', 'preview_pdf_original_name',
+        // SỬA 2/10 — 6 trường mô tả đề cho màn chi tiết + thẻ đề ngoài trang công khai, xem
+        // migration add_detail_fields_to_assessments_table.
+        'subtitle', 'author', 'province', 'academic_year', 'exam_category', 'cover_image_path',
     ];
 
     protected $casts = [
@@ -42,6 +48,28 @@ class Assessment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(AssessmentItem::class)->orderBy('order');
+    }
+
+    /** SỬA 2/10 — nhãn tỉnh/thành ("HANOI" -> "Hà Nội"); chưa gán hoặc mã lạ -> null. */
+    public function provinceLabel(): ?string
+    {
+        return \App\Support\ProvinceCatalog::label($this->province);
+    }
+
+    /** SỬA 2/10 — nhãn loại đề ("hsg_quoc_gia" -> "HSG Quốc gia"); chưa gán -> null. */
+    public function examCategoryLabel(): ?string
+    {
+        return \App\Support\ExamCategory::label($this->exam_category);
+    }
+
+    /**
+     * SỬA 2/10 — ảnh bìa đề. Trả null khi chưa có ảnh riêng; nơi gọi tự vẽ khối thay thế chứ
+     * KHÔNG mượn ảnh của thứ khác (thẻ đề trước đây lấy ảnh sách theo số thứ tự, nhìn như đề có
+     * ảnh riêng mà thật ra không phải).
+     */
+    public function coverUrl(): ?string
+    {
+        return $this->cover_image_path ? asset('storage/'.$this->cover_image_path) : null;
     }
 
     /** Các material (chương/mục) trong sách/chuyên đề trỏ tới đề này qua type=assessment_ref. */

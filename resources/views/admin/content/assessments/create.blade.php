@@ -21,7 +21,9 @@
     </div>
 
     <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-        <form method="POST" action="{{ route('admin.content.assessments.store') }}" class="space-y-4">
+        {{-- enctype: ô Ảnh bìa trong partial dưới là <input type="file">, thiếu nó thì trình
+             duyệt chỉ gửi tên tệp. --}}
+        <form method="POST" action="{{ route('admin.content.assessments.store') }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên đề/bộ bài</label>
@@ -77,6 +79,11 @@
             <div class="rounded-xl bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
                 Đề luôn tạo ở trạng thái <span class="font-medium">Nháp</span> — sau khi lưu sẽ vào trang chi tiết, kéo xuống để thấy đúng màn hoàn thiện nội dung (câu hỏi hoặc PDF) rồi mới Phát hành.
             </div>
+
+            {{-- SỬA 2/10 — 6 ô mô tả đề cho bản mẫu UI mới (thẻ đề + màn chi tiết đề ngoài trang
+                 Luyện tập), dùng chung partial với form bên giáo viên. --}}
+            @include('partials.assessment-detail-fields')
+
 
             <div class="flex gap-3 pt-2">
                 <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo đề/bộ bài</button>

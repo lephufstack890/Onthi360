@@ -70,7 +70,7 @@ class AssessmentController extends Controller
 
         $data = $request->validate($this->storeRules());
 
-        $this->assessmentService->store(Auth::user(), $data);
+        $this->assessmentService->store(Auth::user(), $data, $request->file('cover'));
 
         return redirect()->route('teacher.assessments.index')->with('status', 'assessment-created');
     }
@@ -226,6 +226,18 @@ class AssessmentController extends Controller
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],
+            // SỬA 2/10 — 6 trường mô tả đề, cùng bộ luật với bên admin.
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'author' => ['nullable', 'string', 'max:120'],
+            'province' => ['nullable', 'string', 'max:20'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'exam_category' => ['nullable', 'string', 'max:30'],
+            // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
+            // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
+            // trong partials/assessment-detail-fields.
+            'preview_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'mimes:pdf', 'max:20480'],
+            'remove_preview_pdf' => ['nullable', 'boolean'],
+            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
         ];
     }
 
