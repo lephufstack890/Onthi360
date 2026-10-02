@@ -9,6 +9,7 @@ use App\Services\PdfAssessmentEditingService;
 use App\Services\Teacher\AssessmentService;
 use App\Services\Teacher\DocumentImportService;
 use App\Support\AnswerKeySheet;
+use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -235,9 +236,11 @@ class AssessmentController extends Controller
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
             // trong partials/assessment-detail-fields.
-            'preview_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'mimes:pdf', 'max:20480'],
+            // max lấy theo giới hạn THẬT của máy chủ (upload_max_filesize/post_max_size), không
+            // ghi cứng — xem App\Support\UploadLimit.
+            'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
-            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
+            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
         ];
     }
 

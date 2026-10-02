@@ -40,6 +40,7 @@
     .min-h-\[34px\] { min-height: 34px; }
     .min-h-\[72px\] { min-height: 72px; }
     .min-h-\[360px\] { min-height: 360px; }
+    .min-h-\[60dvh\] { min-height: 60dvh; }
     .min-h-\[430px\] { min-height: 430px; }
 
     /* ── bề rộng / khoảng cách / vị trí ── */
@@ -64,6 +65,7 @@
         .lg\:order-1 { order: 1; }
         .lg\:order-2 { order: 2; }
         .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] { grid-template-columns: minmax(0, 1fr) 320px; }
+        .lg\:min-h-\[360px\] { min-height: 360px; }
     }
 
     /* ── Nội dung đề bài soạn bằng trình soạn thảo (question.body) ──────────────────────

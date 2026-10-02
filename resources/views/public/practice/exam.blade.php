@@ -83,7 +83,22 @@
     <main class="grid w-full items-stretch gap-3 px-4 py-3.5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-4 lg:px-8 lg:py-4">
         {{-- ── CỘT TRÁI: XEM TRƯỚC ĐỀ ── --}}
         <section aria-label="Nội dung đề thi" class="order-2 flex min-w-0 flex-col rounded-2xl border border-[#DCE7EC] bg-white p-2.5 shadow-[0_3px_16px_rgba(28,91,121,0.04)] sm:p-3 lg:order-1">
-            <div class="min-h-[360px] flex-1 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-[#E9F0F4] p-2 sm:p-4">
+            {{-- ── SỬA 2/10 lần 4 (khách: "chỗ xem trước pdf dài quá thì cho scroll nha, các khối
+                 phải bằng nhau chứ không phải kéo dài thế") ─────────────────────────────────
+
+                 BẪY Ở ĐÂY: trước đó khung xem trước là một flex item có overflow-y-auto, tưởng
+                 là sẽ tự cuộn. Nhưng chiều cao của CẢ Ô LƯỚI cột trái được tính theo max-content
+                 của nó, mà max-content của một flex item đang grow thì vẫn tính theo nội dung
+                 thật — tức là theo chiều cao của toàn bộ tệp PDF. Nên trang bị kéo dài ra, và
+                 overflow-y-auto chẳng bao giờ có dịp cuộn.
+
+                 CÁCH SỬA: tách làm 2 lớp. Lớp ngoài giữ chỗ (flex-1, có chiều cao tối thiểu) nên
+                 nó mới là thứ quyết định cột trái cao bao nhiêu. Lớp trong đặt absolute inset-0
+                 nên ĐỨNG NGOÀI luồng tính chiều cao: tệp PDF dài tới đâu cũng không đẩy được ô
+                 lưới, chỉ cuộn bên trong. Kết quả: hai cột luôn bằng nhau đúng chiều cao của cột
+                 phải, đề dài thì cuộn trong khung. --}}
+            <div class="relative min-h-[60dvh] flex-1 lg:min-h-[360px]">
+                <div class="absolute inset-0 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-[#E9F0F4] p-2 sm:p-4">
                 @if ($previewUrl)
                     <div data-pdf-fit data-pdf-url="{{ $previewUrl }}" data-pdf-max-width="900" class="oi-doc-col"></div>
                 @else
@@ -113,6 +128,7 @@
                         </div>
                     </div>
                 @endif
+                </div>
             </div>
 
             @if ($previewUrl)

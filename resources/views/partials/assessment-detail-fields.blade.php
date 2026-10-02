@@ -23,6 +23,7 @@
 --}}
 @php
     use App\Enums\AssessmentType;
+    use App\Support\UploadLimit;
 
     $assessment = $assessment ?? null;
     $adCoverUrl = $assessment?->coverUrl();
@@ -33,6 +34,11 @@
 
     // Tên tệp PDF xem trước đang có (nếu đã tải lên) — chỉ để hiện cho người nhập biết đang có
     // tệp gì, chứ không phải đường dẫn thật.
+    // Cỡ tệp lớn nhất máy chủ THẬT SỰ nhận (php.ini), không phải con số mong muốn.
+    $adMaxBytes = UploadLimit::maxBytes();
+    $adMaxLabel = UploadLimit::label();
+    $adCoverMaxLabel = UploadLimit::label(4096);
+
     $adPreviewName = $assessment?->preview_pdf_path !== null
         ? ($assessment->preview_pdf_original_name ?: basename($assessment->preview_pdf_path))
         : null;
@@ -137,9 +143,11 @@
             <input id="preview_pdf" name="preview_pdf" type="file" accept="application/pdf,.pdf"
                    class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
             @error('preview_pdf')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            <p data-upload-too-big class="mt-1 hidden text-[11px] font-semibold text-rose-600"></p>
 
             <p class="mt-1 text-xs leading-relaxed text-slate-400">
-                Chỉ nhận PDF, tối đa 20MB. Tải tệp nào thì ngoài trang chi tiết đề hiện đúng tệp đó.
+                Chỉ nhận PDF, tối đa <b class="text-slate-500">{{ $adMaxLabel }}</b> (giới hạn của máy chủ, đặt ở php.ini).
+                Tải tệp nào thì ngoài trang chi tiết đề hiện đúng tệp đó.
                 @if ($adPreviewName)
                     Chọn tệp mới là <b class="text-slate-500">thay</b> tệp đang có.
                 @else
@@ -166,7 +174,7 @@
             <div class="min-w-[220px] flex-1">
                 <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp"
                        class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
-                <p class="mt-1 text-xs leading-relaxed text-slate-400">Ảnh ngang, nên theo tỉ lệ 16:9. JPG/PNG/WebP, tối đa 4MB. Bỏ trống thì thẻ đề hiện khối ảnh trống chứ không mượn ảnh của thứ khác.</p>
+                <p class="mt-1 text-xs leading-relaxed text-slate-400">Ảnh ngang, nên theo tỉ lệ 16:9. JPG/PNG/WebP, tối đa {{ $adCoverMaxLabel }}. Bỏ trống thì thẻ đề hiện khối ảnh trống chứ không mượn ảnh của thứ khác.</p>
                 @if ($adCoverUrl)
                     <label class="mt-2 flex w-fit items-center gap-2 text-[11px] font-semibold text-rose-600">
                         <input type="checkbox" name="remove_cover" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600">
@@ -174,7 +182,49 @@
                     </label>
                 @endif
                 @error('cover')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                <p data-upload-too-big class="mt-1 hidden text-[11px] font-semibold text-rose-600"></p>
             </div>
         </div>
     </div>
 </div>
+
+{{-- Chặn sớm ở trình duyệt: tệp quá cỡ thì PHP vứt NGAY ở tầng web server, Laravel chỉ còn
+     biết trả về đúng một câu ":attribute tải lên thất bại." mà không nói được cỡ tối đa là bao
+     nhiêu. Báo ngay lúc chọn tệp thì người nhập hiểu liền, khỏi mất công gửi rồi mới hỏng.
+     Đây CHỈ là lớp tiện lợi — luật validate phía máy chủ vẫn là nơi chốt, xem UploadLimit. --}}
+<script>
+    (function () {
+        var MAX = {{ $adMaxBytes }};
+        var LABEL = @js($adMaxLabel);
+
+        document.querySelectorAll('#preview_pdf, #cover').forEach(function (input) {
+            var note = input.parentElement && input.parentElement.querySelector('[data-upload-too-big]');
+
+            input.addEventListener('change', function () {
+                var file = input.files && input.files[0];
+
+                if (note) {
+                    note.textContent = '';
+                    note.classList.add('hidden');
+                }
+
+                if (!file || file.size <= MAX) {
+                    return;
+                }
+
+                var mb = (file.size / 1048576).toFixed(1).replace('.', ',');
+                var message = 'Tệp nặng ' + mb + 'MB, vượt giới hạn ' + LABEL + ' của máy chủ. '
+                    + 'Hãy chọn tệp nhỏ hơn, hoặc nhờ quản trị tăng upload_max_filesize và post_max_size trong php.ini.';
+
+                input.value = '';
+
+                if (note) {
+                    note.textContent = message;
+                    note.classList.remove('hidden');
+                } else {
+                    console.warn(message);
+                }
+            });
+        });
+    })();
+</script>
