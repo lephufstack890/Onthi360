@@ -195,7 +195,9 @@ class ProductReadService
             // Đóng dấu mờ tên + email người đang đọc lên từng trang — y như trang đọc 1 bài
             // (MaterialReadService): không chặn được chụp màn hình, chỉ để TRUY VẾT nguồn rò rỉ.
             'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
-            'layoutView' => 'layouts.'.$routePrefix,
+            // SỬA 3/10 — khung riêng toàn màn hình, y màn đọc một bài: bản mẫu không có thanh
+            // bên, mà để thanh bên vào thì trang có hai bộ điều hướng chồng nhau.
+            'layoutView' => 'layouts.reader',
             'libraryRoute' => $routePrefix.'.library.index',
             'isTeacherView' => $isTeacherView,
         ];
@@ -209,7 +211,7 @@ class ProductReadService
      * hành — cùng tập bài mà "Tài liệu của tôi" đang liệt kê; trạng thái tính từ attempt_answers
      * thật (có câu đúng -> Đã hoàn thành, có nộp mà chưa đúng -> Đang làm, chưa nộp -> Sẵn sàng).
      *
-     * @return array<int, array{id:int,title:string,tags:array,points:int,difficultyLabel:string,status:string,statusLabel:string}>
+     * @return array<int, array{id:int,productId:int,title:string,tags:array,points:int,difficultyLabel:string,difficultyStars:int,status:string,statusLabel:string}>
      */
     private function exercisesFor(User $user, Product $product): array
     {
@@ -236,7 +238,7 @@ class ProductReadService
             ->get()
             ->keyBy('question_id');
 
-        return $questions->map(function (Question $question) use ($mine) {
+        return $questions->map(function (Question $question) use ($mine, $product) {
             $row = $mine->get($question->id);
             $count = (int) ($row->mine ?? 0);
             $accepted = (int) ($row->mine_accepted ?? 0);
@@ -250,6 +252,11 @@ class ProductReadService
 
             return [
                 'id' => $question->id,
+                // SỬA 3/10 — 2 khoá THÊM cho khung Bài tập dùng chung với màn đọc tài liệu
+                // (partials/reader-exercise-panel): id sản phẩm để dựng link "Xem đề" của giáo
+                // viên, và số sao độ khó lấy từ QuestionDifficulty — CÙNG nguồn với nhãn chữ
+                // ngay dưới, không tự quy đổi lại từ điểm.
+                'productId' => $product->id,
                 'title' => $question->title,
                 'tags' => $question->tags->pluck('name')->take(3)->values()->all(),
                 'points' => (int) $question->points,
@@ -257,6 +264,10 @@ class ProductReadService
                 // định nghĩa 5 mức), thay cho 3 nhãn tự tính ở đây vốn lệch với kho và trang
                 // Luyện tập (mức 1-2 sao đều ra "Cơ bản", 4-5 sao đều ra "Khó").
                 'difficultyLabel' => QuestionDifficulty::label(
+                    QuestionDifficulty::resolve($question->metadata, (int) $question->points)
+                ),
+                // SỬA 3/10 — số sao cho thẻ bài tập kiểu mới; cùng nguồn với nhãn chữ ngay trên.
+                'difficultyStars' => QuestionDifficulty::stars(
                     QuestionDifficulty::resolve($question->metadata, (int) $question->points)
                 ),
                 'status' => $statusKey,
