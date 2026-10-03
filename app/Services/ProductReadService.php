@@ -151,6 +151,26 @@ class ProductReadService
     }
 
     /**
+     * SỬA 3/10 (khách: "đọc tài liệu trong học sinh khi click cũng hiển thị giống ngoài public,
+     * 2 cái phải đồng bộ") — ID chương/phần ĐẦU TIÊN đọc được của sản phẩm.
+     *
+     * Khu học sinh dùng nó để mở ĐÚNG màn đọc mà trang công khai đang mở
+     * (MaterialService::readHref cũng chọn đúng kiểu này), thay cho màn đọc sản phẩm cũ.
+     *
+     * Trả null khi sản phẩm KHÔNG có chương nào mà chỉ có một tệp PDF gắn thẳng
+     * (content_pdf_path) — lúc đó không có Material nào để mở, phải giữ màn cũ.
+     */
+    public function firstReadableMaterialId(Product $product): ?int
+    {
+        return Material::query()
+            ->where('product_id', $product->id)
+            ->where('status', ContentStatus::Published->value)
+            ->whereNotNull('pdf_path')
+            ->orderBy('order')
+            ->value('id');
+    }
+
+    /**
      * Dữ liệu trang đọc. $routePrefix ('student'|'teacher') quyết định layout + route lấy tệp
      * + nút Quay lại — cùng cơ chế MaterialReadService::buildReadData() đang dùng, để 1 view
      * dùng chung cho 2 vai trò mà không hard-code route của vai trò nào.
@@ -255,7 +275,12 @@ class ProductReadService
      *
      * @return array<int, array{kind:string,title:string,chapterTitle:?string,url:string}>
      */
-    private function attachmentsFor(Product $product, string $routePrefix, bool $isTeacherView): array
+    /**
+     * SỬA 3/10 — đổi từ private sang public để MÀN ĐỌC TÀI LIỆU dùng lại (khách: "đọc tài liệu
+     * trong học sinh khi click cũng hiển thị giống ngoài public, 2 cái phải đồng bộ"). Chép
+     * lại lần hai là có ngày hai bên liệt kê khác nhau.
+     */
+    public function attachmentsFor(Product $product, string $routePrefix, bool $isTeacherView): array
     {
         $items = [];
 

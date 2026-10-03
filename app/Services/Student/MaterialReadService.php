@@ -33,6 +33,8 @@ class MaterialReadService
     public function __construct(
         private MaterialRepositoryInterface $materials,
         private AccessGateService $accessGate,
+        // SỬA 3/10 — dùng lại danh sách học liệu của màn đọc sản phẩm, xem attachmentsFor().
+        private \App\Services\ProductReadService $productRead,
     ) {}
 
     /** Tìm Material kèm quan hệ product (AccessGateService::canAccessMaterial() cần $material->product). */
@@ -111,7 +113,22 @@ class MaterialReadService
             // chỉ để TRUY VẾT được nguồn nếu có rò rỉ, khách đã được báo trước điều này.
             'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
             'readRoute' => $routePrefix.'.materials.read',
-            'layoutView' => 'layouts.'.$routePrefix,
+            /*
+             * SỬA 3/10 — trình đọc dùng KHUNG RIÊNG toàn màn hình (layouts/reader), không còn
+             * nằm trong khung khu học sinh/giáo viên: ảnh bản mẫu khách gửi không có thanh bên,
+             * mà để thanh bên vào thì trang có hai bộ điều hướng chồng nhau. $readRoute ngay
+             * trên vẫn phân biệt vai trò nên nút Quay lại/Đóng vẫn về đúng kho của từng vai.
+             */
+            'layoutView' => 'layouts.reader',
+            /*
+             * SỬA 3/10 (khách: "2 cái phải đồng bộ") — khu học sinh giờ mở ĐÚNG màn này thay cho
+             * màn đọc sản phẩm cũ (xem LibraryService::readHref). Màn cũ có thêm tab "Học liệu"
+             * (audio/ảnh của từng chương + tệp đính kèm của sản phẩm); mang sang đây để gộp màn
+             * mà KHÔNG ai mất thứ đang dùng.
+             */
+            'attachments' => $material->product !== null
+                ? $this->productRead->attachmentsFor($material->product, $routePrefix, $routePrefix === 'teacher')
+                : [],
         ];
     }
 

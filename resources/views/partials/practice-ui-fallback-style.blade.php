@@ -52,8 +52,8 @@
     .grid-cols-\[76px_minmax\(0\,1fr\)\] { grid-template-columns: 76px minmax(0, 1fr); }
 
     /* ── đổ bóng ── */
-    .shadow-\[0_2px_10px_rgba\(28\,91\,121\,0\.04\)\] { box-shadow: 0 2px 10px rgba(28, 91, 121, .04); }
-    .shadow-\[0_3px_16px_rgba\(28\,91\,121\,0\.04\)\] { box-shadow: 0 3px 16px rgba(28, 91, 121, .04); }
+    .shadow-\[0_2px_10px_rgba\(28\,91\,121\,0\.04\)\] { --tw-shadow: 0 2px 10px rgba(28, 91, 121, .04); box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow); }
+    .shadow-\[0_3px_16px_rgba\(28\,91\,121\,0\.04\)\] { --tw-shadow: 0 3px 16px rgba(28, 91, 121, .04); box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow); }
 
     @media (min-width: 40rem) {
         .sm\:h-52 { height: 13rem; }

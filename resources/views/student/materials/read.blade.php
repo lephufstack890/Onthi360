@@ -25,10 +25,11 @@
          education-main/src/components/MaterialReaderPage.jsx: thanh đầu trang dính, hai cột
          (PDF bên trái · Bài tập bên phải), thanh công cụ PDF, chế độ Tập trung.
 
-         GIỮ NGUYÊN BỘ MÁY ĐỌC: khối <style> và toàn bộ <script type="module"> pdf.js ở dưới
-         không sửa một ký tự. Sáu thẻ mà script bám vào theo id — material-pdf-viewer,
-         reader-progress-bar, reader-page-indicator, reader-zoom-in, reader-zoom-out,
-         reader-zoom-label — vẫn còn đủ, chỉ đổi chỗ đứng và lớp CSS.
+         GIỮ NGUYÊN BỘ MÁY ĐỌC: toàn bộ <script type="module"> pdf.js ở dưới không đổi cách
+         chạy. SỬA 3/10 — theo ảnh khách gửi, thanh công cụ đã BỎ 3 thẻ thu/phóng và dải tiến
+         độ đọc; script vẫn an toàn vì mọi chỗ bám vào các id đó đều kiểm tra null trước khi
+         dùng (zoomInBtn / zoomOutBtn / zoomLabelEl / progressBarEl / pageIndicatorEl). Thẻ
+         BẮT BUỘC phải còn là #material-pdf-viewer và #reader-scroll-box.
 
          KHÁC bản mẫu, có chủ ý:
            · bản mẫu dựng trang tài liệu bằng chữ viết sẵn trong mã nguồn; ở đây là PDF THẬT
@@ -59,12 +60,6 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border-bottom: 1px solid #e2e8f0;
-        }
-        .reader-progress-track { height: 3px; background: #eef2f7; }
-        .reader-progress-bar {
-            height: 100%; width: 0%;
-            background: linear-gradient(90deg, #fb7185, #e11d48);
-            transition: width .12s linear;
         }
         .reader-code-badge {
             display: inline-block;
@@ -160,13 +155,46 @@
             text-align: center;
             font-variant-numeric: tabular-nums;
         }
-        .reader-zoom-label {
-            font-size: .7rem;
-            color: #94a3b8;
-            min-width: 40px;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-        }
+
+        /* SỬA 3/10 (2) — MÀU NỀN/VIỀN CỦA THẺ BÀI TẬP.
+           Đây là lỗi tôi để sót ở lượt trước: 10 class dưới đây không có trong bản CSS đã
+           build, nên trên máy chủ mọi thẻ bài tập sẽ KHÔNG có nền màu nào — đúng cái việc mà
+           "nền đổi theo trạng thái" sinh ra để làm.
+
+           BÀI HỌC: TUYỆT ĐỐI không viết tên thẻ đóng của style ngay trong khối CSS này, kể cả
+           bên trong dấu ghi chú — trình duyệt kết thúc khối style ở lần gặp ĐẦU TIÊN, không
+           quan tâm nó nằm trong ghi chú hay không. Viết vào là nửa dưới của khối CSS bị đổ ra
+           màn hình thành chữ. */
+        .bg-\[\#F0F8F2\] { background-color: #F0F8F2; }
+        .bg-\[\#FFF7E7\] { background-color: #FFF7E7; }
+        .bg-\[\#EFF8FA\] { background-color: #EFF8FA; }
+        .border-\[\#CBE7D5\] { border-color: #CBE7D5; }
+        .border-\[\#F0D9A9\] { border-color: #F0D9A9; }
+        .border-\[\#C8E2EA\] { border-color: #C8E2EA; }
+        .text-\[\#946A28\] { color: #946A28; }
+        .hover\:bg-\[\#E8F4EC\]:hover { background-color: #E8F4EC; }
+        .hover\:bg-\[\#FFF1D5\]:hover { background-color: #FFF1D5; }
+        .hover\:bg-\[\#E6F3F6\]:hover { background-color: #E6F3F6; }
+
+        /* Viền thẻ ĐANG ĐƯỢC CHỌN. Phải viết bằng 2 lớp (.oi-ex-card.oi-ex-selected) chứ không
+           dùng class màu của Tailwind: mấy quy tắc màu viền theo trạng thái ngay trên nằm TRONG
+           tệp này, tức là đứng SAU bản CSS đã build, nên chúng sẽ đè mất màu viền xanh dù thẻ
+           có class đó. Hai lớp thì trọng số cao hơn, thắng chắc. */
+        .oi-ex-card.oi-ex-selected { border-color: #2D7FA3; }
+        .max-h-\[420px\] { max-height: 420px; }
+
+        /* SỬA 3/10 — thêm cho thanh đầu trang + thẻ bài tập dựng lại theo bản mẫu. */
+        .isolate { isolation: isolate; }
+        .min-h-\[74px\] { min-height: 74px; }
+        .border-\[\#CFE5E5\] { border-color: #CFE5E5; }
+        .ring-\[\#B9DDE8\] { --tw-ring-color: #B9DDE8; }
+
+        /* BẪY: đổ bóng phải ghi qua biến --tw-shadow, KHÔNG ghi thẳng box-shadow. Tailwind v4
+           gộp viền-quầng (ring) và bóng vào CÙNG một thuộc tính box-shadow bằng các biến CSS;
+           ghi thẳng box-shadow là xoá luôn quầng ring của chính thẻ đó — thẻ bài tập đang chọn
+           sẽ mất viền sáng mà không ai hiểu vì sao. */
+        .grid-cols-\[minmax\(0\,1fr\)_auto\] { grid-template-columns: minmax(0, 1fr) auto; }
+        .shadow-\[0_3px_10px_rgba\(45\,96\,145\,0\.08\)\] { --tw-shadow: 0 3px 10px rgba(45, 96, 145, .08); box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow); }
 
         /* ── Class Tailwind của bản mẫu mới CHƯA có trong CSS đã build ──────────────────
            SỬA 2/10 — máy chủ KHÔNG chạy được vite nên mọi class phải có sẵn trong
@@ -190,8 +218,8 @@
         .grid-cols-\[minmax\(0\,1\.1fr\)_minmax\(0\,1fr\)_minmax\(0\,\.8fr\)\] {
             grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, .8fr);
         }
-        .shadow-\[0_2px_7px_rgba\(67\,111\,107\,0\.12\)\] { box-shadow: 0 2px 7px rgba(67, 111, 107, .12); }
-        .shadow-\[0_6px_18px_rgba\(45\,96\,145\,0\.12\)\] { box-shadow: 0 6px 18px rgba(45, 96, 145, .12); }
+        .shadow-\[0_2px_7px_rgba\(67\,111\,107\,0\.12\)\] { --tw-shadow: 0 2px 7px rgba(67, 111, 107, .12); box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow); }
+        .shadow-\[0_6px_18px_rgba\(45\,96\,145\,0\.12\)\] { --tw-shadow: 0 6px 18px rgba(45, 96, 145, .12); box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow); }
         .hover\:bg-\[\#2F8066\]:hover { background-color: #2F8066; }
         .hover\:bg-\[\#DFF2E9\]:hover { background-color: #DFF2E9; }
         .hover\:bg-\[\#EAF3F2\]:hover { background-color: #EAF3F2; }
@@ -210,6 +238,13 @@
         $libraryRoute = str_starts_with($readRoute, 'teacher.') ? 'teacher.library.index' : 'student.library.index';
 
         $sections = $sections ?? [];
+    $attachments = $attachments ?? [];
+
+    // Ảnh thu nhỏ ở thanh đầu: bìa sản phẩm chứa tài liệu; chưa có thì dùng ảnh nền chung của
+    // khu Tài liệu chứ KHÔNG mượn ảnh của tài liệu khác.
+    $readerCoverUrl = $material->product?->cover_image_path
+        ? asset('storage/'.$material->product->cover_image_path)
+        : asset('assets/hero-materials.jpg');
 
         /*
          * SỬA 2/10 (khách: "update lại cho tôi UI khi click vào đọc tài liệu dựa vào source mới")
@@ -239,24 +274,39 @@
     @endphp
 
     <div x-data="onthiMaterialReader({{ Js::from(['exercises' => $exerciseRows, 'perPage' => 3]) }})"
-         class="reader-ui bg-[#F7F9FB] text-[#466278]">
+         class="bg-[#F7F9FB] text-[#466278]">
 
         {{-- ══════ THANH ĐẦU TRANG ══════ --}}
+        {{-- SỬA 3/10 (khách: "UI chỗ đọc tài liệu nó không giống, check source mới kỹ") — thanh
+             đầu trang dựng lại đúng bản mẫu: nền trang trí (ảnh hero mờ + 2 quầng màu), ảnh thu
+             nhỏ của tài liệu, và dòng chip có SỐ TRANG PDF. --}}
         <header x-show="! focus"
-                class="sticky top-0 z-30 border-b border-[#DFEBF0] bg-white/95 shadow-[0_3px_14px_rgba(45,96,145,0.07)] backdrop-blur-xl">
-            <div class="h-[3px] bg-gradient-to-r from-[#123B68] via-[#2D7FA3] to-[#E6B44A]" aria-hidden="true"></div>
-            <div class="flex flex-wrap items-center gap-3 py-2.5 sm:py-3">
+                class="sticky top-0 z-30 isolate relative min-h-[74px] overflow-hidden border-b border-[#CFE5E5] bg-white/95 shadow-[0_3px_14px_rgba(45,96,145,0.07)] backdrop-blur-xl">
+            <div aria-hidden="true" class="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                <img src="{{ asset('assets/hero-materials.jpg') }}" alt="" loading="eager" decoding="async"
+                     class="absolute inset-0 h-full w-full object-cover object-right" style="opacity: .48">
+                <div class="absolute inset-0" style="background-image: linear-gradient(to right, rgba(255,255,255,.98), rgba(255,255,255,.86), rgba(255,255,255,.16))"></div>
+                <div class="absolute -right-20 -top-28 h-64 w-64 rounded-full blur-3xl" style="background-color: rgba(189,234,222,.58)"></div>
+                <div class="absolute -bottom-24 h-48 w-48 rounded-full blur-3xl" style="right: 24%; background-color: rgba(255,228,167,.38)"></div>
+            </div>
+            <div class="relative z-10 h-[3px] bg-gradient-to-r from-[#123B68] via-[#2D7FA3] to-[#E6B44A]" aria-hidden="true"></div>
+            <div class="relative z-10 mx-auto flex w-full max-w-[1780px] flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6 2xl:px-10">
                 <a href="{{ route($libraryRoute) }}" aria-label="Quay lại kho tài liệu"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#DDEAF0] bg-white text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#123B68]">
                     <x-lucide name="arrow-left" class="h-4 w-4" />
                 </a>
                 <div class="hidden h-6 w-px bg-slate-200 sm:block"></div>
 
+                <img src="{{ $readerCoverUrl }}" alt="" decoding="async"
+                     class="h-9 w-9 shrink-0 rounded-lg border border-[#DDEAF0] bg-white object-cover">
+
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="inline-flex items-center gap-1 rounded-full bg-[#EAF5F8] px-2.5 py-1 text-[10px] font-extrabold text-[#126F91]">
                             <x-lucide name="book-open" class="h-3 w-3" />Đang đọc tài liệu
                         </span>
+                        {{-- Số trang do pdf.js đếm được sau khi tải xong, script điền vào đây. --}}
+                        <span id="reader-page-count" class="hidden text-[11px] text-[#61798B] sm:inline"></span>
                         <span class="hidden rounded-lg bg-[#F8FBFE] px-2 py-1 font-mono text-[10px] font-bold text-[#61798B] lg:inline-flex">{{ $material->code ?: '#'.$material->id }}</span>
                     </div>
                     <h1 class="mt-1 truncate text-[14px] font-semibold text-[#123B68] sm:text-base">{{ $material->title }}</h1>
@@ -285,8 +335,8 @@
             <x-lucide name="minimize-2" class="h-3.5 w-3.5" /><span>Khôi phục</span>
         </button>
 
-        <main class="py-4 lg:py-6">
-            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1.52fr)_minmax(320px,.74fr)]">
+        <main class="mx-auto w-full max-w-[1780px] px-3 py-4 sm:px-5 lg:px-6 lg:py-6 2xl:px-10">
+            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
 
                 {{-- ══════ CỘT TRÁI: PDF ══════ --}}
                 <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
@@ -310,10 +360,15 @@
                                 </button>
                             </form>
 
-                            @if (count($sections) > 1)
+                            @if (count($sections) > 0)
                                 {{-- Mỗi chương/phần ở đây là MỘT tài liệu có PDF riêng (khác bản
                                      mẫu: bên đó là các trang trong cùng một tệp), nên chọn xong
-                                     là chuyển sang trang đọc của chương đó. --}}
+                                     là chuyển sang trang đọc của chương đó.
+
+                                     SỬA 3/10 (khách: "thiếu chương/phần và chỗ chọn chương") —
+                                     trước đây chỉ hiện khi tài liệu có TỪ 2 CHƯƠNG TRỞ LÊN, nên
+                                     tài liệu một chương là mất hẳn ô này. Bản mẫu luôn có ô đó,
+                                     và người đọc cũng cần biết mình đang ở chương nào. --}}
                                 <label for="material-section-select" class="shrink-0 text-[12px] font-semibold text-[#466278]">Chương/phần</label>
                                 <select id="material-section-select" aria-label="Chọn chương hoặc phần để đọc"
                                         onchange="if (this.value) window.location.href = this.value;"
@@ -325,31 +380,19 @@
                             @endif
                         </div>
 
-                        <div class="flex shrink-0 items-center gap-1.5">
-                            {{-- Thu/phóng: giữ nguyên 3 thẻ mà script pdf.js bám vào. --}}
-                            <button type="button" class="reader-toolbar-btn" id="reader-zoom-out" title="Thu nhỏ">−</button>
-                            <span class="reader-zoom-label" id="reader-zoom-label">100%</span>
-                            <button type="button" class="reader-toolbar-btn" id="reader-zoom-in" title="Phóng to">+</button>
-
-                            {{-- Đang tập trung thì nút này ẩn đi, thay bằng nút nổi góc phải màn
-                                 hình (bản mẫu làm vậy) — vì lúc đó thanh đầu trang đã ẩn, không
-                                 có nút nổi thì không còn đường thoát. --}}
-                            <button type="button" @click="focus = true" x-show="! focus"
-                                    class="ml-1 inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
-                                <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
-                            </button>
-                        </div>
+                        {{-- SỬA 3/10 — bên phải CHỈ còn nút Tập trung, đúng ảnh khách gửi. Đã BỎ
+                             3 thẻ thu/phóng và dải tiến độ đọc: ảnh không có chúng. Mã JS vẫn an
+                             toàn vì các chỗ bám vào đều kiểm tra null trước (xem cuối tệp). --}}
+                        <button type="button" @click="focus = true" x-show="! focus"
+                                class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
+                            <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
+                        </button>
                     </div>
 
-                    <div class="reader-progress-track">
-                        <div class="reader-progress-bar" id="reader-progress-bar"></div>
-                    </div>
-
-                    <div class="p-3 sm:p-5">
-                        <p class="mb-3 select-none text-center text-xs text-slate-400">
-                            <x-lucide name="lock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Nội dung chỉ xem trên web — không hỗ trợ tải về hoặc in trực tiếp.
-                        </p>
-
+                    {{-- SỬA 3/10 — nền vùng đọc màu #EAF4F8 và bỏ dòng nhắc "chỉ xem trên web" ở
+                         ĐẦU (bản mẫu không có, nó đẩy tờ đề tụt xuống). Dòng đó chuyển xuống
+                         chân khung — vẫn nói, nhưng không chắn chỗ đọc. --}}
+                    <div class="bg-[#EAF4F8] p-3 sm:p-5">
                         {{-- SỬA 18/9 (khách: "chỗ hiển thị pdf dài quá thì cho scroll") — vùng đọc có
                              THANH CUỘN RIÊNG, chép đúng lớp của bản mẫu (MaterialReaderPage.jsx:
                              material-pdf-scroll + h-[min(760px,calc(100dvh-185px))]). Trước đây cả
@@ -363,6 +406,10 @@
                             </div>
                         </div>
                         </div>
+
+                        <p class="mt-2.5 select-none text-center text-[11px] text-slate-400">
+                            <x-lucide name="lock" class="inline h-3 w-3 shrink-0 align-[-2px]" /> Nội dung chỉ xem trên web — không hỗ trợ tải về hoặc in trực tiếp.
+                        </p>
                     </div>
 
                     {{-- Điều hướng BÀI trước/sau trong cùng sản phẩm — giữ nguyên đường đi cũ. --}}
@@ -424,17 +471,26 @@
                                     @php
                                         [$exStatusLabel, $exStatusClass, $exStatusIcon, $exSurface] = $statusMeta[$ex['status']] ?? $statusMeta['open'];
                                     @endphp
-                                    {{-- Thẻ bài tập theo bản mẫu mới: cao đều nhau, nền đổi theo
-                                         trạng thái, 5 sao độ khó, nút Làm bài chiếm trọn bề ngang. --}}
+                                    {{-- SỬA 3/10 — thẻ bài tập soát lại theo ĐÚNG hàm ExerciseItem của
+                                         bản mẫu, 3 chỗ trước đây làm thiếu:
+                                           · chiều cao CỐ ĐỊNH 104px, các thẻ đều nhau tăm tắp;
+                                           · bài ĐANG LÀM thì KHÔNG hiện viên trạng thái, hàng giữa
+                                             rút còn 2 cột (sao + điểm) — xem ảnh khách gửi, thẻ
+                                             "Luồng cực đại với Dinic" không có viên nào;
+                                           · bấm vào tên bài thì thẻ được CHỌN (viền xanh + quầng). --}}
                                     <div x-show="visibleIds.includes({{ $ex['id'] }})" x-cloak
                                          :style="{ order: visibleIds.indexOf({{ $ex['id'] }}) }"
-                                         class="flex w-full flex-col justify-between gap-1.5 rounded-2xl border px-3 py-2.5 text-left transition {{ $exSurface }}">
-                                        <p class="block w-full min-w-0 truncate text-[13px] font-semibold leading-5 text-[#123B68]" title="{{ $ex['title'] }}">{{ $ex['title'] }}</p>
+                                         :class="selectedId === {{ $ex['id'] }} ? 'oi-ex-selected ring-2 ring-[#B9DDE8] shadow-[0_3px_10px_rgba(45,96,145,0.08)]' : ''"
+                                         class="oi-ex-card flex h-[104px] w-full shrink-0 flex-col justify-between gap-1.5 rounded-2xl border px-3 py-2.5 text-left transition {{ $exSurface }}">
+                                        <button type="button" @click="selectedId = {{ $ex['id'] }}"
+                                                class="block w-full min-w-0 truncate text-left text-[13px] font-semibold leading-5 text-[#123B68]" title="{{ $ex['title'] }}">{{ $ex['title'] }}</button>
 
-                                        <div class="grid w-full grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,.8fr)] items-center gap-2">
-                                            <span class="inline-flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold leading-none {{ $exStatusClass }}" title="{{ $exStatusLabel }}">
-                                                <x-lucide :name="$exStatusIcon" class="h-2.5 w-2.5 shrink-0" /><span class="truncate">{{ $exStatusLabel }}</span>
-                                            </span>
+                                        <div class="grid w-full items-center gap-2 {{ $ex['status'] === 'progress' ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,.8fr)]' }}">
+                                            @if ($ex['status'] !== 'progress')
+                                                <span class="inline-flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold leading-none {{ $exStatusClass }}" title="{{ $exStatusLabel }}">
+                                                    <x-lucide :name="$exStatusIcon" class="h-2.5 w-2.5 shrink-0" /><span class="truncate">{{ $exStatusLabel }}</span>
+                                                </span>
+                                            @endif
 
                                             <span class="inline-flex items-center justify-center gap-0.5" role="img"
                                                   aria-label="Độ khó {{ $ex['difficultyStars'] }} trên 5 sao" title="{{ $ex['difficultyLabel'] }}">
@@ -491,6 +547,62 @@
                             </div>
                         </div>
                     </section>
+
+                    @if (count($attachments) > 0)
+                        {{-- ══════ HỌC LIỆU ══════
+                             SỬA 3/10 (khách: "2 cái phải đồng bộ") — khu học sinh trước đây mở
+                             màn đọc sản phẩm riêng, ở đó có tab "Học liệu" (audio/ảnh của từng
+                             chương + tệp đính kèm). Giờ hai khu dùng CHUNG màn này, nên mang
+                             mục đó sang — gộp màn mà không ai mất thứ đang dùng.
+
+                             Để dạng gấp/mở và CHỈ hiện khi tài liệu thật sự có học liệu, nhờ
+                             vậy tài liệu không có gì thì bố cục vẫn đúng bản mẫu. --}}
+                        <section x-data="{ open: false }"
+                                 class="mt-3 overflow-hidden rounded-[28px] border border-[#DDEAF0] bg-white shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
+                            <button type="button" @click="open = ! open" :aria-expanded="open"
+                                    class="flex w-full items-center justify-between gap-3 px-3 py-3 text-left sm:px-4">
+                                <span class="flex items-center gap-2 text-[#126F91]">
+                                    <x-lucide name="library" class="h-4 w-4" /><span class="text-xs font-semibold">Học liệu</span>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="rounded-xl bg-[#EAF5F8] px-2.5 py-1.5 text-[10px] font-semibold text-[#126F91]">{{ count($attachments) }}</span>
+                                    <x-lucide name="chevron-down" class="h-4 w-4 text-[#9AAEBC] transition" ::class="open ? 'rotate-180' : ''" />
+                                </span>
+                            </button>
+
+                            <div x-show="open" x-cloak class="max-h-[420px] overflow-y-auto border-t border-[#E5EEF3] p-3.5 sm:p-4">
+                                @foreach ($attachments as $item)
+                                    <div class="mb-2.5 rounded-2xl border border-[#DDEAF0] bg-[#F8FBFC] p-3">
+                                        <div class="flex items-start gap-2">
+                                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#E9F7F8] text-[#23869B]">
+                                                <x-lucide :name="$item['kind'] === 'audio' ? 'volume-2' : ($item['kind'] === 'image' ? 'image' : 'paperclip')" class="h-3.5 w-3.5" />
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate text-[12.5px] font-semibold text-[#123B68]">{{ $item['title'] }}</p>
+                                                @if ($item['chapterTitle'])
+                                                    <p class="truncate text-[10.5px] text-[#7FA5B8]">{{ $item['chapterTitle'] }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        @if ($item['kind'] === 'audio')
+                                            {{-- Nghe ngay trong trang (bài nghe-hiểu), không phải tải về. --}}
+                                            <audio controls preload="none" src="{{ $item['url'] }}" class="mt-2 w-full"></audio>
+                                        @elseif ($item['kind'] === 'image')
+                                            <a href="{{ $item['url'] }}" target="_blank" rel="noopener" class="mt-2 block overflow-hidden rounded-xl border border-[#DDEAF0]">
+                                                <img src="{{ $item['url'] }}" alt="{{ $item['title'] }}" loading="lazy" class="w-full">
+                                            </a>
+                                        @else
+                                            <a href="{{ $item['url'] }}" target="_blank" rel="noopener"
+                                               class="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-white px-3 py-1.5 text-[11.5px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                                <x-lucide name="download" class="h-3.5 w-3.5" />Mở tệp
+                                            </a>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
                 </aside>
             </div>
         </main>
@@ -515,6 +627,8 @@
                 q: '',
                 filter: 'all',
                 page: 1,
+                // SỬA 3/10 — thẻ bài tập đang được chọn (bản mẫu: bấm tên bài thì thẻ sáng viền).
+                selectedId: null,
 
                 get filtered() {
                     const needle = this.q.trim().toLowerCase();
@@ -593,6 +707,7 @@
             var pageInputEl = document.getElementById('reader-page-input');
             var pageTotalEl = document.getElementById('reader-page-total');
             var pageFormEl = document.getElementById('reader-page-form');
+            var pageCountEl = document.getElementById('reader-page-count');
             var zoomInBtn = document.getElementById('reader-zoom-in');
             var zoomOutBtn = document.getElementById('reader-zoom-out');
             var zoomLabelEl = document.getElementById('reader-zoom-label');
@@ -661,6 +776,12 @@
             function setPageIndicator(current) {
                 if (pageTotalEl && totalPages) {
                     pageTotalEl.textContent = String(totalPages);
+                }
+                // SỬA 3/10 — dòng "N trang PDF" ở thanh đầu trang (bản mẫu có, bản cũ thiếu).
+                // Số này chỉ biết được sau khi pdf.js đọc xong tệp, nên điền từ đây.
+                if (pageCountEl && totalPages) {
+                    pageCountEl.textContent = totalPages + ' trang PDF';
+                    pageCountEl.classList.remove('hidden');
                 }
                 if (pageInputEl && totalPages) {
                     pageInputEl.max = String(totalPages);

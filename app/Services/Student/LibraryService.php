@@ -148,9 +148,18 @@ class LibraryService
                 // dùng lại ProductType::chapterLabel() đang có, không đặt thêm nhãn mới.
                 'lessonCount' => $partCount,
                 'lessonWord' => mb_strtolower($p->type?->chapterLabel() ?? 'bài'),
-                'readHref' => $partCount > 0
-                    ? route($readPrefix.'.products.read', $p->id)
-                    : null,
+                /*
+                 * SỬA 3/10 (khách: "2 cái phải đồng bộ") — bấm Đọc ở khu học sinh giờ mở ĐÚNG
+                 * màn đọc của trang công khai (student.materials.read). Sản phẩm chỉ có một
+                 * tệp PDF gắn thẳng, không chia chương, thì không có Material nào để mở nên
+                 * vẫn dùng màn đọc sản phẩm như cũ.
+                 */
+                'readHref' => match (true) {
+                    ($firstPartId = $this->productRead->firstReadableMaterialId($p)) !== null
+                        => route($readPrefix.'.materials.read', $firstPartId),
+                    $partCount > 0 => route($readPrefix.'.products.read', $p->id),
+                    default => null,
+                },
                 // Huy hiệu như bản mẫu (MaterialsPage.jsx): "Đã sở hữu" + hạn dùng. Sản phẩm
                 // được cấp MIỄN PHÍ qua lớp không có AccessRight cá nhân nên không có trong
                 // $remainingByProduct — in đúng nguồn quyền thay vì bịa một con số ngày.
@@ -200,9 +209,13 @@ class LibraryService
             // SỬA 29/9 — nút "Đọc tài liệu" ngay trong tab Học liệu của lớp: sản phẩm được giáo
             // viên gắn vào lớp thì học sinh đọc được y như sản phẩm tự mua (quyền qua lớp đã được
             // AccessGateService::canAccessProduct() công nhận, xem ProductReadService::decisionFor()).
-            'readHref' => $this->productRead->hasReadableParts($product)
-                ? route($readPrefix.'.products.read', $product->id)
-                : null,
+            // SỬA 3/10 — cùng luật với ở trên: ưu tiên màn đọc dùng chung với trang công khai.
+            'readHref' => match (true) {
+                ($firstPartId = $this->productRead->firstReadableMaterialId($product)) !== null
+                    => route($readPrefix.'.materials.read', $firstPartId),
+                $this->productRead->hasReadableParts($product) => route($readPrefix.'.products.read', $product->id),
+                default => null,
+            },
         ];
     }
 
