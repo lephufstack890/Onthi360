@@ -167,6 +167,36 @@
             text-align: center;
             font-variant-numeric: tabular-nums;
         }
+
+        /* ── Class Tailwind của bản mẫu mới CHƯA có trong CSS đã build ──────────────────
+           SỬA 2/10 — máy chủ KHÔNG chạy được vite nên mọi class phải có sẵn trong
+           public/build/assets/app-*.css (bản build 19/9). Mấy class dưới đây là màu/kích
+           thước mới của bản mẫu MaterialReaderPage.jsx, không nằm trong bản build đó nên
+           trên máy chủ sẽ không ra style nào — sao độ khó mất màu, nút Làm bài mất nền,
+           hàng 3 cột của thẻ bài tập vỡ. Viết đúng quy tắc mà Tailwind sẽ sinh ra (tên chọn
+           lọc y hệt, dấu [ ] # ( ) , . phải thoát bằng \), nên mã HTML không phải sửa và
+           khi nào build lại được CSS thì đây chỉ còn là bản trùng vô hại.
+           ĐÃ ĐỐI CHIẾU từng tên với app-BHdXR6Bc.css — chỉ liệt kê class THẬT SỰ thiếu. */
+        .text-\[\#436F6B\] { color: #436F6B; }
+        .text-\[\#526B7D\] { color: #526B7D; }
+        .text-\[\#C7D2D9\] { color: #C7D2D9; }
+        .text-\[\#D29A18\] { color: #D29A18; }
+        .bg-\[\#368F72\] { background-color: #368F72; }
+        .bg-\[\#E2EEEC\] { background-color: #E2EEEC; }
+        .border-\[\#DDE7EA\] { border-color: #DDE7EA; }
+        .pr-1 { padding-right: .25rem; }
+        .z-40 { z-index: 40; }
+        .w-\[260px\] { width: 260px; }
+        .grid-cols-\[minmax\(0\,1\.1fr\)_minmax\(0\,1fr\)_minmax\(0\,\.8fr\)\] {
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, .8fr);
+        }
+        .shadow-\[0_2px_7px_rgba\(67\,111\,107\,0\.12\)\] { box-shadow: 0 2px 7px rgba(67, 111, 107, .12); }
+        .shadow-\[0_6px_18px_rgba\(45\,96\,145\,0\.12\)\] { box-shadow: 0 6px 18px rgba(45, 96, 145, .12); }
+        .hover\:bg-\[\#2F8066\]:hover { background-color: #2F8066; }
+        .hover\:bg-\[\#DFF2E9\]:hover { background-color: #DFF2E9; }
+        .hover\:bg-\[\#EAF3F2\]:hover { background-color: #EAF3F2; }
+        .hover\:border-\[\#B8D7E1\]:hover { border-color: #B8D7E1; }
+        .hover\:text-\[\#436F6B\]:hover { color: #436F6B; }
     </style>
     @php
         $access = $access ?? ['owned' => false, 'remainingLabel' => null];
@@ -179,14 +209,37 @@
         // vai trò đang xem, nếu không giáo viên bấm là văng sang route của học sinh -> 403.
         $libraryRoute = str_starts_with($readRoute, 'teacher.') ? 'teacher.library.index' : 'student.library.index';
 
+        $sections = $sections ?? [];
+
+        /*
+         * SỬA 2/10 (khách: "update lại cho tôi UI khi click vào đọc tài liệu dựa vào source mới")
+         * — thẻ bài tập dựng lại theo education-main/src/components/MaterialReaderPage.jsx
+         * (hàm ExerciseItem): NỀN ĐỔI THEO TRẠNG THÁI, 5 sao độ khó, nút "Làm bài" chiếm trọn
+         * bề ngang. Bản cũ mọi thẻ đều một màu vàng kem nên nhìn lướt không biết bài nào xong.
+         *
+         * Bản mẫu có thêm trạng thái "locked" (bài bị khoá). Hệ thống này KHÔNG khoá bài tập
+         * theo tiến độ — vào được trang đọc là làm được mọi bài — nên bỏ hẳn nhánh đó thay vì
+         * vẽ ổ khoá không bao giờ sáng.
+         */
         $statusMeta = [
-            'done' => ['Đã hoàn thành', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'check-circle-2'],
-            'progress' => ['Đang làm', 'border-amber-200 bg-amber-50 text-amber-700', 'play-circle'],
-            'open' => ['Sẵn sàng', 'border-sky-200 bg-sky-50 text-sky-700', 'play-circle'],
+            'done' => ['Đã làm', 'text-[#287B5F]', 'check-circle-2', 'border-[#CBE7D5] bg-[#F0F8F2] hover:bg-[#E8F4EC]'],
+            'progress' => ['Đang làm', 'text-[#946A28]', 'play-circle', 'border-[#F0D9A9] bg-[#FFF7E7] hover:bg-[#FFF1D5]'],
+            'open' => ['Chưa làm', 'text-[#126F91]', 'play-circle', 'border-[#C8E2EA] bg-[#EFF8FA] hover:bg-[#E6F3F6]'],
         ];
+
+        // Hàng dữ liệu cho Alpine: lọc theo ô tìm + 3 chip, rồi chia 3 bài/trang đúng bản mẫu.
+        $exerciseRows = [];
+        foreach ($exercises as $ex) {
+            $exerciseRows[] = [
+                'id' => $ex['id'],
+                'done' => $ex['status'] === 'done',
+                'search' => mb_strtolower($ex['title'].' '.implode(' ', $ex['tags'])),
+            ];
+        }
     @endphp
 
-    <div x-data="{ focus: false, q: '', filter: 'all' }" class="reader-ui bg-[#F7F9FB] text-[#466278]">
+    <div x-data="onthiMaterialReader({{ Js::from(['exercises' => $exerciseRows, 'perPage' => 3]) }})"
+         class="reader-ui bg-[#F7F9FB] text-[#466278]">
 
         {{-- ══════ THANH ĐẦU TRANG ══════ --}}
         <header x-show="! focus"
@@ -227,17 +280,49 @@
             </div>
         </header>
 
+        <button type="button" @click="focus = false" x-show="focus" x-cloak
+                class="fixed right-4 top-4 z-40 inline-flex items-center gap-1.5 rounded-xl border border-[#B7DDCD] bg-white/95 px-3 py-2 text-[12px] font-semibold text-[#287B5F] shadow-[0_6px_18px_rgba(45,96,145,0.12)] backdrop-blur transition hover:bg-[#DFF2E9]">
+            <x-lucide name="minimize-2" class="h-3.5 w-3.5" /><span>Khôi phục</span>
+        </button>
+
         <main class="py-4 lg:py-6">
             <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1.52fr)_minmax(320px,.74fr)]">
 
                 {{-- ══════ CỘT TRÁI: PDF ══════ --}}
                 <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
-                    <div class="flex items-center justify-between gap-2 border-b border-[#E5EEF3] px-3 py-2 sm:px-4">
-                        <div class="flex min-w-0 items-center gap-2">
+                    {{-- ══ THANH CÔNG CỤ ══
+                         SỬA 2/10 — dựng theo thanh công cụ của bản mẫu mới: ô nhảy tới trang
+                         ("Trang [n] / N" + nút mũi tên) và ô chọn Chương/phần, thay cho dòng chữ
+                         "Trang X / Y" chỉ để đọc. Vẫn giữ nguyên 3 thẻ zoom mà script pdf.js bám
+                         vào, bản mẫu không có nhưng đây là thứ người đọc dùng thật. --}}
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5EEF3] px-3 py-2 sm:px-4">
+                        <div class="flex min-w-0 flex-wrap items-center gap-2">
                             <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#E9F7F8] text-[#23869B]"><x-lucide name="file-text" class="h-3.5 w-3.5" /></span>
-                            <p class="shrink-0 text-[13px] font-semibold text-[#123B68]">PDF</p>
-                            {{-- Ô chỉ số trang của bộ đọc (id giữ nguyên cho script pdf.js). --}}
-                            <span class="reader-page-indicator" id="reader-page-indicator">…</span>
+
+                            <form id="reader-page-form" class="flex items-center gap-1 text-[10px]" aria-label="Chuyển đến trang">
+                                <label for="reader-page-input" class="text-[#61798B]">Trang</label>
+                                <input id="reader-page-input" type="number" min="1" inputmode="numeric" value="1" aria-label="Số trang"
+                                       class="h-6 w-12 rounded-md border border-[#DDEAF0] bg-[#F8FBFE] text-center text-[10px] font-bold text-[#123B68] outline-none transition focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
+                                <span class="text-[#61798B]">/ <span id="reader-page-total">…</span></span>
+                                <button type="submit" aria-label="Đi đến trang" title="Đi đến trang"
+                                        class="grid h-6 w-6 place-items-center rounded-md bg-[#2F9E72] text-white transition hover:bg-[#278761]">
+                                    <x-lucide name="arrow-right" class="h-3 w-3" />
+                                </button>
+                            </form>
+
+                            @if (count($sections) > 1)
+                                {{-- Mỗi chương/phần ở đây là MỘT tài liệu có PDF riêng (khác bản
+                                     mẫu: bên đó là các trang trong cùng một tệp), nên chọn xong
+                                     là chuyển sang trang đọc của chương đó. --}}
+                                <label for="material-section-select" class="shrink-0 text-[12px] font-semibold text-[#466278]">Chương/phần</label>
+                                <select id="material-section-select" aria-label="Chọn chương hoặc phần để đọc"
+                                        onchange="if (this.value) window.location.href = this.value;"
+                                        class="h-9 w-[260px] max-w-full rounded-lg border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[13px] font-semibold text-[#123B68] outline-none transition focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
+                                    @foreach ($sections as $sec)
+                                        <option value="{{ $sec['href'] }}" @selected($sec['current'])>{{ $sec['no'] }}. {{ $sec['title'] }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
                         </div>
 
                         <div class="flex shrink-0 items-center gap-1.5">
@@ -246,10 +331,12 @@
                             <span class="reader-zoom-label" id="reader-zoom-label">100%</span>
                             <button type="button" class="reader-toolbar-btn" id="reader-zoom-in" title="Phóng to">+</button>
 
-                            <button type="button" @click="focus = ! focus"
-                                    class="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
-                                <x-lucide name="maximize-2" class="h-3.5 w-3.5" />
-                                <span x-text="focus ? 'Thoát tập trung' : 'Tập trung'">Tập trung</span>
+                            {{-- Đang tập trung thì nút này ẩn đi, thay bằng nút nổi góc phải màn
+                                 hình (bản mẫu làm vậy) — vì lúc đó thanh đầu trang đã ẩn, không
+                                 có nút nổi thì không còn đường thoát. --}}
+                            <button type="button" @click="focus = true" x-show="! focus"
+                                    class="ml-1 inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
+                                <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
                             </button>
                         </div>
                     </div>
@@ -323,56 +410,54 @@
                                 @foreach ([['all', 'Tất cả', 'filter'], ['todo', 'Chưa xong', 'play-circle'], ['done', 'Đã xong', 'check-circle-2']] as [$fKey, $fLabel, $fIcon])
                                     <button type="button" @click="filter = '{{ $fKey }}'"
                                             class="flex-1 rounded-lg px-2 py-2 text-[10px] font-bold transition"
-                                            :class="filter === '{{ $fKey }}' ? 'bg-[#EAF5F8] text-[#126F91] shadow-[0_2px_7px_rgba(64,105,125,0.1)]' : 'text-[#61798B] hover:bg-white hover:text-[#126F91]'">
+                                            :class="filter === '{{ $fKey }}' ? 'bg-[#E2EEEC] text-[#436F6B] shadow-[0_2px_7px_rgba(67,111,107,0.12)]' : 'text-[#61798B] hover:bg-white hover:text-[#436F6B]'">
                                         <x-lucide :name="$fIcon" class="mx-auto h-3.5 w-3.5 sm:mr-1.5 sm:inline" /><span class="hidden sm:inline">{{ $fLabel }}</span>
                                     </button>
                                 @endforeach
                             </div>
 
-                            <div class="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-0.5">
+                            {{-- flex-col chứ không phải space-y: thuộc tính order (dùng để xếp
+                                 lại thứ tự sau khi lọc/phân trang) chỉ có tác dụng với con của
+                                 flex/grid. --}}
+                            <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-0.5">
                                 @forelse ($exercises as $ex)
                                     @php
-                                        [$exStatusLabel, $exStatusClass, $exStatusIcon] = $statusMeta[$ex['status']] ?? $statusMeta['open'];
-                                        $exSearch = mb_strtolower($ex['title'].' '.implode(' ', $ex['tags']));
+                                        [$exStatusLabel, $exStatusClass, $exStatusIcon, $exSurface] = $statusMeta[$ex['status']] ?? $statusMeta['open'];
                                     @endphp
-                                    <div x-show="(filter === 'all' || (filter === 'done' ? '{{ $ex['status'] }}' === 'done' : '{{ $ex['status'] }}' !== 'done'))
-                                                 && (q.trim() === '' || @js($exSearch).includes(q.trim().toLowerCase()))"
-                                         class="flex w-full items-stretch gap-2 rounded-2xl border border-[#F0E1BC] bg-[#FFFAF0] p-2.5 text-left transition hover:border-[#E8CF91] hover:bg-[#FFF4D8]">
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-start gap-3">
-                                                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#E9F7F8] text-[#23869B]">
-                                                    <x-lucide name="file-text" class="h-4 w-4" />
-                                                </span>
-                                                <div class="min-w-0 flex-1">
-                                                    <p class="text-[14px] font-semibold leading-5 text-[#123B68]">{{ $ex['title'] }}</p>
-                                                    @if (count($ex['tags']) > 0)
-                                                        <p class="mt-1.5 flex flex-wrap gap-1">
-                                                            @foreach ($ex['tags'] as $tag)
-                                                                <span class="inline-flex items-center gap-0.5 rounded-full bg-[#FFF7E3] px-1.5 py-0.5 text-[10px] font-medium text-[#806F55]">
-                                                                    <x-lucide name="hash" class="h-2.5 w-2.5" />{{ $tag }}
-                                                                </span>
-                                                            @endforeach
-                                                        </p>
-                                                    @endif
-                                                    <p class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#61798B]">
-                                                        <span>{{ $ex['difficultyLabel'] }}</span>
-                                                        <span class="h-1 w-1 rounded-full bg-[#B8C8D3]"></span>
-                                                        <span>{{ $ex['points'] }} điểm</span>
-                                                    </p>
-                                                </div>
-                                                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[9px] font-extrabold {{ $exStatusClass }}" title="{{ $exStatusLabel }}">
-                                                    <x-lucide :name="$exStatusIcon" class="h-3 w-3" />
-                                                </span>
-                                            </div>
+                                    {{-- Thẻ bài tập theo bản mẫu mới: cao đều nhau, nền đổi theo
+                                         trạng thái, 5 sao độ khó, nút Làm bài chiếm trọn bề ngang. --}}
+                                    <div x-show="visibleIds.includes({{ $ex['id'] }})" x-cloak
+                                         :style="{ order: visibleIds.indexOf({{ $ex['id'] }}) }"
+                                         class="flex w-full flex-col justify-between gap-1.5 rounded-2xl border px-3 py-2.5 text-left transition {{ $exSurface }}">
+                                        <p class="block w-full min-w-0 truncate text-[13px] font-semibold leading-5 text-[#123B68]" title="{{ $ex['title'] }}">{{ $ex['title'] }}</p>
+
+                                        <div class="grid w-full grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,.8fr)] items-center gap-2">
+                                            <span class="inline-flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold leading-none {{ $exStatusClass }}" title="{{ $exStatusLabel }}">
+                                                <x-lucide :name="$exStatusIcon" class="h-2.5 w-2.5 shrink-0" /><span class="truncate">{{ $exStatusLabel }}</span>
+                                            </span>
+
+                                            <span class="inline-flex items-center justify-center gap-0.5" role="img"
+                                                  aria-label="Độ khó {{ $ex['difficultyStars'] }} trên 5 sao" title="{{ $ex['difficultyLabel'] }}">
+                                                @for ($i = 1; $i <= 5; $i++)
+                                                    {{-- Tô đặc bằng style chứ không bằng thuộc tính fill: thẻ <svg>
+                                                         của x-lucide đã có sẵn fill="none" đứng TRƯỚC, mà HTML lấy
+                                                         thuộc tính trùng tên ĐẦU TIÊN — truyền fill vào là mất tác
+                                                         dụng, sao nào cũng rỗng. CSS fill thì đè được. --}}
+                                                    <x-lucide name="star" class="h-3.5 w-3.5 {{ $i <= $ex['difficultyStars'] ? 'text-[#D29A18]' : 'text-[#C7D2D9]' }}"
+                                                              style="{{ $i <= $ex['difficultyStars'] ? 'fill: currentColor' : '' }}" />
+                                                @endfor
+                                            </span>
+
+                                            <span class="justify-self-end whitespace-nowrap pr-1 text-right text-[10px] font-semibold text-[#526B7D]">{{ $ex['points'] }} điểm</span>
                                         </div>
 
                                         {{-- Giữ NGUYÊN đường đi cũ của nút Làm bài ở "Tài liệu của tôi":
                                              POST kèm return_url tương đối để làm xong quay lại đúng trang này. --}}
-                                        <form method="POST" action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" class="shrink-0 self-center">
+                                        <form method="POST" action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" class="w-full">
                                             @csrf
                                             <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
-                                            <button type="submit" title="Làm bài"
-                                                    class="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-[#2F9E72] bg-[#2F9E72] px-2.5 py-2 text-[13px] font-semibold text-white transition hover:border-[#278761] hover:bg-[#278761] active:scale-[0.98]">
+                                            <button type="submit" title="Làm bài" aria-label="Làm bài {{ $ex['title'] }}"
+                                                    class="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-[#368F72] px-3 text-[11px] font-bold text-white transition hover:bg-[#2F8066] active:scale-[0.98]">
                                                 <x-lucide name="play-circle" class="h-3.5 w-3.5" /><span>Làm bài</span>
                                             </button>
                                         </form>
@@ -382,6 +467,27 @@
                                         Tài liệu này chưa gắn bài tập nào.
                                     </div>
                                 @endforelse
+
+                                @if (count($exercises) > 0)
+                                    <div x-show="filtered.length === 0" x-cloak
+                                         class="rounded-2xl border border-dashed border-[#C9DFE8] bg-[#F8FBFE] p-6 text-center text-[11px] text-[#61798B]">
+                                        Không tìm thấy bài tập phù hợp.
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- Phân trang 3 bài/trang đúng bản mẫu mới. Trước đây danh sách chỉ
+                                 cuộn, sản phẩm có vài chục bài là cuộn mỏi tay. --}}
+                            <div x-show="pageCount > 1" x-cloak class="flex shrink-0 items-center justify-between gap-2 border-t border-[#DCE9EE] pt-2">
+                                <button type="button" @click="page = Math.max(1, currentPage - 1)" :disabled="currentPage === 1" aria-label="Trang trước"
+                                        class="grid h-8 w-8 place-items-center rounded-lg border border-[#DDE7EA] bg-white text-[#526B7D] transition hover:bg-[#EAF3F2] disabled:cursor-not-allowed disabled:opacity-40">
+                                    <x-lucide name="arrow-left" class="h-3.5 w-3.5" />
+                                </button>
+                                <span class="text-[10px] font-semibold text-[#61798B]">Trang <span x-text="currentPage"></span> / <span x-text="pageCount"></span></span>
+                                <button type="button" @click="page = Math.min(pageCount, currentPage + 1)" :disabled="currentPage === pageCount" aria-label="Trang tiếp theo"
+                                        class="grid h-8 w-8 place-items-center rounded-lg border border-[#DDE7EA] bg-white text-[#526B7D] transition hover:bg-[#EAF3F2] disabled:cursor-not-allowed disabled:opacity-40">
+                                    <x-lucide name="arrow-right" class="h-3.5 w-3.5" />
+                                </button>
                             </div>
                         </div>
                     </section>
@@ -392,6 +498,60 @@
 @endsection
 
 @push('scripts')
+    {{-- SỬA 2/10 — bộ lọc + PHÂN TRANG danh sách bài tập (3 bài/trang) theo bản mẫu mới
+         education-main/src/components/MaterialReaderPage.jsx. Trước đây danh sách chỉ lọc rồi
+         cuộn; sản phẩm có vài chục bài là cuộn mỏi tay.
+
+         Thẻ bài tập vẫn do máy chủ dựng sẵn (giữ nguyên nút Làm bài dạng form POST có CSRF);
+         phần việc ở đây chỉ là quyết định thẻ nào HIỆN và xếp theo thứ tự nào — cùng cách
+         partials/practice-page-script đang làm cho kho bài tập. --}}
+    <script>
+        function onthiMaterialReader(config) {
+            return {
+                exercises: config.exercises || [],
+                perPage: config.perPage || 3,
+
+                focus: false,
+                q: '',
+                filter: 'all',
+                page: 1,
+
+                get filtered() {
+                    const needle = this.q.trim().toLowerCase();
+
+                    return this.exercises.filter((item) => {
+                        const matchFilter = this.filter === 'all'
+                            || (this.filter === 'done' ? item.done : ! item.done);
+
+                        return matchFilter && (! needle || item.search.includes(needle));
+                    });
+                },
+
+                get pageCount() {
+                    return Math.max(1, Math.ceil(this.filtered.length / this.perPage));
+                },
+
+                // Trang hiện tại không bao giờ vượt quá tổng số trang sau khi lọc.
+                get currentPage() {
+                    return Math.min(this.page, this.pageCount);
+                },
+
+                get visibleIds() {
+                    const start = (this.currentPage - 1) * this.perPage;
+
+                    return this.filtered.slice(start, start + this.perPage).map((item) => item.id);
+                },
+
+                init() {
+                    // Đổi bộ lọc hay gõ tìm kiếm thì về trang 1, nếu không người dùng đang ở
+                    // trang 3 mà lọc còn 2 bài sẽ thấy danh sách trống không hiểu vì sao.
+                    this.$watch('q', () => { this.page = 1; });
+                    this.$watch('filter', () => { this.page = 1; });
+                },
+            };
+        }
+    </script>
+
     {{--
       SỬA 25/8 (5) — "không tải được bộ đọc nội dung" (KHÔNG PHẢI lỗi trang lẻ đã sửa ở SỬA
       25/8 (3), mà pdf.js CHƯA HỀ tải được — đã xác minh trực tiếp bằng `npm pack
@@ -430,6 +590,9 @@
 
             var progressBarEl = document.getElementById('reader-progress-bar');
             var pageIndicatorEl = document.getElementById('reader-page-indicator');
+            var pageInputEl = document.getElementById('reader-page-input');
+            var pageTotalEl = document.getElementById('reader-page-total');
+            var pageFormEl = document.getElementById('reader-page-form');
             var zoomInBtn = document.getElementById('reader-zoom-in');
             var zoomOutBtn = document.getElementById('reader-zoom-out');
             var zoomLabelEl = document.getElementById('reader-zoom-label');
@@ -490,10 +653,42 @@
                 }
             }
 
+            /*
+             * SỬA 2/10 — thanh công cụ mới có Ô NHẬP số trang (bản mẫu MaterialReaderPage.jsx)
+             * thay cho dòng chữ chỉ để đọc. Hàm này giờ ghi vào ô đó; không ghi đè trong lúc
+             * người dùng đang gõ dở (ô đang được chọn) kẻo số nhảy lung tung dưới tay họ.
+             */
             function setPageIndicator(current) {
+                if (pageTotalEl && totalPages) {
+                    pageTotalEl.textContent = String(totalPages);
+                }
+                if (pageInputEl && totalPages) {
+                    pageInputEl.max = String(totalPages);
+                    if (document.activeElement !== pageInputEl) {
+                        pageInputEl.value = String(current);
+                    }
+                }
                 if (pageIndicatorEl && totalPages) {
                     pageIndicatorEl.textContent = 'Trang ' + current + ' / ' + totalPages;
                 }
+            }
+
+            // Nhảy tới một trang: cuộn khung chứa trang đó vào tầm nhìn. pageWrappers do
+            // renderAllPages() dựng, nên trang chưa vẽ xong thì bỏ qua lặng lẽ.
+            function goToPage(requested) {
+                var target = Math.min(totalPages || 1, Math.max(1, Math.trunc(Number(requested) || 1)));
+                var wrapper = pageWrappers[target - 1];
+                if (wrapper) {
+                    wrapper.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                }
+                setPageIndicator(target);
+            }
+
+            if (pageFormEl) {
+                pageFormEl.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    goToPage(pageInputEl ? pageInputEl.value : 1);
+                });
             }
 
             // SỬA 18/9 — vùng đọc PDF giờ có thanh cuộn RIÊNG (#reader-scroll-box) thay vì cuộn

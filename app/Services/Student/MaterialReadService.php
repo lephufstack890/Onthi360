@@ -84,6 +84,23 @@ class MaterialReadService
             'material' => $material,
             'prev' => $prev,
             'next' => $next,
+            /*
+             * SỬA 2/10 (khách: "update lại cho tôi UI khi click vào đọc tài liệu dựa vào source
+             * mới") — ô chọn "Chương/phần" ở thanh công cụ của bản mẫu mới
+             * (MaterialReaderPage.jsx: material-section-select).
+             *
+             * Bản mẫu nhảy tới TRANG trong cùng một tệp PDF vì ở đó cả tài liệu là một tệp. Ở hệ
+             * thống này mỗi chương/phần là MỘT bản ghi Material với PDF riêng, nên ô chọn điều
+             * hướng sang trang đọc của chương đó — cùng danh sách $siblings mà 2 nút Bài
+             * trước/Bài sau đang dùng, không đẻ thêm nguồn dữ liệu thứ hai.
+             */
+            'sections' => $siblings->values()->map(fn (Material $m, int $i) => [
+                'id' => $m->id,
+                'no' => $i + 1,
+                'title' => $m->title,
+                'href' => route($routePrefix.'.materials.read', $m->id),
+                'current' => $m->id === $material->id,
+            ])->all(),
             // SỬA 18/9 — cột "Bài tập" bên phải màn đọc (bản mẫu education-main/src/components/
             // MaterialReaderPage.jsx) và 2 viên quyền ở thanh đầu trang.
             'exercises' => $this->exercisesFor($user, $material),
@@ -159,6 +176,12 @@ class MaterialReadService
                 ),
                 'status' => $statusKey,
                 'statusLabel' => $statusLabel,
+                // SỬA 2/10 — số sao độ khó cho thẻ bài tập của bản mẫu mới. Lấy từ
+                // QuestionDifficulty::stars() (cùng nguồn với nhãn ngay trên) chứ không tự quy
+                // đổi lại từ điểm — tự quy đổi là có ngày sao và chữ nói hai đằng.
+                'difficultyStars' => QuestionDifficulty::stars(
+                    QuestionDifficulty::resolve($question->metadata, (int) $question->points)
+                ),
             ];
         })->values()->all();
     }
