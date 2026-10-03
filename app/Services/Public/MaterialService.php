@@ -32,6 +32,36 @@ class MaterialService
         private AccessRightRepositoryInterface $accessRights,
     ) {}
 
+    /**
+     * SỬA 3/10 (khách: "click vào đọc ngay ngoài trang tài liệu public, local vào được mà
+     * server không vào được") — ĐƯỜNG DẪN của nút "Vào đọc ngay".
+     *
+     * LỖI CŨ: chỉ trả về trang đọc khi sản phẩm có CHƯƠNG kèm PDF. Sản phẩm nào để nội dung ở
+     * MỘT tệp PDF gắn thẳng (products.content_pdf_path, không chia chương) thì trả null, và
+     * Blade rơi về... danh sách Tài liệu của tôi. Người dùng bấm "Vào đọc ngay" mà ra trang
+     * danh sách, tưởng hỏng. Trên máy của người làm thì sản phẩm có chia chương nên không ai
+     * thấy, lên máy thật mới lộ.
+     *
+     * Luật giống hệt LibraryService::readHref — một luật, hai nơi gọi, không có bản thứ hai để
+     * lệch nhau.
+     *
+     * CỐ Ý KHÔNG TRUY VẤN trong hàm này: trang danh sách gọi nó cho TỪNG thẻ sản phẩm, hỏi cơ
+     * sở dữ liệu ở đây là đẻ ra N+1 ngay giữa một trang công khai. Id chương đầu tiên đã có sẵn
+     * từ truy vấn gộp firstReadableMaterialIds(), còn content_pdf_path là cột của chính bản ghi
+     * đang cầm trên tay.
+     */
+    private function readHrefFor(Product $product, ?int $firstReadableMaterialId, ?string $readRoutePrefix): ?string
+    {
+        return match (true) {
+            $readRoutePrefix === null => null,
+            $firstReadableMaterialId !== null => route($readRoutePrefix.'.materials.read', $firstReadableMaterialId),
+            // Không có chương nào nhưng sản phẩm vẫn có nội dung đọc được (một tệp PDF gắn
+            // thẳng) -> mở màn đọc liền mạch.
+            filled($product->content_pdf_path) => route($readRoutePrefix.'.products.read', $product->id),
+            default => null,
+        };
+    }
+
     public function indexData(string $tab, ?User $viewer = null): array
     {
         $type = self::TABS[$tab] ?? self::TABS['sach'];
@@ -96,14 +126,11 @@ class MaterialService
 
         $firstReadableId = $allMaterials
             ->first(fn (Material $m) => $m->status === ContentStatus::Published && filled($m->pdf_path))?->id;
-        $readRoutePrefix = $this->readRoutePrefixFor($viewer);
 
         return [
             'material' => $product,
             'toc' => $this->buildTocTree($allMaterials, null),
-            'readHref' => ($firstReadableId !== null && $readRoutePrefix !== null)
-                ? route($readRoutePrefix.'.materials.read', $firstReadableId)
-                : null,
+            'readHref' => $this->readHrefFor($product, $firstReadableId, $this->readRoutePrefixFor($viewer)),
             'ratingAverage' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
             'ratingCount' => $summary->review_count ?? 0,
             'owned' => $owned,
@@ -195,9 +222,7 @@ class MaterialService
             'durationMonths' => $product->duration_months,
             'href' => route('materials.show', $product->id),
             'checkoutHref' => route('access.checkout', $product->id),
-            'readHref' => ($firstReadableMaterialId !== null && $readRoutePrefix !== null)
-                ? route($readRoutePrefix.'.materials.read', $firstReadableMaterialId)
-                : null,
+            'readHref' => $this->readHrefFor($product, $firstReadableMaterialId, $readRoutePrefix),
         ];
     }
 

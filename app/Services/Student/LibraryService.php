@@ -155,8 +155,9 @@ class LibraryService
                  * vẫn dùng màn đọc sản phẩm như cũ.
                  */
                 'readHref' => match (true) {
-                    ($firstPartId = $this->productRead->firstReadableMaterialId($p)) !== null
-                        => route($readPrefix.'.materials.read', $firstPartId),
+                    // $readable lấy từ $materialsByProduct — đã nạp gộp sẵn ở trên, nên KHÔNG
+                    // hỏi cơ sở dữ liệu lần nữa trong vòng lặp này (N+1).
+                    $readable->first() !== null => route($readPrefix.'.materials.read', $readable->first()->id),
                     $partCount > 0 => route($readPrefix.'.products.read', $p->id),
                     default => null,
                 },
@@ -209,11 +210,15 @@ class LibraryService
             // SỬA 29/9 — nút "Đọc tài liệu" ngay trong tab Học liệu của lớp: sản phẩm được giáo
             // viên gắn vào lớp thì học sinh đọc được y như sản phẩm tự mua (quyền qua lớp đã được
             // AccessGateService::canAccessProduct() công nhận, xem ProductReadService::decisionFor()).
-            // SỬA 3/10 — cùng luật với ở trên: ưu tiên màn đọc dùng chung với trang công khai.
+            /*
+             * SỬA 3/10 — cùng luật với ở trên: ưu tiên màn đọc dùng chung với trang công khai.
+             * Dùng ĐÚNG MỘT truy vấn như bản cũ (hasReadableParts cũng tốn 1): lấy luôn id
+             * chương đầu, không có thì xét cột content_pdf_path đang cầm sẵn trên tay.
+             */
             'readHref' => match (true) {
                 ($firstPartId = $this->productRead->firstReadableMaterialId($product)) !== null
                     => route($readPrefix.'.materials.read', $firstPartId),
-                $this->productRead->hasReadableParts($product) => route($readPrefix.'.products.read', $product->id),
+                filled($product->content_pdf_path) => route($readPrefix.'.products.read', $product->id),
                 default => null,
             },
         ];
