@@ -12,6 +12,7 @@ use App\Repositories\Contracts\AssessmentRepositoryInterface;
 use App\Repositories\Contracts\AttemptRepositoryInterface;
 use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Support\PracticeFilters;
+use App\Support\PracticeQuestionPool;
 use App\Support\QuestionDifficulty;
 use App\Support\QuestionOrder;
 use Illuminate\Support\Facades\Cache;
@@ -39,7 +40,12 @@ class PracticeService
     private const CACHE_TTL = 60;
 
     /** Đổi số này khi sửa HÌNH DẠNG dữ liệu nhớ tạm, để bản cũ trong cache không gây lỗi. */
-    private const CACHE_VERSION = 'v1';
+    /*
+     * v2 (3/10) — đổi vì NỘI DUNG nhớ tạm đổi: kho "Bài tập chuyên đề" nay bỏ các câu đã nằm
+     * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
+     * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
+     */
+    private const CACHE_VERSION = 'v2';
 
     public function __construct(
         private AssessmentRepositoryInterface $assessments,
@@ -240,11 +246,15 @@ class PracticeService
         // ở màn làm bài, nếu không thì danh sách bày ra một kiểu mà bấm "Bài tiếp theo" lại
         // nhảy theo kiểu khác.
         $questions = QuestionOrder::apply(
-            Question::query()
-                ->where('status', 'published')
-                ->whereNull('product_id')
-                ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
-                ->with(['tags:id,name'])
+            // SỬA 3/10 (khách: "câu được add vô đề thi luyện tập thì không hiển thị bên bài
+            // tập chuyên đề") — xem App\Support\PracticeQuestionPool.
+            PracticeQuestionPool::excludeExamQuestions(
+                Question::query()
+                    ->where('status', 'published')
+                    ->whereNull('product_id')
+                    ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
+                    ->with(['tags:id,name'])
+            )
         )->limit(60)->get();
 
         if ($questions->isEmpty()) {

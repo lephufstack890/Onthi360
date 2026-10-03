@@ -9,6 +9,7 @@ use App\Models\Question;
 use App\Services\AccessGateService;
 use App\Services\Student\PracticeByQuestionService;
 use App\Support\PracticeFilters;
+use App\Support\PracticeQuestionPool;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -148,10 +149,15 @@ class PracticeByQuestionController extends Controller
     {
         $user = Auth::user();
 
-        $pool = fn () => Question::query()
-            ->where('status', ContentStatus::Published->value)
-            ->whereNull('product_id')
-            ->whereIn('type', array_keys(PracticeFilters::TYPE_META));
+        // SỬA 3/10 — bốc từ ĐÚNG kho mà danh sách "Bài tập chuyên đề" đang bày ra: câu đã nằm
+        // trong đề luyện tập thì không bốc trúng nữa, nếu không bấm "Làm bài ngay" lại rơi vào
+        // một câu không hề có trong danh sách. Xem App\Support\PracticeQuestionPool.
+        $pool = fn () => PracticeQuestionPool::excludeExamQuestions(
+            Question::query()
+                ->where('status', ContentStatus::Published->value)
+                ->whereNull('product_id')
+                ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
+        );
 
         // Một truy vấn gọn thay cho whereHas lồng nhau: các câu người này đã từng làm ĐÚNG.
         $solvedIds = DB::table('attempt_answers')

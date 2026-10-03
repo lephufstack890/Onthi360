@@ -16,6 +16,7 @@ use App\Services\CodeJudgingService;
 use App\Services\QuestionGrader;
 use App\Enums\ContentStatus;
 use App\Support\PracticeFilters;
+use App\Support\PracticeQuestionPool;
 use App\Support\QuestionOrder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -133,6 +134,10 @@ class PracticeByQuestionService
                 // Cùng trần với Public\PracticeService::problemRows(): danh sách người ta
                 // nhìn thấy chỉ tới đó, hai nút chuyển bài cũng không nên đi xa hơn.
                 ->limit(60);
+
+            // SỬA 3/10 — và cùng LUẬT lọc với danh sách đó: câu đã nằm trong đề luyện tập
+            // không có trong danh sách thì "Bài tiếp theo" cũng không được nhảy vào.
+            PracticeQuestionPool::excludeExamQuestions($query);
         }
 
         $ids = QuestionOrder::apply($query)->pluck('id')->map(fn ($id) => (int) $id)->all();

@@ -4,6 +4,7 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Question;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
+use App\Support\PracticeQuestionPool;
 use App\Support\QuestionDifficulty;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -290,7 +291,10 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      */
     public function idsForPractice(?string $type, array $tagIds): array
     {
-        return $this->query()
+        // SỬA 3/10 — cùng luật với danh sách "Bài tập chuyên đề": số trên chip đã trừ các câu
+        // nằm trong đề luyện tập thì lượt luyện mở ra từ chip đó cũng phải trừ đúng ngần ấy,
+        // không thì chip ghi 30 mà vào luyện lại ra 42 câu. Xem App\Support\PracticeQuestionPool.
+        return PracticeQuestionPool::excludeExamQuestions($this->query())
             ->where('status', 'published')
             ->whereNull('product_id')
             // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — thêm 'composite' vào pool
