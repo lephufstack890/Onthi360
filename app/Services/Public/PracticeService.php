@@ -14,12 +14,33 @@ use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Support\PracticeFilters;
 use App\Support\QuestionDifficulty;
 use App\Support\QuestionOrder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class PracticeService
 {
+    /*
+     * SỬA 3/10 (khách: "trang luyện tập mỗi lần click vào khách complain là chậm, sợ sau này
+     * nhiều người dùng không ổn") — NHỚ TẠM phần dữ liệu GIỐNG NHAU VỚI MỌI KHÁCH.
+     *
+     * Trang này trước nay dựng lại từ đầu cho TỪNG lượt mở, kể cả phần chẳng liên quan gì tới
+     * người đang xem: 60 câu kèm thứ tự ưu tiên, tổng lượt nộp / lượt đúng của từng câu, số
+     * lượt làm của từng đề, danh sách chuyên đề. 100 khách mở trang là 100 lần chạy y hệt.
+     *
+     * Phần RIÊNG của người đang xem (đã làm câu nào, điểm bao nhiêu) VẪN truy vấn tươi mỗi
+     * lượt — không bao giờ nhớ tạm, nếu không người này sẽ thấy tiến độ của người khác.
+     *
+     * 60 giây là cố ý ngắn: đủ để gánh được lúc đông người (trong 1 phút dù 1000 lượt mở thì
+     * cũng chỉ 1 lần chạy thật), mà câu hỏi/đề vừa phát hành thì chậm nhất 1 phút là thấy.
+     * Muốn thấy ngay thì chạy `php artisan cache:clear`.
+     */
+    private const CACHE_TTL = 60;
+
+    /** Đổi số này khi sửa HÌNH DẠNG dữ liệu nhớ tạm, để bản cũ trong cache không gây lỗi. */
+    private const CACHE_VERSION = 'v1';
+
     public function __construct(
         private AssessmentRepositoryInterface $assessments,
         private TagRepositoryInterface $tags,
@@ -28,76 +49,29 @@ class PracticeService
 
     public function indexData(?User $viewer): array
     {
-        $assessments = $this->assessments->query()
-            ->where('type', 'practice')
-            ->where('status', 'published')
-            ->withCount(['items', 'answerKeys', 'codingItems'])
-            ->latest()
-            ->limit(30)
-            ->get();
+        /*
+         * SỬA 3/10 — phần GIỐNG NHAU với mọi khách lấy từ nhớ tạm (xem examBaseRows()): danh
+         * sách đề, số câu, ảnh bìa, số lượt làm… Trước đây mỗi lượt mở trang là một lần quét
+         * bảng attempts để đếm lượt làm, dù con số đó y hệt nhau cho tất cả mọi người.
+         */
+        $base = Cache::remember(
+            'practice:exams:'.self::CACHE_VERSION,
+            self::CACHE_TTL,
+            fn () => $this->examBaseRows()
+        );
 
-        $codingAssessmentIds = $this->assessmentIdsWithCoding($assessments->pluck('id')->all());
+        $assessmentIds = array_column($base['rows'], 'id');
 
-        // SỬA 2/10 — "Lượt làm" trên thẻ đề: SỐ THẬT, đếm lượt đã nộp của toàn hệ thống. Bản mẫu
-        // để con số minh hoạ ("1,240 lượt làm") và tự ghi chú là dữ liệu minh hoạ — ở đây có dữ
-        // liệu thật thì dùng thật, đề chưa ai làm hiện 0 chứ không bịa.
-        $attemptCounts = $this->attemptCountsByAssessment($assessments->pluck('id')->all());
-
-        $progressByAssessment = $viewer !== null
-            ? $this->attempts->progressForUserAndAssessments($viewer->id, $assessments->pluck('id')->all())->keyBy('assessment_id')
+        // Phần RIÊNG của người đang xem — luôn tươi, không bao giờ nhớ tạm.
+        $progressByAssessment = $viewer !== null && $assessmentIds !== []
+            ? $this->attempts->progressForUserAndAssessments($viewer->id, $assessmentIds)->keyBy('assessment_id')
             : collect();
 
-        $items = $assessments->map(function ($a) use ($codingAssessmentIds, $progressByAssessment, $attemptCounts) {
-            $row = $progressByAssessment->get($a->id);
-            $best = $row !== null && $row->best_score !== null ? (float) $row->best_score : null;
-            $total = (float) ($a->total_points ?: 0);
-            $submitted = $row !== null ? (int) $row->submitted_count : 0;
-            $inProgress = $row !== null && (int) $row->in_progress_count > 0;
+        $items = array_map(function (array $row) use ($progressByAssessment) {
+            $progress = $this->examProgressFor($progressByAssessment->get($row['id']), (float) ($row['totalPoints'] ?: 0));
 
-            if ($submitted > 0) {
-                $progressStatus = 'done';
-                $progress = $best !== null && $total > 0 ? (int) round(min(100, max(0, $best / $total * 100))) : 100;
-                $progressLabel = $best !== null ? 'Đã nộp · '.rtrim(rtrim(number_format($best, 2, ',', ''), '0'), ',').' điểm' : 'Đã nộp';
-            } elseif ($inProgress) {
-                $progressStatus = 'doing';
-                $progress = 35;
-                $progressLabel = 'Đang làm dở';
-            } else {
-                $progressStatus = 'open';
-                $progress = 0;
-                $progressLabel = 'Chưa làm';
-            }
-
-            return [
-                'id' => $a->id,
-                'title' => $a->title,
-                'itemsCount' => $a->items_count > 0 ? $a->items_count : (int) ($a->answer_keys_count ?? 0),
-                'totalPoints' => $a->total_points,
-                'durationMinutes' => $a->duration_minutes,
-                'hasCoding' => $codingAssessmentIds->contains($a->id) || (int) ($a->coding_items_count ?? 0) > 0,
-                'progressStatus' => $progressStatus,
-                'progress' => $progress,
-                'progressLabel' => $progressLabel,
-                /*
-                 * SỬA 2/10 (khách: "update lại UI trang luyện tập public ở tab đề thi luyện tập"
-                 * theo bản mẫu mới) — 6 trường mô tả đề + ảnh bìa, xem migration
-                 * add_detail_fields_to_assessments_table. Đề cũ chưa nhập thì để null và nơi
-                 * hiển thị tự rơi về câu thay thế, KHÔNG bịa dữ liệu.
-                 */
-                'subtitle' => $a->subtitle,
-                'author' => $a->author,
-                'provinceLabel' => $a->provinceLabel(),
-                'academicYear' => $a->academic_year,
-                'category' => $a->exam_category,
-                'categoryLabel' => $a->examCategoryLabel(),
-                'coverUrl' => $a->coverUrl(),
-                'examCode' => $a->exam_code,
-                'attemptCount' => (int) ($attemptCounts[$a->id] ?? 0),
-                // Nút chính của thẻ đề giờ dẫn sang MÀN CHI TIẾT ĐỀ (bản mẫu: "Xem chi tiết đề"),
-                // chỗ bấm "Bắt đầu làm bài" mới mở modal làm đề.
-                'detailHref' => route('practice.exam.show', $a->id),
-            ];
-        })->all();
+            return $row + $progress;
+        }, $base['rows']);
 
         /*
          * SỬA 2/10 — dải chip lọc dựng TỪ LOẠI ĐỀ CÓ THẬT trong danh sách, không phải danh sách
@@ -121,20 +95,143 @@ class PracticeService
             // 3 ô tổng quan ở đầu tab (bản mẫu: Kho đề thi / Đang luyện / Điểm cao nhất).
             'examTotal' => count($items),
             'examDoingCount' => collect($items)->where('progressStatus', 'doing')->count(),
-            'examBestScoreLabel' => $this->bestScoreLabel($progressByAssessment, $assessments),
+            'examBestScoreLabel' => $this->bestScoreLabel($progressByAssessment, $base['totalPoints']),
             'problems' => $this->problemRows($viewer),
             // SỬA 23/9 (khách: "học sinh, giáo viên, admin, phụ huynh đều làm được luyện tập
             // hết") — ai đã đăng nhập cũng bấm được "Làm bài"/"Bắt đầu làm đề" ngay ở trang
             // Luyện tập công khai, không bị đẩy sang màn đăng nhập nữa. Route tương ứng cũng
             // đã bỏ ràng buộc vai trò, xem routes/web.php.
             'canTakeDirectly' => $viewer !== null,
-        ], PracticeFilters::options($this->tags));
+            // Danh sách chuyên đề/dạng câu cũng như nhau với mọi khách.
+        ], Cache::remember(
+            'practice:filters:'.self::CACHE_VERSION,
+            self::CACHE_TTL,
+            fn () => PracticeFilters::options($this->tags)
+        ));
+    }
+
+    /**
+     * SỬA 3/10 — phần thẻ đề KHÔNG phụ thuộc người xem, để đưa vào nhớ tạm.
+     *
+     * Trả về mảng thuần (không phải model) để cất vào cache cho an toàn: model Eloquent mang
+     * theo cả quan hệ và trạng thái, cất đi rồi lấy ra dễ sinh chuyện.
+     *
+     * @return array{rows: list<array<string, mixed>>, totalPoints: array<int, float>}
+     */
+    private function examBaseRows(): array
+    {
+        $assessments = $this->assessments->query()
+            ->where('type', 'practice')
+            ->where('status', 'published')
+            ->withCount(['items', 'answerKeys', 'codingItems'])
+            ->latest()
+            ->limit(30)
+            ->get();
+
+        $assessmentIds = $assessments->pluck('id')->all();
+        $codingAssessmentIds = $this->assessmentIdsWithCoding($assessmentIds);
+
+        // SỬA 2/10 — "Lượt làm" trên thẻ đề: SỐ THẬT, đếm lượt đã nộp của toàn hệ thống. Bản mẫu
+        // để con số minh hoạ ("1,240 lượt làm") và tự ghi chú là dữ liệu minh hoạ — ở đây có dữ
+        // liệu thật thì dùng thật, đề chưa ai làm hiện 0 chứ không bịa.
+        $attemptCounts = $this->attemptCountsByAssessment($assessmentIds);
+
+        $rows = $assessments->map(fn ($a) => [
+            'id' => $a->id,
+            'title' => $a->title,
+            'itemsCount' => $a->items_count > 0 ? $a->items_count : (int) ($a->answer_keys_count ?? 0),
+            'totalPoints' => $a->total_points,
+            'durationMinutes' => $a->duration_minutes,
+            'hasCoding' => $codingAssessmentIds->contains($a->id) || (int) ($a->coding_items_count ?? 0) > 0,
+            /*
+             * SỬA 2/10 (khách: "update lại UI trang luyện tập public ở tab đề thi luyện tập"
+             * theo bản mẫu mới) — 6 trường mô tả đề + ảnh bìa, xem migration
+             * add_detail_fields_to_assessments_table. Đề cũ chưa nhập thì để null và nơi
+             * hiển thị tự rơi về câu thay thế, KHÔNG bịa dữ liệu.
+             */
+            'subtitle' => $a->subtitle,
+            'author' => $a->author,
+            'provinceLabel' => $a->provinceLabel(),
+            'academicYear' => $a->academic_year,
+            'category' => $a->exam_category,
+            'categoryLabel' => $a->examCategoryLabel(),
+            'coverUrl' => $a->coverUrl(),
+            'examCode' => $a->exam_code,
+            'attemptCount' => (int) ($attemptCounts[$a->id] ?? 0),
+            // Nút chính của thẻ đề giờ dẫn sang MÀN CHI TIẾT ĐỀ (bản mẫu: "Xem chi tiết đề"),
+            // chỗ bấm "Bắt đầu làm bài" mới mở modal làm đề.
+            'detailHref' => route('practice.exam.show', $a->id),
+        ])->all();
+
+        return [
+            'rows' => $rows,
+            'totalPoints' => $assessments->pluck('total_points', 'id')->map(fn ($p) => (float) $p)->all(),
+        ];
+    }
+
+    /**
+     * Tiến độ của NGƯỜI ĐANG XEM với một đề. Tách khỏi examBaseRows() vì đây đúng là phần
+     * không được nhớ tạm.
+     *
+     * @return array{progressStatus: string, progress: int, progressLabel: string}
+     */
+    private function examProgressFor($row, float $total): array
+    {
+        $best = $row !== null && $row->best_score !== null ? (float) $row->best_score : null;
+        $submitted = $row !== null ? (int) $row->submitted_count : 0;
+        $inProgress = $row !== null && (int) $row->in_progress_count > 0;
+
+        if ($submitted > 0) {
+            return [
+                'progressStatus' => 'done',
+                'progress' => $best !== null && $total > 0 ? (int) round(min(100, max(0, $best / $total * 100))) : 100,
+                'progressLabel' => $best !== null ? 'Đã nộp · '.rtrim(rtrim(number_format($best, 2, ',', ''), '0'), ',').' điểm' : 'Đã nộp',
+            ];
+        }
+
+        if ($inProgress) {
+            return ['progressStatus' => 'doing', 'progress' => 35, 'progressLabel' => 'Đang làm dở'];
+        }
+
+        return ['progressStatus' => 'open', 'progress' => 0, 'progressLabel' => 'Chưa làm'];
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
     private function problemRows(?User $viewer): array
+    {
+        /*
+         * SỬA 3/10 — phần GIỐNG NHAU với mọi khách (60 câu đã xếp thứ tự + tổng lượt nộp/lượt
+         * đúng của từng câu) lấy từ nhớ tạm. Đây là phần nặng nhất của trang:
+         *   · câu lệnh xếp thứ tự dùng CASE trên cột type nên máy chủ KHÔNG dùng được chỉ số
+         *     nào, phải xếp tay toàn bộ câu hỏi đã phát hành rồi mới cắt lấy 60 — càng nhiều
+         *     câu hỏi càng lâu, mà kết quả thì y hệt nhau cho tất cả mọi người;
+         *   · phép đếm trên attempt_answers quét theo lượt nộp của TOÀN hệ thống.
+         */
+        $base = Cache::remember(
+            'practice:problems:'.self::CACHE_VERSION,
+            self::CACHE_TTL,
+            fn () => $this->problemBaseRows()
+        );
+
+        if ($base === [] || $viewer === null) {
+            return $base;
+        }
+
+        // Phần RIÊNG của người đang xem — luôn tươi.
+        return $this->overlayViewerProgress($base, $viewer);
+    }
+
+    /**
+     * SỬA 3/10 — hàng bài tập KHÔNG phụ thuộc người xem (để nhớ tạm).
+     *
+     * Các ô "của tôi" để sẵn giá trị của người CHƯA làm gì; overlayViewerProgress() đắp lại khi
+     * có người đăng nhập. Nhờ vậy khách vãng lai dùng thẳng bản nhớ tạm, không thêm truy vấn nào.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function problemBaseRows(): array
     {
         // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao hiện
         // lên đầu trang Luyện tập.
@@ -154,54 +251,18 @@ class PracticeService
             return [];
         }
 
-        $questionIds = $questions->pluck('id')->all();
-
         $stats = AttemptAnswer::query()
             ->selectRaw('question_id, COUNT(*) as submissions, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as accepted', ['accepted'])
-            ->whereIn('question_id', $questionIds)
+            ->whereIn('question_id', $questions->pluck('id')->all())
             ->groupBy('question_id')
             ->get()
             ->keyBy('question_id');
 
-        $mine = collect();
-        if ($viewer !== null) {
-            $selectMine = 'question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted';
-
-            if (AttemptAnswer::supportsTestCounts()) {
-                $selectMine .= ', MAX(passed_tests) as mine_passed_tests, MAX(total_tests) as mine_total_tests';
-            }
-
-            $mine = AttemptAnswer::query()
-                ->selectRaw($selectMine, ['accepted'])
-                ->whereIn('question_id', $questionIds)
-                ->whereHas('attempt', fn ($q) => $q->where('user_id', $viewer->id))
-                ->groupBy('question_id')
-                ->get()
-                ->keyBy('question_id');
-        }
-
-        return $questions->map(function (Question $q) use ($stats, $mine) {
+        return $questions->map(function (Question $q) use ($stats) {
             $row = $stats->get($q->id);
             $submissions = (int) ($row->submissions ?? 0);
             $accepted = (int) ($row->accepted ?? 0);
             $rate = $submissions > 0 ? round($accepted / $submissions * 100, 1) : 0.0;
-
-            $mineRow = $mine->get($q->id);
-            $mineCount = (int) ($mineRow->mine ?? 0);
-            $mineAccepted = (int) ($mineRow->mine_accepted ?? 0);
-
-            $minePassed = $mineRow->mine_passed_tests ?? null;
-            $mineTotalTests = $mineRow->mine_total_tests ?? null;
-            $mineTestPercent = ($mineTotalTests !== null && (int) $mineTotalTests > 0 && $minePassed !== null)
-                ? (int) round((int) $minePassed / (int) $mineTotalTests * 100)
-                : null;
-
-            $status = 'todo';
-            if ($mineAccepted > 0) {
-                $status = 'ac';
-            } elseif ($mineCount > 0) {
-                $status = 'doing';
-            }
 
             $meta = $q->metadata ?? [];
 
@@ -226,11 +287,13 @@ class PracticeService
                 'submissionCount' => $submissions,
                 'acceptedCount' => $accepted,
                 'acRate' => $rate,
-                'userSubmissions' => $mineCount,
-                'minePassedTests' => $minePassed !== null ? (int) $minePassed : null,
-                'mineTotalTests' => $mineTotalTests !== null ? (int) $mineTotalTests : null,
-                'mineTestPercent' => $mineTestPercent,
-                'status' => $status,
+                // 5 ô dưới đây là "của tôi" — giá trị của người chưa làm gì; có người đăng nhập
+                // thì overlayViewerProgress() đắp lại.
+                'userSubmissions' => 0,
+                'minePassedTests' => null,
+                'mineTotalTests' => null,
+                'mineTestPercent' => null,
+                'status' => 'todo',
                 'subject' => $q->subject,
                 'subjectLabel' => $q->subjectLabel(),
                 'grade' => $q->grade,
@@ -242,6 +305,62 @@ class PracticeService
                 'examYearLabel' => $q->examYearLabel(),
             ];
         })->values()->all();
+    }
+
+    /**
+     * SỬA 3/10 — đắp tiến độ của NGƯỜI ĐANG XEM lên các hàng bài tập đã nhớ tạm.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function overlayViewerProgress(array $rows, User $viewer): array
+    {
+        $selectMine = 'question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted';
+
+        if (AttemptAnswer::supportsTestCounts()) {
+            $selectMine .= ', MAX(passed_tests) as mine_passed_tests, MAX(total_tests) as mine_total_tests';
+        }
+
+        $mine = AttemptAnswer::query()
+            ->selectRaw($selectMine, ['accepted'])
+            ->whereIn('question_id', array_column($rows, 'id'))
+            ->whereHas('attempt', fn ($q) => $q->where('user_id', $viewer->id))
+            ->groupBy('question_id')
+            ->get()
+            ->keyBy('question_id');
+
+        if ($mine->isEmpty()) {
+            return $rows;
+        }
+
+        foreach ($rows as $i => $row) {
+            $mineRow = $mine->get($row['id']);
+
+            if ($mineRow === null) {
+                continue;
+            }
+
+            $mineCount = (int) ($mineRow->mine ?? 0);
+            $mineAccepted = (int) ($mineRow->mine_accepted ?? 0);
+
+            $minePassed = $mineRow->mine_passed_tests ?? null;
+            $mineTotalTests = $mineRow->mine_total_tests ?? null;
+
+            $rows[$i]['userSubmissions'] = $mineCount;
+            $rows[$i]['minePassedTests'] = $minePassed !== null ? (int) $minePassed : null;
+            $rows[$i]['mineTotalTests'] = $mineTotalTests !== null ? (int) $mineTotalTests : null;
+            $rows[$i]['mineTestPercent'] = ($mineTotalTests !== null && (int) $mineTotalTests > 0 && $minePassed !== null)
+                ? (int) round((int) $minePassed / (int) $mineTotalTests * 100)
+                : null;
+
+            $rows[$i]['status'] = match (true) {
+                $mineAccepted > 0 => 'ac',
+                $mineCount > 0 => 'doing',
+                default => 'todo',
+            };
+        }
+
+        return $rows;
     }
 
     /**
@@ -467,23 +586,24 @@ class PracticeService
      * liệu thật nên dùng thật, chưa làm đề nào thì trả null để view hiện "—" chứ không bịa số.
      *
      * @param  \Illuminate\Support\Collection  $progressByAssessment  keyBy assessment_id
-     * @param  \Illuminate\Support\Collection  $assessments
+     * @param  array<int, float>  $totalPointsById  tổng điểm từng đề (SỬA 3/10: mảng thuần
+     *         thay cho collection model, để examBaseRows() cất được vào nhớ tạm)
      */
-    private function bestScoreLabel($progressByAssessment, $assessments): ?string
+    private function bestScoreLabel($progressByAssessment, array $totalPointsById): ?string
     {
         $best = null;
 
-        foreach ($assessments as $a) {
-            $row = $progressByAssessment->get($a->id);
+        foreach ($totalPointsById as $assessmentId => $totalPoints) {
+            $row = $progressByAssessment->get($assessmentId);
 
             if ($row === null || $row->best_score === null || (int) $row->submitted_count === 0) {
                 continue;
             }
 
-            $ratio = (float) ($a->total_points ?: 0) > 0 ? (float) $row->best_score / (float) $a->total_points : 0.0;
+            $ratio = $totalPoints > 0 ? (float) $row->best_score / $totalPoints : 0.0;
 
             if ($best === null || $ratio > $best['ratio']) {
-                $best = ['ratio' => $ratio, 'score' => (float) $row->best_score, 'total' => (float) $a->total_points];
+                $best = ['ratio' => $ratio, 'score' => (float) $row->best_score, 'total' => $totalPoints];
             }
         }
 
