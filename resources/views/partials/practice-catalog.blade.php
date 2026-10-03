@@ -359,7 +359,14 @@
                      * chỉ làm người ta phải nghĩ thêm.
                      */
                     $ctaLabel = 'Làm bài';
-                    $ctaClass = 'bg-[#126F91] hover:bg-[#0F5E7B]';
+                    /*
+                     * SỬA 3/10 (khách: "nút làm bài trong luyện tập public để màu xanh lá cây
+                     * như nút luyện lại hôm bữa") — đổi từ xanh mòng két #126F91 về đúng cặp
+                     * xanh lá #2F8A6B / #28795E mà nút "Luyện lại" dùng trước ngày 1/10.
+                     * Hai lớp này đã có sẵn trong CSS đã build (các màn làm bài đang dùng)
+                     * nên không cần build lại Vite.
+                     */
+                    $ctaClass = 'bg-[#2F8A6B] hover:bg-[#28795E]';
                 @endphp
                 <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
                      :style="{ order: visibleProblemIds.indexOf({{ $prob['id'] }}) }"
@@ -705,8 +712,15 @@
                         </div>
 
                         <div class="mt-auto border-t border-[#E7EFF3] pt-2.5">
+                            {{-- SỬA 3/10 (khách: "nút xem chi tiết đề cũng đổi thành màu đó luôn") —
+                                 cùng cặp xanh lá #2F8A6B / #28795E với nút "Làm bài" ở danh sách bài tập.
+                                 Bóng đổ cũng phải đổi theo cho khỏi lệch tông: bóng cũ pha màu mòng két
+                                 rgba(18,111,145). Dùng lớp bóng xanh lá rgba(35,112,82,0.2) VÌ LỚP NÀY
+                                 ĐÃ CÓ SẴN trong CSS đã build (huy hiệu "Đã AC" đang dùng) — tự chế một
+                                 cỡ bóng mới thì Tailwind chưa sinh ra lớp đó, nút sẽ mất bóng cho tới
+                                 khi build lại. --}}
                             <a href="{{ $exam['detailHref'] }}"
-                               class="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_4px_10px_rgba(18,111,145,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0F5E7B] active:scale-[.98]">
+                               class="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)] transition hover:-translate-y-0.5 hover:bg-[#28795E] active:scale-[.98]">
                                 Xem chi tiết đề<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                             </a>
                         </div>
