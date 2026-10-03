@@ -12,6 +12,12 @@
     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-province">Tỉnh thành</label>
     <x-ws.select id="filter-province" name="province">
         <option value="">Tất cả tỉnh thành</option>
+        {{-- SỬA 3/10 — 2 phạm vi mới lên đầu (đây là thứ form câu hỏi gán từ nay). Danh mục 63
+             đơn vị vẫn giữ bên dưới: kho còn câu hỏi gán tỉnh cụ thể từ trước, bỏ đi là không
+             còn cách nào lọc ra chúng. --}}
+        @foreach (\App\Support\ProvinceCatalog::QUESTION_SCOPES as $scopeCode => $scopeLabel)
+            <option value="{{ $scopeCode }}" @selected(($filters['province'] ?? null) === $scopeCode)>{{ $scopeLabel }}</option>
+        @endforeach
         @foreach ($provinceGroups as $groupLabel => $options)
             <optgroup label="{{ $groupLabel }}">
                 @foreach ($options as $code => $label)

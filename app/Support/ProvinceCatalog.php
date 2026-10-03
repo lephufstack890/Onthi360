@@ -163,9 +163,54 @@ class ProvinceCatalog
     }
 
     /** Nhãn của 1 mã; mã lạ/rỗng -> null để nơi gọi tự hiện "—" hoặc "Chưa gán". */
+    /**
+     * SỬA 3/10 (khách: "chỗ tạo câu hỏi và cập nhật trong admin và giáo viên chọn tỉnh thành thì
+     * để 2 option là Toàn quốc hoặc Các tỉnh khác thôi") — PHẠM VI dùng cho CÂU HỎI.
+     *
+     * Chỉ áp cho ô "Tỉnh thành" ở form câu hỏi. Ô tỉnh/thành của ĐỀ THI (form đề bên admin/giáo
+     * viên) GIỮ NGUYÊN danh mục 63 đơn vị — đề thi cần khai đúng nguồn ("Đề HSG Hà Tĩnh"), còn
+     * câu hỏi trong kho thì chỉ cần biết nó dùng được toàn quốc hay bó hẹp theo tỉnh.
+     *
+     * Hai mã này nằm cùng một cột questions.province với các mã tỉnh cũ, nên label() ở dưới tra
+     * CẢ hai bảng: câu hỏi cũ đã gán "HATINH" vẫn hiện đúng "Hà Tĩnh" chứ không bị đổi tên lặng
+     * lẽ thành "Các tỉnh khác".
+     */
+    public const QUESTION_SCOPES = [
+        'TOANQUOC' => 'Toàn quốc',
+        'KHAC' => 'Các tỉnh khác',
+    ];
+
+    /**
+     * Chuẩn hoá ô "Tỉnh thành" của FORM CÂU HỎI.
+     *
+     * Ưu tiên 2 phạm vi mới; không phải thì mới tra danh mục tỉnh đầy đủ — nhờ vậy sửa một câu
+     * hỏi cũ đang gán "HATINH" mà không đụng ô đó thì giá trị cũ được giữ nguyên, thay vì bị
+     * normalize() trả null rồi lưu thành "chưa gán" một cách lặng lẽ.
+     */
+    public static function normalizeForQuestion(?string $raw): ?string
+    {
+        return self::normalizeQuestionScope($raw) ?? self::normalize($raw);
+    }
+
+    /** Mã phạm vi hợp lệ cho câu hỏi, hoặc null (mã lạ -> null, KHÔNG đoán bừa). */
+    public static function normalizeQuestionScope(?string $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        $code = strtoupper(trim($raw));
+
+        return array_key_exists($code, self::QUESTION_SCOPES) ? $code : null;
+    }
+
     public static function label(?string $code): ?string
     {
-        return $code !== null ? (self::all()[$code] ?? null) : null;
+        if ($code === null) {
+            return null;
+        }
+
+        return self::QUESTION_SCOPES[$code] ?? self::all()[$code] ?? null;
     }
 
     /**

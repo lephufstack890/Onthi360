@@ -82,13 +82,7 @@
                         </x-ws.select>
                     </div>
                     <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-ws.select id="grade" name="grade">
-                            <option value="">— Chưa gán —</option>
-                            @foreach ($grades as $g)
-                                <option value="{{ $g }}" @selected((string) old('grade', '') === (string) $g)>Lớp {{ $g }}</option>
-                            @endforeach
-                        </x-ws.select>
+                        @include('partials.question-grade-field', ['question' => $question ?? null])
                     </div>
                 </div>
 

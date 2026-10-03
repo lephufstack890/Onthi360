@@ -181,6 +181,11 @@ class QuestionController extends Controller
             // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — cả 2 đều tuỳ chọn; giá trị được
             // chuẩn hoá lại ở Teacher\QuestionService::buildAttributes() qua SubjectCatalog.
             'subject' => ['nullable', 'string', 'max:20'],
+            // SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — ô khối lớp giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 số) cho các chỗ gọi cũ
+            // (nhập ZIP, tự phân loại) — xem SubjectCatalog::normalizeGrades().
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['integer', 'min:6', 'max:12'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm… Giáo viên cũng
             // tương tự nhé") — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề.

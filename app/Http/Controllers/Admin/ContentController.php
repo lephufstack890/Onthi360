@@ -290,6 +290,11 @@ class ContentController extends Controller
             'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
+            // SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — ô khối lớp giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 số) cho các chỗ gọi cũ
+            // (nhập ZIP, tự phân loại) — xem SubjectCatalog::normalizeGrades().
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['integer', 'min:6', 'max:12'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
             // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua
@@ -322,6 +327,11 @@ class ContentController extends Controller
             'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
+            // SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — ô khối lớp giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 số) cho các chỗ gọi cũ
+            // (nhập ZIP, tự phân loại) — xem SubjectCatalog::normalizeGrades().
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['integer', 'min:6', 'max:12'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
             // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua
@@ -347,6 +357,11 @@ class ContentController extends Controller
         $data = $request->validate(array_merge([
             'title' => ['required', 'string', 'max:255'],
             'subject' => ['nullable', 'string', 'max:20'],
+            // SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — ô khối lớp giờ là
+            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 số) cho các chỗ gọi cũ
+            // (nhập ZIP, tự phân loại) — xem SubjectCatalog::normalizeGrades().
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['integer', 'min:6', 'max:12'],
             'grade' => ['nullable', 'integer', 'min:6', 'max:12'],
             // SỬA 1/10 — Tỉnh thành (MÃ trong App\Support\ProvinceCatalog) + Năm của đề. Cố ý
             // KHÔNG dùng 'in:...' danh sách mã: ContentService chuẩn hoá lại qua

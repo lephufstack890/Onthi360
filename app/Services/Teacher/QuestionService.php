@@ -336,10 +336,10 @@ class QuestionService
             // tab "Câu hỏi" của admin, nên cũng cần Môn/Khối, nếu không sẽ đọng lại nhóm "Chưa
             // phân loại". Chuẩn hoá qua SubjectCatalog, giá trị lạ -> null (giống Admin\ContentService).
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
-            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrades($data['grades'] ?? null, $data['grade'] ?? null),
             // SỬA 1/10 — chuẩn hoá qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị
             // sửa tay/link cũ) thành null = "Chưa gán", không lưu rác vào cột lọc.
-            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
             // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
             // đang ẩn ở form, nên PHẢI phân biệt "form không gửi ô body" (GIỮ NGUYÊN đề bài cũ)

@@ -1104,12 +1104,12 @@ class ContentService
             // SỬA 8/9 (3) — chuẩn hoá lại qua SubjectCatalog thay vì tin thẳng input: giá trị lạ
             // (form bị sửa tay/link cũ) thành null = "Chưa phân loại", không lưu rác vào cột lọc.
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
-            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrades($data['grades'] ?? null, $data['grade'] ?? null),
             'body' => $data['body'] ?? null,
             // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
             // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
-            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
@@ -1173,7 +1173,7 @@ class ContentService
             // SỬA 8/9 (3) — sửa lại Môn/Khối cho câu cũ (kể cả câu nhập ZIP bị đoán sai) ngay ở
             // form Sửa, không cần lệnh backfill.
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
-            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrades($data['grades'] ?? null, $data['grade'] ?? null),
             // SỬA 1/10 (khách: "nội dung đề bài bên chỗ cập nhật câu hỏi cũng ẩn đi") — PHẢI
             // phân biệt "form không gửi ô body" (ô đang bị ẩn -> GIỮ NGUYÊN đề bài cũ) với "form
             // gửi ô body rỗng" (người dùng CỐ Ý xoá). Trước đây dòng này là `$data['body'] ?? null`
@@ -1182,7 +1182,7 @@ class ContentService
             // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
             // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
-            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
@@ -1229,14 +1229,14 @@ class ContentService
             // SỬA 8/9 (3) — bản version mới giữ đúng Môn/Khối đang chọn trên form (replicate()
             // đã copy giá trị cũ sang, dòng này để sửa được luôn khi tạo version mới).
             'subject' => SubjectCatalog::normalize($data['subject'] ?? null),
-            'grade' => SubjectCatalog::normalizeGrade($data['grade'] ?? null),
+            'grade' => SubjectCatalog::normalizeGrades($data['grades'] ?? null, $data['grade'] ?? null),
             // SỬA 1/10 — cùng lý do ở questionUpdate(): ô body bị ẩn (không gửi lên) thì bản
             // version mới thừa hưởng đề bài của bản gốc, không bị xoá trắng.
             'body' => array_key_exists('body', $data) ? $data['body'] : $question->body,
             // SỬA 1/10 (khách: "thêm 1 cái field nữa cho chọn tỉnh thành và năm") — chuẩn hoá
             // qua ProvinceCatalog thay vì tin thẳng input: mã lạ (form bị sửa tay/link cũ) thành
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
-            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input

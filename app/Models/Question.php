@@ -67,10 +67,30 @@ class Question extends Model
         return \App\Support\SubjectCatalog::label($this->subject) ?? 'Chưa phân loại';
     }
 
-    /** SỬA 8/9 (3) — nhãn khối lớp để hiển thị (6 -> "Lớp 6"); chưa gán -> "—". */
+    /**
+     * SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — danh sách khối của câu hỏi.
+     *
+     * Cột questions.grade giờ chứa các khối ngăn bằng dấu phẩy ("6,7,8"), cùng cách
+     * courses.grade đang lưu. Câu cũ chỉ có một số thì ra đúng một phần tử.
+     *
+     * @return list<string>
+     */
+    public function gradeList(): array
+    {
+        return collect(explode(',', (string) $this->grade))
+            ->map(fn ($g) => trim($g))
+            ->filter(fn ($g) => $g !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** SỬA 8/9 (3) — nhãn khối lớp để hiển thị ("6,7" -> "Lớp 6, 7"); chưa gán -> "—". */
     public function gradeLabel(): string
     {
-        return $this->grade !== null ? 'Lớp '.$this->grade : '—';
+        $grades = $this->gradeList();
+
+        return $grades === [] ? '—' : 'Lớp '.implode(', ', $grades);
     }
 
     /** SỬA 1/10 — nhãn tỉnh thành ("HANOI" -> "Hà Nội"); chưa gán hoặc mã lạ -> "—". */

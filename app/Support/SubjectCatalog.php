@@ -96,6 +96,33 @@ class SubjectCatalog
     }
 
     /** Khối lớp hợp lệ (6-12) hoặc null. */
+    /**
+     * SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — NHIỀU khối về một chuỗi
+     * ngăn bằng dấu phẩy để lưu vào questions.grade ("6,7,8"), hoặc null khi không chọn khối nào.
+     *
+     * $grades là mảng từ các ô tick; $fallback là ô 'grade' đơn lẻ mà các luồng cũ (nhập ZIP,
+     * tự phân loại theo tên tệp) vẫn gửi. Mảng rỗng + fallback rỗng -> null = chưa gán.
+     * Khối lạ bị loại chứ không đoán bừa, đúng như normalizeGrade() ngay dưới.
+     *
+     * Sắp xếp tăng dần để "7,6" và "6,7" không thành hai giá trị khác nhau trong cùng cột.
+     *
+     * @param  mixed  $grades
+     */
+    public static function normalizeGrades($grades, int|string|null $fallback = null): ?string
+    {
+        $list = collect(is_array($grades) ? $grades : [])
+            ->map(fn ($g) => self::normalizeGrade($g))
+            ->filter(fn (?int $g) => $g !== null);
+
+        if ($list->isEmpty()) {
+            $single = self::normalizeGrade($fallback);
+
+            return $single !== null ? (string) $single : null;
+        }
+
+        return $list->unique()->sort()->values()->implode(',');
+    }
+
     public static function normalizeGrade(int|string|null $raw): ?int
     {
         if ($raw === null || $raw === '') {

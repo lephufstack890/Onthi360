@@ -122,11 +122,27 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             $query->where('subject', $subject);
         }
 
+        /*
+         * SỬA 3/10 (khách: "chỗ chọn khối lớp thì cho chọn nhiều nha") — questions.grade giờ
+         * chứa NHIỀU khối ngăn bằng dấu phẩy ("6,7,8"), nên so bằng where('grade', 7) sẽ bỏ sót
+         * hết các câu gán nhiều khối. Phải dò khối nằm Ở ĐÂU trong chuỗi.
+         *
+         * Viết bằng 4 nhánh LIKE có neo dấu phẩy chứ không dùng FIND_IN_SET: FIND_IN_SET chỉ có
+         * ở MySQL, còn bộ kiểm thử chạy trên SQLite. Các mốc neo cũng tránh được chuyện khối 1
+         * ăn nhầm "11" — tuy hiện chỉ có khối 6-12 nên chưa xảy ra, nhưng để sẵn cho chắc.
+         */
         $grade = $filters['grade'] ?? null;
         if ($grade === 'none') {
             $query->whereNull('grade');
         } elseif ($grade !== null && $grade !== '') {
-            $query->where('grade', (int) $grade);
+            $needle = (string) (int) $grade;
+
+            $query->where(function ($q) use ($needle) {
+                $q->where('grade', $needle)                       // đúng 1 khối
+                    ->orWhere('grade', 'like', $needle.',%')      // khối đầu dãy
+                    ->orWhere('grade', 'like', '%,'.$needle.',%') // khối giữa dãy
+                    ->orWhere('grade', 'like', '%,'.$needle);     // khối cuối dãy
+            });
         }
 
         /*
