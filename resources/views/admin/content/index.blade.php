@@ -20,6 +20,8 @@
         $questionTypeOptions = $questionTypeOptions ?? [];
         $statusOptions = $statusOptions ?? [];
         $difficultyOptions = $difficultyOptions ?? [];
+        // SỬA 4/10 — ô lọc "Dùng trong đề" (xem ContentService::indexData()).
+        $inExamOptions = $inExamOptions ?? [];
         $subjectCounts = $subjectCounts ?? [];
         // SỬA 30/9 — dải TAB theo dạng câu + ô lọc Chuyên đề (xem ContentService::indexData()).
         $typeCounts = $typeCounts ?? [];
@@ -42,6 +44,9 @@
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'tag' => $filters['tag'] ?? null,
+                // SỬA 4/10 — bộ lọc "Dùng trong đề" cũng PHẢI có ở đây, cùng lý do với 2 dòng
+                // tỉnh thành/năm ngay trên: thiếu là bấm chip Môn một cái mất luôn bộ lọc đang bật.
+                'in_exam' => $filters['in_exam'] ?? null,
                 'q' => $filters['q'] ?? null,
             ], $override);
 
@@ -194,6 +199,22 @@
                             <option value="{{ $tagId }}" @selected((string) ($filters['tag'] ?? '') === (string) $tagId)>{{ $tagName }}</option>
                         @endforeach
                         <option value="none" @selected(($filters['tag'] ?? null) === 'none')>Chưa gắn chuyên đề</option>
+                    </x-ws.select>
+                </div>
+                {{-- SỬA 4/10 (khách: "thêm phần lọc câu hỏi: câu hỏi xuất hiện trong đề, và câu hỏi
+                     không xuất hiện trong đề. Ông đặt tên sao cho hợp lý nha").
+
+                     Chọn chữ "Đã dùng / Chưa dùng trong đề" thay vì "xuất hiện": ngắn, vừa ô lọc,
+                     và đúng việc admin đang làm ở màn này — tìm câu còn rảnh để đưa vào đề mới,
+                     hoặc dò ra câu đã nằm trong đề (những câu đó nút Xoá sẽ từ chối, xem
+                     ContentService::questionDestroy()). --}}
+                <div class="min-w-[170px]">
+                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-in-exam">Dùng trong đề</label>
+                    <x-ws.select id="filter-in-exam" name="in_exam">
+                        <option value="">Tất cả câu hỏi</option>
+                        @foreach ($inExamOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(($filters['in_exam'] ?? null) === $value)>{{ $label }}</option>
+                        @endforeach
                     </x-ws.select>
                 </div>
                 <div class="flex-1 min-w-[200px]">

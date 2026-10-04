@@ -196,6 +196,27 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             $query->whereHas('tags', fn (Builder $sub) => $sub->where('tags.id', (int) $tagId));
         }
 
+        /*
+         * SỬA 4/10 (khách: "thêm phần lọc câu hỏi: câu hỏi xuất hiện trong đề, và câu hỏi không
+         * xuất hiện trong đề") — ĐÃ DÙNG TRONG ĐỀ hay CHƯA.
+         *
+         * 'used'   = đang nằm trong ít nhất một đề (bảng assessment_items)
+         * 'unused' = chưa đề nào dùng tới
+         *
+         * Dùng whereHas/whereDoesntHave trên quan hệ assessmentItems() có sẵn, KHÔNG join tay:
+         * một câu nằm trong 3 đề thì join sẽ nhân thành 3 dòng, danh sách hiện trùng và số đếm
+         * ở countAllFiltered() cũng sai theo.
+         *
+         * Lọc "chưa dùng" còn là cách nhanh nhất để tìm ra những câu XOÁ ĐƯỢC: nút Xoá từ chối
+         * đúng những câu đang nằm trong đề (xem Admin\ContentService::questionDestroy()).
+         */
+        $inExam = $filters['in_exam'] ?? null;
+        if ($inExam === 'used') {
+            $query->whereHas('assessmentItems');
+        } elseif ($inExam === 'unused') {
+            $query->whereDoesntHave('assessmentItems');
+        }
+
         $this->applyDifficultyFilter($query, $filters['difficulty'] ?? null);
 
         return $query;

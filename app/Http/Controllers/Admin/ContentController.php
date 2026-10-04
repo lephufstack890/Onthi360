@@ -53,6 +53,9 @@ class ContentController extends Controller
             'difficulty' => $request->query('difficulty') ?: null,
             // SỬA 30/9 (khách: "nên thêm phần lọc theo chuyên đề vào") — id tag, hoặc 'none'.
             'tag' => $request->query('tag') ?: null,
+            // SỬA 4/10 (khách: "thêm phần lọc câu hỏi: câu hỏi xuất hiện trong đề, và câu hỏi
+            // không xuất hiện trong đề") — 'used' / 'unused', xem applyQuestionBankFilters().
+            'in_exam' => $request->query('in_exam') ?: null,
             'q' => $request->query('q') ?: null,
         ];
 

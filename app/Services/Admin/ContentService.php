@@ -378,6 +378,8 @@ class ContentService
                 'difficulty' => $filters['difficulty'] ?? null,
                 // SỬA 30/9 — ô lọc Chuyên đề (tag), xem applyQuestionBankFilters().
                 'tag' => $filters['tag'] ?? null,
+                // SỬA 4/10 — ô lọc "Dùng trong đề", xem applyQuestionBankFilters().
+                'in_exam' => $filters['in_exam'] ?? null,
                 'q' => $filters['q'] ?? null,
             ],
             'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
@@ -389,6 +391,18 @@ class ContentService
             'questionTypeOptions' => $tab === 'questions' ? self::QUESTION_TYPE_LABELS : [],
             'statusOptions' => $tab === 'questions' ? self::CONTENT_STATUS_OPTIONS : [],
             'difficultyOptions' => $tab === 'questions' ? QuestionDifficulty::LEVELS : [],
+            /*
+             * SỬA 4/10 — nguồn cho ô lọc "Dùng trong đề".
+             *
+             * ĐẶT TÊN: khách nói "câu hỏi xuất hiện trong đề / không xuất hiện trong đề". Chọn
+             * chữ "Đã dùng / Chưa dùng" thay vì "xuất hiện": ngắn hơn, vừa ô lọc, và đúng việc
+             * admin đang làm ở màn này — tìm câu còn rảnh để đưa vào đề, hoặc tìm câu đã nằm
+             * trong đề rồi (những câu đó không xoá được, xem questionDestroy()).
+             */
+            'inExamOptions' => $tab === 'questions' ? [
+                'used' => 'Đã dùng trong đề',
+                'unused' => 'Chưa dùng trong đề',
+            ] : [],
             'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject() : [],
             // SỬA 30/9 — dữ liệu cho 2 thứ mới ở thanh lọc: dải TAB theo dạng câu (kèm số
             // lượng từng dạng) và ô lọc Chuyên đề.
