@@ -75,7 +75,7 @@
             'profile_id' => 0, 'accountName' => '', 'displayName' => '', 'name' => '',
             'workplace' => '', 'roleTitle' => '', 'subject' => '', 'subjects' => [],
             'featured' => true, 'expert' => false, 'displayRating' => null,
-            'avatarPath' => null, 'ownAvatar' => null,
+            'avatarPath' => null, 'ownAvatar' => null, 'province' => null, 'region' => null,
             'achievement' => '', 'achievements' => [], 'hasAccount' => false,
         ];
     @endphp
@@ -132,6 +132,15 @@
                             {{ $t['roleTitle'] ?: ($t['subject'] ? 'Giáo viên '.$t['subject'] : 'Chưa đặt vai trò') }}
                             @if ($t['workplace']) · {{ $t['workplace'] }} @endif
                         </p>
+                        @if ($t['hasAccount'] && ($t['province'] || $t['region']))
+                            @php
+                                $regionLabels = \App\Support\VietnamProvinces::regionOptions();
+                            @endphp
+                            <p class="mt-0.5 text-[11px] text-slate-400">
+                                {{ collect([$t['province'], $regionLabels[$t['region']] ?? null])->filter()->implode(' · ') }}
+                            </p>
+                        @endif
+
                         @if (! $t['hasAccount'])
                             <p class="mt-0.5 text-[10px] text-slate-400">Hồ sơ trưng bày — không gắn tài khoản, nên không có lớp phụ trách hay đánh giá.</p>
                         @elseif ($t['displayName'] !== '' && $t['displayName'] !== $t['accountName'])

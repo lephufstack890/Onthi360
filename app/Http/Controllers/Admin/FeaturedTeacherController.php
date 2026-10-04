@@ -120,6 +120,17 @@ class FeaturedTeacherController extends Controller
              */
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
             'remove_avatar' => ['nullable', 'boolean'],
+            /*
+             * SỬA 4/10 — 2 ô này giờ có cả ở form SỬA, ghi xuống bảng users (xem
+             * FeaturedTeacherService::syncAccountFields()).
+             *
+             * Form nào KHÔNG có 2 ô này thì validate() cũng không trả chúng về trong mảng kết
+             * quả — Laravel chỉ trả những khoá thực sự có trong request. Nhờ vậy service phân
+             * biệt được "không gửi" với "gửi lên rỗng", và không xoá trắng tỉnh/thành của người
+             * ta chỉ vì form đó không có ô để nhập.
+             */
+            'province' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
         ], [
             'display_rating.max' => 'Số sao xếp hạng không được quá 5.',
             'display_rating.min' => 'Số sao xếp hạng không được là số âm.',

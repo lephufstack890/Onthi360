@@ -69,6 +69,9 @@ class FeaturedTeacherService
             // Ảnh riêng của trang vinh danh (nếu có), rơi về ảnh người dùng tự đặt.
             'avatarPath' => $p->showcaseAvatarPath(),
             'ownAvatar' => $p->avatar_path,
+            // 2 cột này nằm ở bảng users, form sửa ghi thẳng xuống đó — xem syncAccountFields().
+            'province' => $p->user?->province,
+            'region' => $p->user?->region,
             // Hồ sơ trưng bày (user_id rỗng) không có tài khoản nào đứng sau — nơi hiển thị dựa
             // vào 'hasAccount' để biết có được xoá hẳn hay không.
             'hasAccount' => $p->user_id !== null,
@@ -116,6 +119,7 @@ class FeaturedTeacherService
     public function feature(TeacherProfile $profile, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
         $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + ['is_featured' => true]);
+        $this->syncAccountFields($profile, $data);
 
         return $profile;
     }
@@ -131,8 +135,39 @@ class FeaturedTeacherService
     public function update(TeacherProfile $profile, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
         $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar));
+        $this->syncAccountFields($profile, $data);
 
         return $profile;
+    }
+
+    /**
+     * SỬA 4/10 (khách: "chỗ sửa chưa có sửa được tỉnh/thành và khu vực bổ sung giúp tôi luôn
+     * nha") — Tỉnh/thành và Khu vực nằm ở bảng USERS chứ không phải teacher_profiles, nên phải
+     * ghi riêng một bước.
+     *
+     * CHỈ ghi khi form thực sự có gửi 2 ô đó lên (array_key_exists, không phải ?? null). Form
+     * nào không có 2 ô này — ví dụ form "Thêm vào danh sách" của hồ sơ không gắn tài khoản —
+     * mà vẫn chạy qua đây thì sẽ xoá trắng tỉnh/thành của người ta một cách lặng lẽ.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function syncAccountFields(TeacherProfile $profile, array $data): void
+    {
+        if ($profile->user_id === null) {
+            return;
+        }
+
+        $attributes = [];
+
+        foreach (['province', 'region'] as $column) {
+            if (array_key_exists($column, $data)) {
+                $attributes[$column] = filled($data[$column]) ? $data[$column] : null;
+            }
+        }
+
+        if ($attributes !== []) {
+            $profile->user()->first()?->update($attributes);
+        }
     }
 
     /**

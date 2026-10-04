@@ -53,33 +53,10 @@
             <input id="ft-password2" name="password_confirmation" type="password" minlength="8" required autocomplete="new-password" class="admin-input">
         </div>
 
-        <div>
-            <label class="mb-1 block text-[13px] font-medium text-slate-600" for="ft-province">Tỉnh/thành</label>
-            <x-ws.select id="ft-province" name="province">
-                <option value="">— Không chọn —</option>
-                {{-- SỬA 4/10 (khách: "trong chỗ option tỉnh thành thêm option toàn quốc nữa nha")
-                     — "Toàn quốc" cho thầy cô dạy/phụ trách trên phạm vi cả nước, không gắn một
-                     tỉnh nào. Để NGOÀI danh sách 63 tỉnh chứ không chèn vào giữa: nó không phải
-                     một đơn vị hành chính, trộn vào danh sách là nói sai.
-
-                     CỐ Ý chỉ thêm ở màn này, chưa đụng VietnamProvinces::options() — danh mục đó
-                     còn dùng cho màn Người dùng, Tài liệu, Khoá học; đổi ở gốc là đổi luôn cả ba
-                     chỗ mà khách chưa yêu cầu. Muốn áp dụng toàn hệ thống thì chỉ cần nói. --}}
-                <option value="Toàn quốc" @selected($ftaOld('province') === 'Toàn quốc')>Toàn quốc</option>
-                @foreach (VietnamProvinces::options() as $provinceName)
-                    <option value="{{ $provinceName }}" @selected($ftaOld('province') === $provinceName)>{{ $provinceName }}</option>
-                @endforeach
-            </x-ws.select>
-        </div>
-
-        <div>
-            <label class="mb-1 block text-[13px] font-medium text-slate-600" for="ft-region">Khu vực</label>
-            <x-ws.select id="ft-region" name="region">
-                <option value="">— Không chọn —</option>
-                @foreach (VietnamProvinces::regionOptions() as $regionValue => $regionLabel)
-                    <option value="{{ $regionValue }}" @selected($ftaOld('region') === $regionValue)>{{ $regionLabel }}</option>
-                @endforeach
-            </x-ws.select>
-        </div>
+        @include('partials.featured-teacher-location-fields', [
+            'locPrefix' => 'ft',
+            'locProvince' => $ftaOld('province'),
+            'locRegion' => $ftaOld('region'),
+        ])
     </div>
 </div>

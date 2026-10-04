@@ -28,6 +28,8 @@
      *   · còn lại       : hồ sơ trưng bày cũ, không gắn tài khoản nào.
      */
     $ftIsNew = $nameRequired ?? false;
+    // Form THÊM MỚI đã có 2 ô này trong khối tài khoản ở trên -> không bày lại lần hai.
+    $ftShowLocation = ! ($nameRequired ?? false) && ($t['hasAccount'] ?? true);
     $ftAvatar = $t['avatarPath'] ?? null;        // ảnh đang hiện (của trang này, hoặc của tài khoản)
     $ftOwnAvatar = $t['ownAvatar'] ?? null;      // ảnh riêng của trang này — chỉ ảnh này mới gỡ được
     $ftNameRequired = $ftIsNew;
@@ -85,6 +87,20 @@
             <p class="mt-1 text-[11px] text-slate-400">Hồ sơ không gắn tài khoản thì không có đánh giá thật — để trống thì ô sao ngoài trang hiện dấu "—".</p>
         @endif
     </div>
+
+    {{-- SỬA 4/10 (khách: "chỗ sửa chưa có sửa được tỉnh/thành và khu vực bổ sung giúp tôi luôn
+         nha") — 2 cột này nằm ở bảng users nên chỉ bày khi hồ sơ CÓ gắn tài khoản.
+
+         Vẫn CỐ Ý không đưa email và mật khẩu vào form sửa: đó là thông tin đăng nhập, đổi chúng
+         là việc của màn Người dùng. Gom vào đây thì cùng một thao tác có hai nơi làm được, hai
+         nơi kiểm khác nhau — tỉnh/thành và khu vực thì không phải thông tin đăng nhập. --}}
+    @if ($ftShowLocation)
+        @include('partials.featured-teacher-location-fields', [
+            'locPrefix' => 'loc-'.$t['profile_id'],
+            'locProvince' => $ftOld('province', $t['province'] ?? null),
+            'locRegion' => $ftOld('region', $t['region'] ?? null),
+        ])
+    @endif
 
     {{-- SỬA 4/10 (khách: "thêm cho tôi 1 field avatar nữa nha cả thêm và cập nhật nha") — ô này
          nằm trong partial DÙNG CHUNG nên có mặt ở cả 3 form: thêm mới, thêm từ tài khoản có sẵn,
