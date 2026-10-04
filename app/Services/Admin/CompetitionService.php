@@ -97,9 +97,14 @@ class CompetitionService
 
     public function indexData(): array
     {
+        /*
+         * SỬA 4/10 (khách: "cho tách riêng đi đừng gộp với trang cuộc thi nha") — BỎ tab "Giáo
+         * viên và chuyên gia". Màn đó giờ là một mục menu đứng riêng (xem partials/sidebar-admin);
+         * để lại tab ở đây thì hai lối vào cùng một màn, mà lối này còn làm người ta tưởng nó là
+         * một phần của Cuộc thi — đúng cái khách vừa bảo bỏ.
+         */
         $tabs = [
             ['label' => 'Cuộc thi', 'href' => route('admin.competitions.index'), 'active' => true, 'count' => $this->competitions->count()],
-            ['label' => 'Giáo viên và chuyên gia', 'href' => route('admin.featured-teachers.index'), 'active' => false, 'count' => $this->teacherProfiles->countApproved()],
         ];
 
         $rows = $this->competitions->latest(50);

@@ -34,11 +34,15 @@
             'name' => $t['name'],
             // SỬA 4/10 — cờ chuyên gia, dùng cho huy hiệu trong hộp hồ sơ.
             'isExpert' => (bool) ($t['isExpert'] ?? false),
-            'title' => $t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định',
-            'school' => count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360',
+            // SỬA 4/10 — vai trò và đơn vị công tác lấy từ cột thật; chưa nhập thì mới rơi về
+            // cách chữa cháy cũ (ghép từ môn đã duyệt).
+            'title' => $t['roleTitle'] ?: ($t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định'),
+            'school' => $t['workplace'] ?: (count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360'),
             'avatar' => $avatarFor((int) $t['id']),
             'bio' => trim(preg_replace('/\s+/u', ' ', strip_tags((string) $t['bio']))),
             'average' => $t['average'],
+            // Nguồn của con số sao — hộp hồ sơ ghi nhãn theo cờ này, xem Public\TeacherService.
+            'ratingIsCurated' => (bool) ($t['ratingIsCurated'] ?? false),
             'reviewCount' => $t['reviewCount'],
             'classCount' => $t['classCount'],
             'studentCount' => $t['studentCount'],
@@ -92,8 +96,9 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             @foreach ($teachers as $t)
                 @php
-                    $title = $t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định';
-                    $subjectLine = count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360';
+                    // SỬA 4/10 — vai trò và đơn vị công tác từ cột thật, chưa nhập thì rơi về cách cũ.
+                    $title = $t['roleTitle'] ?: ($t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định');
+                    $subjectLine = $t['workplace'] ?: (count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360');
                     $bio = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $t['bio'])));
                 @endphp
                 {{-- SỬA 4/10 (khách: "nếu là chuyên gia gắn badge chuyên gia cho nổi bật") — thẻ của
@@ -139,9 +144,12 @@
 
                         {{-- Số liệu thật: đánh giá đã xác thực, lớp đang phụ trách, học viên --}}
                         <div class="mb-3 grid grid-cols-3 gap-1.5 text-center">
+                            {{-- SỬA 4/10 — NHÃN ĐỔI THEO NGUỒN SỐ. Số do ban quản trị công bố thì
+                                 không được ghi là "N đánh giá": đó là nói sai nguồn với người đọc.
+                                 Xem Public\TeacherService (cờ ratingIsCurated). --}}
                             <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
                                 <p class="text-sm font-black leading-tight text-[#0066CC]">{{ $t['average'] !== null ? number_format($t['average'], 1) : '—' }}</p>
-                                <p class="mt-0.5 text-[10px] text-slate-500">{{ $t['reviewCount'] }} đánh giá</p>
+                                <p class="mt-0.5 text-[10px] text-slate-500">{{ ($t['ratingIsCurated'] ?? false) ? 'Ban quản trị xếp hạng' : $t['reviewCount'].' đánh giá' }}</p>
                             </div>
                             <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
                                 <p class="text-sm font-black leading-tight text-[#3B9374]">{{ $t['classCount'] }}</p>
@@ -249,9 +257,12 @@
 
                         <aside class="rounded-2xl border border-sky-100 bg-sky-50 p-4">
                             <p class="text-3xl font-black text-blue-700" x-text="selected.average !== null ? selected.average.toFixed(1) : '—'"></p>
-                            <p class="text-xs font-bold text-slate-700">★ Đánh giá trung bình đã xác thực</p>
+                            <p class="text-xs font-bold text-slate-700">
+                                <span x-show="! selected.ratingIsCurated">★ Đánh giá trung bình đã xác thực</span>
+                                <span x-show="selected.ratingIsCurated" x-cloak>★ Xếp hạng do ban quản trị công bố</span>
+                            </p>
                             <div class="mt-4 space-y-2 text-[11px] text-slate-600">
-                                <p><b x-text="selected.reviewCount"></b> đánh giá đã kiểm duyệt</p>
+                                <p x-show="! selected.ratingIsCurated"><b x-text="selected.reviewCount"></b> đánh giá đã kiểm duyệt</p>
                                 <p><b x-text="selected.studentCount.toLocaleString('vi-VN')"></b> học viên đang học</p>
                                 <p><b x-text="selected.classCount"></b> lớp đang phụ trách</p>
                                 <p class="border-t border-sky-100 pt-3">Review hiển thị sau kiểm duyệt; không công khai danh tính học sinh.</p>

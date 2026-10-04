@@ -30,7 +30,16 @@
         ['label' => 'Yêu cầu hỗ trợ', 'route' => 'admin.contact-messages.index', 'icon' => 'headphones', 'badge' => 'support'],
         // SỬA 19/9 (10) (khách: "học sinh đăng ký cuộc thi mà admin không biết cuộc thi nào để
         // duyệt") — viên số đỏ = số ĐƠN ĐĂNG KÝ đang chờ duyệt của mọi cuộc thi cộng lại.
-        ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => 'trophy', 'also' => ['admin.featured-teachers.index'], 'badge' => 'competitions'],
+        ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => 'trophy', 'badge' => 'competitions'],
+        /*
+         * SỬA 4/10 (khách: "CRUD chuyên gia trong admin ủa sao tôi không thấy") — TÁCH THÀNH MỤC
+         * RIÊNG. Màn này vẫn luôn có, nhưng nấp làm một cái tab bên trong màn "Cuộc thi" nên
+         * trong menu không có dòng nào mang chữ "giáo viên" — tìm không ra là đúng.
+         *
+         * Đúng y chuyện đã xảy ra với "Yêu cầu hỗ trợ" hôm 13/9 (xem ghi chú ngay trên): một màn
+         * nấp sau tab của màn khác thì coi như không tồn tại với người dùng.
+         */
+        ['label' => 'Giáo viên & chuyên gia', 'route' => 'admin.featured-teachers.index', 'icon' => 'badge-check'],
         ['label' => 'Câu chuyện đồng hành', 'route' => 'admin.testimonials.index', 'icon' => 'heart', 'also' => ['admin.testimonials.create', 'admin.testimonials.edit']],
         ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => 'bar-chart-3'],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => 'scroll-text'],

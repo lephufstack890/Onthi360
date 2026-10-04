@@ -89,9 +89,21 @@ class TeacherService
                 $subjects,
             )));
 
+            /*
+             * SỬA 4/10 — SỐ SAO: ưu tiên số ban quản trị công bố (display_rating), không có thì
+             * mới dùng điểm trung bình tính từ đánh giá đã kiểm duyệt.
+             *
+             * 'ratingIsCurated' đi kèm để nơi hiển thị ĐỔI NHÃN theo nguồn số. Trang công khai
+             * đang ghi "Đánh giá trung bình đã xác thực" — đổ một con số admin tự gõ vào dưới
+             * dòng chữ ấy là nói sai với người đọc. Có cờ này thì chỗ nào cũng biết mình đang
+             * bày số nào mà ghi cho đúng.
+             */
+            $curated = $p->display_rating !== null;
+            $realAverage = $summary?->avg_rating !== null ? (float) $summary->avg_rating : null;
+
             return [
                 'id' => $p->id,
-                'name' => $p->user->name ?? '',
+                'name' => $p->showcaseName(),
                 // Giữ nguyên 2 khoá cũ để trang chủ và mọi chỗ đang dùng không phải sửa theo.
                 'subject' => $subjectLabels[0] ?? '',
                 'achievement' => $p->achievement_note ?? '',
@@ -100,11 +112,20 @@ class TeacherService
                 // Huy hiệu "Chuyên gia" chỉ bật khi hồ sơ đã duyệt + đang vinh danh, xem
                 // TeacherProfile::isExpert().
                 'isExpert' => $p->isExpert(),
+                /*
+                 * SỬA 4/10 — 2 cột thật thay cho dữ liệu chữa cháy. Ghi chú cũ trong
+                 * public/teachers/index.blade.php nói đúng: "hệ thống chưa có 2 cột đó, nên
+                 * hiển thị môn dạy thay vì bịa thông tin". Nay có cột thật; chưa nhập thì vẫn
+                 * rơi về cách cũ chứ không bày ô trống.
+                 */
+                'workplace' => $p->workplace,
+                'roleTitle' => $p->role_title,
                 'subjects' => $subjectLabels,
                 // achievement_note là 1 ô văn bản tự do do Admin nhập; tách theo xuống dòng
                 // hoặc dấu ";" để hiện thành danh sách gạch đầu dòng như bản mẫu.
-                'achievements' => $this->splitAchievements($p->achievement_note),
-                'average' => $summary?->avg_rating !== null ? (float) $summary->avg_rating : null,
+                'achievements' => \App\Services\Admin\FeaturedTeacherService::splitAchievements($p->achievement_note),
+                'average' => $curated ? (float) $p->display_rating : $realAverage,
+                'ratingIsCurated' => $curated,
                 'reviewCount' => (int) ($summary->review_count ?? 0),
                 'classCount' => $classRooms->count(),
                 'studentCount' => (int) ($studentCounts[$p->user_id] ?? 0),
@@ -118,24 +139,6 @@ class TeacherService
                 'approvedAt' => $p->approved_at,
             ];
         })->all();
-    }
-
-    /**
-     * Tách ô "Thành tích" (1 ô văn bản tự do ở admin) thành danh sách gạch đầu dòng: mỗi dòng
-     * mới hoặc mỗi dấu ";" là 1 mục. Không có nội dung thì trả mảng rỗng — thẻ sẽ ẩn hẳn khối
-     * thành tích thay vì hiện khung trống.
-     *
-     * @return array<int, string>
-     */
-    private function splitAchievements(?string $note): array
-    {
-        if (blank($note)) {
-            return [];
-        }
-
-        $parts = preg_split('/[\r\n;]+/u', $note) ?: [];
-
-        return array_values(array_filter(array_map('trim', $parts), fn ($line) => $line !== ''));
     }
 
     /**

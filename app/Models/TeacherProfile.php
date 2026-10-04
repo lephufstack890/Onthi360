@@ -15,6 +15,8 @@ class TeacherProfile extends Model
         'user_id', 'bio', 'subjects', 'approval_status',
         'approved_by', 'approved_at', 'rejection_reason',
         'is_featured', 'is_expert', 'achievement_note',
+        // SỬA 4/10 — 4 trường cho trang vinh danh, xem migration add_showcase_fields.
+        'display_name', 'workplace', 'role_title', 'display_rating',
     ];
 
     protected $casts = [
@@ -23,6 +25,7 @@ class TeacherProfile extends Model
         'approved_at' => 'datetime',
         'is_featured' => 'boolean',
         'is_expert' => 'boolean',
+        'display_rating' => 'float',
     ];
 
     /**
@@ -57,6 +60,12 @@ class TeacherProfile extends Model
      * huy hiệu "Chuyên gia" là lời khẳng định công khai, không được hiện ra từ một hồ sơ chưa
      * qua duyệt chỉ vì cột is_expert lỡ bật.
      */
+    /** Tên bày ra trang vinh danh — admin đặt riêng được, không đụng tên tài khoản. */
+    public function showcaseName(): string
+    {
+        return filled($this->display_name) ? $this->display_name : (string) ($this->user->name ?? '');
+    }
+
     public function isExpert(): bool
     {
         return $this->is_expert && $this->isFeatured();

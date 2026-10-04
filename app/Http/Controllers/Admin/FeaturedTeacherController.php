@@ -12,8 +12,6 @@ class FeaturedTeacherController extends Controller
 {
     public function __construct(private FeaturedTeacherService $featuredTeacherService) {}
 
-    /**
-     */
     public function index(Request $request): View
     {
         return view('admin.featured-teachers.index', $this->featuredTeacherService->indexData());
@@ -22,19 +20,15 @@ class FeaturedTeacherController extends Controller
     /** THÊM vào danh sách vinh danh. */
     public function feature(Request $request, TeacherProfile $featuredTeacher)
     {
-        $data = $this->validatePayload($request);
-
-        $this->featuredTeacherService->feature($featuredTeacher, $data['achievement'], $data['is_expert']);
+        $this->featuredTeacherService->feature($featuredTeacher, $this->validatePayload($request));
 
         return back()->with('status', 'featured');
     }
 
-    /** SỬA người đang vinh danh: đổi thành tích công bố và cờ chuyên gia. */
+    /** SỬA người đang vinh danh. */
     public function update(Request $request, TeacherProfile $featuredTeacher)
     {
-        $data = $this->validatePayload($request);
-
-        $this->featuredTeacherService->update($featuredTeacher, $data['achievement'], $data['is_expert']);
+        $this->featuredTeacherService->update($featuredTeacher, $this->validatePayload($request));
 
         return back()->with('status', 'updated');
     }
@@ -51,22 +45,29 @@ class FeaturedTeacherController extends Controller
     }
 
     /**
-     * Ô "Là chuyên gia" là checkbox: không tick thì TRÌNH DUYỆT KHÔNG GỬI trường đó lên. Phải
-     * đọc bằng $request->boolean() chứ không dựa vào validate() — nếu không, bỏ tick rồi lưu
-     * sẽ không gỡ được cờ chuyên gia.
-     *
-     * @return array{achievement: ?string, is_expert: bool}
+     * @return array<string, mixed>
      */
     private function validatePayload(Request $request): array
     {
         $data = $request->validate([
-            'achievement' => ['nullable', 'string', 'max:1000'],
+            'display_name' => ['nullable', 'string', 'max:120'],
+            'workplace' => ['nullable', 'string', 'max:160'],
+            'role_title' => ['nullable', 'string', 'max:120'],
+            'achievement_note' => ['nullable', 'string', 'max:2000'],
+            // Chặn ngay ở đây chứ không chỉ ở ô nhập: ô number của trình duyệt chỉ gợi ý, người
+            // ta gửi thẳng request vẫn lọt. 5 sao là trần, âm thì vô nghĩa.
+            'display_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'is_expert' => ['nullable', 'boolean'],
+        ], [
+            'display_rating.max' => 'Số sao xếp hạng không được quá 5.',
+            'display_rating.min' => 'Số sao xếp hạng không được là số âm.',
         ]);
 
-        return [
-            'achievement' => $data['achievement'] ?? null,
-            'is_expert' => $request->boolean('is_expert'),
-        ];
+        // Ô tick không được tick thì TRÌNH DUYỆT KHÔNG GỬI trường đó lên. Phải đọc bằng
+        // $request->boolean() chứ không dựa vào validate() — nếu không, bỏ tick rồi lưu sẽ
+        // không gỡ được cờ chuyên gia.
+        $data['is_expert'] = $request->boolean('is_expert');
+
+        return $data;
     }
 }
