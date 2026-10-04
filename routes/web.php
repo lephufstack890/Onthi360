@@ -643,6 +643,9 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
+        // SỬA 4/10 (khách: "admin có thể thêm sửa xoá") — thêm đường SỬA. "Xoá" ở màn này là rút
+        // tên khỏi trang vinh danh (unfeature), KHÔNG xoá hồ sơ/tài khoản giáo viên.
+        Route::put('featured-teachers/{featuredTeacher}', [AdminFeaturedTeacherController::class, 'update'])->name('featured-teachers.update');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
         Route::get('ranking/{scope}/{id}', [AdminRankingController::class, 'show'])

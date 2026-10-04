@@ -14,7 +14,7 @@ class TeacherProfile extends Model
     protected $fillable = [
         'user_id', 'bio', 'subjects', 'approval_status',
         'approved_by', 'approved_at', 'rejection_reason',
-        'is_featured', 'achievement_note',
+        'is_featured', 'is_expert', 'achievement_note',
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class TeacherProfile extends Model
         'approval_status' => TeacherApprovalStatus::class,
         'approved_at' => 'datetime',
         'is_featured' => 'boolean',
+        'is_expert' => 'boolean',
     ];
 
     /**
@@ -49,5 +50,15 @@ class TeacherProfile extends Model
     public function isFeatured(): bool
     {
         return $this->is_featured && $this->isApproved();
+    }
+
+    /**
+     * SỬA 4/10 — chuyên gia CHỈ tính khi đã được vinh danh và đã duyệt hồ sơ, giống isFeatured():
+     * huy hiệu "Chuyên gia" là lời khẳng định công khai, không được hiện ra từ một hồ sơ chưa
+     * qua duyệt chỉ vì cột is_expert lỡ bật.
+     */
+    public function isExpert(): bool
+    {
+        return $this->is_expert && $this->isFeatured();
     }
 }

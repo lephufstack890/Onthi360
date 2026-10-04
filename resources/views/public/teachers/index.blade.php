@@ -32,6 +32,8 @@
         $teacherRows[] = [
             'id' => $t['id'],
             'name' => $t['name'],
+            // SỬA 4/10 — cờ chuyên gia, dùng cho huy hiệu trong hộp hồ sơ.
+            'isExpert' => (bool) ($t['isExpert'] ?? false),
             'title' => $t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định',
             'school' => count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360',
             'avatar' => $avatarFor((int) $t['id']),
@@ -94,14 +96,25 @@
                     $subjectLine = count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360';
                     $bio = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $t['bio'])));
                 @endphp
+                {{-- SỬA 4/10 (khách: "nếu là chuyên gia gắn badge chuyên gia cho nổi bật") — thẻ của
+                     chuyên gia đổi sang tông hổ phách để tách hẳn khỏi thẻ giáo viên thường. Thứ tự
+                     đã do truy vấn lo (Public\TeacherService xếp is_expert trước), ở đây chỉ lo
+                     phần nhìn. --}}
                 <div x-show="visibleIds.includes({{ $t['id'] }})" x-cloak
                      :style="{ order: visibleIds.indexOf({{ $t['id'] }}) }"
-                     class="group flex flex-col justify-between rounded-2xl border border-sky-100 bg-white p-4 shadow-[0_2px_12px_rgba(0,100,220,0.06)] transition-all hover:border-sky-200 hover:shadow-lg">
+                     class="group flex flex-col justify-between rounded-2xl border bg-white p-4 transition-all hover:shadow-lg {{ ($t['isExpert'] ?? false)
+                        ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-white shadow-[0_2px_12px_rgba(180,120,20,0.12)] hover:border-amber-400'
+                        : 'border-sky-100 shadow-[0_2px_12px_rgba(0,100,220,0.06)] hover:border-sky-200' }}">
                     <div>
                         <div class="mb-3 flex items-center gap-3">
                             <img src="{{ $avatarFor((int) $t['id']) }}" alt="Avatar của {{ $t['name'] }}"
                                  class="h-14 w-14 shrink-0 rounded-xl border-2 border-sky-200 object-cover shadow-sm">
                             <div class="min-w-0">
+                                @if ($t['isExpert'] ?? false)
+                                    <span class="mb-1 inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+                                        <x-lucide name="badge-check" class="h-3 w-3" />Chuyên gia
+                                    </span>
+                                @endif
                                 <h3 class="text-sm font-bold leading-5 text-[#0B3C78] transition-colors group-hover:text-blue-600">{{ $t['name'] }}</h3>
                                 <p class="text-[11px] font-medium leading-4 text-blue-600">{{ $title }}</p>
                                 <p class="truncate text-[11px] text-slate-400">{{ $subjectLine }}</p>
@@ -181,11 +194,27 @@
                 <div>
                     <header class="relative overflow-hidden bg-gradient-to-r from-blue-800 to-sky-500 p-6 text-white">
                         <img src="{{ asset('assets/hero-teachers.jpg') }}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-25">
-                        <button type="button" @click="selected = null" class="absolute right-5 top-5 rounded-xl bg-white/15 px-2 py-1 text-xs font-bold">Đóng</button>
+                        {{-- SỬA 4/10 (khách: "xem hồ sơ & lớp phụ trách thì hiển thị popup xong click đóng không được")
+                             — NÚT NÀY TRƯỚC ĐÂY BẤM KHÔNG ĂN, mà không phải lỗi Alpine: nó bị khối
+                             thông tin bên dưới (div.relative flex) nằm ĐÈ LÊN. Hai thẻ cùng là thẻ
+                             đã định vị (nút absolute, khối kia relative) và cùng không khai z-index,
+                             nên trình duyệt vẽ theo THỨ TỰ TRONG DOM — khối viết sau nằm trên. Khối
+                             đó trong suốt nên nhìn vẫn thấy nút, nhưng cú bấm rơi vào nó chứ không
+                             tới nút. Đo bằng document.elementFromPoint() ngay giữa nút ở 390/768/
+                             1280px đều trả về khối kia.
+                             z-10 kéo nút lên trên. Không hạ khối kia xuống vì nó còn phải nằm trên
+                             ảnh nền (img absolute inset-0). --}}
+                        <button type="button" @click="selected = null" class="absolute right-5 top-5 z-10 rounded-xl bg-white/15 px-2 py-1 text-xs font-bold hover:bg-white/25">Đóng</button>
                         <div class="relative flex items-center gap-4">
                             <img :src="selected.avatar" alt="" class="h-18 w-18 rounded-2xl border-4 border-white/70 object-cover">
                             <div>
-                                <p class="text-xs font-bold text-sky-100">Hồ sơ giảng viên đã xác thực</p>
+                                <p class="flex flex-wrap items-center gap-2 text-xs font-bold text-sky-100">
+                                    <span>Hồ sơ giảng viên đã xác thực</span>
+                                    <span x-show="selected.isExpert" x-cloak
+                                          class="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+                                        <x-lucide name="badge-check" class="h-3 w-3" />Chuyên gia
+                                    </span>
+                                </p>
                                 <h2 class="mt-1 text-xl font-black" x-text="selected.name"></h2>
                                 <p class="mt-1 text-xs text-sky-100"><span x-text="selected.title"></span> · <span x-text="selected.school"></span></p>
                             </div>

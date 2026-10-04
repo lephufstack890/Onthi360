@@ -12,11 +12,14 @@
     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-province">Tỉnh thành</label>
     <x-ws.select id="filter-province" name="province">
         <option value="">Tất cả tỉnh thành</option>
-        {{-- SỬA 3/10 — 2 phạm vi mới lên đầu (đây là thứ form câu hỏi gán từ nay). Danh mục 63
-             đơn vị vẫn giữ bên dưới: kho còn câu hỏi gán tỉnh cụ thể từ trước, bỏ đi là không
-             còn cách nào lọc ra chúng. --}}
+        {{-- SỬA 4/10 — "Toàn quốc" lên đầu, rồi tới danh mục tỉnh thành đầy đủ bên dưới. --}}
         @foreach (\App\Support\ProvinceCatalog::QUESTION_SCOPES as $scopeCode => $scopeLabel)
             <option value="{{ $scopeCode }}" @selected(($filters['province'] ?? null) === $scopeCode)>{{ $scopeLabel }}</option>
+        @endforeach
+        {{-- Mã đã bỏ khỏi ô chọn nhưng còn trong dữ liệu — giữ ở bộ LỌC để admin dò ra những câu
+             lỡ gán hôm 3/10 mà gán lại tỉnh cho đúng. Bỏ đi là không còn cách nào tìm ra chúng. --}}
+        @foreach (\App\Support\ProvinceCatalog::LEGACY_QUESTION_SCOPES as $retiredCode => $retiredLabel)
+            <option value="{{ $retiredCode }}" @selected(($filters['province'] ?? null) === $retiredCode)>{{ $retiredLabel }} (mục đã bỏ)</option>
         @endforeach
         @foreach ($provinceGroups as $groupLabel => $options)
             <optgroup label="{{ $groupLabel }}">

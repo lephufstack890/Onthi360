@@ -51,6 +51,18 @@ class TeacherService
             ->where('is_featured', true)
             ->where('approval_status', 'approved')
             ->with('user')
+            /*
+             * SỬA 4/10 (khách: "nếu là chuyên gia... luôn được lên đầu danh sách trang giáo viên
+             * và chuyên gia public") — chuyên gia trước, rồi mới tới thứ tự cũ (sửa gần nhất
+             * lên trước).
+             *
+             * Xếp Ở TRONG TRUY VẤN chứ không xếp lại sau khi lấy: còn có $limit cắt bớt, xếp
+             * sau thì chuyên gia thứ 5 có thể bị cắt mất ngay từ câu truy vấn rồi mới xếp —
+             * trang chủ chỉ lấy 4 người là dính ngay.
+             *
+             * is_expert DESC: MySQL xếp 0 trước 1, mà ta cần 1 (chuyên gia) lên trước.
+             */
+            ->orderByDesc('is_expert')
             ->latest('updated_at')
             ->limit($limit)
             ->get();
@@ -85,6 +97,9 @@ class TeacherService
                 'achievement' => $p->achievement_note ?? '',
                 // ── các trường bổ sung cho thẻ giáo viên của giao diện mới ──
                 'bio' => $p->bio,
+                // Huy hiệu "Chuyên gia" chỉ bật khi hồ sơ đã duyệt + đang vinh danh, xem
+                // TeacherProfile::isExpert().
+                'isExpert' => $p->isExpert(),
                 'subjects' => $subjectLabels,
                 // achievement_note là 1 ô văn bản tự do do Admin nhập; tách theo xuống dòng
                 // hoặc dấu ";" để hiện thành danh sách gạch đầu dòng như bản mẫu.

@@ -162,21 +162,32 @@ class ProvinceCatalog
         ];
     }
 
-    /** Nhãn của 1 mã; mã lạ/rỗng -> null để nơi gọi tự hiện "—" hoặc "Chưa gán". */
     /**
-     * SỬA 3/10 (khách: "chỗ tạo câu hỏi và cập nhật trong admin và giáo viên chọn tỉnh thành thì
-     * để 2 option là Toàn quốc hoặc Các tỉnh khác thôi") — PHẠM VI dùng cho CÂU HỎI.
+     * PHẠM VI thêm cho ô "Tỉnh thành" của FORM CÂU HỎI — nằm NGOÀI danh mục hành chính.
      *
-     * Chỉ áp cho ô "Tỉnh thành" ở form câu hỏi. Ô tỉnh/thành của ĐỀ THI (form đề bên admin/giáo
-     * viên) GIỮ NGUYÊN danh mục 63 đơn vị — đề thi cần khai đúng nguồn ("Đề HSG Hà Tĩnh"), còn
-     * câu hỏi trong kho thì chỉ cần biết nó dùng được toàn quốc hay bó hẹp theo tỉnh.
+     * SỬA 3/10 — rút ô này xuống còn 2 lựa chọn "Toàn quốc" / "Các tỉnh khác".
+     * SỬA 4/10 (khách: "các tỉnh khác không phải option mà khách muốn chi tiết toàn bộ các tỉnh
+     * thành luôn như ban đầu, chỉ thêm option toàn quốc là ok") — TRẢ LẠI danh mục 34 đơn vị
+     * hiện hành + nhóm tên cũ (xem groups()), chỉ giữ thêm đúng một mục "Toàn quốc".
      *
-     * Hai mã này nằm cùng một cột questions.province với các mã tỉnh cũ, nên label() ở dưới tra
-     * CẢ hai bảng: câu hỏi cũ đã gán "HATINH" vẫn hiện đúng "Hà Tĩnh" chứ không bị đổi tên lặng
-     * lẽ thành "Các tỉnh khác".
+     * Mã này nằm cùng một cột questions.province với các mã tỉnh, nên label() tra CẢ hai bảng.
      */
     public const QUESTION_SCOPES = [
         'TOANQUOC' => 'Toàn quốc',
+    ];
+
+    /**
+     * Mã đã bỏ khỏi ô chọn nhưng CÒN TRONG DỮ LIỆU.
+     *
+     * 'KHAC' sống đúng một ngày (3/10 → 4/10). Câu hỏi nào lỡ gán trong khoảng đó vẫn còn mã
+     * này trong cột province. KHÔNG xoá khỏi bảng tra: xoá thì những câu ấy hiện "—" trống trơn,
+     * mà sửa hàng loạt sang mã khác là tự ý đổi dữ liệu người ta đã nhập. Giữ ở đây để
+     * label() vẫn đọc ra chữ, và form vẫn bày thành một lựa chọn riêng có ghi chú để người sửa
+     * tự chọn tỉnh đúng rồi lưu lại.
+     *
+     * @var array<string, string>
+     */
+    public const LEGACY_QUESTION_SCOPES = [
         'KHAC' => 'Các tỉnh khác',
     ];
 
@@ -201,7 +212,12 @@ class ProvinceCatalog
 
         $code = strtoupper(trim($raw));
 
-        return array_key_exists($code, self::QUESTION_SCOPES) ? $code : null;
+        // Nhận cả mã cũ: sửa một câu đang gán 'KHAC' mà không đụng ô đó thì giá trị phải được
+        // giữ nguyên, chứ không bị trả null rồi lưu thành "chưa gán" một cách lặng lẽ.
+        return array_key_exists($code, self::QUESTION_SCOPES)
+            || array_key_exists($code, self::LEGACY_QUESTION_SCOPES)
+            ? $code
+            : null;
     }
 
     public static function label(?string $code): ?string
@@ -210,7 +226,10 @@ class ProvinceCatalog
             return null;
         }
 
-        return self::QUESTION_SCOPES[$code] ?? self::all()[$code] ?? null;
+        return self::QUESTION_SCOPES[$code]
+            ?? self::all()[$code]
+            ?? self::LEGACY_QUESTION_SCOPES[$code]
+            ?? null;
     }
 
     /**
