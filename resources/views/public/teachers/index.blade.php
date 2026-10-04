@@ -161,12 +161,14 @@
                                 @endif
                             </span>
 
-                            <span class="shrink-0 text-right">
+                            {{-- Chỉ dải sao + số ở hàng trên. Câu ghi nguồn điểm ("Ban quản trị xếp
+                                 hạng" / "N đánh giá") vẫn nằm ở ô đầu của lưới 3 ô bên dưới như cũ,
+                                 không bày 2 lần ở 2 chỗ. --}}
+                            <span class="shrink-0">
                                 <span class="flex items-center justify-end gap-1.5">
                                     @include('partials.star-rating', ['rating' => $t['average'], 'starSize' => 'h-3.5 w-3.5'])
                                     <span class="text-xs font-black leading-none text-[#0066CC]">{{ $hasRating ? number_format($t['average'], 1) : '—' }}</span>
                                 </span>
-                                <span class="mt-0.5 block text-[9.5px] leading-tight text-slate-400">{{ $ratingNote }}</span>
                             </span>
                         </div>
 
@@ -197,18 +199,30 @@
                         @endif
 
                         {{--
-                            SỬA 4/10 (khách gửi ảnh vẽ tay: "chỗ hiển thị số sao dạng ***** ... vs
-                            tỉnh thành khu vực cũng hiển thị luôn nha").
+                            Số liệu thật: đánh giá/xếp hạng, lớp đang phụ trách, học viên.
 
-                            BỎ lưới 3 ô cũ. Lý do không chỉ vì khách khoanh vào 2 ô đó: với một
-                            chuyên gia khách mời (không gắn tài khoản, không dạy lớp nào) thì 2 ô
-                            ấy luôn hiện "0 Lớp phụ trách" và "0 Học viên" — một hồ sơ đẹp mà
-                            dưới chân đóng 2 con số 0, nhìn như người này chẳng làm gì.
-
-                            Thay bằng: dải 5 sao chiếm trọn bề ngang, rồi hàng viên thông tin.
-                            Viên nào KHÔNG CÓ DỮ LIỆU THÌ ẨN HẲN, không bày số 0 — chưa dạy lớp
-                            nào thì im lặng, chứ không khoe con số 0.
+                            SỬA 4/10 — tôi đã TỰ Ý BỎ lưới 3 ô này khi thêm dải sao, khách không hề
+                            yêu cầu bỏ. Đã trả lại nguyên vẹn. Nhãn ô đầu vẫn đổi theo nguồn số:
+                            điểm do ban quản trị công bố thì KHÔNG được ghi là "N đánh giá", đó là
+                            nói sai nguồn với người đọc (xem cờ ratingIsCurated ở Public\TeacherService).
                         --}}
+                        <div class="mb-3 grid grid-cols-3 gap-1.5 text-center">
+                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
+                                <p class="text-sm font-black leading-tight text-[#0066CC]">{{ $hasRating ? number_format($t['average'], 1) : '—' }}</p>
+                                <p class="mt-0.5 text-[10px] leading-tight text-slate-500">{{ $ratingNote }}</p>
+                            </div>
+                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
+                                <p class="text-sm font-black leading-tight text-[#3B9374]">{{ $t['classCount'] }}</p>
+                                <p class="mt-0.5 text-[10px] leading-tight text-slate-500">Lớp phụ trách</p>
+                            </div>
+                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
+                                <p class="text-sm font-black leading-tight text-[#AF7C32]">{{ number_format($t['studentCount']) }}</p>
+                                <p class="mt-0.5 text-[10px] leading-tight text-slate-500">Học viên</p>
+                            </div>
+                        </div>
+
+                        {{-- Tỉnh thành + khu vực (khách: "vs tỉnh thành khu vực cũng hiển thị luôn
+                             nha"). Viên nào chưa có dữ liệu thì ẩn, không bày viên rỗng. --}}
                         <div class="mb-3 flex flex-wrap gap-1.5">
                             @if ($t['province'])
                                 <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
@@ -218,16 +232,6 @@
                             @if ($t['regionLabel'])
                                 <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
                                     <x-lucide name="compass" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['regionLabel'] }}
-                                </span>
-                            @endif
-                            @if ($t['classCount'] > 0)
-                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
-                                    <x-lucide name="layers" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['classCount'] }} lớp
-                                </span>
-                            @endif
-                            @if ($t['studentCount'] > 0)
-                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
-                                    <x-lucide name="users" class="h-3 w-3 shrink-0 text-[#AF7C32]" />{{ number_format($t['studentCount']) }} học viên
                                 </span>
                             @endif
                         </div>
