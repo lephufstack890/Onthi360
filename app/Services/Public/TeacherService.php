@@ -9,6 +9,7 @@ use App\Repositories\Contracts\ClassEnrollmentRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Support\SubjectCatalog;
+use App\Support\VietnamProvinces;
 use Illuminate\Support\Collection;
 
 /**
@@ -121,6 +122,14 @@ class TeacherService
                 'avatarPath' => $p->showcaseAvatarPath(),
                 'workplace' => $p->workplace,
                 'roleTitle' => $p->role_title,
+                /*
+                 * SỬA 4/10 (khách: "tỉnh thành khu vực cũng hiển thị luôn nha") — 2 cột này nằm
+                 * ở bảng users. Trả kèm NHÃN tiếng Việt của khu vực luôn, đừng để view tự tra:
+                 * cột lưu mã ('mien_bac'), bày thẳng mã ra trang công khai là chữ sống.
+                 */
+                'province' => $p->user?->province,
+                'region' => $p->user?->region,
+                'regionLabel' => VietnamProvinces::regionOptions()[$p->user?->region] ?? null,
                 'subjects' => $subjectLabels,
                 // achievement_note là 1 ô văn bản tự do do Admin nhập; tách theo xuống dòng
                 // hoặc dấu ";" để hiện thành danh sách gạch đầu dòng như bản mẫu.

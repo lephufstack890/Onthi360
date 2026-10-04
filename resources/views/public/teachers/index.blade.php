@@ -59,6 +59,8 @@
             'average' => $t['average'],
             // Nguồn của con số sao — hộp hồ sơ ghi nhãn theo cờ này, xem Public\TeacherService.
             'ratingIsCurated' => (bool) ($t['ratingIsCurated'] ?? false),
+            'province' => $t['province'],
+            'regionLabel' => $t['regionLabel'],
             'reviewCount' => $t['reviewCount'],
             'classCount' => $t['classCount'],
             'studentCount' => $t['studentCount'],
@@ -133,15 +135,45 @@
                         ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-white shadow-[0_2px_12px_rgba(180,120,20,0.12)] hover:border-amber-400'
                         : 'border-sky-100 shadow-[0_2px_12px_rgba(0,100,220,0.06)] hover:border-sky-200' }}">
                     <div>
+                        {{--
+                            SỬA 4/10 (khách: "số sao hiển thị lên trên đầu như tôi vẽ hình đó") —
+                            DẢI SAO LÊN HÀNG TRÊN CÙNG của thẻ, nằm cùng hàng với huy hiệu
+                            "Chuyên gia": huy hiệu bên trái, sao bên phải. Trước đó tôi đặt nhầm
+                            xuống dưới phần thành tích.
+
+                            Hàng này luôn tồn tại kể cả khi không phải chuyên gia — justify-between
+                            vẫn đẩy dải sao sang phải nhờ thẻ rỗng bên trái, nên mọi thẻ trong lưới
+                            có sao thẳng hàng nhau.
+                        --}}
+                        @php
+                            $hasRating = $t['average'] !== null;
+                            $ratingNote = ($t['ratingIsCurated'] ?? false)
+                                ? 'Ban quản trị xếp hạng'
+                                : ($t['reviewCount'] > 0 ? $t['reviewCount'].' đánh giá đã kiểm duyệt' : 'Chưa có đánh giá');
+                        @endphp
+
+                        <div class="mb-2 flex items-start justify-between gap-2">
+                            <span>
+                                @if ($t['isExpert'] ?? false)
+                                    <span class="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+                                        <x-lucide name="badge-check" class="h-3 w-3" />Chuyên gia
+                                    </span>
+                                @endif
+                            </span>
+
+                            <span class="shrink-0 text-right">
+                                <span class="flex items-center justify-end gap-1.5">
+                                    @include('partials.star-rating', ['rating' => $t['average'], 'starSize' => 'h-3.5 w-3.5'])
+                                    <span class="text-xs font-black leading-none text-[#0066CC]">{{ $hasRating ? number_format($t['average'], 1) : '—' }}</span>
+                                </span>
+                                <span class="mt-0.5 block text-[9.5px] leading-tight text-slate-400">{{ $ratingNote }}</span>
+                            </span>
+                        </div>
+
                         <div class="mb-3 flex items-center gap-3">
                             <img src="{{ $avatarOf($t) }}" alt="Avatar của {{ $t['name'] }}"
                                  class="h-14 w-14 shrink-0 rounded-xl border-2 border-sky-200 object-cover shadow-sm">
                             <div class="min-w-0">
-                                @if ($t['isExpert'] ?? false)
-                                    <span class="mb-1 inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
-                                        <x-lucide name="badge-check" class="h-3 w-3" />Chuyên gia
-                                    </span>
-                                @endif
                                 <h3 class="text-sm font-bold leading-5 text-[#0B3C78] transition-colors group-hover:text-blue-600">{{ $t['name'] }}</h3>
                                 <p class="text-[11px] font-medium leading-4 text-blue-600">{{ $title }}</p>
                                 <p class="truncate text-[11px] text-slate-400">{{ $subjectLine }}</p>
@@ -164,23 +196,40 @@
                             </div>
                         @endif
 
-                        {{-- Số liệu thật: đánh giá đã xác thực, lớp đang phụ trách, học viên --}}
-                        <div class="mb-3 grid grid-cols-3 gap-1.5 text-center">
-                            {{-- SỬA 4/10 — NHÃN ĐỔI THEO NGUỒN SỐ. Số do ban quản trị công bố thì
-                                 không được ghi là "N đánh giá": đó là nói sai nguồn với người đọc.
-                                 Xem Public\TeacherService (cờ ratingIsCurated). --}}
-                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
-                                <p class="text-sm font-black leading-tight text-[#0066CC]">{{ $t['average'] !== null ? number_format($t['average'], 1) : '—' }}</p>
-                                <p class="mt-0.5 text-[10px] text-slate-500">{{ ($t['ratingIsCurated'] ?? false) ? 'Ban quản trị xếp hạng' : $t['reviewCount'].' đánh giá' }}</p>
-                            </div>
-                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
-                                <p class="text-sm font-black leading-tight text-[#3B9374]">{{ $t['classCount'] }}</p>
-                                <p class="mt-0.5 text-[10px] text-slate-500">Lớp phụ trách</p>
-                            </div>
-                            <div class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-1.5">
-                                <p class="text-sm font-black leading-tight text-[#AF7C32]">{{ number_format($t['studentCount']) }}</p>
-                                <p class="mt-0.5 text-[10px] text-slate-500">Học viên</p>
-                            </div>
+                        {{--
+                            SỬA 4/10 (khách gửi ảnh vẽ tay: "chỗ hiển thị số sao dạng ***** ... vs
+                            tỉnh thành khu vực cũng hiển thị luôn nha").
+
+                            BỎ lưới 3 ô cũ. Lý do không chỉ vì khách khoanh vào 2 ô đó: với một
+                            chuyên gia khách mời (không gắn tài khoản, không dạy lớp nào) thì 2 ô
+                            ấy luôn hiện "0 Lớp phụ trách" và "0 Học viên" — một hồ sơ đẹp mà
+                            dưới chân đóng 2 con số 0, nhìn như người này chẳng làm gì.
+
+                            Thay bằng: dải 5 sao chiếm trọn bề ngang, rồi hàng viên thông tin.
+                            Viên nào KHÔNG CÓ DỮ LIỆU THÌ ẨN HẲN, không bày số 0 — chưa dạy lớp
+                            nào thì im lặng, chứ không khoe con số 0.
+                        --}}
+                        <div class="mb-3 flex flex-wrap gap-1.5">
+                            @if ($t['province'])
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="map-pin" class="h-3 w-3 shrink-0 text-[#2D7FA3]" />{{ $t['province'] }}
+                                </span>
+                            @endif
+                            @if ($t['regionLabel'])
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="compass" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['regionLabel'] }}
+                                </span>
+                            @endif
+                            @if ($t['classCount'] > 0)
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="layers" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['classCount'] }} lớp
+                                </span>
+                            @endif
+                            @if ($t['studentCount'] > 0)
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="users" class="h-3 w-3 shrink-0 text-[#AF7C32]" />{{ number_format($t['studentCount']) }} học viên
+                                </span>
+                            @endif
                         </div>
                     </div>
 
@@ -278,11 +327,42 @@
                         </div>
 
                         <aside class="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-                            <p class="text-3xl font-black text-blue-700" x-text="selected.average !== null ? selected.average.toFixed(1) : '—'"></p>
-                            <p class="text-xs font-bold text-slate-700">
-                                <span x-show="! selected.ratingIsCurated">★ Đánh giá trung bình đã xác thực</span>
-                                <span x-show="selected.ratingIsCurated" x-cloak>★ Xếp hạng do ban quản trị công bố</span>
+                            {{-- Dải 5 sao, bản chạy bằng Alpine — cùng cách vẽ với thẻ ngoài danh
+                                 sách (xem partials/star-rating), chỉ khác là bề ngang lớp phủ do
+                                 Alpine tính theo selected.average. --}}
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="relative inline-block leading-none">
+                                    <span class="flex gap-0.5 text-slate-200">
+                                        @for ($i = 0; $i < 5; $i++)
+                                            <x-lucide name="star" class="h-5 w-5" style="fill: currentColor" />
+                                        @endfor
+                                    </span>
+                                    <span class="absolute inset-0 overflow-hidden"
+                                          :style="{ width: (Math.max(0, Math.min(5, selected.average || 0)) / 5 * 100) + '%' }">
+                                        <span class="flex w-max gap-0.5 text-amber-400">
+                                            @for ($i = 0; $i < 5; $i++)
+                                                <x-lucide name="star" class="h-5 w-5" style="fill: currentColor" />
+                                            @endfor
+                                        </span>
+                                    </span>
+                                </span>
+                                <span class="text-2xl font-black leading-none text-blue-700" x-text="selected.average !== null ? selected.average.toFixed(1) : '—'"></span>
+                            </div>
+                            <p class="mt-1 text-xs font-bold text-slate-700">
+                                <span x-show="! selected.ratingIsCurated">Đánh giá trung bình đã xác thực</span>
+                                <span x-show="selected.ratingIsCurated" x-cloak>Xếp hạng do ban quản trị công bố</span>
                             </p>
+
+                            <div class="mt-3 flex flex-wrap gap-1.5">
+                                <span x-show="selected.province" x-cloak
+                                      class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="map-pin" class="h-3 w-3 shrink-0 text-[#2D7FA3]" /><span x-text="selected.province"></span>
+                                </span>
+                                <span x-show="selected.regionLabel" x-cloak
+                                      class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="compass" class="h-3 w-3 shrink-0 text-[#3B9374]" /><span x-text="selected.regionLabel"></span>
+                                </span>
+                            </div>
                             <div class="mt-4 space-y-2 text-[11px] text-slate-600">
                                 <p x-show="! selected.ratingIsCurated"><b x-text="selected.reviewCount"></b> đánh giá đã kiểm duyệt</p>
                                 <p><b x-text="selected.studentCount.toLocaleString('vi-VN')"></b> học viên đang học</p>
