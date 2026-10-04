@@ -198,6 +198,23 @@
                             </div>
                         @endif
 
+                        {{-- Tỉnh thành + khu vực.
+                             SỬA 4/10 (khách: "tỉnh thành khu vực thêm ở bên trên 3 khối đó") —
+                             đặt NGAY TRÊN lưới 3 ô. Viên nào chưa có dữ liệu thì ẩn, không bày
+                             viên rỗng. --}}
+                        <div class="mb-3 flex flex-wrap gap-1.5">
+                            @if ($t['province'])
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="map-pin" class="h-3 w-3 shrink-0 text-[#2D7FA3]" />{{ $t['province'] }}
+                                </span>
+                            @endif
+                            @if ($t['regionLabel'])
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
+                                    <x-lucide name="compass" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['regionLabel'] }}
+                                </span>
+                            @endif
+                        </div>
+
                         {{--
                             Số liệu thật: đánh giá/xếp hạng, lớp đang phụ trách, học viên.
 
@@ -219,21 +236,6 @@
                                 <p class="text-sm font-black leading-tight text-[#AF7C32]">{{ number_format($t['studentCount']) }}</p>
                                 <p class="mt-0.5 text-[10px] leading-tight text-slate-500">Học viên</p>
                             </div>
-                        </div>
-
-                        {{-- Tỉnh thành + khu vực (khách: "vs tỉnh thành khu vực cũng hiển thị luôn
-                             nha"). Viên nào chưa có dữ liệu thì ẩn, không bày viên rỗng. --}}
-                        <div class="mb-3 flex flex-wrap gap-1.5">
-                            @if ($t['province'])
-                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
-                                    <x-lucide name="map-pin" class="h-3 w-3 shrink-0 text-[#2D7FA3]" />{{ $t['province'] }}
-                                </span>
-                            @endif
-                            @if ($t['regionLabel'])
-                                <span class="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0B3C78]">
-                                    <x-lucide name="compass" class="h-3 w-3 shrink-0 text-[#3B9374]" />{{ $t['regionLabel'] }}
-                                </span>
-                            @endif
                         </div>
                     </div>
 
