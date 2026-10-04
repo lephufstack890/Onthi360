@@ -17,16 +17,39 @@
      */
     $ftWasThisRow = (int) old('profile_id') === (int) $t['profile_id'];
     $ftOld = fn (string $key, $stored) => $ftWasThisRow ? old($key, $stored) : $stored;
+
+    /*
+     * BA TRẠNG THÁI, mỗi trạng thái một câu gợi ý khác nhau — viết chung một câu cho cả ba thì
+     * câu đó sai ở hai chỗ:
+     *   · $ftIsNew      : form THÊM MỚI, đang tạo cả tài khoản lẫn hồ sơ. Họ tên bắt buộc và
+     *                     chính là tên tài khoản.
+     *   · $ftHasAccount : đang sửa hồ sơ của một tài khoản có thật. Để trống tên thì rơi về
+     *                     tên tài khoản.
+     *   · còn lại       : hồ sơ trưng bày cũ, không gắn tài khoản nào.
+     */
+    $ftIsNew = $nameRequired ?? false;
+    $ftNameRequired = $ftIsNew;
+    $ftHasAccount = $t['hasAccount'] ?? true;
 @endphp
 
 <input type="hidden" name="profile_id" value="{{ $t['profile_id'] }}">
 
 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
     <div>
-        <label class="mb-1 block text-[13px] font-medium text-slate-600" for="dn-{{ $t['profile_id'] }}">Họ tên hiển thị</label>
+        <label class="mb-1 block text-[13px] font-medium text-slate-600" for="dn-{{ $t['profile_id'] }}">
+            Họ tên hiển thị @if ($ftNameRequired)<span class="text-rose-500">*</span>@endif
+        </label>
         <input id="dn-{{ $t['profile_id'] }}" name="display_name" type="text" maxlength="120" class="admin-input"
-               value="{{ $ftOld('display_name', $t['displayName']) }}" placeholder="{{ $t['accountName'] }}">
-        <p class="mt-1 text-[11px] text-slate-400">Để trống thì lấy tên tài khoản: <b>{{ $t['accountName'] }}</b>. Ô này không đổi tên đăng nhập của giáo viên.</p>
+               value="{{ $ftOld('display_name', $t['displayName']) }}"
+               placeholder="{{ ! $ftIsNew && $ftHasAccount ? $t['accountName'] : 'VD: TS. Nguyễn Văn An' }}"
+               @required($ftNameRequired)>
+        @if ($ftIsNew)
+            <p class="mt-1 text-[11px] text-slate-400">Dùng cho cả tên tài khoản lẫn tên hiển thị trên trang vinh danh.</p>
+        @elseif ($ftHasAccount)
+            <p class="mt-1 text-[11px] text-slate-400">Để trống thì lấy tên tài khoản: <b>{{ $t['accountName'] }}</b>. Ô này không đổi tên đăng nhập của giáo viên.</p>
+        @else
+            <p class="mt-1 text-[11px] text-slate-400">Hồ sơ này không gắn tài khoản nào nên bắt buộc nhập tên.</p>
+        @endif
     </div>
 
     <div>
@@ -36,10 +59,16 @@
     </div>
 
     <div>
-        <label class="mb-1 block text-[13px] font-medium text-slate-600" for="rt-{{ $t['profile_id'] }}">Vai trò</label>
+        <label class="mb-1 block text-[13px] font-medium text-slate-600" for="rt-{{ $t['profile_id'] }}">Vai trò hiển thị</label>
         <input id="rt-{{ $t['profile_id'] }}" name="role_title" type="text" maxlength="120" class="admin-input"
                value="{{ $ftOld('role_title', $t['roleTitle']) }}" placeholder="VD: Giáo viên Tin học · Tổ trưởng chuyên môn">
-        <p class="mt-1 text-[11px] text-slate-400">Để trống thì trang công khai tự ghép "Giáo viên {{ $t['subject'] ?: '…' }}" từ môn đã duyệt.</p>
+        @if ($ftIsNew)
+            <p class="mt-1 text-[11px] text-slate-400">Dòng chữ hiện dưới tên ngoài trang công khai. Khác với vai trò tài khoản (luôn là Giáo viên).</p>
+        @elseif ($ftHasAccount)
+            <p class="mt-1 text-[11px] text-slate-400">Để trống thì trang công khai tự ghép "Giáo viên {{ $t['subject'] ?: '…' }}" từ môn đã duyệt.</p>
+        @else
+            <p class="mt-1 text-[11px] text-slate-400">VD: Chuyên gia Tin học · Giảng viên mời.</p>
+        @endif
     </div>
 
     <div>
@@ -48,7 +77,11 @@
                value="{{ $ftOld('display_rating', $t['displayRating']) }}" placeholder="VD: 4.8">
         {{-- Nói thẳng số này từ đâu ra: trang công khai đang ghi "đánh giá đã xác thực" cho con
              số tính từ review đã kiểm duyệt. Số gõ tay ở đây hiện ra với nhãn khác hẳn. --}}
-        <p class="mt-1 text-[11px] text-slate-400">Để trống thì trang công khai dùng điểm trung bình thật từ đánh giá đã kiểm duyệt.</p>
+        @if ($ftIsNew || $ftHasAccount)
+            <p class="mt-1 text-[11px] text-slate-400">Để trống thì trang công khai dùng điểm trung bình thật từ đánh giá đã kiểm duyệt.</p>
+        @else
+            <p class="mt-1 text-[11px] text-slate-400">Hồ sơ không gắn tài khoản thì không có đánh giá thật — để trống thì ô sao ngoài trang hiện dấu "—".</p>
+        @endif
     </div>
 
     <div class="sm:col-span-2">

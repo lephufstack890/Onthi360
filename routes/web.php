@@ -642,6 +642,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('testimonials/{testimonial}', [AdminTestimonialController::class, 'destroy'])->name('testimonials.destroy');
 
         Route::get('featured-teachers', [AdminFeaturedTeacherController::class, 'index'])->name('featured-teachers.index');
+        // SỬA 4/10 (khách: "thêm cho tôi mục thêm giáo viên chuyên gia nữa nha để người ta thêm
+        // trực tiếp bên này luôn") — tạo hồ sơ trưng bày không gắn tài khoản, và xoá hẳn hồ sơ
+        // loại đó. Hồ sơ gắn tài khoản thật thì destroy() từ chối, xem controller.
+        Route::post('featured-teachers', [AdminFeaturedTeacherController::class, 'store'])->name('featured-teachers.store');
+        Route::delete('featured-teachers/{featuredTeacher}', [AdminFeaturedTeacherController::class, 'destroy'])->name('featured-teachers.destroy');
         Route::post('featured-teachers/{featuredTeacher}/feature', [AdminFeaturedTeacherController::class, 'feature'])->name('featured-teachers.feature');
         // SỬA 4/10 (khách: "admin có thể thêm sửa xoá") — thêm đường SỬA. "Xoá" ở màn này là rút
         // tên khỏi trang vinh danh (unfeature), KHÔNG xoá hồ sơ/tài khoản giáo viên.

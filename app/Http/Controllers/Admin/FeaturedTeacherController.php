@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TeacherProfile;
 use App\Services\Admin\FeaturedTeacherService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class FeaturedTeacherController extends Controller
@@ -15,6 +16,40 @@ class FeaturedTeacherController extends Controller
     public function index(Request $request): View
     {
         return view('admin.featured-teachers.index', $this->featuredTeacherService->indexData());
+    }
+
+    /**
+     * TẠO TÀI KHOẢN GIÁO VIÊN MỚI rồi vinh danh luôn — giống màn "Thêm người dùng" nhưng kèm
+     * các trường của trang vinh danh. Vai trò cố định là Giáo viên.
+     */
+    public function store(Request $request)
+    {
+        $account = $request->validate([
+            'display_name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            /*
+             * users.phone là cột UNIQUE (xem migration add_profile_fields_to_users_table). Không
+             * kiểm ở đây thì hai người trùng số sẽ ném lỗi CSDL trần ra màn hình thay vì một câu
+             * báo lỗi đọc được. (Màn Thêm người dùng hiện cũng đang thiếu phép kiểm này.)
+             */
+            'phone' => ['nullable', 'string', 'max:30', 'unique:users,phone'],
+            'password' => ['required', 'confirmed', 'min:8'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
+        ], [
+            'display_name.required' => 'Phải nhập họ tên.',
+            'email.unique' => 'Email này đã có tài khoản.',
+            'phone.unique' => 'Số điện thoại này đã có tài khoản.',
+            'password.confirmed' => 'Hai ô mật khẩu chưa khớp nhau.',
+            'password.min' => 'Mật khẩu phải từ 8 ký tự.',
+        ]);
+
+        $this->featuredTeacherService->createWithAccount(
+            Auth::user(),
+            $account + $this->validatePayload($request, nameRequired: true),
+        );
+
+        return back()->with('status', 'created');
     }
 
     /** THÊM vào danh sách vinh danh. */
@@ -45,12 +80,29 @@ class FeaturedTeacherController extends Controller
     }
 
     /**
+     * XOÁ HẲN một hồ sơ trưng bày (không gắn tài khoản).
+     *
+     * KIỂM TRA LẠI Ở ĐÂY chứ không tin giao diện: nút này chỉ hiện trên thẻ không có tài khoản,
+     * nhưng người ta gửi thẳng request thì vẫn tới được. Hồ sơ của giáo viên thật bị từ chối.
+     */
+    public function destroy(Request $request, TeacherProfile $featuredTeacher)
+    {
+        if (! $this->featuredTeacherService->deleteStandalone($featuredTeacher)) {
+            return back()->withErrors([
+                'delete' => 'Hồ sơ này gắn với một tài khoản giáo viên nên không xoá được từ màn vinh danh. Dùng "Rút khỏi danh sách" nếu chỉ muốn ẩn khỏi trang công khai.',
+            ]);
+        }
+
+        return back()->with('status', 'deleted');
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function validatePayload(Request $request): array
+    private function validatePayload(Request $request, bool $nameRequired = false): array
     {
         $data = $request->validate([
-            'display_name' => ['nullable', 'string', 'max:120'],
+            'display_name' => [$nameRequired ? 'required' : 'nullable', 'string', 'max:120'],
             'workplace' => ['nullable', 'string', 'max:160'],
             'role_title' => ['nullable', 'string', 'max:120'],
             'achievement_note' => ['nullable', 'string', 'max:2000'],
@@ -61,6 +113,7 @@ class FeaturedTeacherController extends Controller
         ], [
             'display_rating.max' => 'Số sao xếp hạng không được quá 5.',
             'display_rating.min' => 'Số sao xếp hạng không được là số âm.',
+            'display_name.required' => 'Phải nhập họ tên cho giáo viên / chuyên gia thêm mới.',
         ]);
 
         // Ô tick không được tick thì TRÌNH DUYỆT KHÔNG GỬI trường đó lên. Phải đọc bằng

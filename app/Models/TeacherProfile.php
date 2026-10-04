@@ -63,7 +63,9 @@ class TeacherProfile extends Model
     /** Tên bày ra trang vinh danh — admin đặt riêng được, không đụng tên tài khoản. */
     public function showcaseName(): string
     {
-        return filled($this->display_name) ? $this->display_name : (string) ($this->user->name ?? '');
+        // ?-> chứ không phải ->: hồ sơ trưng bày không gắn tài khoản nào (user_id NULL), xem
+        // migration allow_standalone_teacher_profiles.
+        return filled($this->display_name) ? $this->display_name : (string) ($this->user?->name ?? '');
     }
 
     public function isExpert(): bool

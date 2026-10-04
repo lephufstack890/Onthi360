@@ -38,6 +38,8 @@
                 'featured' => 'Đã thêm vào danh sách vinh danh.',
                 'updated' => 'Đã lưu thay đổi.',
                 'unfeatured' => 'Đã rút tên khỏi trang vinh danh. Hồ sơ và tài khoản giáo viên vẫn còn nguyên.',
+                'created' => 'Đã tạo tài khoản giáo viên và đưa lên trang vinh danh.',
+                'deleted' => 'Đã xoá hồ sơ.',
             ];
         @endphp
         @include('partials.toast-flash', ['type' => 'success', 'message' => $statusMessages[session('status')] ?? 'Đã lưu.'])
@@ -55,6 +57,50 @@
             <x-lucide name="badge-check" class="h-3.5 w-3.5" />{{ $expertCount }} chuyên gia
         </span>
         <span class="text-slate-400">Chuyên gia luôn đứng trước ở trang công khai.</span>
+    </div>
+
+    {{-- ══════ THÊM MỚI ══════
+         SỬA 4/10 (khách: "thêm cả thông tin email sđt mật khẩu các thứ nữa nha giống thêm người
+         dùng luôn mà nó khác là có các thông tin kia nha. Vai trò thêm ở đây mặc định là giáo
+         viên" + "tỉnh thành, khu vực nữa nhé") — TẠO TÀI KHOẢN GIÁO VIÊN THẬT ngay tại đây rồi
+         vinh danh luôn, thay vì chỉ tạo một hồ sơ trưng bày như bản sáng nay.
+
+         Khác khối "Giáo viên đã duyệt, chưa vinh danh" ở dưới: khối đó gắn vào tài khoản ĐÃ CÓ,
+         còn khối này tạo tài khoản mới. Người được tạo ở đây đăng nhập được bằng email/mật khẩu
+         vừa đặt, và hồ sơ được duyệt luôn (có ghi ai duyệt, duyệt lúc nào) vì chính admin vừa
+         tự tay khai. --}}
+    @php
+        // Khuôn rỗng để dùng lại partial 6 ô nhập; profile_id = 0 vì hồ sơ chưa tồn tại.
+        $blankTeacher = [
+            'profile_id' => 0, 'accountName' => '', 'displayName' => '', 'name' => '',
+            'workplace' => '', 'roleTitle' => '', 'subject' => '', 'subjects' => [],
+            'featured' => true, 'expert' => false, 'displayRating' => null,
+            'achievement' => '', 'achievements' => [], 'hasAccount' => false,
+        ];
+    @endphp
+
+    {{-- Gửi hỏng thì mở lại form sẵn, đừng bắt người ta bấm "+ Thêm mới" rồi gõ lại từ đầu. --}}
+    <div x-data="{ open: {{ old('email') !== null ? 'true' : 'false' }} }" class="mb-6 rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-black text-[#0B3C78]">Thêm giáo viên / chuyên gia mới</h2>
+                <p class="mt-0.5 text-xs text-slate-500">Tạo tài khoản giáo viên mới (email · mật khẩu · SĐT · tỉnh thành · khu vực) rồi vinh danh luôn trong một lần.</p>
+            </div>
+            <button type="button" @click="open = ! open"
+                    class="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
+                    x-text="open ? 'Đóng' : '+ Thêm giáo viên / chuyên gia'">+ Thêm giáo viên / chuyên gia</button>
+        </div>
+
+        <form x-show="open" x-cloak method="POST" action="{{ route('admin.featured-teachers.store') }}"
+              class="mt-4 border-t border-blue-200 pt-4">
+            @csrf
+            @include('partials.featured-teacher-account-fields')
+            @include('partials.featured-teacher-fields', [
+                't' => $blankTeacher,
+                'submitLabel' => 'Tạo tài khoản & vinh danh',
+                'nameRequired' => true,
+            ])
+        </form>
     </div>
 
     {{-- ══════ ĐANG VINH DANH — sửa / xoá ══════ --}}
@@ -81,7 +127,9 @@
                             {{ $t['roleTitle'] ?: ($t['subject'] ? 'Giáo viên '.$t['subject'] : 'Chưa đặt vai trò') }}
                             @if ($t['workplace']) · {{ $t['workplace'] }} @endif
                         </p>
-                        @if ($t['displayName'] !== '' && $t['displayName'] !== $t['accountName'])
+                        @if (! $t['hasAccount'])
+                            <p class="mt-0.5 text-[10px] text-slate-400">Hồ sơ trưng bày — không gắn tài khoản, nên không có lớp phụ trách hay đánh giá.</p>
+                        @elseif ($t['displayName'] !== '' && $t['displayName'] !== $t['accountName'])
                             <p class="mt-0.5 text-[10px] text-slate-400">Tài khoản: {{ $t['accountName'] }}</p>
                         @endif
 
@@ -98,11 +146,24 @@
                         <button type="button" @click="open = ! open" class="font-medium text-blue-600"
                                 x-text="open ? 'Thu gọn' : 'Sửa'">Sửa</button>
 
-                        <form method="POST" action="{{ route('admin.featured-teachers.unfeature', $t['profile_id']) }}"
-                              onsubmit="return confirm('Rút {{ $t['name'] }} khỏi trang vinh danh? Hồ sơ và tài khoản giáo viên vẫn giữ nguyên.');">
-                            @csrf
-                            <button type="submit" class="font-medium text-rose-600">Xoá khỏi danh sách</button>
-                        </form>
+                        {{-- Hồ sơ GẮN TÀI KHOẢN: chỉ rút khỏi trang, không xoá — hồ sơ ấy còn kéo
+                             theo lớp, đánh giá, bài giao của người đó.
+                             Hồ sơ TRƯNG BÀY (không tài khoản): xoá hẳn, vì rút xuống rồi thì không
+                             còn chỗ nào tìm lại được, để đó chỉ thành rác. --}}
+                        @if ($t['hasAccount'])
+                            <form method="POST" action="{{ route('admin.featured-teachers.unfeature', $t['profile_id']) }}"
+                                  onsubmit="return confirm('Rút {{ $t['name'] }} khỏi trang vinh danh? Hồ sơ và tài khoản giáo viên vẫn giữ nguyên.');">
+                                @csrf
+                                <button type="submit" class="font-medium text-rose-600">Rút khỏi danh sách</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('admin.featured-teachers.destroy', $t['profile_id']) }}"
+                                  onsubmit="return confirm('Xoá hẳn hồ sơ {{ $t['name'] }}? Hồ sơ này không gắn tài khoản nào nên xoá là mất luôn, không khôi phục được.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="font-medium text-rose-600">Xoá hẳn</button>
+                            </form>
+                        @endif
                     </div>
                 </div>
 

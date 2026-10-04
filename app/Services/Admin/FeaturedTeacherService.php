@@ -2,9 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\TeacherApprovalStatus;
+use App\Models\Role;
 use App\Models\TeacherProfile;
+use App\Models\User;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use App\Support\SubjectCatalog;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Gom truy vấn + hành động cho admin.featured-teachers.index — PUB-10 (trang vinh danh, 12.2).
@@ -18,12 +22,15 @@ class FeaturedTeacherService
 {
     public function __construct(
         private TeacherProfileRepositoryInterface $teacherProfiles,
+        private UserService $users,
     ) {}
 
     /** @return array{teachers: array, approvedCount: int} */
     public function indexData(): array
     {
-        $teachers = $this->teacherProfiles->approvedWithUser(200)
+        // SỬA 4/10 — showcaseList() thay cho approvedWithUser(): màn này phải thấy cả hồ sơ
+        // trưng bày không gắn tài khoản, còn approvedWithUser() nay cố ý loại chúng ra.
+        $teachers = $this->teacherProfiles->showcaseList(200)
             ->map(fn (TeacherProfile $p) => $this->row($p))
             ->all();
 
@@ -51,7 +58,10 @@ class FeaturedTeacherService
 
         return [
             'profile_id' => $p->id,
-            'accountName' => $p->user->name ?? '',
+            // Hồ sơ trưng bày (user_id rỗng) không có tài khoản nào đứng sau — nơi hiển thị dựa
+            // vào 'hasAccount' để biết có được xoá hẳn hay không.
+            'hasAccount' => $p->user_id !== null,
+            'accountName' => $p->user?->name ?? '',
             'displayName' => $p->display_name ?? '',
             'name' => $p->showcaseName(),
             'workplace' => $p->workplace ?? '',
@@ -112,6 +122,74 @@ class FeaturedTeacherService
         $profile->update($this->attributes($data));
 
         return $profile;
+    }
+
+    /**
+     * SỬA 4/10 (khách: "thêm cả thông tin email sđt mật khẩu các thứ nữa nha giống thêm người
+     * dùng luôn mà nó khác là có các thông tin kia nha. Vai trò thêm ở đây mặc định là giáo
+     * viên" + "tỉnh thành, khu vực nữa nhé") — TẠO TÀI KHOẢN GIÁO VIÊN THẬT rồi vinh danh luôn.
+     *
+     * DÙNG LẠI UserService::store() chứ không tự tạo User ở đây. Hàm đó đã lo đủ: băm mật khẩu,
+     * gán vai trò, dựng TeacherProfile, và GHI NHẬT KÝ admin đã tạo tài khoản nào (16 mục 4).
+     * Viết lại một bản thứ hai ở đây thì sớm muộn hai bản lệch nhau — mà bản ở đây sẽ là bản
+     * không ghi nhật ký.
+     *
+     * Vai trò CỐ ĐỊNH là Giáo viên, không cho chọn: đây là màn vinh danh giáo viên, tạo ra một
+     * tài khoản admin từ đây là chuyện không ai ngờ tới.
+     *
+     * UserService::store() dựng hồ sơ ở trạng thái "Chờ duyệt" (cố ý, để không có lối tắt bỏ
+     * qua bước duyệt). Ở đây admin vừa tự tay khai hồ sơ nên duyệt luôn, có ghi lại ai duyệt và
+     * duyệt lúc nào — y như khi bấm Duyệt ở hàng đợi.
+     *
+     * Bọc trong một giao dịch: lỡ hỏng giữa chừng thì không để lại một tài khoản không có hồ sơ.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function createWithAccount(User $admin, array $data): TeacherProfile
+    {
+        return DB::transaction(function () use ($admin, $data) {
+            $user = $this->users->store($admin, [
+                'name' => $data['display_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'province' => $data['province'] ?? null,
+                'region' => $data['region'] ?? null,
+                'password' => $data['password'],
+                'roles' => [Role::TEACHER],
+            ]);
+
+            $profile = TeacherProfile::where('user_id', $user->id)->firstOrFail();
+
+            $profile->update($this->attributes($data) + [
+                'approval_status' => TeacherApprovalStatus::Approved,
+                'approved_by' => $admin->id,
+                'approved_at' => now(),
+                'is_featured' => true,
+            ]);
+
+            return $profile;
+        });
+    }
+
+    /**
+     * XOÁ HẲN một hồ sơ trưng bày.
+     *
+     * CHỈ áp dụng cho hồ sơ KHÔNG gắn tài khoản. Hồ sơ của một giáo viên thật kéo theo lớp,
+     * đánh giá, bài giao của người đó — không được xoá từ màn vinh danh, và cũng không cần:
+     * với họ thì "xoá" nghĩa là rút tên khỏi trang (unfeature) ở dưới.
+     *
+     * Trả về false khi hồ sơ có tài khoản — nơi gọi lấy đó làm căn cứ từ chối, KHÔNG tin vào
+     * việc giao diện đã ẩn nút đi.
+     */
+    public function deleteStandalone(TeacherProfile $profile): bool
+    {
+        if ($profile->user_id !== null) {
+            return false;
+        }
+
+        $profile->delete();
+
+        return true;
     }
 
     /**
