@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Schema;
  * gần nhất. Nghĩa là muốn đẩy ai lên đầu thì phải vào sửa linh tinh một chữ cho updated_at mới
  * lại — một mẹo bẩn mà người dùng phải tự nghĩ ra. Nay có cột thật để xếp.
  *
- * SỐ NHỎ ĐỨNG TRƯỚC, mặc định 0. Hồ sơ mới thêm nhận số lớn nhất hiện có + 1 nên rơi xuống
- * cuối, không chen ngang lên đầu danh sách đã sắp cẩn thận (cùng cách Admin\TestimonialService
- * làm cho "Câu chuyện đồng hành").
+ * SỐ LỚN ĐỨNG TRƯỚC, mặc định 0 (khách chốt chiều 4/10). Hồ sơ chưa ai đặt số giữ nguyên 0 nên
+ * nằm sau mọi hồ sơ đã được đẩy lên — muốn ai lên trước thì cho số cao, không phải đụng tới
+ * những người còn lại.
  */
 return new class extends Migration
 {

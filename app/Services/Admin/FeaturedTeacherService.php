@@ -119,11 +119,7 @@ class FeaturedTeacherService
      */
     public function feature(TeacherProfile $profile, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
-        $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + [
-            'is_featured' => true,
-            // Để trống ô thứ tự thì xuống cuối, không chen lên đầu danh sách đã sắp.
-            'sort_order' => $this->nextSortOrder(),
-        ]);
+        $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + ['is_featured' => true]);
         $this->syncAccountFields($profile, $data);
 
         return $profile;
@@ -200,12 +196,6 @@ class FeaturedTeacherService
         )];
     }
 
-    /** Số thứ tự cho hồ sơ mới — lớn nhất đang dùng + 1, để nó rơi xuống cuối danh sách. */
-    private function nextSortOrder(): int
-    {
-        return $this->teacherProfiles->maxSortOrder() + 1;
-    }
-
     /** Xoá tệp ảnh cũ. Bỏ qua đường dẫn rỗng và đường dẫn http (ảnh ngoài, không do ta giữ). */
     private function forgetAvatar(?string $path): void
     {
@@ -251,7 +241,6 @@ class FeaturedTeacherService
             $profile = TeacherProfile::where('user_id', $user->id)->firstOrFail();
 
             $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + [
-                'sort_order' => $this->nextSortOrder(),
                 'approval_status' => TeacherApprovalStatus::Approved,
                 'approved_by' => $admin->id,
                 'approved_at' => now(),
@@ -328,12 +317,17 @@ class FeaturedTeacherService
         ];
 
         /*
-         * SỬA 4/10 — THỨ TỰ HIỂN THỊ. Chỉ ghi khi form thực sự gửi ô này lên (array_key_exists):
-         * form nào không có ô đó mà vẫn ghi thì sẽ đẩy hồ sơ về 0 một cách lặng lẽ, tức là nhảy
-         * lên đầu danh sách — hỏng đúng thứ khách vừa nhờ làm.
+         * SỬA 4/10 — THỨ TỰ HIỂN THỊ: SỐ LỚN ĐỨNG TRƯỚC, MẶC ĐỊNH 0 (khách chốt chiều 4/10).
+         *
+         * Để TRỐNG ô = 0, tức là về cuối danh sách — khác với các ô ảnh/tệp. Ở đây "trống" là
+         * một ý định rõ ràng ("không ưu tiên người này"), chứ không phải "trình duyệt không gửi
+         * gì lên" như ô tệp.
+         *
+         * Nhưng vẫn phải array_key_exists: form nào KHÔNG có ô này (ví dụ form thêm hồ sơ không
+         * gắn tài khoản) mà cũng bị ghi 0 thì sẽ lặng lẽ kéo tụt một hồ sơ đang được ưu tiên.
          */
-        if (array_key_exists('sort_order', $data) && $data['sort_order'] !== null && $data['sort_order'] !== '') {
-            $attributes['sort_order'] = max(0, (int) $data['sort_order']);
+        if (array_key_exists('sort_order', $data)) {
+            $attributes['sort_order'] = max(0, (int) ($data['sort_order'] ?? 0));
         }
 
         // Ô tick "Xoá ảnh hiện tại" — cách duy nhất để gỡ ảnh xuống, vì ô tệp không gửi gì lên

@@ -54,8 +54,9 @@ class TeacherProfileRepository extends EloquentRepository implements TeacherProf
      *
      * Ba nấc, theo đúng 2 yêu cầu của khách:
      *   1. is_expert giảm dần — "chuyên gia luôn được lên đầu danh sách" (yêu cầu 4/10 sáng).
-     *   2. sort_order tăng dần — "thứ tự hiển thị để điều chỉnh ai hiển thị trước" (chiều 4/10).
-     *      Số nhỏ đứng trước.
+     *   2. sort_order GIẢM DẦN — "thứ tự hiển thị số lớn đứng trước số nhỏ đứng sau, mặc định
+     *      là 0" (khách chốt chiều 4/10). Mặc định 0 nên hồ sơ chưa ai đặt số sẽ nằm sau mọi
+     *      hồ sơ đã được đẩy lên — đúng ý "muốn ai lên trước thì cho số cao".
      *   3. updated_at giảm dần — hai hồ sơ cùng số thì hồ sơ sửa gần nhất đứng trước, giữ đúng
      *      nếp cũ thay vì để thứ tự tuỳ hứng theo id.
      *
@@ -68,14 +69,9 @@ class TeacherProfileRepository extends EloquentRepository implements TeacherProf
      */
     public static function showcaseOrder(Builder $query): Builder
     {
-        return $query->orderByDesc('is_expert')->orderBy('sort_order')->latest('updated_at');
+        return $query->orderByDesc('is_expert')->orderByDesc('sort_order')->latest('updated_at');
     }
 
-    /** Số thứ tự lớn nhất đang dùng — hồ sơ mới lấy số này + 1 để rơi xuống cuối. */
-    public function maxSortOrder(): int
-    {
-        return (int) $this->query()->max('sort_order');
-    }
 
     public function countApproved(): int
     {

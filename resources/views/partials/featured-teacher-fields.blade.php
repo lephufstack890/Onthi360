@@ -107,7 +107,8 @@
          và sửa. Thẻ <form> bọc ngoài BẮT BUỘC có enctype="multipart/form-data", nếu không trình
          duyệt chỉ gửi TÊN tệp chứ không gửi tệp, và việc tải ảnh hỏng lặng lẽ. --}}
     {{-- SỬA 4/10 (khách: "thêm thứ tự hiển thị nữa để điều chỉnh ai hiển thị trước cả thêm và
-         sửa nha") — SỐ NHỎ ĐỨNG TRƯỚC.
+         sửa nha", rồi chốt lại: "số lớn đứng trước số nhỏ đứng sau nha mặc định là 0 nha")
+         — SỐ LỚN ĐỨNG TRƯỚC, mặc định 0.
 
          Nói rõ giới hạn của nó ngay dưới ô, đừng để khách tự phát hiện: số này xếp TRONG TỪNG
          NHÓM chuyên gia / giáo viên thường, không vượt qua được luật "chuyên gia luôn đứng đầu"
@@ -115,14 +116,9 @@
     <div>
         <label class="mb-1 block text-[13px] font-medium text-slate-600" for="so-{{ $t['profile_id'] }}">Thứ tự hiển thị</label>
         <input id="so-{{ $t['profile_id'] }}" name="sort_order" type="number" min="0" max="9999" step="1" class="admin-input"
-               value="{{ $ftIsNew ? '' : $ftOld('sort_order', $t['sortOrder'] ?? 0) }}"
-               placeholder="{{ $ftIsNew ? 'Để trống — tự xếp xuống cuối' : '0' }}">
+               value="{{ $ftOld('sort_order', $t['sortOrder'] ?? 0) }}" placeholder="0">
         <p class="mt-1 text-[11px] text-slate-400">
-            @if ($ftIsNew)
-                Để trống thì hồ sơ mới xuống cuối danh sách.
-            @else
-                Số nhỏ đứng trước. Chuyên gia vẫn luôn xếp trên giáo viên thường.
-            @endif
+            Số càng lớn càng đứng trước, để trống là 0 (xuống cuối). Chuyên gia vẫn luôn xếp trên giáo viên thường.
         </p>
     </div>
 
