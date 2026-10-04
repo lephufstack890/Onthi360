@@ -47,23 +47,21 @@ class TeacherService
      */
     public function featuredData(int $limit = 4): array
     {
-        $profiles = $this->teacherProfiles->query()
-            ->where('is_featured', true)
-            ->where('approval_status', 'approved')
-            ->with('user')
-            /*
-             * SỬA 4/10 (khách: "nếu là chuyên gia... luôn được lên đầu danh sách trang giáo viên
-             * và chuyên gia public") — chuyên gia trước, rồi mới tới thứ tự cũ (sửa gần nhất
-             * lên trước).
-             *
-             * Xếp Ở TRONG TRUY VẤN chứ không xếp lại sau khi lấy: còn có $limit cắt bớt, xếp
-             * sau thì chuyên gia thứ 5 có thể bị cắt mất ngay từ câu truy vấn rồi mới xếp —
-             * trang chủ chỉ lấy 4 người là dính ngay.
-             *
-             * is_expert DESC: MySQL xếp 0 trước 1, mà ta cần 1 (chuyên gia) lên trước.
-             */
-            ->orderByDesc('is_expert')
-            ->latest('updated_at')
+        /*
+         * SỬA 4/10 — thứ tự lấy từ MỘT chỗ duy nhất: TeacherProfileRepository::showcaseOrder()
+         * (chuyên gia trước -> số thứ tự hiển thị -> sửa gần nhất). Màn admin dùng đúng hàm đó
+         * nên nhìn trong admin là biết ngoài này hiện ra sao.
+         *
+         * Xếp Ở TRONG TRUY VẤN chứ không xếp lại sau khi lấy: còn có $limit cắt bớt, xếp sau
+         * thì chuyên gia thứ 5 có thể bị cắt mất ngay từ câu truy vấn rồi mới xếp — trang chủ
+         * chỉ lấy 4 người là dính ngay.
+         */
+        $profiles = \App\Repositories\Eloquent\TeacherProfileRepository::showcaseOrder(
+            $this->teacherProfiles->query()
+                ->where('is_featured', true)
+                ->where('approval_status', 'approved')
+                ->with('user')
+        )
             ->limit($limit)
             ->get();
 

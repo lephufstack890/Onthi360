@@ -57,7 +57,13 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiTeachersPage({{ Js::from(['rows' => $teacherRows, 'pageSize' => 3, 'coursesHref' => route('courses.index')]) }})" class="flex flex-col gap-4">
+{{-- SỬA 4/10 (khách: "thêm phân trang vào khi list ngoài trang giáo viên & chuyên gia public
+     hơn 6 người thì phân trang nha") — 6 thẻ mỗi trang, trước đây là 3.
+
+     6 ăn khớp với lưới (3 cột ở màn rộng, 2 cột ở màn vừa) nên trang nào cũng đầy hàng, không
+     còn một thẻ lẻ loi. Thanh phân trang vốn đã có sẵn và tự ẩn khi chỉ có một trang
+     (x-show="totalPages > 1" bên dưới), nên đúng từ người thứ 7 trở đi mới hiện ra. --}}
+<div x-data="onthiTeachersPage({{ Js::from(['rows' => $teacherRows, 'pageSize' => 6, 'coursesHref' => route('courses.index')]) }})" class="flex flex-col gap-4">
 
     {{-- ══════ 1. HERO ══════ --}}
     <div class="relative overflow-hidden rounded-2xl border border-sky-200/90 bg-gradient-to-r from-[#0050A0] via-[#0066CC] to-[#0284C7] p-5 text-white shadow-[0_8px_24px_rgba(0,100,220,0.08)] sm:p-6">

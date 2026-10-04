@@ -16,7 +16,7 @@ class TeacherProfile extends Model
         'approved_by', 'approved_at', 'rejection_reason',
         'is_featured', 'is_expert', 'achievement_note',
         // SỬA 4/10 — 4 trường cho trang vinh danh, xem migration add_showcase_fields.
-        'display_name', 'avatar_path', 'workplace', 'role_title', 'display_rating',
+        'display_name', 'avatar_path', 'workplace', 'role_title', 'display_rating', 'sort_order',
     ];
 
     protected $casts = [

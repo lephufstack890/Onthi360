@@ -111,6 +111,8 @@ class FeaturedTeacherController extends Controller
             // Chặn ngay ở đây chứ không chỉ ở ô nhập: ô number của trình duyệt chỉ gợi ý, người
             // ta gửi thẳng request vẫn lọt. 5 sao là trần, âm thì vô nghĩa.
             'display_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            // Thứ tự hiển thị: số nhỏ đứng trước. Chặn số âm ngay ở đây chứ không chỉ ở ô nhập.
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'is_expert' => ['nullable', 'boolean'],
             /*
              * Ảnh đại diện. Trần 4MB cho ảnh chân dung là thừa sức (ImageOptimizer còn nén về

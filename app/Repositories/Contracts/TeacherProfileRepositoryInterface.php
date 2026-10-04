@@ -18,6 +18,9 @@ interface TeacherProfileRepositoryInterface extends BaseRepositoryInterface
     /** Danh sách cho màn vinh danh — gồm cả hồ sơ trưng bày không gắn tài khoản. */
     public function showcaseList(int $limit = 200): Collection;
 
+    /** Số thứ tự hiển thị lớn nhất đang dùng — hồ sơ mới lấy số này + 1. */
+    public function maxSortOrder(): int;
+
     public function countApproved(): int;
 
     public function findByUserId(int $userId): ?TeacherProfile;

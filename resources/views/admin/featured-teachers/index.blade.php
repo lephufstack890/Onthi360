@@ -75,7 +75,7 @@
             'profile_id' => 0, 'accountName' => '', 'displayName' => '', 'name' => '',
             'workplace' => '', 'roleTitle' => '', 'subject' => '', 'subjects' => [],
             'featured' => true, 'expert' => false, 'displayRating' => null,
-            'avatarPath' => null, 'ownAvatar' => null, 'province' => null, 'region' => null,
+            'avatarPath' => null, 'ownAvatar' => null, 'province' => null, 'region' => null, 'sortOrder' => 0,
             'achievement' => '', 'achievements' => [], 'hasAccount' => false,
         ];
     @endphp
@@ -122,6 +122,9 @@
                             @if ($t['expert'])
                                 <x-ws.badge tone="warning"><x-lucide name="badge-check" class="h-3 w-3" />Chuyên gia</x-ws.badge>
                             @endif
+                            <span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500" title="Thứ tự hiển thị">
+                                #{{ $t['sortOrder'] }}
+                            </span>
                             @if ($t['displayRating'] !== null)
                                 <span class="inline-flex items-center gap-1 text-xs font-bold text-amber-600">
                                     <x-lucide name="star" class="h-3.5 w-3.5" style="fill: currentColor" />{{ number_format($t['displayRating'], 1) }}

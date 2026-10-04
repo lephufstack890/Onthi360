@@ -37,13 +37,44 @@ class TeacherProfileRepository extends EloquentRepository implements TeacherProf
     }
 
     /**
-     * SỬA 4/10 — danh sách cho MÀN VINH DANH: gồm CẢ hồ sơ trưng bày không có tài khoản.
-     * Chuyên gia xếp trước, rồi tới hồ sơ sửa gần nhất — đúng thứ tự trang công khai đang dùng.
+     * SỬA 4/10 — danh sách cho MÀN VINH DANH: gồm CẢ hồ sơ trưng bày không có tài khoản, xếp
+     * ĐÚNG thứ tự trang công khai (xem showcaseOrder()) để admin nhìn màn này là biết ngoài
+     * kia đang hiện ra sao.
      */
     public function showcaseList(int $limit = 200): Collection
     {
-        return $this->query()->where('approval_status', 'approved')
-            ->with('user')->orderByDesc('is_expert')->latest('updated_at')->limit($limit)->get();
+        return self::showcaseOrder($this->query()->where('approval_status', 'approved')->with('user'))
+            ->limit($limit)->get();
+    }
+
+    /**
+     * THỨ TỰ DUY NHẤT của trang vinh danh, khai một chỗ cho cả màn admin lẫn trang công khai
+     * (Public\TeacherService dùng lại hàm này). Hai nơi tự xếp riêng thì admin kéo thứ tự ở màn
+     * này mà ngoài kia ra khác là chuyện sớm muộn.
+     *
+     * Ba nấc, theo đúng 2 yêu cầu của khách:
+     *   1. is_expert giảm dần — "chuyên gia luôn được lên đầu danh sách" (yêu cầu 4/10 sáng).
+     *   2. sort_order tăng dần — "thứ tự hiển thị để điều chỉnh ai hiển thị trước" (chiều 4/10).
+     *      Số nhỏ đứng trước.
+     *   3. updated_at giảm dần — hai hồ sơ cùng số thì hồ sơ sửa gần nhất đứng trước, giữ đúng
+     *      nếp cũ thay vì để thứ tự tuỳ hứng theo id.
+     *
+     * Lưu ý: sort_order xếp TRONG TỪNG NHÓM chuyên gia / không chuyên gia, không vượt qua được
+     * nấc 1. Đặt số 1 cho một giáo viên thường thì họ đứng đầu nhóm giáo viên thường, vẫn sau
+     * mọi chuyên gia.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public static function showcaseOrder(Builder $query): Builder
+    {
+        return $query->orderByDesc('is_expert')->orderBy('sort_order')->latest('updated_at');
+    }
+
+    /** Số thứ tự lớn nhất đang dùng — hồ sơ mới lấy số này + 1 để rơi xuống cuối. */
+    public function maxSortOrder(): int
+    {
+        return (int) $this->query()->max('sort_order');
     }
 
     public function countApproved(): int
