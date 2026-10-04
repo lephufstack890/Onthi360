@@ -22,6 +22,17 @@
 @php
     $teachers = $teachers ?? [];
 
+    /*
+     * SỐ THẺ MỖI TRANG của danh sách giáo viên & chuyên gia.
+     *
+     * Khách đã đổi con số này 3 lần trong ngày 4/10 (6 -> 3 -> 6), nên tách hẳn ra một biến có
+     * tên để lần sau sửa đúng một dòng ở đây, không phải lục trong chuỗi Js::from bên dưới.
+     *
+     * Thanh phân trang tự ẩn khi chỉ có một trang (x-show="totalPages > 1"), nên "quá N người
+     * mới phân trang" chính là đặt số này bằng N.
+     */
+    $teachersPerPage = 6;
+
     // Ảnh đại diện mặc định — xoay vòng theo id nên mỗi thầy cô có ảnh ổn định giữa các lần tải.
     $teacherAvatars = ['teacher-thanh.png', 'testi-av-3.png', 'testi-av-2.png', 'user-avatar.png', 'testi-av-1.png', 'rank-avatar-4.png'];
     $avatarFor = fn (int $id) => asset('assets/'.$teacherAvatars[$id % count($teacherAvatars)]);
@@ -57,12 +68,13 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-{{-- SỬA 4/10 (khách chốt lại: "quá 3 người là phân trang") — 3 thẻ mỗi trang, đúng một hàng
-     của lưới 3 cột ở màn rộng.
+{{-- SỬA 4/10 (khách chốt lại lần cuối: "đổi lại phân trang quá 6 người thì phân trang") —
+     số thẻ mỗi trang khai ở biến $teachersPerPage đầu tệp.
 
-     Thanh phân trang vốn đã có sẵn và tự ẩn khi chỉ có một trang (x-show="totalPages > 1" bên
-     dưới), nên đúng từ người thứ 4 trở đi mới hiện ra. --}}
-<div x-data="onthiTeachersPage({{ Js::from(['rows' => $teacherRows, 'pageSize' => 3, 'coursesHref' => route('courses.index')]) }})" class="flex flex-col gap-4">
+     CHÚ Ý: không viết tên directive của Blade (dấu a-còng + php, if, foreach...) trong ghi chú
+     Blade. Trình biên dịch chạy phần directive TRƯỚC khi bỏ ghi chú, nên một chữ như vậy nằm
+     trong ghi chú vẫn mở ra một khối PHP không bao giờ đóng và làm vỡ cả tệp. --}}
+<div x-data="onthiTeachersPage({{ Js::from(['rows' => $teacherRows, 'pageSize' => $teachersPerPage, 'coursesHref' => route('courses.index')]) }})" class="flex flex-col gap-4">
 
     {{-- ══════ 1. HERO ══════ --}}
     <div class="relative overflow-hidden rounded-2xl border border-sky-200/90 bg-gradient-to-r from-[#0050A0] via-[#0066CC] to-[#0284C7] p-5 text-white shadow-[0_8px_24px_rgba(0,100,220,0.08)] sm:p-6">
