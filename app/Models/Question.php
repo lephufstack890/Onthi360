@@ -122,6 +122,23 @@ class Question extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * SỬA 4/10 (khách: "khi thêm câu hỏi thì sẽ tự động lưu tác giả tên account của mình… ngoài
+     * luyện tập public thêm cột tác giả đổ ra nữa nha") — NGƯỜI SOẠN câu hỏi.
+     *
+     * Cột created_by vốn đã được ghi sẵn từ trước ở cả 2 lối tạo (Admin\ContentService::
+     * questionStore() và Teacher\QuestionService), nên không phải thêm gì ở khâu lưu — chỉ
+     * thiếu quan hệ này để đọc ra tên.
+     *
+     * KHÁC owner(): owner_id là CHỦ SỞ HỮU kho (Kho chung hay kho riêng của giáo viên nào),
+     * created_by là NGƯỜI BẤM NÚT TẠO. Một câu do admin soạn rồi đẩy vào Kho chung có owner là
+     * Kho chung nhưng tác giả vẫn là admin đó.
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function parentVersion(): BelongsTo
     {
         return $this->belongsTo(Question::class, 'parent_version_id');

@@ -253,7 +253,9 @@ class PracticeService
                     ->where('status', 'published')
                     ->whereNull('product_id')
                     ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
-                    ->with(['tags:id,name'])
+                    // SỬA 4/10 — nạp gộp người soạn để đổ cột "Tác giả"; chỉ lấy id+name, không
+                // kéo cả hàng users (có email, số điện thoại… không việc gì ra trang công khai).
+                ->with(['tags:id,name', 'creator:id,name'])
             )
         )->limit(60)->get();
 
@@ -306,6 +308,9 @@ class PracticeService
                 'status' => 'todo',
                 'subject' => $q->subject,
                 'subjectLabel' => $q->subjectLabel(),
+                // Chưa gán người soạn (dữ liệu cũ, nhập bằng script) thì để rỗng, nơi hiển thị
+                // tự hiện "—" chứ không bịa tên.
+                'authorName' => $q->creator?->name ?? '',
                 'grade' => $q->grade,
                 // SỬA 1/10 (khách: "ngoài trang luyện tập public thêm 2 cột tỉnh thành và năm
                 // luôn nha đổ dữ liệu ra luôn nha") — đọc từ CỘT questions.province/exam_year

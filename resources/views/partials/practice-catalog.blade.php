@@ -43,6 +43,21 @@
             align-items: center;
             gap: .625rem;
         }
+
+        /* SỬA 4/10 (khách: "ngoài luyện tập public thêm cột tác giả đổ ra nữa nha") — ở khoảng
+           1024–1279px thì ẨN cột Tác giả. Ở 1024px, 7 cột cũ đã ăn gần hết bề ngang, chen thêm
+           một cột nữa thì cột Tên bài chỉ còn hơn 100px — tên bài bị bóp thành 3 dòng, đổi một
+           cột mới lấy cột quan trọng nhất là lỗ. Mobile KHÔNG dính luật này: ở đó mỗi cột là
+           một ô xếp dọc có nhãn riêng nên Tác giả vẫn hiện bình thường. */
+        .oi-prob-author { display: none; }
+    }
+
+    @media (min-width: 1280px) {
+        .oi-prob-grid {
+            grid-template-columns: minmax(0, 1fr) 140px 112px 64px 120px 96px 124px 132px;
+        }
+
+        .oi-prob-author { display: block; }
     }
 </style>
 
@@ -334,6 +349,7 @@
                 <span>Chuyên đề</span>
                 <span>Tỉnh thành</span>
                 <span>Năm</span>
+                <span class="oi-prob-author">Tác giả</span>
                 <span>Độ khó</span>
                 <span>Tỷ lệ AC</span>
                 <span class="text-right">Hành động</span>
@@ -426,6 +442,14 @@
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Năm</span>
                             <span class="block text-[12px] font-semibold text-[#365B7A]">{{ $prob['examYearLabel'] ?? '—' }}</span>
+                        </div>
+
+                        {{-- SỬA 4/10 — cột Tác giả (người bấm nút tạo câu hỏi, cột questions.created_by).
+                             truncate + title: tên tài khoản có thể dài, cắt gọn nhưng rê chuột vẫn đọc
+                             được đủ. Chưa gán người soạn (dữ liệu cũ) thì hiện "—", không bịa tên. --}}
+                        <div class="oi-prob-author min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tác giả</span>
+                            <span class="block truncate text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['authorName'] ?: '—' }}">{{ $prob['authorName'] ?: '—' }}</span>
                         </div>
 
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
