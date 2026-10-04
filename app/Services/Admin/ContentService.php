@@ -10,6 +10,7 @@ use App\Enums\UploadedDocumentStatus;
 use App\Enums\Visibility;
 use App\Models\Assessment;
 use App\Models\AssessmentCodingItem;
+use App\Models\AttemptAnswer;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
@@ -41,6 +42,7 @@ use App\Support\SubjectCatalog;
 use App\Support\UniqueCodeFromFilename;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -296,6 +298,13 @@ class ContentService
                     // SỬA 30/9 (khách: "thêm nút sửa bên này nữa cho tiện sửa câu hỏi") — trước
                     // đây muốn sửa phải bấm "Xem" rồi tìm nút Sửa trong trang chi tiết.
                     'editHref' => route('admin.content.questions.edit', $q->id),
+                    // SỬA 4/10 — nút Xoá trên từng dòng. Bày cho mọi dòng; việc có xoá được hay
+                    // không do questionDestroy() quyết ở phía máy chủ (đã có người làm / đang nằm
+                    // trong đề thì từ chối kèm lý do). Ẩn nút theo điều kiện thì phải đếm
+                    // attempt_answers cho cả 100 dòng — 100 truy vấn cho một cái nút.
+                    'canDelete' => true,
+                    'deleteHref' => route('admin.content.questions.destroy', $q->id),
+                    'deleteLabel' => 'Xoá vĩnh viễn câu hỏi này cùng mọi tệp đính kèm (đề bài, lời giải, audio, ảnh)? Không thể khôi phục.',
                 ];
             })->all();
 
@@ -317,6 +326,9 @@ class ContentService
                     'kind' => 'assessment',
                     // SỬA 30/9 — nút Sửa ngay trên bảng, cùng lý do với dòng câu hỏi ở trên.
                     'editHref' => route('admin.content.assessments.edit', $a->id),
+                    'canDelete' => true,
+                    'deleteHref' => route('admin.content.assessments.destroy', $a->id),
+                    'deleteLabel' => 'Xoá vĩnh viễn đề này cùng file PDF đề, lời giải, bản xem trước và ảnh bìa? Không thể khôi phục.',
                 ];
             })->all();
         } elseif ($tab === 'drafts') {
@@ -335,7 +347,9 @@ class ContentService
                 // SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu mới có nút
                 // Xoá (khách xác nhận phạm vi CHỈ Học liệu, không áp dụng Câu hỏi/Đề/Tag) —
                 // xem materialDelete() bên dưới + nút bấm ở admin/content/index.blade.php.
-                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true, 'kind' => 'material', 'editHref' => route('admin.content.materials.edit', $m->id)];
+                return ['id' => $m->id, 'title' => $m->title, 'type' => self::MATERIAL_TYPE_LABELS[$m->type] ?? $m->type, 'status' => $label, 'tone' => $tone, 'owner' => $m->product?->owner_type === OwnerType::Teacher ? 'Giáo viên' : 'Kho chung', 'canDelete' => true, 'kind' => 'material', 'editHref' => route('admin.content.materials.edit', $m->id),
+                    'deleteHref' => route('admin.content.materials.destroy', $m->id),
+                    'deleteLabel' => 'Xoá vĩnh viễn học liệu này cùng toàn bộ bài con và file PDF liên quan? Không thể khôi phục.'];
             })->all();
         }
 
@@ -2353,14 +2367,133 @@ class ContentService
      */
     public function productExerciseDestroy(Question $exercise): void
     {
-        foreach (($exercise->metadata['attachments'] ?? []) as $attachment) {
-            if (isset($attachment['path'])) {
-                Storage::disk('local')->delete($attachment['path']);
-            }
-        }
+        // SỬA 4/10 — trước đây chỉ xoá metadata.attachments, BỎ SÓT metadata.assets (audio/ảnh
+        // của câu hỏi, xem storeZipAssets()). Mỗi lần admin xoá một bài tập sản phẩm là bỏ lại
+        // một đống tệp mồ côi trên đĩa. Giờ xoá nguyên thư mục của câu hỏi, xem
+        // forgetQuestionFiles().
+        $this->forgetQuestionFiles($exercise);
 
         $exercise->tags()->detach();
         $exercise->forceDelete();
+    }
+
+    /**
+     * SỬA 4/10 (khách: "khi xoá item nào là tất cả các file liên quan lưu trong thư mục phải xoá
+     * hết tránh việc dữ liệu rác sau này nặng nha").
+     *
+     * XOÁ NGUYÊN THƯ MỤC questions/{id} thay vì dò từng đường dẫn trong metadata. Mọi tệp của
+     * một câu hỏi đều nằm dưới đó — đính kèm (storeZipAttachments: questions/{id}/<kind>.<ext>)
+     * lẫn asset (storeZipAssets: questions/{id}/assets/<uuid>.<ext>), cả khi nhập từ ZIP lẫn khi
+     * tải tay ở màn Sửa. Dò theo metadata thì sót đúng kiểu bản cũ vừa sót: thêm một loại tệp
+     * mới là lại quên cập nhật chỗ xoá. Xoá cả thư mục thì không bao giờ sót.
+     *
+     * Vẫn xoá thêm theo metadata cho chắc: câu hỏi cũ (trước khi có quy ước thư mục) có thể
+     * đang trỏ tới đường dẫn nằm ngoài questions/{id}.
+     */
+    private function forgetQuestionFiles(Question $question): void
+    {
+        $disk = Storage::disk('local');
+
+        foreach (($question->metadata['attachments'] ?? []) as $attachment) {
+            if (filled($attachment['path'] ?? null)) {
+                $disk->delete($attachment['path']);
+            }
+        }
+
+        foreach (($question->metadata['assets'] ?? []) as $asset) {
+            if (filled($asset['path'] ?? null)) {
+                $disk->delete($asset['path']);
+            }
+        }
+
+        $disk->deleteDirectory("questions/{$question->id}");
+    }
+
+    /**
+     * SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — XOÁ MỘT CÂU HỎI ở Kho bài tập.
+     *
+     * TỪ CHỐI, KHÔNG XOÁ, trong 2 trường hợp — và đây là phần quan trọng nhất của hàm này:
+     *
+     *   1. ĐÃ CÓ HỌC SINH LÀM. Cột attempt_answers.question_id khai cascadeOnDelete, nên xoá câu
+     *      hỏi là CSDL tự xoá sạch mọi bài làm của học sinh cho câu đó — điểm của các em trong
+     *      những lượt thi cũ đổi ngay lập tức mà không ai báo. Đó là sửa lịch sử, không phải dọn
+     *      rác. Muốn ẩn đi thì dùng "Ngừng phát hành" (archive), câu hỏi biến khỏi đề mới mà bài
+     *      làm cũ vẫn nguyên.
+     *
+     *   2. ĐANG NẰM TRONG MỘT ĐỀ THI. assessment_items cũng cascadeOnDelete: câu hỏi sẽ lặng lẽ
+     *      rơi khỏi đề, tổng điểm của đề đổi theo. Phải gỡ khỏi đề trước, có chủ đích.
+     *
+     * Trả về [ok, thông điệp]. Nơi gọi lấy đó làm căn cứ, KHÔNG tin vào việc giao diện đã ẩn nút.
+     *
+     * @return array{0:bool, 1:string}
+     */
+    public function questionDestroy(Question $question): array
+    {
+        $answerCount = AttemptAnswer::where('question_id', $question->id)->count();
+
+        if ($answerCount > 0) {
+            return [false, 'Không xoá được: đã có '.$answerCount.' lượt làm bài của học sinh cho câu này. '
+                .'Xoá sẽ xoá luôn bài làm và làm đổi điểm các lượt thi cũ. Dùng "Ngừng phát hành" nếu chỉ muốn ẩn câu hỏi đi.'];
+        }
+
+        $examTitles = Assessment::query()
+            ->whereHas('items', fn ($q) => $q->where('question_id', $question->id))
+            ->limit(5)->pluck('title')->all();
+
+        if ($examTitles !== []) {
+            return [false, 'Không xoá được: câu hỏi đang nằm trong đề "'.implode('", "', $examTitles).'". '
+                .'Gỡ khỏi đề trước rồi hãy xoá.'];
+        }
+
+        $this->forgetQuestionFiles($question);
+        $question->tags()->detach();
+        $question->forceDelete();
+
+        return [true, 'Đã xoá câu hỏi và toàn bộ tệp đính kèm.'];
+    }
+
+    /**
+     * SỬA 4/10 — XOÁ MỘT ĐỀ THI, kèm cả 4 tệp của nó.
+     *
+     * Đề giữ tệp ở 4 cột RỜI NHAU, trên 2 đĩa khác nhau (ảnh bìa ở 'public' để trình duyệt đọc
+     * được, 3 PDF ở 'local' vì là nội dung trả phí) và nằm ở thư mục phẳng chứ không gom theo id,
+     * nên phải xoá từng đường dẫn một — không có thư mục nào để xoá gọn như câu hỏi.
+     *
+     * TỪ CHỐI khi đã có lượt làm / đã giao cho lớp / đã gắn vào cuộc thi: attempts, assignments
+     * và competition_exams đều cascadeOnDelete, xoá đề là xoá sạch kết quả thi của học sinh.
+     *
+     * @return array{0:bool, 1:string}
+     */
+    public function assessmentDestroy(Assessment $assessment): array
+    {
+        $attemptCount = $assessment->attempts()->count();
+
+        if ($attemptCount > 0) {
+            return [false, 'Không xoá được: đã có '.$attemptCount.' lượt làm đề này. '
+                .'Xoá sẽ xoá sạch kết quả thi của học sinh. Dùng "Ngừng phát hành" nếu chỉ muốn ẩn đề đi.'];
+        }
+
+        if ($assessment->assignments()->count() > 0) {
+            return [false, 'Không xoá được: đề đang được giao cho lớp. Gỡ bài giao trước rồi hãy xoá.'];
+        }
+
+        if (DB::table('competition_exams')->where('assessment_id', $assessment->id)->exists()) {
+            return [false, 'Không xoá được: đề đang gắn vào một cuộc thi. Gỡ khỏi cuộc thi trước rồi hãy xoá.'];
+        }
+
+        $this->forgetAssessmentCover($assessment->cover_image_path);
+        $this->forgetAssessmentPreviewPdf($assessment->preview_pdf_path);
+
+        foreach ([$assessment->pdf_path, $assessment->solution_pdf_path] as $pdfPath) {
+            if (filled($pdfPath)) {
+                Storage::disk('local')->delete($pdfPath);
+            }
+        }
+
+        // items / answerKeys / codingItems rơi theo nhờ cascadeOnDelete ở cấp CSDL.
+        $assessment->forceDelete();
+
+        return [true, 'Đã xoá đề và toàn bộ tệp đính kèm.'];
     }
 
     // ================= Đề/bộ bài (Assessment) =================

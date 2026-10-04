@@ -177,6 +177,12 @@ class ProvinceCatalog
     ];
 
     /**
+     * SỬA 4/10 (khách: "tỉnh thành gán là toàn quốc mặc định") — tỉnh/thành chọn sẵn khi TẠO MỚI
+     * câu hỏi. CHỈ dùng cho form Tạo, cùng lý do với SubjectCatalog::DEFAULT_QUESTION_SUBJECT.
+     */
+    public const DEFAULT_QUESTION_SCOPE = 'TOANQUOC';
+
+    /**
      * Mã đã bỏ khỏi ô chọn nhưng CÒN TRONG DỮ LIỆU.
      *
      * 'KHAC' sống đúng một ngày (3/10 → 4/10). Câu hỏi nào lỡ gán trong khoảng đó vẫn còn mã

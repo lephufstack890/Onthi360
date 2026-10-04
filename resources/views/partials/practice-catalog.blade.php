@@ -553,55 +553,72 @@
             </x-ws.select>
         </div>
 
-        <div class="flex items-center justify-between gap-3 px-1">
-            <div class="flex items-center gap-2 text-[11px] text-[#607A90]">
-                <x-lucide name="file-text" class="h-3.5 w-3.5 text-[#4C83B0]" />
-                <span>Hiển thị <b class="text-[#45657D]" x-text="filteredExams.length"></b> đề thi luyện tập</span>
-            </div>
-            <span class="hidden text-[11px] text-[#6B8295] sm:inline">Mỗi đề mô phỏng một lượt thi hoàn chỉnh</span>
-        </div>
+        {{-- ══════ TỔNG QUAN ĐỀ THI — ĐANG ẨN ══════
+             SỬA 4/10 (khách khoanh vùng trên ảnh: "phần này còn thừa, không cần thiết cho lắm,
+             bỏ đi hoặc thu gọn… hiện tại khách muốn ẩn đi").
 
-        {{-- [PRACTICE-06] TỔNG QUAN ĐỀ THI
-             SỬA 2/10 — 3 ô đúng bản mẫu mới: Kho đề thi / Đang luyện / Điểm cao nhất. Bản mẫu để
-             cứng "86/100" cho ô thứ ba và tự ghi chú là số minh hoạ; ở đây lấy điểm tốt nhất THẬT
-             của chính người đang xem, chưa làm đề nào thì hiện "—" chứ không bịa số. --}}
+             ẨN chứ KHÔNG XOÁ: đổi $showExamOverview thành true là hiện lại nguyên vẹn, không
+             phải dựng lại. Khối này gồm 2 phần khách đã khoanh vào: dòng "Hiển thị N đề thi
+             luyện tập" và 3 ô Kho đề thi / Đang luyện / Điểm cao nhất.
+
+             Dữ liệu cho 3 ô ($examTotal, $examDoingCount, $examBestScoreLabel) vẫn do
+             Public\PracticeService tính và truyền sang như cũ — không gỡ ở tầng dữ liệu, vì gỡ
+             rồi mà mai khách đổi ý thì phải lần lại cả service. --}}
         @php
-            $examTotal = $examTotal ?? count($items);
-            $examDoingCount = $examDoingCount ?? 0;
-            $examBestScoreLabel = $examBestScoreLabel ?? null;
+            $showExamOverview = false;
         @endphp
-        <div class="grid gap-2 sm:grid-cols-3">
-            <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
-                <div class="flex items-center gap-2">
-                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#EAF5F8] text-[#126F91]"><x-lucide name="file-text" class="h-4 w-4" /></span>
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Kho đề thi</p>
-                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examTotal }}</p>
-                    </div>
+
+        @if ($showExamOverview)
+            <div class="flex items-center justify-between gap-3 px-1">
+                <div class="flex items-center gap-2 text-[11px] text-[#607A90]">
+                    <x-lucide name="file-text" class="h-3.5 w-3.5 text-[#4C83B0]" />
+                    <span>Hiển thị <b class="text-[#45657D]" x-text="filteredExams.length"></b> đề thi luyện tập</span>
                 </div>
-                <p class="mt-2 text-[11px] text-[#45657D]">Đề luyện tập đã phát hành</p>
+                <span class="hidden text-[11px] text-[#6B8295] sm:inline">Mỗi đề mô phỏng một lượt thi hoàn chỉnh</span>
             </div>
-            <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
-                <div class="flex items-center gap-2">
-                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#FFF7E3] text-[#B68032]"><x-lucide name="clock" class="h-4 w-4" /></span>
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Đang luyện</p>
-                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examDoingCount }}</p>
+
+            {{-- [PRACTICE-06] TỔNG QUAN ĐỀ THI
+                 SỬA 2/10 — 3 ô đúng bản mẫu mới: Kho đề thi / Đang luyện / Điểm cao nhất. Bản mẫu để
+                 cứng "86/100" cho ô thứ ba và tự ghi chú là số minh hoạ; ở đây lấy điểm tốt nhất THẬT
+                 của chính người đang xem, chưa làm đề nào thì hiện "—" chứ không bịa số. --}}
+            @php
+                $examTotal = $examTotal ?? count($items);
+                $examDoingCount = $examDoingCount ?? 0;
+                $examBestScoreLabel = $examBestScoreLabel ?? null;
+            @endphp
+            <div class="grid gap-2 sm:grid-cols-3">
+                <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#EAF5F8] text-[#126F91]"><x-lucide name="file-text" class="h-4 w-4" /></span>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Kho đề thi</p>
+                            <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examTotal }}</p>
+                        </div>
                     </div>
+                    <p class="mt-2 text-[11px] text-[#45657D]">Đề luyện tập đã phát hành</p>
                 </div>
-                <p class="mt-2 text-[11px] text-[#45657D]">Tiếp tục từ nơi bạn đã dừng</p>
-            </div>
-            <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
-                <div class="flex items-center gap-2">
-                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#EFF9F5] text-[#2F8A6B]"><x-lucide name="award" class="h-4 w-4" /></span>
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Điểm cao nhất</p>
-                        <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examBestScoreLabel ?: '—' }}</p>
+                <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#FFF7E3] text-[#B68032]"><x-lucide name="clock" class="h-4 w-4" /></span>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Đang luyện</p>
+                            <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examDoingCount }}</p>
+                        </div>
                     </div>
+                    <p class="mt-2 text-[11px] text-[#45657D]">Tiếp tục từ nơi bạn đã dừng</p>
                 </div>
-                <p class="mt-2 text-[11px] text-[#45657D]">{{ $examBestScoreLabel ? 'Kết quả tốt nhất của bạn' : 'Chưa có kết quả nào của bạn' }}</p>
+                <div class="rounded-xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_8px_rgba(28,91,121,0.04)]">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#EFF9F5] text-[#2F8A6B]"><x-lucide name="award" class="h-4 w-4" /></span>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-[#607A90]">Điểm cao nhất</p>
+                            <p class="text-lg font-bold leading-5 text-[#123B68]">{{ $examBestScoreLabel ?: '—' }}</p>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-[11px] text-[#45657D]">{{ $examBestScoreLabel ? 'Kết quả tốt nhất của bạn' : 'Chưa có kết quả nào của bạn' }}</p>
+                </div>
             </div>
-        </div>
+        @endif
 
         <div class="flex items-center justify-between gap-3 px-1 pt-1">
             <div>

@@ -119,10 +119,15 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="subject">Môn học</label>
+                        {{-- SỬA 4/10 (khách: "đề môn mặc định là Tin học") — CẨN THẬN: tệp này dùng
+                             cho CẢ Tạo lẫn Sửa (Teacher\QuestionController::create() truyền
+                             $question = null, edit() truyền model). Mặc định CHỈ được áp khi đang
+                             TẠO MỚI; áp cả lúc Sửa thì mở một câu hỏi chưa phân loại ra sửa là nó
+                             bị đóng dấu "Tin học" lúc lưu mà người sửa không hề chọn. --}}
                         <x-ws.select id="subject" name="subject">
                             <option value="">— Chưa phân loại —</option>
                             @foreach ($subjects ?? [] as $code => $label)
-                                <option value="{{ $code }}" @selected(old('subject', $question->subject ?? '') === $code)>{{ $label }}</option>
+                                <option value="{{ $code }}" @selected(old('subject', ($question ?? null) === null ? \App\Support\SubjectCatalog::DEFAULT_QUESTION_SUBJECT : ($question->subject ?? '')) === $code)>{{ $label }}</option>
                             @endforeach
                         </x-ws.select>
                     </div>
@@ -135,7 +140,14 @@
                      Giáo viên cũng tương tự nhé") — 2 ô phân loại mới, ghi vào cột
                      questions.province/exam_year (KHÔNG phải metadata) để bộ lọc và 2 cột mới
                      ngoài trang Luyện tập chạy nhanh. Xem App\Support\ProvinceCatalog. --}}
-                @include('partials.question-province-year', ['province' => $question->province ?? null, 'examYear' => $question->exam_year ?? null])
+                {{-- SỬA 4/10 — Toàn quốc chọn sẵn khi TẠO MỚI, giữ nguyên giá trị đã lưu khi Sửa
+                     (cùng lý do với ô Môn học ở trên). --}}
+                @include('partials.question-province-year', [
+                    'province' => ($question ?? null) === null
+                        ? \App\Support\ProvinceCatalog::DEFAULT_QUESTION_SCOPE
+                        : ($question->province ?? null),
+                    'examYear' => $question->exam_year ?? null,
+                ])
 
                 {{-- SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn nha") — ẩn TẠM ô
                      "Nội dung đề bài" đúng như Kho chung bên admin; đề bài nhập bằng tệp PDF ở
@@ -223,6 +235,11 @@
                      Teacher\QuestionService::applyManualUploads(). --}}
                 <div class="pt-4 border-t border-sky-100 space-y-3">
                     <h4 class="font-medium text-slate-700">📎 Tệp đính kèm</h4>
+                @php
+                    // SỬA 4/10 — xem ghi chú ở ô "Bỏ tệp này" bên dưới.
+                    $ftaRemoveSubmitted = old('remove_attachments_submitted') !== null;
+                @endphp
+                <input type="hidden" name="remove_attachments_submitted" value="1">
                     @foreach ($attachmentFields as $kind => [$field, $label, $accept, $hint])
                         <div>
                             <label class="block text-[13px] font-medium text-slate-600 mb-1" for="{{ $field }}">{{ $label }}</label>
@@ -232,8 +249,22 @@
                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600 hover:border-blue-200 hover:text-blue-600">
                                         ⬇ {{ $currentAttachments[$kind]['filename'] ?? 'Tệp đang có' }}
                                     </a>
+                                    {{-- SỬA 4/10 (khách: "khi sửa câu hỏi thì mặc định tích ở nút bỏ tệp
+                                         này") — TÍCH SẴN.
+
+                                         CẢNH BÁO CHO NGƯỜI ĐỌC MÃ VỀ SAU: vì tích sẵn nên mở câu hỏi
+                                         ra sửa rồi bấm Lưu mà không đụng gì tới phần tệp là MẤT tệp
+                                         đang có. Đây là hành vi KHÁCH YÊU CẦU, không phải lỗi — muốn
+                                         giữ tệp thì phải bỏ tích. Đừng "sửa" lại nếu không có yêu cầu mới.
+
+                                         $ftaRemoveSubmitted phân biệt "mới mở trang" với "vừa gửi
+                                         hỏng, người dùng đã bỏ tích": ô tick KHÔNG gửi gì lên khi
+                                         không được tích, nên nếu chỉ nhìn old('remove_attachments')
+                                         thì lần gửi hỏng sẽ tự tích lại, xoá đúng cái người ta vừa
+                                         cố giữ. Ô ẩn bên dưới là dấu hiệu "form này đã từng gửi". --}}
                                     <label class="inline-flex items-center gap-1.5 text-xs text-rose-600">
-                                        <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"> Bỏ tệp này
+                                        <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"
+                                               @checked($ftaRemoveSubmitted ? in_array($kind, (array) old('remove_attachments', []), true) : true)> Bỏ tệp này
                                     </label>
                                 </div>
                             @endif

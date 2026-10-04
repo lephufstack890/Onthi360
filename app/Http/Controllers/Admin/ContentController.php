@@ -180,6 +180,32 @@ class ContentController extends Controller
         return redirect()->route('admin.products.show', $productId)->with('status', 'material-deleted');
     }
 
+    /**
+     * SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá… khi xoá item nào là tất cả các
+     * file liên quan lưu trong thư mục phải xoá hết") — xoá câu hỏi + toàn bộ tệp của nó.
+     *
+     * Service tự từ chối khi câu hỏi đã có người làm hoặc đang nằm trong đề; ở đây chỉ chuyển
+     * câu trả lời của nó thành thông báo trên màn hình.
+     */
+    public function questionsDestroy(Question $question): RedirectResponse
+    {
+        [$ok, $message] = $this->contentService->questionDestroy($question);
+
+        return $ok
+            ? back()->with('status', 'question-deleted')->with('statusMessage', $message)
+            : back()->withErrors(['delete' => $message]);
+    }
+
+    /** SỬA 4/10 — xoá đề thi + 4 tệp của nó (đề, lời giải, bản xem trước, ảnh bìa). */
+    public function assessmentsDestroy(Assessment $assessment): RedirectResponse
+    {
+        [$ok, $message] = $this->contentService->assessmentDestroy($assessment);
+
+        return $ok
+            ? back()->with('status', 'assessment-deleted')->with('statusMessage', $message)
+            : back()->withErrors(['delete' => $message]);
+    }
+
     public function materialsBulkImportCreate(Request $request): View
     {
         $productId = $request->integer('product_id') ?: null;
@@ -314,9 +340,11 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-created');
     }
 
-    public function questionsEdit(int $question): View
+    public function questionsEdit(Request $request, int $question): View
     {
-        return view('admin.content.questions.edit', $this->contentService->questionEditFormData($question));
+        return view('admin.content.questions.edit',
+            $this->contentService->questionEditFormData($question)
+            + ['returnTo' => $this->rememberContentListUrl($request, 'questions')]);
     }
 
     public function questionsUpdate(Request $request, Question $question): RedirectResponse
@@ -348,7 +376,8 @@ class ContentController extends Controller
 
         $this->contentService->questionUpdate($question, $data);
 
-        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-updated');
+        // SỬA 4/10 — về thẳng danh sách (giữ nguyên tab + bộ lọc) thay vì màn chi tiết.
+        return redirect()->to($this->contentListRedirect($request, 'questions'))->with('status', 'question-updated');
     }
 
     /** admin.content.questions.newVersion — 6.2: câu đã có người làm phải tạo version mới. */
@@ -651,9 +680,60 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-created');
     }
 
-    public function assessmentsEdit(int $assessment): View
+    public function assessmentsEdit(Request $request, int $assessment): View
     {
-        return view('admin.content.assessments.edit', $this->contentService->assessmentEditFormData($assessment));
+        return view('admin.content.assessments.edit',
+            $this->contentService->assessmentEditFormData($assessment)
+            + ['returnTo' => $this->rememberContentListUrl($request, 'assessments')]);
+    }
+
+    /**
+     * SỬA 4/10 (khách: "lưu chỉnh sửa xong thì nó quay lại trang danh sách đúng tab đó luôn nha")
+     * — GHI NHỚ địa chỉ danh sách lúc MỞ màn Sửa, để lúc Lưu quay về đúng chỗ đó.
+     *
+     * Dùng lại chính địa chỉ người dùng vừa đứng nên giữ nguyên cả BỘ LỌC họ đang đặt (môn, khối,
+     * tỉnh, năm, ô tìm kiếm), không riêng đúng tab. Sửa 20 câu trong một bộ lọc mà mỗi lần lưu
+     * lại văng về danh sách trắng thì phải lọc lại 20 lần.
+     *
+     * Vào thẳng màn Sửa bằng link (không qua danh sách) thì rơi về danh sách đúng tab.
+     */
+    private function rememberContentListUrl(Request $request, string $tab): string
+    {
+        $previous = url()->previous();
+
+        return $this->isContentListUrl($previous)
+            ? $previous
+            : route('admin.content.index', ['tab' => $tab]);
+    }
+
+    /**
+     * Địa chỉ quay về sau khi Lưu.
+     *
+     * KIỂM LẠI giá trị form gửi lên chứ không tin thẳng: 'return_to' là ô ẩn, ai cũng sửa được.
+     * Nhận bừa là mở đường cho chuyển hướng ra ngoài (gửi cho admin một link kèm
+     * return_to=http://trang-gia…, bấm Lưu xong văng sang trang giả mạo). Chỉ chấp nhận địa chỉ
+     * trỏ đúng trang danh sách của chính hệ thống này.
+     */
+    private function contentListRedirect(Request $request, string $tab): string
+    {
+        $candidate = (string) $request->input('return_to', '');
+
+        return $this->isContentListUrl($candidate)
+            ? $candidate
+            : route('admin.content.index', ['tab' => $tab]);
+    }
+
+    /** Có đúng là địa chỉ trang danh sách Kho bài tập của chính hệ thống này không. */
+    private function isContentListUrl(string $url): bool
+    {
+        if ($url === '') {
+            return false;
+        }
+
+        $listUrl = route('admin.content.index');
+
+        return parse_url($url, PHP_URL_HOST) === parse_url($listUrl, PHP_URL_HOST)
+            && parse_url($url, PHP_URL_PATH) === parse_url($listUrl, PHP_URL_PATH);
     }
 
     public function assessmentsItemsEdit(Assessment $assessment): View
@@ -706,7 +786,10 @@ class ContentController extends Controller
 
         $this->contentService->assessmentUpdate($assessment, $data, $request->file('cover'), $request->boolean('remove_cover'));
 
-        return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
+        // SỬA 4/10 — về thẳng danh sách (giữ nguyên tab + bộ lọc) thay vì màn chi tiết.
+        // CỐ Ý không đổi assessmentsItemsUpdate() ở trên: đó là màn sửa CÁC CÂU TRONG ĐỀ, sửa
+        // xong phải thấy lại chính cái đề vừa sửa chứ không phải văng ra danh sách.
+        return redirect()->to($this->contentListRedirect($request, 'assessments'))->with('status', 'assessment-updated');
     }
 
     public function assessmentsPublish(Assessment $assessment): RedirectResponse

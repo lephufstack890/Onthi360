@@ -74,10 +74,13 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="subject">Môn học</label>
+                        {{-- SỬA 4/10 (khách: "đề môn mặc định là Tin học") — chọn sẵn Tin học ở form
+                             TẠO MỚI. Mã môn khai ở App\Support\SubjectCatalog::DEFAULT_QUESTION_SUBJECT,
+                             đổi môn mặc định thì sửa đúng một chỗ đó. Form Sửa KHÔNG đụng tới. --}}
                         <x-ws.select id="subject" name="subject">
                             <option value="">— Chưa phân loại —</option>
                             @foreach ($subjects as $code => $label)
-                                <option value="{{ $code }}" @selected(old('subject', '') === $code)>{{ $label }}</option>
+                                <option value="{{ $code }}" @selected(old('subject', \App\Support\SubjectCatalog::DEFAULT_QUESTION_SUBJECT) === $code)>{{ $label }}</option>
                             @endforeach
                         </x-ws.select>
                     </div>
@@ -90,7 +93,12 @@
                      2 ô phân loại mới, ghi vào cột questions.province/exam_year (KHÔNG phải
                      metadata) để bộ lọc ở admin/giáo viên và 2 cột mới ngoài trang Luyện tập
                      chạy nhanh. Xem partial + App\Support\ProvinceCatalog. --}}
-                @include('partials.question-province-year', ['province' => null, 'examYear' => null])
+                {{-- SỬA 4/10 (khách: "tỉnh thành gán là toàn quốc mặc định") — chọn sẵn Toàn quốc
+                     ở form TẠO MỚI; ô Năm vẫn để trống vì mỗi đề một năm khác nhau. --}}
+                @include('partials.question-province-year', [
+                    'province' => \App\Support\ProvinceCatalog::DEFAULT_QUESTION_SCOPE,
+                    'examYear' => null,
+                ])
 
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên câu hỏi</label>

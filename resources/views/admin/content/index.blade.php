@@ -77,6 +77,12 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá tag.'])
     @elseif (session('status') === 'material-deleted')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá học liệu cùng bài con và file PDF liên quan.'])
+    {{-- SỬA 4/10 — 2 trạng thái mới của nút Xoá. Phải đặt TRƯỚC nhánh session('status') chung ở
+         dưới, nếu không chúng rơi vào đó và hiện câu "Đã cập nhật nội dung" chẳng ăn nhập gì.
+         Lý do bị TỪ CHỐI (đã có người làm bài / đang nằm trong đề) đi theo đường $errors và đã
+         được khối báo lỗi ngay bên dưới hiện ra. --}}
+    @elseif (session('status') === 'question-deleted' || session('status') === 'assessment-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã xoá.')])
     @elseif (session('status'))
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã cập nhật nội dung.'])
     @endif
@@ -335,15 +341,17 @@
                                 <button type="submit" class="text-emerald-600 font-medium">Duyệt vào kho chung</button>
                             </form>
                         @endif
-                        {{-- SỬA 25/8 (7) — "thêm tính năng xóa cho admin": chỉ tab Học liệu có nút
-                             này (canDelete chỉ được set ở nhánh materials của indexData()) — xóa
-                             THẬT, xóa luôn file PDF + bài con, không thể khôi phục nên PHẢI xác
-                             nhận qua confirm() trước khi submit. --}}
+                        {{-- SỬA 25/8 (7) — "thêm tính năng xóa cho admin": xoá THẬT, xoá luôn tệp
+                             trên đĩa, không khôi phục được nên PHẢI xác nhận qua confirm().
+                             SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — trước đây
+                             chỉ tab Học liệu có nút này. Giờ cả 3 tab (Câu hỏi / Đề / Học liệu)
+                             đều có, và địa chỉ lẫn câu hỏi xác nhận do indexData() dựng sẵn theo
+                             đúng loại nội dung của từng dòng — view không tự đoán route nữa. --}}
                         @if ($r['canDelete'] ?? false)
-                            <form method="POST" action="{{ route('admin.content.materials.destroy', $r['id']) }}" class="inline" onsubmit="return confirm('Xoá vĩnh viễn học liệu này cùng toàn bộ bài con và file PDF liên quan? Không thể khôi phục.');">
+                            <form method="POST" action="{{ $r['deleteHref'] }}" class="inline" onsubmit="return confirm('{{ $r['deleteLabel'] }}');">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-blue-500 hover:text-blue-700 font-medium">Xoá</button>
+                                <button type="submit" class="text-rose-600 hover:text-rose-700 font-medium">Xoá</button>
                             </form>
                         @endif
                     </td>

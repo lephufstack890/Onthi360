@@ -57,6 +57,10 @@
         <form method="POST" action="{{ $actionRoute }}" enctype="multipart/form-data"
               class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             @csrf
+            {{-- SỬA 4/10 — địa chỉ danh sách để quay về sau khi Lưu (giữ nguyên tab + bộ lọc).
+                 old() để lần gửi hỏng không làm mất địa chỉ đã ghi nhớ: lúc đó trang Sửa được vẽ
+                 lại và url()->previous() đã trỏ vào chính nó. --}}
+            <input type="hidden" name="return_to" value="{{ old('return_to', $returnTo ?? '') }}">
             @unless ($hasBeenAttempted)
                 @method('PUT')
             @endunless
@@ -193,6 +197,11 @@
                      ZIP lẫn câu gõ tay. Xem ContentService::applyManualUploads(). --}}
                 <div class="pt-4 border-t border-sky-100 space-y-3">
                     <h4 class="font-medium text-slate-700">📎 Tệp đính kèm</h4>
+                @php
+                    // SỬA 4/10 — xem ghi chú ở ô "Bỏ tệp này" bên dưới.
+                    $ftaRemoveSubmitted = old('remove_attachments_submitted') !== null;
+                @endphp
+                <input type="hidden" name="remove_attachments_submitted" value="1">
                     @foreach ($attachmentFields as $kind => [$field, $label, $accept, $hint])
                         <div>
                             <label class="block text-[13px] font-medium text-slate-600 mb-1" for="{{ $field }}">{{ $label }}</label>
@@ -202,8 +211,22 @@
                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600 hover:border-blue-200 hover:text-blue-600">
                                         ⬇ {{ $currentAttachments[$kind]['filename'] ?? 'Tệp đang có' }}
                                     </a>
+                                    {{-- SỬA 4/10 (khách: "khi sửa câu hỏi thì mặc định tích ở nút bỏ tệp
+                                         này") — TÍCH SẴN.
+
+                                         CẢNH BÁO CHO NGƯỜI ĐỌC MÃ VỀ SAU: vì tích sẵn nên mở câu hỏi
+                                         ra sửa rồi bấm Lưu mà không đụng gì tới phần tệp là MẤT tệp
+                                         đang có. Đây là hành vi KHÁCH YÊU CẦU, không phải lỗi — muốn
+                                         giữ tệp thì phải bỏ tích. Đừng "sửa" lại nếu không có yêu cầu mới.
+
+                                         $ftaRemoveSubmitted phân biệt "mới mở trang" với "vừa gửi
+                                         hỏng, người dùng đã bỏ tích": ô tick KHÔNG gửi gì lên khi
+                                         không được tích, nên nếu chỉ nhìn old('remove_attachments')
+                                         thì lần gửi hỏng sẽ tự tích lại, xoá đúng cái người ta vừa
+                                         cố giữ. Ô ẩn bên dưới là dấu hiệu "form này đã từng gửi". --}}
                                     <label class="inline-flex items-center gap-1.5 text-xs text-rose-600">
-                                        <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"> Bỏ tệp này
+                                        <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"
+                                               @checked($ftaRemoveSubmitted ? in_array($kind, (array) old('remove_attachments', []), true) : true)> Bỏ tệp này
                                     </label>
                                 </div>
                             @endif

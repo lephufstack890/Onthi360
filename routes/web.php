@@ -695,6 +695,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
         Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');
         Route::post('content/questions/{question}/archive', [AdminContentController::class, 'questionsArchive'])->name('content.questions.archive');
+        // SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — xoá câu hỏi/đề kèm toàn bộ
+        // tệp trên đĩa. Service từ chối khi đã có người làm hoặc đang nằm trong đề/cuộc thi.
+        Route::delete('content/questions/{question}', [AdminContentController::class, 'questionsDestroy'])->name('content.questions.destroy');
+        Route::delete('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsDestroy'])->name('content.assessments.destroy');
 
         // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
         // Admin\ContentService::questionStoreFromZipPackage() + questionAttachmentInfo().

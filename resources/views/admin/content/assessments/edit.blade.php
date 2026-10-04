@@ -26,6 +26,8 @@
         <form method="POST" action="{{ route('admin.content.assessments.update', $assessment->id) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
+            {{-- SỬA 4/10 — xem ghi chú cùng tên ở admin/content/questions/edit. --}}
+            <input type="hidden" name="return_to" value="{{ old('return_to', $returnTo ?? '') }}">
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên đề/bộ bài</label>
                 <input id="title" name="title" type="text" value="{{ old('title', $assessment->title) }}" required maxlength="255"

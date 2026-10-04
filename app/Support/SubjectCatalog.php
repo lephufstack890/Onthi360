@@ -20,6 +20,14 @@ namespace App\Support;
 class SubjectCatalog
 {
     /** Mã môn => nhãn hiển thị. Mã là thứ lưu xuống DB (questions.subject). */
+    /**
+     * SỬA 4/10 (khách: "trong giao diện tạo câu hỏi để môn mặc định là Tin học") — môn chọn sẵn
+     * khi TẠO MỚI câu hỏi. CHỈ dùng cho form Tạo; form Sửa luôn lấy giá trị đã lưu của câu hỏi,
+     * nếu không thì mở một câu hỏi chưa phân loại ra sửa là nó bị đóng dấu "Tin học" lúc lưu mà
+     * người sửa không hề chọn.
+     */
+    public const DEFAULT_QUESTION_SUBJECT = 'TIN';
+
     public const SUBJECTS = [
         'TOAN' => 'Toán',
         'VAN' => 'Ngữ văn',
