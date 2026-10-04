@@ -26,6 +26,11 @@
     $teacherAvatars = ['teacher-thanh.png', 'testi-av-3.png', 'testi-av-2.png', 'user-avatar.png', 'testi-av-1.png', 'rank-avatar-4.png'];
     $avatarFor = fn (int $id) => asset('assets/'.$teacherAvatars[$id % count($teacherAvatars)]);
 
+    // SỬA 4/10 — ảnh admin tải lên đứng trước, không có mới rơi về ảnh mặc định xoay vòng.
+    $avatarOf = fn (array $t) => filled($t['avatarPath'] ?? null)
+        ? asset('storage/'.$t['avatarPath'])
+        : $avatarFor((int) $t['id']);
+
     // Hàng dữ liệu đưa sang Alpine: phân trang 3 thẻ/trang và hộp hồ sơ, đúng như bản mẫu.
     $teacherRows = [];
     foreach ($teachers as $t) {
@@ -38,7 +43,7 @@
             // cách chữa cháy cũ (ghép từ môn đã duyệt).
             'title' => $t['roleTitle'] ?: ($t['subject'] ? 'Giáo viên '.$t['subject'] : 'Giáo viên đã được thẩm định'),
             'school' => $t['workplace'] ?: (count($t['subjects']) > 0 ? implode(' · ', $t['subjects']) : 'Đội ngũ Ôn Thi 360'),
-            'avatar' => $avatarFor((int) $t['id']),
+            'avatar' => $avatarOf($t),
             'bio' => trim(preg_replace('/\s+/u', ' ', strip_tags((string) $t['bio']))),
             'average' => $t['average'],
             // Nguồn của con số sao — hộp hồ sơ ghi nhãn theo cờ này, xem Public\TeacherService.
@@ -112,7 +117,7 @@
                         : 'border-sky-100 shadow-[0_2px_12px_rgba(0,100,220,0.06)] hover:border-sky-200' }}">
                     <div>
                         <div class="mb-3 flex items-center gap-3">
-                            <img src="{{ $avatarFor((int) $t['id']) }}" alt="Avatar của {{ $t['name'] }}"
+                            <img src="{{ $avatarOf($t) }}" alt="Avatar của {{ $t['name'] }}"
                                  class="h-14 w-14 shrink-0 rounded-xl border-2 border-sky-200 object-cover shadow-sm">
                             <div class="min-w-0">
                                 @if ($t['isExpert'] ?? false)

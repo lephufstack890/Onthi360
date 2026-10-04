@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\TeacherProfile;
 use App\Services\Admin\FeaturedTeacherService;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -47,6 +48,7 @@ class FeaturedTeacherController extends Controller
         $this->featuredTeacherService->createWithAccount(
             Auth::user(),
             $account + $this->validatePayload($request, nameRequired: true),
+            $request->file('avatar'),
         );
 
         return back()->with('status', 'created');
@@ -55,7 +57,7 @@ class FeaturedTeacherController extends Controller
     /** THÊM vào danh sách vinh danh. */
     public function feature(Request $request, TeacherProfile $featuredTeacher)
     {
-        $this->featuredTeacherService->feature($featuredTeacher, $this->validatePayload($request));
+        $this->featuredTeacherService->feature($featuredTeacher, $this->validatePayload($request), $request->file('avatar'));
 
         return back()->with('status', 'featured');
     }
@@ -63,7 +65,7 @@ class FeaturedTeacherController extends Controller
     /** SỬA người đang vinh danh. */
     public function update(Request $request, TeacherProfile $featuredTeacher)
     {
-        $this->featuredTeacherService->update($featuredTeacher, $this->validatePayload($request));
+        $this->featuredTeacherService->update($featuredTeacher, $this->validatePayload($request), $request->file('avatar'));
 
         return back()->with('status', 'updated');
     }
@@ -110,11 +112,23 @@ class FeaturedTeacherController extends Controller
             // ta gửi thẳng request vẫn lọt. 5 sao là trần, âm thì vô nghĩa.
             'display_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'is_expert' => ['nullable', 'boolean'],
+            /*
+             * Ảnh đại diện. Trần 4MB cho ảnh chân dung là thừa sức (ImageOptimizer còn nén về
+             * 512px nữa), nhưng vẫn phải so với giới hạn THẬT của máy chủ: php.ini thường chỉ
+             * cho 2M, hứa 4MB mà máy chủ cắt ở 2M thì người dùng chỉ nhận đúng câu "tải lên
+             * thất bại" chẳng hiểu vì sao — đúng chuyện đã xảy ra với PDF xem trước hôm 2/10.
+             */
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'remove_avatar' => ['nullable', 'boolean'],
         ], [
             'display_rating.max' => 'Số sao xếp hạng không được quá 5.',
             'display_rating.min' => 'Số sao xếp hạng không được là số âm.',
             'display_name.required' => 'Phải nhập họ tên cho giáo viên / chuyên gia thêm mới.',
+            'avatar.image' => 'Ảnh đại diện phải là tệp ảnh (JPG, PNG hoặc WebP).',
+            'avatar.max' => 'Ảnh đại diện vượt quá '.UploadLimit::label(4096).' mà máy chủ nhận được.',
         ]);
+
+        $data['remove_avatar'] = $request->boolean('remove_avatar');
 
         // Ô tick không được tick thì TRÌNH DUYỆT KHÔNG GỬI trường đó lên. Phải đọc bằng
         // $request->boolean() chứ không dựa vào validate() — nếu không, bỏ tick rồi lưu sẽ

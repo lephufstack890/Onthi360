@@ -28,6 +28,8 @@
      *   · còn lại       : hồ sơ trưng bày cũ, không gắn tài khoản nào.
      */
     $ftIsNew = $nameRequired ?? false;
+    $ftAvatar = $t['avatarPath'] ?? null;        // ảnh đang hiện (của trang này, hoặc của tài khoản)
+    $ftOwnAvatar = $t['ownAvatar'] ?? null;      // ảnh riêng của trang này — chỉ ảnh này mới gỡ được
     $ftNameRequired = $ftIsNew;
     $ftHasAccount = $t['hasAccount'] ?? true;
 @endphp
@@ -82,6 +84,42 @@
         @else
             <p class="mt-1 text-[11px] text-slate-400">Hồ sơ không gắn tài khoản thì không có đánh giá thật — để trống thì ô sao ngoài trang hiện dấu "—".</p>
         @endif
+    </div>
+
+    {{-- SỬA 4/10 (khách: "thêm cho tôi 1 field avatar nữa nha cả thêm và cập nhật nha") — ô này
+         nằm trong partial DÙNG CHUNG nên có mặt ở cả 3 form: thêm mới, thêm từ tài khoản có sẵn,
+         và sửa. Thẻ <form> bọc ngoài BẮT BUỘC có enctype="multipart/form-data", nếu không trình
+         duyệt chỉ gửi TÊN tệp chứ không gửi tệp, và việc tải ảnh hỏng lặng lẽ. --}}
+    <div class="sm:col-span-2">
+        <label class="mb-1 block text-[13px] font-medium text-slate-600" for="av-{{ $t['profile_id'] }}">Ảnh đại diện</label>
+        <div class="flex flex-wrap items-start gap-3">
+            @if ($ftAvatar)
+                <img src="{{ asset('storage/'.$ftAvatar) }}" alt="Ảnh đại diện hiện tại"
+                     class="h-16 w-16 shrink-0 rounded-xl border border-sky-100 object-cover">
+            @else
+                <span class="grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-sky-200 bg-sky-50 text-[#23869B]">
+                    <x-lucide name="user-cog" class="h-6 w-6" />
+                </span>
+            @endif
+
+            <div class="min-w-0 flex-1">
+                <input id="av-{{ $t['profile_id'] }}" name="avatar" type="file" accept="image/jpeg,image/png,image/webp"
+                       class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
+                <p class="mt-1 text-[11px] text-slate-400">
+                    Ảnh vuông cho đẹp (VD 512x512). JPG/PNG/WebP, tối đa {{ \App\Support\UploadLimit::label(4096) }}.
+                    @unless ($ftIsNew) Không chọn tệp mới thì giữ nguyên ảnh cũ. @endunless
+                </p>
+
+                {{-- Chỉ gỡ được ảnh do trang này tải lên. Ảnh người dùng tự đặt cho tài khoản của
+                     họ thì màn vinh danh không có quyền xoá — muốn thay thì tải ảnh riêng đè lên. --}}
+                @if ($ftOwnAvatar)
+                    <label class="mt-2 flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                        <input type="checkbox" name="remove_avatar" value="1" class="h-4 w-4 rounded border-sky-200 text-rose-600">
+                        Xoá ảnh hiện tại (quay về ảnh mặc định)
+                    </label>
+                @endif
+            </div>
+        </div>
     </div>
 
     <div class="sm:col-span-2">

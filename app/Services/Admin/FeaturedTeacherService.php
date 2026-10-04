@@ -7,8 +7,11 @@ use App\Models\Role;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
+use App\Support\ImageOptimizer;
 use App\Support\SubjectCatalog;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Gom truy vấn + hành động cho admin.featured-teachers.index — PUB-10 (trang vinh danh, 12.2).
@@ -20,6 +23,11 @@ use Illuminate\Support\Facades\DB;
  */
 class FeaturedTeacherService
 {
+    /** Nơi cất ảnh đại diện giáo viên — cùng đĩa 'public' với ảnh bìa tài liệu, câu chuyện. */
+    private const AVATAR_DISK = 'public';
+
+    private const AVATAR_DIR = 'teacher-avatars';
+
     public function __construct(
         private TeacherProfileRepositoryInterface $teacherProfiles,
         private UserService $users,
@@ -58,6 +66,9 @@ class FeaturedTeacherService
 
         return [
             'profile_id' => $p->id,
+            // Ảnh riêng của trang vinh danh (nếu có), rơi về ảnh người dùng tự đặt.
+            'avatarPath' => $p->showcaseAvatarPath(),
+            'ownAvatar' => $p->avatar_path,
             // Hồ sơ trưng bày (user_id rỗng) không có tài khoản nào đứng sau — nơi hiển thị dựa
             // vào 'hasAccount' để biết có được xoá hẳn hay không.
             'hasAccount' => $p->user_id !== null,
@@ -102,9 +113,9 @@ class FeaturedTeacherService
      *
      * @param  array<string, mixed>  $data
      */
-    public function feature(TeacherProfile $profile, array $data): TeacherProfile
+    public function feature(TeacherProfile $profile, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
-        $profile->update($this->attributes($data) + ['is_featured' => true]);
+        $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + ['is_featured' => true]);
 
         return $profile;
     }
@@ -117,11 +128,44 @@ class FeaturedTeacherService
      *
      * @param  array<string, mixed>  $data
      */
-    public function update(TeacherProfile $profile, array $data): TeacherProfile
+    public function update(TeacherProfile $profile, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
-        $profile->update($this->attributes($data));
+        $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar));
 
         return $profile;
+    }
+
+    /**
+     * Ảnh đại diện: KHÔNG tải ảnh mới thì KHÔNG đụng tới cột.
+     *
+     * Trả về mảng RỖNG khi không có tệp — khác hẳn với các ô chữ (để trống là xoá). Ô tệp của
+     * trình duyệt không gửi gì lên khi người ta không chọn lại, nên coi "không gửi" là "xoá ảnh"
+     * thì mỗi lần sửa một chữ trong thành tích là mất luôn ảnh đã tải.
+     *
+     * Muốn gỡ ảnh thì tick ô "Xoá ảnh hiện tại" — xem $data['remove_avatar'] ở attributes().
+     *
+     * @return array<string, mixed>
+     */
+    private function avatarAttributes(TeacherProfile $profile, ?UploadedFile $avatar): array
+    {
+        if ($avatar === null) {
+            return [];
+        }
+
+        // Thay ảnh thì xoá ảnh cũ, đừng để rác tồn trong storage.
+        $this->forgetAvatar($profile->avatar_path);
+
+        return ['avatar_path' => ImageOptimizer::store(
+            $avatar, self::AVATAR_DIR, self::AVATAR_DISK, ImageOptimizer::MAX_WIDTH_AVATAR
+        )];
+    }
+
+    /** Xoá tệp ảnh cũ. Bỏ qua đường dẫn rỗng và đường dẫn http (ảnh ngoài, không do ta giữ). */
+    private function forgetAvatar(?string $path): void
+    {
+        if (filled($path) && ! str_starts_with($path, 'http')) {
+            Storage::disk(self::AVATAR_DISK)->delete($path);
+        }
     }
 
     /**
@@ -145,9 +189,9 @@ class FeaturedTeacherService
      *
      * @param  array<string, mixed>  $data
      */
-    public function createWithAccount(User $admin, array $data): TeacherProfile
+    public function createWithAccount(User $admin, array $data, ?UploadedFile $avatar = null): TeacherProfile
     {
-        return DB::transaction(function () use ($admin, $data) {
+        return DB::transaction(function () use ($admin, $data, $avatar) {
             $user = $this->users->store($admin, [
                 'name' => $data['display_name'],
                 'email' => $data['email'],
@@ -160,7 +204,7 @@ class FeaturedTeacherService
 
             $profile = TeacherProfile::where('user_id', $user->id)->firstOrFail();
 
-            $profile->update($this->attributes($data) + [
+            $profile->update($this->attributes($data) + $this->avatarAttributes($profile, $avatar) + [
                 'approval_status' => TeacherApprovalStatus::Approved,
                 'approved_by' => $admin->id,
                 'approved_at' => now(),
@@ -223,7 +267,7 @@ class FeaturedTeacherService
     {
         $text = fn (string $key) => filled(trim((string) ($data[$key] ?? ''))) ? trim((string) $data[$key]) : null;
 
-        return [
+        $attributes = [
             'display_name' => $text('display_name'),
             'workplace' => $text('workplace'),
             'role_title' => $text('role_title'),
@@ -235,5 +279,13 @@ class FeaturedTeacherService
                 ? null
                 : round((float) $data['display_rating'], 1),
         ];
+
+        // Ô tick "Xoá ảnh hiện tại" — cách duy nhất để gỡ ảnh xuống, vì ô tệp không gửi gì lên
+        // khi người ta không chọn lại (xem avatarAttributes()).
+        if (! empty($data['remove_avatar'])) {
+            $attributes['avatar_path'] = null;
+        }
+
+        return $attributes;
     }
 }

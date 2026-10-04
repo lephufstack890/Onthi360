@@ -16,7 +16,7 @@ class TeacherProfile extends Model
         'approved_by', 'approved_at', 'rejection_reason',
         'is_featured', 'is_expert', 'achievement_note',
         // SỬA 4/10 — 4 trường cho trang vinh danh, xem migration add_showcase_fields.
-        'display_name', 'workplace', 'role_title', 'display_rating',
+        'display_name', 'avatar_path', 'workplace', 'role_title', 'display_rating',
     ];
 
     protected $casts = [
@@ -66,6 +66,15 @@ class TeacherProfile extends Model
         // ?-> chứ không phải ->: hồ sơ trưng bày không gắn tài khoản nào (user_id NULL), xem
         // migration allow_standalone_teacher_profiles.
         return filled($this->display_name) ? $this->display_name : (string) ($this->user?->name ?? '');
+    }
+
+    /**
+     * Ảnh đại diện bày ra trang vinh danh, theo thứ tự rơi: ảnh admin tải riêng cho trang này
+     * -> ảnh người dùng tự đặt -> null để nơi gọi dùng ảnh mặc định.
+     */
+    public function showcaseAvatarPath(): ?string
+    {
+        return $this->avatar_path ?? $this->user?->avatar_path;
     }
 
     public function isExpert(): bool

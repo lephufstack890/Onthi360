@@ -118,6 +118,9 @@ class TeacherService
                  * hiển thị môn dạy thay vì bịa thông tin". Nay có cột thật; chưa nhập thì vẫn
                  * rơi về cách cũ chứ không bày ô trống.
                  */
+                // SỬA 4/10 — ảnh đại diện thật (admin tải lên, hoặc ảnh người dùng tự đặt).
+                // null thì nơi hiển thị dùng ảnh mặc định như trước, xem TeacherProfile::showcaseAvatarPath().
+                'avatarPath' => $p->showcaseAvatarPath(),
                 'workplace' => $p->workplace,
                 'roleTitle' => $p->role_title,
                 'subjects' => $subjectLabels,

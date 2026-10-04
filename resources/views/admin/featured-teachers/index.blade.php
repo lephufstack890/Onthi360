@@ -75,6 +75,7 @@
             'profile_id' => 0, 'accountName' => '', 'displayName' => '', 'name' => '',
             'workplace' => '', 'roleTitle' => '', 'subject' => '', 'subjects' => [],
             'featured' => true, 'expert' => false, 'displayRating' => null,
+            'avatarPath' => null, 'ownAvatar' => null,
             'achievement' => '', 'achievements' => [], 'hasAccount' => false,
         ];
     @endphp
@@ -91,7 +92,7 @@
                     x-text="open ? 'Đóng' : '+ Thêm giáo viên / chuyên gia'">+ Thêm giáo viên / chuyên gia</button>
         </div>
 
-        <form x-show="open" x-cloak method="POST" action="{{ route('admin.featured-teachers.store') }}"
+        <form x-show="open" x-cloak method="POST" enctype="multipart/form-data" action="{{ route('admin.featured-teachers.store') }}"
               class="mt-4 border-t border-blue-200 pt-4">
             @csrf
             @include('partials.featured-teacher-account-fields')
@@ -111,7 +112,11 @@
             <div x-data="{ open: false }"
                  class="rounded-2xl border bg-white p-4 shadow-sm {{ $t['expert'] ? 'border-amber-300 bg-amber-50' : 'border-sky-100' }}">
                 <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
+                    @if ($t['avatarPath'])
+                        <img src="{{ asset('storage/'.$t['avatarPath']) }}" alt="Ảnh của {{ $t['name'] }}"
+                             class="h-12 w-12 shrink-0 rounded-xl border border-sky-100 object-cover">
+                    @endif
+                    <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
                             <h3 class="text-sm font-black text-[#0B3C78]">{{ $t['name'] }}</h3>
                             @if ($t['expert'])
@@ -167,7 +172,7 @@
                     </div>
                 </div>
 
-                <form x-show="open" x-cloak method="POST"
+                <form x-show="open" x-cloak method="POST" enctype="multipart/form-data"
                       action="{{ route('admin.featured-teachers.update', $t['profile_id']) }}"
                       class="mt-4 border-t border-sky-100 pt-4">
                     @csrf
@@ -199,7 +204,7 @@
                             x-text="open ? 'Thu gọn' : 'Thêm vào danh sách'">Thêm vào danh sách</button>
                 </div>
 
-                <form x-show="open" x-cloak method="POST"
+                <form x-show="open" x-cloak method="POST" enctype="multipart/form-data"
                       action="{{ route('admin.featured-teachers.feature', $t['profile_id']) }}"
                       class="mt-4 border-t border-sky-100 pt-4">
                     @csrf
