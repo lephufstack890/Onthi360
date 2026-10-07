@@ -6,6 +6,7 @@ use App\Enums\AssessmentContentMode;
 use App\Enums\AssessmentType;
 use App\Enums\ContentStatus;
 use App\Enums\OwnerType;
+use App\Enums\ProgressUnitType;
 use App\Enums\UploadedDocumentStatus;
 use App\Enums\Visibility;
 use App\Models\Assessment;
@@ -311,7 +312,7 @@ class ContentService
                     // attempt_answers cho cả 100 dòng — 100 truy vấn cho một cái nút.
                     'canDelete' => true,
                     'deleteHref' => route('admin.content.questions.destroy', $q->id),
-                    'deleteLabel' => 'Xoá vĩnh viễn câu hỏi này cùng mọi tệp đính kèm (đề bài, lời giải, audio, ảnh)? Không thể khôi phục.',
+                    'deleteLabel' => 'Xoá vĩnh viễn câu hỏi này cùng MỌI dữ liệu liên quan: bài làm của học sinh, câu trong các đề, bài mẫu và tệp đính kèm (đề bài, lời giải, audio, ảnh)? Điểm các lượt làm cũ và tổng điểm đề sẽ bị trừ tương ứng. Không thể khôi phục.',
                 ];
             })->all();
 
@@ -2433,44 +2434,104 @@ class ContentService
     /**
      * SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — XOÁ MỘT CÂU HỎI ở Kho bài tập.
      *
-     * TỪ CHỐI, KHÔNG XOÁ, trong 2 trường hợp — và đây là phần quan trọng nhất của hàm này:
+     * SỬA 7/10 (khách: "khi xoá câu hỏi là cho xoá hết luôn dữ liệu liên quan") — BỎ HAI CHỐT
+     * TỪ CHỐI cũ (đã có học sinh làm / đang nằm trong đề). Khách chủ động chọn xoá sạch, nên giờ
+     * xoá câu hỏi là xoá luôn MỌI thứ gắn với nó, trong MỘT giao dịch (lỗi giữa chừng thì không
+     * xoá gì cả):
      *
-     *   1. ĐÃ CÓ HỌC SINH LÀM. Cột attempt_answers.question_id khai cascadeOnDelete, nên xoá câu
-     *      hỏi là CSDL tự xoá sạch mọi bài làm của học sinh cho câu đó — điểm của các em trong
-     *      những lượt thi cũ đổi ngay lập tức mà không ai báo. Đó là sửa lịch sử, không phải dọn
-     *      rác. Muốn ẩn đi thì dùng "Ngừng phát hành" (archive), câu hỏi biến khỏi đề mới mà bài
-     *      làm cũ vẫn nguyên.
+     *   - bài làm của học sinh (attempt_answers) và các lượt chấm code của chúng (judge_submissions);
+     *   - dòng của câu trong mọi đề (assessment_items) — tổng điểm đề (total_points) bị TRỪ
+     *     đúng phần điểm của câu đó, để đề không còn ghi "30 điểm" khi chỉ còn 20 điểm câu hỏi;
+     *   - điểm của các lượt làm đã có bài làm bị xoá (attempts.total_score) bị TRỪ tương ứng,
+     *     chặn dưới ở 0 — lượt làm vẫn còn, chỉ mất phần điểm của câu này;
+     *   - bài mẫu admin chỉ định (practice_sample_submissions), gắn thẻ (question_tag),
+     *     bản ghi mở khoá tiến độ theo câu (progress_unlocks — bảng này không có khoá ngoại nên
+     *     CSDL KHÔNG tự dọn, phải xoá tay kẻo để lại dòng mồ côi);
+     *   - tệp đính kèm trên đĩa (xoá SAU khi giao dịch chốt, vì tệp xoá rồi không hoàn lại được).
      *
-     *   2. ĐANG NẰM TRONG MỘT ĐỀ THI. assessment_items cũng cascadeOnDelete: câu hỏi sẽ lặng lẽ
-     *      rơi khỏi đề, tổng điểm của đề đổi theo. Phải gỡ khỏi đề trước, có chủ đích.
+     * Các bảng còn lại (session_resources, draft_questions…) khai nullOnDelete nên tự gỡ liên kết.
+     * Thao tác không thể khôi phục — giao diện đã hỏi xác nhận bằng lời cảnh báo rõ ràng.
      *
-     * Trả về [ok, thông điệp]. Nơi gọi lấy đó làm căn cứ, KHÔNG tin vào việc giao diện đã ẩn nút.
+     * Trả về [ok, thông điệp]; vẫn giữ chữ ký cũ để nơi gọi không phải đổi.
      *
      * @return array{0:bool, 1:string}
      */
     public function questionDestroy(Question $question): array
     {
-        $answerCount = AttemptAnswer::where('question_id', $question->id)->count();
+        $stats = DB::transaction(function () use ($question): array {
+            $questionId = $question->id;
 
-        if ($answerCount > 0) {
-            return [false, 'Không xoá được: đã có '.$answerCount.' lượt làm bài của học sinh cho câu này. '
-                .'Xoá sẽ xoá luôn bài làm và làm đổi điểm các lượt thi cũ. Dùng "Ngừng phát hành" nếu chỉ muốn ẩn câu hỏi đi.'];
-        }
+            // 1. Bài làm của học sinh: gom trước để biết trừ điểm lượt nào bao nhiêu.
+            $answers = DB::table('attempt_answers')
+                ->where('question_id', $questionId)
+                ->get(['id', 'attempt_id', 'score']);
 
-        $examTitles = Assessment::query()
-            ->whereHas('items', fn ($q) => $q->where('question_id', $question->id))
-            ->limit(5)->pluck('title')->all();
+            $answerIds = $answers->pluck('id')->all();
+            $lostByAttempt = [];
+            foreach ($answers as $answer) {
+                $lostByAttempt[$answer->attempt_id] = ($lostByAttempt[$answer->attempt_id] ?? 0) + (float) ($answer->score ?? 0);
+            }
 
-        if ($examTitles !== []) {
-            return [false, 'Không xoá được: câu hỏi đang nằm trong đề "'.implode('", "', $examTitles).'". '
-                .'Gỡ khỏi đề trước rồi hãy xoá.'];
-        }
+            foreach (array_chunk($answerIds, 500) as $chunk) {
+                DB::table('judge_submissions')->whereIn('attempt_answer_id', $chunk)->delete();
+                DB::table('attempt_answers')->whereIn('id', $chunk)->delete();
+            }
 
+            foreach ($lostByAttempt as $attemptId => $lost) {
+                if ($lost > 0) {
+                    DB::table('attempts')
+                        ->where('id', $attemptId)
+                        ->whereNotNull('total_score')
+                        ->update(['total_score' => DB::raw('CASE WHEN total_score > '.((float) $lost).' THEN total_score - '.((float) $lost).' ELSE 0 END')]);
+                }
+            }
+
+            // 2. Câu nằm trong đề: gỡ khỏi đề và trừ đúng điểm của nó khỏi tổng điểm đề.
+            $items = DB::table('assessment_items')
+                ->where('question_id', $questionId)
+                ->get(['assessment_id', 'points_override']);
+
+            foreach ($items as $item) {
+                $points = (float) ($item->points_override ?? $question->points ?? 0);
+                if ($points > 0) {
+                    DB::table('assessments')
+                        ->where('id', $item->assessment_id)
+                        ->update(['total_points' => DB::raw('CASE WHEN total_points > '.$points.' THEN total_points - '.$points.' ELSE 0 END')]);
+                }
+            }
+            DB::table('assessment_items')->where('question_id', $questionId)->delete();
+
+            // 3. Phần còn lại gắn với câu hỏi.
+            $samples = DB::table('practice_sample_submissions')->where('question_id', $questionId)->delete();
+            DB::table('progress_unlocks')
+                ->where('unit_type', ProgressUnitType::Question->value)
+                ->where('unit_id', $questionId)
+                ->delete();
+            $question->tags()->detach();
+
+            return [
+                'answers' => count($answerIds),
+                'exams' => $items->count(),
+                'samples' => $samples,
+            ];
+        });
+
+        // Tệp trên đĩa: chỉ xoá khi giao dịch đã chốt thành công.
         $this->forgetQuestionFiles($question);
-        $question->tags()->detach();
         $question->forceDelete();
 
-        return [true, 'Đã xoá câu hỏi và toàn bộ tệp đính kèm.'];
+        $extras = [];
+        if ($stats['answers'] > 0) {
+            $extras[] = $stats['answers'].' bài làm của học sinh';
+        }
+        if ($stats['exams'] > 0) {
+            $extras[] = 'câu trong '.$stats['exams'].' đề';
+        }
+        if ($stats['samples'] > 0) {
+            $extras[] = $stats['samples'].' bài mẫu';
+        }
+
+        return [true, 'Đã xoá câu hỏi, toàn bộ tệp đính kèm'.($extras === [] ? '.' : ' và dữ liệu liên quan ('.implode(', ', $extras).').')];
     }
 
     /**
