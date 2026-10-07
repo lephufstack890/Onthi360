@@ -128,13 +128,22 @@ class CourseController extends Controller
         return redirect()->route('admin.courses.show', $course->id)->with('status', 'course-updated');
     }
 
+    /**
+     * SỬA 7/10 (khách: "xoá khoá học là toàn bộ file, lớp, bất cứ gì liên quan đều xoá hết") — xoá
+     * VĨNH VIỄN kèm mọi dữ liệu liên quan, xem CourseService::destroy(). Lý do giờ là tuỳ chọn:
+     * nút Xoá ở danh sách Khóa & Lớp không có ô nhập lý do.
+     */
     public function destroy(Request $request, Course $course): RedirectResponse
     {
-        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+        $title = $course->title;
 
-        $this->courseService->destroy($course, $data['reason']);
+        $stats = $this->courseService->destroy($course, $data['reason'] ?? null);
 
-        return redirect()->route('admin.courses.index')->with('status', 'course-deleted');
+        return redirect()->route('admin.courses.index')
+            ->with('status', 'course-deleted')
+            ->with('statusMessage', 'Đã xóa vĩnh viễn khóa học "'.$title.'" cùng '.$stats['classes'].' lớp, '
+                .$stats['students'].' học viên, '.$stats['sessions'].' buổi học, '.$stats['attempts'].' lượt làm bài của học sinh và các dữ liệu liên quan.');
     }
 
     public function classesCreate(Course $course): View
@@ -187,13 +196,29 @@ class CourseController extends Controller
         return redirect()->route('admin.classes.edit', $classRoom->id)->with('status', 'class-updated');
     }
 
+    /**
+     * SỬA 7/10 — xoá VĨNH VIỄN lớp kèm mọi dữ liệu của lớp, xem CourseService::destroyClass().
+     * 'return' = 'index' khi bấm từ danh sách Khóa & Lớp (quay về đúng tab Lớp học); mặc định quay
+     * về trang chi tiết khoá như cũ.
+     */
     public function classesDestroy(Request $request, ClassRoom $classRoom): RedirectResponse
     {
-        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'return' => ['nullable', 'string', 'in:index'],
+        ]);
         $courseId = $classRoom->course_id;
+        $name = $classRoom->name;
 
-        $this->courseService->destroyClass($classRoom, $data['reason']);
+        $stats = $this->courseService->destroyClass($classRoom, $data['reason'] ?? null);
 
-        return redirect()->route('admin.courses.show', $courseId)->with('status', 'class-deleted');
+        $redirect = ($data['return'] ?? null) === 'index'
+            ? redirect()->route('admin.courses.index', ['tab' => 'classes'])
+            : redirect()->route('admin.courses.show', $courseId);
+
+        return $redirect
+            ->with('status', 'class-deleted')
+            ->with('statusMessage', 'Đã xóa vĩnh viễn lớp "'.$name.'" cùng '.$stats['students'].' học viên, '
+                .$stats['sessions'].' buổi học, '.$stats['attempts'].' lượt làm bài của học sinh và các dữ liệu liên quan.');
     }
 }

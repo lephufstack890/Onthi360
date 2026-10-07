@@ -22,7 +22,7 @@
             'course-updated' => 'Đã lưu thay đổi khóa học.',
             'class-created' => 'Đã tạo lớp mới.',
             'class-updated' => 'Đã lưu thay đổi lớp học.',
-            'class-deleted' => 'Đã xóa lớp học (xóa mềm, đã ghi lý do).',
+            'class-deleted' => session('statusMessage', 'Đã xóa lớp học cùng toàn bộ dữ liệu liên quan.'),
             default => null,
         };
     @endphp

@@ -87,18 +87,18 @@
 
         <div class="bg-white rounded-3xl border border-blue-200 p-6 space-y-3" x-data="{ open: false, reason: '' }">
             <h3 class="flex items-center gap-2 text-[13px] font-bold text-blue-700"><span><x-lucide name="alert-triangle" class="h-4 w-4" /></span> Xóa khóa học</h3>
-            <p class="text-[13px] text-slate-500">Xóa mềm — dữ liệu vẫn còn trong hệ thống để tra cứu, chỉ ẩn khỏi danh sách. Bắt buộc nêu lý do (10.4).</p>
+            <p class="text-[13px] text-slate-500">Xóa VĨNH VIỄN khóa học cùng toàn bộ lớp thuộc khóa và mọi dữ liệu liên quan (học viên ghi danh, buổi học, điểm danh, bài giao, bài làm của học sinh, đánh giá, ảnh bìa). Không thể khôi phục. Lý do là tùy chọn, nếu nhập sẽ được ghi vào nhật ký hệ thống.</p>
 
             <button type="button" @click="open = !open" class="text-xs font-bold text-blue-600 hover:underline" x-text="open ? 'Đóng' : 'Tôi muốn xóa khóa học này'"></button>
 
-            <form x-show="open" x-cloak method="POST" action="{{ route('admin.courses.destroy', $course->id) }}" class="space-y-3 pt-2" onsubmit="return confirm('Xác nhận xóa khóa học này?');">
+            <form x-show="open" x-cloak method="POST" action="{{ route('admin.courses.destroy', $course->id) }}" class="space-y-3 pt-2" onsubmit="return confirm('Xóa VĨNH VIỄN khóa học này cùng toàn bộ lớp và dữ liệu liên quan? Không thể khôi phục.');">
                 @csrf
                 @method('DELETE')
                 <div>
-                    <label class="block text-[13px] text-slate-600 mb-1">Lý do xóa (bắt buộc)</label>
-                    <textarea name="reason" x-model="reason" rows="3" required class="admin-input" placeholder="Nêu rõ lý do..."></textarea>
+                    <label class="block text-[13px] text-slate-600 mb-1">Lý do xóa (không bắt buộc)</label>
+                    <textarea name="reason" x-model="reason" rows="3" class="admin-input" placeholder="Nêu lý do nếu cần..."></textarea>
                 </div>
-                <button type="submit" :disabled="reason.trim().length === 0"
+                <button type="submit"
                         class="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-rose-100 transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
                     Xác nhận xóa
                 </button>

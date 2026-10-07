@@ -12,6 +12,7 @@ use App\Repositories\Contracts\ClassRoomRepositoryInterface;
 use App\Repositories\Contracts\CourseRepositoryInterface;
 use App\Repositories\Contracts\TeacherProfileRepositoryInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -92,6 +93,9 @@ class CourseService
                     'meta' => ($teacher ? 'GV '.$teacher->name : 'Chưa phân công').' · '.$c->students_count.' học sinh',
                     'status' => $c->status === 'active' ? 'Đang học' : (string) $c->status,
                     'tone' => $c->status === 'active' ? 'success' : 'neutral',
+                    // SỬA 7/10 — nút Xoá trên từng dòng; tên đi theo data-* để hộp xác nhận nói rõ xoá cái gì.
+                    'deleteHref' => route('admin.classes.destroy', $c->id),
+                    'deleteLabel' => 'Xóa VĨNH VIỄN lớp "'.$c->name.'" cùng mọi dữ liệu của lớp: học viên ghi danh, buổi học, điểm danh, bài giao, bài làm của học sinh, đánh giá… Không thể khôi phục. Tiếp tục?',
                 ];
             })->all();
         } else {
@@ -101,6 +105,9 @@ class CourseService
                 'meta' => $c->class_rooms_count.' lớp đang triển khai',
                 'status' => $c->status->value === 'published' ? 'Đang mở' : (string) $c->status->value,
                 'tone' => $c->status->value === 'published' ? 'success' : 'neutral',
+                // SỬA 7/10 — nút Xoá trên từng dòng, xem ghi chú ở nhánh Lớp học phía trên.
+                'deleteHref' => route('admin.courses.destroy', $c->id),
+                'deleteLabel' => 'Xóa VĨNH VIỄN khóa học "'.$c->title.'" cùng TOÀN BỘ lớp thuộc khóa và mọi dữ liệu của các lớp đó: học viên ghi danh, buổi học, điểm danh, bài giao, bài làm của học sinh, đánh giá, ảnh bìa… Không thể khôi phục. Tiếp tục?',
             ])->all();
         }
 
@@ -392,12 +399,58 @@ class CourseService
         return ['product_id' => ($value === null || $value === '') ? null : (int) $value];
     }
 
-    /** admin.courses.destroy — xóa mềm, PHẢI có lý do + audit log (10.4). */
-    public function destroy(Course $course, string $reason): void
+    /**
+     * admin.courses.destroy — XOÁ VĨNH VIỄN một khoá học cùng MỌI thứ gắn với nó.
+     *
+     * SỬA 7/10 (khách: "chỉ cần xoá khoá học là toàn bộ file hay lớp hay bất cứ gì liên quan đến
+     * khoá đều xoá hết… tránh để dữ liệu rác") — trước đây chỉ xoá mềm: dòng vẫn nằm trong CSDL,
+     * lớp/học viên/buổi học/bài làm của khoá vẫn còn nguyên và ảnh bìa vẫn nằm trên đĩa. Giờ xoá
+     * thật, trong MỘT giao dịch (lỗi giữa chừng thì không mất gì):
+     *
+     *   - mọi lớp của khoá (kể cả lớp đã xoá mềm từ trước) và toàn bộ dữ liệu của từng lớp
+     *     — xem purgeClassRoomData();
+     *   - các dòng "khoá nằm trong lộ trình" (learning_path_course). Lộ trình vẫn còn, chỉ mất bậc
+     *     trỏ tới khoá này;
+     *   - ảnh bìa trên đĩa (xoá SAU khi giao dịch chốt, vì tệp đã xoá thì không hoàn lại được).
+     *
+     * KHÔNG xoá "sản phẩm" (Product) mà khoá đang gắn tới: đó là nội dung dùng chung, có trang quản
+     * lý và nút xoá riêng — chỉ gỡ liên kết.
+     *
+     * Lý do ($reason) giờ là TUỲ CHỌN nhưng nếu có vẫn ghi vào audit log (10.4); log "deleted"
+     * của khoá luôn được ghi, kèm tóm tắt số lượng đã dọn.
+     *
+     * @return array<string,int> số lượng đã xoá, để nơi gọi báo cho người dùng.
+     */
+    public function destroy(Course $course, ?string $reason = null): array
     {
-        Course::$auditReason = $reason;
-        $this->courses->delete($course);
-        Course::$auditReason = null;
+        $coverPath = $course->cover_image_path;
+
+        $stats = DB::transaction(function () use ($course, $reason): array {
+            $classIds = ClassRoom::withTrashed()->where('course_id', $course->id)->pluck('id')->all();
+
+            $stats = $this->purgeClassRoomData($classIds);
+            $stats['classes'] = count($classIds);
+
+            foreach (array_chunk($classIds, 500) as $chunk) {
+                DB::table('class_rooms')->whereIn('id', $chunk)->delete();
+            }
+
+            $stats['paths'] = DB::table('learning_path_course')->where('course_id', $course->id)->delete();
+
+            Course::$auditReason = $this->auditReason($reason, $stats);
+            try {
+                $course->forceDelete();
+            } finally {
+                Course::$auditReason = null;
+            }
+
+            return $stats;
+        });
+
+        // Tệp trên đĩa: chỉ xoá khi CSDL đã xoá xong.
+        $this->forgetCover($coverPath);
+
+        return $stats;
     }
 
     /** admin.courses.classes.create — danh sách giáo viên đã duyệt để phân công + trạng thái. */
@@ -510,11 +563,140 @@ class CourseService
         ];
     }
 
-    /** admin.classes.destroy — xóa mềm lớp, PHẢI có lý do + audit log (10.4). */
-    public function destroyClass(ClassRoom $classRoom, string $reason): void
+    /**
+     * admin.classes.destroy — XOÁ VĨNH VIỄN một lớp cùng MỌI dữ liệu của lớp đó.
+     *
+     * SỬA 7/10 (khách: "xoá lớp học thì những gì liên quan đến lớp học đó đều xoá hết") — thay cho
+     * xoá mềm. Một giao dịch duy nhất; chi tiết những gì bị dọn nằm ở purgeClassRoomData().
+     * Khoá học chứa lớp và các lớp khác của khoá KHÔNG bị đụng tới.
+     *
+     * @return array<string,int>
+     */
+    public function destroyClass(ClassRoom $classRoom, ?string $reason = null): array
     {
-        ClassRoom::$auditReason = $reason;
-        $this->classRooms->delete($classRoom);
-        ClassRoom::$auditReason = null;
+        return DB::transaction(function () use ($classRoom, $reason): array {
+            $stats = $this->purgeClassRoomData([$classRoom->id]);
+
+            ClassRoom::$auditReason = $this->auditReason($reason, $stats);
+            try {
+                $classRoom->forceDelete();
+            } finally {
+                ClassRoom::$auditReason = null;
+            }
+
+            return $stats;
+        });
+    }
+
+    /**
+     * Xoá SẠCH dữ liệu con của một hay nhiều lớp (KHÔNG xoá chính dòng class_rooms — nơi gọi lo).
+     *
+     * Xoá tường minh từng bảng thay vì trông vào cascadeOnDelete của CSDL, vì có 2 bảng khai
+     * nullOnDelete (attempts.class_room_id / attempts.assignment_id): để CSDL tự xử thì bài làm
+     * của học sinh KHÔNG bị xoá mà chỉ bị gỡ khỏi lớp → thành bài làm mồ côi, đúng thứ "dữ liệu
+     * rác" khách muốn tránh. Thứ tự đi từ bảng con lên bảng cha để không vướng khoá ngoại.
+     *
+     * Bị xoá cùng lớp:
+     *   - lượt làm bài của học sinh trong lớp (attempts, theo class_room_id HOẶC bài giao của lớp)
+     *     cùng bài làm / mục code / khoá đáp án / lượt chấm code của chúng;
+     *   - bài giao theo lớp (assignments), học liệu gắn lớp (class_materials), mở khoá tiến độ
+     *     (progress_unlocks), bảng xếp hạng của lớp (leaderboard_entries);
+     *   - buổi học và mọi thứ trong buổi: điểm danh, hoạt động, tài nguyên;
+     *   - học viên ghi danh, giáo viên phụ trách;
+     *   - đánh giá của lớp (reviews target=class_room) kèm báo cáo vi phạm và bảng tổng hợp sao.
+     *
+     * KHÔNG xoá: đề thi / học liệu / câu hỏi dùng trong lớp (là nội dung dùng chung, lớp chỉ liên
+     * kết tới), tài khoản học sinh và giáo viên.
+     *
+     * @param  list<int>  $classIds
+     * @return array<string,int>
+     */
+    private function purgeClassRoomData(array $classIds): array
+    {
+        $stats = ['students' => 0, 'sessions' => 0, 'attempts' => 0, 'reviews' => 0];
+
+        if ($classIds === []) {
+            return $stats;
+        }
+
+        $sessionIds = DB::table('class_sessions')->whereIn('class_room_id', $classIds)->pluck('id')->all();
+        $assignmentIds = DB::table('assignments')->whereIn('class_room_id', $classIds)->pluck('id')->all();
+
+        $attemptIds = DB::table('attempts')
+            ->where(function ($q) use ($classIds, $assignmentIds) {
+                $q->whereIn('class_room_id', $classIds);
+                if ($assignmentIds !== []) {
+                    $q->orWhereIn('assignment_id', $assignmentIds);
+                }
+            })
+            ->pluck('id')->all();
+
+        // 1. Bài làm của học sinh (từ bảng con lên bảng cha).
+        foreach (array_chunk($attemptIds, 500) as $chunk) {
+            $answerIds = DB::table('attempt_answers')->whereIn('attempt_id', $chunk)->pluck('id')->all();
+            foreach (array_chunk($answerIds, 500) as $answerChunk) {
+                DB::table('judge_submissions')->whereIn('attempt_answer_id', $answerChunk)->delete();
+            }
+            DB::table('attempt_answers')->whereIn('attempt_id', $chunk)->delete();
+            DB::table('attempt_coding_items')->whereIn('attempt_id', $chunk)->delete();
+            DB::table('attempt_answer_keys')->whereIn('attempt_id', $chunk)->delete();
+            DB::table('attempts')->whereIn('id', $chunk)->delete();
+        }
+        $stats['attempts'] = count($attemptIds);
+
+        // 2. Buổi học và mọi thứ trong buổi (tài nguyên trỏ tới hoạt động nên xoá trước).
+        foreach (array_chunk($sessionIds, 500) as $chunk) {
+            DB::table('attendances')->whereIn('class_session_id', $chunk)->delete();
+            DB::table('session_resources')->whereIn('class_session_id', $chunk)->delete();
+            DB::table('session_activities')->whereIn('class_session_id', $chunk)->delete();
+        }
+        $stats['sessions'] = count($sessionIds);
+
+        // 3. Các bảng gắn thẳng vào lớp.
+        foreach (array_chunk($classIds, 500) as $chunk) {
+            $stats['students'] += DB::table('class_enrollments')->whereIn('class_room_id', $chunk)->count();
+
+            DB::table('class_sessions')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('assignments')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('class_materials')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('progress_unlocks')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('leaderboard_entries')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('class_enrollments')->whereIn('class_room_id', $chunk)->delete();
+            DB::table('class_teachers')->whereIn('class_room_id', $chunk)->delete();
+
+            // 4. Đánh giá của lớp: không có khoá ngoại tới class_rooms (target_type + target_id nên
+            // CSDL không tự dọn) — phải xoá tay, kẻo lớp mất mà sao đánh giá vẫn còn trên trang công khai.
+            $reviewIds = DB::table('reviews')
+                ->where('target_type', 'class_room')->whereIn('target_id', $chunk)
+                ->pluck('id')->all();
+            foreach (array_chunk($reviewIds, 500) as $reviewChunk) {
+                DB::table('review_reports')->whereIn('review_id', $reviewChunk)->delete();
+                DB::table('reviews')->whereIn('id', $reviewChunk)->delete();
+            }
+            $stats['reviews'] += count($reviewIds);
+
+            DB::table('rating_summaries')
+                ->where('target_type', 'class_room')->whereIn('target_id', $chunk)->delete();
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Chuỗi ghi vào audit_logs.reason (cột string 255): lý do người dùng nhập (nếu có) + tóm tắt
+     * số lượng đã dọn, để sau này tra log còn biết lần xoá đó kéo theo bao nhiêu dữ liệu.
+     *
+     * @param  array<string,int>  $stats
+     */
+    private function auditReason(?string $reason, array $stats): string
+    {
+        $summary = 'Xóa vĩnh viễn kèm dữ liệu liên quan ('
+            .(isset($stats['classes']) ? ($stats['classes'].' lớp, ') : '')
+            .$stats['students'].' học viên, '.$stats['sessions'].' buổi, '.$stats['attempts'].' lượt làm bài, '
+            .$stats['reviews'].' đánh giá)';
+
+        $reason = trim((string) $reason);
+
+        return Str::limit($reason !== '' ? $reason.' — '.$summary : $summary, 250, '…');
     }
 }
