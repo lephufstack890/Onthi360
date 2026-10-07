@@ -429,6 +429,18 @@
         position: absolute; left: 0; right: 0; z-index: 0; display: none;
         background: rgba(18, 111, 145, .07); pointer-events: none;
     }
+    /* Viền focus của site (.assessment-modal textarea:focus-visible) vốn bị khung che đi vì ô mã phủ
+       kín khung; giờ ô mã dịch sang phải nhường chỗ cho cột số dòng nên viền lộ ra thành một
+       đường xanh dài. Ô mã đã có dải sáng ở dòng đang đứng làm dấu focus, bỏ viền đi. */
+    textarea[data-code-source][data-gutter]:focus,
+    textarea[data-code-source][data-gutter]:focus-visible { outline: none !important; box-shadow: none !important; }
+    /* Con trỏ: ẩn con trỏ gốc của trình duyệt (mỗi trình duyệt vẽ lệch một kiểu so với lớp tô màu
+       bên dưới) và vẽ con trỏ riêng, tính từ CÙNG số đo với cột số dòng nên luôn thẳng hàng. */
+    textarea[data-code-source][data-gutter] { caret-color: transparent !important; }
+    .oi-code-caretclip { position: absolute; top: 0; right: 0; bottom: 0; z-index: 25; overflow: hidden; pointer-events: none; }
+    .oi-code-caret { position: absolute; top: 0; left: 0; width: 2px; margin-left: -1px; border-radius: 1px; background: #126F91; display: none; animation: oi-code-caret-blink 1.06s steps(1) infinite; }
+    @keyframes oi-code-caret-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+    html.theme-dark .oi-code-caret { background: #EAF5F8; }
     html.theme-dark .oi-code-gutter { border-right-color: #2B4352; color: #5E7A8C; }
     html.theme-dark .oi-code-gutter__ln.is-active { color: #D6E6F0; }
     html.theme-dark .oi-code-curline { background: rgba(120, 190, 220, .09); }
@@ -451,11 +463,31 @@
             band.className = 'oi-code-curline';
             host.insertBefore(band, host.firstChild);
             host.appendChild(gutter);
+            var caretClip = document.createElement('div');
+            caretClip.className = 'oi-code-caretclip';
+            var caret = document.createElement('div');
+            caret.className = 'oi-code-caret';
+            caretClip.appendChild(caret);
+            host.appendChild(caretClip);
+            // Thước đo độ rộng chữ: cùng phông với ô mã, white-space:pre để giữ nguyên dấu cách/tab.
+            var ruler = document.createElement('span');
+            ruler.setAttribute('aria-hidden', 'true');
+            ruler.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;white-space:pre;';
 
             var cs = window.getComputedStyle(ta);
             var lineHeight = parseFloat(cs.lineHeight);
             if (isNaN(lineHeight)) lineHeight = (parseFloat(cs.fontSize) || 12) * 1.5;
             var padTop = parseFloat(cs.paddingTop) || 0;
+            var padLeft = parseFloat(cs.paddingLeft) || 0;
+            ruler.style.fontFamily = cs.fontFamily;
+            ruler.style.fontSize = cs.fontSize;
+            ruler.style.fontWeight = cs.fontWeight;
+            ruler.style.fontStyle = cs.fontStyle;
+            ruler.style.letterSpacing = cs.letterSpacing;
+            ruler.style.tabSize = cs.tabSize;
+            host.appendChild(ruler);
+            caret.style.height = lineHeight + 'px';
+            var caretKey = '';
             gutter.style.fontFamily = cs.fontFamily;
             gutter.style.fontSize = cs.fontSize;
             gutter.style.lineHeight = lineHeight + 'px';
@@ -494,6 +526,8 @@
                         ta.style.left = width;
                         ta.style.width = 'calc(100% - ' + width + ')';
                         band.style.left = '0';
+                        // Đổi ra px theo vị trí thật của ô mã: đơn vị ch phụ thuộc phông của từng thẻ.
+                        caretClip.style.left = (ta.getBoundingClientRect().left - host.getBoundingClientRect().left) + 'px';
                     }
                 }
 
@@ -509,11 +543,34 @@
                 var top = ta.scrollTop;
                 inner.style.transform = 'translateY(' + (padTop - top) + 'px)';
 
-                if (document.activeElement === ta && !ta.disabled) {
+                var focused = document.activeElement === ta && !ta.disabled;
+                if (focused) {
                     band.style.display = 'block';
                     band.style.top = (padTop + line * lineHeight - top) + 'px';
                 } else {
                     band.style.display = 'none';
+                }
+
+                // Con trỏ riêng: chỉ vẽ khi ô đang được trỏ vào và không đang bôi đen đoạn nào.
+                if (focused && !ta.readOnly && ta.selectionStart === ta.selectionEnd) {
+                    var pos = ta.selectionStart || 0;
+                    var lineStart = pos > 0 ? value.lastIndexOf('\n', pos - 1) + 1 : 0;
+                    ruler.textContent = value.slice(lineStart, pos);
+                    var textWidth = ruler.getBoundingClientRect().width;
+                    var x = padLeft + textWidth - ta.scrollLeft;
+                    var y = padTop + line * lineHeight - top;
+                    caret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+                    caret.style.display = 'block';
+                    // Con trỏ vừa dịch chuyển thì đang sáng ngay, rồi mới nhấp nháy tiếp (như trình soạn thật).
+                    var key = pos + ':' + value.length;
+                    if (key !== caretKey) {
+                        caretKey = key;
+                        caret.style.animation = 'none';
+                        void caret.offsetWidth;
+                        caret.style.animation = '';
+                    }
+                } else {
+                    caret.style.display = 'none';
                 }
             }
 
