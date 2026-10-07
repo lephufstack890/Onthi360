@@ -717,6 +717,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions', [AdminContentController::class, 'questionsStore'])->name('content.questions.store');
         Route::get('content/questions/{question}/edit', [AdminContentController::class, 'questionsEdit'])->name('content.questions.edit');
         Route::put('content/questions/{question}', [AdminContentController::class, 'questionsUpdate'])->name('content.questions.update');
+        Route::patch('content/questions/{question}/display-order', [AdminContentController::class, 'questionsDisplayOrder'])->name('content.questions.displayOrder');
         Route::post('content/questions/{question}/new-version', [AdminContentController::class, 'questionsNewVersion'])->name('content.questions.newVersion');
         Route::post('content/questions/{question}/publish', [AdminContentController::class, 'questionsPublish'])->name('content.questions.publish');
         Route::post('content/questions/{question}/reject', [AdminContentController::class, 'questionsReject'])->name('content.questions.reject');

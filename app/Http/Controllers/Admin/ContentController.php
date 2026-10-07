@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Services\Admin\ContentService;
 use App\Services\Admin\DocumentImportService;
 use App\Support\AnswerKeySheet;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -203,6 +204,26 @@ class ContentController extends Controller
         return $ok
             ? back()->with('status', 'question-deleted')->with('statusMessage', $message)
             : back()->withErrors(['delete' => $message]);
+    }
+
+    /**
+     * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" của 1 câu hỏi ngay trên danh sách (gọi bằng fetch,
+     * trả JSON). mode=set kèm value (0..65535) hoặc mode=top (đưa lên đầu).
+     */
+    public function questionsDisplayOrder(Request $request, Question $question): JsonResponse
+    {
+        $data = $request->validate([
+            'mode' => ['required', 'in:set,top'],
+            'value' => ['required_if:mode,set', 'nullable', 'integer', 'min:0', 'max:65535'],
+        ], [], ['value' => 'Thứ tự hiển thị']);
+
+        $result = $this->contentService->questionSetDisplayOrder(
+            $question,
+            $data['mode'],
+            isset($data['value']) ? (int) $data['value'] : null,
+        );
+
+        return response()->json(['ok' => true] + $result);
     }
 
     /** SỬA 4/10 — xoá đề thi + 4 tệp của nó (đề, lời giải, bản xem trước, ảnh bìa). */

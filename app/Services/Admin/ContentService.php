@@ -322,6 +322,10 @@ class ContentService
                     // SỬA 30/9 (khách: "thêm nút sửa bên này nữa cho tiện sửa câu hỏi") — trước
                     // đây muốn sửa phải bấm "Xem" rồi tìm nút Sửa trong trang chi tiết.
                     'editHref' => route('admin.content.questions.edit', $q->id),
+                    // SỬA 7/10 (khách: "hiển thị cột thứ tự hiển thị ra ngoài danh sách, sửa trực tiếp
+                    // trên từng dòng") — số thứ tự hiện tại + địa chỉ lưu nhanh (PATCH, trả JSON).
+                    'displayOrder' => (int) $q->display_order,
+                    'orderHref' => route('admin.content.questions.displayOrder', $q->id),
                     // SỬA 4/10 — nút Xoá trên từng dòng. Bày cho mọi dòng; việc có xoá được hay
                     // không do questionDestroy() quyết ở phía máy chủ (đã có người làm / đang nằm
                     // trong đề thì từ chối kèm lý do). Ẩn nút theo điều kiện thì phải đếm
@@ -382,6 +386,8 @@ class ContentService
             'rows' => $rows,
             // SỬA 7/10 — chỉ có ở tab Câu hỏi (null ở các tab khác): trang hiện tại / tổng số trang.
             'pagination' => $pagination,
+            // SỬA 7/10 — số thứ tự LỚN NHẤT toàn kho: nút "Đưa lên đầu" và nhãn "Đang ở đầu".
+            'orderMax' => $tab === 'questions' ? $this->displayOrderMax() : 0,
             'documents' => $documents,
             'tags' => $tags,
             'total' => match (true) {
@@ -1711,6 +1717,39 @@ class ContentService
         Question::$auditReason = null;
 
         return $question;
+    }
+
+    /** Số thứ tự hiển thị lớn nhất đang có (0 nếu chưa câu nào đặt). */
+    public function displayOrderMax(): int
+    {
+        return (int) Question::query()->max('display_order');
+    }
+
+    /**
+     * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" ngay trên danh sách. Số lớn hơn = hiện trước
+     * (0 = bình thường, mới nhất trước). $mode: 'set' (đặt đúng $value), 'top' (đưa lên đầu =
+     * lớn nhất hiện có + 1). Luôn kẹp 0..65535 (cột unsignedInteger, luật kiểm tra của form Sửa).
+     * Đi qua $question->update() nên nhật ký kiểm toán (Auditable) vẫn ghi lại như khi sửa bằng form.
+     *
+     * @return array{value:int, max:int}
+     */
+    public function questionSetDisplayOrder(Question $question, string $mode, ?int $value = null): array
+    {
+        $limit = 65535;
+        $new = $mode === 'top'
+            ? min($limit, max($this->displayOrderMax(), (int) $question->display_order) + 1)
+            : max(0, min($limit, (int) $value));
+
+        if ((int) $question->display_order !== $new) {
+            Question::$auditReason = 'Đổi thứ tự hiển thị nhanh ở danh sách';
+            try {
+                $question->update(['display_order' => $new]);
+            } finally {
+                Question::$auditReason = null;
+            }
+        }
+
+        return ['value' => $new, 'max' => $this->displayOrderMax()];
     }
 
     public function questionArchive(Question $question, string $reason): Question
