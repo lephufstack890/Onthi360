@@ -401,3 +401,168 @@
             });
         })();
 </script>
+
+{{-- ═══════════ CỘT SỐ DÒNG KIỂU VS CODE (chỉ là GIAO DIỆN) ═══════════
+     SỬA 7/10 (khách: "cho UI hiển thị số dòng giống kiểu VS Code cho đẹp") — thêm một cột số dòng
+     bên trái ô soạn mã, ở MỌI nơi dùng ô soạn mã kiểu "textarea trong suốt + lớp tô màu":
+     luyện 1 bài (exercise-play), phòng thi (take) và thi cuộc thi (competitions/exam).
+
+     KHÔNG ĐỤNG LOGIC: không sửa textarea, không đổi tên/giá trị/sự kiện của nó, không chặn hay
+     thêm gì vào luồng nộp bài. Đoạn này chỉ ĐỌC textarea[data-code-source] (giá trị, vị trí con
+     trỏ, scrollTop) rồi vẽ thêm vài thẻ trang trí bên cạnh:
+       · cột số dòng (số dòng hiện tại đậm hơn);
+       · dải sáng mờ ở dòng đang đứng (chỉ khi ô đang được trỏ vào).
+     Tự gắn cho mọi ô mã, kể cả ô được dựng lại sau khi chấm bài hay sau khi đổi câu, nên không
+     phải sửa từng màn. Các ô này đã có sẵn lớp lệnh/lớp tô màu nên chỉ cần dịch chúng sang phải
+     bằng style.left; ô vẫn co giãn theo khung như cũ.
+     Màu chữ/đường kẻ bám theo html.theme-dark giống phần còn lại của khu soạn mã. --}}
+<style>
+    .oi-code-gutter {
+        position: absolute; top: 0; bottom: 0; left: 0; z-index: 30; overflow: hidden;
+        box-sizing: border-box; border-right: 1px solid #DDEAF0; color: #9DB1BF;
+        text-align: right; pointer-events: none; -webkit-user-select: none; user-select: none;
+    }
+    .oi-code-gutter__inner { position: absolute; top: 0; left: 0; right: 0; will-change: transform; }
+    .oi-code-gutter__ln { display: block; padding: 0 .75rem 0 .5rem; white-space: pre; }
+    .oi-code-gutter__ln.is-active { color: #123B68; font-weight: 700; }
+    .oi-code-curline {
+        position: absolute; left: 0; right: 0; z-index: 0; display: none;
+        background: rgba(18, 111, 145, .07); pointer-events: none;
+    }
+    html.theme-dark .oi-code-gutter { border-right-color: #2B4352; color: #5E7A8C; }
+    html.theme-dark .oi-code-gutter__ln.is-active { color: #D6E6F0; }
+    html.theme-dark .oi-code-curline { background: rgba(120, 190, 220, .09); }
+</style>
+<script>
+    (function () {
+        function attach(ta) {
+            var host = ta.parentElement;
+            if (!host) return;
+            ta.dataset.gutter = '1';
+
+            var pre = host.querySelector('pre');
+            var gutter = document.createElement('div');
+            gutter.className = 'oi-code-gutter';
+            gutter.setAttribute('aria-hidden', 'true');
+            var inner = document.createElement('div');
+            inner.className = 'oi-code-gutter__inner';
+            gutter.appendChild(inner);
+            var band = document.createElement('div');
+            band.className = 'oi-code-curline';
+            host.insertBefore(band, host.firstChild);
+            host.appendChild(gutter);
+
+            var cs = window.getComputedStyle(ta);
+            var lineHeight = parseFloat(cs.lineHeight);
+            if (isNaN(lineHeight)) lineHeight = (parseFloat(cs.fontSize) || 12) * 1.5;
+            var padTop = parseFloat(cs.paddingTop) || 0;
+            gutter.style.fontFamily = cs.fontFamily;
+            gutter.style.fontSize = cs.fontSize;
+            gutter.style.lineHeight = lineHeight + 'px';
+            band.style.height = lineHeight + 'px';
+
+            var lastCount = 0;
+            var lastDigits = 0;
+            var activeLine = -1;
+
+            function caretLine(value) {
+                var pos = ta.selectionStart || 0;
+                var n = 0;
+                for (var i = value.indexOf('\n'); i !== -1 && i < pos; i = value.indexOf('\n', i + 1)) n++;
+                return n;
+            }
+
+            function refresh() {
+                var value = ta.value || '';
+                var count = 1;
+                for (var i = value.indexOf('\n'); i !== -1; i = value.indexOf('\n', i + 1)) count++;
+
+                if (count !== lastCount) {
+                    var html = '';
+                    for (var n = 1; n <= count; n++) html += '<span class="oi-code-gutter__ln">' + n + '</span>';
+                    inner.innerHTML = html;
+                    lastCount = count;
+                    activeLine = -1;
+
+                    // Cột rộng theo số chữ số của dòng cuối (tối thiểu 2), để 99 → 100 không giật chữ.
+                    var digits = Math.max(2, String(count).length);
+                    if (digits !== lastDigits) {
+                        lastDigits = digits;
+                        var width = 'calc(' + digits + 'ch + 1.25rem + 1px)';
+                        gutter.style.width = width;
+                        if (pre) pre.style.left = width;
+                        ta.style.left = width;
+                        ta.style.width = 'calc(100% - ' + width + ')';
+                        band.style.left = '0';
+                    }
+                }
+
+                var line = caretLine(value);
+                if (line !== activeLine) {
+                    var prev = inner.children[activeLine];
+                    if (prev) prev.classList.remove('is-active');
+                    var cur = inner.children[line];
+                    if (cur) cur.classList.add('is-active');
+                    activeLine = line;
+                }
+
+                var top = ta.scrollTop;
+                inner.style.transform = 'translateY(' + (padTop - top) + 'px)';
+
+                if (document.activeElement === ta && !ta.disabled) {
+                    band.style.display = 'block';
+                    band.style.top = (padTop + line * lineHeight - top) + 'px';
+                } else {
+                    band.style.display = 'none';
+                }
+            }
+
+            var queued = false;
+            function schedule() {
+                if (queued) return;
+                queued = true;
+                window.requestAnimationFrame(function () { queued = false; refresh(); });
+            }
+
+            ta.__oiGutterRefresh = schedule;
+            ['input', 'scroll', 'keyup', 'click', 'mouseup', 'focus', 'blur'].forEach(function (name) {
+                ta.addEventListener(name, schedule);
+            });
+
+            // Mã đổi bằng code (mã mẫu, nạp file, Alpine x-model…) không bắn sự kiện 'input',
+            // nhưng lớp tô màu bên cạnh luôn được vẽ lại → nghe nó để cập nhật số dòng.
+            if (pre && window.MutationObserver) {
+                new MutationObserver(schedule).observe(pre, { childList: true, characterData: true, subtree: true });
+            }
+
+            refresh();
+        }
+
+        function scan() {
+            var list = document.querySelectorAll('textarea[data-code-source]');
+            for (var i = 0; i < list.length; i++) {
+                if (!list[i].dataset.gutter) attach(list[i]);
+            }
+        }
+
+        var scanQueued = false;
+        function queueScan() {
+            if (scanQueued) return;
+            scanQueued = true;
+            window.requestAnimationFrame(function () { scanQueued = false; scan(); });
+        }
+
+        // Con trỏ di chuyển bằng phím mũi tên/chuột cũng đổi dòng đang đứng.
+        document.addEventListener('selectionchange', function () {
+            var ta = document.activeElement;
+            if (ta && ta.__oiGutterRefresh) ta.__oiGutterRefresh();
+        });
+
+        document.addEventListener('DOMContentLoaded', scan);
+        scan();
+        // Ô mã được dựng mới sau khi chấm bài / đổi câu → tự gắn cột số dòng cho nó.
+        if (window.MutationObserver) {
+            new MutationObserver(queueScan).observe(document.documentElement, { childList: true, subtree: true });
+        }
+    })();
+</script>
