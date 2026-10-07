@@ -166,4 +166,41 @@
 .submission-history .sample-clear:hover:not(:disabled) { text-decoration:underline; }
 .submission-history .submission-notice { margin:0 0 10px; padding:10px 14px; border:1px solid #BFE3D2; border-radius:10px; background:#EFF9F5; color:#1F6F55; font-size:12px; font-weight:600; }
 .submission-history .submission-notice.is-error { border-color:#F5C2C0; background:#FFF1F0; color:#B42318; }
+/* SỬA 7/10 — cột Hoạt động + dòng thời gian (chỉ admin). Chép từ education-main/submissionHistory.css. */
+.submission-filters select { min-height:42px; border:1px solid #D6E3EF; border-radius:12px; background-color:#F8FAFB; padding:7px 10px; font-size:11px; font-weight:600; color:#365B7A; }
+.submission-history .activity-cell { min-width:176px; }
+.submission-table-signals { display:flex; flex-direction:column; align-items:flex-start; gap:3px; color:var(--history-amber); font-size:11px; }
+.submission-table-signals>span { display:flex; align-items:center; gap:5px; }
+.submission-table-signals b { font-weight:600; }
+.submission-table-signals .table-clear { color:var(--history-green); }
+.submission-history button.submission-table-signals { padding:4px 6px; margin:-4px -6px; border:0; border-radius:8px; background:transparent; text-align:left; }
+.submission-history button.submission-table-signals:hover { background:var(--history-amber-soft); }
+.submission-table-signals .signal-more { display:inline-flex; align-items:center; gap:2px; margin-top:2px; font-style:normal; font-size:10px; font-weight:700; color:var(--history-action); }
+.submission-signals { display:flex; flex-wrap:wrap; gap:18px; padding:14px 20px 6px; }
+.submission-signals>div { display:flex; align-items:center; gap:6px; color:var(--history-muted); font-size:11px; }
+.submission-signals>div.active { color:var(--history-amber); }
+.submission-signals b { font-weight:700; }
+.submission-signal-note { padding:0 20px 14px; font-size:11px; color:var(--history-muted); }
+.submission-detail-tabs { display:flex; gap:5px; padding:8px 20px; border-block:1px solid var(--history-divider); }
+.submission-detail-tabs button { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 10px; min-height:36px; font-size:11px; font-weight:700; color:var(--history-body); border:0; border-radius:8px; background:transparent; }
+.submission-detail-tabs button[aria-pressed=true] { background:var(--history-action); color:#fff; }
+.submission-muted { font-size:12px; color:var(--history-muted); }
+.submission-timeline { margin:5px 0; padding:0; list-style:none; }
+.submission-timeline li { display:flex; gap:16px; font-size:12px; }
+.submission-timeline time { display:flex; flex-direction:column; width:65px; flex-shrink:0; color:var(--history-muted); font-size:11px; }
+.submission-timeline time small { font-size:10px; opacity:.8; }
+.submission-timeline li>div { position:relative; flex:1; min-width:0; border-left:1px solid var(--history-border); padding:0 0 18px 16px; }
+.submission-timeline li>div:before { content:''; position:absolute; left:-4px; top:6px; width:7px; height:7px; border-radius:50%; background:var(--history-action); }
+.submission-timeline li.has-signal>div:before { background:#c99739; }
+.submission-timeline strong { font-weight:600; color:var(--history-body); }
+.submission-timeline p { font-size:11px; color:var(--history-muted); margin-top:3px; overflow-wrap:anywhere; }
+/* Nhật ký dài: lọc theo nhóm + cuộn trong khung cao cố định, không kéo dài cả trang. */
+.submission-history .activity-filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.submission-history .activity-filters button { display:inline-flex; align-items:center; gap:5px; min-height:30px; padding:5px 10px; border:1px solid #D6E3EF; border-radius:999px; background:#fff; font-size:11px; font-weight:700; color:#365B7A; }
+.submission-history .activity-filters button b { font-weight:700; color:var(--history-muted); }
+.submission-history .activity-filters button[aria-pressed=true] { background:var(--history-heading); border-color:var(--history-heading); color:#fff; }
+.submission-history .activity-filters button[aria-pressed=true] b { color:#fff; }
+.submission-history .activity-truncated { margin-bottom:8px; font-size:11px; color:var(--history-muted); }
+.submission-history .activity-scroll { max-height:380px; overflow-y:auto; padding-right:8px; border:1px solid var(--history-border); border-radius:10px; padding:12px 12px 0 12px; background:#FBFDFE; }
+@media(max-width:600px) { .submission-signals { padding:12px 12px 6px; gap:10px; } .submission-signal-note { padding-inline:12px; } .submission-detail-tabs { padding-inline:12px; } .submission-filters select { flex-basis:100%; } }
 </style>

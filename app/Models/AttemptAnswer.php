@@ -22,6 +22,8 @@ class AttemptAnswer extends Model
         // SỬA 19/9 (8) — số test đã qua / tổng số test của câu Lập trình, để màn tổng kết
         // nói được "Đúng 4/20 test" thay vì chỉ một chữ "Sai".
         'passed_tests', 'total_tests',
+        // SỬA 7/10 — nhật ký làm bài (rời tab, phím chụp màn hình…) của lượt nộp; chỉ admin đọc.
+        'activity_log',
     ];
 
     /**
@@ -42,8 +44,24 @@ class AttemptAnswer extends Model
         return $supported;
     }
 
+    /**
+     * SỬA 7/10 — máy chủ đã chạy migration thêm cột activity_log chưa? Cùng khuôn với
+     * supportsTestCounts(): deploy mã trước khi kịp migrate không được làm lỗi lần nộp bài.
+     */
+    public static function supportsActivityLog(): bool
+    {
+        static $supported = null;
+
+        if ($supported === null) {
+            $supported = Schema::hasColumn('attempt_answers', 'activity_log');
+        }
+
+        return $supported;
+    }
+
     protected $casts = [
         'answer' => 'array',
+        'activity_log' => 'array',
         'verdict' => VerdictStatus::class,
         'graded_at' => 'datetime',
     ];

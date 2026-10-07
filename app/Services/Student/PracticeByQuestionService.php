@@ -15,6 +15,7 @@ use App\Repositories\Contracts\TagRepositoryInterface;
 use App\Services\CodeJudgingService;
 use App\Services\QuestionGrader;
 use App\Enums\ContentStatus;
+use App\Support\PracticeActivityLog;
 use App\Support\PracticeFilters;
 use App\Support\PracticeQuestionPool;
 use App\Support\QuestionOrder;
@@ -711,6 +712,20 @@ class PracticeByQuestionService
             $payload['passed_tests'] = is_array($details)
                 ? count(array_filter($details, fn ($d) => ($d['isAccepted'] ?? false) === true))
                 : null;
+        }
+
+        /*
+         * SỬA 7/10 (khách: "cột Hoạt động — chỉ admin xem; dữ liệu lấy ở tab Nhật ký lúc làm bài") —
+         * trình duyệt gửi kèm nhật ký làm bài lúc nộp (rời tab, phím chụp màn hình, mở Hướng dẫn/Bài
+         * mẫu…). Làm sạch + GỘP với nhật ký đã lưu của lượt nộp này (nộp lại nhiều lần vẫn không mất
+         * dòng cũ). Không gửi / hỏng thì giữ nguyên, không ghi đè.
+         */
+        if (AttemptAnswer::supportsActivityLog()) {
+            $incoming = PracticeActivityLog::clean($data['activity_log'] ?? null);
+
+            if ($incoming !== null) {
+                $payload['activity_log'] = PracticeActivityLog::merge($existing?->activity_log, $incoming);
+            }
         }
 
         $attempt->answers()->updateOrCreate(['question_id' => $question->id], $payload);

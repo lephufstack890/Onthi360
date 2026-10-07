@@ -85,11 +85,14 @@
                 });
             }
 
-            function add(kind, title, detail) {
+            // SỬA 7/10 — eventType (tham số thứ 4) để máy chủ phân nhóm dấu hiệu cho cột "Hoạt động"
+            // ở trang Nhật ký nộp bài của admin (screenshot_key, tab_visibility_lost,
+            // solution_guide_opened, sample_opened, screen_capture_requested).
+            function add(kind, title, detail, eventType) {
                 var now = new Date();
                 entries.unshift({
                     id: now.getTime() + '-' + Math.random().toString(36).slice(2, 7),
-                    kind: kind, title: title, detail: detail,
+                    kind: kind, title: title, detail: detail, eventType: eventType || null,
                     occurredAt: now.toISOString(), time: fmt.format(now),
                 });
                 entries = entries.slice(0, 100);
@@ -113,12 +116,25 @@
              */
             window.oiWorkLog = {
                 add: add,
+                /*
+                 * SỬA 7/10 — bản chụp nhật ký (cũ → mới) để gửi kèm lúc Nộp bài; máy chủ lưu theo
+                 * lượt nộp và chỉ admin xem được. Gọn: chỉ các trường máy chủ cần.
+                 */
+                snapshot: function () {
+                    return entries.slice().reverse().map(function (e) {
+                        return {
+                            id: e.id, kind: e.kind, eventType: e.eventType || null,
+                            title: e.title, detail: e.detail || '', occurredAt: e.occurredAt || null,
+                        };
+                    });
+                },
                 tabChanged: function (tab) {
                     // CHỈ hai tab này. Đề bài / Làm bài / Nhật ký là chỗ phải qua lại liên tục
                     // trong lúc làm, ghi vào thì nhật ký thành một dải vô nghĩa.
                     var label = { guide: 'Hướng dẫn', sample: 'Bài mẫu' }[tab];
                     if (!label) return;
-                    add('event', 'Mở tab ' + label, 'Chuyển sang xem "' + label + '".');
+                    add('event', 'Mở tab ' + label, 'Chuyển sang xem "' + label + '".',
+                        tab === 'guide' ? 'solution_guide_opened' : 'sample_opened');
                 },
             };
 
@@ -139,7 +155,7 @@
                 if (document.hidden) {
                     if (away) return;
                     // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
-                    add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.');
+                    add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.', 'tab_visibility_lost');
                     away = { at: Date.now(), entry: entries[0] };
                     return;
                 }
@@ -159,7 +175,7 @@
                 if (event.repeat) return;
 
                 if (event.key === 'PrintScreen' || event.code === 'PrintScreen') {
-                    add('signal', 'Bấm phím chụp màn hình', 'Trang nhận được phím Print Screen.');
+                    add('signal', 'Bấm phím chụp màn hình', 'Trang nhận được phím Print Screen.', 'screenshot_key');
                     return;
                 }
 
@@ -174,7 +190,7 @@
                  */
                 if (event.shiftKey && (event.metaKey || event.ctrlKey)
                     && ['3', '4', '5', 'S', 's'].indexOf(event.key) >= 0) {
-                    add('signal', 'Tổ hợp phím chụp/quay màn hình', 'Trang nhận được tổ hợp phím chụp hoặc quay màn hình.');
+                    add('signal', 'Tổ hợp phím chụp/quay màn hình', 'Trang nhận được tổ hợp phím chụp hoặc quay màn hình.', 'screenshot_key');
                 }
             }, true);
 
@@ -188,7 +204,7 @@
                 if (media && typeof media.getDisplayMedia === 'function') {
                     var original = media.getDisplayMedia.bind(media);
                     media.getDisplayMedia = function () {
-                        add('signal', 'Yêu cầu quay/chụp màn hình', 'Trang nhận được yêu cầu chia sẻ hoặc quay màn hình.');
+                        add('signal', 'Yêu cầu quay/chụp màn hình', 'Trang nhận được yêu cầu chia sẻ hoặc quay màn hình.', 'screen_capture_requested');
                         return original.apply(null, arguments);
                     };
                 }

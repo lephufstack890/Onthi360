@@ -18,10 +18,13 @@
      lượt được chọn thành bài mẫu của bài và hiện ở tab "Bài mẫu" của màn làm bài (xem
      Public\PracticeSampleService). Giáo viên/học sinh không có nút, chỉ thấy nhãn "Bài mẫu".
 
-     KHÁC BẢN MẪU: không có cột "Hoạt động" (rời tab, phím chụp màn hình…) và
-     nguồn "Minh họa" — các sự kiện hoạt động hiện chỉ được ghi trong trình duyệt người làm bài, chưa
-     gửi về máy chủ nên chưa có dữ liệu để hiển thị. Ô thứ 4 của dải tổng quan vì vậy là "Đang chờ
-     chấm" thay cho "Lượt cần xem xét". --}}
+     HOẠT ĐỘNG (SỬA 7/10): CHỈ ADMIN thấy cột "Hoạt động", ô "Lượt cần xem xét", ô lọc hoạt động và tab
+     "Mốc hoạt động" — dữ liệu là nhật ký làm bài (rời tab, phím chụp màn hình, mở Hướng dẫn/Bài mẫu)
+     do trình duyệt gửi kèm lúc nộp bài (attempt_answers.activity_log). Giáo viên/học sinh không
+     nhận dữ liệu này. Chỉ có ở BÀI TẬP; đề thi chưa ghi nhật ký về máy chủ.
+
+     KHÁC BẢN MẪU: không có nguồn "Minh họa". Với người không phải admin, ô thứ 4 của dải tổng quan
+     là "Đang chờ chấm". --}}
 @php
     $isExam = $type === 'exam';
     $roleLabel = match ($role) {
@@ -32,11 +35,15 @@
     // SỬA 7/10 — bài mẫu: chỉ BÀI TẬP có, và chỉ ADMIN mới thấy nút chỉ định (máy chủ cũng kiểm lại quyền).
     $canDesignate = ! $isExam && ($canDesignate ?? false);
     $sampleId = $sampleId ?? null;
+    // SỬA 7/10 — cột Hoạt động: chỉ admin, chỉ bài tập (máy chủ cũng không gửi dữ liệu cho người khác).
+    $canActivity = ! $isExam && ($canSeeActivity ?? false);
+    $activityCategories = $activityCategories ?? [];
     $historyPayload = [
         'type' => $type,
         'rows' => $rows,
         'canSeeOthers' => $canSeeOthers,
         'canDesignate' => $canDesignate,
+        'canSeeActivity' => $canActivity,
         'sampleId' => $isExam ? null : $sampleId,
         'sampleUrl' => $sampleUrl ?? '',
         'sampleClearUrl' => $sampleClearUrl ?? '',
@@ -81,7 +88,11 @@
                     <div><span class="stat-icon"><x-lucide name="clipboard-list" class="h-4 w-4" /></span><div><strong x-text="rows.length"></strong><p>Lượt nộp</p></div></div>
                     <div><span class="stat-icon"><x-lucide name="users" class="h-4 w-4" /></span><div><strong x-text="submitterCount"></strong><p>Người nộp</p></div></div>
                     <div><span class="stat-icon"><x-lucide name="award" class="h-4 w-4" /></span><div><strong x-text="bestLabel"></strong><p>Điểm cao nhất</p></div></div>
-                    <div><span class="stat-icon"><x-lucide name="clock" class="h-4 w-4" /></span><div><strong x-text="resultCounts.pending"></strong><p>Đang chờ chấm</p></div></div>
+                    @if ($canActivity)
+                        <div><span class="stat-icon"><x-lucide name="circle-alert" class="h-4 w-4" /></span><div><strong x-text="flaggedCount"></strong><p>Lượt cần xem xét</p></div></div>
+                    @else
+                        <div><span class="stat-icon"><x-lucide name="clock" class="h-4 w-4" /></span><div><strong x-text="resultCounts.pending"></strong><p>Đang chờ chấm</p></div></div>
+                    @endif
                 </div>
             </div>
         </section>
@@ -100,6 +111,13 @@
                     <x-lucide name="search" class="h-4 w-4" />
                     <input aria-label="Tìm người nộp hoặc mã lượt nộp" placeholder="Tìm học sinh, tài khoản, mã lượt nộp…" x-model="query">
                 </label>
+                @if ($canActivity)
+                    <select aria-label="Lọc hoạt động" x-model="activityFilter">
+                        <option value="all">Tất cả hoạt động</option>
+                        <option value="flagged">Có dấu hiệu cần xem</option>
+                        <option value="clear">Chưa ghi nhận dấu hiệu</option>
+                    </select>
+                @endif
                 <label class="date-filter">Từ<input aria-label="Từ ngày" type="date" x-model="from" :max="to || null"></label>
                 <label class="date-filter">Đến<input aria-label="Đến ngày" type="date" x-model="to" :min="from || null"></label>
             </div>
@@ -147,6 +165,9 @@
                             </th>
                             <th scope="col">Kết quả</th>
                             <th scope="col" class="score-column">Điểm</th>
+                            @if ($canActivity)
+                                <th scope="col">Hoạt động <span class="admin-column-label">Admin</span></th>
+                            @endif
                             <th scope="col">{{ $isExam ? 'Chi tiết' : 'Bài làm' }}</th>
                             @if ($canDesignate)
                                 <th scope="col">Bài mẫu <span class="admin-column-label">Admin</span></th>
@@ -174,6 +195,25 @@
                                 <td class="score-column" :class="'result-' + record.result">
                                     <strong class="table-score" x-text="scoreText(record.score)"></strong><span class="table-score-max">/<span x-text="scoreText(record.maxScore)"></span></span>
                                 </td>
+                                @if ($canActivity)
+                                    {{-- Chỉ in SỐ ĐẾM theo nhóm (tối đa 4 dòng ngắn) dù nhật ký dài bao nhiêu; bấm vào để
+                                         mở dòng thời gian đầy đủ ở khung chi tiết bên dưới. --}}
+                                    <td class="activity-cell">
+                                        <template x-if="record.flagged">
+                                            <button type="button" class="submission-table-signals is-flagged" @click="openTimeline(record.id)"
+                                                    :aria-label="'Xem ' + record.eventCount + ' mốc hoạt động của ' + record.submitter" title="Xem các mốc hoạt động">
+                                                @foreach ($activityCategories as $key => $cat)
+                                                    <span x-show="record.signals['{{ $key }}']" x-cloak><x-lucide :name="$cat['icon']" class="h-3 w-3" />{{ $cat['label'] }} <b x-text="record.signals['{{ $key }}']"></b></span>
+                                                @endforeach
+                                                <span x-show="record.signals.other" x-cloak><x-lucide name="circle-alert" class="h-3 w-3" />Hoạt động khác <b x-text="record.signals.other"></b></span>
+                                                <em class="signal-more">Xem <span x-text="record.eventCount"></span> mốc<x-lucide name="chevron-right" class="h-3 w-3" /></em>
+                                            </button>
+                                        </template>
+                                        <template x-if="!record.flagged">
+                                            <div class="submission-table-signals"><span class="table-clear"><x-lucide name="check" class="h-3.5 w-3.5" />Chưa có dấu hiệu</span></div>
+                                        </template>
+                                    </td>
+                                @endif
                                 <td>
                                     <button type="button" class="submission-view" :aria-label="'Xem bài của ' + record.submitter" :aria-expanded="selectedId === record.id" @click="toggle(record.id)">
                                         {{ $isExam ? 'Xem chi tiết' : 'Xem bài' }}<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
@@ -256,6 +296,19 @@
                     <div x-show="selected.tests" x-cloak><span>Số test</span><strong x-text="selected.tests"></strong></div>
                 </div>
 
+                @if ($canActivity)
+                    <div class="submission-signals">
+                        @foreach ($activityCategories as $key => $cat)
+                            <div :class="(selected.signals['{{ $key }}'] || 0) > 0 ? 'active' : ''"><x-lucide :name="$cat['icon']" class="h-4 w-4" /><span>{{ $cat['label'] }}</span><b x-text="selected.signals['{{ $key }}'] || 0"></b></div>
+                        @endforeach
+                    </div>
+                    <p class="submission-signal-note">Tín hiệu cần đối chiếu; rời tab không xác định trang đã mở, phím chụp màn không xác nhận ảnh đã được chụp.</p>
+                    <div class="submission-detail-tabs">
+                        <button type="button" :aria-pressed="detailTab === 'answer'" @click="detailTab = 'answer'">Bài làm đã nộp</button>
+                        <button type="button" :aria-pressed="detailTab === 'timeline'" @click="detailTab = 'timeline'">Mốc hoạt động (<span x-text="selected.eventCount"></span>)</button>
+                    </div>
+                @endif
+
                 <div class="submission-detail-body">
                     @if ($isExam)
                         <template x-if="selected.items && selected.items.length">
@@ -290,8 +343,41 @@
                             <p class="submission-muted">Lượt thi này chưa lưu chi tiết từng câu.</p>
                         </template>
                     @else
-                        <div class="submission-answer-toolbar"><span x-text="selected.language || 'Câu trả lời'"></span><span class="sample-label" x-show="sampleId === selected.id" x-cloak><x-lucide name="star" class="h-3.5 w-3.5" />Bài mẫu</span><span x-show="selected.verdictLabel" x-cloak x-text="selected.verdictLabel"></span></div>
-                        <pre class="submission-code" x-text="selected.response ? selected.response : 'Chưa lưu nội dung bài làm cho lượt nộp này.'"></pre>
+                        <div @if ($canActivity) x-show="detailTab !== 'timeline'" @endif>
+                            <div class="submission-answer-toolbar"><span x-text="selected.language || 'Câu trả lời'"></span><span class="sample-label" x-show="sampleId === selected.id" x-cloak><x-lucide name="star" class="h-3.5 w-3.5" />Bài mẫu</span><span x-show="selected.verdictLabel" x-cloak x-text="selected.verdictLabel"></span></div>
+                            <pre class="submission-code" x-text="selected.response ? selected.response : 'Chưa lưu nội dung bài làm cho lượt nộp này.'"></pre>
+                        </div>
+                        @if ($canActivity)
+                            {{-- Dòng thời gian các mốc hoạt động. Nhật ký dài thì: lọc theo nhóm, cuộn trong khung cao cố định. --}}
+                            <div class="activity-panel" x-show="detailTab === 'timeline'" x-cloak>
+                                <template x-if="!selected.eventCount">
+                                    <p class="submission-muted">Lượt nộp này chưa có nhật ký hoạt động được lưu.</p>
+                                </template>
+                                <template x-if="selected.eventCount">
+                                    <div>
+                                        <div class="activity-filters" role="group" aria-label="Lọc mốc hoạt động">
+                                            <button type="button" :aria-pressed="timelineFilter === 'all'" @click="timelineFilter = 'all'">Tất cả <b x-text="selected.eventCount"></b></button>
+                                            @foreach ($activityCategories as $key => $cat)
+                                                <button type="button" x-show="selected.signals['{{ $key }}']" x-cloak :aria-pressed="timelineFilter === '{{ $key }}'" @click="timelineFilter = '{{ $key }}'"><x-lucide :name="$cat['icon']" class="h-3 w-3" />{{ $cat['label'] }} <b x-text="selected.signals['{{ $key }}']"></b></button>
+                                            @endforeach
+                                            <button type="button" x-show="selected.signals.other" x-cloak :aria-pressed="timelineFilter === 'other'" @click="timelineFilter = 'other'">Khác <b x-text="selected.signals.other"></b></button>
+                                        </div>
+                                        <p class="activity-truncated" x-show="selected.eventCount > selected.events.length" x-cloak>
+                                            Chỉ hiện <span x-text="selected.events.length"></span> mốc mới nhất trong tổng số <span x-text="selected.eventCount"></span>.
+                                        </p>
+                                        <ol class="submission-timeline activity-scroll" tabindex="0" aria-label="Các mốc hoạt động, cuộn để xem thêm">
+                                            <template x-for="(ev, i) in timelineEvents" :key="ev.id || i">
+                                                <li :class="ev.category ? 'has-signal' : ''">
+                                                    <time><span x-text="ev.time || '—'"></span><small x-show="ev.date && ev.date !== selected.submittedDate" x-cloak x-text="ev.date"></small></time>
+                                                    <div><strong x-text="ev.title"></strong><p x-show="ev.detail" x-cloak x-text="ev.detail"></p></div>
+                                                </li>
+                                            </template>
+                                        </ol>
+                                        <p class="submission-muted" x-show="timelineEvents.length === 0" x-cloak>Không có mốc nào thuộc nhóm này.</p>
+                                    </div>
+                                </template>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </section>
@@ -326,6 +412,11 @@
             canSeeOthers: !!config.canSeeOthers,
             // SỬA 7/10 — bài mẫu (chỉ admin chỉ định được).
             canDesignate: !!config.canDesignate,
+            // SỬA 7/10 — cột Hoạt động (chỉ admin).
+            canSeeActivity: !!config.canSeeActivity,
+            activityFilter: 'all',
+            detailTab: 'answer',
+            timelineFilter: 'all',
             sampleId: config.sampleId || null,
             sampleUrl: config.sampleUrl || '',
             sampleClearUrl: config.sampleClearUrl || '',
@@ -345,7 +436,7 @@
             resultLabels: { ac: 'Đúng · AC', partial: 'Đúng một phần', wa: 'Sai · WA', pending: 'Chờ chấm' },
 
             init() {
-                ['query', 'resultFilter', 'onlyMine', 'from', 'to', 'oldest'].forEach((key) => {
+                ['query', 'resultFilter', 'onlyMine', 'from', 'to', 'oldest', 'activityFilter'].forEach((key) => {
                     this.$watch(key, () => { this.page = 1; this.selectedId = null; });
                 });
             },
@@ -363,7 +454,8 @@
                     return (!q || hay.includes(q))
                         && (!this.from || r.submittedDay >= this.from)
                         && (!this.to || r.submittedDay <= this.to)
-                        && (!this.onlyMine || r.mine);
+                        && (!this.onlyMine || r.mine)
+                        && (!this.canSeeActivity || this.activityFilter === 'all' || (this.activityFilter === 'flagged' ? !!r.flagged : !r.flagged));
                 });
             },
             get resultCounts() {
@@ -376,10 +468,28 @@
                 return [...list].sort((a, b) => (a.submittedTs - b.submittedTs) * (this.oldest ? 1 : -1));
             },
             get hasFilters() {
-                return !!(this.query || this.resultFilter !== 'all' || this.onlyMine || this.from || this.to);
+                return !!(this.query || this.resultFilter !== 'all' || this.onlyMine || this.from || this.to || this.activityFilter !== 'all');
             },
             resetFilters() {
-                this.query = ''; this.resultFilter = 'all'; this.onlyMine = false; this.from = ''; this.to = '';
+                this.query = ''; this.resultFilter = 'all'; this.onlyMine = false; this.from = ''; this.to = ''; this.activityFilter = 'all';
+            },
+
+            // Số lượt có dấu hiệu cần xem (ô "Lượt cần xem xét" ở dải tổng quan — chỉ admin).
+            get flaggedCount() { return this.rows.filter((r) => r.flagged).length; },
+            // Mốc hoạt động của lượt đang mở, lọc theo nhóm đang chọn.
+            get timelineEvents() {
+                const list = (this.selected && this.selected.events) || [];
+                return this.timelineFilter === 'all' ? list : list.filter((e) => (e.category || '') === this.timelineFilter);
+            },
+            // Bấm vào ô Hoạt động ở bảng: mở lượt đó ngay ở tab "Mốc hoạt động".
+            openTimeline(id) {
+                this.selectedId = id;
+                this.detailTab = 'timeline';
+                this.timelineFilter = 'all';
+                this.$nextTick(() => {
+                    const el = document.querySelector('.submission-detail');
+                    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                });
             },
 
             get submitterCount() { return new Set(this.rows.map((r) => r.userId)).size; },
@@ -409,7 +519,11 @@
             goTo(n) { this.page = Math.min(Math.max(1, n), this.totalPages); this.selectedId = null; },
 
             get selected() { return this.visible.find((r) => r.id === this.selectedId) || null; },
-            toggle(id) { this.selectedId = this.selectedId === id ? null : id; },
+            toggle(id) {
+                this.selectedId = this.selectedId === id ? null : id;
+                this.detailTab = 'answer';
+                this.timelineFilter = 'all';
+            },
 
             // ── Bài mẫu (chỉ admin) ──
             async sampleRequest(method, url, body) {

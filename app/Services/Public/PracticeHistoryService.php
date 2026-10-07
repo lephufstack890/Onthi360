@@ -14,6 +14,8 @@ use App\Models\AttemptCodingItem;
 use App\Models\PracticeAssignment;
 use App\Models\Question;
 use App\Models\User;
+use App\Support\PracticeActivityLog;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -29,9 +31,9 @@ use Illuminate\Support\Collection;
  * Không để lộ tên + bài làm của người lạ ra cho bất kỳ ai đăng nhập.
  *
  * "Bài mẫu" (SỬA 7/10): ADMIN chỉ định một lượt nộp làm bài mẫu — xem PracticeSampleService.
- * CHƯA có: "dấu hiệu hoạt động" (rời tab, phím chụp màn hình, mở hướng dẫn…) của bản
- * mẫu. Các sự kiện đó hiện chỉ được ghi trong trình duyệt của người làm bài (sessionStorage),
- * chưa gửi về máy chủ nên không có gì để hiển thị — dựng cột rỗng là bịa tính năng.
+ * "Hoạt động" (SỬA 7/10): cột + dòng thời gian các dấu hiệu lúc làm bài (rời tab, phím chụp màn hình,
+ * mở Hướng dẫn/Bài mẫu) — CHỈ ADMIN xem. Trình duyệt gửi nhật ký kèm lúc nộp bài, lưu ở
+ * attempt_answers.activity_log (xem App\Support\PracticeActivityLog). Đề thi chưa có dữ liệu này.
  */
 class PracticeHistoryService
 {
@@ -109,7 +111,12 @@ class PracticeHistoryService
             ->limit(self::LIMIT)
             ->get();
 
-        $rows = $answers->map(function (AttemptAnswer $a) use ($viewer, $max) {
+        // SỬA 7/10 — cột "Hoạt động" (rời tab, phím chụp màn hình, mở Hướng dẫn/Bài mẫu…) CHỈ ADMIN xem:
+        // đó là dữ liệu giám sát, giáo viên/học sinh không được thấy. Kiểm ở máy chủ và KHÔNG đưa
+        // dữ liệu vào trang của người khác, chứ không chỉ ẩn cột bằng giao diện.
+        $showActivity = $this->canSeeActivity($viewer);
+
+        $rows = $answers->map(function (AttemptAnswer $a) use ($viewer, $max, $showActivity) {
             $user = $a->attempt?->user;
             $final = $a->verdict instanceof VerdictStatus ? $a->verdict->isFinal() : true;
             $score = $a->score !== null ? (float) $a->score : null;
@@ -146,7 +153,7 @@ class PracticeHistoryService
                     : (is_array($a->answer) ? json_encode($a->answer, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : null),
                 // SỬA 7/10 — nút "Chỉ định bài mẫu" chỉ bật khi lượt nộp CÓ nội dung bài làm.
                 'hasResponse' => $this->samples->responseOf($a) !== null,
-            ];
+            ] + ($showActivity ? $this->activityOf($a) : []);
         })->values()->all();
 
         $data = $this->envelope($viewer, 'problem', [
@@ -163,8 +170,56 @@ class PracticeHistoryService
         $data['canDesignate'] = $this->samples->canDesignate($viewer);
         $data['sampleUrl'] = $data['canDesignate'] ? route('practice.history.sample.store', $question->id) : '';
         $data['sampleClearUrl'] = $data['canDesignate'] ? route('practice.history.sample.destroy', $question->id) : '';
+        $data['canSeeActivity'] = $showActivity;
+        $data['activityCategories'] = $showActivity ? PracticeActivityLog::CATEGORIES : [];
 
         return $data;
+    }
+
+    /** Chỉ admin xem được cột Hoạt động (chỉ có ở bài tập; đề thi chưa ghi nhật ký về máy chủ). */
+    public function canSeeActivity(?User $viewer): bool
+    {
+        return $this->assignments->isAdmin($viewer);
+    }
+
+    /**
+     * Dữ liệu cột Hoạt động của một lượt nộp: số dòng theo nhóm dấu hiệu + các mốc để vẽ dòng thời gian.
+     * Mỗi lượt chỉ đưa tối đa 100 mốc MỚI NHẤT ra trang để bảng không phình; eventCount là tổng thật.
+     *
+     * @return array{signals: array<string,int>, flagged: bool, eventCount: int, events: list<array<string,mixed>>}
+     */
+    private function activityOf(AttemptAnswer $a): array
+    {
+        $log = AttemptAnswer::supportsActivityLog() && is_array($a->activity_log) ? $a->activity_log : [];
+        $signals = PracticeActivityLog::counts($log);
+        $tz = config('app.timezone');
+
+        $events = array_map(function (array $event) use ($tz) {
+            $at = null;
+            if (! empty($event['occurredAt'])) {
+                try {
+                    $at = Carbon::parse($event['occurredAt'])->setTimezone($tz);
+                } catch (\Throwable) {
+                    $at = null;
+                }
+            }
+
+            return [
+                'id' => (string) ($event['id'] ?? ''),
+                'category' => PracticeActivityLog::category($event),
+                'title' => (string) ($event['title'] ?? ''),
+                'detail' => (string) ($event['detail'] ?? ''),
+                'time' => $at?->format('H:i:s'),
+                'date' => $at?->format('d/m/Y'),
+            ];
+        }, array_slice(array_values($log), -100));
+
+        return [
+            'signals' => $signals,
+            'flagged' => $signals !== [],
+            'eventCount' => count($log),
+            'events' => $events,
+        ];
     }
 
     // ───────────────────────── Đề thi ─────────────────────────

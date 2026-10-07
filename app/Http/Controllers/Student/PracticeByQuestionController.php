@@ -264,6 +264,9 @@ class PracticeByQuestionController extends Controller
             'text' => ['nullable', 'string', 'max:500'],
             'code_source' => ['nullable', 'string', 'max:20000'],
             'language' => ['nullable', 'string', 'max:30'],
+            // SỬA 7/10 — nhật ký làm bài (JSON do trình duyệt gửi kèm lúc nộp); PracticeByQuestionService
+            // tự lọc/cắt lại từng dòng nên ở đây chỉ chặn kích thước.
+            'activity_log' => ['nullable', 'string', 'max:60000'],
             // SỬA 31/8 (2) — câu Composite gửi lên 1 mảng ['<code phần>' => '<trả lời thô>']
             // (xem PracticeByQuestionService::gradeCompositeParts()) — mỗi giá trị có thể là
             // chữ cái (single_choice), "true"/"false", văn bản ngắn, hoặc cả đoạn tự luận, nên

@@ -720,7 +720,10 @@
                 </section>
                 {{-- SỬA 1/10 — khung tab "Nhật ký" đã chuyển sang partial dùng CHUNG với màn
                      Phòng thi (khách: "các tab chỗ bắt đầu làm đề phải như này cho đồng bộ"). --}}
-                @include('partials.work-activity-panel', ['activityTabExpr' => "tab === 'activity'"])
+                @include('partials.work-activity-panel', [
+                    'activityTabExpr' => "tab === 'activity'",
+                    'activityNote' => 'Nhật ký được gửi kèm mỗi lần nộp bài để quản trị viên đối chiếu.',
+                ])
 
             </main>
         </div>
@@ -1164,9 +1167,19 @@
             // SỬA 1/10 — báo "đang chấm" NGAY TRONG cột kết quả thay cho lớp phủ cũ.
             gradingSlot.start();
 
+            // SỬA 7/10 — gửi kèm nhật ký làm bài (rời tab, phím chụp màn hình, mở Hướng dẫn/Bài mẫu…)
+            // để máy chủ lưu theo lượt nộp; CHỈ ADMIN xem được ở cột "Hoạt động" của trang Nhật ký
+            // nộp bài. Gửi cả khi rỗng ("[]") — máy chủ gộp với nhật ký đã lưu chứ không ghi đè.
+            var formData = new FormData(form);
+            try {
+                if (window.oiWorkLog && typeof window.oiWorkLog.snapshot === 'function') {
+                    formData.set('activity_log', JSON.stringify(window.oiWorkLog.snapshot()));
+                }
+            } catch (e) {}
+
             fetch(form.action, {
                 method: 'POST',
-                body: new FormData(form),
+                body: formData,
                 credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             })

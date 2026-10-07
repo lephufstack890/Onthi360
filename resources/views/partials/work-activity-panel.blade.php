@@ -4,6 +4,8 @@
     Trước đây chỉ màn Luyện tập có tab này nên hai màn lệch nhau 1 tab.
 
     Biến truyền vào:
+      · $activityNote     (tuỳ chọn) câu ghi chú cuối khung. Màn Luyện tập truyền câu nói nhật ký được gửi kèm
+                          lượt nộp; mặc định vẫn là "chỉ nằm trong phiên trình duyệt".
       · $activityTabExpr  biểu thức Alpine quyết định tab đang mở. Màn Luyện tập dùng biến `tab`,
                           màn Phòng thi dùng `activeTab` — nên phải truyền vào chứ không ghi cứng.
 
@@ -32,7 +34,7 @@
                         </div>
                         <ol class="divide-y divide-[#EEF3F6]" data-activity-list></ol>
                         <p class="border-t border-[#DDEAF0] py-2 text-[10px] text-[#7A92A3]">
-                            Đây là tín hiệu để đối chiếu, không tự kết luận vi phạm. Nhật ký chỉ nằm trong phiên trình duyệt này.
+                            Đây là tín hiệu để đối chiếu, không tự kết luận vi phạm. {{ $activityNote ?? 'Nhật ký chỉ nằm trong phiên trình duyệt này.' }}
                         </p>
                     </div>
                 </section>
