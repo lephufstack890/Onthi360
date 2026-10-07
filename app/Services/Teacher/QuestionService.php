@@ -62,93 +62,74 @@ class QuestionService
     }
 
     /**
-     * teacher.questions.index — kho riêng của giáo viên + tab "Kho chung" chỉ để XEM
-     * (6.5: giáo viên vẫn không tự sửa/phát hành/lưu trữ được câu thuộc Kho chung —
-     * đó là việc của Admin/Editor; teacher.assessments.store vẫn chỉ nhận câu thuộc
-     * đúng kho riêng của giáo viên đó khi soạn đề, không đổi ở đây).
+     * teacher.questions.index — "Kho bài tập / câu hỏi và đề" của giáo viên.
+     *
+     * SỬA 7/10 (khách: "Kho câu hỏi của tôi đổi thành Kho bài tập / câu hỏi và đề và xây như
+     * admin, chỉ khác là giáo viên không xem được Tag/Chuyên đề") — dựng lại đúng khung màn
+     * admin/content/index: các TAB là
+     *   - used       : câu hỏi của tôi ĐÃ nằm trong đề (tab mặc định, giống admin);
+     *   - unused     : câu hỏi của tôi CHƯA nằm trong đề nào;
+     *   - assessments: Đề/bộ bài PDF của tôi (thay cho mục "Đề PDF của tôi" ở menu cũ);
+     *   - shared     : Kho chung — chỉ XEM (6.5: giáo viên không sửa/phát hành/lưu trữ được).
+     * Không có tab Tag/Chuyên đề — việc đó của Admin.
+     *
+     * Bộ lọc còn Khối/Tỉnh thành/Năm/Tìm kiếm (+ chip Môn, tab Dạng câu) như admin vừa gọn lại.
+     * Cả 2 màn vẫn đi qua CÙNG QuestionRepository::allWithOwnerFiltered() nên không lệch luật lọc.
+     *
+     * @param  int  $paperCount  số đề PDF của giáo viên (do controller đếm) để in lên tab "Đề/bộ bài".
      */
-    public function listForTeacher(User $user, string $tab, array $filters = []): array
+    public function listForTeacher(User $user, string $tab, array $filters = [], int $paperCount = 0): array
     {
-        // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
-        // admin") — 4 tab cũ GIỮ NGUYÊN (chúng vẫn là lối tắt hay dùng nhất), chỉ chồng thêm bộ
-        // lọc Môn/Khối/Dạng/Trạng thái/Độ khó/Tìm kiếm y như tab "Câu hỏi" bên Admin. Cả 2 màn
-        // giờ đi qua CÙNG QuestionRepository::allWithOwnerFiltered() để không lệch luật lọc —
-        // phạm vi kho truyền bằng 'owner_id' (kho riêng) / 'owner_type' (Kho chung, chỉ xem).
+        // Link cũ (?tab=all|published|draft) rơi về tab mặc định.
+        $activeTab = in_array($tab, ['used', 'unused', 'assessments', 'shared'], true) ? $tab : 'used';
+        $isShared = $activeTab === 'shared';
+        $isQuestionTab = $activeTab !== 'assessments';
+
         $counts = [
-            'all' => $this->questions->countByOwner($user->id),
-            'published' => $this->questions->countByOwner($user->id, ContentStatus::Published->value),
-            'draft' => $this->questions->countByOwner($user->id, ContentStatus::Draft->value),
+            'used' => $this->questions->countAllFiltered(['owner_id' => $user->id, 'in_exam' => 'used']),
+            'unused' => $this->questions->countAllFiltered(['owner_id' => $user->id, 'in_exam' => 'unused']),
             'shared' => $this->questions->countShared(),
         ];
 
-        $isShared = $tab === 'shared';
+        $tabs = [
+            ['label' => 'Câu hỏi đã dùng trong đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
+            ['label' => 'Câu hỏi chưa dùng trong đề', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
+            ['label' => 'Đề/bộ bài', 'href' => route('teacher.questions.index', ['tab' => 'assessments']), 'active' => $activeTab === 'assessments', 'count' => $paperCount],
+            ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', ['tab' => 'shared']), 'active' => $isShared, 'count' => $counts['shared']],
+        ];
 
-        // Tab "Đã phát hành"/"Nháp" thực chất LÀ bộ lọc trạng thái — cho 2 thứ dùng chung 1 giá
-        // trị thay vì AND với nhau (chọn tab Nháp + lọc "Phát hành" sẽ luôn ra bảng rỗng, khó
-        // hiểu). Người dùng đổi ô Trạng thái -> form gửi lên không kèm 'tab' -> tab active được
-        // suy NGƯỢC lại từ chính trạng thái đó ngay bên dưới.
-        $status = $filters['status'] ?? match ($tab) {
-            'published' => ContentStatus::Published->value,
-            'draft' => ContentStatus::Draft->value,
-            default => null,
-        };
+        $scope = $isShared
+            ? ['owner_type' => OwnerType::Shared->value]
+            : ['owner_id' => $user->id, 'in_exam' => $activeTab === 'unused' ? 'unused' : 'used'];
 
-        $scope = $isShared ? ['owner_type' => OwnerType::Shared->value] : ['owner_id' => $user->id];
         $query = $scope + [
             'subject' => $filters['subject'] ?? null,
             'grade' => $filters['grade'] ?? null,
             'type' => $filters['type'] ?? null,
-            'status' => $status,
-            'difficulty' => $filters['difficulty'] ?? null,
-            // SỬA 1/10 — 2 chiều lọc mới, xem QuestionRepository::applyQuestionBankFilters().
             'province' => $filters['province'] ?? null,
             'exam_year' => $filters['exam_year'] ?? null,
             'q' => $filters['q'] ?? null,
         ];
 
-        $activeTab = $isShared ? 'shared' : match ($status) {
-            ContentStatus::Published->value => 'published',
-            ContentStatus::Draft->value => 'draft',
-            default => 'all',
-        };
-
-        // Giữ nguyên các tiêu chí đang lọc khi bấm sang tab khác — bấm tab không phải là "xoá lọc".
-        $keep = array_filter([
-            'subject' => $filters['subject'] ?? null,
-            'grade' => $filters['grade'] ?? null,
-            'type' => $filters['type'] ?? null,
-            'difficulty' => $filters['difficulty'] ?? null,
-            // SỬA 1/10 — 2 chiều lọc mới, xem QuestionRepository::applyQuestionBankFilters().
-            'province' => $filters['province'] ?? null,
-            'exam_year' => $filters['exam_year'] ?? null,
-            'q' => $filters['q'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        $tabs = [
-            ['label' => 'Tất cả', 'href' => route('teacher.questions.index', $keep), 'active' => $activeTab === 'all', 'count' => $counts['all']],
-            ['label' => 'Đã phát hành', 'href' => route('teacher.questions.index', $keep + ['tab' => 'published']), 'active' => $activeTab === 'published', 'count' => $counts['published']],
-            ['label' => 'Nháp', 'href' => route('teacher.questions.index', $keep + ['tab' => 'draft']), 'active' => $activeTab === 'draft', 'count' => $counts['draft']],
-            ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', $keep + ['tab' => 'shared']), 'active' => $activeTab === 'shared', 'count' => $counts['shared']],
-        ];
-
-        $questions = $this->questions->allWithOwnerFiltered($query, self::LIST_LIMIT)
-            ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: $isShared))
-            ->all();
+        $questions = [];
+        $total = 0;
+        if ($isQuestionTab) {
+            $questions = $this->questions->allWithOwnerFiltered($query, self::LIST_LIMIT)
+                ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: $isShared))
+                ->all();
+            // Tổng ĐÃ LỌC (số trên tab vẫn là tổng toàn kho) — giống tab Câu hỏi bên Admin.
+            $total = $this->questions->countAllFiltered($query);
+        }
 
         return [
             'tab' => $activeTab,
             'tabs' => $tabs,
             'questions' => $questions,
-            // Tổng ĐÃ LỌC (số trên tab vẫn là tổng toàn kho) — giống hệt cách tab Câu hỏi bên
-            // Admin đang hiển thị, xem Admin\ContentService::indexData().
-            'total' => $this->questions->countAllFiltered($query),
+            'total' => $total,
             'filters' => [
                 'subject' => $filters['subject'] ?? null,
                 'grade' => $filters['grade'] ?? null,
                 'type' => $filters['type'] ?? null,
-                'status' => $status,
-                'difficulty' => $filters['difficulty'] ?? null,
-                // SỬA 1/10 — 2 ô lọc mới trên thanh bộ lọc, xem teacher/questions/index.blade.php.
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'q' => $filters['q'] ?? null,
@@ -157,13 +138,12 @@ class QuestionService
             'subjectOptions' => SubjectCatalog::SUBJECTS,
             'gradeOptions' => SubjectCatalog::GRADES,
             'questionTypeOptions' => collect(QuestionType::cases())->mapWithKeys(fn (QuestionType $t) => [$t->value => $t->label()])->all(),
-            'statusOptions' => self::STATUS_FILTER_OPTIONS,
-            'difficultyOptions' => QuestionDifficulty::LEVELS,
-            // SỬA 1/10 — nguồn cho 2 ô lọc mới. provinceGroups chia <optgroup> (hiện hành / tên
-            // cũ trước sáp nhập 2025) để danh sách 63 mục không thành một khối rối mắt.
+            // Chia <optgroup> (hiện hành / tên cũ trước sáp nhập 2025) cho danh sách khỏi rối mắt.
             'provinceGroups' => ProvinceCatalog::groups(),
             'examYearOptions' => ProvinceCatalog::years(),
-            'subjectCounts' => $this->questions->countsBySubject($scope),
+            'subjectCounts' => $isQuestionTab ? $this->questions->countsBySubject($scope) : [],
+            // Dải TAB theo dạng câu kèm số lượng, như admin.
+            'typeCounts' => $isQuestionTab ? $this->questions->countsByType($scope) : [],
         ];
     }
 

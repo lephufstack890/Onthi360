@@ -198,15 +198,18 @@ class AssessmentController extends Controller
     public function publish(Request $request, int $assessment): RedirectResponse
     {
         $assessmentModel = $this->assessmentService->findOwned(Auth::user(), $assessment);
-        $indexRoute = $assessmentModel->isPdfMode() ? 'teacher.papers.index' : 'teacher.assessments.index';
+        // SỬA 7/10 — đề PDF giờ nằm ở tab "Đề/bộ bài" của "Kho bài tập / câu hỏi và đề".
+        $indexUrl = $assessmentModel->isPdfMode()
+            ? route('teacher.questions.index', ['tab' => 'assessments'])
+            : route('teacher.assessments.index');
 
         try {
             $this->assessmentService->publish($assessmentModel);
         } catch (ValidationException $e) {
-            return redirect()->route($indexRoute)->withErrors($e->errors());
+            return redirect()->to($indexUrl)->withErrors($e->errors());
         }
 
-        return redirect()->route($indexRoute)->with('status', 'assessment-published');
+        return redirect()->to($indexUrl)->with('status', 'assessment-published');
     }
 
     // SỬA 24/8 — khách yêu cầu bỏ hẳn "Giao cho lớp" khỏi Bài tập & Đề: route/hàm
@@ -285,9 +288,13 @@ class AssessmentController extends Controller
     // Giai đoạn 1, xem ghi chú App\Services\Teacher\AssessmentService).
 
     /** teacher.papers.index — danh sách đề PDF riêng của giáo viên. */
-    public function papersIndex(): View
+    public function papersIndex(Request $request): RedirectResponse
     {
-        return view('teacher.assessments.papers.index', $this->assessmentService->papersForTeacher(Auth::user()));
+        // SỬA 7/10 (khách: bỏ mục "Đề PDF của tôi", gộp vào "Kho bài tập / câu hỏi và đề") — giữ
+        // route cũ để link/bookmark cũ vẫn chạy: chuyển sang tab "Đề/bộ bài" và mang theo thông báo.
+        $request->session()->reflash();
+
+        return redirect()->route('teacher.questions.index', ['tab' => 'assessments']);
     }
 
     public function papersCreate(): View
@@ -336,7 +343,7 @@ class AssessmentController extends Controller
 
         $created = $this->assessmentService->paperBulkSplit(Auth::user(), $data['source_pdf'], $data['rows']);
 
-        return redirect()->route('teacher.papers.index')
+        return redirect()->route('teacher.questions.index', ['tab' => 'assessments'])
             ->with('status', 'papers-bulk-created')
             ->with('bulkCreatedCount', $created->count());
     }
@@ -354,7 +361,7 @@ class AssessmentController extends Controller
 
         $created = $this->assessmentService->paperBulkMulti(Auth::user(), $data['files'], $data['meta']);
 
-        return redirect()->route('teacher.papers.index')
+        return redirect()->route('teacher.questions.index', ['tab' => 'assessments'])
             ->with('status', 'papers-bulk-created')
             ->with('bulkCreatedCount', $created->count());
     }

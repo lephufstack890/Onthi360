@@ -26,7 +26,8 @@
         // SỬA 30/9 — dải TAB theo dạng câu + ô lọc Chuyên đề (xem ContentService::indexData()).
         $typeCounts = $typeCounts ?? [];
         $tagOptions = $tagOptions ?? [];
-        $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
+        // SỬA 7/10 — in_exam giờ là TAB (luôn có giá trị) nên không tính là "đang lọc".
+        $hasActiveFilter = collect($filters)->except('in_exam')->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 
         // Dựng link cho các chip/tab mà GIỮ NGUYÊN những bộ lọc đang bật — trước đây mỗi chip tự
         // liệt kê tay từng khoá, thêm 1 bộ lọc mới là phải sửa 3 chỗ và rất dễ sót (chip Môn từng
@@ -34,6 +35,7 @@
         $filterLink = function (array $override = []) use ($filters) {
             $query = array_merge([
                 'tab' => 'questions',
+                'in_exam' => $filters['in_exam'] ?? 'used',
                 'subject' => $filters['subject'] ?? null,
                 'grade' => $filters['grade'] ?? null,
                 'type' => $filters['type'] ?? null,
@@ -44,9 +46,6 @@
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'tag' => $filters['tag'] ?? null,
-                // SỬA 4/10 — bộ lọc "Dùng trong đề" cũng PHẢI có ở đây, cùng lý do với 2 dòng
-                // tỉnh thành/năm ngay trên: thiếu là bấm chip Môn một cái mất luôn bộ lọc đang bật.
-                'in_exam' => $filters['in_exam'] ?? null,
                 'q' => $filters['q'] ?? null,
             ], $override);
 
@@ -142,16 +141,10 @@
 
             <form method="GET" action="{{ route('admin.content.index') }}" class="flex flex-wrap items-end gap-3 pt-3 border-t border-slate-100">
                 <input type="hidden" name="tab" value="questions">
-                <div class="min-w-[150px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-subject">Môn học</label>
-                    <x-ws.select id="filter-subject" name="subject">
-                        <option value="">Tất cả môn</option>
-                        @foreach ($subjectOptions as $code => $label)
-                            <option value="{{ $code }}" @selected(($filters['subject'] ?? null) === $code)>{{ $label }}</option>
-                        @endforeach
-                        <option value="none" @selected(($filters['subject'] ?? null) === 'none')>Chưa phân loại</option>
-                    </x-ws.select>
-                </div>
+                {{-- SỬA 7/10 (khách: bỏ ô Môn học / Trạng thái / Độ khó / Chuyên đề / Dùng trong đề) —
+                     Môn vẫn lọc bằng hàng chip phía trên, nên gửi kèm giá trị đang chọn để bấm "Lọc" không làm mất. --}}
+                <input type="hidden" name="subject" value="{{ $filters['subject'] ?? '' }}">
+                <input type="hidden" name="in_exam" value="{{ $filters['in_exam'] ?? 'used' }}">
                 <div class="min-w-[120px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-grade">Khối lớp</label>
                     <x-ws.select id="filter-grade" name="grade">
@@ -167,56 +160,6 @@
                      làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
                      các ô còn lại không làm mất tab đang đứng. --}}
                 <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
-                <div class="min-w-[140px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-status">Trạng thái</label>
-                    <x-ws.select id="filter-status" name="status">
-                        <option value="">Tất cả trạng thái</option>
-                        @foreach ($statusOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(($filters['status'] ?? null) === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </div>
-                {{-- SỬA 18/9 (khách: "chỗ giáo viên và admin thêm lọc theo độ khó nữa nha") — câu
-                     CHƯA đặt độ khó vẫn lọc ra đúng mức vì hệ thống suy theo điểm (giống hệt chỗ
-                     hiển thị ngoài trang Luyện tập), xem QuestionRepository::applyDifficultyFilter(). --}}
-                <div class="min-w-[150px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-difficulty">Độ khó</label>
-                    <x-ws.select id="filter-difficulty" name="difficulty">
-                        <option value="">Tất cả độ khó</option>
-                        @foreach ($difficultyOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(($filters['difficulty'] ?? null) === $value)>{{ $label }}</option>
-                        @endforeach
-                        <option value="{{ \App\Support\QuestionDifficulty::UNSET }}" @selected(($filters['difficulty'] ?? null) === \App\Support\QuestionDifficulty::UNSET)>Chưa đặt độ khó</option>
-                    </x-ws.select>
-                </div>
-                {{-- SỬA 30/9 (khách: "nên thêm phần lọc theo chuyên đề vào") — lọc theo tag/chuyên
-                     đề đang gắn cho câu hỏi; "Chưa gắn chuyên đề" để dò ra câu còn thiếu mà gán dần. --}}
-                <div class="min-w-[150px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-tag">Chuyên đề</label>
-                    <x-ws.select id="filter-tag" name="tag">
-                        <option value="">Tất cả chuyên đề</option>
-                        @foreach ($tagOptions as $tagId => $tagName)
-                            <option value="{{ $tagId }}" @selected((string) ($filters['tag'] ?? '') === (string) $tagId)>{{ $tagName }}</option>
-                        @endforeach
-                        <option value="none" @selected(($filters['tag'] ?? null) === 'none')>Chưa gắn chuyên đề</option>
-                    </x-ws.select>
-                </div>
-                {{-- SỬA 4/10 (khách: "thêm phần lọc câu hỏi: câu hỏi xuất hiện trong đề, và câu hỏi
-                     không xuất hiện trong đề. Ông đặt tên sao cho hợp lý nha").
-
-                     Chọn chữ "Đã dùng / Chưa dùng trong đề" thay vì "xuất hiện": ngắn, vừa ô lọc,
-                     và đúng việc admin đang làm ở màn này — tìm câu còn rảnh để đưa vào đề mới,
-                     hoặc dò ra câu đã nằm trong đề (những câu đó nút Xoá sẽ từ chối, xem
-                     ContentService::questionDestroy()). --}}
-                <div class="min-w-[170px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-in-exam">Dùng trong đề</label>
-                    <x-ws.select id="filter-in-exam" name="in_exam">
-                        <option value="">Tất cả câu hỏi</option>
-                        @foreach ($inExamOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(($filters['in_exam'] ?? null) === $value)>{{ $label }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </div>
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-q">Tìm theo tên hoặc mã</label>
                     <input id="filter-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
@@ -225,7 +168,7 @@
                 </div>
                 <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Lọc</button>
                 @if ($hasActiveFilter)
-                    <a href="{{ route('admin.content.index', ['tab' => 'questions']) }}" class="px-4 py-2.5 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium shrink-0 hover:border-blue-200 hover:text-blue-600 transition">Xoá lọc</a>
+                    <a href="{{ route('admin.content.index', ['tab' => 'questions', 'in_exam' => $filters['in_exam'] ?? 'used']) }}" class="px-4 py-2.5 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium shrink-0 hover:border-blue-200 hover:text-blue-600 transition">Xoá lọc</a>
                 @endif
             </form>
         </div>

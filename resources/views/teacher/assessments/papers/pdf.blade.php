@@ -23,7 +23,7 @@
         };
     @endphp
 
-    <a href="{{ route('teacher.papers.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Đề PDF của tôi</a>
+    <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Kho bài tập / câu hỏi và đề</a>
 
     <x-ws.page-header title="Quản lý đề PDF" icon="scroll-text" :subtitle="$assessment->title" />
 
@@ -297,7 +297,7 @@
 
             <div class="flex gap-3 pt-2 border-t border-slate-100">
                 <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Lưu đề PDF + đáp án</button>
-                <a href="{{ route('teacher.papers.index') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
+                <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
             </div>
         </form>
 

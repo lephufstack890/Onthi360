@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Services\Teacher\AssessmentService;
 use App\Services\Teacher\QuestionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,12 +17,15 @@ use App\Support\QuestionDifficulty;
 
 class QuestionController extends Controller
 {
-    public function __construct(private readonly QuestionService $questionService) {}
+    public function __construct(
+        private readonly QuestionService $questionService,
+        private readonly AssessmentService $assessmentService,
+    ) {}
 
     public function index(Request $request): View
     {
         $user = Auth::user();
-        $tab = $request->query('tab', 'all');
+        $tab = (string) $request->query('tab', 'used');
 
         // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
         // admin") — đọc bộ lọc y hệt Admin\ContentController::index(). Chuỗi rỗng -> null để
@@ -30,8 +34,6 @@ class QuestionController extends Controller
             'subject' => $request->query('subject') ?: null,
             'grade' => $request->query('grade') ?: null,
             'type' => $request->query('type') ?: null,
-            'status' => $request->query('status') ?: null,
-            'difficulty' => $request->query('difficulty') ?: null,
             // SỬA 1/10 (khách: "chỗ lọc danh sách trong admin cũng cho lọc theo tỉnh thành và
             // năm luôn nha. Giáo viên cũng tương tự") — xem
             // QuestionRepository::applyQuestionBankFilters(); 'none' = chưa gán.
@@ -40,7 +42,15 @@ class QuestionController extends Controller
             'q' => $request->query('q') ?: null,
         ];
 
-        return view('teacher.questions.index', $this->questionService->listForTeacher($user, $tab, $filters));
+        // SỬA 7/10 — tab "Đề/bộ bài" của màn gộp "Kho bài tập / câu hỏi và đề" (thay cho trang
+        // "Đề PDF của tôi" cũ). Luôn lấy danh sách để đếm số đề in lên tab; chỉ đưa ra view khi
+        // đang đứng ở tab đó.
+        $papers = $this->assessmentService->papersForTeacher($user)['papers'];
+
+        $data = $this->questionService->listForTeacher($user, $tab, $filters, count($papers));
+        $data['papers'] = $data['tab'] === 'assessments' ? $papers : [];
+
+        return view('teacher.questions.index', $data);
     }
 
     public function create(Request $request): View
@@ -141,14 +151,23 @@ class QuestionController extends Controller
             try {
                 $this->questionService->publish($question);
 
-                return redirect()->route('teacher.questions.index')->with('status', 'question-published');
+                return redirect()->route('teacher.questions.index', $this->listTabFor($createdStatus))->with('status', 'question-published');
             } catch (ValidationException $e) {
                 return redirect()->route('teacher.questions.edit', $question->id)->withErrors($e->errors())
                     ->with('status', $createdStatus.'-draft-only');
             }
         }
 
-        return redirect()->route('teacher.questions.index')->with('status', $createdStatus);
+        return redirect()->route('teacher.questions.index', $this->listTabFor($createdStatus))->with('status', $createdStatus);
+    }
+
+    /**
+     * SỬA 7/10 — câu hỏi VỪA TẠO chưa nằm trong đề nào, nên quay về tab "Chưa dùng trong đề" để
+     * giáo viên thấy ngay câu mình vừa lưu (tab mặc định là "Đã dùng trong đề", giống admin).
+     */
+    private function listTabFor(string $createdStatus): array
+    {
+        return $createdStatus === 'question-created' ? ['tab' => 'unused'] : [];
     }
 
     /** Mỗi dòng "input=>output"; dòng rỗng/thiếu dấu phân cách bị bỏ qua (6.2: test phải hợp lệ). */

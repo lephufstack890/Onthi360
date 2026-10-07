@@ -221,11 +221,11 @@
             @if (config('features.teacher_practice_screen', false))
                 <p class="text-[13px] text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.assessments.create') }}" class="text-blue-600 font-medium">Luyện tập</a> trước, rồi quay lại đây để chọn và giao.</p>
             @else
-                <p class="text-[13px] text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.papers.index') }}" class="text-blue-600 font-medium">Đề PDF của tôi</a> trước, rồi quay lại đây để chọn và giao.</p>
+                <p class="text-[13px] text-slate-500">Giao đề dùng cho kiểm tra có thời điểm mở-đóng, hạn nộp riêng (8.4). Chưa có đề? Tạo ở trang <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" class="text-blue-600 font-medium">Kho bài tập / câu hỏi và đề</a> trước, rồi quay lại đây để chọn và giao.</p>
             @endif
 
             @if (empty($assignableAssessments))
-                <p class="text-[13px] text-slate-400">Bạn chưa có đề nào — tạo đề ở "{{ config('features.teacher_practice_screen', false) ? 'Luyện tập' : 'Đề PDF của tôi' }}" trước khi giao cho lớp này.</p>
+                <p class="text-[13px] text-slate-400">Bạn chưa có đề nào — tạo đề ở "{{ config('features.teacher_practice_screen', false) ? 'Luyện tập' : 'Kho bài tập / câu hỏi và đề' }}" trước khi giao cho lớp này.</p>
             @else
                 <form method="POST" action="{{ route('teacher.classes.assign', $classRoom->id) }}" class="rounded-xl bg-slate-50 border border-sky-100 p-4 space-y-2">
                     @csrf

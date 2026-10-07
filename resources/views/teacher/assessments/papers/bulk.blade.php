@@ -8,7 +8,7 @@
 
     <style>[x-cloak] { display: none !important; }</style>
 
-    <a href="{{ route('teacher.papers.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Đề PDF của tôi</a>
+    <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Kho bài tập / câu hỏi và đề</a>
 
     <x-ws.page-header title="Tải bộ đề PDF" icon="book-open" subtitle="Tạo nhiều đề PDF cùng lúc — đáp án vẫn cần nhập tay sau khi tạo ở từng đề." />
 

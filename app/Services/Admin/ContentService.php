@@ -254,8 +254,15 @@ class ContentService
         // thêm/sửa/xoá học liệu giờ làm ngay trong trang chi tiết từng sản phẩm (admin
         // Sản phẩm & quyền), xem ProductService::showData()/buildMaterialsTree(). Link cũ
         // ?tab=materials được ContentController::index() tự đưa về tab mặc định bên dưới.
+        // SỬA 7/10 (khách: "tách thành 2 tab câu hỏi đã dùng trong đề và câu hỏi chưa dùng trong
+        // đề") — tab "Câu hỏi" cũ tách đôi theo việc câu đã nằm trong đề nào chưa. Hai tab dùng
+        // chung tab=questions, phân biệt bằng in_exam (xem ContentController::index()).
+        $inExamTab = ($filters['in_exam'] ?? 'used') === 'unused' ? 'unused' : 'used';
+        $usedCount = $this->questions->countAllFiltered(['in_exam' => 'used']);
+        $unusedCount = $this->questions->countAllFiltered(['in_exam' => 'unused']);
         $tabs = [
-            ['label' => 'Câu hỏi (Kho chung + Giáo viên)', 'href' => route('admin.content.index', ['tab' => 'questions']), 'active' => $tab === 'questions', 'count' => $counts['questions']],
+            ['label' => 'Câu hỏi đã dùng trong đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
+            ['label' => 'Câu hỏi chưa dùng trong đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
             ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
@@ -379,7 +386,7 @@ class ContentService
                 // SỬA 30/9 — ô lọc Chuyên đề (tag), xem applyQuestionBankFilters().
                 'tag' => $filters['tag'] ?? null,
                 // SỬA 4/10 — ô lọc "Dùng trong đề", xem applyQuestionBankFilters().
-                'in_exam' => $filters['in_exam'] ?? null,
+                'in_exam' => $inExamTab,
                 'q' => $filters['q'] ?? null,
             ],
             'subjectOptions' => $tab === 'questions' ? SubjectCatalog::SUBJECTS : [],
@@ -403,10 +410,10 @@ class ContentService
                 'used' => 'Đã dùng trong đề',
                 'unused' => 'Chưa dùng trong đề',
             ] : [],
-            'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject() : [],
+            'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject(['in_exam' => $inExamTab]) : [],
             // SỬA 30/9 — dữ liệu cho 2 thứ mới ở thanh lọc: dải TAB theo dạng câu (kèm số
             // lượng từng dạng) và ô lọc Chuyên đề.
-            'typeCounts' => $tab === 'questions' ? $this->questions->countsByType() : [],
+            'typeCounts' => $tab === 'questions' ? $this->questions->countsByType(['in_exam' => $inExamTab]) : [],
             'tagOptions' => $tab === 'questions'
                 ? $this->tags->query()->orderBy('name')->pluck('name', 'id')->all()
                 : [],

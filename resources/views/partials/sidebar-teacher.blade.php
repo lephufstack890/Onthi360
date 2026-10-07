@@ -10,8 +10,10 @@
         ...(config('features.teacher_practice_screen', false)
             ? [['label' => 'Luyện tập', 'route' => 'teacher.assessments.index', 'icon' => 'notebook-pen']]
             : []),
-        ['label' => 'Đề PDF của tôi', 'route' => 'teacher.papers.index', 'icon' => 'scroll-text'],
-        ['label' => 'Kho câu hỏi của tôi', 'route' => 'teacher.questions.index', 'icon' => 'library'],
+        // SỬA 7/10 (khách: bỏ "Đề PDF của tôi", đổi "Kho câu hỏi của tôi" thành "Kho bài tập / câu hỏi và đề")
+        // — đề PDF giờ là tab "Đề/bộ bài" trong màn này. 'also' = các route con (trang quản lý/tạo đề PDF)
+        // cũng làm sáng mục này.
+        ['label' => 'Kho bài tập / câu hỏi và đề', 'route' => 'teacher.questions.index', 'icon' => 'library', 'also' => ['teacher.papers.*', 'teacher.questions.*']],
         ['label' => 'Cuộc thi', 'route' => 'teacher.competitions.index', 'icon' => 'trophy'],
         ['label' => 'Kết quả', 'route' => 'teacher.results.index', 'icon' => 'trending-up'],
         ['label' => 'Lịch', 'route' => 'teacher.schedule.index', 'icon' => 'calendar-days'],
@@ -34,7 +36,7 @@
             'label' => $item['label'],
             'icon' => $item['icon'],
             'href' => route($item['route']),
-            'active' => $isPrimaryForRoute && request()->routeIs($item['route']),
+            'active' => $isPrimaryForRoute && request()->routeIs($item['route'], ...($item['also'] ?? [])),
         ];
     }
 @endphp

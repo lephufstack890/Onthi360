@@ -89,6 +89,10 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             // đếm toàn bộ như trước, không đổi hành vi cũ.
             ->when(! empty($scope['owner_id']), fn (Builder $q) => $q->where('owner_id', (int) $scope['owner_id']))
             ->when(! empty($scope['owner_type']), fn (Builder $q) => $q->where('owner_type', $scope['owner_type']))
+            // SỬA 7/10 — tab "Đã dùng / Chưa dùng trong đề" của admin: số đếm theo môn/dạng phải
+            // khớp đúng tab đang đứng. Không truyền khoá này thì đếm toàn kho như trước.
+            ->when(($scope['in_exam'] ?? null) === 'used', fn (Builder $q) => $q->whereHas('assessmentItems'))
+            ->when(($scope['in_exam'] ?? null) === 'unused', fn (Builder $q) => $q->whereDoesntHave('assessmentItems'))
             ->selectRaw('subject, COUNT(*) as aggregate')
             ->groupBy('subject')
             ->pluck('aggregate', 'subject')
@@ -236,6 +240,10 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             ->whereNull('product_id')
             ->when(! empty($scope['owner_id']), fn (Builder $q) => $q->where('owner_id', (int) $scope['owner_id']))
             ->when(! empty($scope['owner_type']), fn (Builder $q) => $q->where('owner_type', $scope['owner_type']))
+            // SỬA 7/10 — tab "Đã dùng / Chưa dùng trong đề" của admin: số đếm theo môn/dạng phải
+            // khớp đúng tab đang đứng. Không truyền khoá này thì đếm toàn kho như trước.
+            ->when(($scope['in_exam'] ?? null) === 'used', fn (Builder $q) => $q->whereHas('assessmentItems'))
+            ->when(($scope['in_exam'] ?? null) === 'unused', fn (Builder $q) => $q->whereDoesntHave('assessmentItems'))
             ->selectRaw('type, COUNT(*) as aggregate')
             ->groupBy('type')
             ->pluck('aggregate', 'type')
