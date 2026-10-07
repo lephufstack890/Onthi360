@@ -204,7 +204,7 @@
         </div>
     @endif
 
-    <div data-section="HOME-MAIN-GRID" class="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] xl:grid-cols-[240px_1fr_310px] 2xl:grid-cols-[260px_1fr_360px] gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6 items-start">
+    <div data-section="HOME-MAIN-GRID" class="grid grid-cols-1 gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6 items-start">
         <div class="home-left-center-grid">
 
         <aside data-section="HOME-02-LEFT-SIDEBAR" class="hidden lg:flex flex-col gap-3.5 xl:gap-4 shrink-0">
@@ -575,7 +575,7 @@
         </div>{{-- hết .home-left-center-grid --}}
 
         {{-- ══════ [HOME-RIGHT] SIDEBAR PHẢI ══════ --}}
-        <aside id="leaderboard" data-section="HOME-RIGHT-SIDEBAR" class="flex flex-col gap-3.5 xl:gap-4 lg:row-span-2">
+        <aside id="leaderboard" data-section="HOME-RIGHT-SIDEBAR" class="flex flex-col gap-3.5 xl:gap-4">
 
             {{-- ══════ [HOME-06] KHÔNG GIAN HỌC TẬP ══════ --}}
             <div class="bg-white rounded-3xl p-3.5 xl:p-4 border border-[#DDEAF0] shadow-[0_4px_16px_rgba(52,91,120,0.045)]">
@@ -695,11 +695,14 @@
                                  làm việc của ĐÚNG vai trò đang xem. Thẻ "Tiếp tục học" ở trên chỉ trỏ tới
                                  một việc cụ thể; nút này là lối về nhà. --}}
                             @if (! empty($panel['workspaceHref']))
-                                <a href="{{ $panel['workspaceHref'] }}"
-                                   class="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#126F91] px-3.5 py-2.5 text-xs font-bold text-white shadow-[0_2px_7px_rgba(64,125,151,0.08)] transition-colors hover:bg-[#0F5E7B]">
-                                    <x-lucide :name="$panel['roleIcon']" class="h-3.5 w-3.5 shrink-0" />
-                                    {{ $panel['workspaceLabel'] }}
-                                    <x-lucide name="chevron-right" class="h-3.5 w-3.5 shrink-0" />
+                                {{-- SỬA 7/10 (khách: "nút này không giống source") — nút xanh lá của source
+                                     (HomePage.jsx, nút "Bảng điều khiển cá nhân"): cao tối thiểu 44px, bo xl,
+                                     icon 16px, vòng focus. Chữ vẫn theo vai trò đang xem. Style ở class
+                                     .oi-dash-btn (CSS thường, vì máy chủ không build lại Tailwind). --}}
+                                <a href="{{ $panel['workspaceHref'] }}" class="oi-dash-btn">
+                                    <x-lucide name="layout-dashboard" class="h-4 w-4 shrink-0" />
+                                    <span>{{ $panel['workspaceLabel'] }}</span>
+                                    <x-lucide name="chevron-right" class="h-4 w-4 shrink-0" />
                                 </a>
                             @endif
                         </div>
@@ -889,7 +892,7 @@
         @if (count($testimonials) > 0)
         @include('partials.seo-testimonials', ['testimonials' => $testimonials])
 
-        <section id="testimonials" class="lg:col-span-2 bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
+        <section id="testimonials" data-section="HOME-10-TESTIMONIALS" class="lg:col-span-2 bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2.5">
@@ -954,10 +957,27 @@
         </section>
         @endif
 
+        {{-- [HOME-10B] LUYỆN THI SAT — SỬA 7/10 theo source mới (HomePage.jsx): dải liên kết sang
+             sat.onthi360.vn, cùng dạng với dải phần mềm phụ huynh [HOME-06D] ở trên. --}}
+        @php $satPrepUrl = 'https://sat.onthi360.vn'; @endphp
+        <section data-section="HOME-10B-SAT" aria-labelledby="sat-prep-title" class="parent-software-wide">
+            <div class="parent-software-wide__intro">
+                <p class="type-meta">Chinh phục mục tiêu SAT</p>
+                <h3 id="sat-prep-title" class="type-section-title">Luyện thi SAT</h3>
+                <p class="type-body">Ôn tập kiến thức, rèn tư duy và luyện đề để tự tin chuẩn bị cho kỳ thi SAT.</p>
+            </div>
+            <div class="parent-software-wide__action">
+                <p class="type-meta">Khám phá không gian luyện thi SAT</p>
+                <a href="{{ $satPrepUrl }}" target="_blank" rel="noopener noreferrer"
+                   class="parent-software-wide__link">Luyện thi SAT <x-lucide name="chevron-right" class="ml-1 h-3.5 w-3.5" /></a>
+                <p class="parent-software-wide__meta">sat.onthi360.vn</p>
+            </div>
+        </section>
+
         </div>
 
-        <div id="support" class="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-            <section class="h-full bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
+        <div id="support" data-section="HOME-11-SUPPORT-ROW" class="col-span-full grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+            <section data-section="HOME-11A-FAQ" class="h-full bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
                 <div>
                     <div class="flex items-center gap-2.5 mb-3">
                         <div class="w-8.5 h-8.5 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm shadow-2xs">
@@ -986,7 +1006,7 @@
                 </div>
             </section>
 
-            <section class="h-full relative overflow-hidden rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between min-h-[300px] sm:min-h-[320px]">
+            <section data-section="HOME-11B-CONTACT-SUPPORT" class="h-full relative overflow-hidden rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between min-h-[300px] sm:min-h-[320px]">
                 <img src="{{ asset('assets/support-banner-bg.jpg') }}" alt="Cần hỗ trợ?"
                      class="absolute inset-0 w-full h-full object-cover object-[80%_center] sm:object-right pointer-events-none select-none z-0">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/95 via-white/85 to-white/40 sm:from-white/80 sm:via-white/50 sm:to-transparent z-0 pointer-events-none"></div>
@@ -1037,6 +1057,73 @@
          Viết CSS thường chứ không dùng class Tailwind mới: máy chủ KHÔNG chạy được vite nên
          class nào chưa có sẵn trong public/build/assets/app-*.css sẽ không có tác dụng. --}}
     <style>
+        /* SỬA 7/10 — BỐ CỤC TRANG CHỦ THEO SOURCE MỚI (education-main/src/index.css).
+           Trước đây cột phải bị ghim tuyệt đối (position:absolute) nên khối hỗ trợ ở cuối phải né
+           bằng khoảng trống. Bản mới: lưới có 3 hàng — nội dung / khối dưới (phụ huynh, câu chuyện,
+           SAT) / hỗ trợ — và cột phải trải dọc 2 hàng đầu, khối hỗ trợ nằm dưới cùng toàn chiều
+           ngang. Viết ở đây (không chỉ trong resources/css/app.css) vì máy chủ không chạy vite:
+           CSS biên dịch sẵn trong public/build chưa có các luật này. Có thêm tiền tố
+           .home-typography để thắng luật ghim tuyệt đối cũ trong bản build. */
+        @media (min-width: 1024px) {
+            .home-typography [data-section='HOME-MAIN-GRID'] {
+                position: static;
+                grid-template-columns: minmax(0, 1fr) 280px;
+                grid-template-areas:
+                    'content sidebar'
+                    'lower sidebar'
+                    'support support';
+                align-items: start;
+            }
+            .home-typography [data-section='HOME-MAIN-GRID'] > .parent-lower-stack { grid-area: lower; grid-column: auto; }
+            .home-typography [data-section='HOME-RIGHT-SIDEBAR'] {
+                position: static;
+                top: auto;
+                right: auto;
+                width: auto;
+                grid-area: sidebar;
+                min-width: 0;
+            }
+            .home-typography [data-section='HOME-11-SUPPORT-ROW'] { grid-area: support; }
+        }
+        @media (min-width: 1280px) {
+            .home-typography [data-section='HOME-MAIN-GRID'] { grid-template-columns: minmax(0, 1fr) 310px; }
+            .home-typography [data-section='HOME-RIGHT-SIDEBAR'] { width: auto; }
+        }
+        @media (min-width: 1536px) {
+            .home-typography [data-section='HOME-MAIN-GRID'] { grid-template-columns: minmax(0, 1fr) 360px; }
+            .home-typography [data-section='HOME-RIGHT-SIDEBAR'] { width: auto; }
+        }
+        /* [HOME-06E] Nút vào khu làm việc — đúng kiểu nút "Bảng điều khiển cá nhân" của source. */
+        .oi-dash-btn {
+            display: inline-flex;
+            width: 100%;
+            min-height: 2.75rem;
+            margin-top: 0.75rem;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border-radius: 0.75rem;
+            background: #28795E;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1rem;
+            color: #fff;
+            text-decoration: none;
+            box-shadow: 0 3px 9px rgba(40, 121, 94, 0.16);
+            transition: background-color .15s ease;
+        }
+        .oi-dash-btn:hover { background: #21664F; color: #fff; }
+        .oi-dash-btn:focus-visible { outline: 2px solid #28795E; outline-offset: 2px; }
+
+        /* Chữ phụ lên 11px như source mới (trước 10px). */
+        .home-typography .type-meta { font-size: 0.6875rem; }
+        .home-typography .parent-software-wide__meta { font-size: 0.6875rem; }
+        html.theme-dark .parent-software-wide {
+            border-color: #3b6b70;
+            background: linear-gradient(110deg, #1c3b3c 0%, #1b2d38 58%, #203b48 100%);
+        }
+
         /* Thẻ chứa hai ô chọn phải nổi lên trên khối "Nội dung học" vẽ ngay sau nó. */
         .oi-pick-card { position: relative; z-index: 30; }
 

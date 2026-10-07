@@ -80,7 +80,7 @@
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 9, 'subject' => $activeSubject, 'detailUrl' => route('courses.classDetail', ['class' => '__ID__'])]) }})" class="flex flex-col gap-5">
+<div x-data="onthiCoursesPage({{ Js::from(['rows' => $classRows, 'courses' => $courseFilters, 'course' => $activeCourseId, 'pageSize' => 6, 'subject' => $activeSubject, 'detailUrl' => route('courses.classDetail', ['class' => '__ID__'])]) }})" class="flex flex-col gap-5">
 
     {{-- SỬA 16/9 — kết quả của nút "Đăng ký học" (gửi yêu cầu chờ giáo viên duyệt). Không có
          dải này thì học sinh bấm xong không biết đã gửi được hay chưa. --}}
@@ -230,10 +230,11 @@
         </div>
     @endif
 
-    <div class="flex items-center justify-between gap-3 px-1">
+    <div x-ref="listTop" class="flex scroll-mt-24 items-center justify-between gap-3 px-1">
         <div class="flex items-center gap-2 text-[11px] text-[#71869A]">
             <x-lucide name="filter" class="h-3.5 w-3.5 text-[#2D7FA3]" />
-            <span>Hiển thị <b class="text-[#536D86]" x-text="filtered.length"></b> lớp học phù hợp</span>
+            {{-- SỬA 7/10 — mỗi trang 6 lớp; quá 6 lớp thì hiện "a–b / tổng" và có thanh phân trang. --}}
+            <span>Hiển thị <b class="text-[#536D86]" x-text="rangeLabel"></b> lớp học phù hợp</span>
         </div>
         <button type="button" @click="resetFilters()" x-show="selectedGrade !== 'all' || selectedCourse !== 'all' || searchQuery !== ''" x-cloak
                 class="inline-flex items-center gap-1 text-[11px] font-bold text-[#126F91] hover:underline">
@@ -524,17 +525,19 @@
          class="flex flex-col items-center justify-between gap-2 rounded-2xl border border-[#DDEAF0] bg-white p-2.5 sm:flex-row">
         <span class="text-[11px] text-[#71869A]">Trang <b class="text-[#536D86]" x-text="page"></b> / <span x-text="totalPages"></span></span>
         <div class="flex items-center gap-1.5">
-            <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="currentPage = Math.max(1, page - 1)"
+            <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="goPage(page - 1)"
                     class="grid h-9 w-9 place-items-center rounded-xl border border-[#DDEAF0] text-[#536D86] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                 <x-lucide name="chevron-left" class="h-4 w-4" />
             </button>
-            <template x-for="page in totalPages" :key="page">
-                <button type="button" :aria-label="'Trang ' + page" :aria-current="this.page === page ? 'page' : null" @click="currentPage = page"
+            {{-- Dãy số trang rút gọn (1 … 4 5 6 … 20): khi có hàng chục lớp, liệt kê hết mọi trang sẽ tràn dòng. --}}
+            <template x-for="(item, idx) in pageItems" :key="idx">
+                <button type="button" :aria-label="item === '…' ? null : 'Trang ' + item" :aria-current="page === item ? 'page' : null"
+                        :disabled="item === '…'" @click="goPage(item)"
                         class="grid h-9 min-w-9 place-items-center rounded-xl px-2 text-[11px] font-extrabold transition"
-                        :class="this.page === page ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.18)]' : 'border border-transparent text-[#536D86] hover:border-[#C9DFE8] hover:bg-[#F8FAFB]'"
-                        x-text="page"></button>
+                        :class="item === '…' ? 'cursor-default text-[#8BA0B5]' : (page === item ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.18)]' : 'border border-transparent text-[#536D86] hover:border-[#C9DFE8] hover:bg-[#F8FAFB]')"
+                        x-text="item"></button>
             </template>
-            <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="currentPage = Math.min(totalPages, page + 1)"
+            <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="goPage(page + 1)"
                     class="grid h-9 w-9 place-items-center rounded-xl border border-[#DDEAF0] text-[#536D86] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                 <x-lucide name="chevron-right" class="h-4 w-4" />
             </button>

@@ -66,6 +66,43 @@
                 return this.filtered.slice(start, start + this.pageSize).map((r) => r.id);
             },
 
+            // "1–6 / 24" khi có nhiều trang; chỉ in tổng khi vừa một trang.
+            get rangeLabel() {
+                const total = this.filtered.length;
+                if (total <= this.pageSize) return String(total);
+                const from = (this.page - 1) * this.pageSize + 1;
+                const to = Math.min(total, this.page * this.pageSize);
+                return from + '–' + to + ' / ' + total;
+            },
+
+            // Dãy số trang rút gọn: luôn có trang đầu, trang cuối và 1 trang mỗi bên trang hiện tại.
+            get pageItems() {
+                const total = this.totalPages;
+                const current = this.page;
+                if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+                const wanted = new Set([1, total, current - 1, current, current + 1]);
+                if (current <= 3) { wanted.add(2); wanted.add(3); wanted.add(4); }
+                if (current >= total - 2) { wanted.add(total - 1); wanted.add(total - 2); wanted.add(total - 3); }
+
+                const sorted = Array.from(wanted).filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+                const items = [];
+                sorted.forEach((n, i) => {
+                    if (i > 0 && n - sorted[i - 1] > 1) items.push('…');
+                    items.push(n);
+                });
+                return items;
+            },
+
+            // Chuyển trang rồi kéo về đầu danh sách để người dùng không phải cuộn ngược lên.
+            goPage(n) {
+                if (n === '…') return;
+                this.currentPage = Math.min(Math.max(1, n), this.totalPages);
+                this.$nextTick(() => {
+                    this.$refs.listTop?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            },
+
             setCategory(value) { this.selectedCategory = value; this.currentPage = 1; },
             /*
              * Đổi KHỐI LỚP thì bỏ luôn khoá đang chọn: khoá đó thường không thuộc khối mới,
