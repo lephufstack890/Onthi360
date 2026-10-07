@@ -83,6 +83,7 @@
     .oi-loc-badge.is-north { border-color: #C7D2FE; background: #EEF2FF; color: #4338CA; }
     .oi-loc-badge.is-central { border-color: #FDE68A; background: #FFFBEB; color: #92400E; }
     .oi-loc-badge.is-south { border-color: #A7F3D0; background: #ECFDF5; color: #065F46; }
+    .oi-loc-badge.is-all { border-color: #BAE6FD; background: #F0F9FF; color: #075985; }
     .oi-log-link { text-decoration: none; transition: background .15s, border-color .15s; }
     .oi-log-link:hover { border-color: #B9CCDC; background: #E4EEF7; }
     .oi-log-link:focus-visible { outline: 2px solid #CBEAF1; outline-offset: 2px; }

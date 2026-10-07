@@ -48,6 +48,8 @@
                 </optgroup>
             @endforeach
         </x-ws.select>
+        {{-- SỬA 7/10 — khu vực không có ô riêng: chọn Toàn quốc = áp dụng cả 3 miền. --}}
+        <p class="mt-1 text-xs text-slate-400">Khu vực tự suy ra từ tỉnh/thành. Chọn <strong>Toàn quốc</strong> thì áp dụng cho tất cả các miền (Bắc, Trung, Nam).</p>
     </div>
     <div>
         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="exam_year">Năm</label>

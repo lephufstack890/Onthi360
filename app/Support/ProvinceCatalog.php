@@ -114,7 +114,7 @@ class ProvinceCatalog
      *
      * Khu vực KHÔNG lưu thành cột riêng mà SUY RA từ mã tỉnh: tỉnh đã quyết định miền, thêm một
      * ô nhập tay chỉ tạo ra chuyện "Hà Nội — Miền Nam" khi ai đó chọn nhầm. Phủ đủ 34 đơn vị hiện
-     * hành + 29 tên cũ; "Toàn quốc" (phạm vi của câu hỏi) không thuộc miền nào nên trả null.
+     * hành + 29 tên cũ; "Toàn quốc" (phạm vi của câu hỏi) tính là cả 3 miền (ALL_REGIONS_LABEL).
      *
      * Thanh Hoá/Nghệ An/Hà Tĩnh… tính Miền Trung (Bắc Trung Bộ), Tây Nguyên và Nam Trung Bộ cũng
      * Miền Trung — đúng cách chia 3 miền thông dụng mà bản mẫu dùng.
@@ -137,11 +137,21 @@ class ProvinceCatalog
         ],
     ];
 
-    /** Khu vực ("Miền Bắc"/"Miền Trung"/"Miền Nam") của một mã tỉnh; chưa gán hoặc "Toàn quốc" -> null. */
+    /** Nhãn khu vực của câu hỏi/đề phạm vi "Toàn quốc" — áp dụng cho cả 3 miền. */
+    public const ALL_REGIONS_LABEL = 'Tất cả các miền';
+
+    /**
+     * Khu vực ("Miền Bắc"/"Miền Trung"/"Miền Nam") của một mã tỉnh. "Toàn quốc" -> "Tất cả các miền"
+     * (SỬA 7/10: khách yêu cầu chọn Toàn quốc thì mặc định là cả 3 miền); chưa gán -> null.
+     */
     public static function region(?string $code): ?string
     {
         if ($code === null || $code === '') {
             return null;
+        }
+
+        if ($code === self::DEFAULT_QUESTION_SCOPE) {
+            return self::ALL_REGIONS_LABEL;
         }
 
         foreach (self::REGIONS as $region => $codes) {

@@ -2,7 +2,7 @@
      chưa có thì hiện "Chưa có tỉnh/thành" / "Chưa có khu vực". Khu vực tô màu theo miền như bản mẫu.
      Tham số: $province, $region (nhãn tiếng Việt hoặc null). --}}
 @php
-    $clRegionTone = ['Miền Bắc' => 'is-north', 'Miền Trung' => 'is-central', 'Miền Nam' => 'is-south'][$region ?? ''] ?? '';
+    $clRegionTone = ['Miền Bắc' => 'is-north', 'Miền Trung' => 'is-central', 'Miền Nam' => 'is-south', 'Tất cả các miền' => 'is-all'][$region ?? ''] ?? '';
 @endphp
 <div class="oi-loc" aria-label="Địa phương">
     <span class="oi-loc-badge" title="Tỉnh/thành: {{ $province ?: 'Chưa cập nhật' }}">
