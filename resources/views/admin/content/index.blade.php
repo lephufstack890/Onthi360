@@ -257,7 +257,7 @@
         @if ($isQuestions)
             {{-- SỬA 7/10 (khách: "hiển thị cột thứ tự ra ngoài danh sách, sửa trực tiếp trên từng dòng")
                  — chú thích cách đọc cột Thứ tự. --}}
-            <p class="oi-ord-hint">Cột <strong>Thứ tự hiển thị</strong>: số <strong>càng lớn</strong> thì câu hỏi càng <strong>đứng trước</strong> (0 = mặc định, câu mới nhất lên trước). Bấm <strong>＋ / −</strong>, gõ số rồi Enter, hoặc <strong>Đưa lên đầu</strong> — hệ thống tự lưu.</p>
+            <p class="oi-ord-hint">Cột <strong>Thứ tự hiển thị</strong>: số <strong>càng lớn</strong> thì câu hỏi càng <strong>đứng trước</strong> (0 = mặc định, câu mới nhất lên trước). Bấm <strong>＋ / −</strong>, gõ số rồi Enter, hoặc <strong>Đưa lên trước</strong> (chen lên đứng ngay trước câu phía trên nó) — hệ thống tự lưu.</p>
         @endif
         <x-ws.table :columns="$isQuestions ? ['Tên', 'Thứ tự hiển thị', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
@@ -272,11 +272,11 @@
                         {{-- SỬA 7/10 — ô Thứ tự: −/＋ tăng giảm 1, gõ số, hoặc "Đưa lên đầu"; tự lưu bằng
                              fetch PATCH (assets/JS ở @push('scripts') cuối trang). --}}
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}">
+                            <div class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
                                 <button type="button" class="oi-ord__b" data-act="dec" aria-label="Giảm 1" title="Giảm 1">−</button>
                                 <input type="number" class="oi-ord__in" min="0" max="65535" step="1" inputmode="numeric" value="{{ $r['displayOrder'] }}" aria-label="Thứ tự hiển thị">
                                 <button type="button" class="oi-ord__b" data-act="inc" aria-label="Tăng 1" title="Tăng 1 (đứng trước hơn)">＋</button>
-                                <button type="button" class="oi-ord__top" data-act="top" title="Đưa câu này lên đầu danh sách">Đưa lên đầu</button>
+                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
                                 <span class="oi-ord__st" aria-live="polite"></span>
                             </div>
                         </td>
@@ -417,6 +417,7 @@
             .oi-ord__in.is-set{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
             .oi-ord__top{height:28px;padding:0 9px;border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:2px}
             .oi-ord__top:hover{background:#dcfce7;border-color:#4ade80}
+            .oi-ord-flash{background:#ecfdf5 !important;transition:background 1.2s}
             .oi-ord__top[disabled]{background:#f1f5f9;border-color:#e2e8f0;color:#94a3b8;cursor:default}
             .oi-ord__st{min-width:62px;font-size:11px;font-weight:600;color:#64748b}
             .oi-ord__st.is-ok{color:#15803d}
@@ -441,11 +442,14 @@
                 var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
                 var toast = document.getElementById('oiOrdToast');
                 var reload = document.getElementById('oiOrdReload');
+                var dirty = false; // đã gõ/bấm ＋− làm thứ tự trên màn hình lệch với danh sách
+                var pageNo = {{ (int) ($pagination['page'] ?? 1) }};
                 if (reload) reload.addEventListener('click', function () { window.location.reload(); });
 
+                function boxes() { return Array.prototype.slice.call(document.querySelectorAll('[data-ord]')); }
                 function clamp(n) { return Math.max(0, Math.min(MAX, n)); }
                 function parse(box) {
-                    var raw = String(box.value).trim();
+                    var raw = String(box.querySelector('.oi-ord__in').value).trim();
                     if (!/^\d+$/.test(raw)) return null;
                     return clamp(parseInt(raw, 10));
                 }
@@ -454,22 +458,43 @@
                     st.textContent = text || '';
                     st.className = 'oi-ord__st' + (cls ? ' ' + cls : '');
                 }
-                function refreshTop() {
-                    document.querySelectorAll('[data-ord]').forEach(function (box) {
+                function setValue(box, v) {
+                    box.dataset.saved = String(v);
+                    box.querySelector('.oi-ord__in').value = v;
+                }
+                // Nút "Đưa lên trước": dòng đầu trang 1 → "Đang ở đầu"; nếu số trên màn hình đã lệch
+                // với danh sách (dirty) thì khoá cho tới khi bấm "Sắp xếp lại danh sách".
+                function refreshButtons() {
+                    boxes().forEach(function (box, i) {
                         var v = parseInt(box.dataset.saved, 10) || 0;
-                        var btn = box.querySelector('[data-act="top"]');
-                        var isTop = topMax > 0 && v >= topMax;
-                        btn.disabled = isTop;
-                        btn.textContent = isTop ? 'Đang ở đầu' : 'Đưa lên đầu';
+                        var btn = box.querySelector('[data-act="up"]');
+                        var atTop = i === 0 && pageNo === 1;
+                        btn.disabled = atTop || dirty;
+                        btn.textContent = atTop ? 'Đang ở đầu' : 'Đưa lên trước';
+                        btn.title = atTop ? 'Câu này đang đứng đầu danh sách'
+                            : (dirty ? 'Bấm "Sắp xếp lại danh sách" trước khi chuyển vị trí' : 'Đưa câu này lên đứng ngay trước câu phía trên nó');
                         box.querySelector('.oi-ord__in').classList.toggle('is-set', v > 0);
                     });
                 }
+                function showToast(msg) {
+                    if (!toast) return;
+                    toast.querySelector('span').textContent = msg;
+                    toast.classList.add('is-on');
+                }
+                function applySnapshot(j) {
+                    topMax = parseInt(j.max, 10) || 0;
+                    var vals = j.values || {};
+                    boxes().forEach(function (box) {
+                        var k = box.dataset.id;
+                        if (vals[k] !== undefined) setValue(box, vals[k]);
+                    });
+                }
 
-                function save(box, body) {
-                    var input = box.querySelector('.oi-ord__in');
+                function send(box, body) {
                     var seq = (box._seq = (box._seq || 0) + 1);
                     box.classList.add('is-busy');
                     status(box, 'Đang lưu…', '');
+                    body.visible_ids = boxes().map(function (b) { return parseInt(b.dataset.id, 10); });
                     return fetch(box.dataset.href, {
                         method: 'PATCH',
                         headers: {
@@ -483,37 +508,60 @@
                     }).then(function (res) {
                         return res.json().catch(function () { return {}; }).then(function (j) { return { ok: res.ok, j: j }; });
                     }).then(function (r) {
-                        if (seq !== box._seq) return; // đã có lần lưu mới hơn
+                        if (seq !== box._seq) return null; // đã có lần lưu mới hơn
                         box.classList.remove('is-busy');
                         if (!r.ok || !r.j || r.j.ok !== true) {
-                            var msg = (r.j && r.j.errors && r.j.errors.value && r.j.errors.value[0]) || (r.j && r.j.message) || 'Lưu lỗi';
-                            input.value = box.dataset.saved;
+                            var msg = (r.j && r.j.errors && ((r.j.errors.value && r.j.errors.value[0]) || (r.j.errors.before_id && r.j.errors.before_id[0])))
+                                || (r.j && r.j.message) || 'Lưu lỗi';
+                            setValue(box, box.dataset.saved);
                             status(box, msg, 'is-err');
-                            return;
+                            return null;
                         }
-                        box.dataset.saved = String(r.j.value);
-                        input.value = r.j.value;
-                        topMax = parseInt(r.j.max, 10) || 0;
+                        applySnapshot(r.j);
                         status(box, 'Đã lưu ✓', 'is-ok');
                         setTimeout(function () { if (seq === box._seq) status(box, '', ''); }, 1800);
-                        refreshTop();
-                        if (toast) toast.classList.add('is-on');
+                        return r.j;
                     }).catch(function () {
-                        if (seq !== box._seq) return;
+                        if (seq !== box._seq) return null;
                         box.classList.remove('is-busy');
-                        input.value = box.dataset.saved;
+                        setValue(box, box.dataset.saved);
                         status(box, 'Mất kết nối', 'is-err');
+                        return null;
                     });
                 }
 
                 function commit(box) {
-                    var input = box.querySelector('.oi-ord__in');
-                    var v = parse(input);
-                    if (v === null) { input.value = box.dataset.saved; return; }
-                    input.value = v;
+                    var v = parse(box);
+                    if (v === null) { setValue(box, box.dataset.saved); return; }
+                    box.querySelector('.oi-ord__in').value = v;
                     if (String(v) === box.dataset.saved || String(v) === box._pend) return;
                     box._pend = String(v);
-                    save(box, { mode: 'set', value: v }).then(function () { box._pend = null; });
+                    send(box, { mode: 'set', value: v }).then(function (j) {
+                        box._pend = null;
+                        if (j) { dirty = true; showToast('Đã lưu thứ tự mới. Danh sách chưa xếp lại theo số mới.'); refreshButtons(); }
+                    });
+                }
+
+                function moveUp(box) {
+                    var all = boxes();
+                    var i = all.indexOf(box);
+                    var prev = i > 0 ? all[i - 1] : null;
+                    var beforeId = prev ? prev.dataset.id : box.querySelector('[data-act="up"]').dataset.prev;
+                    if (!beforeId) return;
+                    send(box, { mode: 'before', before_id: parseInt(beforeId, 10) }).then(function (j) {
+                        if (!j) return;
+                        var row = box.closest('tr');
+                        if (prev) {
+                            // Đổi chỗ ngay trên màn hình: dòng này chen lên trước dòng phía trên.
+                            row.parentNode.insertBefore(row, prev.closest('tr'));
+                            row.classList.add('oi-ord-flash');
+                            setTimeout(function () { row.classList.remove('oi-ord-flash'); }, 1400);
+                            refreshButtons();
+                        } else {
+                            // Câu phía trên nằm ở trang trước → tải lại để thấy vị trí mới.
+                            window.location.reload();
+                        }
+                    });
                 }
 
                 document.addEventListener('click', function (e) {
@@ -522,8 +570,8 @@
                     var box = btn.closest('[data-ord]');
                     var input = box.querySelector('.oi-ord__in');
                     var act = btn.dataset.act;
-                    if (act === 'top') { save(box, { mode: 'top' }); return; }
-                    var cur = parse(input);
+                    if (act === 'up') { moveUp(box); return; }
+                    var cur = parse(box);
                     if (cur === null) cur = parseInt(box.dataset.saved, 10) || 0;
                     input.value = clamp(cur + (act === 'inc' ? 1 : -1));
                     // Bấm liên tiếp thì gộp lại: chỉ lưu sau khi dừng bấm 450ms.
@@ -535,10 +583,10 @@
                     if (!e.target.classList || !e.target.classList.contains('oi-ord__in')) return;
                     var box = e.target.closest('[data-ord]');
                     if (e.key === 'Enter') { e.preventDefault(); clearTimeout(box._t); commit(box); e.target.blur(); }
-                    else if (e.key === 'Escape') { clearTimeout(box._t); e.target.value = box.dataset.saved; status(box, '', ''); e.target.blur(); }
+                    else if (e.key === 'Escape') { clearTimeout(box._t); setValue(box, box.dataset.saved); status(box, '', ''); e.target.blur(); }
                     else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                         e.preventDefault();
-                        var cur = parse(e.target); if (cur === null) cur = parseInt(box.dataset.saved, 10) || 0;
+                        var cur = parse(box); if (cur === null) cur = parseInt(box.dataset.saved, 10) || 0;
                         e.target.value = clamp(cur + (e.key === 'ArrowUp' ? 1 : -1));
                         clearTimeout(box._t);
                         box._t = setTimeout(function () { commit(box); }, 450);
@@ -550,7 +598,7 @@
                     clearTimeout(box._t);
                     commit(box);
                 });
-                refreshTop();
+                refreshButtons();
             })();
         </script>
     @endpush

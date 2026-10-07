@@ -207,23 +207,32 @@ class ContentController extends Controller
     }
 
     /**
-     * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" của 1 câu hỏi ngay trên danh sách (gọi bằng fetch,
-     * trả JSON). mode=set kèm value (0..65535) hoặc mode=top (đưa lên đầu).
+     * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" ngay trên danh sách (gọi bằng fetch, trả JSON).
+     *   mode=set    + value (0..65535)  : đặt đúng số đó.
+     *   mode=before + before_id         : đưa câu này lên NGAY TRƯỚC câu before_id (câu liền trên).
+     * visible_ids = các câu đang hiện trên trang, để trả lại số mới của chúng cho ô số.
      */
     public function questionsDisplayOrder(Request $request, Question $question): JsonResponse
     {
         $data = $request->validate([
-            'mode' => ['required', 'in:set,top'],
+            'mode' => ['required', 'in:set,before'],
             'value' => ['required_if:mode,set', 'nullable', 'integer', 'min:0', 'max:65535'],
+            'before_id' => ['required_if:mode,before', 'nullable', 'integer', 'exists:questions,id'],
+            'visible_ids' => ['nullable', 'array', 'max:200'],
+            'visible_ids.*' => ['integer'],
         ], [], ['value' => 'Thứ tự hiển thị']);
 
-        $result = $this->contentService->questionSetDisplayOrder(
-            $question,
-            $data['mode'],
-            isset($data['value']) ? (int) $data['value'] : null,
-        );
+        $result = $data['mode'] === 'before'
+            ? $this->contentService->questionMoveBefore($question, Question::query()->findOrFail((int) $data['before_id']))
+            : $this->contentService->questionSetDisplayOrder($question, (int) $data['value']);
 
-        return response()->json(['ok' => true] + $result);
+        if (! $result['ok']) {
+            return response()->json(['ok' => false, 'message' => $result['message'] ?? 'Không đổi được thứ tự.'], 422);
+        }
+
+        $ids = array_values(array_unique(array_merge([$question->id], array_map('intval', $data['visible_ids'] ?? []))));
+
+        return response()->json(['ok' => true] + $this->contentService->displayOrderSnapshot($ids));
     }
 
     /** SỬA 4/10 — xoá đề thi + 4 tệp của nó (đề, lời giải, bản xem trước, ảnh bìa). */

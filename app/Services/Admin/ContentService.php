@@ -296,6 +296,12 @@ class ContentService
             $page = min(max(1, $page), $lastPage);
             $pagination = ['page' => $page, 'perPage' => $perPage, 'lastPage' => $lastPage, 'total' => $filteredTotal];
 
+            // SỬA 7/10 — câu đứng NGAY TRƯỚC câu đầu trang này (ở trang trước), để nút "Đưa lên
+            // trước" của dòng đầu trang 2+ biết phải chen lên trước câu nào.
+            $leadPrevId = $page > 1
+                ? ($this->questions->allWithOwnerFiltered($filters, 1, ($page - 1) * $perPage - 1)->first()?->id)
+                : null;
+
             $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
@@ -388,6 +394,7 @@ class ContentService
             'pagination' => $pagination,
             // SỬA 7/10 — số thứ tự LỚN NHẤT toàn kho: nút "Đưa lên đầu" và nhãn "Đang ở đầu".
             'orderMax' => $tab === 'questions' ? $this->displayOrderMax() : 0,
+            'leadPrevId' => $leadPrevId ?? null,
             'documents' => $documents,
             'tags' => $tags,
             'total' => match (true) {
@@ -1719,6 +1726,8 @@ class ContentService
         return $question;
     }
 
+    private const DISPLAY_ORDER_LIMIT = 65535;
+
     /** Số thứ tự hiển thị lớn nhất đang có (0 nếu chưa câu nào đặt). */
     public function displayOrderMax(): int
     {
@@ -1726,30 +1735,112 @@ class ContentService
     }
 
     /**
-     * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" ngay trên danh sách. Số lớn hơn = hiện trước
-     * (0 = bình thường, mới nhất trước). $mode: 'set' (đặt đúng $value), 'top' (đưa lên đầu =
-     * lớn nhất hiện có + 1). Luôn kẹp 0..65535 (cột unsignedInteger, luật kiểm tra của form Sửa).
-     * Đi qua $question->update() nên nhật ký kiểm toán (Auditable) vẫn ghi lại như khi sửa bằng form.
+     * SỬA 7/10 — đặt thẳng số "Thứ tự hiển thị" của 1 câu (ô số, nút −/＋ ở danh sách).
+     * Số lớn hơn = hiện trước (0 = bình thường). Kẹp 0..65535. Đi qua $question->update() nên
+     * nhật ký kiểm toán (Auditable) vẫn ghi như khi sửa bằng form.
      *
-     * @return array{value:int, max:int}
+     * @return array{ok:bool, message?:string}
      */
-    public function questionSetDisplayOrder(Question $question, string $mode, ?int $value = null): array
+    public function questionSetDisplayOrder(Question $question, int $value): array
     {
-        $limit = 65535;
-        $new = $mode === 'top'
-            ? min($limit, max($this->displayOrderMax(), (int) $question->display_order) + 1)
-            : max(0, min($limit, (int) $value));
+        $new = max(0, min(self::DISPLAY_ORDER_LIMIT, $value));
+        $this->saveDisplayOrder($question, $new);
 
-        if ((int) $question->display_order !== $new) {
-            Question::$auditReason = 'Đổi thứ tự hiển thị nhanh ở danh sách';
-            try {
-                $question->update(['display_order' => $new]);
-            } finally {
-                Question::$auditReason = null;
-            }
+        return ['ok' => true];
+    }
+
+    /**
+     * SỬA 7/10 (khách: "Đưa lên đầu = đưa lên TRƯỚC câu đó, không phải lên max") — đưa $question
+     * lên đứng NGAY TRƯỚC $before (câu đang nằm liền phía trên nó trong danh sách), không động
+     * tới thứ tự của các câu còn lại.
+     *
+     * Vì sao không chỉ "+1 là xong": danh sách admin xếp display_order giảm dần rồi tới mới nhất
+     * trước, còn trang Luyện tập của học sinh lại xếp display_order giảm dần rồi tới id TĂNG
+     * dần (QuestionOrder::apply). Hai cách phá hoà khác nhau, nên cách duy nhất để HAI nơi cùng
+     * thấy câu này đứng trước câu kia là cho nó số LỚN HƠN HẲN, không để hoà. Vì vậy:
+     *   - $question nhận số = $before + 1;
+     *   - nếu phía trên $before đã có câu nào số ≤ $before + 1 (hoặc hoà với $before) thì
+     *     đẩy tất cả các câu đứng trước $before lên 2 bậc để chúng vẫn ở trên $question.
+     * Trường hợp hay gặp (cả kho đang 0 hết) chỉ cần: các câu phía trên thành 2, câu này thành 1.
+     *
+     * @return array{ok:bool, message?:string}
+     */
+    public function questionMoveBefore(Question $question, Question $before): array
+    {
+        if ($question->id === $before->id) {
+            return ['ok' => false, 'message' => 'Không thể đặt một câu trước chính nó.'];
         }
 
-        return ['value' => $new, 'max' => $this->displayOrderMax()];
+        $beforeOrder = (int) $before->display_order;
+        if ((int) $question->display_order > $beforeOrder) {
+            return ['ok' => true]; // đã đứng trước hẳn rồi (số lớn hơn) — không cần làm gì
+        }
+
+        return DB::transaction(function () use ($question, $before, $beforeOrder): array {
+            // Nhóm "đứng trước $before" theo thứ tự danh sách admin (không tính chính $question).
+            $above = fn () => Question::query()->where('id', '!=', $question->id)
+                ->where(function ($q) use ($before, $beforeOrder) {
+                    $q->where('display_order', '>', $beforeOrder)
+                        ->orWhere(function ($q) use ($before, $beforeOrder) {
+                            $q->where('display_order', $beforeOrder)
+                                ->where(function ($q) use ($before) {
+                                    $q->where('created_at', '>', $before->created_at)
+                                        ->orWhere(function ($q) use ($before) {
+                                            $q->where('created_at', $before->created_at)->where('id', '>', $before->id);
+                                        });
+                                });
+                        });
+                });
+
+            $newValue = $beforeOrder + 1;
+            $minAbove = $above()->min('display_order');
+            $needBump = $minAbove !== null && (int) $minAbove < $beforeOrder + 2;
+
+            if ($needBump) {
+                $maxAbove = (int) $above()->max('display_order');
+                if (max($maxAbove + 2, $beforeOrder + 2) > self::DISPLAY_ORDER_LIMIT) {
+                    return ['ok' => false, 'message' => 'Không đẩy thêm được: thứ tự đã chạm mốc '.self::DISPLAY_ORDER_LIMIT.'. Hãy đặt lại số nhỏ hơn cho các câu đứng đầu.'];
+                }
+                // Thứ tự quan trọng: tăng nhóm "số lớn hơn" TRƯỚC, rồi mới nâng nhóm hoà số.
+                Question::query()->where('id', '!=', $question->id)
+                    ->where('display_order', '>', $beforeOrder)->increment('display_order', 2);
+                $above()->where('display_order', $beforeOrder)->update(['display_order' => $beforeOrder + 2]);
+            } elseif ($newValue > self::DISPLAY_ORDER_LIMIT) {
+                return ['ok' => false, 'message' => 'Không đẩy thêm được: thứ tự đã chạm mốc '.self::DISPLAY_ORDER_LIMIT.'.'];
+            }
+
+            $this->saveDisplayOrder($question, $newValue);
+
+            return ['ok' => true];
+        });
+    }
+
+    private function saveDisplayOrder(Question $question, int $new): void
+    {
+        if ((int) $question->display_order === $new) {
+            return;
+        }
+        Question::$auditReason = 'Đổi thứ tự hiển thị nhanh ở danh sách';
+        try {
+            $question->update(['display_order' => $new]);
+        } finally {
+            Question::$auditReason = null;
+        }
+    }
+
+    /**
+     * Giá trị thứ tự hiện tại của các câu đang hiện trên trang + số lớn nhất toàn kho — trả về
+     * sau mỗi lần đổi để ô số trên trang khớp với dữ liệu thật (nhất là sau khi đẩy nhóm phía trên).
+     *
+     * @param  list<int>  $ids
+     * @return array{values:array<int,int>, max:int}
+     */
+    public function displayOrderSnapshot(array $ids): array
+    {
+        $values = $ids === [] ? [] : Question::query()->whereIn('id', $ids)->pluck('display_order', 'id')
+            ->map(fn ($v) => (int) $v)->all();
+
+        return ['values' => $values, 'max' => $this->displayOrderMax()];
     }
 
     public function questionArchive(Question $question, string $reason): Question
