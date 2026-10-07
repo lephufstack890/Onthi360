@@ -61,7 +61,11 @@ class ContentController extends Controller
             'q' => $request->query('q') ?: null,
         ];
 
-        return view('admin.content.index', $this->contentService->indexData($tab, $filters));
+        // SỬA 7/10 (khách: "quá 10 item thì phân trang") — số trang lấy từ ?page=, mặc định 1;
+        // service tự chặn khi vượt quá trang cuối.
+        $page = max(1, (int) $request->query('page', 1));
+
+        return view('admin.content.index', $this->contentService->indexData($tab, $filters, $page));
     }
 
     /** admin.content.show — 6.2 (chặn phát hành khi thiếu cấu hình). */

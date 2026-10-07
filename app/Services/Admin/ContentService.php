@@ -232,13 +232,17 @@ class ContentService
             })->all();
     }
 
+    /** SỬA 7/10 (khách: "quá 10 item thì phân trang") — số câu hỏi mỗi trang ở Kho bài tập. */
+    public const QUESTIONS_PER_PAGE = 10;
+
     /**
      * @param  array  $filters  SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — bộ lọc của tab
      *                          "Câu hỏi", xem QuestionRepositoryInterface::allWithOwnerFiltered().
      *                          Tab khác bỏ qua tham số này.
+     * @param int $page  SỬA 7/10 — trang hiện tại của tab Câu hỏi (QUESTIONS_PER_PAGE câu/trang).
      * @return array{tab: string, tabs: array, rows: array, total: int, documents: array}
      */
-    public function indexData(string $tab, array $filters = []): array
+    public function indexData(string $tab, array $filters = [], int $page = 1): array
     {
         $counts = [
             // SỬA 31/8 — đếm đúng số lượng hiện ở tab "Câu hỏi (Kho chung + Giáo viên)":
@@ -272,6 +276,7 @@ class ContentService
         $documents = [];
         $rows = [];
         $tags = [];
+        $pagination = null;
         if ($tab === 'questions') {
             // Admin xem được toàn bộ câu hỏi — cả Kho chung lẫn kho riêng từng giáo viên
             // (chỉ xem để nắm tình hình; ranh giới sở hữu/sửa vẫn theo 6.5, giống cách
@@ -280,7 +285,18 @@ class ContentService
             // nhất, không lọc không tìm; giờ đi qua allWithOwnerFiltered() với bộ lọc Môn/Khối/
             // Dạng/Trạng thái + ô tìm theo tên hoặc mã. Giới hạn nâng 50 -> 100 vì đã có bộ lọc
             // để thu hẹp (vẫn là giới hạn cứng, chưa phân trang thật — xem x-pagination-note).
-            $rows = $this->questions->allWithOwnerFiltered($filters, 100)->map(function ($q) {
+            //
+            // SỬA 7/10 (khách: "quá 10 item thì phân trang") — PHÂN TRANG THẬT, 10 câu/trang, thay
+            // cho giới hạn cứng 100 câu (câu thứ 101 trở đi trước giờ không cách nào nhìn thấy).
+            // Đếm trước để chặn $page vượt trang cuối — vd đang ở trang 3, xoá nốt câu cuối của
+            // trang đó rồi quay lại: trang 3 không còn, phải rơi về trang 2 chứ không hiện bảng rỗng.
+            $filteredTotal = $this->questions->countAllFiltered($filters);
+            $perPage = self::QUESTIONS_PER_PAGE;
+            $lastPage = max(1, (int) ceil($filteredTotal / $perPage));
+            $page = min(max(1, $page), $lastPage);
+            $pagination = ['page' => $page, 'perPage' => $perPage, 'lastPage' => $lastPage, 'total' => $filteredTotal];
+
+            $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
                 return [
@@ -316,8 +332,7 @@ class ContentService
                 ];
             })->all();
 
-            // Tổng khớp bộ lọc (khác $counts['questions'] = tổng toàn kho, vẫn hiện trên tab).
-            $filteredTotal = $this->questions->countAllFiltered($filters);
+            // Tổng khớp bộ lọc ($filteredTotal, đã đếm ở đầu nhánh) khác $counts['questions'] = tổng toàn kho.
         } elseif ($tab === 'assessments') {
             $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {
                 [$label, $tone] = $this->statusLabel($a->status);
@@ -365,6 +380,8 @@ class ContentService
             'tab' => $tab,
             'tabs' => $tabs,
             'rows' => $rows,
+            // SỬA 7/10 — chỉ có ở tab Câu hỏi (null ở các tab khác): trang hiện tại / tổng số trang.
+            'pagination' => $pagination,
             'documents' => $documents,
             'tags' => $tags,
             'total' => match (true) {

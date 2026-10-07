@@ -39,8 +39,11 @@ interface QuestionRepositoryInterface extends BaseRepositoryInterface
      *
      * SỬA 30/9 — thêm khoá:
      *   'tag' => id chuyên đề (bảng tags) hoặc 'none' = câu chưa gắn chuyên đề nào.
+     *
+     * SỬA 7/10 — thêm $offset để PHÂN TRANG THẬT (trang n lấy offset = (n-1) * $limit). Mặc định 0
+     * nên nơi gọi cũ không phải đổi.
      */
-    public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection;
+    public function allWithOwnerFiltered(array $filters, int $limit = 50, int $offset = 0): Collection;
 
     /** SỬA 8/9 (3) — tổng số câu khớp bộ lọc (để hiện "đang xem X / Y"). */
     public function countAllFiltered(array $filters): int;

@@ -61,14 +61,17 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      * Giữ nguyên 2 ràng buộc gốc của Kho câu hỏi (whereNull('product_id') — bài tập riêng của
      * sản phẩm quản lý ở trang Sản phẩm; sắp xếp mới nhất trước), chỉ chồng thêm điều kiện lọc.
      */
-    public function allWithOwnerFiltered(array $filters, int $limit = 50): Collection
+    public function allWithOwnerFiltered(array $filters, int $limit = 50, int $offset = 0): Collection
     {
         // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao hiện
         // lên đầu kho; phần còn lại giữ nguyên thứ tự cũ (mới nhất trước), xem migration
         // add_display_order_to_questions_table.
         return $this->applyQuestionBankFilters($this->query()->with('owner'), $filters)
             ->orderByDesc('display_order')
-            ->latest()->limit($limit)->get();
+            // SỬA 7/10 — thêm id làm khoá phụ: nhiều câu cùng created_at (nhập hàng loạt) mà không có
+            // khoá phụ thì thứ tự giữa các câu đó không ổn định, sang trang 2 có thể lặp/mất câu.
+            ->latest()->orderByDesc('id')
+            ->offset($offset)->limit($limit)->get();
     }
 
     public function countAllFiltered(array $filters): int

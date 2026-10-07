@@ -11,6 +11,8 @@
         $documents = $documents ?? [];
         $tags = $tags ?? [];
         $total = $total ?? count($rows);
+        // SỬA 7/10 — phân trang tab Câu hỏi, xem ContentService::indexData().
+        $pagination = $pagination ?? null;
         // SỬA 8/9 (3) ("phân loại kho câu hỏi theo môn") — dữ liệu bộ lọc chỉ có ở tab Câu hỏi,
         // xem ContentService::indexData().
         $isQuestions = $tab === 'questions';
@@ -326,6 +328,61 @@
                 </td></tr>
             @endforelse
         </x-ws.table>
-        <x-ws.pagination-note :shown="count($rows)" :total="$total" />
+        {{-- SỬA 7/10 (khách: "quá 10 item thì phân trang") — tab Câu hỏi (cả "đã dùng" lẫn "chưa dùng
+             trong đề") phân trang thật, 10 câu/trang. Chỉ hiện thanh chuyển trang khi có HƠN 1
+             trang; ít hơn thì giữ ô ghi chú cũ. Link đi qua $filterLink nên giữ nguyên mọi bộ lọc
+             đang bật (môn, khối, dạng câu, tỉnh, năm, từ khoá…). --}}
+        @if ($isQuestions && ($pagination['lastPage'] ?? 1) > 1)
+            @php
+                $pgCurrent = $pagination['page'];
+                $pgLast = $pagination['lastPage'];
+                $pgFrom = ($pgCurrent - 1) * $pagination['perPage'] + 1;
+                $pgTo = $pgFrom + count($rows) - 1;
+                // Cửa sổ số trang: luôn có trang đầu/cuối, ±1 quanh trang hiện tại, '…' cho khoảng bị bỏ.
+                $pgItems = [];
+                $pgPrev = 0;
+                for ($i = 1; $i <= $pgLast; $i++) {
+                    if ($i === 1 || $i === $pgLast || abs($i - $pgCurrent) <= 1) {
+                        if ($pgPrev && $i - $pgPrev > 1) {
+                            $pgItems[] = '…';
+                        }
+                        $pgItems[] = $i;
+                        $pgPrev = $i;
+                    }
+                }
+                $pgBtn = 'inline-flex items-center justify-center rounded-lg border text-[12px] font-semibold transition-colors';
+            @endphp
+            <nav aria-label="Phân trang câu hỏi" class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-[11px] text-slate-500 shadow-[0_2px_8px_rgba(0,90,180,.04)]">
+                <span>Hiển thị <strong class="font-bold text-slate-700">{{ $pgFrom }}–{{ $pgTo }}</strong> / {{ $pagination['total'] }} câu hỏi · Trang {{ $pgCurrent }}/{{ $pgLast }}</span>
+                <div class="flex flex-wrap items-center gap-1">
+                    @if ($pgCurrent > 1)
+                        <a href="{{ $filterLink(['page' => $pgCurrent > 2 ? $pgCurrent - 1 : null]) }}" aria-label="Trang trước"
+                           class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">‹</a>
+                    @else
+                        <span aria-hidden="true" class="{{ $pgBtn }} border-sky-100 bg-white text-slate-300" style="height:2rem;min-width:2rem;padding:0 .5rem;cursor:not-allowed">‹</span>
+                    @endif
+
+                    @foreach ($pgItems as $item)
+                        @if ($item === '…')
+                            <span class="text-slate-400" style="min-width:1.25rem;text-align:center">…</span>
+                        @elseif ($item === $pgCurrent)
+                            <span aria-current="page" class="{{ $pgBtn }} border-blue-600 bg-blue-600 text-white" style="height:2rem;min-width:2rem;padding:0 .5rem">{{ $item }}</span>
+                        @else
+                            <a href="{{ $filterLink(['page' => $item > 1 ? $item : null]) }}" aria-label="Trang {{ $item }}"
+                               class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">{{ $item }}</a>
+                        @endif
+                    @endforeach
+
+                    @if ($pgCurrent < $pgLast)
+                        <a href="{{ $filterLink(['page' => $pgCurrent + 1]) }}" aria-label="Trang sau"
+                           class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">›</a>
+                    @else
+                        <span aria-hidden="true" class="{{ $pgBtn }} border-sky-100 bg-white text-slate-300" style="height:2rem;min-width:2rem;padding:0 .5rem;cursor:not-allowed">›</span>
+                    @endif
+                </div>
+            </nav>
+        @else
+            <x-ws.pagination-note :shown="count($rows)" :total="$total" />
+        @endif
     @endif
 @endsection
