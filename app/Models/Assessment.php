@@ -34,9 +34,17 @@ class Assessment extends Model
         // SỬA 2/10 — 6 trường mô tả đề cho màn chi tiết + thẻ đề ngoài trang công khai, xem
         // migration add_detail_fields_to_assessments_table.
         'subtitle', 'author', 'province', 'academic_year', 'exam_category', 'cover_image_path',
+        // SỬA 7/10 — độ khó 1-5 của đề (cùng thang với câu hỏi), xem migration
+        // add_difficulty_and_ratings_to_assessments.
+        'difficulty_level',
+        // SỬA 7/10 (khách: "số sao đánh giá cho nhập tay") — điểm sao + số lượt do admin/giáo viên nhập
+        // tay; gộp với lượt chấm thật của học sinh khi hiển thị, xem PracticeService::combinedRating().
+        'rating_score', 'rating_count',
     ];
 
     protected $casts = [
+        'rating_score' => 'float',
+        'rating_count' => 'integer',
         'type' => AssessmentType::class,
         'status' => ContentStatus::class,
         'owner_type' => OwnerType::class,
@@ -54,6 +62,28 @@ class Assessment extends Model
     public function provinceLabel(): ?string
     {
         return \App\Support\ProvinceCatalog::label($this->province);
+    }
+
+    /** SỬA 7/10 — khu vực (Miền Bắc/Trung/Nam) suy ra từ tỉnh/thành; chưa gán -> null. */
+    public function regionLabel(): ?string
+    {
+        return \App\Support\ProvinceCatalog::region($this->province);
+    }
+
+    /** SỬA 7/10 — độ khó 1-5 hợp lệ hoặc null (chưa xếp). */
+    public function difficultyStars(): ?int
+    {
+        $level = (int) $this->difficulty_level;
+
+        return $level >= 1 && $level <= 5 ? $level : null;
+    }
+
+    /** SỬA 7/10 — nhãn độ khó cùng bộ nhãn với câu hỏi ("Cơ bản"…"Rất khó"); chưa xếp -> null. */
+    public function difficultyLabel(): ?string
+    {
+        $level = $this->difficultyStars();
+
+        return $level === null ? null : \App\Support\QuestionDifficulty::label(array_search($level, \App\Support\QuestionDifficulty::STARS, true) ?: null);
     }
 
     /** SỬA 2/10 — nhãn loại đề ("hsg_quoc_gia" -> "HSG Quốc gia"); chưa gán -> null. */

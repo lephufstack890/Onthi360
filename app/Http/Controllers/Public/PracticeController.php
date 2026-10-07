@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Services\Public\PracticeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -28,6 +29,20 @@ class PracticeController extends Controller
     public function exam(Request $request, int $assessment): View
     {
         return view('public.practice.exam', $this->practiceService->examDetailData(Auth::user(), $assessment));
+    }
+
+    /**
+     * SỬA 7/10 (khách: "thiếu số sao đánh giá") — học sinh chấm sao 1-5 cho đề luyện tập. Chỉ người
+     * đã nộp đề mới chấm được; PracticeService::rateExam() kiểm tra và ném lỗi 422 nếu không đủ
+     * điều kiện. Trả JSON để trang chi tiết đề cập nhật tại chỗ, khỏi tải lại cả trang.
+     */
+    public function rate(Request $request, int $assessment): JsonResponse
+    {
+        $data = $request->validate(['rating' => ['required', 'integer', 'between:1,5']]);
+
+        $result = $this->practiceService->rateExam($request->user(), $assessment, (int) $data['rating']);
+
+        return response()->json(['ok' => true] + $result);
     }
 
     /**

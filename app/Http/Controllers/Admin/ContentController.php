@@ -666,6 +666,12 @@ class ContentController extends Controller
             'author' => ['nullable', 'string', 'max:120'],
             'province' => ['nullable', 'string', 'max:20'],
             'academic_year' => ['nullable', 'string', 'max:20'],
+            // SỬA 7/10 — độ khó 1-5 của đề (hiện thành số sao ngoài trang Luyện tập).
+            'difficulty_level' => ['nullable', 'integer', 'between:1,5'],
+            // SỬA 7/10 — điểm sao (0-5, tối đa 1 chữ số lẻ) + số lượt đánh giá nhập tay. Đã nhập điểm thì
+            // phải có số lượt (>= 1), nếu không "4,5/5 (0 đánh giá)" là vô nghĩa.
+            'rating_score' => ['nullable', 'numeric', 'between:0,5'],
+            'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
             'exam_category' => ['nullable', 'string', 'max:30'],
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
@@ -775,6 +781,12 @@ class ContentController extends Controller
             'author' => ['nullable', 'string', 'max:120'],
             'province' => ['nullable', 'string', 'max:20'],
             'academic_year' => ['nullable', 'string', 'max:20'],
+            // SỬA 7/10 — độ khó 1-5 của đề (hiện thành số sao ngoài trang Luyện tập).
+            'difficulty_level' => ['nullable', 'integer', 'between:1,5'],
+            // SỬA 7/10 — điểm sao (0-5, tối đa 1 chữ số lẻ) + số lượt đánh giá nhập tay. Đã nhập điểm thì
+            // phải có số lượt (>= 1), nếu không "4,5/5 (0 đánh giá)" là vô nghĩa.
+            'rating_score' => ['nullable', 'numeric', 'between:0,5'],
+            'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
             'exam_category' => ['nullable', 'string', 'max:30'],
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú

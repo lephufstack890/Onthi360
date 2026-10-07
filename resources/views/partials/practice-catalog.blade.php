@@ -63,6 +63,8 @@
 
 {{-- Bù các class Tailwind tuỳ ý MỚI chưa có trong bản CSS đã build (xem đầu tệp partial). --}}
 @include('partials.practice-ui-fallback-style')
+{{-- SỬA 7/10 — CSS riêng cho giao bài / bài được giao / bài đã giao (xem tệp). --}}
+@include('partials.practice-assign-style')
 
 @php
     $items = $items ?? [];
@@ -71,6 +73,26 @@
     $practiceTags = $practiceTags ?? [];
     $practiceTotal = $practiceTotal ?? 0;
     $canTakeDirectly = $canTakeDirectly ?? false;
+
+    /*
+     * SỬA 7/10 (khách: "học sinh có thêm phần bài được giao; giáo viên giao bài và xem nhật ký")
+     * — quyền của người xem do Public\PracticeAssignmentService::scopeFor() cấp. Mặc định "khách
+     * vãng lai" để trang nào include partial này mà chưa truyền biến vẫn chạy như cũ.
+     */
+    $assignScope = $assignScope ?? ['role' => 'guest', 'canViewAssigned' => false, 'canManage' => false, 'canAssign' => false];
+    $managedAssignments = $managedAssignments ?? ['problem' => null, 'exam' => null];
+    $assignRole = $assignScope['role'];
+    $fmtScore = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', ''), '0'), ',');
+    $assignStatusLabels = ['completed' => 'Hoàn thành', 'pending' => 'Chờ chấm', 'incomplete' => 'Chưa hoàn thành'];
+
+    // Phạm vi mở đầu (?scope=assigned|managed) — chỉ nhận khi người xem THỰC SỰ có quyền đó, nếu
+    // không thì rơi về "Tất cả" thay vì hiện tab rỗng/không được phép.
+    $requestedScope = request()->query('scope');
+    $initialScope = match (true) {
+        $requestedScope === 'assigned' && $assignScope['canViewAssigned'] => 'assigned',
+        $requestedScope === 'managed' && $assignScope['canManage'] => 'managed',
+        default => 'all',
+    };
 
     // SỬA 30/9 (khách: "độ khó phân thành 1-5 sao: Cơ bản, Dễ, Khá, Khó, Rất khó") — dải chip
     // này trước đây gõ tay 4 mức, lệch với bộ lọc/độ khó ở kho. Giờ sinh thẳng từ
@@ -104,6 +126,11 @@
             'difficulty' => $p['difficulty'],
             'status' => $p['status'],
             'search' => mb_strtolower(trim($p['title'].' '.$p['code'])),
+            // SỬA 7/10 — phục vụ 2 tab "Tất cả" / "Bài được giao".
+            'inCatalog' => (bool) ($p['inCatalog'] ?? true),
+            'assigned' => ($p['assignment'] ?? null) !== null,
+            'assignStatus' => $p['assignment']['status'] ?? null,
+            'deadlineTs' => $p['assignment']['deadlineTs'] ?? 0,
         ];
     }
     $examRows = [];
@@ -121,6 +148,12 @@
             'order' => $loopOrder++,
             'title' => mb_strtolower(trim($it['title'])),
             'search' => mb_strtolower(trim($it['title'].' '.($it['subtitle'] ?? '').' '.($it['examCode'] ?? ''))),
+            // SỬA 7/10 — bộ lọc tỉnh/thành + 2 tab "Tất cả đề" / "Đề được giao".
+            'province' => $it['provinceLabel'] ?? '',
+            'inCatalog' => (bool) ($it['inCatalog'] ?? true),
+            'assigned' => ($it['assignment'] ?? null) !== null,
+            'assignStatus' => $it['assignment']['status'] ?? null,
+            'deadlineTs' => $it['assignment']['deadlineTs'] ?? 0,
         ];
     }
 
@@ -133,7 +166,23 @@
 @endphp
 
 
-<div x-data="onthiPracticePage({{ Js::from(['problems' => $problemRows, 'exams' => $examRows, 'problemPageSize' => 5, 'examPageSize' => 4, 'initialMode' => $catalogMode]) }})" class="flex flex-col gap-4 animate-fadeIn">
+<div x-data="onthiPracticePage({{ Js::from([
+        'problems' => $problemRows,
+        'exams' => $examRows,
+        'problemPageSize' => 5,
+        'examPageSize' => 4,
+        'initialMode' => $catalogMode,
+        // SỬA 7/10 — quyền + phạm vi mở đầu + địa chỉ/mã CSRF để popup giao bài gọi máy chủ.
+        'role' => $assignRole,
+        'canViewAssigned' => $assignScope['canViewAssigned'],
+        'canManage' => $assignScope['canManage'],
+        'canAssign' => $assignScope['canAssign'],
+        'initialProblemScope' => $catalogMode === 'problems' ? $initialScope : 'all',
+        'initialExamScope' => $catalogMode === 'exams' ? $initialScope : 'all',
+        'assignUrl' => $assignScope['canAssign'] ? route('practice.assign') : '',
+        'assignSearchUrl' => $assignScope['canAssign'] ? route('practice.assign.students') : '',
+        'csrf' => csrf_token(),
+    ]) }})" class="flex flex-col gap-4 animate-fadeIn">
 
     {{-- ══════ [PRACTICE-01] HERO LUYỆN TẬP ══════ --}}
     @if ($showCatalogHero)
@@ -235,29 +284,37 @@
         {{-- [PRACTICE-02] TABS & BỘ LỌC --}}
         <div class="flex flex-col gap-3 rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)]">
             <div class="flex items-center justify-between gap-3 border-b border-[#E7EFF3] pb-3">
-                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                    <button type="button" @click="setTab('all')" :aria-pressed="activeTab === 'all'"
-                            class="min-h-10 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all whitespace-nowrap"
-                            :class="activeTab === 'all' ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-[#F2F8FA] hover:text-[#216F8E]'">Tất cả bài tập</button>
-                    @foreach ($practiceTypes as $t)
-                        <button type="button" @click="setTab(@js($t['value']))" :aria-pressed="activeTab === @js($t['value'])"
-                                class="min-h-10 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all whitespace-nowrap"
-                                :class="activeTab === @js($t['value']) ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-[#F2F8FA] hover:text-[#216F8E]'">{{ $t['icon'] }} {{ $t['label'] }}</button>
-                    @endforeach
-                </div>
+                @include('partials.practice-scope-tabs', ['kind' => 'problem'])
 
-                <span class="hidden text-[11px] font-medium text-[#607A90] sm:inline">
+                <span x-show="problemScope !== 'managed'" class="hidden text-[11px] font-medium text-[#607A90] sm:inline">
                     Hiển thị <strong x-text="filteredProblems.length"></strong> bài tập
                 </span>
             </div>
 
-            <div class="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center">
+            {{-- SỬA 7/10 — chip lọc trạng thái của tab "Bài được giao". --}}
+            @if ($assignScope['canViewAssigned'])
+                @include('partials.practice-assign-status-chips', ['kind' => 'problem'])
+            @endif
+
+            <div x-show="problemScope !== 'managed'" class="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center">
                 <div class="relative flex-1">
                     <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#607A90]" />
                     <input type="text" aria-label="Tìm kiếm bài tập" placeholder="Tìm theo tên bài hoặc mã bài (VD: DP_LIS)..."
                            x-model="searchQuery"
                            class="min-h-11 w-full rounded-xl border border-[#D5E3E9] bg-[#F8FAFB] py-2 pl-10 pr-4 text-[13px] font-medium text-[#183D5E] placeholder:text-[#8193A3] focus:border-[#2D7FA3] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#DDF1F6]">
                 </div>
+
+                {{-- SỬA 7/10 — dải tab theo DẠNG CÂU (trắc nghiệm/điền đáp án/lập trình…) nhường chỗ
+                     cho thanh phạm vi theo bản mẫu mới; bộ lọc dạng câu vẫn còn, thu gọn thành ô chọn. --}}
+                @if (count($practiceTypes) > 0)
+                    <select aria-label="Lọc theo dạng bài" x-model="activeTab" @change="problemPageIndex = 1"
+                            class="oi-select shrink-0 md:w-44" style="width:auto;min-height:44px">
+                        <option value="all">Mọi dạng bài</option>
+                        @foreach ($practiceTypes as $t)
+                            <option value="{{ $t['value'] }}">{{ $t['label'] }}</option>
+                        @endforeach
+                    </select>
+                @endif
 
                 <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                     <span class="type-label shrink-0 text-[#45657D]">Độ khó:</span>
@@ -280,6 +337,7 @@
             </div>
         </div>
 
+        <div x-show="problemScope !== 'managed'" class="flex flex-col gap-4">
         {{-- [PRACTICE-03] CHUYÊN ĐỀ — bản mẫu mới bọc băng chuyên đề thành carousel có 2 nút
              cuộn hai bên để danh sách nhiều thẻ vẫn gọn. Cuộn bằng $refs của Alpine, không
              thêm mã script mới. --}}
@@ -344,14 +402,14 @@
         @endauth
 
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
-            <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid">
+            <div :class="problemScope === 'assigned' ? 'oi-prob-grid--asg' : ''" class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid">
                 <span>Tên bài tập &amp; Mã</span>
                 <span>Chuyên đề</span>
                 <span>Tỉnh thành</span>
                 <span>Năm</span>
                 <span class="oi-prob-author">Tác giả</span>
                 <span>Độ khó</span>
-                <span>Tỷ lệ AC</span>
+                <span x-text="problemScope === 'assigned' ? 'Kết quả / Chú ý' : 'Tỷ lệ AC'">Tỷ lệ AC</span>
                 <span class="text-right">Hành động</span>
             </div>
 
@@ -383,12 +441,14 @@
                      * nên không cần build lại Vite.
                      */
                     $ctaClass = 'bg-[#2F8A6B] hover:bg-[#28795E]';
+                    // SỬA 7/10 — lượt giao dành cho người đang xem (null nếu bài không được giao).
+                    $asg = $prob['assignment'] ?? null;
                 @endphp
                 <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
                      :style="{ order: visibleProblemIds.indexOf({{ $prob['id'] }}) }"
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
-                     :class="visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]'"
+                     :class="[visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '']"
                      class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid lg:items-center lg:gap-2.5">
 
                     {{-- Tên bài --}}
@@ -401,12 +461,39 @@
                             @endif
                             <a href="{{ $openHref }}" title="{{ $prob['title'] }}"
                                class="min-w-0 flex-1 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $prob['title'] }}</a>
-                            <span class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $prob['userSubmissions'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
+                            <span x-show="problemScope !== 'assigned'" class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $prob['userSubmissions'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
                                 {{ $prob['userSubmissions'] > 0 ? 'Đã làm '.$prob['userSubmissions'].' lần' : 'Chưa làm' }}
                             </span>
+                            @if ($asg)
+                                {{-- SỬA 7/10 — trạng thái của lượt giao (thay cho "Đã làm N lần" ở tab Bài được giao). --}}
+                                <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-badge is-{{ $asg['status'] }}">
+                                    @if ($asg['status'] === 'completed')<x-lucide name="check-circle-2" class="h-3 w-3" />@endif
+                                    {{ $assignStatusLabels[$asg['status']] ?? 'Chưa hoàn thành' }}
+                                </span>
+                            @endif
                         </div>
 
+                        {{-- SỬA 7/10 — Tỉnh/thành + Khu vực ngay dưới tên bài, như ContentLocation.jsx (mt-1.5). --}}
+                        <div class="mt-1.5">
+                            @include('partials.practice-content-location', ['province' => $prob['locProvince'] ?? null, 'region' => $prob['regionLabel'] ?? null])
+                        </div>
+
+                        {{-- SỬA 7/10 (khách: giao diện giáo viên chưa giống source mới) — theo PracticePage.jsx
+                             dòng "QuickAssignButton · Nhật ký nộp bài · Nguồn · thông tin lượt giao" nằm CHUNG
+                             MỘT HÀNG dưới tên bài, không đặt cạnh tên bài. --}}
                         <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
+                            @if ($assignScope['canAssign'])
+                                <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $prob['title'] }}"
+                                        @click.stop="openAssign('problem', {{ $prob['id'] }}, @js($prob['title']), @js($prob['code']))">
+                                    <x-lucide name="send" />Giao bài
+                                </button>
+                            @endif
+                            @auth
+                                <a href="{{ route('practice.history.problem', $prob['id']) }}" title="Nhật ký nộp bài"
+                                   class="oi-log-link inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-1 text-[10px] font-bold text-[#365B7A] shadow-[0_2px_6px_rgba(18,59,104,0.08)]">
+                                    <x-lucide name="clipboard-list" class="h-3 w-3" />Nhật ký nộp bài
+                                </a>
+                            @endauth
                             <span class="inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-1 text-[10px] font-bold text-[#365B7A] shadow-[0_2px_6px_rgba(18,59,104,0.08)]">
                                 <x-lucide name="clipboard-list" class="h-3 w-3" />{{ $prob['typeLabel'] }}
                             </span>
@@ -414,6 +501,12 @@
                                 <x-lucide name="sparkles" class="h-3 w-3 shrink-0 text-[#3B9374]" />
                                 <span class="truncate">Nguồn: {{ $prob['subjectLabel'] ?: 'Kho luyện tập Ôn Thi 360' }}</span>
                             </span>
+                            @if ($asg)
+                                <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-meta" style="margin-top:0" title="Giao bởi {{ $asg['teacher'] }}">
+                                    <span><x-lucide name="users" /><span>{{ $asg['teacher'] }}</span></span>
+                                    <span class="{{ $asg['overdue'] ? 'is-overdue' : '' }}"><x-lucide name="calendar-days" />Hạn {{ $asg['deadline'] }}{{ $asg['overdue'] ? ' · Quá hạn' : '' }}</span>
+                                </span>
+                            @endif
                         </p>
 
                         <div class="mt-1 flex items-center gap-2 font-mono text-[11px] text-[#6B8295]">
@@ -465,7 +558,8 @@
                         </div>
 
                         <div class="col-span-2 min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:col-span-1 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
-                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tỷ lệ AC</span>
+                            <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden" x-text="problemScope === 'assigned' ? 'Kết quả / Chú ý' : 'Tỷ lệ AC'">Tỷ lệ AC</span>
+                            <div x-show="problemScope !== 'assigned'">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-sm font-black text-[#123B68]">{{ $prob['acRate'] }}%</span>
                                 <span class="text-[9px] font-bold uppercase tracking-wide text-[#6B8295]">AC</span>
@@ -490,6 +584,31 @@
                                     <x-lucide name="user-check" class="h-3 w-3 shrink-0" />
                                     Bạn: {{ $prob['minePassedTests'] }}/{{ $prob['mineTotalTests'] }} test · {{ $prob['mineTestPercent'] }}%
                                 </p>
+                            @endif
+                            </div>{{-- /problemScope !== 'assigned' --}}
+                            @if ($asg)
+                                @php
+                                    $asgRatio = ($asg['status'] === 'completed' && $asg['score'] !== null && ($asg['maxScore'] ?? 0) > 0) ? $asg['score'] / $asg['maxScore'] : null;
+                                    $asgTone = $asg['status'] !== 'completed' ? 'is-none' : ($asgRatio === null ? 'is-none' : ($asgRatio >= 0.999 ? 'is-ac' : ($asgRatio > 0 ? 'is-partial' : 'is-wa')));
+                                @endphp
+                                {{-- SỬA 7/10 — "Kết quả / Chú ý" của bản mẫu (AssignmentResult). Phần "dấu hiệu
+                                     rời tab/chụp màn hình" chưa có: hệ thống chỉ ghi các sự kiện đó trên trình
+                                     duyệt người làm bài, chưa gửi về máy chủ. --}}
+                                <div x-show="problemScope === 'assigned'" x-cloak class="oi-asg-result">
+                                    <strong class="{{ $asgTone }}">
+                                        @if ($asg['status'] === 'completed' && $asg['score'] !== null)
+                                            {{ $fmtScore($asg['score']) }}<small>/{{ $fmtScore($asg['maxScore']) }} điểm</small>
+                                        @elseif ($asg['status'] === 'pending')
+                                            <span class="is-none">Chờ chấm</span>
+                                        @else
+                                            <span class="is-none">Chưa có điểm</span>
+                                        @endif
+                                    </strong>
+                                    @if ($asg['status'] === 'completed' && $asg['resultLabel'])
+                                        <span class="{{ $asgTone }}" style="font-size:10px;font-weight:600">{{ $asg['resultLabel'] }}</span>
+                                    @endif
+                                    <p>{{ $asg['submittedAt'] ? 'Lần nộp gần nhất · '.$asg['submittedAt'] : 'Chưa có bài nộp để đối chiếu' }}</p>
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -533,48 +652,98 @@
         <div x-show="filteredProblems.length === 0" x-cloak class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
             <x-lucide name="search" class="mx-auto h-9 w-9 text-[#9DC8D7]" />
             <h2 class="mt-3 text-sm font-black text-[#123B68]">Không có bài tập phù hợp</h2>
-            <p class="mt-1 text-xs text-[#607A90]">Hãy đổi chuyên đề hoặc mức độ để xem kho bài khác.</p>
+            <p class="mt-1 text-xs text-[#607A90]" x-text="problemScope === 'assigned' ? 'Chưa có bài được giao phù hợp. Thử đổi trạng thái, chuyên đề, độ khó hoặc từ khóa tìm kiếm.' : 'Hãy đổi chuyên đề hoặc mức độ để xem kho bài khác.'">Hãy đổi chuyên đề hoặc mức độ để xem kho bài khác.</p>
             <button type="button" @click="resetProblemFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
         </div>
+        </div>{{-- /problemScope !== 'managed' --}}
+
+        @if ($assignScope['canManage'])
+            <div x-show="problemScope === 'managed'" x-cloak>
+                @include('partials.practice-assign-manager', ['type' => 'problem', 'managed' => $managedAssignments['problem'] ?? [], 'assignRole' => $assignRole])
+            </div>
+        @endif
     </div>
 
     {{-- ══════════════ CHẾ ĐỘ: ĐỀ THI LUYỆN TẬP ══════════════ --}}
     <div x-show="practiceMode === 'exams'" @if ($catalogMode !== 'exams') x-cloak @endif class="flex flex-col gap-4">
 
-        {{-- [PRACTICE-05] BỘ LỌC ĐỀ THI --}}
-        <div class="flex flex-col gap-3 rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)] md:flex-row md:items-center md:justify-between">
-            <div class="relative min-w-0 flex-1">
-                <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#607A90]" />
-                <input type="text" aria-label="Tìm kiếm đề thi" placeholder="Tìm đề thi theo tên hoặc mã đề..." x-model="searchQuery"
-                       class="min-h-10 w-full rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] py-2 pl-10 pr-4 text-xs text-slate-800 placeholder:text-[#6B8295] focus:border-[#9DC8D7] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
-            </div>
-            {{-- SỬA 2/10 — dải chip lọc giờ theo LOẠI ĐỀ (HSG / Chuyên / Olympic…) đúng bản mẫu
-                 mới, thay cho 2 chip "Có bài lập trình"/"Trắc nghiệm" cũ. Danh sách chip dựng từ
-                 loại đề CÓ THẬT trong kho (xem PracticeService::indexData) — bày chip mà không
-                 đề nào thuộc loại đó thì bấm vào ra bảng rỗng. --}}
-            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <button type="button" @click="setExamType('all')" :aria-pressed="selectedExamType === 'all'"
-                        class="min-h-9 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-bold transition"
-                        :class="selectedExamType === 'all' ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">Tất cả đề thi</button>
-                @foreach ($examCategoryChips ?? [] as $chip)
-                    <button type="button" @click="setExamType(@js($chip['value']))" :aria-pressed="selectedExamType === @js($chip['value'])"
-                            class="min-h-9 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[11px] font-bold transition"
-                            :class="selectedExamType === @js($chip['value']) ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">{{ $chip['label'] }} ({{ $chip['count'] }})</button>
-                @endforeach
-            </div>
+        {{-- SỬA 7/10 — thanh phạm vi theo bản mẫu mới: Tất cả đề / Đề được giao / Đề đã giao. --}}
+        <div class="rounded-2xl border border-[#DDEAF0] bg-white p-3 shadow-[0_2px_10px_rgba(28,91,121,0.04)]" style="display:flex;flex-direction:column;gap:12px">
+            @include('partials.practice-scope-tabs', ['kind' => 'exam'])
+            @if ($assignScope['canViewAssigned'])
+                @include('partials.practice-assign-status-chips', ['kind' => 'exam'])
+            @endif
+        </div>
 
-            {{-- SỬA 2/10 — ô sắp xếp của bản mẫu mới. "Đánh giá cao nhất" của bản mẫu chạy trên
-                 điểm sao mà bản mẫu tự ghi là dữ liệu minh hoạ; hệ thống này CHƯA có đánh giá cho
-                 đề nên thay bằng các tiêu chí có dữ liệu thật.
+        <div x-show="examScope !== 'managed'" class="flex flex-col gap-4">
 
-                 Lưu ý: kho đề máy chủ trả về đã là MỚI NHẤT TRƯỚC, nên lựa chọn mặc định ghi
-                 thẳng là "Mới nhất trước" — không bày thêm một dòng "Đề mới nhất" cho ra vẻ
-                 nhiều lựa chọn rồi bấm vào chẳng thấy gì đổi. --}}
-            <x-ws.select aria-label="Sắp xếp đề thi" x-model="examSort" class="min-h-9 shrink-0 sm:w-[170px]">
-                <option value="default">Mới nhất trước</option>
-                <option value="attempts">Nhiều lượt làm nhất</option>
-                <option value="title">Tên đề A → Z</option>
-            </x-ws.select>
+        {{-- [PRACTICE-05] BỘ LỌC ĐỀ THI — SỬA 7/10: theo bản mẫu mới là ô tìm kiếm + 3 ô chọn
+             (tỉnh/thành, cuộc thi, sắp xếp). Ô "Giá làm đề" của bản mẫu CHƯA dựng: hệ thống chưa
+             có giá cho đề luyện tập (bản mẫu tự ghi giá chỉ để minh hoạ).
+
+             Danh sách tỉnh/thành và cuộc thi dựng từ dữ liệu CÓ THẬT của các đề trong kho — bày
+             một lựa chọn mà không đề nào thuộc về nó thì bấm vào ra bảng rỗng. --}}
+        @php
+            $examProvinceOptions = collect($items)->where('inCatalog', true)->pluck('provinceLabel')->filter()->unique()->sort()->values()->all();
+            $examHasNoProvince = collect($items)->where('inCatalog', true)->contains(fn ($it) => blank($it['provinceLabel'] ?? null));
+        @endphp
+        <section aria-label="Bộ lọc đề thi" class="oi-exam-filters" x-show="examScope === 'all'">
+            <label class="block min-w-0">
+                <span class="oi-field-label">Tìm kiếm đề thi</span>
+                <span class="relative block">
+                    <x-lucide name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#607A90]" />
+                    <input type="text" aria-label="Tìm kiếm đề thi" placeholder="Tên đề hoặc mã đề..." x-model="searchQuery"
+                           class="min-h-10 w-full min-w-0 rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] py-2 pl-9 pr-3 text-xs text-slate-800 placeholder:text-[#6B8295] focus:border-[#9DC8D7] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
+                </span>
+            </label>
+            <div class="oi-exam-filter-selects">
+                <label class="block min-w-0">
+                    <span class="oi-field-label">Tỉnh/thành</span>
+                    <select aria-label="Tỉnh/thành" x-model="selectedExamProvince" @change="examPageIndex = 1" class="oi-select">
+                        <option value="all">Tất cả tỉnh/thành</option>
+                        @foreach ($examProvinceOptions as $prov)
+                            <option value="{{ $prov }}">{{ $prov }}</option>
+                        @endforeach
+                        @if ($examHasNoProvince)
+                            <option value="unknown">Chưa cập nhật</option>
+                        @endif
+                    </select>
+                </label>
+                <label class="block min-w-0">
+                    <span class="oi-field-label">Cuộc thi</span>
+                    <select aria-label="Cuộc thi" x-model="selectedExamType" @change="examPageIndex = 1" class="oi-select">
+                        <option value="all">Tất cả cuộc thi</option>
+                        @foreach ($examCategoryChips ?? [] as $chip)
+                            <option value="{{ $chip['value'] }}">{{ $chip['label'] }} ({{ $chip['count'] }})</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label class="block min-w-0">
+                    <span class="oi-field-label">Sắp xếp</span>
+                    <select aria-label="Sắp xếp đề thi" x-model="examSort" class="oi-select">
+                        <option value="default">Mới nhất trước</option>
+                        <option value="attempts">Nhiều lượt làm nhất</option>
+                        <option value="title">Tên đề A → Z</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+
+        {{-- SỬA 7/10 — dòng "N / M đề phù hợp" + "Xóa bộ lọc" đúng bản mẫu (PracticePage.jsx), nằm ngay dưới ô lọc. --}}
+        <div x-show="examScope === 'all'" class="flex flex-wrap items-center justify-between gap-2 px-1">
+            <p role="status" aria-live="polite" class="flex items-center gap-2 text-[11px] text-[#607A90]">
+                <x-lucide name="file-text" class="h-3.5 w-3.5 text-[#2D7FA3]" />
+                <span><b class="text-[#45657D]" x-text="filteredExams.length"></b> / {{ collect($items)->where('inCatalog', true)->count() }} đề phù hợp</span>
+            </p>
+            <button type="button" x-show="searchQuery || selectedExamProvince !== 'all' || selectedExamType !== 'all'" x-cloak @click="resetExamFilters()"
+                    class="min-h-9 rounded-lg px-2.5 text-[11px] font-semibold text-[#126F91] hover:bg-[#EAF5F8]">Xóa bộ lọc</button>
+        </div>
+
+        {{-- Tab "Đề được giao" chỉ cần ô tìm kiếm (trạng thái đã có dãy chip ở trên). --}}
+        <div x-show="examScope === 'assigned'" x-cloak class="relative min-w-0">
+            <x-lucide name="search" class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#607A90]" />
+            <input type="text" aria-label="Tìm kiếm đề được giao" placeholder="Tìm đề được giao theo tên hoặc mã đề..." x-model="searchQuery"
+                   class="min-h-10 w-full rounded-xl border border-[#DDEAF0] bg-white py-2 pl-10 pr-4 text-xs text-slate-800 placeholder:text-[#6B8295] focus:border-[#9DC8D7] focus:outline-none focus:ring-4 focus:ring-[#EAF5F8]">
         </div>
 
         {{-- ══════ TỔNG QUAN ĐỀ THI — ĐANG ẨN ══════
@@ -666,7 +835,7 @@
              KHÔNG dựng khối điểm sao của bản mẫu: hệ thống chưa có đánh giá cho đề (bảng reviews
              không nhận target 'assessment'), mà bản mẫu cũng tự ghi điểm sao là dữ liệu minh hoạ
              — vẽ 5 ngôi sao rỗng hoặc bịa điểm đều tệ hơn là không vẽ. --}}
-        <div class="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div x-show="examScope !== 'assigned'" class="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
             @foreach ($items as $exam)
                 @php
                     $tone = $exam['progressStatus'] === 'done'
@@ -687,6 +856,15 @@
                          không giữ chiều cao cứng là có lý do — ảnh 16:9 đặt vào khung 16:9 thì
                          object-cover KHÔNG cắt gì cả, mà mấy ảnh bìa này chữ kín mặt, cắt hụt
                          một dòng là mất tên đề. --}}
+                    {{-- SỬA 7/10 — nút "Giao đề" cho giáo viên/admin (bản mẫu: QuickAssignButton trên đầu thẻ). --}}
+                    @if ($assignScope['canAssign'])
+                        <div style="display:flex;justify-content:flex-end;background:#F8FBFC;padding:8px 12px 0">
+                            <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao đề: {{ $exam['title'] }}"
+                                    @click.stop="openAssign('exam', {{ $exam['id'] }}, @js($exam['title']), @js($exam['examCode'] ?: '#'.$exam['id']))">
+                                <x-lucide name="send" />Giao đề
+                            </button>
+                        </div>
+                    @endif
                     <div class="relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-[#F8FBFC]">
                         @if ($exam['coverUrl'])
                             <img src="{{ $exam['coverUrl'] }}" alt="Ảnh bìa đề {{ $exam['title'] }}" loading="lazy" decoding="async"
@@ -714,15 +892,20 @@
                             {{ $exam['subtitle'] ?: $exam['itemsCount'].' câu · '.($exam['totalPoints'] ?: '—').' điểm' }}
                         </p>
 
-                        {{-- Hàng nguồn đề: tỉnh/thành + năm học, chỉ hiện khi có nhập. --}}
-                        <p class="mt-1.5 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[#6B8295]">
-                            @if ($exam['provinceLabel'])
-                                <span class="inline-flex items-center gap-1"><x-lucide name="map-pin" class="h-3 w-3" />{{ $exam['provinceLabel'] }}</span>
-                            @endif
-                            @if ($exam['academicYear'])
-                                <span class="inline-flex items-center gap-1"><x-lucide name="calendar-days" class="h-3 w-3" />{{ $exam['academicYear'] }}</span>
-                            @endif
-                        </p>
+                        {{-- SỬA 7/10 (khách: "thiếu Độ khó, số sao đánh giá, tỉnh thành khu vực") — theo
+                             PracticePage.jsx: Độ khó (sao) → Đánh giá (sao + điểm + số lượt) → Tỉnh/thành và
+                             Khu vực. Giá làm đề (ExamAccessInfo) tạm bỏ theo yêu cầu. --}}
+                        <div class="oi-meta-row">
+                            <span class="oi-meta-label">Độ khó</span>
+                            @include('partials.practice-difficulty-stars', ['level' => $exam['difficultyLevel'], 'label' => $exam['difficultyLabel']])
+                        </div>
+                        <div style="margin-top:6px">
+                            @include('partials.practice-exam-rating', ['rating' => $exam['rating'], 'count' => $exam['reviewCount']])
+                        </div>
+                        @include('partials.practice-content-location', ['province' => $exam['provinceLabel'], 'region' => $exam['regionLabel']])
+                        @if ($exam['academicYear'])
+                            <p class="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[#6B8295]"><x-lucide name="calendar-days" class="h-3 w-3" />{{ $exam['academicYear'] }}</p>
+                        @endif
 
                         <div class="mt-2.5 grid min-h-[72px] grid-cols-3 gap-1 rounded-xl border border-[#E7EFF3] bg-[#F8FBFC] p-1.5 text-center">
                             <div>
@@ -760,13 +943,96 @@
                                  ĐÃ CÓ SẴN trong CSS đã build (huy hiệu "Đã AC" đang dùng) — tự chế một
                                  cỡ bóng mới thì Tailwind chưa sinh ra lớp đó, nút sẽ mất bóng cho tới
                                  khi build lại. --}}
+                            <div style="display:flex;align-items:center;gap:8px">
                             <a href="{{ $exam['detailHref'] }}"
-                               class="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)] transition hover:-translate-y-0.5 hover:bg-[#28795E] active:scale-[.98]">
+                               class="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)] transition hover:-translate-y-0.5 hover:bg-[#28795E] active:scale-[.98]">
                                 Xem chi tiết đề<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                             </a>
+                            @auth
+                                {{-- Nút vuông chỉ có icon, đúng bản mẫu (title/aria-label "Nhật ký nộp bài"). --}}
+                                <a href="{{ route('practice.history.exam', $exam['id']) }}" title="Nhật ký nộp bài" aria-label="Nhật ký nộp bài" class="oi-log-square">
+                                    <x-lucide name="clipboard-list" class="h-3.5 w-3.5" />
+                                </a>
+                            @endauth
+                            </div>
                         </div>
                     </div>
                 </article>
+            @endforeach
+        </div>
+
+        {{-- ══════ SỬA 7/10 — DANH SÁCH "ĐỀ ĐƯỢC GIAO" (AssignedExamList / AssignedWorkRow của bản mẫu) ══════ --}}
+        <div x-show="examScope === 'assigned'" x-cloak class="oi-asg-list" style="display:flex;flex-direction:column">
+            <div class="assigned-work-grid assigned-work-header" style="order:-1" aria-hidden="true">
+                <div>Đề thi</div><div>Người giao / Lớp</div><div>Hạn nộp</div><div>Kết quả / Chú ý</div><span class="assigned-work-action-label">Thao tác</span>
+            </div>
+            @foreach ($items as $exam)
+                @php $asg = $exam['assignment'] ?? null; @endphp
+                @if ($asg)
+                    @php
+                        [$dDate, $dTime] = array_pad(explode(' · ', (string) $asg['deadline'], 2), 2, '');
+                        $asgRatio = ($asg['status'] === 'completed' && $asg['score'] !== null && ($asg['maxScore'] ?? 0) > 0) ? $asg['score'] / $asg['maxScore'] : null;
+                        $asgTone = $asg['status'] !== 'completed' ? 'is-none' : ($asgRatio === null ? 'is-none' : ($asgRatio >= 0.999 ? 'is-ac' : ($asgRatio > 0 ? 'is-partial' : 'is-wa')));
+                        [$stTone, $stLabel] = match (true) {
+                            $asg['status'] === 'completed' => ['green', 'Hoàn thành'],
+                            $asg['status'] === 'pending' => ['amber', 'Chờ chấm'],
+                            $asg['overdue'] => ['red', 'Quá hạn'],
+                            default => ['neutral', 'Chưa hoàn thành'],
+                        };
+                    @endphp
+                    <div x-show="visibleExamIds.includes({{ $exam['id'] }})" x-cloak
+                         :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
+                         :class="visibleExamIds.indexOf({{ $exam['id'] }}) % 2 ? 'is-alternate' : ''"
+                         class="assigned-work-grid assigned-work-row">
+                        <div class="assigned-work-identity">
+                            <a href="{{ $exam['detailHref'] }}" class="assigned-work-title">{{ $exam['title'] }}</a>
+                            <div class="assigned-work-meta">
+                                <code>{{ $exam['examCode'] ?: '#'.$exam['id'] }}</code>
+                                <span>{{ $exam['itemsCount'] }} bài</span>
+                                <span>{{ $exam['durationMinutes'] ? $exam['durationMinutes'].' phút' : 'Không giới hạn' }}</span>
+                            </div>
+                        </div>
+                        <div class="assigned-work-owner">
+                            <span class="assigned-work-mobile-label">Người giao</span>
+                            <strong>{{ $asg['teacher'] }}</strong>
+                            <span class="assigned-work-group"><x-lucide name="users" />{{ $asg['group'] }}</span>
+                            @if ($asg['assignedAt'])<small>Giao ngày {{ $asg['assignedAt'] }}</small>@endif
+                        </div>
+                        <div class="assigned-work-due">
+                            <span class="assigned-work-mobile-label">Hạn nộp</span>
+                            <strong class="{{ $asg['overdue'] ? 'is-overdue' : '' }}"><x-lucide name="calendar-days" />{{ $dDate }}</strong>
+                            @if ($dTime)<small>{{ $dTime }}</small>@endif
+                            <span class="managed-status {{ $stTone }}" style="margin-top:5px">{{ $stLabel }}</span>
+                        </div>
+                        <div class="assigned-work-result">
+                            <span class="assigned-work-mobile-label">Kết quả / Chú ý</span>
+                            <div class="oi-asg-result">
+                                <strong class="{{ $asgTone }}">
+                                    @if ($asg['status'] === 'completed' && $asg['score'] !== null)
+                                        {{ $fmtScore($asg['score']) }}<small>/{{ $fmtScore($asg['maxScore']) }} điểm</small>
+                                    @elseif ($asg['status'] === 'pending')
+                                        <span class="is-none">Chờ chấm</span>
+                                    @else
+                                        <span class="is-none">Chưa có điểm</span>
+                                    @endif
+                                </strong>
+                                @if ($asg['status'] === 'completed' && $asg['resultLabel'])
+                                    <span class="{{ $asgTone }}" style="font-size:10px;font-weight:600">{{ $asg['resultLabel'] }}</span>
+                                @endif
+                                <p>{{ $asg['submittedAt'] ? 'Lần nộp gần nhất · '.$asg['submittedAt'] : 'Chưa có bài nộp để đối chiếu' }}</p>
+                            </div>
+                        </div>
+                        <div class="assigned-work-actions">
+                            <a href="{{ route('student.assessment.take', $exam['id']) }}" class="assigned-work-primary {{ $asg['status'] === 'completed' ? 'is-complete' : '' }}">
+                                <x-lucide name="file-text" />{{ $asg['status'] === 'completed' ? 'Làm lại' : 'Làm đề' }}
+                            </a>
+                            <a href="{{ $exam['detailHref'] }}" class="is-secondary"><x-lucide name="file-text" />Xem đề</a>
+                            @auth
+                                <a href="{{ route('practice.history.exam', $exam['id']) }}" class="is-secondary"><x-lucide name="clipboard-list" />Nhật ký</a>
+                            @endauth
+                        </div>
+                    </div>
+                @endif
             @endforeach
         </div>
 
@@ -798,7 +1064,19 @@
             <p class="mt-1 text-xs text-[#607A90]">Thử đổi loại đề hoặc từ khóa tìm kiếm.</p>
             <button type="button" @click="resetExamFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
         </div>
+        </div>{{-- /examScope !== 'managed' --}}
+
+        @if ($assignScope['canManage'])
+            <div x-show="examScope === 'managed'" x-cloak>
+                @include('partials.practice-assign-manager', ['type' => 'exam', 'managed' => $managedAssignments['exam'] ?? [], 'assignRole' => $assignRole])
+            </div>
+        @endif
     </div>
+
+    {{-- SỬA 7/10 — popup Giao bài / Giao đề (chỉ dựng cho giáo viên + admin). --}}
+    @if ($assignScope['canAssign'])
+        @include('partials.practice-assign-modal')
+    @endif
 </div>
 
 {{-- SỬA 18/9 (khách: "tab kho bài tập không thấy dữ liệu, click chuyển Bài tập chuyên đề /

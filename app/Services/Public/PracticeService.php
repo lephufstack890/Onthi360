@@ -5,6 +5,7 @@ namespace App\Services\Public;
 use App\Enums\QuestionType;
 use App\Models\Assessment;
 use App\Models\AssessmentItem;
+use App\Models\AssessmentRating;
 use App\Models\AttemptAnswer;
 use App\Models\Question;
 use App\Models\User;
@@ -17,7 +18,9 @@ use App\Support\QuestionDifficulty;
 use App\Support\QuestionOrder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class PracticeService
@@ -45,7 +48,10 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v2';
+    private const CACHE_VERSION = 'v4';
+    /*
+     * v3 (7/10) — hàng thẻ đề thêm độ khó, khu vực, điểm sao đánh giá và số lượt đánh giá.
+     */
 
     public function __construct(
         private AssessmentRepositoryInterface $assessments,
@@ -66,24 +72,62 @@ class PracticeService
             fn () => $this->examBaseRows()
         );
 
-        $assessmentIds = array_column($base['rows'], 'id');
+        /*
+         * SỬA 7/10 (khách: "học sinh có thêm phần bài được giao, giáo viên giao bài và xem nhật
+         * ký nộp bài") — quyền của người xem + các bài/đề ĐƯỢC GIAO cho họ. Hai thứ này theo
+         * từng người nên KHÔNG bao giờ nhớ tạm. Chưa chạy migrate (chưa có bảng) thì scopeFor()
+         * tự trả "không có quyền gì", trang vẫn hiện như cũ thay vì vỡ.
+         */
+        $assignSvc = app(PracticeAssignmentService::class);
+        $assignScope = $assignSvc->scopeFor($viewer);
+        $assigned = $assignScope['canViewAssigned'] && $viewer !== null
+            ? $assignSvc->forStudent($viewer)
+            : ['problem' => [], 'exam' => []];
+
+        $catalogExamIds = array_column($base['rows'], 'id');
+
+        // Đề được giao nhưng không nằm trong 30 đề mới nhất của kho -> dựng thêm hàng riêng.
+        $extraExamBase = ['rows' => [], 'totalPoints' => []];
+        $missingExamIds = array_values(array_diff(array_keys($assigned['exam']), $catalogExamIds));
+
+        if ($missingExamIds !== []) {
+            $extraExamBase = $this->examRowsFor(
+                $this->assessments->query()
+                    ->where('type', 'practice')
+                    ->where('status', 'published')
+                    ->whereIn('id', $missingExamIds)
+                    ->withCount(['items', 'answerKeys', 'codingItems'])
+                    ->get()
+            );
+        }
+
+        $allExamRows = array_merge($base['rows'], $extraExamBase['rows']);
+        $assessmentIds = array_column($allExamRows, 'id');
+        $totalPointsById = $base['totalPoints'] + $extraExamBase['totalPoints'];
 
         // Phần RIÊNG của người đang xem — luôn tươi, không bao giờ nhớ tạm.
         $progressByAssessment = $viewer !== null && $assessmentIds !== []
             ? $this->attempts->progressForUserAndAssessments($viewer->id, $assessmentIds)->keyBy('assessment_id')
             : collect();
 
-        $items = array_map(function (array $row) use ($progressByAssessment) {
+        $items = array_map(function (array $row) use ($progressByAssessment, $catalogExamIds, $assigned) {
             $progress = $this->examProgressFor($progressByAssessment->get($row['id']), (float) ($row['totalPoints'] ?: 0));
 
-            return $row + $progress;
-        }, $base['rows']);
+            return $row + $progress + [
+                // Hàng chỉ có vì được giao (không thuộc 30 đề mới nhất) thì KHÔNG hiện ở tab
+                // "Tất cả đề", chỉ hiện ở "Đề được giao".
+                'inCatalog' => in_array($row['id'], $catalogExamIds, true),
+                'assignment' => $assigned['exam'][$row['id']] ?? null,
+            ];
+        }, $allExamRows);
+
+        $catalogItems = array_values(array_filter($items, fn (array $it) => $it['inCatalog']));
 
         /*
          * SỬA 2/10 — dải chip lọc dựng TỪ LOẠI ĐỀ CÓ THẬT trong danh sách, không phải danh sách
          * cố định: bày chip "Olympic" mà không đề nào thuộc loại đó thì bấm vào ra bảng rỗng.
          */
-        $categoryChips = collect($items)
+        $categoryChips = collect($catalogItems)
             ->filter(fn (array $it) => $it['category'] !== null)
             ->groupBy('category')
             ->map(fn ($group, $code) => [
@@ -95,14 +139,53 @@ class PracticeService
             ->values()
             ->all();
 
+        // ── Bài tập: kho 60 câu + các câu được giao nằm ngoài kho ──
+        $problems = $this->problemRows($viewer);
+        $catalogProblemIds = array_column($problems, 'id');
+        $missingProblemIds = array_values(array_diff(array_keys($assigned['problem']), $catalogProblemIds));
+
+        $extraProblems = [];
+        if ($missingProblemIds !== []) {
+            $extraProblems = $this->mapQuestionRows(
+                Question::query()
+                    ->where('status', 'published')
+                    ->whereIn('id', $missingProblemIds)
+                    ->with(['tags:id,name', 'creator:id,name'])
+                    ->get()
+            );
+
+            if ($extraProblems !== [] && $viewer !== null) {
+                $extraProblems = $this->overlayViewerProgress($extraProblems, $viewer);
+            }
+        }
+
+        $problems = array_merge(
+            array_map(fn (array $p) => $p + ['inCatalog' => true, 'assignment' => $assigned['problem'][$p['id']] ?? null], $problems),
+            array_map(fn (array $p) => $p + ['inCatalog' => false, 'assignment' => $assigned['problem'][$p['id']] ?? null], $extraProblems),
+        );
+
+        $catalogProblems = array_values(array_filter($problems, fn (array $p) => $p['inCatalog']));
+
+        // SỬA 7/10 — 2 danh sách "Bài đã giao"/"Đề đã giao" của giáo viên/admin.
+        $managed = ['problem' => null, 'exam' => null];
+        if ($assignScope['canManage'] && $viewer !== null) {
+            $managed = [
+                'problem' => $assignSvc->managed($viewer, 'problem'),
+                'exam' => $assignSvc->managed($viewer, 'exam'),
+            ];
+        }
+
         return array_merge([
             'items' => $items,
             'examCategoryChips' => $categoryChips,
             // 3 ô tổng quan ở đầu tab (bản mẫu: Kho đề thi / Đang luyện / Điểm cao nhất).
-            'examTotal' => count($items),
-            'examDoingCount' => collect($items)->where('progressStatus', 'doing')->count(),
-            'examBestScoreLabel' => $this->bestScoreLabel($progressByAssessment, $base['totalPoints']),
-            'problems' => $this->problemRows($viewer),
+            'examTotal' => count($catalogItems),
+            'examDoingCount' => collect($catalogItems)->where('progressStatus', 'doing')->count(),
+            'examBestScoreLabel' => $this->bestScoreLabel($progressByAssessment, $totalPointsById),
+            'problems' => $problems,
+            'catalogProblemCount' => count($catalogProblems),
+            'assignScope' => $assignScope,
+            'managedAssignments' => $managed,
             // SỬA 23/9 (khách: "học sinh, giáo viên, admin, phụ huynh đều làm được luyện tập
             // hết") — ai đã đăng nhập cũng bấm được "Làm bài"/"Bắt đầu làm đề" ngay ở trang
             // Luyện tập công khai, không bị đẩy sang màn đăng nhập nữa. Route tương ứng cũng
@@ -134,6 +217,19 @@ class PracticeService
             ->limit(30)
             ->get();
 
+        return $this->examRowsFor($assessments);
+    }
+
+    /**
+     * SỬA 7/10 — dựng hàng thẻ đề cho MỘT TẬP đề bất kỳ. Tách ra khỏi examBaseRows() để cùng
+     * một cách dựng dùng cho cả 30 đề mới nhất của kho lẫn các đề được giao nằm ngoài 30 đề đó
+     * (đề giáo viên giao có thể cũ hơn nhiều, không có trong "30 đề mới nhất").
+     *
+     * @param  \Illuminate\Support\Collection<int, Assessment>  $assessments
+     * @return array{rows: list<array<string, mixed>>, totalPoints: array<int, float>}
+     */
+    private function examRowsFor(\Illuminate\Support\Collection $assessments): array
+    {
         $assessmentIds = $assessments->pluck('id')->all();
         $codingAssessmentIds = $this->assessmentIdsWithCoding($assessmentIds);
 
@@ -141,6 +237,11 @@ class PracticeService
         // để con số minh hoạ ("1,240 lượt làm") và tự ghi chú là dữ liệu minh hoạ — ở đây có dữ
         // liệu thật thì dùng thật, đề chưa ai làm hiện 0 chứ không bịa.
         $attemptCounts = $this->attemptCountsByAssessment($assessmentIds);
+        $ratings = $this->ratingSummaries($assessmentIds);
+        $combinedRatings = [];
+        foreach ($assessments as $a) {
+            $combinedRatings[$a->id] = $this->combinedRating($a, $ratings[$a->id] ?? null);
+        }
 
         $rows = $assessments->map(fn ($a) => [
             'id' => $a->id,
@@ -161,6 +262,14 @@ class PracticeService
             'academicYear' => $a->academic_year,
             'category' => $a->exam_category,
             'categoryLabel' => $a->examCategoryLabel(),
+            // SỬA 7/10 (khách: "thiếu Độ khó, số sao đánh giá, tỉnh thành khu vực") — theo
+            // ExamDetailPage/PracticePage của bản mẫu: độ khó 1-5 sao, khu vực suy ra từ tỉnh/thành,
+            // điểm sao + số lượt đánh giá THẬT do học sinh đã nộp đề chấm (null khi chưa ai chấm).
+            'difficultyLevel' => $a->difficultyStars(),
+            'difficultyLabel' => $a->difficultyLabel(),
+            'regionLabel' => $a->regionLabel(),
+            'rating' => $combinedRatings[$a->id]['avg'] ?? null,
+            'reviewCount' => (int) ($combinedRatings[$a->id]['count'] ?? 0),
             'coverUrl' => $a->coverUrl(),
             'examCode' => $a->exam_code,
             'attemptCount' => (int) ($attemptCounts[$a->id] ?? 0),
@@ -173,6 +282,99 @@ class PracticeService
             'rows' => $rows,
             'totalPoints' => $assessments->pluck('total_points', 'id')->map(fn ($p) => (float) $p)->all(),
         ];
+    }
+
+    /**
+     * SỬA 7/10 — điểm sao trung bình + số lượt đánh giá của các đề, một truy vấn gộp. Chưa chạy
+     * migrate (chưa có bảng) thì trả rỗng, trang vẫn hiện "Chưa có đánh giá" thay vì vỡ.
+     *
+     * @param  list<int>  $assessmentIds
+     * @return array<int, array{avg: float, count: int}>
+     */
+    private function ratingSummaries(array $assessmentIds): array
+    {
+        if ($assessmentIds === [] || ! Schema::hasTable('assessment_ratings')) {
+            return [];
+        }
+
+        return AssessmentRating::query()
+            ->whereIn('assessment_id', $assessmentIds)
+            ->groupBy('assessment_id')
+            ->selectRaw('assessment_id, COUNT(*) as c, AVG(rating) as a')
+            ->get()
+            ->mapWithKeys(fn ($r) => [(int) $r->assessment_id => ['avg' => round((float) $r->a, 1), 'count' => (int) $r->c]])
+            ->all();
+    }
+
+    /**
+     * SỬA 7/10 (khách: "số sao đánh giá cho nhập tay") — điểm sao HIỂN THỊ của một đề = số admin/giáo
+     * viên nhập tay (assessments.rating_score × rating_count) GỘP với các lượt chấm thật của học sinh,
+     * tính trung bình có trọng số theo số lượt. Chưa nhập tay thì chỉ còn lượt thật; chưa có gì thì null
+     * ("Chưa có đánh giá").
+     *
+     * @param  array{avg: float, count: int}|null  $real
+     * @return array{avg: float, count: int}|null
+     */
+    private function combinedRating(Assessment $a, ?array $real): ?array
+    {
+        $manualCount = (int) ($a->rating_count ?? 0);
+        $manualScore = $a->rating_score;
+        $realCount = (int) ($real['count'] ?? 0);
+
+        if ($manualScore === null || $manualCount < 1) {
+            return $realCount > 0 ? $real : null;
+        }
+
+        $total = $manualCount + $realCount;
+        $sum = (float) $manualScore * $manualCount + ($realCount > 0 ? (float) $real['avg'] * $realCount : 0.0);
+
+        return ['avg' => round($sum / $total, 1), 'count' => $total];
+    }
+
+    /**
+     * SỬA 7/10 — học sinh chấm sao (1-5) cho một đề luyện tập. Chỉ người ĐÃ NỘP đề này mới chấm
+     * được (đánh giá một đề chưa từng làm là đánh giá không có cơ sở); chấm lại thì ghi đè lượt cũ.
+     *
+     * @return array{rating: int, avg: float, count: int}
+     *
+     * @throws ValidationException
+     */
+    public function rateExam(User $viewer, int $assessmentId, int $rating): array
+    {
+        if (! Schema::hasTable('assessment_ratings')) {
+            throw ValidationException::withMessages(['rating' => 'Tính năng đánh giá chưa sẵn sàng. Vui lòng thử lại sau.']);
+        }
+
+        if ($rating < 1 || $rating > 5) {
+            throw ValidationException::withMessages(['rating' => 'Điểm đánh giá phải từ 1 đến 5 sao.']);
+        }
+
+        $exam = $this->assessments->query()
+            ->where('type', 'practice')
+            ->where('status', 'published')
+            ->findOrFail($assessmentId);
+
+        $hasSubmitted = $this->attempts->query()
+            ->where('user_id', $viewer->id)
+            ->where('assessment_id', $exam->id)
+            ->whereNotNull('submitted_at')
+            ->exists();
+
+        if (! $hasSubmitted) {
+            throw ValidationException::withMessages(['rating' => 'Bạn cần nộp đề này ít nhất một lần trước khi đánh giá.']);
+        }
+
+        AssessmentRating::query()->updateOrCreate(
+            ['assessment_id' => $exam->id, 'user_id' => $viewer->id],
+            ['rating' => $rating],
+        );
+
+        // Thẻ đề ngoài danh sách nhớ tạm 60 giây — xoá để điểm sao mới hiện ngay.
+        Cache::forget('practice:exams:'.self::CACHE_VERSION);
+
+        $summary = $this->combinedRating($exam, $this->ratingSummaries([$exam->id])[$exam->id] ?? null) ?? ['avg' => (float) $rating, 'count' => 1];
+
+        return ['rating' => $rating, 'avg' => $summary['avg'], 'count' => $summary['count']];
     }
 
     /**
@@ -259,6 +461,18 @@ class PracticeService
             )
         )->limit(60)->get();
 
+        return $this->mapQuestionRows($questions);
+    }
+
+    /**
+     * SỬA 7/10 — dựng hàng bài tập cho MỘT TẬP câu hỏi bất kỳ (xem examRowsFor(): cùng lý do —
+     * bài được giao có thể nằm ngoài 60 câu của kho).
+     *
+     * @param  \Illuminate\Support\Collection<int, Question>  $questions
+     * @return array<int, array<string, mixed>>
+     */
+    private function mapQuestionRows(\Illuminate\Support\Collection $questions): array
+    {
         if ($questions->isEmpty()) {
             return [];
         }
@@ -318,6 +532,10 @@ class PracticeService
                 // Chưa gán -> provinceLabel()/examYearLabel() trả "—", cột vẫn có chỗ, không rỗng trơn.
                 'provinceLabel' => $q->provinceLabel(),
                 'examYearLabel' => $q->examYearLabel(),
+                // SỬA 7/10 — hai huy hiệu "Tỉnh/thành · Khu vực" dưới tên bài (ContentLocation.jsx).
+                // Khu vực suy ra từ mã tỉnh (ProvinceCatalog::region), không có cột riêng; chưa gán -> null.
+                'locProvince' => \App\Support\ProvinceCatalog::label($q->province),
+                'regionLabel' => \App\Support\ProvinceCatalog::region($q->province),
             ];
         })->values()->all();
     }
@@ -434,8 +652,44 @@ class PracticeService
             $latest = $attempts->first();
         }
 
+        /*
+         * SỬA 7/10 — theo ExamDetailPage.jsx: nút "Giao đề" cho giáo viên/admin, khối "Đề được giao ·
+         * Không thu phí" cho học sinh được giao đề này, và đường vào Nhật ký nộp bài. Chưa chạy
+         * migrate thì scopeFor() trả "không có quyền gì" và trang vẫn hiện như cũ.
+         */
+        $assignSvc = app(PracticeAssignmentService::class);
+        $assignScope = $assignSvc->scopeFor($viewer);
+        $assignment = null;
+
+        if ($viewer !== null && $assignScope['canViewAssigned']) {
+            $assignment = $assignSvc->forStudent($viewer)['exam'][$exam->id] ?? null;
+        }
+
+        $ratingSummary = $this->combinedRating($exam, $this->ratingSummaries([$exam->id])[$exam->id] ?? null);
+        $myRating = null;
+
+        if ($viewer !== null && Schema::hasTable('assessment_ratings')) {
+            $myRating = AssessmentRating::query()
+                ->where('assessment_id', $exam->id)
+                ->where('user_id', $viewer->id)
+                ->value('rating');
+        }
+
         return [
             'exam' => $exam,
+            // SỬA 7/10 — độ khó, khu vực, đánh giá sao (theo ExamDetailPage.jsx).
+            'difficultyLevel' => $exam->difficultyStars(),
+            'difficultyLabel' => $exam->difficultyLabel(),
+            'regionLabel' => $exam->regionLabel(),
+            'rating' => $ratingSummary['avg'] ?? null,
+            'reviewCount' => (int) ($ratingSummary['count'] ?? 0),
+            'myRating' => $myRating !== null ? (int) $myRating : null,
+            // Chấm sao cần đã nộp đề: $attemptCount lấy từ phần "Kết quả của bạn" ở trên.
+            'canRate' => $viewer !== null && $attemptCount > 0,
+            'rateUrl' => route('practice.exam.rate', $exam->id),
+            'canAssign' => (bool) $assignScope['canAssign'],
+            'assignment' => $assignment,
+            'historyHref' => $viewer !== null ? route('practice.history.exam', $exam->id) : null,
             'examCategoryLabel' => $exam->examCategoryLabel(),
             'provinceLabel' => $exam->provinceLabel(),
             'coverUrl' => $exam->coverUrl(),

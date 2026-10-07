@@ -14,6 +14,8 @@ use App\Http\Controllers\Public\ContactController as PublicContactController;
 use App\Http\Controllers\Public\LeaderboardController as PublicLeaderboardController;
 use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
 use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
+use App\Http\Controllers\Public\PracticeAssignmentController as PublicPracticeAssignmentController;
+use App\Http\Controllers\Public\PracticeHistoryController as PublicPracticeHistoryController;
 use App\Http\Controllers\Public\SitemapController as PublicSitemapController;
 use App\Http\Controllers\Public\TeacherController as PublicTeacherController;
 use App\Http\Controllers\Student\AssessmentController as StudentAssessmentController;
@@ -97,6 +99,25 @@ Route::get('/luyen-tap/de-thi/{assessment}', [PublicPracticeController::class, '
     ->whereNumber('assessment')->name('practice.exam.show');
 Route::get('/luyen-tap/de-thi/{assessment}/xem-truoc', [PublicPracticeController::class, 'examPreview'])
     ->whereNumber('assessment')->name('practice.exam.preview');
+// SỬA 7/10 (khách: "thiếu số sao đánh giá") — học sinh đã nộp đề chấm sao cho đề luyện tập.
+Route::post('/luyen-tap/de-thi/{assessment}/danh-gia', [PublicPracticeController::class, 'rate'])
+    ->middleware('auth')->whereNumber('assessment')->name('practice.exam.rate');
+// SỬA 7/10 (khách: "giáo viên có thể giao bài") — popup "Giao bài"/"Giao đề" ở trang Luyện tập gửi
+// về đây. Chỉ cần đăng nhập ở tầng route; quyền giáo viên/admin do controller + service kiểm tiếp.
+Route::post('/luyen-tap/giao-bai', [PublicPracticeAssignmentController::class, 'store'])
+    ->middleware('auth')->name('practice.assign');
+// Gợi ý học sinh cho ô chọn nhiều trong popup (tìm theo tên / email / số điện thoại).
+Route::get('/luyen-tap/giao-bai/hoc-sinh', [PublicPracticeAssignmentController::class, 'students'])
+    ->middleware('auth')->name('practice.assign.students');
+// SỬA 7/10 — Nhật ký nộp bài của một bài tập / một đề. Cần đăng nhập vì chứa bài làm của học sinh;
+// ai xem được lượt nộp của ai do PracticeHistoryService quyết (admin: tất cả, giáo viên: học sinh
+// mình đã giao, còn lại: chỉ của mình).
+Route::middleware('auth')->group(function () {
+    Route::get('/luyen-tap/nhat-ky/bai/{question}', [PublicPracticeHistoryController::class, 'problem'])
+        ->whereNumber('question')->name('practice.history.problem');
+    Route::get('/luyen-tap/nhat-ky/de/{assessment}', [PublicPracticeHistoryController::class, 'exam'])
+        ->whereNumber('assessment')->name('practice.history.exam');
+});
 Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');

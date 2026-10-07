@@ -258,6 +258,11 @@ class AssessmentService
             'province' => ProvinceCatalog::normalize($data['province'] ?? null),
             'academic_year' => filled($data['academic_year'] ?? null) ? trim((string) $data['academic_year']) : null,
             'exam_category' => ExamCategory::normalize($data['exam_category'] ?? null),
+            // SỬA 7/10 — độ khó 1-5; ngoài khoảng/để trống -> null ("chưa xếp").
+            'difficulty_level' => filled($data['difficulty_level'] ?? null) && (int) $data['difficulty_level'] >= 1 && (int) $data['difficulty_level'] <= 5 ? (int) $data['difficulty_level'] : null,
+            // SỬA 7/10 — số sao đánh giá nhập tay; chỉ lưu khi có ĐỦ cả điểm lẫn số lượt.
+            'rating_score' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? round(max(0, min(5, (float) $data['rating_score'])), 1) : null,
+            'rating_count' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? max(0, (int) $data['rating_count']) : 0,
             'cover_image_path' => $cover !== null ? ImageOptimizer::store($cover, 'assessments/covers', 'public') : null,
             // SỬA 2/10 lần 3 — tệp PDF xem trước (disk riêng tư 'local', ra ngoài qua route
             // practice.exam.preview). Lấy thẳng từ $data vì Validator trả về UploadedFile.
@@ -508,6 +513,68 @@ class AssessmentService
         ?UploadedFile $solutionPdf,
     ): Assessment {
         return $this->pdfEditing->update($assessment, $data, $answerKeyRows, $pdf, $solutionPdf);
+    }
+
+    /**
+     * SỬA 7/10 — lưu các ô mô tả đề ở màn "Quản lý đề PDF" của giáo viên: mô tả ngắn, tác giả, tỉnh
+     * thành, năm học, loại đề, độ khó, ảnh bìa, tệp PDF xem trước. Cùng khuôn với
+     * Admin\ContentService::assessmentDetailAttributes() để hai bên không lệch nhau.
+     *
+     * Ảnh bìa / tệp xem trước: không đụng tới khi người dùng không chọn tệp mới và không tick "Gỡ"
+     * — nếu không, mỗi lần bấm Lưu ở màn này lại xoá mất ảnh đang có. Tệp cũ bị xoá khỏi disk khi
+     * thay hoặc gỡ.
+     *
+     * Chỉ ghi khi form THỰC SỰ gửi các ô này (khoá 'subtitle' có trong dữ liệu đã validate), để các
+     * lối gọi khác tới paperPdfUpdate() không vô tình xoá trắng mô tả của đề.
+     */
+    public function paperDetailUpdate(Assessment $assessment, array $data, ?UploadedFile $cover = null, bool $removeCover = false): Assessment
+    {
+        if (! array_key_exists('subtitle', $data)) {
+            return $assessment;
+        }
+
+        $level = filled($data['difficulty_level'] ?? null) ? (int) $data['difficulty_level'] : null;
+
+        $attributes = [
+            'subtitle' => filled($data['subtitle'] ?? null) ? trim((string) $data['subtitle']) : null,
+            'author' => filled($data['author'] ?? null) ? trim((string) $data['author']) : null,
+            'province' => ProvinceCatalog::normalize($data['province'] ?? null),
+            'academic_year' => filled($data['academic_year'] ?? null) ? trim((string) $data['academic_year']) : null,
+            'exam_category' => ExamCategory::normalize($data['exam_category'] ?? null),
+            'difficulty_level' => $level !== null && $level >= 1 && $level <= 5 ? $level : null,
+            // SỬA 7/10 — số sao đánh giá nhập tay; chỉ lưu khi có ĐỦ cả điểm lẫn số lượt.
+            'rating_score' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? round(max(0, min(5, (float) $data['rating_score'])), 1) : null,
+            'rating_count' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? max(0, (int) $data['rating_count']) : 0,
+        ];
+
+        $previewPdf = ($data['preview_pdf'] ?? null) instanceof UploadedFile ? $data['preview_pdf'] : null;
+
+        if ($previewPdf !== null) {
+            $this->forgetStoredFile('local', $assessment->preview_pdf_path);
+            $attributes['preview_pdf_path'] = $previewPdf->store('assessments/previews', 'local');
+            $attributes['preview_pdf_original_name'] = $previewPdf->getClientOriginalName();
+        } elseif (! empty($data['remove_preview_pdf'])) {
+            $this->forgetStoredFile('local', $assessment->preview_pdf_path);
+            $attributes['preview_pdf_path'] = null;
+            $attributes['preview_pdf_original_name'] = null;
+        }
+
+        if ($cover !== null) {
+            $this->forgetStoredFile('public', $assessment->cover_image_path);
+            $attributes['cover_image_path'] = ImageOptimizer::store($cover, 'assessments/covers', 'public');
+        } elseif ($removeCover) {
+            $this->forgetStoredFile('public', $assessment->cover_image_path);
+            $attributes['cover_image_path'] = null;
+        }
+
+        return $this->assessments->update($assessment, $attributes);
+    }
+
+    private function forgetStoredFile(string $disk, ?string $path): void
+    {
+        if ($path !== null && \Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
+            \Illuminate\Support\Facades\Storage::disk($disk)->delete($path);
+        }
     }
 
     /** SỬA 9/9 — tệp Excel mẫu để giáo viên tải về điền đáp án (xem PdfAssessmentEditingService). */

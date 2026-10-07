@@ -115,6 +115,12 @@
                 <p class="text-xs text-slate-400 mt-2">Tối đa {{ number_format(\App\Services\PdfAssessmentEditingService::maxPdfKb() / 1024) }} MB mỗi tệp.</p>
             </div>
 
+            {{-- SỬA 7/10 (khách: "chỗ tạo và cập nhật thiếu field nào thì bổ sung cho cả admin và giáo
+                 viên") — các ô mô tả đề hiện ngoài trang Luyện tập (mô tả ngắn, tác giả, tỉnh thành,
+                 năm học, loại đề, độ khó, ảnh bìa, bản xem trước). Chỉ hiện khi đề thuộc loại
+                 Luyện tập. Form này đã có enctype multipart nên nhận được tệp. --}}
+            @include('partials.assessment-detail-fields', ['assessment' => $assessment])
+
             {{-- ═══════════ ĐÁP ÁN ĐÚNG TỪNG CÂU ═══════════
                  SỬA 9/9 — dựng lại khối này (khách: "thiết kế cho đẹp nha hơi xấu á"): thanh công
                  cụ gọn 1 hàng, mỗi câu là 1 thẻ có số câu nổi bật + chip màu theo dạng, ô nhập đáp

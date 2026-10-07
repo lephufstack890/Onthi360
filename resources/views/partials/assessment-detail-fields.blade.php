@@ -97,6 +97,9 @@
                     </optgroup>
                 @endforeach
             </x-ws.select>
+            {{-- SỬA 7/10 — Khu vực (Miền Bắc/Trung/Nam) KHÔNG có ô nhập riêng: suy ra từ tỉnh/thành
+                 (ProvinceCatalog::region) nên không thể ghi lệch kiểu "Hà Nội — Miền Nam". --}}
+            <p class="mt-1 text-xs text-slate-400">Khu vực (Miền Bắc/Trung/Nam) tự suy ra từ tỉnh/thành, hiện cạnh tỉnh/thành ngoài trang Luyện tập.</p>
         </div>
         <div>
             <label class="mb-1 block text-[13px] font-medium text-slate-600" for="academic_year">Năm học</label>
@@ -104,6 +107,44 @@
                    value="{{ old('academic_year', $assessment?->academic_year) }}" placeholder="Ví dụ: 2024-2025"
                    class="admin-input">
             <p class="mt-1 text-xs text-slate-400">Ghi dạng năm học (vắt qua 2 năm), không phải 1 năm dương lịch.</p>
+        </div>
+    </div>
+
+    {{-- SỬA 7/10 (khách: "thiếu Độ khó… cập nhật cả admin và giáo viên") — ĐỘ KHÓ của đề, hiện thành
+         số sao trên thẻ đề và ở màn chi tiết đề. Cùng thang 5 mức với Kho câu hỏi. Số sao ĐÁNH GIÁ
+         nhập tay (điểm + số lượt), gộp với lượt chấm thật của học sinh. --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="mb-1 block text-[13px] font-medium text-slate-600" for="difficulty_level">Độ khó</label>
+            <x-ws.select id="difficulty_level" name="difficulty_level">
+                <option value="">— Chưa xếp độ khó —</option>
+                @foreach (\App\Support\QuestionDifficulty::STARS as $adKey => $adStars)
+                    <option value="{{ $adStars }}" @selected((int) old('difficulty_level', $assessment?->difficulty_level) === $adStars)>{{ $adStars }} sao · {{ \App\Support\QuestionDifficulty::LEVELS[$adKey] }}</option>
+                @endforeach
+            </x-ws.select>
+            <p class="mt-1 text-xs text-slate-400">Hiện số sao độ khó trên thẻ đề. Để trống thì hiện "Chưa xếp độ khó".</p>
+        </div>
+        <div>
+            <span class="mb-1 block text-[13px] font-medium text-slate-600">Số sao đánh giá</span>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <input id="rating_score" name="rating_score" type="number" min="0" max="5" step="0.1" inputmode="decimal"
+                           value="{{ old('rating_score', $assessment?->rating_score) }}" placeholder="Điểm 0–5, VD: 4.5"
+                           aria-label="Điểm sao đánh giá (0 đến 5)" class="admin-input">
+                    @error('rating_score')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <input id="rating_count" name="rating_count" type="number" min="1" max="1000000" step="1" inputmode="numeric"
+                           value="{{ old('rating_count', ($assessment?->rating_count ?? 0) > 0 ? $assessment->rating_count : null) }}" placeholder="Số lượt, VD: 120"
+                           aria-label="Số lượt đánh giá" class="admin-input">
+                    @error('rating_count')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                </div>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Nhập cả điểm và số lượt (để trống cả hai thì không có số nhập tay). Ngoài trang, số này được gộp với các lượt chấm thật của học sinh đã nộp đề.</p>
+            @if ($assessment?->exists && \Illuminate\Support\Facades\Schema::hasTable('assessment_ratings'))
+                @php($adRating = \App\Models\AssessmentRating::query()->where('assessment_id', $assessment->id)->selectRaw('COUNT(*) as c, AVG(rating) as a')->first())
+                <p class="mt-1 text-xs text-slate-500">Lượt chấm thật của học sinh: <b class="text-slate-700">{{ ($adRating?->c ?? 0) > 0 ? number_format((float) $adRating->a, 1, ',', '').'/5 · '.$adRating->c.' lượt' : 'chưa có' }}</b></p>
+            @endif
         </div>
     </div>
 

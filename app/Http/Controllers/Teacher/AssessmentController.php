@@ -232,6 +232,12 @@ class AssessmentController extends Controller
             'author' => ['nullable', 'string', 'max:120'],
             'province' => ['nullable', 'string', 'max:20'],
             'academic_year' => ['nullable', 'string', 'max:20'],
+            // SỬA 7/10 — độ khó 1-5 của đề (hiện thành số sao ngoài trang Luyện tập).
+            'difficulty_level' => ['nullable', 'integer', 'between:1,5'],
+            // SỬA 7/10 — điểm sao (0-5, tối đa 1 chữ số lẻ) + số lượt đánh giá nhập tay. Đã nhập điểm thì
+            // phải có số lượt (>= 1), nếu không "4,5/5 (0 đánh giá)" là vô nghĩa.
+            'rating_score' => ['nullable', 'numeric', 'between:0,5'],
+            'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
             'exam_category' => ['nullable', 'string', 'max:30'],
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
@@ -406,6 +412,25 @@ class AssessmentController extends Controller
             'preview_page_to' => ['nullable', 'integer', 'min:1', 'gte:preview_page_from'],
             'pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
             'solution_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.PdfAssessmentEditingService::maxPdfKb()],
+            // SỬA 7/10 (khách: "chỗ tạo và cập nhật thiếu field nào thì bổ sung cho cả admin và giáo
+            // viên") — màn "Quản lý đề PDF" của giáo viên trước đây KHÔNG có chỗ nhập mô tả ngắn /
+            // tác giả / tỉnh thành / năm học / loại đề / độ khó / ảnh bìa / bản xem trước, nên đề
+            // Luyện tập giáo viên tạo ra hiện trống trơn ngoài trang công khai và không sửa được
+            // sau khi tạo. Cùng bộ luật với storeRules() và bên admin.
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'author' => ['nullable', 'string', 'max:120'],
+            'province' => ['nullable', 'string', 'max:20'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'exam_category' => ['nullable', 'string', 'max:30'],
+            'difficulty_level' => ['nullable', 'integer', 'between:1,5'],
+            // SỬA 7/10 — điểm sao (0-5, tối đa 1 chữ số lẻ) + số lượt đánh giá nhập tay. Đã nhập điểm thì
+            // phải có số lượt (>= 1), nếu không "4,5/5 (0 đánh giá)" là vô nghĩa.
+            'rating_score' => ['nullable', 'numeric', 'between:0,5'],
+            'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
+            'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
+            'remove_preview_pdf' => ['nullable', 'boolean'],
+            'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'remove_cover' => ['nullable', 'boolean'],
             'answer_keys' => ['nullable', 'array'],
             'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
             'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false,true_false_group,short_answer,multi_part'],
@@ -441,6 +466,14 @@ class AssessmentController extends Controller
             $answerKeyRows,
             $request->file('pdf'),
             $request->file('solution_pdf'),
+        );
+
+        // SỬA 7/10 — lưu các ô mô tả đề (chỉ khi form có gửi chúng lên).
+        $this->assessmentService->paperDetailUpdate(
+            $paper,
+            $data,
+            $request->file('cover'),
+            $request->boolean('remove_cover'),
         );
 
         return redirect()->route('teacher.papers.pdf.edit', $paper->id)->with('status', 'paper-pdf-updated');

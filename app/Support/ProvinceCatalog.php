@@ -108,6 +108,51 @@ class ProvinceCatalog
         'YENBAI' => 'Yên Bái',
     ];
 
+    /**
+     * SỬA 7/10 (khách: "thiếu tỉnh thành, khu vực — check kỹ source mới") — KHU VỰC của từng
+     * tỉnh/thành, theo cách bản mẫu (education-main/src/data/contentLocations.js) chia 3 miền.
+     *
+     * Khu vực KHÔNG lưu thành cột riêng mà SUY RA từ mã tỉnh: tỉnh đã quyết định miền, thêm một
+     * ô nhập tay chỉ tạo ra chuyện "Hà Nội — Miền Nam" khi ai đó chọn nhầm. Phủ đủ 34 đơn vị hiện
+     * hành + 29 tên cũ; "Toàn quốc" (phạm vi của câu hỏi) không thuộc miền nào nên trả null.
+     *
+     * Thanh Hoá/Nghệ An/Hà Tĩnh… tính Miền Trung (Bắc Trung Bộ), Tây Nguyên và Nam Trung Bộ cũng
+     * Miền Trung — đúng cách chia 3 miền thông dụng mà bản mẫu dùng.
+     *
+     * @var array<string, list<string>>
+     */
+    public const REGIONS = [
+        'Miền Bắc' => [
+            'HANOI', 'HAIPHONG', 'BACNINH', 'CAOBANG', 'DIENBIEN', 'HUNGYEN', 'LAICHAU', 'LANGSON', 'LAOCAI',
+            'NINHBINH', 'PHUTHO', 'QUANGNINH', 'SONLA', 'THAINGUYEN', 'TUYENQUANG',
+            'BACGIANG', 'BACKAN', 'HAGIANG', 'HANAM', 'HAIDUONG', 'HOABINH', 'NAMDINH', 'THAIBINH', 'VINHPHUC', 'YENBAI',
+        ],
+        'Miền Trung' => [
+            'HUE', 'DANANG', 'DAKLAK', 'GIALAI', 'HATINH', 'KHANHHOA', 'LAMDONG', 'NGHEAN', 'QUANGNGAI', 'QUANGTRI', 'THANHHOA',
+            'BINHDINH', 'BINHTHUAN', 'DAKNONG', 'KONTUM', 'NINHTHUAN', 'PHUYEN', 'QUANGBINH', 'QUANGNAM',
+        ],
+        'Miền Nam' => [
+            'TPHCM', 'CANTHO', 'ANGIANG', 'CAMAU', 'DONGNAI', 'DONGTHAP', 'TAYNINH', 'VINHLONG',
+            'BARIAVUNGTAU', 'BACLIEU', 'BENTRE', 'BINHDUONG', 'BINHPHUOC', 'HAUGIANG', 'KIENGIANG', 'LONGAN', 'SOCTRANG', 'TIENGIANG', 'TRAVINH',
+        ],
+    ];
+
+    /** Khu vực ("Miền Bắc"/"Miền Trung"/"Miền Nam") của một mã tỉnh; chưa gán hoặc "Toàn quốc" -> null. */
+    public static function region(?string $code): ?string
+    {
+        if ($code === null || $code === '') {
+            return null;
+        }
+
+        foreach (self::REGIONS as $region => $codes) {
+            if (in_array($code, $codes, true)) {
+                return $region;
+            }
+        }
+
+        return null;
+    }
+
     /** Năm sớm nhất cho ô "Năm" — đủ phủ đề thi cũ mà dropdown không dài vô ích. */
     public const MIN_YEAR = 2005;
 
