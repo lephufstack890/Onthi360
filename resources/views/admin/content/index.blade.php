@@ -257,9 +257,9 @@
         @if ($isQuestions)
             {{-- SỬA 7/10 (khách: "hiển thị cột thứ tự ra ngoài danh sách, sửa trực tiếp trên từng dòng")
                  — chú thích cách đọc cột Thứ tự. --}}
-            <p class="oi-ord-hint">Cột <strong>Thứ tự hiển thị</strong>: số <strong>càng lớn</strong> thì câu hỏi càng <strong>đứng trước</strong> (0 = mặc định, câu mới nhất lên trước). Bấm <strong>＋ / −</strong>, gõ số rồi Enter, hoặc <strong>Đưa lên trước</strong> (chen lên đứng ngay trước câu phía trên nó) — hệ thống tự lưu.</p>
+            <p class="oi-ord-hint">Nút <strong>Đưa lên trước</strong> (cột cuối) chen câu lên đứng ngay trước câu phía trên nó — hệ thống tự lưu.</p>
         @endif
-        <x-ws.table :columns="$isQuestions ? ['Tên', 'Thứ tự hiển thị', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
+        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
             @forelse ($rows as $r)
                 <tr>
                     <td class="px-4 py-3 font-medium text-slate-700">
@@ -269,17 +269,6 @@
                         @endif
                     </td>
                     @if ($isQuestions)
-                        {{-- SỬA 7/10 — ô Thứ tự: −/＋ tăng giảm 1, gõ số, hoặc "Đưa lên đầu"; tự lưu bằng
-                             fetch PATCH (assets/JS ở @push('scripts') cuối trang). --}}
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
-                                <button type="button" class="oi-ord__b" data-act="dec" aria-label="Giảm 1" title="Giảm 1">−</button>
-                                <input type="number" class="oi-ord__in" min="0" max="65535" step="1" inputmode="numeric" value="{{ $r['displayOrder'] }}" aria-label="Thứ tự hiển thị">
-                                <button type="button" class="oi-ord__b" data-act="inc" aria-label="Tăng 1" title="Tăng 1 (đứng trước hơn)">＋</button>
-                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
-                                <span class="oi-ord__st" aria-live="polite"></span>
-                            </div>
-                        </td>
                         <td class="px-4 py-3">
                             @if (($r['subject'] ?? '') === 'Chưa phân loại')
                                 <span class="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Chưa phân loại</span>
@@ -310,6 +299,16 @@
                              — vào thẳng màn Sửa, khỏi phải bấm "Xem" rồi tìm nút Sửa trong trang chi
                              tiết. Link do ContentService::indexData() dựng sẵn theo đúng loại nội dung
                              của từng dòng (câu hỏi / đề / học liệu). --}}
+                        {{-- SỬA 7/10 (khách: "ẩn cột Thứ tự, đưa nút Đưa lên trước ra cùng cột với Sửa/Xem/Xoá")
+                             — chỉ còn nút chen câu này lên ngay trước câu phía trên nó; số thứ tự nằm trong
+                             ô ẩn để máy chủ trả số mới về. Dòng đầu trang 1 → "Đang ở đầu". --}}
+                        @if ($isQuestions)
+                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
+                                <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
+                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
+                                <span class="oi-ord__st" aria-live="polite"></span>
+                            </span>
+                        @endif
                         @if ($r['editHref'] ?? null)
                             <a href="{{ $r['editHref'] }}" class="text-blue-600 font-medium">Sửa</a>
                         @endif
@@ -339,7 +338,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="{{ $isQuestions ? 9 : 5 }}" class="px-4 py-6 text-center text-slate-400">
+                <tr><td colspan="{{ $isQuestions ? 8 : 5 }}" class="px-4 py-6 text-center text-slate-400">
                     {{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc — thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Chưa có dữ liệu.' }}
                 </td></tr>
             @endforelse
@@ -419,7 +418,7 @@
             .oi-ord__top:hover{background:#dcfce7;border-color:#4ade80}
             .oi-ord-flash{background:#ecfdf5 !important;transition:background 1.2s}
             .oi-ord__top[disabled]{background:#f1f5f9;border-color:#e2e8f0;color:#94a3b8;cursor:default}
-            .oi-ord__st{min-width:62px;font-size:11px;font-weight:600;color:#64748b}
+            .oi-ord__st{min-width:0;margin-right:6px;font-size:11px;font-weight:600;color:#64748b}
             .oi-ord__st.is-ok{color:#15803d}
             .oi-ord__st.is-err{color:#dc2626;white-space:normal;max-width:180px}
             .oi-ord.is-busy .oi-ord__in{opacity:.6}
