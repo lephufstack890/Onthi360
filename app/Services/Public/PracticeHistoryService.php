@@ -28,7 +28,8 @@ use Illuminate\Support\Collection;
  *   · học sinh/người khác: chỉ lượt nộp của chính mình.
  * Không để lộ tên + bài làm của người lạ ra cho bất kỳ ai đăng nhập.
  *
- * CHƯA có: "dấu hiệu hoạt động" (rời tab, phím chụp màn hình, mở hướng dẫn…) và "bài mẫu" của bản
+ * "Bài mẫu" (SỬA 7/10): ADMIN chỉ định một lượt nộp làm bài mẫu — xem PracticeSampleService.
+ * CHƯA có: "dấu hiệu hoạt động" (rời tab, phím chụp màn hình, mở hướng dẫn…) của bản
  * mẫu. Các sự kiện đó hiện chỉ được ghi trong trình duyệt của người làm bài (sessionStorage),
  * chưa gửi về máy chủ nên không có gì để hiển thị — dựng cột rỗng là bịa tính năng.
  */
@@ -40,7 +41,10 @@ class PracticeHistoryService
     /** Cắt bài làm đưa ra khung chi tiết cho gọn (ký tự). */
     private const CODE_CHARS = 8000;
 
-    public function __construct(private PracticeAssignmentService $assignments) {}
+    public function __construct(
+        private PracticeAssignmentService $assignments,
+        private PracticeSampleService $samples,
+    ) {}
 
     /** Có được mở nhật ký không: cần đăng nhập. Khách chưa đăng nhập bị chuyển sang trang đăng nhập. */
     public function mayView(?User $viewer): bool
@@ -140,15 +144,27 @@ class PracticeHistoryService
                 'response' => $a->code_source !== null
                     ? mb_substr((string) $a->code_source, 0, self::CODE_CHARS)
                     : (is_array($a->answer) ? json_encode($a->answer, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : null),
+                // SỬA 7/10 — nút "Chỉ định bài mẫu" chỉ bật khi lượt nộp CÓ nội dung bài làm.
+                'hasResponse' => $this->samples->responseOf($a) !== null,
             ];
         })->values()->all();
 
-        return $this->envelope($viewer, 'problem', [
+        $data = $this->envelope($viewer, 'problem', [
             'id' => $question->id,
             'title' => $question->title,
             'code' => $question->code,
             'backHref' => route('practice.index'),
         ], $rows, $visible);
+
+        // SỬA 7/10 (khách: "admin chỉ định bài mẫu, chỉ admin mới có quyền") — lượt nộp đang là bài mẫu
+        // + quyền chỉ định (chỉ admin). Chỉ có ở BÀI TẬP, đề thi không có bài mẫu kiểu này.
+        $sample = $this->samples->forQuestion($question->id);
+        $data['sampleId'] = $sample?->attempt_answer_id ? 'A'.$sample->attempt_answer_id : null;
+        $data['canDesignate'] = $this->samples->canDesignate($viewer);
+        $data['sampleUrl'] = $data['canDesignate'] ? route('practice.history.sample.store', $question->id) : '';
+        $data['sampleClearUrl'] = $data['canDesignate'] ? route('practice.history.sample.destroy', $question->id) : '';
+
+        return $data;
     }
 
     // ───────────────────────── Đề thi ─────────────────────────

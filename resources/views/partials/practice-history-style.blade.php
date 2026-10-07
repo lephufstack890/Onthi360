@@ -153,4 +153,17 @@
 .submission-search input::placeholder { color:#8193A3; }
 @media(max-width:900px) { .submission-topbar-inner,.submission-main { padding-inline:16px; } .submission-table { min-width:830px; } .submission-context { flex-wrap:wrap; } }
 @media(max-width:600px) { .submission-topbar-inner { align-items:flex-start; padding:12px; gap:10px; } .submission-role,.submission-heading>p span { display:none; } .submission-heading h1 { font-size:16px; line-height:22px; } .submission-main { padding:14px 12px 24px; } .submission-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .submission-stats>div { padding:10px; gap:8px; } .submission-search { flex-basis:100%; } .date-filter { flex:1; min-width:0; } .date-filter input { min-width:0; width:100%; } .submission-result-filters button { padding:6px 8px; } .submission-detail-heading { padding:14px 12px; align-items:flex-start; } .submission-large-score strong { font-size:20px; } .submission-milestones { padding:12px; gap:10px; grid-template-columns:minmax(0,1fr); } .submission-detail-body { padding:12px; } .submission-page-info,.submission-page-controls { width:100%; justify-content:space-between; } .submission-page-controls { flex-wrap:wrap; justify-content:center; } .submission-page-count { margin-right:auto; } }
+/* SỬA 7/10 — bài mẫu do admin chỉ định */
+.submission-history .admin-column-label { margin-left:4px; font-size:10px; font-weight:700; letter-spacing:.04em; color:#9A6B12; }
+.submission-history .sample-action { min-height:32px; padding:6px 10px; border-color:#F0DDB0; background:#FFF8E6; color:#8A5A0B; font-size:11px; }
+.submission-history .sample-action:hover:not(:disabled) { background:#FDEFC8; border-color:#E5C97E; }
+.submission-history .sample-action:disabled { opacity:.5; cursor:not-allowed; }
+.submission-history .sample-cell { display:inline-flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.submission-history .sample-label { display:inline-flex; align-items:center; gap:4px; margin-top:0; padding:3px 9px; border:1px solid #F0DDB0; border-radius:999px; background:#FFF8E6; color:#8A5A0B; font-size:11px; font-weight:700; }
+.submission-history .sample-label svg { fill:#F5B93A; stroke:#C98A12; }
+.submission-history .submission-view + .sample-label { margin-left:8px; }
+.submission-history .sample-clear { padding:0; border:0; background:transparent; color:#B42318; font-size:11px; font-weight:700; cursor:pointer; }
+.submission-history .sample-clear:hover:not(:disabled) { text-decoration:underline; }
+.submission-history .submission-notice { margin:0 0 10px; padding:10px 14px; border:1px solid #BFE3D2; border-radius:10px; background:#EFF9F5; color:#1F6F55; font-size:12px; font-weight:600; }
+.submission-history .submission-notice.is-error { border-color:#F5C2C0; background:#FFF1F0; color:#B42318; }
 </style>

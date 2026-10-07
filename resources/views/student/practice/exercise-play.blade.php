@@ -40,6 +40,7 @@
         // này nên phải ?? null, nếu không là lỗi biến chưa định nghĩa.
         $guideDoc = $guideDoc ?? null;
         $sampleDoc = $sampleDoc ?? null;
+        $designatedSample = $designatedSample ?? null;
         $backUrl = $returnUrl ?? route('student.library.index');
         // SỬA 18/9 — nhãn nút quay lại đi theo NƠI MỞ phiên luyện (xem
         // PracticeByQuestionService::startForQuestion). Không truyền thì giữ nguyên nhãn cũ.
@@ -672,7 +673,21 @@
                      lại (chỉ cho xem sau khi nộp) ghi ở tab Hướng dẫn phía trên. --}}
                 <section x-show="tab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-hidden p-1 sm:p-2">
                     <div class="assessment-pdf-surface h-full min-h-0 overflow-auto rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
-                    @if ($sampleDoc && $sampleDoc['isPdf'])
+                    @if ($designatedSample)
+                    {{-- SỬA 7/10 — bài mẫu admin chỉ định ở Nhật ký nộp bài: ưu tiên hơn tệp Code mẫu. --}}
+                    <article class="assessment-a4-page oi-doc-col oi-doc-page rounded-lg bg-white shadow-xl">
+                        <div class="flex flex-wrap items-start justify-between gap-2 border-b-2 border-[#126F91] pb-3">
+                            <h3 class="text-sm font-extrabold text-[#123B68]">Bài mẫu</h3>
+                            <span class="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#FFF6DD] px-2 py-1 text-[10px] font-bold text-[#8A5A00]">
+                                <x-lucide name="star" class="h-3 w-3" />Bài mẫu được chỉ định
+                            </span>
+                        </div>
+                        @if (! empty($designatedSample['language']))
+                            <p class="mt-3 text-[11px] font-bold uppercase tracking-wide text-[#607A90]">Ngôn ngữ: {{ $designatedSample['language'] }}</p>
+                        @endif
+                        <pre class="oi-guide-pre mt-3">{{ $designatedSample['code'] }}</pre>
+                    </article>
+                    @elseif ($sampleDoc && $sampleDoc['isPdf'])
                         <div data-pdf-fit data-pdf-url="{{ $sampleDoc['url'] }}" data-pdf-max-width="820" class="oi-doc-col"></div>
                     @elseif ($sampleDoc)
                     <article class="assessment-a4-page oi-doc-col oi-doc-page rounded-lg bg-white shadow-xl">
@@ -697,7 +712,7 @@
                         <div>
                             <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="book-open" class="h-5 w-5" /></span>
                             <p class="mt-3 text-sm font-extrabold text-[#123B68]">Bài này chưa có bài mẫu</p>
-                            <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Thêm ở ô <span class="font-bold">Code mẫu / lời giải tham khảo</span> trong form câu hỏi là phần này tự hiện. Đáp án đúng và kết quả từng test vẫn hiện ở tab <span class="font-bold">Làm bài</span> sau khi bấm Nộp bài.</p>
+                            <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Quản trị viên có thể chỉ định một bài nộp làm bài mẫu ở trang <span class="font-bold">Nhật ký nộp bài</span>, hoặc thêm ở ô <span class="font-bold">Code mẫu / lời giải tham khảo</span> trong form câu hỏi — phần này sẽ tự hiện. Đáp án đúng và kết quả từng test vẫn hiện ở tab <span class="font-bold">Làm bài</span> sau khi bấm Nộp bài.</p>
                         </div>
                     </article>
                     @endif

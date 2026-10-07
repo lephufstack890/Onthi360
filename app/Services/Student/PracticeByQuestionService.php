@@ -251,6 +251,10 @@ class PracticeByQuestionService
             // mô tả gõ cứng, giờ đổ từ metadata.attachments.solution / .reference.
             'guideDoc' => $this->guideAttachment($question, 'solution'),
             'sampleDoc' => $this->guideAttachment($question, 'reference'),
+            // SỬA 7/10 (khách: "admin chỉ định bài mẫu của bài nào thì bài đó có bài mẫu và đổ dữ
+            // liệu vào tab Bài mẫu") — bài làm admin chỉ định ở Nhật ký nộp bài; ưu tiên hơn tệp
+            // "Code mẫu" của câu hỏi.
+            'designatedSample' => $this->designatedSample($question),
             'assets' => collect($question->metadata['assets'] ?? [])->map(fn ($a) => [
                 'id' => $a['id'] ?? null,
                 'kind' => $a['kind'] ?? 'file',
@@ -370,6 +374,35 @@ class PracticeByQuestionService
             // đọc chữ ở đây (đã có trình xem PDF ở view).
             'text' => $isPdf ? null : $this->attachmentText($info['path']),
         ];
+    }
+
+    /**
+     * SỬA 7/10 — bài mẫu do admin chỉ định từ một lượt nộp (bảng practice_sample_submissions).
+     * Cùng luật xem với tệp lời giải/code mẫu (canSeeGuideDocs) để không có đường nào lệch luật.
+     * KHÔNG trả tên người nộp: học sinh không cần biết bài mẫu là của bạn nào (riêng tư).
+     * Bọc try/catch: đây chỉ là phần hiển thị thêm, lỗi (chưa migrate…) không được làm sập màn làm bài.
+     *
+     * @return array{code:string, language:?string}|null
+     */
+    private function designatedSample(Question $question): ?array
+    {
+        if (! $this->canSeeGuideDocs($question, Auth::user())) {
+            return null;
+        }
+
+        try {
+            $sample = app(\App\Services\Public\PracticeSampleService::class)->forQuestion($question->id);
+        } catch (Throwable $e) {
+            Log::warning('Không đọc được bài mẫu được chỉ định', ['question_id' => $question->id, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        if ($sample === null || trim((string) $sample->code) === '') {
+            return null;
+        }
+
+        return ['code' => (string) $sample->code, 'language' => $sample->language];
     }
 
     /**

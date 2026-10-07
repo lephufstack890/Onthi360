@@ -117,6 +117,11 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('question')->name('practice.history.problem');
     Route::get('/luyen-tap/nhat-ky/de/{assessment}', [PublicPracticeHistoryController::class, 'exam'])
         ->whereNumber('assessment')->name('practice.history.exam');
+    // SỬA 7/10 — ADMIN chỉ định / bỏ chỉ định bài mẫu cho một bài tập (quyền kiểm ở controller + service).
+    Route::post('/luyen-tap/nhat-ky/bai/{question}/bai-mau', [PublicPracticeHistoryController::class, 'designateSample'])
+        ->whereNumber('question')->name('practice.history.sample.store');
+    Route::delete('/luyen-tap/nhat-ky/bai/{question}/bai-mau', [PublicPracticeHistoryController::class, 'clearSample'])
+        ->whereNumber('question')->name('practice.history.sample.destroy');
 });
 Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');

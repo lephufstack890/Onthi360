@@ -14,7 +14,11 @@
      Dữ liệu do Public\PracticeHistoryService cấp (lượt nộp THẬT, đã lọc theo quyền xem của người
      đang đăng nhập). Lọc/sắp xếp/phân trang chạy ngay trên trình duyệt (tối đa 500 lượt mới nhất).
 
-     KHÁC BẢN MẪU: không có cột "Hoạt động" (rời tab, phím chụp màn hình…), nút "Chỉ định bài mẫu" và
+     BÀI MẪU (SỬA 7/10): ADMIN thấy cột "Bài mẫu" với nút "Chỉ định bài mẫu" ở từng lượt nộp của BÀI TẬP;
+     lượt được chọn thành bài mẫu của bài và hiện ở tab "Bài mẫu" của màn làm bài (xem
+     Public\PracticeSampleService). Giáo viên/học sinh không có nút, chỉ thấy nhãn "Bài mẫu".
+
+     KHÁC BẢN MẪU: không có cột "Hoạt động" (rời tab, phím chụp màn hình…) và
      nguồn "Minh họa" — các sự kiện hoạt động hiện chỉ được ghi trong trình duyệt người làm bài, chưa
      gửi về máy chủ nên chưa có dữ liệu để hiển thị. Ô thứ 4 của dải tổng quan vì vậy là "Đang chờ
      chấm" thay cho "Lượt cần xem xét". --}}
@@ -25,10 +29,18 @@
         'teacher' => 'Giáo viên',
         default => 'Xem nhật ký của bạn',
     };
+    // SỬA 7/10 — bài mẫu: chỉ BÀI TẬP có, và chỉ ADMIN mới thấy nút chỉ định (máy chủ cũng kiểm lại quyền).
+    $canDesignate = ! $isExam && ($canDesignate ?? false);
+    $sampleId = $sampleId ?? null;
     $historyPayload = [
         'type' => $type,
         'rows' => $rows,
         'canSeeOthers' => $canSeeOthers,
+        'canDesignate' => $canDesignate,
+        'sampleId' => $isExam ? null : $sampleId,
+        'sampleUrl' => $sampleUrl ?? '',
+        'sampleClearUrl' => $sampleClearUrl ?? '',
+        'csrf' => csrf_token(),
     ];
     $resultFilters = [
         ['id' => 'all', 'label' => 'Tất cả', 'icon' => 'clipboard-list'],
@@ -105,6 +117,8 @@
             </div>
         </section>
 
+        <p class="submission-notice" :class="noticeError ? 'is-error' : ''" role="status" x-show="notice" x-cloak x-text="notice"></p>
+
         <div class="submission-filter-summary" role="status">
             <span>Hiển thị <strong x-text="filtered.length"></strong> / <span x-text="rows.length"></span> lượt nộp</span>
             @if ($truncated)
@@ -134,6 +148,9 @@
                             <th scope="col">Kết quả</th>
                             <th scope="col" class="score-column">Điểm</th>
                             <th scope="col">{{ $isExam ? 'Chi tiết' : 'Bài làm' }}</th>
+                            @if ($canDesignate)
+                                <th scope="col">Bài mẫu <span class="admin-column-label">Admin</span></th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -161,7 +178,28 @@
                                     <button type="button" class="submission-view" :aria-label="'Xem bài của ' + record.submitter" :aria-expanded="selectedId === record.id" @click="toggle(record.id)">
                                         {{ $isExam ? 'Xem chi tiết' : 'Xem bài' }}<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                                     </button>
+                                    @if (! $isExam && ! $canDesignate)
+                                        {{-- Người không phải admin: chỉ thấy nhãn đánh dấu lượt nộp đang là bài mẫu. --}}
+                                        <span class="sample-label" x-show="sampleId === record.id" x-cloak><x-lucide name="star" class="h-3.5 w-3.5" />Bài mẫu</span>
+                                    @endif
                                 </td>
+                                @if ($canDesignate)
+                                    <td>
+                                        <template x-if="sampleId === record.id">
+                                            <span class="sample-cell">
+                                                <span class="sample-label"><x-lucide name="star" class="h-3.5 w-3.5" />Bài mẫu</span>
+                                                <button type="button" class="sample-clear" :disabled="sampleBusy" @click="clearSample()" title="Bỏ chỉ định bài mẫu">Bỏ chỉ định</button>
+                                            </span>
+                                        </template>
+                                        <template x-if="sampleId !== record.id">
+                                            <button type="button" class="submission-button sample-action" :disabled="!record.hasResponse || sampleBusy"
+                                                    :title="record.hasResponse ? 'Chỉ định bài của ' + record.submitter + ' làm bài mẫu' : 'Lượt nộp này chưa lưu nội dung bài làm'"
+                                                    @click="chooseSample(record)">
+                                                <x-lucide name="star" class="h-3.5 w-3.5" />Chỉ định bài mẫu
+                                            </button>
+                                        </template>
+                                    </td>
+                                @endif
                             </tr>
                         </template>
                     </tbody>
@@ -252,7 +290,7 @@
                             <p class="submission-muted">Lượt thi này chưa lưu chi tiết từng câu.</p>
                         </template>
                     @else
-                        <div class="submission-answer-toolbar"><span x-text="selected.language || 'Câu trả lời'"></span><span x-show="selected.verdictLabel" x-cloak x-text="selected.verdictLabel"></span></div>
+                        <div class="submission-answer-toolbar"><span x-text="selected.language || 'Câu trả lời'"></span><span class="sample-label" x-show="sampleId === selected.id" x-cloak><x-lucide name="star" class="h-3.5 w-3.5" />Bài mẫu</span><span x-show="selected.verdictLabel" x-cloak x-text="selected.verdictLabel"></span></div>
                         <pre class="submission-code" x-text="selected.response ? selected.response : 'Chưa lưu nội dung bài làm cho lượt nộp này.'"></pre>
                     @endif
                 </div>
@@ -264,7 +302,7 @@
 
         <p class="submission-storage-note">
             @if ($role === 'admin')
-                Quản trị viên xem được mọi lượt nộp.
+                Quản trị viên xem được mọi lượt nộp{{ $canDesignate ? ' và là người duy nhất chỉ định được bài mẫu cho bài tập' : '' }}.
             @elseif ($role === 'teacher')
                 Bạn xem được lượt nộp của chính mình và của các học sinh bạn đã giao {{ $isExam ? 'đề' : 'bài' }} này.
             @else
@@ -286,6 +324,15 @@
             rows: config.rows || [],
             type: config.type,
             canSeeOthers: !!config.canSeeOthers,
+            // SỬA 7/10 — bài mẫu (chỉ admin chỉ định được).
+            canDesignate: !!config.canDesignate,
+            sampleId: config.sampleId || null,
+            sampleUrl: config.sampleUrl || '',
+            sampleClearUrl: config.sampleClearUrl || '',
+            csrf: config.csrf || '',
+            sampleBusy: false,
+            notice: '',
+            noticeError: false,
             query: '',
             resultFilter: 'all',
             onlyMine: false,
@@ -363,6 +410,69 @@
 
             get selected() { return this.visible.find((r) => r.id === this.selectedId) || null; },
             toggle(id) { this.selectedId = this.selectedId === id ? null : id; },
+
+            // ── Bài mẫu (chỉ admin) ──
+            async sampleRequest(method, url, body) {
+                const res = await fetch(url, {
+                    method,
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: body ? JSON.stringify(body) : undefined,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    let message = 'Chưa lưu được bài mẫu. Vui lòng thử lại.';
+                    if (res.status === 422 && data.errors) {
+                        const first = Object.values(data.errors)[0];
+                        message = Array.isArray(first) ? first[0] : message;
+                    } else if (res.status === 419) {
+                        message = 'Phiên làm việc đã hết hạn. Vui lòng tải lại trang rồi thử lại.';
+                    } else if (res.status === 401 || res.status === 403) {
+                        message = 'Chỉ quản trị viên mới được chỉ định bài mẫu.';
+                    }
+                    throw new Error(message);
+                }
+                return data;
+            },
+
+            async chooseSample(record) {
+                if (!this.canDesignate || this.sampleBusy || !record.hasResponse) { return; }
+                this.sampleBusy = true;
+                this.notice = '';
+                try {
+                    await this.sampleRequest('POST', this.sampleUrl, { record: record.id });
+                    this.sampleId = record.id;
+                    this.noticeError = false;
+                    this.notice = 'Đã chỉ định bài của ' + record.submitter + ' làm bài mẫu. Học sinh sẽ thấy ở tab “Bài mẫu” của bài này.';
+                } catch (e) {
+                    this.noticeError = true;
+                    this.notice = e.message;
+                } finally {
+                    this.sampleBusy = false;
+                }
+            },
+
+            async clearSample() {
+                if (!this.canDesignate || this.sampleBusy) { return; }
+                this.sampleBusy = true;
+                this.notice = '';
+                try {
+                    await this.sampleRequest('DELETE', this.sampleClearUrl);
+                    this.sampleId = null;
+                    this.noticeError = false;
+                    this.notice = 'Đã bỏ chỉ định bài mẫu. Tab “Bài mẫu” quay về code mẫu của câu hỏi (nếu có).';
+                } catch (e) {
+                    this.noticeError = true;
+                    this.notice = e.message;
+                } finally {
+                    this.sampleBusy = false;
+                }
+            },
         };
     }
 </script>
