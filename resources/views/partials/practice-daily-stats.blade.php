@@ -22,9 +22,10 @@
     .pds-cell{display:flex;flex-direction:column;min-width:0;min-height:0;padding:14px}
     .pds-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;margin:0;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
     @media (min-width:640px){
-        .pds-overview{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:236px}
+        .pds-overview{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:minmax(236px,auto)}
         .pds-overview>*+*{border-top:0;border-left:1px solid rgba(255,255,255,.2)}
-        .pds-cell{overflow-y:auto}
+        .pds-cell{overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
+        .pds-cell::-webkit-scrollbar{display:none}
     }
     @media (min-width:1024px){.pds-overview{flex:none;width:31rem}}
     @media (min-width:1280px){.pds-overview{width:36rem}}

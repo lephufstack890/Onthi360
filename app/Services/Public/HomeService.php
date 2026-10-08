@@ -300,32 +300,16 @@ class HomeService
 
     private function topStudents(): array
     {
-        $competition = $this->competitionsRepo->query()
-            ->where('status', 'published')
-            ->withCount('leaderboardEntries')
-            ->having('leaderboard_entries_count', '>', 0)
-            ->latest('publish_result_at')
-            ->first();
+        // SỬA 8/10 (khách: "Top xuất sắc ngoài trang chủ chỉ hiển thị 5 bạn từ hạng 1 đến hạng 5"): lấy thẳng
+        // top 5 bảng Toàn thời gian của trang Bảng xếp hạng (tên thật) thay cho bảng của 1 cuộc thi như trước.
+        try {
+            return app(LeaderboardService::class)->topStudents(5);
+        } catch (\Throwable $e) {
+            // Khối phụ ở trang chủ — lỗi truy vấn không được làm hỏng cả trang.
+            report($e);
 
-        if ($competition === null) {
             return ['title' => null, 'rows' => []];
         }
-
-        $rows = $this->leaderboardEntries->entriesForCompetition($competition->id)
-            ->take(5)
-            ->map(fn ($e) => [
-                'rank' => (int) $e->rank,
-                'name' => 'Học viên đã xác thực',
-                'score' => (float) $e->score,
-                // SỬA 12/9 — source mới thêm ảnh đại diện vào từng dòng xếp hạng. Tên vẫn ẩn
-                // danh (bảo vệ dữ liệu học sinh) nên ảnh dùng bộ avatar trung tính của bản mẫu,
-                // xoay theo thứ hạng để mỗi hạng luôn ra cùng một ảnh.
-                'avatar' => asset('assets/rank-avatar-'.((max(1, (int) $e->rank) - 1) % 5 + 1).'.png'),
-            ])
-            ->values()
-            ->all();
-
-        return ['title' => $competition->title, 'rows' => $rows];
     }
 
     /**

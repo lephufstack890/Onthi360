@@ -126,6 +126,28 @@ class LeaderboardService
         ];
     }
 
+    /**
+     * SỬA 8/10 — khối "Top xuất sắc" ở trang chủ: đúng 5 học sinh hạng 1 → 5 của bảng Toàn thời gian
+     * (cùng nguồn + cùng cache với trang Bảng xếp hạng nên hai nơi luôn khớp nhau), hiện tên thật.
+     *
+     * @return array{title: ?string, rows: array<int, array{rank:int, name:string, score:float, avatar:string}>}
+     */
+    public function topStudents(int $limit = 5): array
+    {
+        $rows = array_slice($this->globalScope(self::SCOPE_ALL, null)['rows'], 0, $limit);
+
+        return [
+            'title' => $rows === [] ? null : 'Toàn thời gian · Top '.count($rows),
+            'rows' => array_map(fn (array $r) => [
+                'rank' => (int) $r['rank'],
+                'name' => (string) $r['name'],
+                'score' => (float) $r['score'],
+                // Ảnh đại diện trung tính của bộ giao diện, xoay theo hạng (hệ thống chưa có URL ảnh học sinh).
+                'avatar' => asset('assets/rank-avatar-'.((max(1, (int) $r['rank']) - 1) % 5 + 1).'.png'),
+            ], $rows),
+        ];
+    }
+
     // ─────────────────────────── Toàn thời gian / Tháng này ───────────────────────────
 
     private function globalScope(string $scope, ?User $viewer): array
