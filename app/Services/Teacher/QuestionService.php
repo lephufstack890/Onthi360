@@ -32,7 +32,7 @@ use Illuminate\Validation\ValidationException;
 class QuestionService
 {
     /** Giới hạn hiển thị/trang — đủ lớn để "Tất cả" thực sự hiện hết trong đa số trường hợp thực tế. */
-    private const LIST_LIMIT = 200;
+    private const LIST_LIMIT = 500; // SỬA 8/10: 200 -> 500 để giao diện chia trang 10 dòng/trang có đủ dữ liệu (logic lọc không đổi).
 
     /**
      * SỬA 18/9 — nhãn trạng thái cho dropdown BỘ LỌC (giống Admin\ContentService::
@@ -92,9 +92,9 @@ class QuestionService
         ];
 
         $tabs = [
-            ['label' => 'Câu hỏi đã dùng trong đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
-            ['label' => 'Câu hỏi chưa dùng trong đề', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
-            ['label' => 'Đề/bộ bài', 'href' => route('teacher.questions.index', ['tab' => 'assessments']), 'active' => $activeTab === 'assessments', 'count' => $paperCount],
+            ['label' => 'Bài của đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
+            ['label' => 'Bài chung', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
+            ['label' => 'Đề thi', 'href' => route('teacher.questions.index', ['tab' => 'assessments']), 'active' => $activeTab === 'assessments', 'count' => $paperCount],
             ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', ['tab' => 'shared']), 'active' => $isShared, 'count' => $counts['shared']],
         ];
 

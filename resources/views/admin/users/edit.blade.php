@@ -9,16 +9,29 @@
         $provinceOptions = \App\Support\VietnamProvinces::options();
     @endphp
 
-    <a href="{{ route('admin.users.show', $userModel->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
+    {{-- SỬA 8/10 — đổi giao diện theo source mới (AdminUsers.jsx); tên field, route, validation, ô "lý do tạm khóa" giữ nguyên. --}}
+    @include('partials.admin-users-ui')
 
-    <x-ws.page-header title="Sửa người dùng" icon="pencil" :subtitle="$userModel->name" />
+    <div class="acx-wrap">
+    <a href="{{ route('admin.users.show', $userModel->id) }}" class="acx-back">‹ Quay lại chi tiết</a>
+
+    <div class="acx-head">
+        <div class="acx-head__id">
+            <x-ws.avatar :name="$userModel->name" size="lg" />
+            <div style="min-width:0">
+                <h1>Sửa người dùng</h1>
+                <div class="acx-head__meta"><span>{{ $userModel->name }}</span></div>
+            </div>
+        </div>
+    </div>
 
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6" x-data="{ status: '{{ old('status', $userModel->status) }}' }">
-        <form method="POST" action="{{ route('admin.users.update', $userModel->id) }}" class="space-y-4">
+    <div class="acx-card acx-card--white" x-data="{ status: '{{ old('status', $userModel->status) }}' }">
+        <h2><x-lucide name="pen-line" /> Thông tin tài khoản</h2>
+        <form method="POST" action="{{ route('admin.users.update', $userModel->id) }}" class="acx-form">
             @csrf
             @method('PUT')
             <div>
@@ -75,10 +88,14 @@
                           class="admin-input">{{ old('reason') }}</textarea>
             </div>
 
-            <div class="flex gap-3 pt-2">
-                <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>
-                <a href="{{ route('admin.users.show', $userModel->id) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
+            <div class="acx-footer">
+                <small>Kiểm tra lại thông tin trước khi lưu.</small>
+                <div class="acx-footer__btns">
+                    <a href="{{ route('admin.users.show', $userModel->id) }}" class="acx-btn">Huỷ</a>
+                    <button type="submit" class="acx-btn acx-btn--primary">Lưu thay đổi</button>
+                </div>
             </div>
         </form>
+    </div>
     </div>
 @endsection

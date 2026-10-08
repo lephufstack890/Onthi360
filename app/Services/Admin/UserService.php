@@ -128,7 +128,8 @@ class UserService
         }
 
         $total = (clone $query)->count();
-        $users = $query->latest()->limit(50)->get()->map(fn ($u) => $this->presentUser($u))->all();
+        // SỬA 8/10: nâng trần 50 -> 500 để giao diện tìm/lọc/chia trang 10 người/trang chạy trên đủ danh sách (logic lọc/sắp xếp không đổi).
+        $users = $query->latest()->limit(500)->get()->map(fn ($u) => $this->presentUser($u))->all();
 
         return ['tab' => $tab, 'tabs' => $tabs, 'users' => $users, 'total' => $total];
     }

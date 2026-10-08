@@ -89,9 +89,12 @@
             l: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
             r: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
         };
+        var registry = {};
+        // Gọi lại sau khi trang đổi tập dòng (vd. tìm/lọc phía trình duyệt): dựng lại danh sách mục và về trang 1.
+        window.akxRepage = function (name) { if (registry[name]) registry[name](); };
         Array.prototype.forEach.call(document.querySelectorAll('[data-pg]'), function (box) {
             var nav = document.querySelector('[data-pg-nav="' + box.dataset.pg + '"]');
-            var items = Array.prototype.slice.call(box.querySelectorAll('[data-pg-item]'));
+            var items = [];
             var unit = box.dataset.unit || 'kết quả';
             var page = 1;
             if (!nav) return;
@@ -103,6 +106,7 @@
                 return b;
             }
             function render() {
+                items = Array.prototype.slice.call(box.querySelectorAll('[data-pg-item]'));
                 var pages = Math.max(1, Math.ceil(items.length / SIZE));
                 page = Math.min(Math.max(1, page), pages);
                 var from = (page - 1) * SIZE;
@@ -124,6 +128,7 @@
                 nav.appendChild(info); nav.appendChild(wrap);
                 nav.hidden = items.length === 0;
             }
+            registry[box.dataset.pg] = function () { page = 1; render(); };
             render();
         });
     });
