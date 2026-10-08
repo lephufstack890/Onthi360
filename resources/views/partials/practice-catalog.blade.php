@@ -76,6 +76,22 @@
         .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 124px 132px; }
         .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 190px 132px; }
     }
+
+    /* SỬA 8/10 — nút sắp xếp ở đầu cột (PracticeSortButton của source mới). */
+    .oi-sort-btn { display: inline-flex; align-items: center; gap: .375rem; padding: 0; margin: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; transition: color .15s; }
+    .oi-sort-btn:hover, .oi-sort-btn:focus-visible { color: #126F91; outline: none; }
+    .oi-sort-btn > svg { flex: none; width: .875rem; height: .875rem; color: #8BA0AF; }
+    .oi-sort-btn.is-active > svg { color: #126F91; }
+    .oi-sort-btn--compact { gap: .25rem; padding: .375rem .5rem; border: 1px solid #D6E3EF; border-radius: .5rem; background: #EEF4FA; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #365B7A; }
+    .oi-sort-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; padding: .5rem .75rem; border: 1px solid #DDEAF0; border-radius: .75rem; background: #fff; }
+    .oi-sort-bar > span { font-size: 11px; font-weight: 700; color: #45657D; }
+    .oi-sort-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; }
+    @media (min-width: 1024px) { .oi-sort-bar { display: none; } }
+
+    /* SỬA 8/10 — nhãn "dạng bài" nằm sát bên "Mã: …" (source mới). */
+    .oi-code-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; row-gap: .25rem; margin-top: .25rem; font-size: 11px; color: #6B8295; }
+    .oi-code-line .oi-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .oi-type-chip { display: inline-flex; flex: none; align-items: center; white-space: nowrap; padding: .125rem .375rem; border-radius: .375rem; background: #EEF4FA; font-size: 10px; font-weight: 600; color: #365B7A; }
 </style>
 
 {{-- Bù các class Tailwind tuỳ ý MỚI chưa có trong bản CSS đã build (xem đầu tệp partial). --}}
@@ -143,6 +159,11 @@
             'difficulty' => $p['difficulty'],
             'status' => $p['status'],
             'search' => mb_strtolower(trim($p['title'].' '.$p['code'])),
+            // SỬA 8/10 — dữ liệu để sắp xếp bảng theo Chuyên đề / Độ khó / Tỷ lệ AC.
+            'titleText' => (string) $p['title'],
+            'topicLabel' => (string) ($p['topicLabel'] ?? ''),
+            'difficultyLevel' => (int) ($p['difficultyLevel'] ?? 0),
+            'acRate' => (float) ($p['acRate'] ?? 0),
             // SỬA 7/10 — phục vụ 2 tab "Tất cả" / "Bài được giao".
             'inCatalog' => (bool) ($p['inCatalog'] ?? true),
             'assigned' => ($p['assignment'] ?? null) !== null,
@@ -405,15 +426,18 @@
             </div>
         @endauth
 
+        {{-- SỬA 8/10 — thanh sắp xếp cho mobile (lg:hidden), như "Sắp xếp danh sách" của PracticePage.jsx. --}}
+        <div class="oi-sort-bar"><span>Sắp xếp danh sách</span><div><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></div></div>
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
             <div :class="problemScope === 'assigned' ? 'oi-prob-grid--asg' : ''" class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }}">
                 <span>Tên bài tập &amp; Mã</span>
-                <span>Chuyên đề</span>
+                <button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button>
                 @if ($showProblemProvinceAuthor)<span>Tỉnh thành</span>@endif
                 <span>Năm</span>
                 @if ($showProblemProvinceAuthor)<span class="oi-prob-author">Tác giả</span>@endif
-                <span>Độ khó</span>
-                <span x-text="problemScope === 'assigned' ? 'Kết quả / Chú ý' : 'Tỷ lệ AC'">Tỷ lệ AC</span>
+                <button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button>
+                <span x-show="problemScope === 'assigned'" x-cloak>Kết quả / Chú ý</span>
+                <span x-show="problemScope !== 'assigned'"><button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></span>
                 <span class="text-right">Hành động</span>
             </div>
 
@@ -498,12 +522,9 @@
                                     <x-lucide name="clipboard-list" class="h-3 w-3" />Nhật ký nộp bài
                                 </a>
                             @endauth
-                            <span class="inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-1 text-[10px] font-bold text-[#365B7A] shadow-[0_2px_6px_rgba(18,59,104,0.08)]">
-                                <x-lucide name="clipboard-list" class="h-3 w-3" />{{ $prob['typeLabel'] }}
-                            </span>
                             <span class="flex min-w-0 items-center gap-1 truncate">
                                 <x-lucide name="sparkles" class="h-3 w-3 shrink-0 text-[#3B9374]" />
-                                <span class="truncate">Nguồn: {{ $prob['subjectLabel'] ?: 'Kho luyện tập Ôn Thi 360' }}</span>
+                                <span class="truncate">Nguồn: Kho {{ $prob['subjectLabel'] ?: 'Kho luyện tập Ôn Thi 360' }}</span>
                             </span>
                             @if ($asg)
                                 <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-meta" style="margin-top:0" title="Giao bởi {{ $asg['teacher'] }}">
@@ -513,10 +534,11 @@
                             @endif
                         </p>
 
-                        <div class="mt-1 flex items-center gap-2 font-mono text-[11px] text-[#6B8295]">
-                            <span>Mã: {{ $prob['code'] }}</span>
-                            <span>•</span>
-                            <span>{{ $prob['timeLimit'] }} / {{ $prob['memoryLimit'] }}</span>
+                        {{-- SỬA 8/10 (khách: "dạng bài cho sát bên mã") — nhãn dạng bài đứng ngay sau "Mã: …" như source mới. --}}
+                        <div class="oi-code-line">
+                            <span class="oi-mono">Mã: {{ $prob['code'] }}</span>
+                            <span class="oi-type-chip" aria-label="Dạng bài: {{ $prob['typeLabel'] }}">{{ $prob['typeLabel'] }}</span>
+                            <span class="oi-mono" style="display:inline-flex;align-items:center;gap:.5rem"><span aria-hidden="true">•</span><span>{{ $prob['timeLimit'] }} / {{ $prob['memoryLimit'] }}</span></span>
                         </div>
                     </div>
 

@@ -36,6 +36,9 @@
             selectedExamType: 'all',
             // SỬA 2/10 — ô sắp xếp đề của bản mẫu mới: 'default' | 'attempts' | 'newest'.
             examSort: 'default',
+            // SỬA 8/10 — sắp xếp bảng bài tập theo Chuyên đề / Độ khó / Tỷ lệ AC như PracticeSortButton
+            // của source mới: key rỗng = giữ thứ tự máy chủ; bấm lần 1 = tăng (Tỷ lệ AC thì giảm), bấm lại = đảo chiều.
+            problemSort: { key: null, direction: 'asc' },
             searchQuery: '',
             problemPageIndex: 1,
             examPageIndex: 1,
@@ -165,6 +168,15 @@
                 }
             },
 
+            toggleProblemSort(key) {
+                if (this.problemSort.key === key) {
+                    this.problemSort = { key, direction: this.problemSort.direction === 'asc' ? 'desc' : 'asc' };
+                } else {
+                    this.problemSort = { key, direction: key === 'acRate' ? 'desc' : 'asc' };
+                }
+                this.problemPageIndex = 1;
+            },
+
             setTab(v) { this.activeTab = v; this.problemPageIndex = 1; },
             setTopic(v) { this.selectedTopic = v; this.problemPageIndex = 1; },
             setDifficulty(v) { this.selectedDifficulty = v; this.problemPageIndex = 1; },
@@ -203,11 +215,21 @@
                 });
 
                 // Bài được giao: hạn gần nhất lên trước (bản sao mảng — không sort tại chỗ).
-                if (assignedView) {
-                    return [...list].sort((a, b) => (a.deadlineTs || 0) - (b.deadlineTs || 0));
-                }
+                const base = assignedView
+                    ? [...list].sort((a, b) => (a.deadlineTs || 0) - (b.deadlineTs || 0))
+                    : list;
 
-                return list;
+                // Sắp xếp theo cột người dùng bấm (cùng cách so sánh với PracticePage.jsx của source mới).
+                const key = this.problemSort.key;
+                if (!key) { return base; }
+                const dir = this.problemSort.direction === 'asc' ? 1 : -1;
+                return [...base].sort((a, b) => {
+                    let result = 0;
+                    if (key === 'topic') { result = String(a.topicLabel).localeCompare(String(b.topicLabel), 'vi'); }
+                    if (key === 'difficulty') { result = (a.difficultyLevel || 0) - (b.difficultyLevel || 0); }
+                    if (key === 'acRate') { result = (parseFloat(a.acRate) || 0) - (parseFloat(b.acRate) || 0); }
+                    return (result * dir) || String(a.titleText).localeCompare(String(b.titleText), 'vi');
+                });
             },
 
             get filteredExams() {
