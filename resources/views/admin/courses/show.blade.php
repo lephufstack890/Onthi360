@@ -13,9 +13,20 @@
         ];
         $statusValue = $course->status->value ?? (string) $course->status;
         $meta = $statusMeta[$statusValue] ?? ['label' => $statusValue, 'tone' => 'neutral'];
+        $badgeClass = match ($meta['tone']) {
+            'success' => 'acx-badge--ok',
+            'warning' => 'acx-badge--warn',
+            default => '',
+        };
+        $coverUrl = $course->coverUrl();
     @endphp
 
-    <a href="{{ route('admin.courses.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Khóa & Lớp</a>
+    {{--
+      SỬA 8/10 (khách: "cập nhật UI màn khóa và lớp theo source mới, logic giữ nguyên") — trang chi tiết
+      khóa theo phong cách AdminCourses.jsx (tiêu đề + huy hiệu, chỉ số tự tính, thẻ nền xanh nhạt, danh
+      sách lớp dạng nút có mũi tên). Mọi biến, route, đối chiếu số buổi (A10) GIỮ NGUYÊN như bản cũ.
+    --}}
+    @include('partials.admin-courses-ui')
 
     @php
         $courseStatusMessage = match (session('status')) {
@@ -30,130 +41,120 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => $courseStatusMessage])
     @endif
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-start justify-between gap-4 flex-wrap">
-        <div class="flex items-start gap-4">
-            <x-ws.icon-tile emoji="🏫" tone="rose" />
-            <div>
-                <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $course->title }}</h1>
-                    <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>
-                </div>
-                <p class="text-[13px] text-slate-500">
-                    @if ($course->subject) {{ $course->subject }} @endif
-                    @if ($course->grade) · {{ $course->grade }} @endif
-                    · Tạo bởi {{ $course->creator->name ?? 'Không rõ' }} · {{ $course->created_at?->format('d/m/Y') }}
-                </p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-            <a href="{{ route('admin.courses.edit', $course->id) }}"
-               class="px-4 py-2 rounded-xl border border-sky-100 bg-white text-slate-600 text-[13px] font-medium hover:border-blue-200 hover:text-blue-600 transition">
-                ✏️ Sửa
-            </a>
-            <a href="{{ route('courses.show', $course->slug) }}" target="_blank" rel="noopener"
-               class="px-4 py-2 rounded-xl border border-sky-100 bg-white text-slate-600 text-[13px] font-medium hover:border-blue-200 hover:text-blue-600 transition">
-                🔗 Xem trang công khai
-            </a>
-        </div>
-    </div>
+    <div class="acx-wrap">
+        <a href="{{ route('admin.courses.index') }}" class="acx-back">‹ Quay lại Khóa & Lớp</a>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <x-ws.stat label="Lớp đang triển khai" :value="$classRooms->count()" tone="info" />
-        <x-ws.stat label="Tổng học sinh" :value="$totalStudents" tone="success" />
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-5">
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="pen-line" class="h-4 w-4" /></span> Mô tả khóa học</h2>
-                @if ($course->description)
-                    <div class="rich-content text-[13px] text-slate-600 leading-relaxed">{!! $course->description !!}</div>
+        <div class="acx-head">
+            <div class="acx-head__id">
+                @if ($coverUrl)
+                    <img class="acx-head__thumb" src="{{ $coverUrl }}" alt="">
                 @else
-                    <p class="text-[13px] text-slate-400">Chưa có mô tả.</p>
+                    <span class="acx-avatar"><x-lucide name="book-open" /></span>
                 @endif
-            </div>
-
-            {{-- SỬA 1/10 — trang chi tiết phải xem được CẢ hai trường, nếu không sửa xong không
-                 có chỗ nào kiểm lại bài giới thiệu vừa soạn. --}}
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="pen-line" class="h-4 w-4" /></span> Giới thiệu khóa học</h2>
-                @if (\App\Models\Course::hasContent($course->intro))
-                    <div class="rich-content text-[13px] text-slate-600 leading-relaxed">{!! $course->intro !!}</div>
-                @else
-                    <p class="text-[13px] text-slate-400">Chưa có bài giới thiệu — trang công khai đang hiện lại phần Mô tả ở trên.</p>
-                @endif
-            </div>
-
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="graduation-cap" class="h-4 w-4" /></span> Lớp thuộc khóa này</h2>
-                    <a href="{{ route('admin.courses.classes.create', $course->id) }}" class="text-xs font-bold text-blue-600 hover:underline">+ Tạo lớp</a>
+                <div style="min-width:0">
+                    <h1>{{ $course->title }}</h1>
+                    <div class="acx-head__meta">
+                        <span class="acx-badge {{ $badgeClass }}">{{ $meta['label'] }}</span>
+                        <span>
+                            @if ($course->subject) {{ $course->subject }} @endif
+                            @if ($course->grade) · {{ $course->grade }} @endif
+                            · Tạo bởi {{ $course->creator->name ?? 'Không rõ' }} · {{ $course->created_at?->format('d/m/Y') }}
+                        </span>
+                    </div>
                 </div>
-                <div class="space-y-2">
-                    @forelse ($classRooms as $c)
-                        <a href="{{ route('admin.classes.edit', $c['id']) }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
-                            <x-ws.icon-tile emoji="🏫" tone="sky" />
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-medium text-slate-700">{{ $c['name'] }} <span class="text-slate-400 font-normal">({{ $c['code'] }})</span></p>
-                                <p class="text-xs text-slate-400">{{ $c['teacher'] ? 'GV '.$c['teacher'] : 'Chưa phân công giáo viên' }} · {{ $c['students'] }} học sinh</p>
-
-                                {{-- SỬA 15/9 (A10) — đối chiếu số buổi ĐÃ XẾP LỊCH của lớp với số buổi
-                                     THEO CHƯƠNG TRÌNH của khoá. Lệch thì báo ngay tại đây, thay vì đợi
-                                     học sinh kêu thiếu buổi. --}}
-                                @php
-                                    $designed = (int) ($designedSessions ?? 0);
-                                    // SỬA 30/9 — khoá ghi số buổi theo khoảng thì in "33-50"; đối chiếu vẫn theo cận dưới.
-                                    $designedLabel = ($designedSessionsLabel ?? '') !== '' ? $designedSessionsLabel : (string) $designed;
-                                    $scheduled = (int) ($c['scheduledSessions'] ?? 0);
-                                @endphp
-                                @if ($designed > 0)
-                                    <p class="mt-1 inline-flex items-center gap-1 text-[11px] font-bold
-                                              {{ $scheduled >= $designed ? 'text-emerald-600' : 'text-amber-600' }}">
-                                        <x-lucide name="calendar-days" class="h-3 w-3" />
-                                        Đã xếp {{ $scheduled }}/{{ $designedLabel }} buổi
-                                        @if ($scheduled < $designed)
-                                            · còn thiếu {{ $designed - $scheduled }}
-                                        @endif
-                                    </p>
-                                @elseif ($scheduled > 0)
-                                    <p class="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-400">
-                                        <x-lucide name="calendar-days" class="h-3 w-3" />Đã xếp {{ $scheduled }} buổi
-                                    </p>
-                                @endif
-                            </div>
-                            <x-ws.badge :tone="$c['status'] === 'active' ? 'success' : 'neutral'">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</x-ws.badge>
-                        </a>
-                    @empty
-                        <x-ws.empty-state title="Chưa có lớp nào thuộc khóa này" description="Bấm '+ Tạo lớp' để mở lớp đầu tiên, hoặc giáo viên đã được duyệt có thể tự tạo lớp và chọn khóa học này (3.3, 8.1)." />
-                    @endforelse
-                </div>
+            </div>
+            <div class="acx-head__actions">
+                <a href="{{ route('admin.courses.edit', $course->id) }}" class="acx-btn">
+                    <x-lucide name="pen-line" /> Sửa
+                </a>
+                <a href="{{ route('courses.show', $course->slug) }}" target="_blank" rel="noopener" class="acx-btn">
+                    <x-lucide name="external-link" /> Xem trang công khai
+                </a>
             </div>
         </div>
 
-        <div class="bg-white rounded-3xl border border-sky-100 p-5 space-y-4">
-            <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="info" class="h-4 w-4" /></span> Thông tin khóa học</h3>
-            <div class="text-[13px] space-y-3">
-                <div>
-                    <p class="text-slate-400 text-xs">Môn học</p>
-                    <p class="text-slate-700">{{ $course->subject ?: '— Không chỉ định —' }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-400 text-xs">Khối lớp</p>
-                    <p class="text-slate-700">{{ $course->grade ?: '— Không chỉ định —' }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-400 text-xs">Đường dẫn công khai</p>
-                    <p class="text-slate-700 break-all">/khoa-hoc/{{ $course->slug }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-400 text-xs">Người tạo</p>
-                    <p class="text-slate-700">{{ $course->creator->name ?? 'Không rõ' }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-400 text-xs">Ngày tạo</p>
-                    <p class="text-slate-700">{{ $course->created_at?->format('d/m/Y H:i') }}</p>
-                </div>
+        <div class="acx-stats">
+            <div class="acx-stat"><p>Lớp đang triển khai</p><strong>{{ $classRooms->count() }}</strong></div>
+            <div class="acx-stat"><p>Tổng học sinh</p><strong>{{ $totalStudents }}</strong></div>
+        </div>
+
+        <div class="acx-grid acx-grid--main">
+            <div class="acx-stack">
+                <section class="acx-card acx-card--white">
+                    <h2><x-lucide name="pen-line" /> Mô tả khóa học</h2>
+                    @if ($course->description)
+                        <div class="rich-content acx-rich">{!! $course->description !!}</div>
+                    @else
+                        <p class="acx-note">Chưa có mô tả.</p>
+                    @endif
+                </section>
+
+                {{-- SỬA 1/10 — trang chi tiết phải xem được CẢ hai trường, nếu không sửa xong không
+                     có chỗ nào kiểm lại bài giới thiệu vừa soạn. --}}
+                <section class="acx-card acx-card--white">
+                    <h2><x-lucide name="pen-line" /> Giới thiệu khóa học</h2>
+                    @if (\App\Models\Course::hasContent($course->intro))
+                        <div class="rich-content acx-rich">{!! $course->intro !!}</div>
+                    @else
+                        <p class="acx-note">Chưa có bài giới thiệu — trang công khai đang hiện lại phần Mô tả ở trên.</p>
+                    @endif
+                </section>
+
+                <section class="acx-card acx-card--white">
+                    <div class="acx-cardtop">
+                        <h2><x-lucide name="graduation-cap" /> Lớp thuộc khóa này</h2>
+                        <a href="{{ route('admin.courses.classes.create', $course->id) }}" class="acx-btn acx-btn--sm"><x-lucide name="plus" /> Tạo lớp</a>
+                    </div>
+                    <div class="acx-child">
+                        @forelse ($classRooms as $c)
+                            <a href="{{ route('admin.classes.edit', $c['id']) }}">
+                                <span>
+                                    <strong>{{ $c['name'] }} <span style="font-weight:400;color:#8aa0b6">({{ $c['code'] }})</span></strong>
+                                    <small>{{ $c['teacher'] ? 'GV '.$c['teacher'] : 'Chưa phân công giáo viên' }} · {{ $c['students'] }} học sinh</small>
+
+                                    {{-- SỬA 15/9 (A10) — đối chiếu số buổi ĐÃ XẾP LỊCH của lớp với số buổi
+                                         THEO CHƯƠNG TRÌNH của khoá. Lệch thì báo ngay tại đây, thay vì đợi
+                                         học sinh kêu thiếu buổi. --}}
+                                    @php
+                                        $designed = (int) ($designedSessions ?? 0);
+                                        // SỬA 30/9 — khoá ghi số buổi theo khoảng thì in "33-50"; đối chiếu vẫn theo cận dưới.
+                                        $designedLabel = ($designedSessionsLabel ?? '') !== '' ? $designedSessionsLabel : (string) $designed;
+                                        $scheduled = (int) ($c['scheduledSessions'] ?? 0);
+                                    @endphp
+                                    @if ($designed > 0)
+                                        <small class="{{ $scheduled >= $designed ? 'acx-ok' : 'acx-warn' }}">
+                                            Đã xếp {{ $scheduled }}/{{ $designedLabel }} buổi
+                                            @if ($scheduled < $designed)
+                                                · còn thiếu {{ $designed - $scheduled }}
+                                            @endif
+                                        </small>
+                                    @elseif ($scheduled > 0)
+                                        <small>Đã xếp {{ $scheduled }} buổi</small>
+                                    @endif
+                                </span>
+                                <span class="acx-badge {{ $c['status'] === 'active' ? 'acx-badge--ok' : '' }}">{{ $c['status'] === 'active' ? 'Đang học' : 'Lưu trữ' }}</span>
+                                <x-lucide name="chevron-right" class="acx-go" />
+                            </a>
+                        @empty
+                            <x-ws.empty-state title="Chưa có lớp nào thuộc khóa này" description="Bấm '+ Tạo lớp' để mở lớp đầu tiên, hoặc giáo viên đã được duyệt có thể tự tạo lớp và chọn khóa học này (3.3, 8.1)." />
+                        @endforelse
+                    </div>
+                </section>
             </div>
+
+            <aside class="acx-card acx-card--mint">
+                @if ($coverUrl)
+                    <img class="acx-cover" src="{{ $coverUrl }}" alt="Ảnh đại diện khóa học">
+                @endif
+                <h3><x-lucide name="info" /> Thông tin khóa học</h3>
+                <dl class="acx-dl">
+                    <div><dt>Môn học</dt><dd>{{ $course->subject ?: '— Không chỉ định —' }}</dd></div>
+                    <div><dt>Khối lớp</dt><dd>{{ $course->grade ?: '— Không chỉ định —' }}</dd></div>
+                    <div><dt>Đường dẫn công khai</dt><dd>/khoa-hoc/{{ $course->slug }}</dd></div>
+                    <div><dt>Người tạo</dt><dd>{{ $course->creator->name ?? 'Không rõ' }}</dd></div>
+                    <div><dt>Ngày tạo</dt><dd>{{ $course->created_at?->format('d/m/Y H:i') }}</dd></div>
+                </dl>
+            </aside>
         </div>
     </div>
 @endsection

@@ -9,13 +9,19 @@
         $statuses = $statuses ?? [];
     @endphp
 
-    <a href="{{ route('admin.courses.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Khóa & Lớp</a>
+    {{-- SỬA 8/10 — đổi giao diện theo source mới (AdminCourses.jsx); tên field, route, validation giữ nguyên. --}}
+    @include('partials.admin-courses-ui')
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-center gap-4 flex-wrap">
-        <x-ws.icon-tile emoji="🏫" tone="rose" />
-        <div>
-            <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Tạo khóa học mới</h1>
-            <p class="text-[13px] text-slate-500 mt-1">Khóa học là "khung" nội dung — lớp học (lịch, giáo viên, học sinh) sẽ được tạo riêng và gắn vào khóa này sau (8.1).</p>
+    <div class="acx-wrap">
+    <a href="{{ route('admin.courses.index') }}" class="acx-back">‹ Quay lại Khóa & Lớp</a>
+
+    <div class="acx-head">
+        <div class="acx-head__id">
+            <span class="acx-avatar"><x-lucide name="book-open" /></span>
+            <div>
+                <h1>Tạo khóa học mới</h1>
+                <div class="acx-head__meta"><span>Khóa học là "khung" nội dung — lớp học (lịch, giáo viên, học sinh) sẽ được tạo riêng và gắn vào khóa này sau (8.1).</span></div>
+            </div>
         </div>
     </div>
 
@@ -23,9 +29,10 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-            <form method="POST" action="{{ route('admin.courses.store') }}" enctype="multipart/form-data" class="space-y-4">
+    <div class="acx-grid acx-grid--main">
+        <div class="acx-card acx-card--white">
+            <h2><x-lucide name="book-open" /> Thông tin khóa học</h2>
+            <form method="POST" action="{{ route('admin.courses.store') }}" enctype="multipart/form-data" class="acx-form">
                 @csrf
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên khóa học</label>
@@ -84,28 +91,34 @@
                     </x-ws.select>
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo khóa học</button>
-                    <a href="{{ route('admin.courses.index') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
+                <div class="acx-footer">
+                    <small>Thông tin có thể chỉnh lại sau khi tạo.</small>
+                    <div class="acx-footer__btns">
+                        <a href="{{ route('admin.courses.index') }}" class="acx-btn">Huỷ</a>
+                        <button type="submit" class="acx-btn acx-btn--primary">Tạo khóa học</button>
+                    </div>
                 </div>
             </form>
         </div>
 
-        <div class="bg-white rounded-3xl border border-sky-100 p-6 space-y-4">
-            <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="sparkles" class="h-4 w-4" /></span> Cần biết</h3>
+        <div class="acx-card acx-card--mint">
+            <h3><x-lucide name="sparkles" /> Cần biết</h3>
+            <div class="acx-tips">
             <div class="flex items-start gap-3">
                 <x-ws.icon-tile emoji="🧭" tone="sky" />
-                <p class="text-[13px] text-slate-500">Khóa học chỉ là khung nội dung — sau khi tạo, giáo viên (đã được duyệt) sẽ tạo lớp thuộc khóa này để dạy thật (3.3, 8.1).</p>
+                <p style="margin:0">Khóa học chỉ là khung nội dung — sau khi tạo, giáo viên (đã được duyệt) sẽ tạo lớp thuộc khóa này để dạy thật (3.3, 8.1).</p>
             </div>
             <div class="flex items-start gap-3">
                 <x-ws.icon-tile emoji="📝" tone="violet" />
-                <p class="text-[13px] text-slate-500">Đường dẫn (slug) hiển thị công khai được tự sinh từ tên khóa học, không cần tự nhập.</p>
+                <p style="margin:0">Đường dẫn (slug) hiển thị công khai được tự sinh từ tên khóa học, không cần tự nhập.</p>
             </div>
             <div class="flex items-start gap-3">
                 <x-ws.icon-tile emoji="👁️" tone="amber" />
-                <p class="text-[13px] text-slate-500">Chọn "Bản nháp" nếu chưa muốn hiển thị công khai — có thể xuất bản sau khi kiểm tra lại nội dung.</p>
+                <p style="margin:0">Chọn "Bản nháp" nếu chưa muốn hiển thị công khai — có thể xuất bản sau khi kiểm tra lại nội dung.</p>
+            </div>
             </div>
         </div>
+    </div>
     </div>
 
     @push('scripts')

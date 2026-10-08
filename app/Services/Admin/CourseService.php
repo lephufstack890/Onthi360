@@ -91,6 +91,17 @@ class CourseService
                     'id' => $c->id,
                     'name' => $c->name.' ('.($c->course->title ?? '').')',
                     'meta' => ($teacher ? 'GV '.$teacher->name : 'Chưa phân công').' · '.$c->students_count.' học sinh',
+                    // SỬA 8/10 (đổi UI theo source mới) — CHỈ THÊM các khoá hiển thị cho bảng mới
+                    // (ô định danh tên/mã/khóa, giáo viên, lịch, ảnh nhỏ); các khoá cũ ở trên và
+                    // mọi truy vấn giữ nguyên. Dữ liệu lấy từ quan hệ đã nạp sẵn nên không thêm truy vấn.
+                    'title' => $c->name,
+                    'code' => $c->code,
+                    'course' => $c->course->title ?? '',
+                    'teacher' => $teacher?->name,
+                    'students' => (int) $c->students_count,
+                    'schedule' => $c->schedule['note'] ?? null,
+                    'thumb' => $c->course?->coverUrl(),
+                    'statusRaw' => (string) $c->status,
                     'status' => $c->status === 'active' ? 'Đang học' : (string) $c->status,
                     'tone' => $c->status === 'active' ? 'success' : 'neutral',
                     // SỬA 7/10 — nút Xoá trên từng dòng; tên đi theo data-* để hộp xác nhận nói rõ xoá cái gì.
@@ -103,6 +114,12 @@ class CourseService
                 'id' => $c->id,
                 'name' => $c->title,
                 'meta' => $c->class_rooms_count.' lớp đang triển khai',
+                // SỬA 8/10 — khoá hiển thị cho bảng mới, xem ghi chú ở nhánh Lớp học.
+                'title' => $c->title,
+                'sub' => trim(($c->subject ?: '').($c->subject && $c->grade ? ' · ' : '').($c->grade ?: '')),
+                'classes' => (int) $c->class_rooms_count,
+                'thumb' => $c->coverUrl(),
+                'statusRaw' => (string) $c->status->value,
                 'status' => $c->status->value === 'published' ? 'Đang mở' : (string) $c->status->value,
                 'tone' => $c->status->value === 'published' ? 'success' : 'neutral',
                 // SỬA 7/10 — nút Xoá trên từng dòng, xem ghi chú ở nhánh Lớp học phía trên.

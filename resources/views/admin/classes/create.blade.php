@@ -6,13 +6,19 @@
 @section('content')
     @php $teachers = $teachers ?? []; @endphp
 
-    <a href="{{ route('admin.courses.show', $course->id) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại {{ $course->title }}</a>
+    {{-- SỬA 8/10 — đổi giao diện theo source mới (AdminCourses.jsx); tên field, route, validation giữ nguyên. --}}
+    @include('partials.admin-courses-ui')
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-center gap-4 flex-wrap">
-        <x-ws.icon-tile emoji="🏫" tone="sky" />
-        <div>
-            <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">Tạo lớp thuộc "{{ $course->title }}"</h1>
-            <p class="text-[13px] text-slate-500 mt-1">Lớp là nơi tổ chức lịch, giáo viên và học sinh thật — khóa học chỉ là khung nội dung (8.1).</p>
+    <div class="acx-wrap">
+    <a href="{{ route('admin.courses.show', $course->id) }}" class="acx-back">‹ Quay lại {{ $course->title }}</a>
+
+    <div class="acx-head">
+        <div class="acx-head__id">
+            <span class="acx-avatar"><x-lucide name="graduation-cap" /></span>
+            <div>
+                <h1>Tạo lớp thuộc "{{ $course->title }}"</h1>
+                <div class="acx-head__meta"><span>Lớp là nơi tổ chức lịch, giáo viên và học sinh thật — khóa học chỉ là khung nội dung (8.1).</span></div>
+            </div>
         </div>
     </div>
 
@@ -20,8 +26,9 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-        <form method="POST" action="{{ route('admin.courses.classes.store', $course->id) }}" class="space-y-4">
+    <div class="acx-card acx-card--white">
+        <h2><x-lucide name="graduation-cap" /> Thông tin lớp học</h2>
+        <form method="POST" action="{{ route('admin.courses.classes.store', $course->id) }}" class="acx-form">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -66,10 +73,14 @@
                 </x-ws.select>
             </div>
 
-            <div class="flex gap-3 pt-2">
-                <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo lớp</button>
-                <a href="{{ route('admin.courses.show', $course->id) }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
+            <div class="acx-footer">
+                <small>Thông tin có thể chỉnh lại sau khi tạo lớp.</small>
+                <div class="acx-footer__btns">
+                    <a href="{{ route('admin.courses.show', $course->id) }}" class="acx-btn">Huỷ</a>
+                    <button type="submit" class="acx-btn acx-btn--primary">Tạo lớp</button>
+                </div>
             </div>
         </form>
+    </div>
     </div>
 @endsection
