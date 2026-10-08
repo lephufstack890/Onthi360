@@ -39,6 +39,8 @@
             // SỬA 8/10 — sắp xếp bảng bài tập theo Chuyên đề / Độ khó / Tỷ lệ AC như PracticeSortButton
             // của source mới: key rỗng = giữ thứ tự máy chủ; bấm lần 1 = tăng (Tỷ lệ AC thì giảm), bấm lại = đảo chiều.
             problemSort: { key: null, direction: 'asc' },
+            // SỬA 8/10 — công tắc "Chỉ hiện bài chưa làm".
+            onlyUndone: false,
             searchQuery: '',
             problemPageIndex: 1,
             examPageIndex: 1,
@@ -168,6 +170,8 @@
                 }
             },
 
+            toggleOnlyUndone() { this.onlyUndone = !this.onlyUndone; this.problemPageIndex = 1; },
+
             toggleProblemSort(key) {
                 if (this.problemSort.key === key) {
                     this.problemSort = { key, direction: this.problemSort.direction === 'asc' ? 'desc' : 'asc' };
@@ -184,6 +188,7 @@
 
             resetProblemFilters() {
                 this.problemAssignStatus = 'all';
+                this.onlyUndone = false;
                 this.activeTab = 'all';
                 this.selectedTopic = 'all';
                 this.selectedDifficulty = 'all';
@@ -211,7 +216,8 @@
                     const matchTopic = this.selectedTopic === 'all' || p.tagIds.includes(this.selectedTopic);
                     const matchDiff = this.selectedDifficulty === 'all' || p.difficulty === this.selectedDifficulty;
                     const matchSearch = !q || p.search.includes(q);
-                    return matchScope && matchAssign && matchTab && matchTopic && matchDiff && matchSearch;
+                    const matchUndone = !this.onlyUndone || !p.attempted;
+                    return matchScope && matchAssign && matchTab && matchTopic && matchDiff && matchSearch && matchUndone;
                 });
 
                 // Bài được giao: hạn gần nhất lên trước (bản sao mảng — không sort tại chỗ).
@@ -226,6 +232,13 @@
                 return [...base].sort((a, b) => {
                     let result = 0;
                     if (key === 'topic') { result = String(a.topicLabel).localeCompare(String(b.topicLabel), 'vi'); }
+                    if (key === 'year') {
+                        // Bài chưa gán năm ("—" → 0) luôn nằm cuối, dù sắp tăng hay giảm.
+                        if (!a.year && !b.year) { return String(a.titleText).localeCompare(String(b.titleText), 'vi'); }
+                        if (!a.year) { return 1; }
+                        if (!b.year) { return -1; }
+                        result = a.year - b.year;
+                    }
                     if (key === 'difficulty') { result = (a.difficultyLevel || 0) - (b.difficultyLevel || 0); }
                     if (key === 'acRate') { result = (parseFloat(a.acRate) || 0) - (parseFloat(b.acRate) || 0); }
                     return (result * dir) || String(a.titleText).localeCompare(String(b.titleText), 'vi');

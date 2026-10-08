@@ -92,6 +92,17 @@
     .oi-code-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; row-gap: .25rem; margin-top: .25rem; font-size: 11px; color: #6B8295; }
     .oi-code-line .oi-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .oi-type-chip { display: inline-flex; flex: none; align-items: center; white-space: nowrap; padding: .125rem .375rem; border-radius: .375rem; background: #EEF4FA; font-size: 10px; font-weight: 600; color: #365B7A; }
+
+    /* SỬA 8/10 — công tắc "Chỉ hiện bài chưa làm". */
+    .oi-count-wrap { display: flex; align-items: center; gap: .75rem; margin-left: auto; }
+    .oi-undone { display: inline-flex; align-items: center; gap: .5rem; min-height: 2rem; padding: .25rem .625rem .25rem .375rem; border: 1px solid #D6E3EF; border-radius: 999px; background: #F8FBFC; font: inherit; font-size: 11px; font-weight: 700; color: #45657D; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+    .oi-undone:hover { border-color: #B9CCDC; background: #EEF4FA; }
+    .oi-undone:focus-visible { outline: 2px solid #CBEAF1; outline-offset: 2px; }
+    .oi-undone-track { position: relative; flex: none; width: 2rem; height: 1.125rem; border-radius: 999px; background: #C5D3DE; transition: background .15s; }
+    .oi-undone-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(18,59,104,.3); transition: transform .15s; }
+    .oi-undone.is-on { border-color: #BFE3D3; background: #EFF9F5; color: #237052; }
+    .oi-undone.is-on .oi-undone-track { background: #2F8A6B; }
+    .oi-undone.is-on .oi-undone-knob { transform: translateX(14px); }
 </style>
 
 {{-- Bù các class Tailwind tuỳ ý MỚI chưa có trong bản CSS đã build (xem đầu tệp partial). --}}
@@ -161,6 +172,9 @@
             'search' => mb_strtolower(trim($p['title'].' '.$p['code'])),
             // SỬA 8/10 — dữ liệu để sắp xếp bảng theo Chuyên đề / Độ khó / Tỷ lệ AC.
             'titleText' => (string) $p['title'],
+            // SỬA 8/10 (khách: "nút tắt/bật chưa làm") — đã làm = có ít nhất 1 lượt nộp hoặc đã AC/đang làm dở.
+            'attempted' => ((int) ($p['userSubmissions'] ?? 0)) > 0 || ($p['status'] ?? 'todo') !== 'todo',
+            'year' => (int) preg_replace('/\D+/', '', (string) ($p['examYearLabel'] ?? '')),
             'topicLabel' => (string) ($p['topicLabel'] ?? ''),
             'difficultyLevel' => (int) ($p['difficultyLevel'] ?? 0),
             'acRate' => (float) ($p['acRate'] ?? 0),
@@ -311,9 +325,20 @@
             <div class="flex items-center justify-between gap-3 border-b border-[#E7EFF3] pb-3">
                 @include('partials.practice-scope-tabs', ['kind' => 'problem'])
 
+                {{-- SỬA 8/10 (khách: "thêm nút tắt bật chưa làm để người ta làm những bài chưa làm") — công tắc chỉ hiện bài chưa làm (chỉ hiện khi đã đăng nhập). --}}
+                <div class="oi-count-wrap">
+                @auth
+                <button type="button" role="switch" x-show="problemScope !== 'managed'" :aria-checked="onlyUndone ? 'true' : 'false'"
+                        @click="toggleOnlyUndone()" class="oi-undone" :class="{ 'is-on': onlyUndone }" title="Chỉ hiện những bài bạn chưa làm">
+                    <span class="oi-undone-track" aria-hidden="true"><span class="oi-undone-knob"></span></span>
+                    <span>Bài chưa làm</span>
+                </button>
+                @endauth
+
                 <span x-show="problemScope !== 'managed'" class="hidden text-[11px] font-medium text-[#607A90] sm:inline">
                     Hiển thị <strong x-text="filteredProblems.length"></strong> bài tập
                 </span>
+                </div>
             </div>
 
             {{-- SỬA 7/10 — chip lọc trạng thái của tab "Bài được giao". --}}
@@ -427,13 +452,13 @@
         @endauth
 
         {{-- SỬA 8/10 — thanh sắp xếp cho mobile (lg:hidden), như "Sắp xếp danh sách" của PracticePage.jsx. --}}
-        <div class="oi-sort-bar"><span>Sắp xếp danh sách</span><div><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></div></div>
+        <div class="oi-sort-bar"><span>Sắp xếp danh sách</span><div><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'year' }" :aria-pressed="problemSort.key === 'year' ? 'true' : 'false'" title="Sắp xếp theo Năm" @click="toggleProblemSort('year')"><span>Năm</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'year'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'year' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'year' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></div></div>
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
             <div :class="problemScope === 'assigned' ? 'oi-prob-grid--asg' : ''" class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }}">
                 <span>Tên bài tập &amp; Mã</span>
                 <button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button>
                 @if ($showProblemProvinceAuthor)<span>Tỉnh thành</span>@endif
-                <span>Năm</span>
+                <button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'year' }" :aria-pressed="problemSort.key === 'year' ? 'true' : 'false'" title="Sắp xếp theo Năm" @click="toggleProblemSort('year')"><span>Năm</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'year'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'year' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'year' && problemSort.direction === 'desc'" x-cloak /></button>
                 @if ($showProblemProvinceAuthor)<span class="oi-prob-author">Tác giả</span>@endif
                 <button type="button" class="oi-sort-btn" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button>
                 <span x-show="problemScope === 'assigned'" x-cloak>Kết quả / Chú ý</span>
