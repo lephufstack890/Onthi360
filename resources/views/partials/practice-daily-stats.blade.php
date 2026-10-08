@@ -19,54 +19,53 @@
 <style>
     .pds-overview{position:relative;z-index:10;display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;overflow:hidden;border:1px solid rgba(255,255,255,.25);border-radius:16px;background:rgba(255,255,255,.06);color:#fff;box-shadow:0 4px 12px rgba(9,46,76,.06);backdrop-filter:blur(2px)}
     .pds-overview>*+*{border-top:1px solid rgba(255,255,255,.2)}
-    .pds-cell{display:flex;flex-direction:column;min-width:0;min-height:0;padding:14px}
-    .pds-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;margin:0;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
+    .pds-cell{display:flex;flex-direction:column;min-width:0;min-height:184px;padding:12px}
+    .pds-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;margin:0;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
     @media (min-width:640px){
-        .pds-overview{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:minmax(236px,auto)}
+        .pds-overview{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}
         .pds-overview>*+*{border-top:0;border-left:1px solid rgba(255,255,255,.2)}
-        .pds-cell{overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
-        .pds-cell::-webkit-scrollbar{display:none}
-    }
+            }
     @media (min-width:1024px){.pds-overview{flex:none;width:31rem}}
-    @media (min-width:1280px){.pds-overview{width:36rem}}
+    @media (min-width:1280px){.pds-overview{width:35rem}}
 
     /* Kho câu theo dạng */
-    .pds-types{flex:1;margin-top:8px;font-size:11px;line-height:16px}
-    .pds-types>div+div{margin-top:10px}
+    .pds-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px}
+    .pds-head .pds-title{min-height:0}
+    .pds-head>span{flex:none;font-size:11px;color:#e0f2fe}
+    .pds-head>span b{color:#fff;font-weight:700}
+    .pds-types{display:flex;flex:1;flex-direction:column;justify-content:space-evenly;gap:8px;margin-top:4px;font-size:11px;line-height:16px}
     .pds-types__row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
     .pds-types__n{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:#fcd34d}
-    .pds-types__n small{font-size:11px;font-weight:500;color:#e0f2fe}
-    .pds-bar{height:6px;border-radius:999px;background:rgba(255,255,255,.2);overflow:hidden}
+    .pds-bar{height:4px;border-radius:999px;background:rgba(255,255,255,.2);overflow:hidden}
     .pds-bar>i{display:block;height:100%;border-radius:999px;background:#fbbf24}
-    .pds-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;margin:8px 0 0;padding-top:4px;border-top:1px solid rgba(255,255,255,.15);font-size:11px;line-height:16px;color:#e0f2fe}
-    .pds-foot strong{font-size:14px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
 
     /* Luyện tập hôm nay */
-    .pds-select{min-height:28px;max-width:84px;padding:0 4px;border:0;border-radius:6px;background:rgba(255,255,255,.15);color:#fff;font:inherit;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer}
+    .pds-select{min-height:28px;max-width:80px;padding:0 4px;border:0;border-radius:6px;background:rgba(255,255,255,.15);color:#fff;font:inherit;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer}
     .pds-select option{background:#fff;color:#123b68}
     .pds-select:focus-visible{outline:2px solid #fff;outline-offset:2px}
-    .pds-ring-row{display:flex;align-items:center;gap:10px;margin-top:8px}
-    .pds-ring{position:relative;flex:none;width:80px;height:80px}
+    .pds-today{display:flex;flex:1;flex-direction:column;justify-content:center;gap:6px;min-width:0;margin:6px 0;container-type:inline-size}
+    .pds-sum{display:flex;align-items:center;gap:8px}
+    .pds-ring{flex:none;width:32px;height:32px}
     .pds-ring svg{display:block;width:100%;height:100%;transform:rotate(-90deg)}
-    .pds-ring__c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-    .pds-ring__c strong{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-    .pds-ring__c span{margin-top:2px;font-size:10px;line-height:12px;color:#e0f2fe}
-    .pds-legend{flex:1;min-width:0;margin:0;font-size:11px;line-height:16px}
+    .pds-total{display:flex;align-items:baseline;gap:6px;margin:0}
+    .pds-total strong{font-size:20px;font-weight:800;line-height:24px;font-variant-numeric:tabular-nums;color:#fff}
+    .pds-total span{font-size:11px;line-height:16px;color:#e0f2fe}
+    .pds-legend{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 12px;min-width:0;margin:0;font-size:11px;line-height:16px}
+    @container (min-width:260px){.pds-legend{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
     .pds-legend>div{display:flex;align-items:center;gap:6px}
-    .pds-legend>div+div{margin-top:4px}
     .pds-legend dt{display:flex;flex:1;align-items:center;gap:6px;min-width:0;margin:0}
     .pds-legend dt i{flex:none;width:6px;height:6px;border-radius:999px}
     .pds-legend dd{margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
-    .pds-kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;padding-top:8px;border-top:1px solid rgba(255,255,255,.15)}
+    .pds-bottom{display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.15)}
+    .pds-kpi{display:grid;flex:1;min-width:0;grid-template-columns:1fr 1fr;gap:8px;margin:0}
     .pds-kpi>div{display:flex;align-items:center;gap:6px;font-size:11px;line-height:16px}
     .pds-kpi dt{display:flex;flex:1;align-items:center;gap:6px;margin:0}
     .pds-kpi dt svg{flex:none;width:14px;height:14px;color:#a7f3d0}
     .pds-kpi dd{margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:#fcd34d}
-    .pds-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;font-size:10px;line-height:16px;color:#e0f2fe}
-    .pds-link{display:inline-flex;align-items:center;gap:2px;min-height:24px;padding:0;border:0;background:none;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+    .pds-link{display:inline-flex;flex:none;align-items:center;gap:2px;min-height:28px;padding:0;border:0;background:none;color:#fff;font:inherit;font-size:10px;font-weight:600;cursor:pointer}
     .pds-link:hover{text-decoration:underline}
     .pds-link svg{width:12px;height:12px}
-    .pds-note{margin:4px 0 0;font-size:10px;line-height:14px;color:#e0f2fe}
+    .pds-note{margin:2px 0 0;font-size:10px;line-height:14px;color:#e0f2fe}
     .pds-note a{color:#fff;font-weight:700;text-decoration:underline}
 
     /* Hộp thoại chi tiết */
@@ -117,27 +116,29 @@
 <div class="pds-overview" data-practice-overview>
     {{-- Ô 1 — Kho câu theo dạng (nội dung cũ, đặt vào khung 2 ô như bản mẫu). --}}
     <section class="pds-cell" aria-label="Kho câu theo dạng">
-        <h2 class="pds-title">Kho câu theo dạng</h2>
+        <div class="pds-head">
+            <h2 class="pds-title">Kho câu theo dạng</h2>
+            <span><b>{{ number_format($practiceTotal) }}</b> câu</span>
+        </div>
         <div class="pds-types">
             @foreach (array_slice($practiceTypes, 0, 3) as $t)
                 @php $pct = $practiceTotal > 0 ? round($t['count'] / $practiceTotal * 100) : 0; @endphp
                 <div>
                     <div class="pds-types__row">
                         <span>{{ $t['label'] }}</span>
-                        <span class="pds-types__n">{{ number_format($t['count']) }} <small>câu</small></span>
+                        <span class="pds-types__n">{{ number_format($t['count']) }}</span>
                     </div>
                     <div class="pds-bar" aria-hidden="true"><i style="width: {{ $pct }}%"></i></div>
                 </div>
             @endforeach
         </div>
-        <p class="pds-foot"><span>Tổng số câu trong kho</span><strong>{{ number_format($practiceTotal) }}</strong></p>
     </section>
 
-    {{-- Ô 2 — Luyện tập hôm nay. --}}
+    {{-- Ô 2 — Luyện tập hôm nay (bản gọn của source 8/10: vòng nhỏ + tổng lượt nộp cùng hàng, chú giải 2 cột). --}}
     <section class="pds-cell" aria-labelledby="pds-title"
              x-data="oiDailyStats({{ Js::from($dailyStats) }})" x-effect="syncMode(practiceMode)">
-        <div class="pds-title">
-            <h2 id="pds-title" class="pds-title" style="min-height:0">Luyện tập hôm nay</h2>
+        <div class="pds-head">
+            <h2 id="pds-title" class="pds-title">Luyện tập hôm nay</h2>
             <select aria-label="Phạm vi biểu đồ" class="pds-select" x-model="filter">
                 <option value="all">Tất cả</option>
                 <option value="problem">Bài tập</option>
@@ -145,16 +146,21 @@
             </select>
         </div>
 
-        <div class="pds-ring-row">
-            <div class="pds-ring" role="img" :aria-label="ringLabel">
-                <svg viewBox="0 0 120 120" aria-hidden="true">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="11" />
-                    <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#6EE7B7" stroke-width="11" :stroke-dasharray="dash(0)" :stroke-dashoffset="off(0)" />
-                    <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#FCD34D" stroke-width="11" :stroke-dasharray="dash(1)" :stroke-dashoffset="off(1)" />
-                    <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#FDA4AF" stroke-width="11" :stroke-dasharray="dash(2)" :stroke-dashoffset="off(2)" />
-                    <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#CBD5E1" stroke-width="11" :stroke-dasharray="dash(3)" :stroke-dashoffset="off(3)" />
-                </svg>
-                <div class="pds-ring__c" aria-hidden="true"><strong x-text="fmt(cur.total)">0</strong><span>lượt nộp</span></div>
+        <div class="pds-today">
+            <div class="pds-sum">
+                <div class="pds-ring" role="img" :aria-label="ringLabel">
+                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="11" />
+                        <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#6EE7B7" stroke-width="11" :stroke-dasharray="dash(0)" :stroke-dashoffset="off(0)" />
+                        <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#FCD34D" stroke-width="11" :stroke-dasharray="dash(1)" :stroke-dashoffset="off(1)" />
+                        <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#FDA4AF" stroke-width="11" :stroke-dasharray="dash(2)" :stroke-dashoffset="off(2)" />
+                        <circle cx="60" cy="60" r="50" pathLength="100" fill="none" stroke="#CBD5E1" stroke-width="11" :stroke-dasharray="dash(3)" :stroke-dashoffset="off(3)" />
+                    </svg>
+                </div>
+                <dl class="pds-total" data-chart-stat="total">
+                    <dd style="margin:0;order:-1"><strong x-text="fmt(cur.total)">0</strong></dd>
+                    <dt style="margin:0"><span>lượt nộp</span></dt>
+                </dl>
             </div>
             <dl class="pds-legend">
                 <template x-for="s in slices" :key="s.key">
@@ -166,25 +172,23 @@
             </dl>
         </div>
 
-        <dl class="pds-kpi">
-            <template x-for="m in metrics" :key="m.key">
-                <div :data-chart-stat="m.key">
-                    <dt>
-                        <span x-show="m.icon === 'check'"><x-lucide name="check-circle" /></span>
-                        <span x-show="m.icon === 'file'"><x-lucide name="file-check" /></span>
-                        <span x-text="m.label"></span>
-                    </dt>
-                    <dd x-text="fmt(m.value)">0</dd>
-                </div>
-            </template>
-        </dl>
-
-        <p class="pds-note" x-show="!signedIn" x-cloak><a href="{{ route('login') }}">Đăng nhập</a> để xem kết quả luyện tập của bạn hôm nay.</p>
-
-        <div class="pds-meta">
-            <time x-text="date + ' · Giờ Việt Nam'">{{ $dailyStats['date'] }} · Giờ Việt Nam</time>
+        <div class="pds-bottom">
+            <dl class="pds-kpi">
+                <template x-for="m in metrics" :key="m.key">
+                    <div :data-chart-stat="m.key">
+                        <dt>
+                            <span x-show="m.icon === 'check'"><x-lucide name="check-circle" /></span>
+                            <span x-show="m.icon === 'file'"><x-lucide name="file-check" /></span>
+                            <span x-text="m.label"></span>
+                        </dt>
+                        <dd x-text="fmt(m.value)">0</dd>
+                    </div>
+                </template>
+            </dl>
             <button type="button" class="pds-link" @click="openDetail()">Chi tiết<x-lucide name="chevron-right" /></button>
         </div>
+
+        <p class="pds-note" x-show="!signedIn" x-cloak><a href="{{ route('login') }}">Đăng nhập</a> để xem kết quả luyện tập của bạn hôm nay.</p>
 
         {{-- Hộp thoại chi tiết (PracticeDailyStats.jsx). --}}
         <dialog x-ref="dlg" class="pds-dialog" aria-label="Chi tiết thống kê luyện tập" @click="if ($event.target === $refs.dlg) $refs.dlg.close()">
