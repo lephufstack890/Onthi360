@@ -35,6 +35,12 @@
 
      Hai cột mới hẹp (Tỉnh thành 120px, Năm 64px) và các cột cũ co lại một chút, để cột Tên bài
      vẫn còn ~290px ở màn 1024px thay vì bị bóp mất. --}}
+{{-- SỬA 8/10 (khách: "trang luyện tập public tạm thời ẩn cột Tỉnh thành với Tác giả đi") — công tắc TẠM THỜI.
+     false = ẩn 2 cột ở bảng bài tập (giữ nguyên dữ liệu + mã, chỉ không in ra). Mặc định true (trang học sinh
+     dùng chung partial này vẫn như cũ); trang công khai public/practice/index truyền false. Muốn hiện lại ở
+     trang công khai: bỏ tham số đó đi. --}}
+@php $showProblemProvinceAuthor = $showProblemProvinceAuthor ?? true; @endphp
+
 <style>
     @media (min-width: 1024px) {
         .oi-prob-grid {
@@ -58,6 +64,17 @@
         }
 
         .oi-prob-author { display: block; }
+    }
+
+    /* SỬA 8/10 — bảng bài tập khi ẨN cột Tỉnh thành + Tác giả: còn 6 cột (Tên · Chuyên đề · Năm · Độ khó ·
+       Tỷ lệ AC · Hành động). Thêm class oi-prob-grid--lite nên thắng quy tắc 7/8 cột ở trên và ở tab Bài được giao. */
+    @media (min-width: 1024px) {
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 148px 64px 100px 132px 140px; }
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 148px 64px 100px 200px 140px; }
+    }
+    @media (min-width: 1280px) {
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 124px 132px; }
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 190px 132px; }
     }
 </style>
 
@@ -389,12 +406,12 @@
         @endauth
 
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
-            <div :class="problemScope === 'assigned' ? 'oi-prob-grid--asg' : ''" class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid">
+            <div :class="problemScope === 'assigned' ? 'oi-prob-grid--asg' : ''" class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }}">
                 <span>Tên bài tập &amp; Mã</span>
                 <span>Chuyên đề</span>
-                <span>Tỉnh thành</span>
+                @if ($showProblemProvinceAuthor)<span>Tỉnh thành</span>@endif
                 <span>Năm</span>
-                <span class="oi-prob-author">Tác giả</span>
+                @if ($showProblemProvinceAuthor)<span class="oi-prob-author">Tác giả</span>@endif
                 <span>Độ khó</span>
                 <span x-text="problemScope === 'assigned' ? 'Kết quả / Chú ý' : 'Tỷ lệ AC'">Tỷ lệ AC</span>
                 <span class="text-right">Hành động</span>
@@ -436,7 +453,7 @@
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
                      :class="[visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '']"
-                     class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid lg:items-center lg:gap-2.5">
+                     class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }} lg:items-center lg:gap-2.5">
 
                     {{-- Tên bài --}}
                     <div class="min-w-0">
@@ -514,16 +531,19 @@
                         {{-- SỬA 1/10 — 2 ô mới. Trên mobile là ô có nhãn như các ô khác, lên lg
                              thì hoà vào đúng 2 cột của bảng nhờ lg:contents ở thẻ cha. Câu chưa
                              gán hiện "—" (Question::provinceLabel()/examYearLabel()). --}}
+                        @if ($showProblemProvinceAuthor)
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tỉnh thành</span>
                             <span class="block truncate text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['provinceLabel'] ?? '—' }}">{{ $prob['provinceLabel'] ?? '—' }}</span>
                         </div>
+                        @endif
 
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Năm</span>
                             <span class="block text-[12px] font-semibold text-[#365B7A]">{{ $prob['examYearLabel'] ?? '—' }}</span>
                         </div>
 
+                        @if ($showProblemProvinceAuthor)
                         {{-- SỬA 4/10 — cột Tác giả (người bấm nút tạo câu hỏi, cột questions.created_by).
                              truncate + title: tên tài khoản có thể dài, cắt gọn nhưng rê chuột vẫn đọc
                              được đủ. Chưa gán người soạn (dữ liệu cũ) thì hiện "—", không bịa tên. --}}
@@ -531,6 +551,7 @@
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tác giả</span>
                             <span class="block truncate text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['authorName'] ?: '—' }}">{{ $prob['authorName'] ?: '—' }}</span>
                         </div>
+                        @endif
 
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Độ khó</span>
