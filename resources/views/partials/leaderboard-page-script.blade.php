@@ -1,37 +1,72 @@
 <script>
-    function onthiLeaderboardPage(config) {
+    /*
+     * SỬA 8/10 — bảng xếp hạng dựng lại theo LeaderboardPage.jsx: state React (query, anonymous, page, pageSize,
+     * expandedRank) chuyển sang Alpine. Danh sách hàng do máy chủ tính sẵn (LeaderboardService), ở đây chỉ lo
+     * tìm kiếm không dấu, ẩn tên, mở chi tiết và phân trang 5/10 dòng.
+     */
+    window.onthiLeaderboardPage = function (config) {
+        const nf = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
+        const normalize = (value) => String(value || '')
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+            .replace(/#/g, '').replace(/\s+/g, ' ')
+            .toLocaleLowerCase('vi').trim();
+
         return {
-            rows: config.rows,
-            // SỬA 12/9 — source mới phân trang 5 dòng/trang thay vì đổ hết một lượt.
-            pageSize: config.pageSize || 5,
-            page: 1,
+            rows: config.rows || [],
+            namesLocked: !!config.namesLocked,
+            // Bảng công khai luôn ẩn danh (khoá bật); bảng lớp mặc định hiện tên như bản mẫu.
+            anonymous: !!config.namesLocked,
             query: '',
+            page: 1,
+            pageSize: config.pageSize || 5,
+            expanded: null,
 
             init() {
-                // Gõ tìm kiếm thì quay về trang 1; đổi bộ lọc mà quá số trang thì kéo về trang cuối.
-                this.$watch('query', () => { this.page = 1; });
-                this.$watch('totalPages', (value) => { if (this.page > value) this.page = value; });
+                this.$watch('query', () => { this.page = 1; this.expanded = null; });
+                this.$watch('pageSize', () => { this.page = 1; this.expanded = null; });
             },
 
-            get normalized() { return this.query.trim().toLowerCase(); },
+            fmt(value) { return nf.format(Number(value) || 0); },
 
-            get matchedRanks() {
-                if (!this.normalized) return this.rows.map((r) => r.rank);
-                return this.rows.filter((r) => r.search.includes(this.normalized)).map((r) => r.rank);
+            // Dòng này có đang hiện ẩn danh không: tên chưa từng gửi (bảng công khai) hoặc người xem bật "Ẩn tên".
+            // Dòng của chính người xem luôn hiện tên thật.
+            isAnon(p) { return !p.named || (this.anonymous && !p.isYou); },
+            display(p) { return (this.anonymous && p.named && !p.isYou) ? 'Học sinh #' + p.rank : p.name; },
+            avatarClass(p) { return this.isAnon(p) ? '' : 'lb-avatar-initials lb-avatar-tone-' + (p.rank % 3); },
+            badgeClass(p) {
+                if (p.rank === 1) return 'is-gold';
+                return (p.badge === 'Specialist' || p.badge === 'Expert') ? 'is-green' : '';
+            },
+            rowClass(p) {
+                return ['lb-row', p.rank <= 3 ? 'lb-row-rank-' + p.rank : '', p.rank % 2 === 0 ? 'is-alternate' : '',
+                    this.expanded === p.rank ? 'is-expanded' : '', p.isYou ? 'is-you' : ''].filter(Boolean).join(' ');
             },
 
-            get visibleCount() { return this.matchedRanks.length; },
-
-            get totalPages() { return Math.max(1, Math.ceil(this.matchedRanks.length / this.pageSize)); },
-
-            get pageRanks() {
-                const start = (this.page - 1) * this.pageSize;
-                return this.matchedRanks.slice(start, start + this.pageSize);
+            get filtered() {
+                const q = normalize(this.query);
+                if (!q) return this.rows;
+                return this.rows.filter((p) => normalize([this.display(p), p.sub, p.badge, '#' + p.rank, p.rank].join(' ')).includes(q));
+            },
+            get showPodium() { return this.rows.length > 0 && !this.query.trim(); },
+            get podium() { return this.rows.slice(0, 3); },
+            get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / this.pageSize)); },
+            get currentPage() { return Math.min(this.page, this.totalPages); },
+            get start() { return (this.currentPage - 1) * this.pageSize; },
+            get visible() { return this.filtered.slice(this.start, this.start + this.pageSize); },
+            // Tối đa 7 nút số quanh trang hiện tại (bảng có thể tới 100 dòng = 20 trang).
+            get pageButtons() {
+                const total = this.totalPages, cur = this.currentPage, span = 7;
+                let from = Math.max(1, cur - Math.floor(span / 2));
+                const to = Math.min(total, from + span - 1);
+                from = Math.max(1, to - span + 1);
+                const out = [];
+                for (let n = from; n <= to; n++) out.push(n);
+                return out;
             },
 
-            matches(rank) { return this.matchedRanks.includes(rank); },
-
-            isVisible(rank) { return this.pageRanks.includes(rank); },
+            goto(n) { this.page = Math.min(Math.max(1, n), this.totalPages); this.expanded = null; },
+            toggle(rank) { this.expanded = this.expanded === rank ? null : rank; },
         };
-    }
+    };
 </script>
