@@ -266,9 +266,9 @@ class ContentService
         $usedCount = $this->questions->countAllFiltered(['in_exam' => 'used']);
         $unusedCount = $this->questions->countAllFiltered(['in_exam' => 'unused']);
         $tabs = [
-            ['label' => 'Câu hỏi đã dùng trong đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
-            ['label' => 'Câu hỏi chưa dùng trong đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
-            ['label' => 'Đề/bộ bài', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
+            ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
+            ['label' => 'Bài chung', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
+            ['label' => 'Đề thi', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
         ];
