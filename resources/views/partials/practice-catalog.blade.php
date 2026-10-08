@@ -331,7 +331,7 @@
                 <button type="button" role="switch" x-show="problemScope !== 'managed'" :aria-checked="onlyUndone ? 'true' : 'false'"
                         @click="toggleOnlyUndone()" class="oi-undone" :class="{ 'is-on': onlyUndone }" title="Chỉ hiện những bài bạn chưa làm">
                     <span class="oi-undone-track" aria-hidden="true"><span class="oi-undone-knob"></span></span>
-                    <span>Bài chưa làm</span>
+                    <span>Chưa làm</span>
                 </button>
                 @endauth
 
