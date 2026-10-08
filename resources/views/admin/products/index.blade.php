@@ -9,11 +9,10 @@
         $tabs = $tabs ?? [];
         $products = $products ?? [];
         $typeIcons = ['Sách' => 'book-open', 'Chuyên đề' => 'layers', 'Bộ đề' => 'file-text', 'Khóa học' => 'graduation-cap'];
-        // Nhóm tab theo "Loại" của chính các dòng đã có: 3 nhóm cố định như bản mẫu + thêm nhóm khác nếu có (vd. Khóa học).
-        $groupLabels = collect(['Sách', 'Chuyên đề', 'Bộ đề'])->merge(collect($products)->pluck('type'))->unique()->values()->all();
+        // Đúng 3 nhóm tab như bản mẫu: Sách / Chuyên đề / Bộ đề (lọc theo "Loại" sẵn có của từng dòng).
+        $groupLabels = ['Sách', 'Chuyên đề', 'Bộ đề'];
         $groupCounts = [];
         foreach ($groupLabels as $g) { $groupCounts[$g] = collect($products)->where('type', $g)->count(); }
-        $groupLabels = array_values(array_filter($groupLabels, fn ($g) => in_array($g, ['Sách', 'Chuyên đề', 'Bộ đề'], true) || $groupCounts[$g] > 0));
         // Mở sẵn nhóm đầu tiên có dữ liệu (không có thì Sách).
         $firstGroup = collect($groupLabels)->first(fn ($g) => $groupCounts[$g] > 0) ?? $groupLabels[0];
         $visOptions = collect($products)->pluck('visibility')->unique()->values();

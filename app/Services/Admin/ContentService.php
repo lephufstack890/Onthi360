@@ -344,7 +344,9 @@ class ContentService
 
             // Tổng khớp bộ lọc ($filteredTotal, đã đếm ở đầu nhánh) khác $counts['questions'] = tổng toàn kho.
         } elseif ($tab === 'assessments') {
-            $rows = $this->assessments->latestWithCreator(50)->map(function ($a) {
+            // SỬA 8/10 (khách: "phân trang đầy đủ cho từng tab, quá 10 item thì phân trang") — nâng giới hạn cứng 50 -> 500
+            // để tab Đề thi có đủ dòng cho phần chia trang (10 đề/trang, chia ngay trên view). Không đổi thứ tự/nội dung dòng.
+            $rows = $this->assessments->latestWithCreator(500)->map(function ($a) {
                 [$label, $tone] = $this->statusLabel($a->status);
                 $isTeacherOwned = $a->owner_type !== OwnerType::Shared;
 

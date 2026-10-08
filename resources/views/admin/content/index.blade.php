@@ -53,9 +53,31 @@
 
             return route('admin.content.index', array_filter($query, fn ($v) => $v !== null && $v !== ''));
         };
+
+        // SỬA 8/10 — chỉ là chữ/màu hiển thị: tông huy hiệu -> lớp kiểu, và nhãn tab đang mở cho dòng "n kết quả".
+        $badgeOf = fn ($tone) => match ($tone) {
+            'success' => 'acx-badge--ok',
+            'warning' => 'acx-badge--warn',
+            'danger', 'error' => 'acx-badge--off',
+            'info' => 'acx-badge--info',
+            default => '',
+        };
+        $activeTabLabel = collect($tabs)->first(fn ($t) => $t['active'] ?? false)['label'] ?? '';
+        $resultTotal = $isQuestions ? ($pagination['total'] ?? $total) : $total;
     @endphp
 
-    <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" subtitle="Quản lý câu hỏi và đề — sửa là cập nhật trực tiếp.">
+    {{--
+      SỬA 8/10 (khách: "cập nhật UI màn Kho bài tập / câu hỏi và đề theo source mới, logic giữ nguyên") — dựng
+      lại theo AdminContentWorkspace.jsx: dải tab nhóm có số đếm, khung tìm/lọc, dòng "n kết quả", bảng
+      "Nội dung/Nguồn · Phân loại · Độ khó · Trạng thái · Thao tác" (gộp các cột cũ vào cùng ô, KHÔNG bỏ dữ
+      liệu nào), phân trang. Dữ liệu từ ContentService::indexData(), bộ lọc/route/nút Sửa-Xem-Xoá-Duyệt,
+      nút "Đưa lên trước" và script lưu thứ tự GIỮ NGUYÊN. Khách yêu cầu thêm: tab nào quá 10 mục cũng phân
+      trang (tab Câu hỏi: phân trang máy chủ như cũ; Đề thi / Tag-Chuyên đề / Chờ rà soát: chia trang ngay
+      trên các dòng đã có).
+    --}}
+    @include('partials.admin-content-ui')
+
+    <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" eyebrow="Quản trị & biên soạn" subtitle="Quản lý câu hỏi và đề — sửa là cập nhật trực tiếp.">
         <x-slot:actions>
             @if ($tab === 'questions')
                 <a href="{{ route('admin.content.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>
@@ -96,103 +118,101 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <x-ws.tabs :tabs="$tabs" />
+    <nav class="apx-tabs" aria-label="Nhóm nội dung">
+        @foreach ($tabs as $t)
+            <a href="{{ $t['href'] }}" class="apx-tab {{ ($t['active'] ?? false) ? 'is-on' : '' }}" @if ($t['active'] ?? false) aria-current="page" @endif>{{ $t['label'] }}@isset($t['count'])<span>{{ $t['count'] }}</span>@endisset</a>
+        @endforeach
+    </nav>
 
     @if ($isQuestions)
-        <div class="bg-white rounded-3xl border border-sky-100 p-4 mb-4 space-y-3">
+        <section class="acx-panel" style="margin-top:16px" aria-label="Bộ lọc câu hỏi">
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ $filterLink(['subject' => null]) }}"
-                   class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ! ($filters['subject'] ?? null) ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
-                    Tất cả môn
-                </a>
-                @foreach ($subjectOptions as $code => $label)
-                    @php $count = $subjectCounts[$code] ?? 0; @endphp
-                    @if ($count > 0 || ($filters['subject'] ?? null) === $code)
-                        <a href="{{ $filterLink(['subject' => $code]) }}"
-                           class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === $code ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
-                            {{ $label }} <span class="opacity-70">({{ $count }})</span>
-                        </a>
+            <div class="akx-pad">
+                <div class="akx-chips">
+                    <a href="{{ $filterLink(['subject' => null]) }}" class="akx-chip {{ ! ($filters['subject'] ?? null) ? 'is-on' : '' }}">Tất cả môn</a>
+                    @foreach ($subjectOptions as $code => $label)
+                        @php $count = $subjectCounts[$code] ?? 0; @endphp
+                        @if ($count > 0 || ($filters['subject'] ?? null) === $code)
+                            <a href="{{ $filterLink(['subject' => $code]) }}" class="akx-chip {{ ($filters['subject'] ?? null) === $code ? 'is-on' : '' }}">{{ $label }} <small>({{ $count }})</small></a>
+                        @endif
+                    @endforeach
+                    @if (($subjectCounts[''] ?? 0) > 0 || ($filters['subject'] ?? null) === 'none')
+                        {{-- Nhóm "Chưa phân loại" (subject IS NULL) — chỗ để dọn dần câu cũ, xem lệnh
+                             `php artisan questions:backfill-subject --all`. --}}
+                        <a href="{{ $filterLink(['subject' => 'none']) }}" class="akx-chip akx-chip--warn {{ ($filters['subject'] ?? null) === 'none' ? 'is-on' : '' }}">Chưa phân loại <small>({{ $subjectCounts[''] ?? 0 }})</small></a>
                     @endif
-                @endforeach
-                @if (($subjectCounts[''] ?? 0) > 0 || ($filters['subject'] ?? null) === 'none')
-                    {{-- Nhóm "Chưa phân loại" (subject IS NULL) — chỗ để dọn dần câu cũ, xem lệnh
-                         `php artisan questions:backfill-subject --all`. --}}
-                    <a href="{{ $filterLink(['subject' => 'none']) }}"
-                       class="px-3 py-1.5 rounded-full border text-xs font-medium transition {{ ($filters['subject'] ?? null) === 'none' ? 'bg-amber-500 border-amber-500 text-white' : 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400' }}">
-                        Chưa phân loại <span class="opacity-70">({{ $subjectCounts[''] ?? 0 }})</span>
-                    </a>
-                @endif
+                </div>
             </div>
 
             {{-- SỬA 30/9 (khách: "dạng câu ở dưới làm tab phân chia dạng câu") — dạng câu giờ là
                  TAB, không còn là 1 ô chọn trong hàng bộ lọc. Mỗi tab in luôn số câu của dạng đó
                  để nhìn phát biết kho đang nặng dạng nào. --}}
-            <div class="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                <a href="{{ $filterLink(['type' => null]) }}"
-                   class="px-3.5 py-2 rounded-xl border text-xs font-bold transition {{ ! ($filters['type'] ?? null) ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
-                    Tất cả dạng <span class="opacity-70">({{ array_sum($typeCounts) }})</span>
-                </a>
-                @foreach ($questionTypeOptions as $value => $label)
-                    <a href="{{ $filterLink(['type' => $value]) }}"
-                       class="px-3.5 py-2 rounded-xl border text-xs font-bold transition {{ ($filters['type'] ?? null) === $value ? 'border-blue-600 bg-blue-600 text-white' : 'border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600' }}">
-                        {{ $label }} <span class="opacity-70">({{ $typeCounts[$value] ?? 0 }})</span>
-                    </a>
-                @endforeach
+            <div class="akx-pad">
+                <div class="akx-chips">
+                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) }})</small></a>
+                    @foreach ($questionTypeOptions as $value => $label)
+                        <a href="{{ $filterLink(['type' => $value]) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === $value ? 'is-on' : '' }}">{{ $label }} <small>({{ $typeCounts[$value] ?? 0 }})</small></a>
+                    @endforeach
+                </div>
             </div>
 
-            <form method="GET" action="{{ route('admin.content.index') }}" class="flex flex-wrap items-end gap-3 pt-3 border-t border-slate-100">
-                <input type="hidden" name="tab" value="questions">
-                {{-- SỬA 7/10 (khách: bỏ ô Môn học / Trạng thái / Độ khó / Chuyên đề / Dùng trong đề) —
-                     Môn vẫn lọc bằng hàng chip phía trên, nên gửi kèm giá trị đang chọn để bấm "Lọc" không làm mất. --}}
-                <input type="hidden" name="subject" value="{{ $filters['subject'] ?? '' }}">
-                <input type="hidden" name="in_exam" value="{{ $filters['in_exam'] ?? 'used' }}">
-                <div class="min-w-[120px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-grade">Khối lớp</label>
-                    <x-ws.select id="filter-grade" name="grade">
-                        <option value="">Tất cả khối</option>
-                        @foreach ($gradeOptions as $g)
-                            <option value="{{ $g }}" @selected((string) ($filters['grade'] ?? '') === (string) $g)>Lớp {{ $g }}</option>
-                        @endforeach
-                        <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
-                    </x-ws.select>
-                </div>
-                @include('partials.question-province-year-filter')
-                {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
-                     làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
-                     các ô còn lại không làm mất tab đang đứng. --}}
-                <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-q">Tìm theo tên hoặc mã</label>
-                    <input id="filter-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
-                           placeholder="Ví dụ: ước chung, TOAN6…"
-                           class="admin-input">
-                </div>
-                <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Lọc</button>
-                @if ($hasActiveFilter)
-                    <a href="{{ route('admin.content.index', ['tab' => 'questions', 'in_exam' => $filters['in_exam'] ?? 'used']) }}" class="px-4 py-2.5 rounded-xl border border-sky-100 text-slate-600 text-[13px] font-medium shrink-0 hover:border-blue-200 hover:text-blue-600 transition">Xoá lọc</a>
-                @endif
-            </form>
-        </div>
+            <div class="akx-pad">
+                <form method="GET" action="{{ route('admin.content.index') }}" class="akx-form">
+                    <input type="hidden" name="tab" value="questions">
+                    {{-- SỬA 7/10 (khách: bỏ ô Môn học / Trạng thái / Độ khó / Chuyên đề / Dùng trong đề) —
+                         Môn vẫn lọc bằng hàng chip phía trên, nên gửi kèm giá trị đang chọn để bấm "Lọc" không làm mất. --}}
+                    <input type="hidden" name="subject" value="{{ $filters['subject'] ?? '' }}">
+                    <input type="hidden" name="in_exam" value="{{ $filters['in_exam'] ?? 'used' }}">
+                    <div class="min-w-[120px]">
+                        <label class="akx-lbl" for="filter-grade">Khối lớp</label>
+                        <x-ws.select id="filter-grade" name="grade">
+                            <option value="">Tất cả khối</option>
+                            @foreach ($gradeOptions as $g)
+                                <option value="{{ $g }}" @selected((string) ($filters['grade'] ?? '') === (string) $g)>Lớp {{ $g }}</option>
+                            @endforeach
+                            <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
+                        </x-ws.select>
+                    </div>
+                    @include('partials.question-province-year-filter')
+                    {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
+                         làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
+                         các ô còn lại không làm mất tab đang đứng. --}}
+                    <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
+                    <div class="akx-grow">
+                        <label class="akx-lbl" for="filter-q">Tìm theo tên hoặc mã</label>
+                        <div class="acx-search">
+                            <x-lucide name="search" />
+                            <input id="filter-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
+                                   placeholder="Ví dụ: ước chung, TOAN6…"
+                                   class="admin-input">
+                        </div>
+                    </div>
+                    <button type="submit" class="acx-btn acx-btn--primary">Lọc</button>
+                    @if ($hasActiveFilter)
+                        <a href="{{ route('admin.content.index', ['tab' => 'questions', 'in_exam' => $filters['in_exam'] ?? 'used']) }}" class="acx-btn">Xoá lọc</a>
+                    @endif
+                </form>
+            </div>
+        </section>
     @endif
 
     @if ($tab === 'drafts')
-        <div class="space-y-3">
+        <div class="acx-stack" style="margin-top:16px" data-pg="drafts" data-unit="tài liệu">
             @forelse ($documents as $d)
-                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4">
+                <div class="acx-card acx-card--white" data-pg-item>
                     <div class="flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <x-ws.icon-tile emoji="📄" tone="sky" />
                             <div>
-                                <p class="text-[13px] font-medium text-slate-700">{{ $d['name'] }}</p>
-                                <p class="text-xs text-slate-400">Người tải lên: {{ $d['uploader'] }}</p>
+                                <p class="akx-title" style="font-size:13px">{{ $d['name'] }}</p>
+                                <p class="akx-src">Người tải lên: {{ $d['uploader'] }}</p>
                                 <div class="w-48 mt-1"><x-ws.progress-bar :percent="$d['progress']" tone="{{ $d['tone'] === 'warning' ? 'warning' : ($d['tone'] === 'danger' ? 'danger' : 'info') }}" /></div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <x-ws.badge :tone="$d['tone']">{{ $d['status'] }}</x-ws.badge>
+                            <span class="acx-badge {{ $badgeOf($d['tone'] ?? null) }}">{{ $d['status'] }}</span>
                             @if ($d['reviewable'])
-                                <a href="{{ route('admin.content.questions.reviewDraft', ['document' => $d['id']]) }}" class="block mt-1 text-[13px] text-blue-600 font-medium">Rà soát ngay ›</a>
+                                <a href="{{ route('admin.content.questions.reviewDraft', ['document' => $d['id']]) }}" class="akx-lnk block mt-1">Rà soát ngay ›</a>
                             @endif
                         </div>
                     </div>
@@ -208,203 +228,234 @@
                     :actionHref="route('admin.content.questions.import')" />
             @endforelse
         </div>
+        <div class="akx-pg acx-panel" style="margin-top:12px" data-pg-nav="drafts" hidden></div>
     @elseif ($tab === 'tags')
         {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): CRUD gọn trong 1 khối,
              không cần trang riêng — xem ContentService::indexData()/tagStore()/tagUpdate()/
              tagDestroy(). Tag dùng để lọc ở màn "Luyện tập theo câu" của học sinh và ở form
              tạo/sửa câu hỏi (Admin + Giáo viên). --}}
-        <div class="bg-white rounded-3xl border border-sky-100 p-5 mb-5">
-            <h2 class="font-medium text-slate-700 mb-3">+ Thêm tag mới</h2>
+        <div class="acx-card acx-card--white" style="margin-top:16px">
+            <h2><x-lucide name="plus" /> Thêm tag mới</h2>
             <form method="POST" action="{{ route('admin.content.tags.store') }}" class="flex flex-wrap items-center gap-3">
                 @csrf
                 <input type="text" name="name" required maxlength="120" placeholder="VD: Đại số, Hình học, Dao động cơ..."
-                       class="flex-1 min-w-[220px] rounded-xl border border-sky-100 text-[13px] p-2.5">
-                <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Thêm tag</button>
+                       class="apx-input apx-input--grow" style="min-width:220px">
+                <button type="submit" class="acx-btn acx-btn--primary">Thêm tag</button>
             </form>
         </div>
 
-        <div class="bg-white rounded-3xl border border-sky-100 divide-y divide-slate-100">
-            @forelse ($tags as $t)
-                <div class="flex items-center justify-between gap-3 px-5 py-3" x-data="{ editing: false }">
-                    <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex items-center gap-2" x-show="editing" x-cloak>
-                        @csrf
-                        @method('PUT')
-                        <input type="text" name="name" value="{{ $t['name'] }}" required maxlength="120" class="flex-1 rounded-xl border border-sky-100 text-[13px] p-2">
-                        <button type="submit" class="text-[13px] text-blue-600 font-medium">Lưu</button>
-                        <button type="button" @click="editing = false" class="text-[13px] text-slate-400">Huỷ</button>
-                    </form>
-                    <div class="flex-1 flex items-center gap-2" x-show="!editing">
-                        <span class="text-[13px] font-medium text-slate-700">{{ $t['name'] }}</span>
-                        <span class="text-xs text-slate-400">{{ $t['questionsCount'] }} câu hỏi đang dùng</span>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0" x-show="!editing">
-                        <button type="button" @click="editing = true" class="text-[13px] text-slate-500 hover:text-blue-600">Đổi tên</button>
-                        <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
+        <section class="acx-panel" style="margin-top:16px">
+            <div class="akx-sub"><span><b>{{ $resultTotal }}</b> kết quả · {{ $activeTabLabel }}</span></div>
+            <div data-pg="tags" data-unit="tag">
+                @forelse ($tags as $t)
+                    <div class="apx-item" data-pg-item style="padding:12px 20px" x-data="{ editing: false }">
+                        <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex items-center gap-2" x-show="editing" x-cloak>
                             @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-[13px] text-blue-500 hover:text-blue-700">Xoá</button>
+                            @method('PUT')
+                            <input type="text" name="name" value="{{ $t['name'] }}" required maxlength="120" class="apx-input apx-input--grow">
+                            <button type="submit" class="akx-lnk">Lưu</button>
+                            <button type="button" @click="editing = false" class="akx-lnk akx-lnk--mute">Huỷ</button>
                         </form>
-                    </div>
-                </div>
-            @empty
-                <div class="px-5 py-6 text-center text-slate-400 text-[13px]">Chưa có tag nào — thêm tag đầu tiên ở trên.</div>
-            @endforelse
-        </div>
-    @else
-        {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm 2 cột Môn/Khối (và mã câu hỏi dưới tên) để nhìn
-             bảng là biết ngay câu nào chưa phân loại; các tab khác giữ nguyên bộ cột cũ. --}}
-        {{-- SỬA 1/10 — thêm 2 cột Tỉnh thành/Năm để nhìn bảng là kiểm chứng được ngay 2 ô lọc mới. --}}
-        @if ($isQuestions)
-            {{-- SỬA 7/10 (khách: "hiển thị cột thứ tự ra ngoài danh sách, sửa trực tiếp trên từng dòng")
-                 — chú thích cách đọc cột Thứ tự. --}}
-            <p class="oi-ord-hint">Nút <strong>Đưa lên trước</strong> (cột cuối) chen câu lên đứng ngay trước câu phía trên nó — hệ thống tự lưu.</p>
-        @endif
-        <x-ws.table :columns="$isQuestions ? ['Tên', 'Môn', 'Khối', 'Tỉnh thành', 'Năm', 'Loại', 'Độ khó', 'Chủ sở hữu', 'Trạng thái', ''] : ['Tên', 'Loại', 'Chủ sở hữu', 'Trạng thái', '']">
-            @forelse ($rows as $r)
-                <tr>
-                    <td class="px-4 py-3 font-medium text-slate-700">
-                        {{ $r['title'] }}
-                        @if ($isQuestions && ! empty($r['code']))
-                            <div class="text-xs font-normal text-slate-400">{{ $r['code'] }}</div>
-                        @endif
-                    </td>
-                    @if ($isQuestions)
-                        <td class="px-4 py-3">
-                            @if (($r['subject'] ?? '') === 'Chưa phân loại')
-                                <span class="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Chưa phân loại</span>
-                            @else
-                                <span class="text-slate-600">{{ $r['subject'] }}</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['grade'] }}</td>
-                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['province'] ?? '—' }}</td>
-                        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ $r['examYear'] ?? '—' }}</td>
-                    @endif
-                    <td class="px-4 py-3 text-slate-500">{{ $r['type'] }}</td>
-                    @if ($isQuestions)
-                        {{-- Chưa đặt thì hiện mờ + chú thích: giá trị đang được SUY theo điểm câu
-                             hỏi, chưa phải do người soạn chọn (xem App\Support\QuestionDifficulty). --}}
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            @if ($r['difficultySet'] ?? false)
-                                <span class="text-slate-600">{{ $r['difficulty'] }}</span>
-                            @else
-                                <span class="text-slate-400" title="Chưa đặt — hệ thống tự suy theo điểm câu hỏi">{{ $r['difficulty'] }} <span class="text-[11px]">(tự suy)</span></span>
-                            @endif
-                        </td>
-                    @endif
-                    <td class="px-4 py-3 text-slate-500">{{ $r['owner'] }}</td>
-                    <td class="px-4 py-3"><x-ws.badge :tone="$r['tone']">{{ $r['status'] }}</x-ws.badge></td>
-                    <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
-                        {{-- SỬA 30/9 (khách: "thêm nút sửa bên này nữa để người ta tiện sửa câu hỏi")
-                             — vào thẳng màn Sửa, khỏi phải bấm "Xem" rồi tìm nút Sửa trong trang chi
-                             tiết. Link do ContentService::indexData() dựng sẵn theo đúng loại nội dung
-                             của từng dòng (câu hỏi / đề / học liệu). --}}
-                        {{-- SỬA 7/10 (khách: "ẩn cột Thứ tự, đưa nút Đưa lên trước ra cùng cột với Sửa/Xem/Xoá")
-                             — chỉ còn nút chen câu này lên ngay trước câu phía trên nó; số thứ tự nằm trong
-                             ô ẩn để máy chủ trả số mới về. Dòng đầu trang 1 → "Đang ở đầu". --}}
-                        @if ($isQuestions)
-                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
-                                <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
-                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
-                                <span class="oi-ord__st" aria-live="polite"></span>
-                            </span>
-                        @endif
-                        @if ($r['editHref'] ?? null)
-                            <a href="{{ $r['editHref'] }}" class="text-blue-600 font-medium">Sửa</a>
-                        @endif
-                        {{-- SỬA 23/9 — kèm 'kind' để mở ĐÚNG loại nội dung, tránh trùng id giữa 3 bảng. --}}
-                        <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="text-slate-500 font-medium hover:text-blue-600">Xem</a>
-                        {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
-                             này — xem ContentService::indexData()/assessmentPromoteToShared(). --}}
-                        @if ($r['canPromoteToShared'] ?? false)
-                            <form method="POST" action="{{ route('admin.content.assessments.promoteShared', $r['id']) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="text-emerald-600 font-medium">Duyệt vào kho chung</button>
-                            </form>
-                        @endif
-                        {{-- SỬA 25/8 (7) — "thêm tính năng xóa cho admin": xoá THẬT, xoá luôn tệp
-                             trên đĩa, không khôi phục được nên PHẢI xác nhận qua confirm().
-                             SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — trước đây
-                             chỉ tab Học liệu có nút này. Giờ cả 3 tab (Câu hỏi / Đề / Học liệu)
-                             đều có, và địa chỉ lẫn câu hỏi xác nhận do indexData() dựng sẵn theo
-                             đúng loại nội dung của từng dòng — view không tự đoán route nữa. --}}
-                        @if ($r['canDelete'] ?? false)
-                            <form method="POST" action="{{ $r['deleteHref'] }}" class="inline" onsubmit="return confirm('{{ $r['deleteLabel'] }}');">
+                        <div class="apx-item__main" x-show="!editing">
+                            <p class="apx-item__title">{{ $t['name'] }}</p>
+                            <p class="apx-item__sub">{{ $t['questionsCount'] }} câu hỏi đang dùng</p>
+                        </div>
+                        <div class="apx-item__side" x-show="!editing">
+                            <button type="button" @click="editing = true" class="acx-link">Đổi tên</button>
+                            <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-rose-600 hover:text-rose-700 font-medium">Xoá</button>
+                                <button type="submit" class="acx-link acx-link--del">Xoá</button>
                             </form>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr><td colspan="{{ $isQuestions ? 8 : 5 }}" class="px-4 py-6 text-center text-slate-400">
-                    {{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc — thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Chưa có dữ liệu.' }}
-                </td></tr>
-            @endforelse
-        </x-ws.table>
-        {{-- SỬA 7/10 (khách: "quá 10 item thì phân trang") — tab Câu hỏi (cả "đã dùng" lẫn "chưa dùng
-             trong đề") phân trang thật, 10 câu/trang. Chỉ hiện thanh chuyển trang khi có HƠN 1
-             trang; ít hơn thì giữ ô ghi chú cũ. Link đi qua $filterLink nên giữ nguyên mọi bộ lọc
-             đang bật (môn, khối, dạng câu, tỉnh, năm, từ khoá…). --}}
-        @if ($isQuestions && ($pagination['lastPage'] ?? 1) > 1)
-            @php
-                $pgCurrent = $pagination['page'];
-                $pgLast = $pagination['lastPage'];
-                $pgFrom = ($pgCurrent - 1) * $pagination['perPage'] + 1;
-                $pgTo = $pgFrom + count($rows) - 1;
-                // Cửa sổ số trang: luôn có trang đầu/cuối, ±1 quanh trang hiện tại, '…' cho khoảng bị bỏ.
-                $pgItems = [];
-                $pgPrev = 0;
-                for ($i = 1; $i <= $pgLast; $i++) {
-                    if ($i === 1 || $i === $pgLast || abs($i - $pgCurrent) <= 1) {
-                        if ($pgPrev && $i - $pgPrev > 1) {
-                            $pgItems[] = '…';
+                        </div>
+                    </div>
+                @empty
+                    <div class="akx-empty"><strong>Chưa có tag nào</strong>Thêm tag đầu tiên ở trên.</div>
+                @endforelse
+            </div>
+            <div class="akx-pg" data-pg-nav="tags" hidden></div>
+        </section>
+    @else
+        {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm Môn/Khối (và mã câu hỏi dưới tên) để nhìn bảng là biết
+             ngay câu nào chưa phân loại; SỬA 1/10 — thêm Tỉnh thành/Năm. SỬA 8/10: các thông tin này giờ gộp
+             vào cùng ô theo bản mẫu (Nội dung/Nguồn, Phân loại) — không bỏ thông tin nào. --}}
+        <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách nội dung">
+            <div class="akx-sub">
+                <span><b>{{ $resultTotal }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
+                @if ($isQuestions)<span>Sắp xếp: ưu tiên cao trước</span>@endif
+            </div>
+            @if ($isQuestions)
+                {{-- SỬA 7/10 (khách: "hiển thị cột thứ tự ra ngoài danh sách, sửa trực tiếp trên từng dòng")
+                     — chú thích cách đọc cột Thứ tự. --}}
+                <p class="oi-ord-hint akx-hint">Nút <strong>Đưa lên trước</strong> (cột cuối) chen câu lên đứng ngay trước câu phía trên nó — hệ thống tự lưu.</p>
+            @endif
+
+            <div class="acx-scroll" @unless ($isQuestions) data-pg="rows" data-unit="kết quả" @endunless>
+                <table class="acx-table apx-up akx-table {{ $isQuestions ? 'is-q' : '' }}" @if ($isQuestions) style="min-width:900px" @endif>
+                    <caption class="acx-sr">Danh sách nội dung</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Nội dung / Nguồn</th>
+                            <th scope="col">Phân loại</th>
+                            @if ($isQuestions)<th scope="col">Độ khó</th>@endif
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($rows as $r)
+                            <tr @unless ($isQuestions) data-pg-item @endunless>
+                                <td>
+                                    {{-- SỬA 23/9 — kèm 'kind' để mở ĐÚNG loại nội dung, tránh trùng id giữa 3 bảng. --}}
+                                    <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="akx-title">{{ $r['title'] }}</a>
+                                    @if ($isQuestions)
+                                        <div class="akx-meta">
+                                            @if (! empty($r['code']))<code>{{ $r['code'] }}</code>@endif
+                                            @if (($r['subject'] ?? '') === 'Chưa phân loại')
+                                                <span class="akx-pill akx-pill--warn">Chưa phân loại</span>
+                                            @elseif (! empty($r['subject']))
+                                                <span>{{ $r['subject'] }}</span>
+                                            @endif
+                                            @if (! empty($r['grade']))<span>· {{ $r['grade'] }}</span>@endif
+                                        </div>
+                                    @endif
+                                    <div class="akx-src">Nguồn: {{ $r['owner'] }}</div>
+                                </td>
+                                <td>
+                                    <div class="akx-k">{{ $r['type'] }}</div>
+                                    @if ($isQuestions)
+                                        <div class="akx-k2">{{ $r['province'] ?? '—' }}</div>
+                                        <div class="akx-k2">Năm: {{ $r['examYear'] ?? '—' }}</div>
+                                    @endif
+                                </td>
+                                @if ($isQuestions)
+                                    {{-- Chưa đặt thì hiện mờ + chú thích: giá trị đang được SUY theo điểm câu
+                                         hỏi, chưa phải do người soạn chọn (xem App\Support\QuestionDifficulty). --}}
+                                    <td>
+                                        @if ($r['difficultySet'] ?? false)
+                                            <span class="akx-k">{{ $r['difficulty'] }}</span>
+                                        @else
+                                            <span class="akx-mute" title="Chưa đặt — hệ thống tự suy theo điểm câu hỏi">{{ $r['difficulty'] }} <span style="font-size:11px">(tự suy)</span></span>
+                                        @endif
+                                    </td>
+                                @endif
+                                <td><span class="acx-badge {{ $badgeOf($r['tone'] ?? null) }}">{{ $r['status'] }}</span></td>
+                                <td>
+                                    <div class="akx-act">
+                                        {{-- SỬA 7/10 (khách: "ẩn cột Thứ tự, đưa nút Đưa lên trước ra cùng cột với Sửa/Xem/Xoá")
+                                             — chỉ còn nút chen câu này lên ngay trước câu phía trên nó; số thứ tự nằm trong
+                                             ô ẩn để máy chủ trả số mới về. Dòng đầu trang 1 → "Đang ở đầu". --}}
+                                        @if ($isQuestions)
+                                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
+                                                <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
+                                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
+                                                <span class="oi-ord__st" aria-live="polite"></span>
+                                            </span>
+                                        @endif
+                                        <div class="akx-act__links">
+                                            {{-- SỬA 30/9 (khách: "thêm nút sửa bên này nữa để người ta tiện sửa câu hỏi")
+                                                 — vào thẳng màn Sửa, khỏi phải bấm "Xem" rồi tìm nút Sửa trong trang chi
+                                                 tiết. Link do ContentService::indexData() dựng sẵn theo đúng loại nội dung
+                                                 của từng dòng (câu hỏi / đề / học liệu). --}}
+                                            @if ($r['editHref'] ?? null)
+                                                <a href="{{ $r['editHref'] }}" class="akx-lnk">Sửa</a>
+                                            @endif
+                                            <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="akx-lnk akx-lnk--mute">Xem</a>
+                                            {{-- SỬA 19/8 (Giai đoạn 4): chỉ đề của giáo viên (tab "Đề/bộ bài") mới có nút
+                                                 này — xem ContentService::indexData()/assessmentPromoteToShared(). --}}
+                                            @if ($r['canPromoteToShared'] ?? false)
+                                                <form method="POST" action="{{ route('admin.content.assessments.promoteShared', $r['id']) }}" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="akx-lnk akx-lnk--ok">Duyệt vào kho chung</button>
+                                                </form>
+                                            @endif
+                                            {{-- SỬA 25/8 (7) — "thêm tính năng xóa cho admin": xoá THẬT, xoá luôn tệp
+                                                 trên đĩa, không khôi phục được nên PHẢI xác nhận qua confirm().
+                                                 SỬA 4/10 (khách: "phần danh sách bài không thấy nút xoá") — cả 3 tab
+                                                 (Câu hỏi / Đề / Học liệu) đều có, địa chỉ lẫn câu hỏi xác nhận do
+                                                 indexData() dựng sẵn theo đúng loại nội dung của từng dòng. --}}
+                                            @if ($r['canDelete'] ?? false)
+                                                <form method="POST" action="{{ $r['deleteHref'] }}" class="inline" onsubmit="return confirm('{{ $r['deleteLabel'] }}');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="akx-lnk akx-lnk--del"><x-lucide name="trash-2" /> Xoá</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                @if (count($rows) === 0)
+                    <div class="akx-empty">
+                        <strong>{{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc' : 'Chưa có dữ liệu.' }}</strong>
+                        {{ $isQuestions && $hasActiveFilter ? 'Thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Thêm nội dung đầu tiên để bắt đầu.' }}
+                    </div>
+                @endif
+            </div>
+
+            {{-- SỬA 7/10 (khách: "quá 10 item thì phân trang") — tab Câu hỏi (cả "đã dùng" lẫn "chưa dùng
+                 trong đề") phân trang thật, 10 câu/trang. Link đi qua $filterLink nên giữ nguyên mọi bộ lọc
+                 đang bật (môn, khối, dạng câu, tỉnh, năm, từ khoá…). SỬA 8/10: thanh chuyển trang giờ hiện
+                 ở cả khi chỉ có 1 trang (nút mờ) cho giống bản mẫu. --}}
+            @if ($isQuestions)
+                @php
+                    $pgCurrent = $pagination['page'] ?? 1;
+                    $pgLast = $pagination['lastPage'] ?? 1;
+                    $pgTotalAll = $pagination['total'] ?? $total;
+                    $pgFrom = $pgTotalAll > 0 ? ($pgCurrent - 1) * ($pagination['perPage'] ?? 10) + 1 : 0;
+                    $pgTo = $pgTotalAll > 0 ? $pgFrom + count($rows) - 1 : 0;
+                    // Cửa sổ số trang: luôn có trang đầu/cuối, ±1 quanh trang hiện tại, '…' cho khoảng bị bỏ.
+                    $pgItems = [];
+                    $pgPrev = 0;
+                    for ($i = 1; $i <= $pgLast; $i++) {
+                        if ($i === 1 || $i === $pgLast || abs($i - $pgCurrent) <= 1) {
+                            if ($pgPrev && $i - $pgPrev > 1) {
+                                $pgItems[] = '…';
+                            }
+                            $pgItems[] = $i;
+                            $pgPrev = $i;
                         }
-                        $pgItems[] = $i;
-                        $pgPrev = $i;
                     }
-                }
-                $pgBtn = 'inline-flex items-center justify-center rounded-lg border text-[12px] font-semibold transition-colors';
-            @endphp
-            <nav aria-label="Phân trang câu hỏi" class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-[11px] text-slate-500 shadow-[0_2px_8px_rgba(0,90,180,.04)]">
-                <span>Hiển thị <strong class="font-bold text-slate-700">{{ $pgFrom }}–{{ $pgTo }}</strong> / {{ $pagination['total'] }} câu hỏi · Trang {{ $pgCurrent }}/{{ $pgLast }}</span>
-                <div class="flex flex-wrap items-center gap-1">
-                    @if ($pgCurrent > 1)
-                        <a href="{{ $filterLink(['page' => $pgCurrent > 2 ? $pgCurrent - 1 : null]) }}" aria-label="Trang trước"
-                           class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">‹</a>
-                    @else
-                        <span aria-hidden="true" class="{{ $pgBtn }} border-sky-100 bg-white text-slate-300" style="height:2rem;min-width:2rem;padding:0 .5rem;cursor:not-allowed">‹</span>
-                    @endif
-
-                    @foreach ($pgItems as $item)
-                        @if ($item === '…')
-                            <span class="text-slate-400" style="min-width:1.25rem;text-align:center">…</span>
-                        @elseif ($item === $pgCurrent)
-                            <span aria-current="page" class="{{ $pgBtn }} border-blue-600 bg-blue-600 text-white" style="height:2rem;min-width:2rem;padding:0 .5rem">{{ $item }}</span>
+                @endphp
+                <nav aria-label="Phân trang câu hỏi" class="akx-pg">
+                    <span>{{ $pgFrom }}–{{ $pgTo }} / {{ $pgTotalAll }} câu hỏi{{ $pgLast > 1 ? ' · Trang '.$pgCurrent.'/'.$pgLast : '' }}</span>
+                    <div class="akx-pg__btns">
+                        @if ($pgCurrent > 1)
+                            <a href="{{ $filterLink(['page' => $pgCurrent > 2 ? $pgCurrent - 1 : null]) }}" aria-label="Trang trước" class="akx-pgb"><x-lucide name="chevron-left" /></a>
                         @else
-                            <a href="{{ $filterLink(['page' => $item > 1 ? $item : null]) }}" aria-label="Trang {{ $item }}"
-                               class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">{{ $item }}</a>
+                            <span aria-hidden="true" class="akx-pgb is-off"><x-lucide name="chevron-left" /></span>
                         @endif
-                    @endforeach
 
-                    @if ($pgCurrent < $pgLast)
-                        <a href="{{ $filterLink(['page' => $pgCurrent + 1]) }}" aria-label="Trang sau"
-                           class="{{ $pgBtn }} border-sky-100 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-600" style="height:2rem;min-width:2rem;padding:0 .5rem">›</a>
-                    @else
-                        <span aria-hidden="true" class="{{ $pgBtn }} border-sky-100 bg-white text-slate-300" style="height:2rem;min-width:2rem;padding:0 .5rem;cursor:not-allowed">›</span>
-                    @endif
-                </div>
-            </nav>
-        @else
-            <x-ws.pagination-note :shown="count($rows)" :total="$total" />
-        @endif
+                        @foreach ($pgItems as $item)
+                            @if ($item === '…')
+                                <span class="akx-dots">…</span>
+                            @elseif ($item === $pgCurrent)
+                                <span aria-current="page" class="akx-pgb is-on">{{ $item }}</span>
+                            @else
+                                <a href="{{ $filterLink(['page' => $item > 1 ? $item : null]) }}" aria-label="Trang {{ $item }}" class="akx-pgb">{{ $item }}</a>
+                            @endif
+                        @endforeach
+
+                        @if ($pgCurrent < $pgLast)
+                            <a href="{{ $filterLink(['page' => $pgCurrent + 1]) }}" aria-label="Trang sau" class="akx-pgb"><x-lucide name="chevron-right" /></a>
+                        @else
+                            <span aria-hidden="true" class="akx-pgb is-off"><x-lucide name="chevron-right" /></span>
+                        @endif
+                    </div>
+                </nav>
+            @else
+                <div class="akx-pg" data-pg-nav="rows" hidden></div>
+            @endif
+        </section>
     @endif
 
     @if ($isQuestions)
         {{-- SỬA 7/10 — style riêng (server không build Vite lại nên không dùng class Tailwind mới). --}}
         <style>
-            .oi-ord-hint{margin:0 0 .6rem;font-size:12px;line-height:1.5;color:#64748b}
+            .oi-ord-hint{margin:0;font-size:12px;line-height:1.5;color:#64748b}
             .oi-ord-hint strong{color:#334155}
             .oi-ord{display:inline-flex;align-items:center;gap:4px}
             .oi-ord__b{width:26px;height:28px;border:1px solid #cfe3f5;background:#fff;color:#334155;border-radius:8px;font-size:15px;line-height:1;font-weight:700;cursor:pointer;padding:0;transition:background .12s,border-color .12s,color .12s}
@@ -414,10 +465,11 @@
             .oi-ord__in::-webkit-outer-spin-button,.oi-ord__in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             .oi-ord__in:focus{outline:2px solid #bfdbfe;border-color:#3b82f6}
             .oi-ord__in.is-set{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
-            .oi-ord__top{height:28px;padding:0 9px;border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:2px}
-            .oi-ord__top:hover{background:#dcfce7;border-color:#4ade80}
+            .oi-ord__top{height:auto;padding:0;border:0;background:transparent;color:#2563eb;border-radius:0;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:0}
+            .oi-ord__top::before{content:"\2191";margin-right:4px}
+            .oi-ord__top:hover{background:transparent;text-decoration:underline}
             .oi-ord-flash{background:#ecfdf5 !important;transition:background 1.2s}
-            .oi-ord__top[disabled]{background:#f1f5f9;border-color:#e2e8f0;color:#94a3b8;cursor:default}
+            .oi-ord__top[disabled]{background:transparent;color:#8aa0b6;cursor:default;text-decoration:none}
             .oi-ord__st{min-width:0;margin-right:6px;font-size:11px;font-weight:600;color:#64748b}
             .oi-ord__st.is-ok{color:#15803d}
             .oi-ord__st.is-err{color:#dc2626;white-space:normal;max-width:180px}
