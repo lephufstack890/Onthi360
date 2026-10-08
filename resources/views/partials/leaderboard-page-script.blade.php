@@ -14,9 +14,6 @@
 
         return {
             rows: config.rows || [],
-            namesLocked: !!config.namesLocked,
-            // Bảng công khai luôn ẩn danh (khoá bật); bảng lớp mặc định hiện tên như bản mẫu.
-            anonymous: !!config.namesLocked,
             query: '',
             page: 1,
             pageSize: config.pageSize || 5,
@@ -29,10 +26,9 @@
 
             fmt(value) { return nf.format(Number(value) || 0); },
 
-            // Dòng này có đang hiện ẩn danh không: tên chưa từng gửi (bảng công khai) hoặc người xem bật "Ẩn tên".
-            // Dòng của chính người xem luôn hiện tên thật.
-            isAnon(p) { return !p.named || (this.anonymous && !p.isYou); },
-            display(p) { return (this.anonymous && p.named && !p.isYou) ? 'Học sinh #' + p.rank : p.name; },
+            // Tên thật luôn hiện; chỉ khi tài khoản đã bị xoá (không còn tên) mới dùng ảnh đại diện trung tính.
+            isAnon(p) { return !p.named; },
+            display(p) { return p.name; },
             avatarClass(p) { return this.isAnon(p) ? '' : 'lb-avatar-initials lb-avatar-tone-' + (p.rank % 3); },
             badgeClass(p) {
                 if (p.rank === 1) return 'is-gold';
@@ -54,7 +50,7 @@
             get currentPage() { return Math.min(this.page, this.totalPages); },
             get start() { return (this.currentPage - 1) * this.pageSize; },
             get visible() { return this.filtered.slice(this.start, this.start + this.pageSize); },
-            // Tối đa 7 nút số quanh trang hiện tại (bảng có thể tới 100 dòng = 20 trang).
+            // Tối đa 7 nút số quanh trang hiện tại (bảng có thể tới 500 dòng).
             get pageButtons() {
                 const total = this.totalPages, cur = this.currentPage, span = 7;
                 let from = Math.max(1, cur - Math.floor(span / 2));

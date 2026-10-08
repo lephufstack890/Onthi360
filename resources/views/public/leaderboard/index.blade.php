@@ -16,8 +16,7 @@
      KHÁC bản mẫu (chủ ý, không phải thiếu sót):
        · Bản mẫu có "Trường", "Lớp/khối", "Rating" — hệ thống chưa có dữ liệu này nên dòng phụ dưới tên
          là số bài đã thử (hoặc tỉnh/thành ở bảng lớp) và ô chi tiết đổi sang số liệu có thật.
-       · Bản mẫu cho tắt "Ẩn tên học sinh" ở mọi bảng. Bảng công khai luôn ẩn danh để bảo vệ dữ liệu trẻ em
-         (ô bị khoá ở trạng thái bật); chỉ bảng "Lớp của tôi" (đã đăng nhập, cùng lớp) mới bỏ ẩn danh được. --}}
+       · Ô "Ẩn tên học sinh" của bản mẫu đã BỎ theo yêu cầu khách: mọi bảng hiện tên thật + tỉnh/thành. --}}
 @php
     $rows = $rows ?? [];
     $hero = $hero ?? ['students' => 0, 'solved' => 0, 'bestStreak' => 0];
@@ -419,14 +418,8 @@ body:has(.leaderboard-view) { background-color: #e0ebf0; }
         <div class="lb-tools">
             <label class="lb-search">
                 <x-lucide name="search" style="width:17px;height:17px" />
-                <input type="text" x-model="query" placeholder="Tìm học sinh, danh hiệu hoặc thứ hạng…" aria-label="Tìm học sinh, danh hiệu hoặc thứ hạng" autocomplete="off">
+                <input type="text" x-model="query" placeholder="Tìm học sinh, tỉnh thành hoặc danh hiệu…" aria-label="Tìm học sinh, tỉnh thành hoặc danh hiệu" autocomplete="off">
                 <button type="button" x-show="query" x-cloak aria-label="Xóa tìm kiếm" @click="query = ''"><x-lucide name="x" style="width:15px;height:15px" /></button>
-            </label>
-            <label class="lb-anonymous {{ $namesLocked ? 'is-locked' : '' }}"
-                   @if ($namesLocked) title="Bảng xếp hạng công khai luôn ẩn danh tên học sinh để bảo vệ dữ liệu trẻ em — không thể tắt." @endif>
-                <input type="checkbox" x-model="anonymous" @if ($namesLocked) disabled @endif>
-                <x-lucide name="eye-off" style="width:15px;height:15px" />Ẩn tên học sinh
-                @if ($namesLocked)<x-lucide name="lock" style="width:12px;height:12px" />@endif
             </label>
         </div>
     </section>

@@ -35,10 +35,9 @@ use Illuminate\Support\Facades\DB;
  *  · Đồng hạng     : xét lần lượt tổng điểm → số bài giải → tỷ lệ đúng → ai đạt thành tích sớm hơn.
  *  · Cuộc thi      : lấy thẳng bảng xếp hạng chính thức (leaderboard_entries) của cuộc thi/kỳ thi đã công bố.
  *
- * QUYỀN RIÊNG TƯ: giữ nguyên chính sách cũ — bảng công khai KHÔNG BAO GIỜ gửi tên thật của học sinh khác
- * ("Học sinh #hạng"; chỉ dòng của chính người đang đăng nhập hiện tên thật, và không lộ tỉnh/thành). Duy nhất
- * phạm vi "Lớp của tôi" (phải đăng nhập và là thành viên/giáo viên của lớp) hiện tên thật cho người trong lớp —
- * đổi CLASS_SCOPE_SHOW_NAMES = false nếu muốn ẩn cả ở đó.
+ * HIỂN THỊ TÊN (SỬA 8/10, khách yêu cầu): mọi phạm vi đều hiện TÊN THẬT và tỉnh/thành của học sinh, không còn
+ * chế độ ẩn danh; ô "Ẩn tên học sinh" của bản mẫu đã bỏ khỏi giao diện. (Khối "Top xuất sắc" ở trang chủ —
+ * HomeService::topStudents — vẫn giữ ẩn danh, chưa đổi.)
  */
 class LeaderboardService
 {
@@ -58,7 +57,7 @@ class LeaderboardService
     ];
 
     /** Số dòng tối đa đưa ra trang (tìm kiếm/phân trang chạy ở trình duyệt trên tập này). */
-    private const DISPLAY_LIMIT = 100;
+    private const DISPLAY_LIMIT = 500;
 
     /** So thứ hạng hiện tại với thứ hạng cách đây ngần này ngày để ra "biến động". */
     private const MOVEMENT_DAYS = 7;
@@ -66,10 +65,7 @@ class LeaderboardService
     /** Bảng tính nặng (gộp toàn bộ lượt làm) nên nhớ tạm — tăng khi đổi cách tính để bỏ cache cũ. */
     private const CACHE_TTL = 300;
 
-    private const CACHE_VERSION = 'v1';
-
-    /** Chỉ phạm vi "Lớp của tôi" hiện tên thật (xem docblock). */
-    private const CLASS_SCOPE_SHOW_NAMES = true;
+    private const CACHE_VERSION = 'v2';
 
     /** [số bài đã giải tối thiểu, danh hiệu] — từ cao xuống thấp. */
     private const TIERS = [
@@ -148,7 +144,7 @@ class LeaderboardService
             'totalSolved' => $base['totalSolved'],
             'updatedAt' => $base['updatedAt'],
             'you' => $this->youEntry($base['ranks'], $viewer),
-            'namesLocked' => true,
+            'namesLocked' => false,
             'rule' => $scope === self::SCOPE_MONTH
                 ? 'Chỉ tính các bài được chấm trong tháng hiện tại. Mỗi câu chỉ tính điểm cao nhất, nên nộp lại nhiều lần không làm tăng điểm. '.$this->tieNote()
                 : 'Tổng điểm là tổng điểm cao nhất của từng câu đã giải — nộp lại nhiều lần không tính thêm. Bài đã giải là số câu khác nhau làm đúng; tỷ lệ đúng = bài đã giải / số câu đã chấm; chuỗi luyện tập là số ngày liên tiếp có nộp bài. '.$this->tieNote(),
@@ -165,7 +161,7 @@ class LeaderboardService
         $previous = $this->rank($this->metrics($from, $now->copy()->subDays(self::MOVEMENT_DAYS), null))->pluck('rank', 'uid')->all();
 
         return [
-            'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), $previous, null),
+            'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), $previous, true),
             'totalStudents' => $current->count(),
             'totalSolved' => (int) $current->sum('solved'),
             'updatedAt' => $now->toIso8601String(),
@@ -194,7 +190,7 @@ class LeaderboardService
         $selected = $competitionId !== null ? $published->firstWhere('id', $competitionId) : $published->first();
 
         $base = [
-            'namesLocked' => true,
+            'namesLocked' => false,
             'rule' => 'Bảng xếp hạng chính thức của cuộc thi đã công bố kết quả: điểm là điểm bài thi theo thể lệ của ban tổ chức. Bài đã giải và tỷ lệ đúng tính trong riêng cuộc thi này.',
             'contest' => ['boards' => $boards, 'selectedId' => $selected?->id, 'examTabs' => [], 'selectedExamId' => null, 'title' => $selected?->title],
         ];
@@ -241,7 +237,7 @@ class LeaderboardService
         $base['contest']['selectedExamId'] = $exam?->id;
         $base['contest']['title'] = $exam !== null ? $exam->displayTitle() : $selected->title;
 
-        $rows = $this->personalise($this->decorate($ranked, [], null, false), $viewer);
+        $rows = $this->personalise($this->decorate($ranked, [], true, false), $viewer);
 
         $mine = $viewer !== null ? $raw->firstWhere('user_id', $viewer->id) : null;
 
@@ -260,7 +256,7 @@ class LeaderboardService
     {
         $base = [
             'rows' => [],
-            'namesLocked' => ! self::CLASS_SCOPE_SHOW_NAMES,
+            'namesLocked' => false,
             'rule' => 'Xếp hạng riêng các bạn trong lớp, tính từ toàn bộ bài đã làm. Cách tính điểm, bài đã giải và chuỗi luyện tập giống bảng Toàn thời gian.',
         ];
 
@@ -305,7 +301,7 @@ class LeaderboardService
                 $previous = $this->rank($this->metrics(null, $now->copy()->subDays(self::MOVEMENT_DAYS), $uids))->pluck('rank', 'uid')->all();
 
                 return [
-                    'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), $previous, self::CLASS_SCOPE_SHOW_NAMES),
+                    'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), $previous, true),
                     'totalStudents' => $current->count(),
                     'totalSolved' => (int) $current->sum('solved'),
                     'updatedAt' => $now->toIso8601String(),
@@ -420,7 +416,7 @@ class LeaderboardService
      *
      * @param  Collection<int, object>  $ranked
      * @param  array<int, int>  $previousRanks  uid → hạng cách đây MOVEMENT_DAYS ngày
-     * @param  bool|null  $named  true = kèm tên thật + tỉnh/thành; null/false = ẩn danh
+     * @param  bool|null  $named  true = kèm tên thật + tỉnh/thành; null/false = ẩn danh (hiện không còn nơi nào dùng)
      */
     private function decorate(Collection $ranked, array $previousRanks, ?bool $named, bool $withMovement = true): array
     {
