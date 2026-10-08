@@ -191,6 +191,9 @@ class PracticeService
             // Luyện tập công khai, không bị đẩy sang màn đăng nhập nữa. Route tương ứng cũng
             // đã bỏ ràng buộc vai trò, xem routes/web.php.
             'canTakeDirectly' => $viewer !== null,
+            // SỬA 8/10 (khách: "khối LUYỆN TẬP HÔM NAY ở đầu trang, dữ liệu lấy từ nhật ký làm bài") — số liệu
+            // RIÊNG của người đang xem (lượt nộp hôm nay + mức dấu hiệu từ nhật ký) nên KHÔNG nhớ tạm.
+            'dailyStats' => app(PracticeDailyStatsService::class)->forViewer($viewer),
             // Danh sách chuyên đề/dạng câu cũng như nhau với mọi khách.
         ], Cache::remember(
             'practice:filters:'.self::CACHE_VERSION,

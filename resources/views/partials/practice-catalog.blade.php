@@ -237,23 +237,10 @@
                 </div>
             </div>
 
-            <div class="relative z-10 w-full rounded-2xl border border-white/20 bg-slate-950/10 p-3 shadow-lg backdrop-blur-md lg:w-72 lg:shrink-0">
-                <p class="text-center text-xs font-bold uppercase tracking-[.08em] text-sky-100">Kho câu theo dạng</p>
-                <div class="mt-3 space-y-2.5 text-xs">
-                    @foreach (array_slice($practiceTypes, 0, 3) as $t)
-                        @php $pct = $practiceTotal > 0 ? round($t['count'] / $practiceTotal * 100) : 0; @endphp
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span>{{ $t['label'] }}</span>
-                                <span class="font-bold text-amber-300">{{ number_format($t['count']) }} câu</span>
-                            </div>
-                            <div class="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
-                                <div class="bg-amber-400 h-full rounded-full" style="width: {{ $pct }}%"></div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
+            {{-- SỬA 8/10 (khách: "thêm UI mục khoanh đỏ trong source mới — Luyện tập hôm nay; dữ liệu lấy từ nhật ký
+                 làm bài") — khung bên phải thành 2 ô như PracticePage.jsx: "Kho câu theo dạng" (nội dung cũ) +
+                 "Luyện tập hôm nay" (mới). Xem partials/practice-daily-stats và PracticeDailyStatsService. --}}
+            @include('partials.practice-daily-stats')
         </div>
     </div>
     @endif
