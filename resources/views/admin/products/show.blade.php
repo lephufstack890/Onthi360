@@ -22,8 +22,6 @@
         $materialsList = $materialsList ?? [];
     @endphp
 
-    <a href="{{ route('admin.products.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Tài liệu</a>
-
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
@@ -53,121 +51,156 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá.'])
     @endif
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 lg:p-6 mb-4 shadow-[0_2px_8px_rgba(0,90,180,.04)] flex items-start justify-between gap-4 flex-wrap">
-        <div class="flex items-start gap-4">
-            <x-ws.icon-tile emoji="🎫" tone="rose" />
-            <div>
-                <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $product->title }}</h1>
-                    <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>
+    {{--
+      SỬA 8/10 (khách: "cập nhật lại UI màn tài liệu theo source mới, logic giữ nguyên") — trang chi tiết
+      theo phong cách AdminContentWorkspace.jsx: đầu trang + huy hiệu, chỉ số tự tính từ dữ liệu đã có,
+      các khối trắng bo tròn, thông tin nằm ở thẻ xanh nhạt bên phải. Mọi biến, route, form (thêm/sửa/xoá
+      chương, thêm bài từ ZIP, học liệu, quyền đã cấp) và hộp xác nhận GIỮ NGUYÊN như bản cũ.
+    --}}
+    @include('partials.admin-products-ui')
+    @php
+        $badgeOf = fn ($tone) => match ($tone) {
+            'success' => 'acx-badge--ok',
+            'warning' => 'acx-badge--warn',
+            'danger', 'error' => 'acx-badge--off',
+            'info' => 'acx-badge--info',
+            default => '',
+        };
+        $coverUrl = $product->cover_image_path ? asset('storage/'.$product->cover_image_path) : null;
+        $typeIconMap = ['book' => 'book-open', 'topic' => 'layers', 'exam' => 'file-text', 'course' => 'graduation-cap'];
+    @endphp
+
+    <div class="acx-wrap">
+        <a href="{{ route('admin.products.index') }}" class="acx-back">‹ Quay lại Tài liệu</a>
+
+        <div class="acx-head">
+            <div class="acx-head__id">
+                @if ($coverUrl)
+                    <img class="acx-head__thumb" src="{{ $coverUrl }}" alt="">
+                @else
+                    <span class="acx-avatar"><x-lucide :name="$typeIconMap[$product->type->value] ?? 'file-text'" /></span>
+                @endif
+                <div style="min-width:0">
+                    <h1>{{ $product->title }}</h1>
+                    <div class="acx-head__meta">
+                        <span class="acx-badge {{ $badgeOf($meta['tone']) }}">{{ $meta['label'] }}</span>
+                        <span>
+                            {{ $typeLabels[$product->type->value] ?? $product->type->value }}
+                            · Giá học: {{ number_format($product->price) }}đ
+                            · Giá dạy: {{ number_format($product->price_teaching) }}đ
+                            · Hiển thị: {{ $product->visibility->value === 'public' ? 'Công khai' : 'Riêng tư' }}
+                        </span>
+                    </div>
                 </div>
-                <p class="text-[13px] text-slate-500">
-                    {{ $typeLabels[$product->type->value] ?? $product->type->value }}
-                    · Giá học: {{ number_format($product->price) }}đ
-                    · Giá dạy: {{ number_format($product->price_teaching) }}đ
-                    · Hiển thị: {{ $product->visibility->value === 'public' ? 'Công khai' : 'Riêng tư' }}
-                </p>
+            </div>
+            <div class="acx-head__actions">
+                <a href="{{ route('admin.products.edit', $product->id) }}" class="acx-btn">
+                    <x-lucide name="pen-line" /> Sửa
+                </a>
             </div>
         </div>
-        <a href="{{ route('admin.products.edit', $product->id) }}"
-           class="px-4 py-2 rounded-xl border border-sky-100 bg-white text-slate-600 text-[13px] font-medium hover:border-blue-200 hover:text-blue-600 transition shrink-0">
-            ✏️ Sửa
-        </a>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-5">
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="pen-line" class="h-4 w-4" /></span> Mô tả</h2>
-                @if ($product->description)
-                    <div class="rich-content text-[13px] text-slate-600 leading-relaxed">{!! $product->description !!}</div>
-                @else
-                    <p class="text-[13px] text-slate-400">Chưa có mô tả.</p>
-                @endif
-            </div>
-
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span><x-lucide name="file-text" class="h-4 w-4" /></span> Tài nguyên đính kèm</h2>
-                @php
-                    // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm
-                    // từng file pdf") — bỏ dòng "File PDF" (tệp tổng của cả sản phẩm) khỏi đây.
-                    // Nội dung đọc giờ nằm ở PDF của TỪNG chương/phần/đề, xem khối bên dưới.
-                    // Cột content_pdf_path trong DB CỐ Ý giữ lại, không xoá: sản phẩm cũ đã tải
-                    // tệp tổng vẫn đọc được (ProductReadService::partsFor() dùng làm tệp dự phòng
-                    // khi chưa chương nào có PDF), khỏi phải chuyển dữ liệu trước khi lên bản mới.
-                    // SỬA 29/9 (2) — khách: "bỏ File PDF tổng (kiểu cũ) đi, không cần hiển thị".
-                    // Chỉ ẩn khỏi màn hình; dữ liệu vẫn nguyên trong DB và trang đọc vẫn dùng tệp
-                    // này làm nội dung dự phòng khi sản phẩm chưa chương nào có PDF.
-                    $extraResources = [
-                        ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
-                    ];
-                    if ($product->exercise_zip_path) {
-                        $extraResources[] = [
-                            'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
-                        ];
-                    }
-                    if ($product->media_path) {
-                        $extraResources[] = [
-                            'label' => 'Học liệu (ảnh động/audio, cũ)', 'path' => $product->media_path, 'name' => $product->media_original_name,
-                        ];
-                    }
-                @endphp
-                <div class="divide-y divide-slate-100">
-                    @foreach ($extraResources as $res)
-                        <div class="flex items-center justify-between gap-3 py-2.5">
-                            <span class="text-[13px] text-slate-600 shrink-0">{{ $res['label'] }}</span>
-                            @if ($res['path'])
-                                <span class="text-xs text-emerald-600 font-medium truncate min-w-0">✓ {{ $res['name'] }}</span>
-                            @else
-                                <span class="text-xs text-slate-400">Chưa có</span>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-                <a href="{{ route('admin.products.edit', $product->id) }}" class="text-[13px] text-blue-600 font-medium mt-3 inline-block">Thêm/thay file ›</a>
-            </div>
-
+        <div class="acx-stats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
             @if ($chapterLabel)
-                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5" x-data="{ editing: null }">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
-                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="book-open" class="h-4 w-4" /></span> {{ $chapterLabel }}</h2>
-                        <span class="text-xs text-slate-400">{{ count($chapters) }} mục</span>
-                    </div>
-                    {{-- SỬA 29/9 (khách chốt: "chỗ chương mỗi chương là thêm từng file pdf") — mỗi
-                         mục giờ mang LUÔN tệp PDF nội dung của nó. Học sinh/giáo viên mở trang đọc
-                         sẽ thấy các tệp này nối lại thành một dải cuộn liền mạch theo đúng thứ tự
-                         ở đây (xem App\Services\ProductReadService). --}}
-                    <p class="text-xs text-slate-400 mb-3">
-                        Đặt tên + tải tệp PDF nội dung của {{ mb_strtolower($chapterLabel) }} này. Người học đọc liền
-                        mạch tất cả {{ mb_strtolower($chapterLabel) }} theo thứ tự bên dưới — cần đổi thứ tự thì bấm Sửa.
-                    </p>
+                <div class="acx-stat"><p>{{ $chapterLabel }}</p><strong>{{ count($chapters) }}</strong></div>
+            @endif
+            <div class="acx-stat"><p>Bài tập đính kèm</p><strong>{{ count($exercises) }}</strong></div>
+            @if ($chapterLabel)
+                <div class="acx-stat"><p>Học liệu</p><strong>{{ count($materialsList) }}</strong></div>
+            @endif
+            <div class="acx-stat"><p>Quyền đã cấp</p><strong>{{ $accessRightCount }}</strong></div>
+        </div>
 
-                    <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data"
-                          class="flex items-center gap-3 flex-wrap mb-4 p-3 rounded-xl bg-slate-50 border border-dashed border-sky-100">
-                        @csrf
-                        <input type="text" name="title" required maxlength="255" placeholder="Tên {{ mb_strtolower($chapterLabel) }} mới..."
-                               class="flex-1 min-w-[200px] rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition">
-                        <input type="file" name="pdf" accept="application/pdf"
-                               class="text-[13px] text-slate-600 flex-1 min-w-[200px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-600 file:text-[13px]">
-                        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium shrink-0">
-                            + Thêm {{ mb_strtolower($chapterLabel) }}
-                        </button>
-                    </form>
-
-                    @if (empty($chapters))
-                        <x-ws.empty-state :title="'Chưa có '.mb_strtolower($chapterLabel).' nào'" description="Thêm mục đầu tiên ở ô trên để bắt đầu gắn bài tập/học liệu." />
+        <div class="acx-grid acx-grid--main">
+            <div class="acx-stack">
+                <section class="acx-card acx-card--white">
+                    <h2><x-lucide name="pen-line" /> Mô tả</h2>
+                    @if ($product->description)
+                        <div class="rich-content acx-rich">{!! $product->description !!}</div>
                     @else
-                        <div class="divide-y divide-slate-100">
-                            @foreach ($chapters as $c)
-                                <div class="py-2.5" x-show="editing !== {{ $c['id'] }}">
-                                    <div class="flex items-center justify-between gap-3 flex-wrap">
-                                        <div class="min-w-0">
-                                            <p class="text-[13px] font-medium text-slate-700 truncate">{{ $c['title'] }}</p>
-                                            <p class="text-xs text-slate-400">
+                        <p class="acx-note">Chưa có mô tả.</p>
+                    @endif
+                </section>
+
+                <section class="acx-card acx-card--white">
+                    <h2><x-lucide name="file-text" /> Tài nguyên đính kèm</h2>
+                    @php
+                        // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm
+                        // từng file pdf") — bỏ dòng "File PDF" (tệp tổng của cả sản phẩm) khỏi đây.
+                        // Nội dung đọc giờ nằm ở PDF của TỪNG chương/phần/đề, xem khối bên dưới.
+                        // Cột content_pdf_path trong DB CỐ Ý giữ lại, không xoá: sản phẩm cũ đã tải
+                        // tệp tổng vẫn đọc được (ProductReadService::partsFor() dùng làm tệp dự phòng
+                        // khi chưa chương nào có PDF), khỏi phải chuyển dữ liệu trước khi lên bản mới.
+                        // SỬA 29/9 (2) — khách: "bỏ File PDF tổng (kiểu cũ) đi, không cần hiển thị".
+                        // Chỉ ẩn khỏi màn hình; dữ liệu vẫn nguyên trong DB và trang đọc vẫn dùng tệp
+                        // này làm nội dung dự phòng khi sản phẩm chưa chương nào có PDF.
+                        $extraResources = [
+                            ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
+                        ];
+                        if ($product->exercise_zip_path) {
+                            $extraResources[] = [
+                                'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
+                            ];
+                        }
+                        if ($product->media_path) {
+                            $extraResources[] = [
+                                'label' => 'Học liệu (ảnh động/audio, cũ)', 'path' => $product->media_path, 'name' => $product->media_original_name,
+                            ];
+                        }
+                    @endphp
+                    <div>
+                        @foreach ($extraResources as $res)
+                            <div class="apx-res">
+                                <span>{{ $res['label'] }}</span>
+                                @if ($res['path'])
+                                    <span class="apx-ok">✓ {{ $res['name'] }}</span>
+                                @else
+                                    <span class="apx-muted">Chưa có</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                    <a href="{{ route('admin.products.edit', $product->id) }}" class="apx-more">Thêm/thay file ›</a>
+                </section>
+
+                @if ($chapterLabel)
+                    <section class="acx-card acx-card--white" x-data="{ editing: null }">
+                        <div class="apx-cardtop">
+                            <h2><x-lucide name="book-open" /> {{ $chapterLabel }}</h2>
+                            <span class="apx-count">{{ count($chapters) }} mục</span>
+                        </div>
+                        {{-- SỬA 29/9 (khách chốt: "chỗ chương mỗi chương là thêm từng file pdf") — mỗi
+                             mục giờ mang LUÔN tệp PDF nội dung của nó. Học sinh/giáo viên mở trang đọc
+                             sẽ thấy các tệp này nối lại thành một dải cuộn liền mạch theo đúng thứ tự
+                             ở đây (xem App\Services\ProductReadService). --}}
+                        <p class="apx-hint">
+                            Đặt tên + tải tệp PDF nội dung của {{ mb_strtolower($chapterLabel) }} này. Người học đọc liền
+                            mạch tất cả {{ mb_strtolower($chapterLabel) }} theo thứ tự bên dưới — cần đổi thứ tự thì bấm Sửa.
+                        </p>
+
+                        <div class="apx-add">
+                            <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data">
+                                @csrf
+                                <input type="text" name="title" required maxlength="255" placeholder="Tên {{ mb_strtolower($chapterLabel) }} mới..."
+                                       class="apx-input apx-input--grow">
+                                <input type="file" name="pdf" accept="application/pdf" class="apx-file">
+                                <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm">+ Thêm {{ mb_strtolower($chapterLabel) }}</button>
+                            </form>
+                        </div>
+
+                        @if (empty($chapters))
+                            <x-ws.empty-state :title="'Chưa có '.mb_strtolower($chapterLabel).' nào'" description="Thêm mục đầu tiên ở ô trên để bắt đầu gắn bài tập/học liệu." />
+                        @else
+                            <div class="apx-list">
+                                @foreach ($chapters as $c)
+                                    <div class="apx-item" x-show="editing !== {{ $c['id'] }}">
+                                        <div class="apx-item__main">
+                                            <p class="apx-item__title">{{ $c['title'] }}</p>
+                                            <p class="apx-item__sub">
                                                 @if ($c['hasPdf'])
-                                                    <span class="text-emerald-600 font-medium">✓ {{ $c['pdfName'] ?: 'Đã có PDF' }}</span>
+                                                    <span class="apx-ok">✓ {{ $c['pdfName'] ?: 'Đã có PDF' }}</span>
                                                 @else
-                                                    <span class="text-amber-600 font-medium">⚠ Chưa có PDF nội dung</span>
+                                                    <span class="apx-warn">⚠ Chưa có PDF nội dung</span>
                                                 @endif
                                                 · {{ $c['questionsCount'] }} bài tập
                                                 @if (($c['materialsCount'] ?? 0) > 0)
@@ -175,197 +208,203 @@
                                                 @endif
                                             </p>
                                         </div>
-                                        <div class="flex items-center gap-3 shrink-0">
-                                            <button type="button" @click="editing = {{ $c['id'] }}" class="text-[13px] text-blue-600 font-medium">Sửa</button>
+                                        <div class="apx-item__side">
+                                            <button type="button" @click="editing = {{ $c['id'] }}" class="acx-link">Sửa</button>
                                             <form action="{{ route('admin.products.chapters.destroy', [$product->id, $c['id']]) }}" method="POST" onsubmit="return confirm('Xoá mục này? Không thể hoàn tác.');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-xs font-bold text-slate-400 transition-colors hover:text-blue-600">Xoá</button>
+                                                <button type="submit" class="acx-link acx-link--del">Xoá</button>
                                             </form>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="py-2.5" x-show="editing === {{ $c['id'] }}" x-cloak>
-                                    <form action="{{ route('admin.products.chapters.update', [$product->id, $c['id']]) }}" method="POST" enctype="multipart/form-data" class="flex items-center gap-2 flex-wrap">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="text" name="title" value="{{ $c['title'] }}" required maxlength="255"
-                                               class="flex-1 min-w-[160px] rounded-xl border border-sky-100 text-[13px] p-2">
-                                        <input type="number" name="order" value="{{ $c['order'] }}" min="0"
-                                               class="w-20 rounded-xl border border-sky-100 text-[13px] p-2" title="Thứ tự">
-                                        {{-- SỬA 29/9 — thay/thêm tệp PDF của chính mục này. Bỏ trống = giữ tệp đang có. --}}
-                                        <input type="file" name="pdf" accept="application/pdf"
-                                               class="text-[13px] text-slate-600 flex-1 min-w-[180px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-600 file:text-[13px]">
-                                        @if ($c['hasPdf'])
-                                            <label class="flex items-center gap-1.5 text-xs text-slate-500">
-                                                <input type="checkbox" name="remove_pdf" value="1"> Xoá PDF
-                                            </label>
-                                        @endif
-                                        <button type="submit" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-xs font-semibold">Lưu</button>
-                                        <button type="button" @click="editing = null" class="px-3 py-2 rounded-xl border border-sky-100 text-slate-500 text-xs font-medium hover:border-blue-200 hover:text-blue-600 transition-colors">Huỷ</button>
-                                    </form>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            @endif
-
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
-                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="layers" class="h-4 w-4" /></span> Bài tập đính kèm</h2>
-                    <span class="text-xs text-slate-400">{{ count($exercises) }} bài</span>
-                </div>
-                <p class="text-xs text-slate-400 mb-3">
-                    Chọn 1 gói ZIP (định dạng OT360-QPACK) — hệ thống tự đọc đề bài + test case, bạn
-                    chỉ cần kiểm tra lại rồi bấm "Lưu bài tập". Không giới hạn số lượng bài — thêm
-                    xong 1 bài mới được thêm bài tiếp theo. Hoặc bấm "Thêm thủ công" để tự soạn.
-                </p>
-
-                <div class="flex items-center gap-3 flex-wrap mb-4 p-3 rounded-xl bg-slate-50 border border-dashed border-sky-100">
-                    <form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data" class="flex items-center gap-3 flex-wrap flex-1 min-w-[240px]">
-                        @csrf
-                        <input type="file" name="zip_package" accept=".zip" required
-                               class="text-[13px] text-slate-600 flex-1 min-w-[200px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-600 file:text-[13px]">
-                        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium shrink-0">
-                            ⬆️ Thêm từ ZIP
-                        </button>
-                    </form>
-                    <a href="{{ route('admin.products.exercises.createManual', $product->id) }}"
-                       class="px-4 py-2 rounded-xl border border-sky-100 bg-white text-slate-600 text-[13px] font-medium hover:border-blue-200 hover:text-blue-600 transition-colors shrink-0">
-                        ✏️ Thêm thủ công
-                    </a>
-                </div>
-
-                @if (empty($exercises))
-                    <x-ws.empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP hoặc soạn thủ công ở ô trên để bắt đầu." />
-                @else
-                    <div class="divide-y divide-slate-100">
-                        @foreach ($exercises as $ex)
-                            <div class="flex items-center justify-between gap-3 py-3 flex-wrap">
-                                <div class="min-w-0">
-                                    <p class="text-[13px] font-medium text-slate-700 truncate">
-                                        {{ $ex['title'] }} <span class="text-xs font-normal text-slate-400">· {{ $ex['typeLabel'] }}</span>
-                                        @if ($ex['chapterTitle'])
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-500 ml-1">{{ $ex['chapterTitle'] }}</span>
-                                        @endif
-                                    </p>
-                                    <p class="text-xs text-slate-400">
-                                        {{ $ex['points'] }} điểm · {{ $ex['summary'] }}
-                                        @if (!empty($ex['tags']))
-                                            · {{ implode(', ', $ex['tags']) }}
-                                        @endif
-                                        · {{ $ex['createdAt'] }}
-                                    </p>
-                                </div>
-                                <div class="flex items-center gap-3 shrink-0">
-                                    <a href="{{ route('admin.products.exercises.edit', [$product->id, $ex['id']]) }}" class="text-[13px] text-blue-600 font-medium">Sửa</a>
-                                    <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Xoá bài tập này? Không thể hoàn tác.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-xs font-bold text-slate-400 transition-colors hover:text-blue-600">Xoá</button>
-                                    </form>
-                                </div>
+                                    <div x-show="editing === {{ $c['id'] }}" x-cloak>
+                                        <form action="{{ route('admin.products.chapters.update', [$product->id, $c['id']]) }}" method="POST" enctype="multipart/form-data" class="apx-edit">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="text" name="title" value="{{ $c['title'] }}" required maxlength="255" class="apx-input apx-input--grow">
+                                            <input type="number" name="order" value="{{ $c['order'] }}" min="0" class="apx-input apx-input--num" title="Thứ tự">
+                                            {{-- SỬA 29/9 — thay/thêm tệp PDF của chính mục này. Bỏ trống = giữ tệp đang có. --}}
+                                            <input type="file" name="pdf" accept="application/pdf" class="apx-file">
+                                            @if ($c['hasPdf'])
+                                                <label>
+                                                    <input type="checkbox" name="remove_pdf" value="1"> Xoá PDF
+                                                </label>
+                                            @endif
+                                            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm">Lưu</button>
+                                            <button type="button" @click="editing = null" class="acx-btn acx-btn--sm">Huỷ</button>
+                                        </form>
+                                    </div>
+                                @endforeach
                             </div>
-                        @endforeach
-                    </div>
+                        @endif
+                    </section>
                 @endif
-            </div>
 
-            @if ($chapterLabel)
-                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
-                        <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="library" class="h-4 w-4" /></span> Học liệu theo {{ mb_strtolower($chapterLabel) }}</h2>
-                        <span class="text-xs text-slate-400">{{ count($materialsList) }} học liệu</span>
+                <section class="acx-card acx-card--white">
+                    <div class="apx-cardtop">
+                        <h2><x-lucide name="layers" /> Bài tập đính kèm</h2>
+                        <span class="apx-count">{{ count($exercises) }} bài</span>
                     </div>
-                    <p class="text-xs text-slate-400 mb-3">
-                        File PDF/audio/ảnh (kể cả ảnh động) đính kèm — 1 học liệu có thể có cả 3 loại
-                        cùng lúc, gắn vào đúng {{ mb_strtolower($chapterLabel) }} để học sinh dễ tìm.
+                    <p class="apx-hint">
+                        Chọn 1 gói ZIP (định dạng OT360-QPACK) — hệ thống tự đọc đề bài + test case, bạn
+                        chỉ cần kiểm tra lại rồi bấm "Lưu bài tập". Không giới hạn số lượng bài — thêm
+                        xong 1 bài mới được thêm bài tiếp theo. Hoặc bấm "Thêm thủ công" để tự soạn.
                     </p>
 
-                    <a href="{{ route('admin.content.materials.create', ['product_id' => $product->id]) }}"
-                       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium mb-4">
-                        ⬆️ Thêm học liệu
-                    </a>
+                    <div class="apx-add">
+                        <form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <input type="file" name="zip_package" accept=".zip" required class="apx-file">
+                            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm"><x-lucide name="upload" /> Thêm từ ZIP</button>
+                        </form>
+                        <a href="{{ route('admin.products.exercises.createManual', $product->id) }}" class="acx-btn acx-btn--sm">
+                            <x-lucide name="pen-line" /> Thêm thủ công
+                        </a>
+                    </div>
 
-                    @if (empty($materialsList))
-                        <x-ws.empty-state title="Chưa có học liệu nào" description="Thêm học liệu đầu tiên ở nút trên." />
+                    @if (empty($exercises))
+                        <x-ws.empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP hoặc soạn thủ công ở ô trên để bắt đầu." />
                     @else
-                        <div class="divide-y divide-slate-100">
-                            @foreach ($materialsList as $m)
-                                <div class="flex items-center justify-between gap-3 py-3 flex-wrap">
-                                    <div class="min-w-0">
-                                        <p class="text-[13px] font-medium text-slate-700 truncate">{{ $m['title'] }}</p>
-                                        <p class="text-xs text-slate-400">
-                                            {{ $m['chapterTitle'] ?? 'Chưa gắn '.mb_strtolower($chapterLabel) }}
-                                            @if ($m['hasPdf']) · 📄 PDF @endif
-                                            @if ($m['hasAudio']) · 🔊 Audio @endif
-                                            @if ($m['hasImage']) · 🖼️ Ảnh @endif
+                        <div class="apx-list">
+                            @foreach ($exercises as $ex)
+                                <div class="apx-item">
+                                    <div class="apx-item__main">
+                                        <p class="apx-item__title">
+                                            {{ $ex['title'] }} <span class="apx-muted" style="font-weight:400">· {{ $ex['typeLabel'] }}</span>
+                                            @if ($ex['chapterTitle'])
+                                                <span class="apx-tag">{{ $ex['chapterTitle'] }}</span>
+                                            @endif
+                                        </p>
+                                        <p class="apx-item__sub">
+                                            {{ $ex['points'] }} điểm · {{ $ex['summary'] }}
+                                            @if (!empty($ex['tags']))
+                                                · {{ implode(', ', $ex['tags']) }}
+                                            @endif
+                                            · {{ $ex['createdAt'] }}
                                         </p>
                                     </div>
-                                    <div class="flex items-center gap-3 shrink-0">
-                                        <x-ws.badge :tone="$m['statusTone']">{{ $m['statusLabel'] }}</x-ws.badge>
-                                        <a href="{{ route('admin.content.materials.edit', $m['id']) }}" class="text-[13px] text-blue-600 font-medium">Sửa</a>
+                                    <div class="apx-item__side">
+                                        <a href="{{ route('admin.products.exercises.edit', [$product->id, $ex['id']]) }}" class="acx-link">Sửa</a>
+                                        <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Xoá bài tập này? Không thể hoàn tác.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="acx-link acx-link--del">Xoá</button>
+                                        </form>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
                     @endif
-                </div>
-            @endif
+                </section>
 
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="ticket" class="h-4 w-4" /></span> Quyền đã cấp cho tài liệu này</h2>
-                    <span class="text-xs text-slate-400">{{ $accessRightCount }} quyền</span>
-                </div>
+                @if ($chapterLabel)
+                    <section class="acx-card acx-card--white">
+                        <div class="apx-cardtop">
+                            <h2><x-lucide name="library" /> Học liệu theo {{ mb_strtolower($chapterLabel) }}</h2>
+                            <span class="apx-count">{{ count($materialsList) }} học liệu</span>
+                        </div>
+                        <p class="apx-hint">
+                            File PDF/audio/ảnh (kể cả ảnh động) đính kèm — 1 học liệu có thể có cả 3 loại
+                            cùng lúc, gắn vào đúng {{ mb_strtolower($chapterLabel) }} để học sinh dễ tìm.
+                        </p>
 
-                @if (empty($accessRightRows))
-                    <x-ws.empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
-                @else
-                    <div class="overflow-x-auto">
-                        <x-ws.table :columns="['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', '']">
-                            @foreach ($accessRightRows as $row)
-                                <tr class="hover:bg-slate-50">
-                                    <td class="px-4 py-3 text-[13px] text-slate-700">{{ $row['userName'] }}</td>
-                                    <td class="px-4 py-3 text-[13px] text-slate-600">{{ $row['scopeLabel'] }}</td>
-                                    <td class="px-4 py-3">
-                                        <x-ws.badge :tone="$row['tone']">{{ $row['statusLabel'] }}</x-ws.badge>
-                                        <p class="text-xs text-slate-400 mt-1">
-                                            {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
-                                        </p>
-                                    </td>
-                                    <td class="px-4 py-3 text-xs text-slate-500">{{ $row['sourceLabel'] }}</td>
-                                    <td class="px-4 py-3 text-xs text-slate-500">
-                                        @if ($row['orderNo'])
-                                            #{{ $row['orderNo'] }}
-                                            @if ($row['paidAt'])
-                                                <span class="block text-slate-400">Duyệt/thanh toán: {{ $row['paidAt']->format('d/m/Y H:i') }}</span>
-                                            @endif
-                                        @else
-                                            —
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3 text-[13px]">
-                                        <a href="{{ route('admin.access-rights.show', $row['id']) }}" class="text-blue-600 font-medium">Xem</a>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </x-ws.table>
-                    </div>
+                        <div class="apx-add">
+                            <a href="{{ route('admin.content.materials.create', ['product_id' => $product->id]) }}" class="acx-btn acx-btn--primary acx-btn--sm">
+                                <x-lucide name="upload" /> Thêm học liệu
+                            </a>
+                        </div>
+
+                        @if (empty($materialsList))
+                            <x-ws.empty-state title="Chưa có học liệu nào" description="Thêm học liệu đầu tiên ở nút trên." />
+                        @else
+                            <div class="apx-list">
+                                @foreach ($materialsList as $m)
+                                    <div class="apx-item">
+                                        <div class="apx-item__main">
+                                            <p class="apx-item__title">{{ $m['title'] }}</p>
+                                            <p class="apx-item__sub">
+                                                {{ $m['chapterTitle'] ?? 'Chưa gắn '.mb_strtolower($chapterLabel) }}
+                                                @if ($m['hasPdf']) · 📄 PDF @endif
+                                                @if ($m['hasAudio']) · 🔊 Audio @endif
+                                                @if ($m['hasImage']) · 🖼️ Ảnh @endif
+                                            </p>
+                                        </div>
+                                        <div class="apx-item__side">
+                                            <span class="acx-badge {{ $badgeOf($m['statusTone'] ?? null) }}">{{ $m['statusLabel'] }}</span>
+                                            <a href="{{ route('admin.content.materials.edit', $m['id']) }}" class="acx-link">Sửa</a>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </section>
                 @endif
-            </div>
-        </div>
 
-        <div class="bg-white rounded-3xl border border-sky-100 p-5 space-y-4">
-            <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="info" class="h-4 w-4" /></span> Thông tin tài liệu</h3>
-            <div class="text-[13px] space-y-3">
-                <div><p class="text-slate-400 text-xs">Môn học / Khối / Chuyên đề</p><p class="text-slate-700">{{ collect([$product->subject, $product->grade, $product->topic])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</p></div>
-                <div><p class="text-slate-400 text-xs">Thời hạn quyền mặc định</p><p class="text-slate-700">{{ $product->duration_months ? $product->duration_months.' tháng' : 'Không giới hạn' }}</p></div>
-                <div><p class="text-slate-400 text-xs">Bản in</p><p class="text-slate-700">{{ $product->has_print_option ? 'Có' : 'Không' }}</p></div>
-                <div><p class="text-slate-400 text-xs">Đường dẫn công khai</p><p class="text-slate-700 break-all">/san-pham/{{ $product->slug }}</p></div>
-                <div><p class="text-slate-400 text-xs">Ngày tạo</p><p class="text-slate-700">{{ $product->created_at?->format('d/m/Y H:i') }}</p></div>
+                <section class="acx-card acx-card--white">
+                    <div class="apx-cardtop">
+                        <h2><x-lucide name="ticket" /> Quyền đã cấp cho tài liệu này</h2>
+                        <span class="apx-count">{{ $accessRightCount }} quyền</span>
+                    </div>
+
+                    @if (empty($accessRightRows))
+                        <x-ws.empty-state title="Chưa cấp quyền nào cho tài liệu này" description="Quyền được cấp khi người dùng mua và kích hoạt mã (7.4), hoặc khi Admin cấp trực tiếp." />
+                    @else
+                        <div class="acx-scroll">
+                            <table class="acx-table apx-all">
+                                <thead>
+                                    <tr>
+                                        @foreach (['Người dùng', 'Loại quyền', 'Trạng thái', 'Nguồn cấp', 'Đơn hàng / thanh toán', ''] as $col)
+                                            <th scope="col">{{ $col }}</th>
+                                        @endforeach
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($accessRightRows as $row)
+                                        <tr>
+                                            <td><strong>{{ $row['userName'] }}</strong></td>
+                                            <td>{{ $row['scopeLabel'] }}</td>
+                                            <td>
+                                                <span class="acx-badge {{ $badgeOf($row['tone'] ?? null) }}">{{ $row['statusLabel'] }}</span>
+                                                <small>
+                                                    {{ $row['startsAt']?->format('d/m/Y') }} — {{ $row['expiresAt']?->format('d/m/Y') ?? 'Không giới hạn' }}
+                                                </small>
+                                            </td>
+                                            <td>{{ $row['sourceLabel'] }}</td>
+                                            <td>
+                                                @if ($row['orderNo'])
+                                                    #{{ $row['orderNo'] }}
+                                                    @if ($row['paidAt'])
+                                                        <small>Duyệt/thanh toán: {{ $row['paidAt']->format('d/m/Y H:i') }}</small>
+                                                    @endif
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <div class="acx-actions"><a href="{{ route('admin.access-rights.show', $row['id']) }}" class="acx-link">Xem</a></div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </section>
             </div>
+
+            <aside class="acx-card acx-card--mint">
+                @if ($coverUrl)
+                    <img class="acx-cover" src="{{ $coverUrl }}" alt="Ảnh bìa tài liệu">
+                @endif
+                <h3><x-lucide name="info" /> Thông tin tài liệu</h3>
+                <dl class="acx-dl">
+                    <div><dt>Môn học / Khối / Chuyên đề</dt><dd>{{ collect([$product->subject, $product->grade, $product->topic])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</dd></div>
+                    <div><dt>Thời hạn quyền mặc định</dt><dd>{{ $product->duration_months ? $product->duration_months.' tháng' : 'Không giới hạn' }}</dd></div>
+                    <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có' : 'Không' }}</dd></div>
+                    <div><dt>Đường dẫn công khai</dt><dd>/san-pham/{{ $product->slug }}</dd></div>
+                    <div><dt>Ngày tạo</dt><dd>{{ $product->created_at?->format('d/m/Y H:i') }}</dd></div>
+                </dl>
+            </aside>
         </div>
     </div>
 

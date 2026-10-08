@@ -6,147 +6,159 @@
 @section('content')
     @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; $grades = $grades ?? []; @endphp
 
-    <a href="{{ route('admin.products.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Tài liệu</a>
+    {{-- SỬA 8/10 — đổi giao diện theo source mới (AdminContentWorkspace.jsx: thẻ "Thông tin chung" + thẻ
+         "Thiết lập hiển thị"); tên field, route, validation, thứ tự gửi form giữ nguyên. Hiển thị/Trạng thái
+         nằm ở thẻ bên phải nhưng vẫn là ô của CÙNG một form. --}}
+    @include('partials.admin-products-ui')
 
-    <x-ws.page-header title="Tạo tài liệu" icon="wallet-cards" subtitle="Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1)." />
+    <div class="acx-wrap">
+        <a href="{{ route('admin.products.index') }}" class="acx-back">‹ Quay lại Tài liệu</a>
 
-    @if ($errors->any())
-        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
-    @endif
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-            <form method="POST" action="{{ route('admin.products.store') }}" enctype="multipart/form-data" class="space-y-4">
-                @csrf
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="title">Tên tài liệu</label>
-                        <input id="title" name="title" type="text" value="{{ old('title') }}" required maxlength="255"
-                               placeholder="Ví dụ: Sách luyện thi Tin học 10"
-                               class="admin-input">
-                    </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại tài liệu</label>
-                        <x-ws.select id="type" name="type" required>
-                            @foreach ($types as $value => $label)
-                                <option value="{{ $value }}" @selected(old('type', 'book') === $value)>{{ $label }}</option>
-                            @endforeach
-                        </x-ws.select>
-                    </div>
-                </div>
-
+        <div class="acx-head">
+            <div class="acx-head__id">
+                <span class="acx-avatar"><x-lucide name="wallet-cards" /></span>
                 <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="cover_image">Ảnh bìa (tùy chọn)</label>
-                    <input id="cover_image" name="cover_image" type="file" accept="image/*"
-                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
-                    <p class="text-xs text-slate-400 mt-1">Ảnh JPG/PNG/WebP, tối đa 4MB.</p>
+                    <h1>Tạo tài liệu</h1>
+                    <div class="acx-head__meta"><span>Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1).</span></div>
                 </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="subject">Môn học</label>
-                        <input id="subject" name="subject" type="text" value="{{ old('subject') }}" maxlength="60"
-                               class="admin-input">
-                    </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="grade">Khối lớp</label>
-                        <x-ws.select id="grade" name="grade" icon="🎓">
-                            <option value="">— Không chỉ định —</option>
-                            @foreach ($grades ?? [] as $g)
-                                <option value="{{ $g }}" @selected(old('grade') === $g)>{{ $g }}</option>
-                            @endforeach
-                        </x-ws.select>
-                    </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="topic">Chuyên đề</label>
-                        <input id="topic" name="topic" type="text" value="{{ old('topic') }}" maxlength="120"
-                               class="admin-input">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="description">Mô tả</label>
-                    <textarea id="description" name="description" rows="5" maxlength="5000" data-rich-editor
-                              class="admin-input">{{ old('description') }}</textarea>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="price">Giá để học (đ)</label>
-                        <input id="price" name="price" type="number" min="0" value="{{ old('price', 0) }}" required
-                               class="admin-input">
-                    </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="price_teaching">Giá để dạy (đ)</label>
-                        <input id="price_teaching" name="price_teaching" type="number" min="0" value="{{ old('price_teaching', 0) }}" required
-                               class="admin-input">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="duration_months">Thời hạn quyền (tháng)</label>
-                        <input id="duration_months" name="duration_months" type="number" min="1" value="{{ old('duration_months') }}"
-                               placeholder="Để trống = không giới hạn"
-                               class="admin-input">
-                    </div>
-                    <div class="flex items-end pb-2.5">
-                        <label class="flex items-center gap-2 text-[13px] text-slate-600">
-                            <input type="checkbox" name="has_print_option" value="1" @checked(old('has_print_option'))> Có bản in
-                        </label>
-                    </div>
-                </div>
-
-                {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng
-                     file pdf") — ĐÃ BỎ ô "File PDF" (tệp tổng của cả sản phẩm). Nội dung đọc giờ
-                     tải theo TỪNG chương/phần/đề ở trang chi tiết sản phẩm, người học đọc liền mạch
-                     các tệp đó (xem App\Services\ProductReadService). Ô "PDF hướng dẫn" giữ nguyên
-                     — đó là giáo án cho giáo viên, không phải nội dung để học sinh đọc. --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="guide_pdf">File PDF hướng dẫn</label>
-                        <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf"
-                               class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
-                        <p class="text-xs text-slate-400 mt-1">PDF, tối đa 50MB.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="visibility">Hiển thị</label>
-                        <x-ws.select id="visibility" name="visibility" required>
-                            @foreach ($visibilities as $value => $label)
-                                <option value="{{ $value }}" @selected(old('visibility', 'public') === $value)>{{ $label }}</option>
-                            @endforeach
-                        </x-ws.select>
-                    </div>
-                    <div>
-                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="status">Trạng thái</label>
-                        <x-ws.select id="status" name="status" required>
-                            @foreach ($statuses as $value => $label)
-                                <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
-                            @endforeach
-                        </x-ws.select>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-2">
-                    <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo tài liệu</button>
-                    <a href="{{ route('admin.products.index') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Huỷ</a>
-                </div>
-            </form>
+            </div>
         </div>
 
-        <div class="bg-white rounded-3xl border border-sky-100 p-6 space-y-4">
-            <h3 class="font-medium text-slate-700 flex items-center gap-2"><span><x-lucide name="sparkles" class="h-4 w-4" /></span> Cần biết</h3>
-            <div class="flex items-start gap-3">
-                <x-ws.icon-tile emoji="🔗" tone="sky" />
-                <p class="text-[13px] text-slate-500">Đường dẫn (slug) tự sinh từ tên tài liệu, không cần tự nhập.</p>
+        @if ($errors->any())
+            @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+        @endif
+
+        <div class="apx-editor">
+            <form method="POST" action="{{ route('admin.products.store') }}" enctype="multipart/form-data">
+                @csrf
+                <section class="acx-card acx-card--white apx-editor__main">
+                    <h2><x-lucide name="book-open" /> Thông tin chung</h2>
+                    <div class="apx-fields">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="apx-lbl" for="title">Tên tài liệu</label>
+                                <input id="title" name="title" type="text" value="{{ old('title') }}" required maxlength="255"
+                                   placeholder="Ví dụ: Sách luyện thi Tin học 10"
+                                       class="admin-input">
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="type">Loại tài liệu</label>
+                                <x-ws.select id="type" name="type" required>
+                                    @foreach ($types as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('type', 'book') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </x-ws.select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="apx-lbl" for="cover_image">Ảnh bìa (tùy chọn)</label>
+                            <input id="cover_image" name="cover_image" type="file" accept="image/*" class="admin-input apx-file">
+                            <p class="apx-note">Ảnh JPG/PNG/WebP, tối đa 4MB.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="apx-lbl" for="subject">Môn học</label>
+                                <input id="subject" name="subject" type="text" value="{{ old('subject') }}" maxlength="60"
+                                       class="admin-input">
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="grade">Khối lớp</label>
+                                <x-ws.select id="grade" name="grade" icon="🎓">
+                                    <option value="">— Không chỉ định —</option>
+                                    @foreach ($grades ?? [] as $g)
+                                        <option value="{{ $g }}" @selected(old('grade') === $g)>{{ $g }}</option>
+                                    @endforeach
+                                </x-ws.select>
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="topic">Chuyên đề</label>
+                                <input id="topic" name="topic" type="text" value="{{ old('topic') }}" maxlength="120"
+                                       class="admin-input">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="apx-lbl" for="description">Mô tả</label>
+                            <textarea id="description" name="description" rows="5" maxlength="5000" data-rich-editor
+                                      class="admin-input">{{ old('description') }}</textarea>
+                        </div>
+
+                        <div class="apx-section grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="apx-lbl" for="price">Giá để học (đ)</label>
+                                <input id="price" name="price" type="number" min="0" value="{{ old('price', 0) }}" required
+                                       class="admin-input">
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="price_teaching">Giá để dạy (đ)</label>
+                                <input id="price_teaching" name="price_teaching" type="number" min="0" value="{{ old('price_teaching', 0) }}" required
+                                       class="admin-input">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="apx-lbl" for="duration_months">Thời hạn quyền (tháng)</label>
+                                <input id="duration_months" name="duration_months" type="number" min="1" value="{{ old('duration_months') }}"
+                                   placeholder="Để trống = không giới hạn"
+                                       class="admin-input">
+                            </div>
+                            <div class="flex items-end pb-2.5">
+                                <label class="flex items-center gap-2 text-[13px] text-slate-600">
+                                    <input type="checkbox" name="has_print_option" value="1" @checked(old('has_print_option'))> Có bản in
+                                </label>
+                            </div>
+                        </div>
+
+                        {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng
+                             file pdf") — ĐÃ BỎ ô "File PDF" (tệp tổng của cả sản phẩm). Nội dung đọc giờ
+                             tải theo TỪNG chương/phần/đề ở trang chi tiết sản phẩm, người học đọc liền mạch
+                             các tệp đó (xem App\Services\ProductReadService). Ô "PDF hướng dẫn" giữ nguyên
+                             — đó là giáo án cho giáo viên, không phải nội dung để học sinh đọc. --}}
+                        <div class="apx-section">
+                            <label class="apx-lbl" for="guide_pdf">File PDF hướng dẫn</label>
+                            <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf" class="admin-input apx-file">
+                            <p class="apx-note">PDF, tối đa 50MB.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="acx-card acx-card--mint">
+                    <h3><x-lucide name="target" /> Thiết lập hiển thị</h3>
+                    <div class="apx-fields">
+                        <div>
+                            <label class="apx-lbl" for="visibility">Hiển thị</label>
+                            <x-ws.select id="visibility" name="visibility" required>
+                                @foreach ($visibilities as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('visibility', 'public') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </x-ws.select>
+                        </div>
+                        <div>
+                            <label class="apx-lbl" for="status">Trạng thái</label>
+                            <x-ws.select id="status" name="status" required>
+                                @foreach ($statuses as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </x-ws.select>
+                        </div>
+                        <div>
+                            <button type="submit" class="acx-btn acx-btn--primary apx-save">Tạo tài liệu</button>
+                            <a href="{{ route('admin.products.index') }}" class="acx-btn apx-save">Huỷ</a>
+                        </div>
+                    </div>
+                </section>
+            </form>
+
+        <div class="acx-card acx-card--mint">
+            <h3><x-lucide name="sparkles" /> Cần biết</h3>
+            <div class="acx-tips">
+                <div><x-lucide name="tag" class="h-4 w-4" style="flex-shrink:0;margin-top:3px" /><span>Đường dẫn (slug) tự sinh từ tên tài liệu, không cần tự nhập.</span></div>
+                <div><x-lucide name="clock" class="h-4 w-4" style="flex-shrink:0;margin-top:3px" /><span>"Thời hạn quyền" là mặc định khi kích hoạt mã/cấp quyền — mỗi lần cấp vẫn có thể chỉnh riêng.</span></div>
             </div>
-            <div class="flex items-start gap-3">
-                <x-ws.icon-tile emoji="⏳" tone="violet" />
-                <p class="text-[13px] text-slate-500">"Thời hạn quyền" là mặc định khi kích hoạt mã/cấp quyền — mỗi lần cấp vẫn có thể chỉnh riêng.</p>
-            </div>
+        </div>
         </div>
     </div>
 
