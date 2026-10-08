@@ -48,7 +48,8 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v4';
+    private const CACHE_VERSION = 'v5';
+    /* v5 (8/10) — hàng bài tập nay có Time/Memory limit thật (trước đó luôn "—"). */
     /*
      * v3 (7/10) — hàng thẻ đề thêm độ khó, khu vực, điểm sao đánh giá và số lượt đánh giá.
      */
@@ -497,7 +498,14 @@ class PracticeService
 
             $difficultyKey = QuestionDifficulty::resolve($meta, (int) $q->points);
 
-            $limits = $q->grading_config['limits'] ?? [];
+            // SỬA 8/10 (khách: "đổ time limit và memory limit vô 2 gạch '— / —' ở trang luyện tập public") —
+            // giới hạn của câu Lập trình nằm ở grading_config.time_limit_ms / memory_limit_mb (xem
+            // Question::hasMinimumGradingConfig(), CodeJudgingService). Trước đây đọc nhầm khoá
+            // limits.time_ms / limits.memory_mb nên LUÔN ra "—". Khoá cũ vẫn được đọc làm phương án dự phòng.
+            $cfg = is_array($q->grading_config) ? $q->grading_config : [];
+            $limits = $cfg['limits'] ?? [];
+            $timeMs = $cfg['time_limit_ms'] ?? $limits['time_ms'] ?? null;
+            $memoryMb = $cfg['memory_limit_mb'] ?? $limits['memory_mb'] ?? null;
 
             return [
                 'id' => $q->id,
@@ -511,8 +519,8 @@ class PracticeService
                 'difficultyLevel' => QuestionDifficulty::stars($difficultyKey),
                 'difficultyLabel' => QuestionDifficulty::label($difficultyKey),
                 'points' => (int) $q->points,
-                'timeLimit' => isset($limits['time_ms']) ? round($limits['time_ms'] / 1000, 1).'s' : '—',
-                'memoryLimit' => isset($limits['memory_mb']) ? $limits['memory_mb'].'MB' : '—',
+                'timeLimit' => is_numeric($timeMs) && (float) $timeMs > 0 ? rtrim(rtrim(number_format((float) $timeMs / 1000, 2, '.', ''), '0'), '.').'s' : '—',
+                'memoryLimit' => is_numeric($memoryMb) && (float) $memoryMb > 0 ? (int) $memoryMb.'MB' : '—',
                 'submissionCount' => $submissions,
                 'acceptedCount' => $accepted,
                 'acRate' => $rate,
