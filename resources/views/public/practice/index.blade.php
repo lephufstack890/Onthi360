@@ -18,7 +18,7 @@
      Bản mẫu có vài con số minh hoạ không có nguồn dữ liệu (chuỗi ngày luyện tập, điểm cao
      nhất) — thay bằng số liệu thật tương ứng. --}}
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-@include('partials.practice-catalog', ['showProblemProvinceAuthor' => false])
+@include('partials.practice-catalog', ['showProblemProvinceAuthor' => false, 'showMyHistoryButton' => false])
 </div>
 @endsection
 

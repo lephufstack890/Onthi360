@@ -40,6 +40,9 @@
      dùng chung partial này vẫn như cũ); trang công khai public/practice/index truyền false. Muốn hiện lại ở
      trang công khai: bỏ tham số đó đi. --}}
 @php $showProblemProvinceAuthor = $showProblemProvinceAuthor ?? true; @endphp
+{{-- SỬA 8/10 (khách: "ẩn nút Lịch sử làm bài của tôi ở trang luyện tập public") — công tắc nút đi sang Lịch sử làm bài.
+     Mặc định true (trang luyện tập của học sinh dùng chung partial này vẫn có nút); trang công khai truyền false. --}}
+@php $showMyHistoryButton = $showMyHistoryButton ?? true; @endphp
 
 <style>
     @media (min-width: 1024px) {
@@ -442,6 +445,7 @@
           đã nộp kèm điểm và nút xem lại). Khách chưa đăng nhập thì không hiện, vì lịch sử là
           dữ liệu riêng của từng người.
         --}}
+        @if ($showMyHistoryButton)
         @auth
             <div class="mb-3 flex justify-end">
                 <a href="{{ route('student.practice.index', ['tab' => 'history']) }}"
@@ -450,6 +454,7 @@
                 </a>
             </div>
         @endauth
+        @endif
 
         {{-- SỬA 8/10 — thanh sắp xếp cho mobile (lg:hidden), như "Sắp xếp danh sách" của PracticePage.jsx. --}}
         <div class="oi-sort-bar"><span>Sắp xếp danh sách</span><div><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'year' }" :aria-pressed="problemSort.key === 'year' ? 'true' : 'false'" title="Sắp xếp theo Năm" @click="toggleProblemSort('year')"><span>Năm</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'year'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'year' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'year' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></div></div>
