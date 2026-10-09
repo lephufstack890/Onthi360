@@ -31,7 +31,9 @@ class PracticeHistoryController extends Controller
 
     public function exam(Request $request, int $assessment): View
     {
-        return view('public.practice.history', $this->history->examData(Auth::user(), $assessment));
+        // SỬA 9/10 — nhật ký làm đề là BẢNG XẾP HẠNG theo source mới (ExamHistoryPage), không dùng lại
+        // bảng lượt nộp phẳng của bài tập. Xem PracticeHistoryService::examLogData().
+        return view('public.practice.exam-log', $this->history->examLogData(Auth::user(), $assessment));
     }
 
     /**

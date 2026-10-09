@@ -178,7 +178,27 @@ class AssessmentController extends Controller
             'totalPoints' => $total === null ? '—' : (string) $total,
             'isProvisional' => (bool) $attempt->is_provisional,
             'resultUrl' => route('student.assessment.result', $attempt->id),
-        ];
+            // SỬA 9/10 — kết quả từng câu cho hộp "Kết quả chấm đề" (xem AssessmentService::resultSummary()).
+        ] + $this->resultPayload($attempt);
+    }
+
+    /**
+     * SỬA 9/10 — phần kết quả từng câu gửi kèm điểm. Lỗi ở đây (dữ liệu lạ, bảng chưa migrate…) KHÔNG
+     * được làm hỏng việc nộp bài: bỏ qua danh sách, hộp vẫn hiện điểm tổng như cũ.
+     *
+     * @return array<string, mixed>
+     */
+    private function resultPayload(\App\Models\Attempt $attempt): array
+    {
+        try {
+            $summary = $this->assessmentService->resultSummary($attempt);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return ['questions' => [], 'answered' => 0, 'correct' => 0, 'total' => 0, 'maxScore' => null];
+        }
+
+        return $summary;
     }
 
     /** student.assessment.oj (STU-06/07) — làm câu lập trình đơn lẻ. */

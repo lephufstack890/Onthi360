@@ -418,6 +418,125 @@ class AssessmentService
      *
      * Kiểm quyền sở hữu y như mọi chỗ khác: không tin việc "đang mở đúng màn đó" là đủ.
      */
+    /**
+     * SỬA 9/10 (khách: "nộp đề xong nhảy lên modal Kết quả chấm đề như source mới") — danh sách kết
+     * quả TỪNG CÂU cho hộp "Kết quả chấm đề" (education-main: AssessmentModal → SubmissionResult).
+     *
+     * Mỗi câu: nhãn trạng thái (Đúng / Đúng một phần / Sai / Chưa làm / Chờ chấm), điểm đạt và điểm tối
+     * đa. Câu chưa có bài làm là "Chưa làm" bất kể máy chấm ghi gì. Đề PDF thì mỗi dòng phiếu trả
+     * lời và mỗi bài lập trình là một dòng.
+     *
+     * Chỉ ĐỌC dữ liệu (không đụng điểm đã chấm); gọi sau khi $attempt đã qua kiểm tra quyền sở hữu.
+     *
+     * @return array{questions: list<array<string, mixed>>, answered: int, correct: int, total: int, maxScore: float}
+     */
+    public function resultSummary(Attempt $attempt): array
+    {
+        $assessment = $attempt->assessment ?? $attempt->load('assessment')->assessment;
+        $rows = [];
+
+        $label = function (?float $score, float $max, bool $correct, bool $pending): string {
+            if ($pending) {
+                return 'Chờ chấm';
+            }
+            if ($correct || ($max > 0 && $score !== null && $score >= $max - 0.005)) {
+                return 'Đúng';
+            }
+
+            return ($score ?? 0.0) > 0 ? 'Đúng một phần' : 'Sai';
+        };
+
+        $filled = function ($value) use (&$filled): bool {
+            if (is_array($value)) {
+                foreach ($value as $v) {
+                    if ($filled($v)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            return $value !== null && trim((string) $value) !== '';
+        };
+
+        if ($assessment === null) {
+            return ['questions' => [], 'answered' => 0, 'correct' => 0, 'total' => 0, 'maxScore' => 0.0];
+        }
+
+        if ($assessment->isPdfMode()) {
+            $given = \App\Models\AttemptAnswerKey::query()->where('attempt_id', $attempt->id)->get()->keyBy('answer_key_id');
+            foreach ($assessment->answerKeys()->orderBy('question_no')->get() as $key) {
+                $a = $given->get($key->id);
+                $max = (float) $key->points;
+                $has = $a !== null && $filled($a->submitted_answer);
+                $score = $a?->score !== null ? (float) $a->score : null;
+                $rows[] = [
+                    'id' => 'k'.$key->id,
+                    'title' => $key->question_type?->label() ?? 'Phiếu trả lời',
+                    'status' => $has ? $label($score, $max, (bool) $a->is_correct, false) : 'Chưa làm',
+                    'score' => $has ? ($score ?? 0.0) : 0.0,
+                    'maxScore' => $max,
+                    'answered' => $has,
+                    'note' => null,
+                ];
+            }
+
+            $coding = AttemptCodingItem::query()->where('attempt_id', $attempt->id)->get()->keyBy('coding_item_id');
+            foreach ($assessment->codingItems()->get() as $item) {
+                $c = $coding->get($item->id);
+                $max = (float) $item->points;
+                $has = $c !== null && $filled($c->code_source);
+                $final = $c?->verdict === null ? true : $c->verdict->isFinal();
+                $score = $c?->score !== null ? (float) $c->score : null;
+                $rows[] = [
+                    'id' => 'c'.$item->id,
+                    'title' => trim(($item->code ? $item->code.': ' : '').$item->title),
+                    'status' => $has ? $label($score, $max, $c->verdict?->value === 'accepted', ! $final) : 'Chưa làm',
+                    'score' => $has && $final ? ($score ?? 0.0) : 0.0,
+                    'maxScore' => $max,
+                    'answered' => $has,
+                    'note' => ($has && AttemptCodingItem::supportsTestCounts() && (int) ($c->total_tests ?? 0) > 0)
+                        ? 'Qua '.(int) $c->passed_tests.'/'.(int) $c->total_tests.' test' : null,
+                ];
+            }
+        } else {
+            $answers = \App\Models\AttemptAnswer::query()->where('attempt_id', $attempt->id)->get()->keyBy('question_id');
+            $items = $assessment->items()->with('question:id,title,points')->orderBy('order')->get();
+            foreach ($items as $item) {
+                $a = $answers->get($item->question_id);
+                $max = (float) $item->effectivePoints();
+                $has = $a !== null && ($filled($a->code_source) || $filled($a->answer));
+                $verdict = $a?->verdict;
+                $score = $a?->score !== null ? (float) $a->score : null;
+                $pending = $has && (($verdict !== null && ! $verdict->isFinal()) || ($verdict === null && $score === null));
+                $rows[] = [
+                    'id' => 'q'.$item->question_id,
+                    'title' => $item->question?->title ?? 'Câu hỏi',
+                    'status' => $has ? $label($score, $max, $verdict?->value === 'accepted', $pending) : 'Chưa làm',
+                    'score' => $has && ! $pending ? ($score ?? 0.0) : 0.0,
+                    'maxScore' => $max,
+                    'answered' => $has,
+                    'note' => ($has && \App\Models\AttemptAnswer::supportsTestCounts() && (int) ($a->total_tests ?? 0) > 0)
+                        ? 'Qua '.(int) $a->passed_tests.'/'.(int) $a->total_tests.' test' : null,
+                ];
+            }
+        }
+
+        foreach ($rows as $i => &$row) {
+            $row['number'] = $i + 1;
+        }
+        unset($row);
+
+        return [
+            'questions' => $rows,
+            'answered' => count(array_filter($rows, fn ($r) => $r['answered'])),
+            'correct' => count(array_filter($rows, fn ($r) => $r['status'] === 'Đúng')),
+            'total' => count($rows),
+            'maxScore' => (float) array_sum(array_column($rows, 'maxScore')),
+        ];
+    }
+
     public function attemptForUser(User $user, int $attemptId): Attempt
     {
         return $this->ownedAttemptOrFail($user, $attemptId)->loadMissing('assessment');

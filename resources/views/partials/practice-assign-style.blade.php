@@ -88,6 +88,10 @@
     .oi-log-link:hover { border-color: #B9CCDC; background: #E4EEF7; }
     .oi-log-link:focus-visible { outline: 2px solid #CBEAF1; outline-offset: 2px; }
     .oi-log-square { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #D6E3EF; border-radius: 8px; background: #EEF4FA; color: #365B7A; text-decoration: none; transition: background .15s, border-color .15s, color .15s; }
+    /* SỬA 9/10 — nút "Nhật ký làm đề" trên thẻ đề (PracticePage.jsx: min-h-10, viền #D6E3EF, nền #EEF4FA, chữ 10px đậm). */
+    .oi-log-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 4px; min-height: 40px; padding: 8px; border: 1px solid #D6E3EF; border-radius: 8px; background: #EEF4FA; color: #365B7A; font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap; text-decoration: none; transition: border-color .15s, background-color .15s, color .15s; }
+    .oi-log-btn:hover { border-color: #9DC8D7; background: #EAF5F8; color: #126F91; }
+    .oi-log-btn svg { width: 14px; height: 14px; flex: none; }
     .oi-log-square:hover { border-color: #9DC8D7; background: #EAF5F8; color: #126F91; }
     .oi-log-square svg { width: 14px; height: 14px; }
 

@@ -1008,12 +1008,13 @@
                                class="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)] transition hover:-translate-y-0.5 hover:bg-[#28795E] active:scale-[.98]">
                                 Xem chi tiết đề<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                             </a>
-                            @auth
-                                {{-- Nút vuông chỉ có icon, đúng bản mẫu (title/aria-label "Nhật ký nộp bài"). --}}
-                                <a href="{{ route('practice.history.exam', $exam['id']) }}" title="Nhật ký nộp bài" aria-label="Nhật ký nộp bài" class="oi-log-square">
-                                    <x-lucide name="clipboard-list" class="h-3.5 w-3.5" />
-                                </a>
-                            @endauth
+                            {{-- SỬA 9/10 (khách: "thêm nút Nhật ký làm đề, UI lấy từ source mới") — nút CÓ CHỮ cạnh
+                                 "Xem chi tiết đề", đúng PracticePage.jsx (historyPath("exam", id)). Thay nút vuông chỉ có
+                                 icon trước đây. Hiện với mọi người; khách chưa đăng nhập bấm vào sẽ được chuyển sang trang
+                                 đăng nhập (route nhật ký nằm trong nhóm auth) rồi quay lại đúng trang này. --}}
+                            <a href="{{ route('practice.history.exam', $exam['id']) }}" aria-label="Nhật ký làm đề: {{ $exam['title'] }}" class="oi-log-btn">
+                                <x-lucide name="clipboard-list" class="h-3.5 w-3.5" />Nhật ký làm đề
+                            </a>
                             </div>
                         </div>
                     </div>

@@ -98,7 +98,7 @@
                  *               thi vẫn dùng đường đó, không đụng tới.
                  */
                 submitDone: false,
-                submitResult: { score: '—', totalPoints: '—', isProvisional: false, resultUrl: '#' },
+                submitResult: { score: '—', totalPoints: '—', isProvisional: false, resultUrl: '#', questions: [], answered: 0, correct: 0, total: 0, maxScore: null },
                 statusUrl: config.statusUrl || null,
                 submitUrl: config.submitUrl || null,
                 statusTimer: null,
@@ -516,6 +516,36 @@
                 },
 
                 /**
+                 * SỬA 9/10 — gom dữ liệu máy chủ trả về cho hộp "Kết quả chấm đề": điểm tổng + kết quả
+                 * từng câu. Thiếu phần câu (máy chủ cũ, lỗi đọc) thì hộp chỉ hiện điểm tổng.
+                 */
+                toSubmitResult(data) {
+                    return {
+                        score: data.score,
+                        totalPoints: data.totalPoints,
+                        isProvisional: data.isProvisional === true,
+                        resultUrl: data.resultUrl,
+                        questions: Array.isArray(data.questions) ? data.questions : [],
+                        answered: Number(data.answered) || 0,
+                        correct: Number(data.correct) || 0,
+                        total: Number(data.total) || 0,
+                        maxScore: data.maxScore === null || data.maxScore === undefined ? null : Number(data.maxScore),
+                    };
+                },
+
+                /** Điểm gọn như bản mẫu: số nguyên giữ nguyên, số lẻ tối đa 2 chữ số, bỏ số 0 thừa. */
+                fmtScore(value) {
+                    var n = Number(value || 0);
+                    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+                },
+
+                /** "Tải nhật ký" của hộp kết quả = bấm đúng nút tải của tab Nhật ký (cùng một bản nhật ký). */
+                downloadActivityLog() {
+                    var btn = document.querySelector('[data-activity-download]');
+                    if (btn) btn.click();
+                },
+
+                /**
                  * SỬA 24/9 — nộp bằng AJAX rồi hiện điểm ngay trong hộp, không rời màn hình.
                  *
                  * Hỏng ở bất kỳ khâu nào (mất mạng, máy chủ lỗi, phiên hết hạn) thì QUAY VỀ
@@ -540,12 +570,7 @@
 
                         if (! data || data.ok !== true) throw new Error('payload');
 
-                        this.submitResult = {
-                            score: data.score,
-                            totalPoints: data.totalPoints,
-                            isProvisional: data.isProvisional === true,
-                            resultUrl: data.resultUrl,
-                        };
+                        this.submitResult = this.toSubmitResult(data);
                         this.submitDone = true;
 
                         // Bài đã nộp xong rồi thì đừng cảnh báo "rời phòng thi" nữa.
@@ -593,12 +618,7 @@
 
                             if (! data || data.ok !== true) return;
 
-                            self.submitResult = {
-                                score: data.score,
-                                totalPoints: data.totalPoints,
-                                isProvisional: data.isProvisional === true,
-                                resultUrl: data.resultUrl,
-                            };
+                            self.submitResult = self.toSubmitResult(data);
 
                             if (! self.submitResult.isProvisional) {
                                 clearInterval(self.statusTimer);
