@@ -14,6 +14,9 @@
     $dailyStats = $dailyStats ?? ['signedIn' => false, 'date' => now()->format('d/m'), 'rows' => []];
     $practiceTypes = $practiceTypes ?? [];
     $practiceTotal = $practiceTotal ?? 0;
+    // SỬA 9/10 — số liệu "Kho đề theo nhóm" do practice-catalog dựng; vào lẻ thì rơi về rỗng.
+    $examOverview = $examOverview ?? ['groups' => [], 'totalExams' => 0, 'attemptedExams' => 0, 'totalAttempts' => 0];
+    $statsMode = ($catalogMode ?? 'problems') === 'exams' ? 'exams' : 'problems';
 @endphp
 
 <style>
@@ -38,6 +41,22 @@
     .pds-types__n{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:#fcd34d}
     .pds-bar{height:4px;border-radius:999px;background:rgba(255,255,255,.2);overflow:hidden}
     .pds-bar>i{display:block;height:100%;border-radius:999px;background:#fbbf24}
+
+    /* Kho đề theo nhóm (chế độ Đề thi): từ dòng thứ 4 trở đi KHÔNG hiện thanh cuộn — rê chuột vào rồi lăn là kéo lên/xuống được. */
+    .pds-grp{margin-top:4px;font-size:11px;line-height:16px}
+    .pds-grp__head,.pds-grp__row{display:grid;grid-template-columns:minmax(0,1fr) 2.75rem 3.25rem;align-items:center;column-gap:4px}
+    .pds-grp__head{padding-bottom:4px;font-size:10px;font-weight:500;color:#e0f2fe}
+    .pds-grp__head span+span,.pds-grp__row b+b,.pds-grp__row strong{text-align:right}
+    .pds-grp__head span:nth-child(n+2){text-align:right}
+    .pds-grp__body{max-height:86px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none}
+    .pds-grp__body::-webkit-scrollbar{display:none;width:0;height:0}
+    .pds-grp__row{min-height:28px;padding:4px 0;border-top:1px solid rgba(255,255,255,.1);box-sizing:border-box}
+    .pds-grp__row:first-child{border-top:0}
+    .pds-grp__row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+    .pds-grp__row>b{font-size:14px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;color:#fff}
+    .pds-grp__row>b:nth-of-type(1){color:#fcd34d}
+    .pds-grp__empty{padding:6px 0;color:#e0f2fe}
+    .pds-grp__foot{margin:auto 0 0;padding-top:4px;font-size:10px;line-height:16px;color:#e0f2fe}
 
     /* Luyện tập hôm nay */
     .pds-select{min-height:28px;max-width:80px;padding:0 4px;border:0;border-radius:6px;background:rgba(255,255,255,.15);color:#fff;font:inherit;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer}
@@ -115,7 +134,7 @@
 
 <div class="pds-overview" data-practice-overview>
     {{-- Ô 1 — Kho câu theo dạng (nội dung cũ, đặt vào khung 2 ô như bản mẫu). --}}
-    <section class="pds-cell" aria-label="Kho câu theo dạng">
+    <section class="pds-cell" aria-label="Kho câu theo dạng" x-show="practiceMode !== 'exams'" @if ($statsMode === 'exams') style="display: none" @endif>
         <div class="pds-head">
             <h2 class="pds-title">Kho câu theo dạng</h2>
             <span><b>{{ number_format($practiceTotal) }}</b> câu</span>
@@ -132,6 +151,31 @@
                 </div>
             @endforeach
         </div>
+    </section>
+
+    {{-- SỬA 9/10 — Ô 1 khi đang ở tab "Đề thi luyện tập": "Kho đề theo nhóm" (PracticePage.jsx). --}}
+    <section class="pds-cell" aria-label="Kho đề theo nhóm" x-show="practiceMode === 'exams'" @if ($statsMode !== 'exams') style="display: none" @endif>
+        <div class="pds-head">
+            <h2 class="pds-title">Kho đề theo nhóm</h2>
+            <span><b>{{ number_format($examOverview['totalExams']) }}</b> đề</span>
+        </div>
+        <div class="pds-grp" role="table" aria-label="Số đề và lượt làm theo nhóm đề">
+            <div class="pds-grp__head" role="row">
+                <span role="columnheader">Nhóm đề</span><span role="columnheader">Số đề</span><span role="columnheader">Lượt làm</span>
+            </div>
+            <div class="pds-grp__body" role="rowgroup" @if (count($examOverview['groups']) > 3) tabindex="0" aria-label="Danh sách nhóm đề, rê chuột vào rồi lăn để xem thêm" @endif>
+                @forelse ($examOverview['groups'] as $g)
+                    <div class="pds-grp__row" role="row" data-exam-group="{{ $g['id'] }}">
+                        <span role="rowheader" title="{{ $g['label'] }}">{{ $g['label'] }}</span>
+                        <b role="cell">{{ number_format($g['exams']) }}</b>
+                        <b role="cell">{{ number_format($g['attempts']) }}</b>
+                    </div>
+                @empty
+                    <p class="pds-grp__empty">Chưa có đề nào.</p>
+                @endforelse
+            </div>
+        </div>
+        <p class="pds-grp__foot">{{ number_format($examOverview['totalAttempts']) }} lượt nộp · Tất cả thời gian</p>
     </section>
 
     {{-- Ô 2 — Luyện tập hôm nay (bản gọn của source 8/10: vòng nhỏ + tổng lượt nộp cùng hàng, chú giải 2 cột). --}}

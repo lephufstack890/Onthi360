@@ -385,7 +385,7 @@ class PracticeService
      * Tiến độ của NGƯỜI ĐANG XEM với một đề. Tách khỏi examBaseRows() vì đây đúng là phần
      * không được nhớ tạm.
      *
-     * @return array{progressStatus: string, progress: int, progressLabel: string}
+     * @return array{progressStatus: string, progress: int, progressLabel: string, mySubmitted: int}  (mySubmitted: số lượt ĐÃ NỘP của chính người xem — dùng cho ô "Kho đề theo nhóm" / "Đã nộp" ở đầu trang)
      */
     private function examProgressFor($row, float $total): array
     {
@@ -396,16 +396,17 @@ class PracticeService
         if ($submitted > 0) {
             return [
                 'progressStatus' => 'done',
+                'mySubmitted' => $submitted,
                 'progress' => $best !== null && $total > 0 ? (int) round(min(100, max(0, $best / $total * 100))) : 100,
                 'progressLabel' => $best !== null ? 'Đã nộp · '.rtrim(rtrim(number_format($best, 2, ',', ''), '0'), ',').' điểm' : 'Đã nộp',
             ];
         }
 
         if ($inProgress) {
-            return ['progressStatus' => 'doing', 'progress' => 35, 'progressLabel' => 'Đang làm dở'];
+            return ['progressStatus' => 'doing', 'progress' => 35, 'progressLabel' => 'Đang làm dở', 'mySubmitted' => 0];
         }
 
-        return ['progressStatus' => 'open', 'progress' => 0, 'progressLabel' => 'Chưa làm'];
+        return ['progressStatus' => 'open', 'progress' => 0, 'progressLabel' => 'Chưa làm', 'mySubmitted' => 0];
     }
 
     /**
