@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Services\Public\MaterialAssignmentService;
 use App\Services\Student\MaterialReadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class MaterialController extends Controller
 {
-    public function __construct(private MaterialReadService $materialRead) {}
+    public function __construct(private MaterialReadService $materialRead, private MaterialAssignmentService $materialAssignments) {}
 
     /** student.materials.read — trang đọc PDF của 1 bài (chỉ mở khi đã có quyền + đã có PDF). */
     public function read(Request $request, int $material): View|RedirectResponse
@@ -35,6 +36,9 @@ class MaterialController extends Controller
         // Bài chỉ làm mục lục/chương cha (chưa có PDF) thì không có gì để đọc — 404 thay vì
         // hiện trang đọc trống, TOC ở trang công khai cũng không link vào những bài này.
         abort_if(blank($materialModel->pdf_path), 404);
+
+        // SỬA 9/10 — ghi nhận học sinh đã MỞ tài liệu được giao (trạng thái "Đã mở" ở trang Tài liệu).
+        $this->materialAssignments->markOpened($user, (int) $materialModel->product_id);
 
         return view('student.materials.read', $this->materialRead->buildReadData($user, $materialModel));
     }

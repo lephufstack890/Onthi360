@@ -118,6 +118,37 @@
                             </div>
                         </div>
 
+                        {{-- SỬA 9/10 (khách: "check UI source mới trang tài liệu, thiếu field thì bổ sung") — 4 trường mà thẻ tài
+                             liệu của bản mẫu mới hiển thị / lọc theo: độ khó, tác giả, đánh giá (nhập tay). --}}
+                        <div class="apx-section grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="apx-lbl" for="difficulty_level">Độ khó</label>
+                                <select id="difficulty_level" name="difficulty_level" class="admin-input">
+                                    <option value="">— Chưa xếp độ khó —</option>
+                                    @foreach ([1 => 'Cơ bản', 2 => 'Dễ', 3 => 'Trung bình', 4 => 'Khó', 5 => 'Nâng cao'] as $dlValue => $dlLabel)
+                                        <option value="{{ $dlValue }}" @selected((string) old('difficulty_level', $product->difficulty_level) === (string) $dlValue)>{{ $dlValue }} sao · {{ $dlLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="author_name">Tác giả</label>
+                                <input id="author_name" name="author_name" type="text" maxlength="150" value="{{ old('author_name', $product->author_name) }}"
+                                       placeholder="VD: Thầy Nguyễn Tiến Thành & Ban Chuyên môn"
+                                       class="admin-input">
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="rating_score">Điểm đánh giá (0–5)</label>
+                                <input id="rating_score" name="rating_score" type="number" min="0" max="5" step="0.1" value="{{ old('rating_score', $product->rating_score) }}"
+                                       placeholder="VD: 4.8" class="admin-input">
+                            </div>
+                            <div>
+                                <label class="apx-lbl" for="rating_count">Số lượt đánh giá</label>
+                                <input id="rating_count" name="rating_count" type="number" min="0" value="{{ old('rating_count', $product->rating_count) }}"
+                                       placeholder="VD: 124" class="admin-input">
+                                <p class="mt-1 text-[11px] text-slate-400">Nhập cả điểm và số lượt thì thẻ tài liệu mới hiện sao; số này được gộp với đánh giá thật của người đọc.</p>
+                            </div>
+                        </div>
+
                         {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm từng
                              file pdf") — ĐÃ BỎ ô "File PDF" (tệp tổng của cả sản phẩm). Nội dung đọc giờ
                              tải theo TỪNG chương/phần/đề ở trang chi tiết sản phẩm, người học đọc liền mạch

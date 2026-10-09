@@ -59,7 +59,7 @@ class AccessService
     ) {}
 
     /** Đồng bộ với printPrice hiển thị ở checkoutData() — TODO chung: giá bản in thật cần cấu hình riêng, chưa có trường trong schema. */
-    private const PRINT_PRICE = 50000;
+    public const PRINT_PRICE = 50000;
 
     /** access.checkout (ACC-03) — 7.4/7.5: checkout theo scope, sách mềm bắt buộc. */
     public function checkoutData(User $user, int $productId): array

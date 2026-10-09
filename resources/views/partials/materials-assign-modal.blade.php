@@ -1,10 +1,9 @@
-{{-- ═══════════ POPUP "GIAO BÀI" / "GIAO ĐỀ" ═══════════
-     SỬA 7/10 — dựng theo education-main/src/components/QuickAssignButton.jsx (QuickAssignModal).
-     SỬA 7/10 (khách: "chọn nhiều học sinh dạng select 2 có search") — ô "Tài khoản học sinh" đổi
-     thành ô chọn NHIỀU học sinh kiểu Select2: gõ để tìm (tên / email / số điện thoại), bấm để
-     chọn, học sinh đã chọn hiện thành thẻ có nút ×. Gợi ý lấy từ route practice.assign.students.
-     Nằm TRONG phạm vi x-data="onthiPracticePage(...)" (hoặc onthiExamAssign ở trang chi tiết đề)
-     nên dùng chung trạng thái `assign` (có `students`) và các hàm openAssign/closeAssign/submitAssign. --}}
+{{-- ═══════════ POPUP "GIAO TÀI LIỆU" ═══════════
+     SỬA 9/10 — dựng theo education-main/src/components/QuickAssignButton.jsx (QuickAssignModal, type="material"):
+     chọn học sinh, HẠN ĐỌC, THỜI HẠN CẤP QUYỀN ĐỌC (7/30/90/365 ngày) và lời nhắn.
+     Ô chọn nhiều học sinh dùng chung với popup Giao bài ở trang Luyện tập (partials/student-picker-script).
+     Nằm TRONG phạm vi x-data="onthiMaterialsPage(...)" nên dùng chung trạng thái `assign` (có `students`) và
+     các hàm closeAssign/submitAssign/nowLocal/assignSearchUrl của component đó. --}}
 <div x-show="assign.open" x-cloak
      @keydown.escape.window="if (assign.open) closeAssign()"
      @click.self="closeAssign()"
@@ -13,23 +12,23 @@
         <header class="oi-qa-heading">
             <span class="oi-qa-icon"><x-lucide name="send" class="h-5 w-5" /></span>
             <div>
-                <h2 id="oi-qa-title" x-text="assignLabel + ' cho học sinh'"></h2>
-                <p>Chọn một hoặc nhiều học sinh và hạn nộp.</p>
+                <h2 id="oi-qa-title">Giao tài liệu cho học sinh</h2>
+                <p>Chọn học sinh, hạn đọc và thời hạn sử dụng.</p>
             </div>
-            <button type="button" class="oi-qa-close" aria-label="Đóng hộp thoại giao bài" @click="closeAssign()">
+            <button type="button" class="oi-qa-close" aria-label="Đóng hộp thoại giao tài liệu" @click="closeAssign()">
                 <x-lucide name="x" class="h-5 w-5" />
             </button>
         </header>
 
         <div class="oi-qa-subject">
-            <span x-text="(assign.type === 'exam' ? 'Đề thi' : 'Bài tập') + ' · ' + assign.code"></span>
+            <span>Tài liệu</span>
             <strong x-text="assign.title"></strong>
         </div>
 
         {{-- Màn thành công: liệt kê từng học sinh vừa được giao --}}
         <div class="oi-qa-success" role="status" x-show="assign.saved" x-cloak>
             <x-lucide name="check-circle-2" />
-            <h3 x-text="'Đã ' + assignLabel.toLowerCase() + ' cho ' + (assign.saved ? assign.saved.count : 0) + ' học sinh'"></h3>
+            <h3 x-text="'Đã giao tài liệu cho ' + (assign.saved ? assign.saved.count : 0) + ' học sinh'"></h3>
             <ul class="oi-qa-result" x-show="assign.saved && assign.saved.students">
                 <template x-for="(s, i) in (assign.saved ? assign.saved.students : [])" :key="i">
                     <li>
@@ -39,8 +38,9 @@
                     </li>
                 </template>
             </ul>
-            <p>Hạn nộp: <strong x-text="assign.saved ? assign.saved.deadline : ''"></strong></p>
-            <p class="oi-qa-note">Học sinh sẽ thấy trong mục “<span x-text="assign.type === 'exam' ? 'Đề được giao' : 'Bài được giao'"></span>”.</p>
+            <p>Hạn đọc: <strong x-text="assign.saved ? assign.saved.deadline : ''"></strong></p>
+            <p>Quyền đọc: <strong x-text="assign.saved ? assign.saved.accessDays + ' ngày kể từ khi giao' : ''"></strong></p>
+            <p class="oi-qa-note">Học sinh sẽ thấy trong mục “Tài liệu được giao” và “Tài liệu của tôi”.</p>
             <button type="button" class="oi-qa-primary" @click="closeAssign()">Hoàn tất</button>
         </div>
 
@@ -109,10 +109,22 @@
                 <p class="oi-qa-note" x-show="!pkOpen">Tìm theo tên, email hoặc số điện thoại học sinh đã đăng ký. Chọn được nhiều học sinh cùng lúc (tối đa 50).</p>
             </div>
 
-            <label for="oi-qa-deadline"><x-lucide name="calendar-days" class="h-4 w-4" />Hạn nộp</label>
+            <label for="oi-qa-deadline"><x-lucide name="calendar-days" class="h-4 w-4" />Hạn đọc</label>
             <input id="oi-qa-deadline" type="datetime-local" x-model="assign.deadline" :min="nowLocal()" required
                    @input="assign.error = ''">
             <p class="oi-qa-note">Ngày và giờ theo múi giờ trên thiết bị của bạn.</p>
+
+            <label for="oi-qa-access">Thời hạn cấp quyền đọc</label>
+            <select id="oi-qa-access" x-model="assign.accessDays" @change="assign.error = ''">
+                <template x-for="d in accessDays" :key="d">
+                    <option :value="String(d)" x-text="d + ' ngày'"></option>
+                </template>
+            </select>
+            <p class="oi-qa-note">Học sinh được đọc tài liệu trong thời hạn này, tính từ lúc giao. Hạn đọc phải nằm trong thời hạn này. Giao lại sẽ cập nhật lượt giao hiện có.</p>
+
+            <label for="oi-qa-note">Lời nhắn cho học sinh (không bắt buộc)</label>
+            <textarea id="oi-qa-note" rows="3" maxlength="1000" x-model="assign.note"
+                      placeholder="Ví dụ: Đọc chương 1 và làm các bài tập cuối chương."></textarea>
 
             <p class="oi-qa-error" role="alert" x-show="assign.error" x-cloak x-text="assign.error"></p>
 
@@ -127,5 +139,4 @@
     </div>
 </div>
 
-{{-- Script ô chọn nhiều học sinh: xem partials/student-picker-script (dùng chung với popup Giao tài liệu). --}}
 @include('partials.student-picker-script')

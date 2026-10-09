@@ -25,6 +25,8 @@ class Product extends Model
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',
         'price', 'price_teaching', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
         'created_by', 'duration_months',
+        // SỬA 9/10 — trường hiển thị của trang Tài liệu theo bản mẫu mới (độ khó, tác giả, đánh giá nhập tay).
+        'difficulty_level', 'author_name', 'rating_score', 'rating_count',
         // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản
         // phẩm" — cây chương/mục Material cũ): content_pdf = file PDF nội dung chính (thay
         // Material), 3 cột còn lại là tài nguyên phụ.
@@ -42,6 +44,8 @@ class Product extends Model
         'has_print_option' => 'boolean',
         'price' => 'integer',
         'price_teaching' => 'integer',
+        'difficulty_level' => 'integer',
+        'rating_count' => 'integer',
     ];
 
     public function owner(): BelongsTo

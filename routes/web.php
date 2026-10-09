@@ -12,6 +12,7 @@ use App\Http\Controllers\Public\HomeController as PublicHomeController;
 use App\Http\Controllers\Public\InfoController as PublicInfoController;
 use App\Http\Controllers\Public\ContactController as PublicContactController;
 use App\Http\Controllers\Public\LeaderboardController as PublicLeaderboardController;
+use App\Http\Controllers\Public\MaterialAssignmentController as PublicMaterialAssignmentController;
 use App\Http\Controllers\Public\MaterialController as PublicMaterialController;
 use App\Http\Controllers\Public\PracticeController as PublicPracticeController;
 use App\Http\Controllers\Public\PracticeAssignmentController as PublicPracticeAssignmentController;
@@ -125,6 +126,12 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('question')->name('practice.history.sample.destroy');
 });
 Route::get('/tai-lieu', [PublicMaterialController::class, 'index'])->name('materials.index');
+// SỬA 9/10 (khách: "trang tài liệu có cả giao tài liệu") — popup "Giao tài liệu" ở trang /tai-lieu gửi về
+// đây. Chỉ cần đăng nhập ở tầng route; quyền giáo viên/admin do controller + service kiểm tiếp.
+Route::post('/tai-lieu/giao-tai-lieu', [PublicMaterialAssignmentController::class, 'store'])
+    ->middleware('auth')->name('materials.assign');
+Route::get('/tai-lieu/giao-tai-lieu/hoc-sinh', [PublicMaterialAssignmentController::class, 'students'])
+    ->middleware('auth')->name('materials.assign.students');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
 Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');

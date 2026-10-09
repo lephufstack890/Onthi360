@@ -401,6 +401,9 @@
                     <div><dt>Môn học / Khối / Chuyên đề</dt><dd>{{ collect([$product->subject, $product->grade, $product->topic])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</dd></div>
                     <div><dt>Thời hạn quyền mặc định</dt><dd>{{ $product->duration_months ? $product->duration_months.' tháng' : 'Không giới hạn' }}</dd></div>
                     <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có' : 'Không' }}</dd></div>
+                    <div><dt>Độ khó</dt><dd>{{ $product->difficulty_level ? $product->difficulty_level.' sao · '.(['Cơ bản', 'Dễ', 'Trung bình', 'Khó', 'Nâng cao'][$product->difficulty_level - 1] ?? '') : '— Chưa xếp —' }}</dd></div>
+                    <div><dt>Tác giả</dt><dd>{{ $product->author_name ?: '— Chưa nhập —' }}</dd></div>
+                    <div><dt>Đánh giá nhập tay</dt><dd>{{ $product->rating_score !== null && $product->rating_count > 0 ? number_format((float) $product->rating_score, 1, ',', '').'/5 · '.$product->rating_count.' lượt' : '— Chưa nhập —' }}</dd></div>
                     <div><dt>Đường dẫn công khai</dt><dd>/san-pham/{{ $product->slug }}</dd></div>
                     <div><dt>Ngày tạo</dt><dd>{{ $product->created_at?->format('d/m/Y H:i') }}</dd></div>
                 </dl>

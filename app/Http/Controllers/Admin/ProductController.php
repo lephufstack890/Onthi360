@@ -47,6 +47,11 @@ class ProductController extends Controller
             'price_teaching' => ['required', 'integer', 'min:0'],
             'has_print_option' => ['nullable', 'boolean'],
             'duration_months' => ['nullable', 'integer', 'min:1'],
+            // SỬA 9/10 — trường hiển thị trang Tài liệu (bản mẫu mới).
+            'difficulty_level' => ['nullable', 'integer', 'between:1,5'],
+            'author_name' => ['nullable', 'string', 'max:150'],
+            'rating_score' => ['nullable', 'numeric', 'between:0,5'],
+            'rating_count' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
             'visibility' => ['required', 'string', 'in:public,private'],
             // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản

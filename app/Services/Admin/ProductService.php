@@ -89,6 +89,7 @@ class ProductService
             'price_teaching' => $data['price_teaching'] ?? 0,
             'has_print_option' => (bool) ($data['has_print_option'] ?? false),
             'duration_months' => $data['duration_months'] ?: null,
+            ...$this->displayFields($data),
             'status' => $data['status'],
             'visibility' => $data['visibility'],
             'owner_type' => 'shared',
@@ -106,6 +107,30 @@ class ProductService
             'media_path' => $data['media_path'] ?? null,
             'media_original_name' => $data['media_original_name'] ?? null,
         ]);
+    }
+
+    /**
+     * SỬA 9/10 — 4 trường hiển thị của trang Tài liệu (độ khó, tác giả, đánh giá nhập tay).
+     * Chỉ ghi khi cột đã được tạo (migration 001100): deploy mã trước khi chạy migrate thì form
+     * sản phẩm vẫn lưu được như cũ, không văng lỗi "Unknown column".
+     *
+     * @return array<string, mixed>
+     */
+    private function displayFields(array $data): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('products', 'difficulty_level')) {
+            return [];
+        }
+
+        $hasRating = filled($data['rating_score'] ?? null) && (int) ($data['rating_count'] ?? 0) > 0;
+
+        return [
+            'difficulty_level' => filled($data['difficulty_level'] ?? null) ? (int) $data['difficulty_level'] : null,
+            'author_name' => filled($data['author_name'] ?? null) ? trim((string) $data['author_name']) : null,
+            // Điểm sao và số lượt đi cùng nhau: thiếu một trong hai thì coi như chưa nhập đánh giá.
+            'rating_score' => $hasRating ? round((float) $data['rating_score'], 1) : null,
+            'rating_count' => $hasRating ? (int) $data['rating_count'] : 0,
+        ];
     }
 
     /** admin.products.edit — sản phẩm hiện tại + option form. Slug KHÔNG cho sửa (giữ SEO/link). */
@@ -129,6 +154,7 @@ class ProductService
             'price_teaching' => $data['price_teaching'] ?? 0,
             'has_print_option' => (bool) ($data['has_print_option'] ?? false),
             'duration_months' => $data['duration_months'] ?: null,
+            ...$this->displayFields($data),
             'status' => $data['status'],
             'visibility' => $data['visibility'],
         ];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Services\ProductReadService;
+use App\Services\Public\MaterialAssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ProductReadController extends Controller
 {
-    public function __construct(private ProductReadService $productRead) {}
+    public function __construct(private ProductReadService $productRead, private MaterialAssignmentService $materialAssignments) {}
 
     /** Trang đọc — dải cuộn gồm PDF của mọi chương/phần/đề theo thứ tự. */
     public function read(Request $request, int $product): View|RedirectResponse
@@ -29,6 +30,9 @@ class ProductReadController extends Controller
             // Dùng lại đúng trang "Bị khoá" đã có, không dựng màn từ chối riêng.
             return redirect()->route('access.checkout', $productModel->id);
         }
+
+        // SỬA 9/10 — ghi nhận học sinh đã MỞ tài liệu được giao (trạng thái "Đã mở" ở trang Tài liệu).
+        $this->materialAssignments->markOpened($user, $productModel->id);
 
         return view('materials.product-read', $this->productRead->buildReadData($user, $productModel, 'student'));
     }

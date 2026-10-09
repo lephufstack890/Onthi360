@@ -5,309 +5,465 @@
 
 @section('content')
 {{-- ═══════════════ [MATERIALS] MÀN TÀI LIỆU ═══════════════
-     SỬA 11/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
-     education-main/src/components/MaterialsPage.jsx.
-     Bố cục/class chép nguyên; React state đổi sang Alpine; mọi nút gắn link thật.
+     SỬA 9/10 — DỰNG LẠI TOÀN BỘ theo bản mẫu MỚI của khách: education-main/src/components/MaterialsPage.jsx
+     (+ MaterialFilters, MaterialQuality, MaterialPurchaseModal, QuickAssignButton). React state đổi sang Alpine,
+     mọi nút gắn link/POST thật; không còn localStorage.
 
-     Dữ liệu lấy từ cơ sở dữ liệu (App\Services\Public\MaterialService::indexData):
-       · 3 tab + số đếm <- $tabs / $materialGroups  (Sách giáo trình / Chuyên đề thuật toán /
-                           Tuyển tập đề thi — đã phát hành + công khai)
-       · thẻ tài liệu   <- ảnh bìa, nhãn chuyên đề, số chương/phần/đề, mô tả, tác giả,
-                           giá bản mềm, tuỳ chọn bản in, đánh giá thật
-     Cả 3 nhóm nạp sẵn nên đổi tab KHÔNG tải lại trang, đúng như bản mẫu. --}}
+     Quyền hiển thị theo vai trò (xem MaterialAssignmentService::scopeFor):
+       · Khách vãng lai  — chỉ "Kho tài liệu"; bấm Mua/Kích hoạt thì hộp chi tiết mời đăng nhập;
+       · Học sinh        — Kho tài liệu · Tài liệu của tôi · Tài liệu được giao (lượt giáo viên giao cho mình);
+       · Giáo viên       — Kho tài liệu · Tài liệu của tôi · Tài liệu đã giao (lượt mình giao) + nút "Giao tài liệu";
+       · Admin           — Kho tài liệu · Tài liệu đã giao (tất cả) + nút "Giao tài liệu" + "Quản lý tài liệu";
+       · Vai trò khác (phụ huynh...) — như khách, nhưng không có nút mua/kích hoạt riêng.
+
+     Dữ liệu lấy từ MaterialService::indexData(). Thẻ ở Kho tài liệu / Tài liệu của tôi dựng sẵn ở máy chủ (SEO)
+     rồi ẩn/hiện bằng x-show; bảng lượt giao dựng bằng Alpine từ JSON. --}}
+@include('partials.practice-assign-style')
+@include('partials.materials-page-style')
 @php
-    $materialGroups = $materialGroups ?? ['sach' => ($materials ?? []), 'chuyen-de' => [], 'de-thi' => []];
-    $activeTab = $activeTab ?? 'sach';
+    $scope = $scope ?? ['role' => 'guest', 'hasLibrary' => false, 'canViewAssigned' => false, 'canManage' => false];
+    $role = $scope['role'];
+    $isAdmin = $role === 'admin';
+    $loggedIn = $role !== 'guest';
+    $canBuy = $loggedIn && ! $isAdmin;           // mua / nhập mã kích hoạt
+    $cards = $cards ?? [];
+    $rows = $rows ?? [];
+    $assignedRows = $assignedRows ?? [];
+    $managedRows = $managedRows ?? [];
 
-    // SỬA 18/9 — nhãn tab lấy đúng bản mẫu mới (education-main/src/components/MaterialsPage.jsx):
-    // "Chuyên đề" -> "Chuyên đề thuật toán", "Bộ đề" -> "Tuyển tập đề thi". Khoá nhóm ('sach' /
-    // 'chuyen-de' / 'de-thi') GIỮ NGUYÊN vì đó là khoá dữ liệu do MaterialService trả về, đổi là
-    // vỡ bộ lọc — chỉ đổi CHỮ hiển thị.
-    $tabMeta = [
-        'sach' => ['label' => 'Sách giáo trình', 'icon' => 'book-open', 'tone' => 'text-[#2D7FA3]'],
-        'chuyen-de' => ['label' => 'Chuyên đề', 'icon' => 'sparkles', 'tone' => 'text-[#786BB1]'],
-        'de-thi' => ['label' => 'Bộ đề', 'icon' => 'award', 'tone' => 'text-[#AF7C32]'],
-    ];
-
-    // Hàng dữ liệu đưa sang Alpine để lọc/phân trang/mở hộp chi tiết ngay tại chỗ.
-    $materialRows = [];
-    foreach ($materialGroups as $key => $group) {
-        foreach ($group as $m) {
-            $materialRows[] = [
-                'id' => $m['id'],
-                'tab' => $key,
-                'search' => mb_strtolower(trim($m['title'].' '.($m['tag'] ?? '').' '.($m['highlight'] ?? '').' '.($m['author'] ?? ''))),
-                'title' => $m['title'],
-                'tag' => $m['tag'] ?? '',
-                'author' => $m['author'] ?? '',
-                'image' => $m['image'],
-                'average' => $m['average'],
-                'priceSoft' => $m['priceSoft'] ?? $m['meta'],
-                'hasPrintOption' => (bool) ($m['hasPrintOption'] ?? false),
-                'durationMonths' => $m['durationMonths'] ?? null,
-                'owned' => (bool) ($m['owned'] ?? false),
-                'href' => $m['href'],
-                'checkoutHref' => $m['checkoutHref'],
-                // SỬA 18/9 — đường vào TRÌNH ĐỌC (bài đầu tiên có PDF của sản phẩm).
-                'readHref' => $m['readHref'] ?? null,
-            ];
-        }
+    // Hàng dữ liệu đưa sang Alpine để lọc / phân trang / mở hộp chi tiết ngay tại chỗ (bỏ mô tả HTML cho nhẹ).
+    $jsRows = [];
+    foreach ($rows as $m) {
+        $jsRows[] = [
+            'id' => $m['id'],
+            'category' => $m['category'],
+            'title' => $m['title'],
+            'tag' => $m['tag'] ?? '',
+            'author' => $m['author'] ?? '',
+            'image' => $m['image'],
+            'average' => $m['average'],
+            'count' => $m['count'],
+            'difficultyLevel' => $m['difficultyLevel'],
+            'owned' => (bool) $m['owned'],
+            'expired' => (bool) $m['expired'],
+            'remainingDays' => $m['remainingDays'],
+            'expiresAt' => $m['expiresAt'],
+            'accessSource' => $m['accessSource'],
+            'priceSoft' => $m['priceSoft'],
+            'priceValue' => $m['priceValue'],
+            'pricePrint' => $m['pricePrint'],
+            'hasPrintOption' => (bool) $m['hasPrintOption'],
+            'durationMonths' => $m['durationMonths'],
+            'unitLabel' => $m['unitLabel'],
+            'search' => $m['search'],
+            'href' => $m['href'],
+            'checkoutHref' => $m['checkoutHref'],
+            'readHref' => $m['readHref'],
+            'adminHref' => $isAdmin ? route('admin.products.show', $m['id']) : null,
+            'inCatalog' => (bool) $m['inCatalog'],
+        ];
     }
 
-    $totalMaterials = count($materialRows);
-    $ownedCount = 0;
-    foreach ($materialRows as $r) { if ($r['owned']) { $ownedCount++; } }
+    $totalMaterials = count($cards);
+    $heroSecondValue = match (true) {
+        $scope['canManage'] => count($managedRows),
+        $scope['canViewAssigned'] => count($assignedRows),
+        default => 3,
+    };
+    $heroSecondLabel = match (true) {
+        $scope['canManage'] => 'Lượt đã giao',
+        $scope['canViewAssigned'] => 'Lượt được giao',
+        default => 'Nhóm tài liệu',
+    };
+
+    $scopeTabFromUrl = in_array(request()->query('scope'), ['catalog', 'mine', 'assigned', 'managed'], true) ? request()->query('scope') : 'catalog';
+    $categoryFromUrl = in_array(request()->query('category'), ['all', 'books', 'topics', 'exams'], true) ? request()->query('category') : ($activeCategory ?? 'all');
+
 @endphp
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-@php
-    /*
-     * SỬA 14/9 (khách yêu cầu "bấm Vào đọc ngay thì vào thẳng /student/tai-lieu-cua-toi") —
-     * Đích đến phải theo vai trò: khu "Tài liệu của tôi" của học sinh nằm sau middleware
-     * role:student, giáo viên bấm vào sẽ ăn 403. Giáo viên có khu riêng của mình; vai trò
-     * khác thì giữ nguyên hành vi cũ là mở trang chi tiết tài liệu.
-     */
-    $readNowHref = match (true) {
-        (bool) auth()->user()?->hasRole(\App\Models\Role::STUDENT) => route('student.library.index'),
-        (bool) auth()->user()?->hasRole(\App\Models\Role::TEACHER) => route('teacher.library.index'),
-        default => null,
-    };
-@endphp
-<div x-data="onthiMaterialsPage({{ Js::from(['rows' => $materialRows, 'pageSize' => 4, 'activeTab' => $activeTab, 'activateHref' => route('access.activate'), 'readNowHref' => $readNowHref]) }})" class="flex flex-col gap-5">
+<div x-data="onthiMaterialsPage({{ Js::from([
+        'rows' => $jsRows,
+        'scope' => $scope,
+        'loggedIn' => $loggedIn,
+        'assignedRows' => $assignedRows,
+        'managedRows' => $managedRows,
+        'scope_tab' => $scopeTabFromUrl,
+        'category' => $categoryFromUrl,
+        'activateHref' => route('access.activate'),
+        'loginHref' => route('login'),
+        'assignUrl' => route('materials.assign'),
+        'assignSearchUrl' => route('materials.assign.students'),
+        'csrf' => csrf_token(),
+        'accessDays' => $accessDaysOptions ?? [7, 30, 90, 365],
+    ]) }})" class="mp-page">
 
-    {{-- ══════ 1. HERO TÀI LIỆU ══════ --}}
-    <div class="relative rounded-3xl overflow-hidden border border-sky-200/90 shadow-[0_10px_35px_rgba(0,100,220,0.08)] bg-gradient-to-r from-[#0B3C78] via-[#0284C7] to-[#38BDF8] p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
-        <img src="{{ asset('assets/hero-materials.jpg') }}" alt="Kho học liệu Ôn Thi 360"
-             class="absolute inset-0 w-full h-full object-cover object-right pointer-events-none opacity-45 mix-blend-overlay">
-
-        <div class="relative z-10 max-w-2xl">
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-amber-950 mb-3 shadow-sm">
-                <x-lucide name="shield-check" class="w-3.5 h-3.5" />
-                <span>Kho học liệu & Sách giáo trình có bản quyền</span>
-            </div>
-
-            <h1 class="text-2xl font-black tracking-tight text-white leading-tight">Tài liệu, Giáo trình & Bộ đề thi</h1>
-
-            <p class="text-xs sm:text-sm text-sky-100 mt-2 leading-relaxed">
-                Hệ thống sách giáo trình, chuyên đề giải thuật và bộ đề thi chuẩn hóa được biên soạn công phu
-                bởi các chuyên gia và giáo viên trường Chuyên hàng đầu.
-            </p>
-
-            <div class="flex flex-wrap items-center gap-2.5 mt-4">
-                <a href="{{ route('access.activate') }}"
-                   class="px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-98">
-                    <x-lucide name="key-round" class="w-4 h-4" />
-                    <span>Kích hoạt mã sách / tài liệu</span>
-                </a>
-                <span class="text-xs text-sky-100 font-medium">Hỗ trợ bản mềm PDF tương tác & Bản in giao tận nhà</span>
-            </div>
-        </div>
-
-        <div class="relative z-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 sm:p-5 w-full md:w-80 shadow-xl text-center">
-            <p class="text-xs font-bold text-sky-200 uppercase tracking-wider">Học liệu đã phát hành</p>
-            <div class="grid grid-cols-2 gap-3 mt-3">
-                <div class="bg-white/10 rounded-2xl p-2.5">
-                    <p class="text-2xl font-black text-white">{{ number_format($totalMaterials) }}</p>
-                    <p class="text-[10px] text-sky-200 mt-0.5">Đầu sách & Chuyên đề</p>
-                </div>
-                <div class="bg-white/10 rounded-2xl p-2.5">
-                    <p class="text-2xl font-black text-amber-300">{{ $ownedCount }}</p>
-                    <p class="text-[10px] text-sky-200 mt-0.5">Bạn đã có quyền học</p>
+    {{-- ══════ 1. HERO ══════ --}}
+    <section class="mp-hero">
+        <img src="{{ asset('assets/hero-materials.jpg') }}" alt="" class="mp-hero-img">
+        <div class="mp-hero-inner">
+            <div style="max-width: 42rem;">
+                <span class="mp-hero-badge"><x-lucide name="shield-check" />Kho học liệu Ôn Thi 360</span>
+                <h1>Tài liệu, Giáo trình & Bộ đề thi</h1>
+                <p class="mp-lead">Chọn tài liệu phù hợp, theo dõi quyền sử dụng và học theo nội dung được giao.</p>
+                <div class="mp-hero-chips">
+                    <span>Bản mềm · Quyền đọc theo từng tài liệu</span>
+                    <span>Sách in kèm bản mềm</span>
+                    @if ($canBuy)
+                        <a href="{{ route('access.activate') }}"><x-lucide name="key-round" />Kích hoạt mã sách / tài liệu</a>
+                    @endif
                 </div>
             </div>
+            <div class="mp-hero-stats">
+                <div><b>{{ number_format($totalMaterials) }}</b><small>Tài liệu trong kho</small></div>
+                <div><b class="is-gold">{{ $heroSecondValue }}</b><small>{{ $heroSecondLabel }}</small></div>
+            </div>
         </div>
-    </div>
+    </section>
 
-    {{-- ══════ 2. 3 TAB: SÁCH GIÁO TRÌNH / CHUYÊN ĐỀ THUẬT TOÁN / TUYỂN TẬP ĐỀ THI ══════ --}}
-    <div class="bg-white rounded-3xl p-4 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
-            @foreach ($tabMeta as $key => $meta)
-                <button type="button" @click="setTab(@js($key))" :aria-pressed="activeTab === @js($key)"
-                        class="flex-1 sm:flex-none min-h-10 px-4 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9DC8D7]"
-                        :class="activeTab === @js($key) ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-[#536D86] hover:bg-white hover:text-[#126F91]'">
-                    <span class="grid h-5 w-5 place-items-center rounded-lg" :class="activeTab === @js($key) ? 'bg-white/15' : 'bg-[#EAF5F8]'">
-                        {{-- SỬA 18/9 — @js(...) trong thuộc tính của COMPONENT Blade không được biên dịch
-                             (Alpine báo "Invalid or unexpected token"); chuyển binding ra <span> thường. --}}
-                        <span :class="activeTab === @js($key) ? 'text-white' : '{{ $meta['tone'] }}'"><x-lucide :name="$meta['icon']" class="h-3.5 w-3.5" /></span>
-                    </span>
-                    <span>{{ $meta['label'] }}</span>
-                    <span class="text-[10px] px-1.5 rounded-full" :class="activeTab === @js($key) ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'">{{ count($materialGroups[$key] ?? []) }}</span>
+    {{-- ══════ 2. BỘ LỌC + CÁC KHÔNG GIAN THEO VAI TRÒ ══════ --}}
+    <section aria-label="Bộ lọc tài liệu" class="mp-filters">
+        <div class="mp-scopes" role="tablist" aria-label="Không gian tài liệu" x-show="tabs.length > 1">
+            <template x-for="(tab, index) in tabs" :key="tab.id">
+                <button type="button" role="tab" :id="'mp-tab-' + tab.id" aria-controls="mp-panel"
+                        :aria-selected="activeScope === tab.id ? 'true' : 'false'" :tabindex="activeScope === tab.id ? 0 : -1"
+                        @keydown="tabKey($event, index)" @click="setScope(tab.id)"
+                        class="mp-tab" :class="activeScope === tab.id ? 'is-active' : ''">
+                    <span class="mp-ico" x-show="tab.icon === 'book'"><x-lucide name="book-open" /></span>
+                    <span class="mp-ico" x-show="tab.icon === 'key'"><x-lucide name="key-round" /></span>
+                    <span class="mp-ico" x-show="tab.icon === 'file'"><x-lucide name="file-text" /></span>
+                    <span class="mp-ico" x-show="tab.icon === 'send'"><x-lucide name="send" /></span>
+                    <span x-text="tab.label"></span>
+                    <span class="mp-count" x-text="tab.count"></span>
                 </button>
-            @endforeach
+            </template>
         </div>
 
-        <div class="relative flex-1 sm:max-w-xs">
-            <x-lucide name="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input type="text" placeholder="Tìm tài liệu, tác giả..." x-model="searchQuery"
-                   class="w-full pl-10 pr-4 py-2 text-xs bg-[#F0F6FC] border border-sky-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="mp-filters-head">
+            <h2><x-lucide name="filter" />Tìm tài liệu phù hợp</h2>
+            <button type="button" class="mp-text-btn" x-show="canReset" x-cloak @click="resetFilters()"><x-lucide name="rotate-ccw" />Đặt lại bộ lọc</button>
         </div>
-    </div>
 
-    {{-- ══════ 3. LƯỚI TÀI LIỆU ══════ --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        @foreach ($materialGroups as $tabKey => $group)
-            @foreach ($group as $item)
-                {{-- SỬA 18/9 (khách báo: "bấm chuyên đề thì nó hiển thị sai") — DÙNG DẠNG ĐỐI TƯỢNG cho
-                      :style, KHÔNG dùng chuỗi. Alpine 3 xử lý bind:style theo 2 nhánh khác hẳn nhau:
-                      chuỗi thì gọi el.setAttribute('style', ...) tức GHI ĐÈ toàn bộ thuộc tính style,
-                      xoá luôn display:none mà x-show vừa đặt -> thẻ lẽ ra phải ẩn lại hiện ra. Dạng
-                      đối tượng thì đặt từng thuộc tính một, không đụng tới display. --}}
-                <div x-show="visibleIds.includes({{ $item['id'] }})" x-cloak
-                     :style="{ order: visibleIds.indexOf({{ $item['id'] }}) }"
-                     class="bg-white rounded-3xl border border-sky-100 shadow-[0_4px_16px_rgba(0,100,220,0.05)] overflow-hidden flex flex-col justify-between hover:shadow-lg hover:border-sky-200 transition-all duration-300 group">
-                    <div>
-                        {{-- Ảnh bìa --}}
-                        <div class="relative h-56 overflow-hidden bg-slate-50 flex items-center justify-center p-3">
-                            <img src="{{ $item['image'] }}" alt="{{ $item['title'] }}"
-                                 class="h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-300">
-                            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/95 text-[#0050A0] border border-sky-200 shadow-2xs backdrop-blur-xs">{{ $item['tag'] }}</span>
+        <div style="margin-bottom: 12px;">
+            <p class="mp-label" style="margin-bottom: 8px;">Thể loại</p>
+            <div class="mp-cats" style="margin-bottom: 0;" aria-label="Thể loại tài liệu">
+                <template x-for="c in categories" :key="c.id">
+                    <button type="button" class="mp-cat" :aria-pressed="category === c.id ? 'true' : 'false'" @click="category = c.id" x-text="c.label"></button>
+                </template>
+            </div>
+        </div>
+
+        <div class="mp-grid-filters">
+            <label class="mp-span-2" :class="isAssignmentView ? 'mp-span-3' : 'mp-span-all'" style="min-width:0">
+                <span class="mp-label" x-text="isAssignmentView ? (activeScope === 'managed' ? 'Tìm tài liệu, học sinh hoặc người giao' : 'Tìm tài liệu, người giao hoặc lời nhắn') : 'Tìm tài liệu, tác giả'"></span>
+                <span class="mp-search">
+                    <x-lucide name="search" />
+                    <input type="search" class="mp-input" aria-label="Tìm kiếm tài liệu" x-model="query"
+                           :placeholder="isAssignmentView ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)'">
+                </span>
+            </label>
+
+            <label x-show="isAssignmentView" x-cloak style="min-width:0">
+                <span class="mp-label">Trạng thái đọc</span>
+                <select class="mp-input" aria-label="Trạng thái đọc" x-model="status">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="todo">Chưa mở</option>
+                    <option value="opened">Đã mở tài liệu</option>
+                    <option value="overdue">Quá hạn đọc</option>
+                </select>
+            </label>
+
+            <label style="min-width:0">
+                <span class="mp-label">Độ khó</span>
+                <select class="mp-input" aria-label="Độ khó" x-model="difficulty">
+                    <option value="all">Tất cả độ khó</option>
+                    @foreach (['Cơ bản', 'Dễ', 'Trung bình', 'Khó', 'Nâng cao'] as $dlIndex => $dlLabel)
+                        <option value="{{ $dlIndex + 1 }}">{{ $dlIndex + 1 }} sao · {{ $dlLabel }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <label style="min-width:0">
+                <span class="mp-label">Giá bản mềm</span>
+                <select class="mp-input" aria-label="Giá bản mềm" x-model="price">
+                    <option value="all">Tất cả mức giá</option>
+                    <option value="under100">Dưới 100.000đ</option>
+                    <option value="100to200">100.000đ – 200.000đ</option>
+                    <option value="over200">Trên 200.000đ</option>
+                </select>
+            </label>
+
+            @if ($loggedIn)
+                <label x-show="canFilterAccess" x-cloak style="min-width:0">
+                    <span class="mp-label">Quyền sử dụng</span>
+                    <select class="mp-input" aria-label="Quyền sử dụng" x-model="access">
+                        <option value="all">Tất cả quyền sử dụng</option>
+                        <option value="active">Đang có quyền đọc</option>
+                        <option value="expired">Đã hết hạn sử dụng</option>
+                        <option value="locked">Chưa kích hoạt</option>
+                    </select>
+                </label>
+            @endif
+
+            <label style="min-width:0">
+                <span class="mp-label">Sắp xếp theo</span>
+                <select class="mp-input" aria-label="Sắp xếp theo" x-model="sort">
+                    <option value="default" x-text="isAssignmentView ? 'Mới giao nhất' : 'Theo danh mục'">Theo danh mục</option>
+                    <option value="difficulty-asc">Độ khó: dễ → khó</option>
+                    <option value="difficulty-desc">Độ khó: khó → dễ</option>
+                    <option value="category">Theo thể loại</option>
+                    <option value="rating">Đánh giá cao nhất</option>
+                    <option value="price-asc">Giá: thấp → cao</option>
+                    <option value="price-desc">Giá: cao → thấp</option>
+                    <option value="title">Tên tài liệu: A → Z</option>
+                    <option value="deadline" :hidden="!isAssignmentView" :disabled="!isAssignmentView">Hạn đọc gần nhất</option>
+                </select>
+            </label>
+        </div>
+    </section>
+
+    {{-- ══════ 3. NỘI DUNG THEO KHÔNG GIAN ══════ --}}
+    <section id="mp-panel" role="tabpanel" class="mp-panel">
+        <div class="mp-panel-head">
+            <div>
+                <h2 x-text="panelTitle"></h2>
+                <p role="status" x-text="total + ' ' + (isAssignmentView ? 'lượt giao' : 'tài liệu') + ' phù hợp' + (isAssignmentView ? ' · Hạn đọc và hạn sử dụng được theo dõi riêng.' : ' · Giá bản mềm đã gồm thời hạn sử dụng của từng tài liệu.')"></p>
+            </div>
+            <button type="button" class="mp-text-btn" x-show="hasFilters" x-cloak @click="resetFilters()">Xóa bộ lọc</button>
+        </div>
+
+        @if ($role === 'guest')
+            <p class="mp-alert-info">Bạn đang xem với tư cách khách. <a href="{{ route('login') }}" style="font-weight:700;color:#126f91">Đăng nhập</a> để mua, kích hoạt mã và theo dõi quyền sử dụng tài liệu.</p>
+        @elseif ($isAdmin)
+            <p class="mp-alert-info">Quản trị viên: bấm <b>Giao tài liệu</b> để cấp quyền đọc cho học sinh, hoặc <b>Quản lý tài liệu</b> để sửa nội dung, giá, độ khó và đánh giá của tài liệu.</p>
+        @elseif ($scope['canManage'])
+            <p class="mp-alert-info">Giáo viên: bấm <b>Giao tài liệu</b> trên thẻ tài liệu để cấp quyền đọc cho học sinh, rồi theo dõi trạng thái ở tab “Tài liệu đã giao”.</p>
+        @endif
+
+        {{-- ── Lưới thẻ: Kho tài liệu / Tài liệu của tôi (dựng sẵn ở máy chủ) ── --}}
+        <div class="mp-cards" x-show="!isAssignmentView && total > 0">
+            @foreach ($cards as $item)
+                {{-- DÙNG DẠNG ĐỐI TƯỢNG cho :style, KHÔNG dùng chuỗi — Alpine 3 với chuỗi sẽ ghi đè cả thuộc tính style,
+                     xoá luôn display:none mà x-show vừa đặt khiến thẻ lẽ ra phải ẩn lại hiện ra (lỗi khách báo 18/9). --}}
+                <article x-show="visibleIds.includes({{ $item['id'] }})" x-cloak
+                         :style="{ order: visibleIds.indexOf({{ $item['id'] }}) }"
+                         class="mp-card">
+                    @if ($scope['canManage'])
+                        <div class="mp-card-tools">
+                            <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao tài liệu: {{ $item['title'] }}"
+                                    @click.stop="openAssign({{ $item['id'] }})">
+                                <x-lucide name="send" />Giao tài liệu
+                            </button>
+                        </div>
+                    @endif
+
+                    <button type="button" class="mp-cover" aria-label="Thông tin tài liệu: {{ $item['title'] }}" @click="openDetail({{ $item['id'] }})">
+                        <img src="{{ $item['image'] }}" alt="" loading="lazy" decoding="async">
+                    </button>
+
+                    <div class="mp-card-body">
+                        <div class="mp-unit"><x-lucide name="file-text" />{{ $item['unitLabel'] }}</div>
+                        <h3><a href="{{ $item['href'] }}" style="color:inherit;text-decoration:none">{{ $item['title'] }}</a></h3>
+
+                        <div class="mp-quality">
+                            <div class="mp-quality-row"><b>Độ khó</b>@include('partials.practice-difficulty-stars', ['level' => $item['difficultyLevel']])</div>
+                            <div class="mp-quality-row"><b>Đánh giá</b>@include('partials.practice-exam-rating', ['rating' => $item['average'], 'count' => $item['count']])</div>
+                        </div>
+
+                        <div class="mp-badges">
                             @if ($item['owned'])
-                                <span class="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                                    <x-lucide name="check-circle" class="h-3 w-3" />Đã có quyền
-                                </span>
+                                <span class="mp-status is-opened"><x-lucide name="check-circle" />{{ match ($item['accessSource']) { 'assignment' => 'Được cấp quyền', 'class' => 'Được lớp cấp quyền', default => 'Có quyền đọc' } }}</span>
+                                <span class="mp-status is-todo" @if ($item['expiresAt']) title="Hết hạn: {{ $item['expiresAt'] }}" @endif><x-lucide name="clock" />{{ $item['remainingDays'] !== null ? 'Còn '.$item['remainingDays'].' ngày' : 'Không giới hạn' }}</span>
+                            @elseif ($item['expired'])
+                                <span class="mp-status is-overdue"><x-lucide name="lock" />Hết hạn sử dụng</span>
+                            @elseif ($isAdmin)
+                                <span class="mp-status is-neutral"><x-lucide name="check-circle" />Đang công khai</span>
+                            @else
+                                <span class="mp-status is-neutral"><x-lucide name="lock" />Chưa kích hoạt</span>
                             @endif
                         </div>
 
-                        {{-- Thông tin --}}
-                        <div class="p-4">
-                            <div class="flex items-center justify-between gap-1 text-xs mb-1.5">
-                                <span class="inline-flex items-center gap-1 text-[10.5px] text-slate-500 font-medium">
-                                    <x-lucide name="file-text" class="h-3.5 w-3.5 text-[#2D7FA3]" />
-                                    {{ $item['unitLabel'] }}
-                                </span>
-                                <div class="flex items-center gap-1 text-amber-500 font-bold text-xs">
-                                    <x-lucide name="star" class="w-3.5 h-3.5 fill-amber-400" />
-                                    <span>{{ $item['average'] !== null ? number_format($item['average'], 1) : '—' }}</span>
-                                    <span class="text-[10px] text-slate-400">({{ $item['count'] }})</span>
+                        <p class="mp-desc">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', strip_tags((string) $item['highlight']))) ?: 'Học liệu bản quyền của Ôn Thi 360.', 160) }}</p>
+                        <p class="mp-author">{{ $item['author'] }}</p>
+
+                        <div class="mp-buy">
+                            <div class="mp-price-row">
+                                <div>
+                                    <small>Bản mềm · {{ $item['durationMonths'] ? $item['durationMonths'].' tháng' : 'Không giới hạn' }}</small>
+                                    <strong>{{ $item['priceSoft'] }}</strong>
                                 </div>
+                                <x-lucide name="clock" />
                             </div>
+                            <p class="mp-print-note">{{ $item['pricePrint'] ? 'Kèm sách in: '.$item['pricePrint'] : 'Đọc và luyện tập trực tuyến' }}</p>
 
-                            <h3 class="text-xs sm:text-sm font-extrabold text-[#0B3C78] leading-snug line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">{{ $item['title'] }}</h3>
-
-                            <p class="flex items-start gap-1 text-[11px] text-slate-500 line-clamp-2 mb-2">
-                                <x-lucide name="sparkles" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#AF7C32]" />
-                                <span>{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', strip_tags((string) $item['highlight']))) ?: 'Học liệu bản quyền của Ôn Thi 360.', 160) }}</span>
-                            </p>
-
-                            <p class="text-[10px] text-slate-400">Tác giả: <strong class="text-slate-600">{{ $item['author'] }}</strong></p>
+                            @if ($isAdmin)
+                                <a href="{{ route('admin.products.show', $item['id']) }}" class="mp-primary">Quản lý tài liệu<x-lucide name="chevron-right" /></a>
+                            @elseif ($item['owned'] && $item['readHref'])
+                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu<x-lucide name="chevron-right" /></a>
+                            @elseif ($item['owned'])
+                                <button type="button" class="mp-primary" @click="openDetail({{ $item['id'] }})"><x-lucide name="book-open" />Xem thông tin<x-lucide name="chevron-right" /></button>
+                            @else
+                                <button type="button" class="mp-primary" @click="openDetail({{ $item['id'] }})"><x-lucide name="shopping-cart" />{{ $item['expired'] ? 'Gia hạn / Mua tài liệu' : 'Mua / Kích hoạt' }}<x-lucide name="chevron-right" /></button>
+                            @endif
+                            <button type="button" class="mp-text-btn" @click="openDetail({{ $item['id'] }})">Chi tiết giá & quyền sử dụng</button>
                         </div>
                     </div>
-
-                    {{-- Giá & hành động --}}
-                    <div class="p-4 pt-0">
-                        <div class="pt-3 border-t border-sky-100 flex items-center justify-between">
-                            <div>
-                                <p class="text-[10px] text-slate-400">Bản mềm (Online)</p>
-                                <p class="text-sm font-black text-[#0B3C78]">{{ $item['priceSoft'] }}</p>
-                            </div>
-
-                            <button type="button" @click="openDetail({{ $item['id'] }})"
-                                    class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs flex items-center gap-1 transition-all cursor-pointer">
-                                <span>{{ $item['owned'] ? 'Đọc tài liệu' : 'Xem tài liệu' }}</span>
-                                <x-lucide name="chevron-right" class="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </article>
             @endforeach
-        @endforeach
-    </div>
-
-    {{-- Phân trang --}}
-    <nav aria-label="Phân trang tài liệu" x-show="totalPages > 1" x-cloak
-         class="mt-3 flex flex-col items-center justify-between gap-2 rounded-xl border border-sky-100 bg-white p-2 sm:flex-row">
-        <span class="text-[11px] text-slate-500">Trang <b class="text-slate-700" x-text="page"></b> / <span x-text="totalPages"></span></span>
-        <div class="flex items-center gap-1.5">
-            <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="pageIndex = Math.max(1, page - 1)"
-                    class="grid h-9 w-9 place-items-center rounded-lg border border-sky-100 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40">
-                <x-lucide name="chevron-left" class="h-4 w-4" />
-            </button>
-            <template x-for="n in totalPages" :key="'mp' + n">
-                <button type="button" :aria-label="'Trang ' + n" :aria-current="page === n ? 'page' : null" @click="pageIndex = n"
-                        class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
-                        :class="page === n ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'"
-                        x-text="n"></button>
-            </template>
-            <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="pageIndex = Math.min(totalPages, page + 1)"
-                    class="grid h-9 w-9 place-items-center rounded-lg border border-sky-100 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40">
-                <x-lucide name="chevron-right" class="h-4 w-4" />
-            </button>
         </div>
-    </nav>
 
-    <div x-show="filtered.length === 0" x-cloak class="rounded-3xl border border-dashed border-sky-200 bg-white p-10 text-center">
-        <x-lucide name="search" class="mx-auto h-9 w-9 text-sky-300" />
-        <h2 class="mt-3 text-sm font-black text-slate-800">Không tìm thấy tài liệu</h2>
-        <p class="mt-1 text-xs text-slate-500">Thử chọn danh mục khác hoặc xóa từ khóa tìm kiếm.</p>
-        <button type="button" @click="searchQuery = ''" class="mt-4 text-xs font-bold text-blue-600">Xóa tìm kiếm</button>
-    </div>
+        {{-- ── Bảng lượt giao: Tài liệu được giao (học sinh) / Tài liệu đã giao (giáo viên, admin) ── --}}
+        <section class="mp-asg" x-show="isAssignmentView && total > 0" x-cloak
+                 :aria-label="activeScope === 'managed' ? 'Danh sách tài liệu đã giao' : 'Danh sách tài liệu được giao'">
+            <div class="mp-asg-head">
+                <span>Tài liệu / Trạng thái</span>
+                <span x-text="activeScope === 'managed' ? 'Học sinh / Người giao' : 'Người giao'"></span>
+                <span>Hạn đọc / Quyền sử dụng</span>
+                <span>Thao tác</span>
+            </div>
+            <template x-for="row in (isAssignmentView ? pageEntries : [])" :key="row.id">
+                <article class="mp-asg-row">
+                    <div class="mp-asg-left">
+                        <img :src="row.item.image" alt="">
+                        <div style="min-width:0">
+                            <span class="mp-status" :class="statusClass(row.status)" x-text="row.statusLabel"></span>
+                            <h3 class="mp-asg-title" x-text="row.item.title"></h3>
+                            <div style="margin-top: 8px;">@include('partials.materials-quality', ['expr' => 'row.item'])</div>
+                            <p class="mp-asg-note" x-show="row.note" x-text="'Lời nhắn: ' + row.note"></p>
+                        </div>
+                    </div>
 
-    {{-- ══════ HỘP CHI TIẾT & MUA QUYỀN ══════ --}}
-    <div x-show="selected" x-cloak @keydown.escape.window="selected = null"
-         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-        <div @click.outside="selected = null" class="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-sky-100 relative">
-            <button type="button" aria-label="Đóng thông tin tài liệu" @click="selected = null"
-                    class="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9DC8D7]">
-                <x-lucide name="x" class="h-4 w-4" />
-            </button>
+                    <div class="mp-asg-mid">
+                        <p class="mp-asg-who" x-show="activeScope === 'managed'"><x-lucide name="users" /><span style="word-break:break-all" x-text="row.studentName + ' · ' + row.account"></span></p>
+                        <p>Giao bởi <strong x-text="row.teacher"></strong></p>
+                        <p style="color:#94a3b8" x-text="'Ngày giao: ' + row.assignedAt"></p>
+                    </div>
 
-            <template x-if="selected">
+                    <div class="mp-asg-time">
+                        <p class="is-deadline"><x-lucide name="calendar-days" /><span x-text="'Hạn đọc: ' + row.deadline"></span></p>
+                        <p class="is-muted" x-text="'Quyền đọc: ' + row.accessDays + ' ngày'"></p>
+                        <p :class="row.accessExpired ? 'is-bad' : 'is-muted-plain'" :style="row.accessExpired ? '' : 'color:#607a90'" x-text="(row.accessExpired ? 'Đã hết hạn: ' : 'Sử dụng đến: ') + row.accessExpiresAt"></p>
+                    </div>
+
+                    <div class="mp-asg-actions">
+                        <template x-if="activeScope === 'managed'">
+                            <button type="button" class="oi-assign-chip" x-show="row.item.inCatalog" @click.stop="openAssign(row.productId)"><x-lucide name="send" />Giao tài liệu</button>
+                        </template>
+                        <template x-if="activeScope === 'assigned' && row.item.owned && row.item.readHref">
+                            <a :href="row.item.readHref" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu</a>
+                        </template>
+                        <template x-if="activeScope === 'assigned' && !(row.item.owned && row.item.readHref)">
+                            <button type="button" class="mp-primary" @click="openDetail(row.productId)"><x-lucide name="book-open" /><span x-text="row.item.owned ? 'Xem thông tin' : 'Gia hạn / Mua'"></span></button>
+                        </template>
+                        <button type="button" class="mp-text-btn" @click="openDetail(row.productId)">Giá & thời hạn</button>
+                    </div>
+                </article>
+            </template>
+        </section>
+
+        {{-- ── Trống ── --}}
+        <div class="mp-empty" x-show="total === 0" x-cloak>
+            <x-lucide name="book-open" />
+            <h3 x-text="emptyTitle"></h3>
+            <p x-text="emptyHint"></p>
+            <button type="button" class="mp-text-btn" style="margin-top: 16px;" @click="setScope('catalog'); resetFilters()">Khám phá kho tài liệu</button>
+        </div>
+
+        {{-- ── Phân trang ── --}}
+        <nav aria-label="Phân trang tài liệu" class="mp-pager" x-show="totalPages > 1" x-cloak>
+            <span>Trang <span x-text="page"></span> / <span x-text="totalPages"></span></span>
+            <div>
+                <button type="button" class="mp-icon-btn" aria-label="Trang trước" :disabled="page === 1" @click="pageIndex = Math.max(1, page - 1)"><x-lucide name="chevron-left" /></button>
+                <button type="button" class="mp-icon-btn" aria-label="Trang sau" :disabled="page === totalPages" @click="pageIndex = Math.min(totalPages, page + 1)"><x-lucide name="chevron-right" /></button>
+            </div>
+        </nav>
+
+        <p class="mp-note">
+            Giá bản mềm đã gồm thời hạn sử dụng ghi trên từng tài liệu; quyền đọc tính từ lúc kích hoạt mã hoặc lúc giáo viên giao tài liệu.
+            <span x-show="isAssignmentView" x-cloak>Trạng thái “Đã mở” chỉ ghi nhận việc mở tài liệu, không đồng nghĩa đã đọc xong.</span>
+        </p>
+    </section>
+
+    {{-- ══════ HỘP CHI TIẾT GIÁ & QUYỀN SỬ DỤNG ══════ --}}
+    <div class="mp-modal-back" x-show="selected" x-cloak @keydown.escape.window="selected = null" @click.self="closeDetail()">
+        <div class="mp-modal" role="dialog" aria-modal="true" aria-labelledby="mp-modal-title">
+            <header class="mp-modal-head">
                 <div>
-                    <div class="flex gap-4 mb-4">
-                        <img :src="selected.image" alt="" class="w-24 h-32 object-contain rounded-xl border border-slate-200">
-                        <div>
-                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md" x-text="selected.tag"></span>
-                            <h3 class="text-sm font-bold text-[#0B3C78] mt-1" x-text="selected.title"></h3>
-                            <p class="text-xs text-slate-500 mt-1">Tác giả: <span x-text="selected.author"></span></p>
-                            <div class="mt-2 flex items-center gap-1 text-xs font-bold text-amber-500">
-                                <span class="inline-flex items-center gap-0.5">
-                                    <x-lucide name="star" class="h-3.5 w-3.5 fill-amber-400" />
-                                    <x-lucide name="star" class="h-3.5 w-3.5 fill-amber-400" />
-                                    <x-lucide name="star" class="h-3.5 w-3.5 fill-amber-400" />
-                                    <x-lucide name="star" class="h-3.5 w-3.5 fill-amber-400" />
-                                    <x-lucide name="star" class="h-3.5 w-3.5 fill-amber-400" />
-                                </span>
-                                <span x-text="selected.average !== null ? selected.average + ' (Đã xác thực)' : 'Chưa có đánh giá'"></span>
+                    <p class="mp-eyebrow">Thông tin & quyền sử dụng</p>
+                    <h2 id="mp-modal-title" x-text="selected && selected.owned ? 'Thông tin tài liệu' : 'Mua / kích hoạt tài liệu'"></h2>
+                </div>
+                <button type="button" class="mp-icon-btn" aria-label="Đóng thông tin tài liệu" @click="closeDetail()"><x-lucide name="x" /></button>
+            </header>
+
+            <div class="mp-modal-body">
+                <template x-if="selected">
+                    <div>
+                        <div class="mp-modal-item">
+                            <img :src="selected.image" alt="">
+                            <div style="min-width:0">
+                                <span class="mp-status is-neutral" x-text="selected.tag"></span>
+                                <h3 style="margin-top:6px" x-text="selected.title"></h3>
+                                <p x-text="'Tác giả: ' + selected.author"></p>
+                                <p class="is-accent" x-text="selected.unitLabel + ' · Đọc trực tuyến và luyện tập'"></p>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-[#F8FBFE] p-3.5 rounded-2xl border border-sky-100 text-xs space-y-2 mb-4">
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Bản mềm (Đọc & Chấm bài trên web):</span>
-                            <strong class="text-blue-600" x-text="selected.priceSoft"></strong>
-                        </div>
-                        <div class="flex justify-between" x-show="selected.hasPrintOption">
-                            <span class="text-slate-500">Tùy chọn kèm sách in giao tận nhà:</span>
-                            <strong class="text-amber-600">Liên hệ để đặt bản in</strong>
-                        </div>
-                        <div class="flex justify-between" x-show="selected.durationMonths">
-                            <span class="text-slate-500">Thời hạn quyền học mặc định:</span>
-                            <strong class="text-slate-700"><span x-text="selected.durationMonths"></span> tháng</strong>
-                        </div>
-                        <div class="flex items-start gap-1.5 border-t border-sky-100 pt-1 text-[11px] text-slate-400">
-                            <x-lucide name="check-circle" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3B9374]" />
-                            <span>Được cấp quyền truy cập ngay sau khi nhập mã kích hoạt hợp lệ.</span>
-                        </div>
-                    </div>
+                        <div style="margin-top: 16px;">@include('partials.materials-quality', ['expr' => 'selected'])</div>
 
-                    <div class="flex flex-wrap items-center justify-end gap-2">
-                        <a :href="selected.href" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer">Xem mục lục</a>
-                        <a :href="activateHref" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs cursor-pointer">Nhập mã kích hoạt có sẵn</a>
-                        <a :href="selected.checkoutHref" x-show="!selected.owned"
-                           class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md cursor-pointer">Mua quyền học ngay →</a>
-                        {{-- SỬA 18/9 (khách báo: "click vào đọc ngay nó không ra trang đó") — TRƯỚC ĐÂY
-                             nút này chỉ dẫn về danh sách "Tài liệu của tôi" (yêu cầu cũ ngày 14/9),
-                             nên bấm xong vẫn phải tự tìm bài rồi mới đọc được. Giờ mở THẲNG trình
-                             đọc ở bài đầu tiên có PDF; sản phẩm chưa có bài nào đọc được thì mới lùi
-                             về danh sách như cũ. --}}
-                        <a :href="selected.readHref || readNowHref || selected.href" x-show="selected.owned"
-                           class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer">Vào đọc ngay →</a>
+                        <p class="mp-legend">Hình thức & giá</p>
+                        <div class="mp-opt is-on">
+                            <span>Bản mềm (Online)<small x-text="selected.durationMonths ? 'Quyền đọc trực tuyến ' + selected.durationMonths + ' tháng' : 'Quyền đọc trực tuyến không giới hạn thời gian'"></small></span>
+                            <strong x-text="selected.priceSoft"></strong>
+                        </div>
+                        <div class="mp-opt" x-show="selected.pricePrint">
+                            <span>Bản mềm + sách in<small>Giao tận nhà · chọn ở bước thanh toán</small></span>
+                            <strong x-text="selected.pricePrint"></strong>
+                        </div>
+                        <p class="mp-meta-line"><x-lucide name="clock" />Thời hạn tính từ khi kích hoạt quyền đọc.</p>
+
+                        {{-- Trạng thái quyền của người xem --}}
+                        <div class="mp-box is-green" x-show="selected.owned" role="status">
+                            <p>
+                                <strong x-text="selected.accessSource === 'assignment' ? 'Tài liệu được giáo viên giao cho bạn.' : (selected.accessSource === 'class' ? 'Tài liệu được lớp của bạn cấp quyền.' : 'Bạn đang có quyền đọc.')"></strong>
+                                <span x-text="selected.remainingDays !== null ? ' Còn ' + selected.remainingDays + ' ngày (đến ' + selected.expiresAt + ').' : ' Không giới hạn thời gian.'"></span>
+                            </p>
+                        </div>
+                        <div class="mp-box is-amber" x-show="!selected.owned && selected.expired" role="status">
+                            <p x-text="'Quyền đọc đã hết hạn từ ' + selected.expiresAt + '. Mua hoặc nhập mã kích hoạt để gia hạn.'"></p>
+                        </div>
+                        @if ($role === 'guest')
+                            <div class="mp-box is-amber" x-show="!selected.owned"><p>Đăng nhập hoặc đăng ký để mua và kích hoạt tài liệu này.</p></div>
+                        @elseif (! $isAdmin)
+                            <div class="mp-box is-sky" x-show="!selected.owned && !selected.expired"><p>Bạn chưa có quyền đọc tài liệu này. Mua quyền học hoặc nhập mã kích hoạt đã có.</p></div>
+                        @endif
+
+                        <div class="mp-modal-actions">
+                            <a :href="selected.href" class="mp-primary is-light">Xem mục lục</a>
+                            @if ($role === 'guest')
+                                <a :href="loginHref" class="mp-primary">Đăng nhập để mua</a>
+                            @endif
+                            @if ($canBuy)
+                                <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a>
+                                <a :href="selected.checkoutHref" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
+                                <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" />Vào đọc ngay →</a>
+                            @endif
+                            @if ($scope['canManage'])
+                                <button type="button" class="oi-assign-chip" style="min-height:40px;padding:0 14px" x-show="selected.inCatalog" @click="openAssign(selected.id)"><x-lucide name="send" />Giao tài liệu</button>
+                            @endif
+                            @if ($isAdmin)
+                                <a :href="selected.adminHref" class="mp-primary">Quản lý tài liệu</a>
+                            @endif
+                        </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
     </div>
+
+    {{-- ══════ POPUP GIAO TÀI LIỆU (chỉ giáo viên / admin) ══════ --}}
+    @if ($scope['canManage'])
+        @include('partials.materials-assign-modal')
+    @endif
 </div>
 </div>
 @endsection
