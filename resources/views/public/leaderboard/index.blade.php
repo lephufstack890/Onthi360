@@ -448,7 +448,8 @@ body:has(.leaderboard-view) { background-color: #e0ebf0; }
                             <div class="lb-podium-avatar">
                                 <span class="lb-avatar lb-avatar-large" :class="avatarClass(p)" aria-hidden="true">
                                     <x-lucide name="user-round" x-show="isAnon(p)" />
-                                    <span x-show="!isAnon(p)" x-text="p.initials"></span>
+                                    <img x-show="p.avatar" :src="p.avatar" alt="" loading="lazy">
+                                    <span x-show="!isAnon(p) && !p.avatar" x-text="p.initials"></span>
                                 </span>
                                 <span x-text="p.rank"></span>
                             </div>
@@ -516,7 +517,8 @@ body:has(.leaderboard-view) { background-color: #e0ebf0; }
                                         <div class="lb-student">
                                             <span class="lb-avatar" :class="avatarClass(p)" aria-hidden="true">
                                                 <x-lucide name="user-round" x-show="isAnon(p)" />
-                                                <span x-show="!isAnon(p)" x-text="p.initials"></span>
+                                                <img x-show="p.avatar" :src="p.avatar" alt="" loading="lazy">
+                                                <span x-show="!isAnon(p) && !p.avatar" x-text="p.initials"></span>
                                             </span>
                                             <div class="lb-student-info">
                                                 <div class="lb-student-name">

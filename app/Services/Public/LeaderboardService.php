@@ -142,8 +142,9 @@ class LeaderboardService
                 'rank' => (int) $r['rank'],
                 'name' => (string) $r['name'],
                 'score' => (float) $r['score'],
-                // Ảnh đại diện trung tính của bộ giao diện, xoay theo hạng (hệ thống chưa có URL ảnh học sinh).
-                'avatar' => asset('assets/rank-avatar-'.((max(1, (int) $r['rank']) - 1) % 5 + 1).'.png'),
+                // SỬA 10/10 — có ảnh đại diện thật (users.avatar_path) thì dùng; chưa có thì ảnh trung tính
+                // của bộ giao diện, xoay theo hạng.
+                'avatar' => $r['avatar'] ?? asset('assets/rank-avatar-'.((max(1, (int) $r['rank']) - 1) % 5 + 1).'.png'),
             ], $rows),
         ];
     }
@@ -503,13 +504,30 @@ class LeaderboardService
      */
     private function personalise(array $rows, ?User $viewer): array
     {
-        return array_map(function (array $row) use ($viewer) {
+        // SỬA 10/10 (khách: "cập nhật avatar rồi mà trong bảng xếp hạng không chịu update") — bảng chỉ
+        // hiện chữ cái đầu, chưa bao giờ đọc users.avatar_path. Ảnh đại diện lấy Ở ĐÂY (mỗi lượt xem, 1
+        // truy vấn nhẹ theo id) chứ KHÔNG đưa vào dữ liệu nhớ tạm 5 phút của decorate(): đổi ảnh xong
+        // là thấy ngay, không phải đợi hết hạn nhớ tạm. Chỉ dòng ĐÃ hiện tên thật mới kèm ảnh — dòng ẩn
+        // danh không lộ ảnh của ai.
+        $namedIds = [];
+        foreach ($rows as $row) {
+            if (! empty($row['named']) || ($viewer !== null && $row['uid'] === (int) $viewer->id)) {
+                $namedIds[] = (int) $row['uid'];
+            }
+        }
+        $avatars = $namedIds === []
+            ? []
+            : User::query()->whereIn('id', array_unique($namedIds))->pluck('avatar_path', 'id')->all();
+
+        return array_map(function (array $row) use ($viewer, $avatars) {
             if ($viewer !== null && $row['uid'] === (int) $viewer->id) {
                 $row['isYou'] = true;
                 $row['name'] = (string) $viewer->name;
                 $row['named'] = true;
                 $row['initials'] = $this->initials((string) $viewer->name);
+                $avatars[$row['uid']] = $viewer->avatar_path;
             }
+            $row['avatar'] = \App\Services\Account\AvatarService::url($avatars[$row['uid']] ?? null);
             unset($row['uid']);
 
             return $row;
