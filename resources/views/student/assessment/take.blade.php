@@ -269,13 +269,14 @@
                                         {{-- ── Trình soạn mã ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
-                                                {{-- Chỉ 2 ngôn ngữ vì máy chấm CHỈ nhận 2 (config/judge0.php: languages
-                                                     = cpp, python). Bày thêm C++14 như bản mẫu là hứa cái hệ thống
-                                                     không chấm được. Giá trị gửi lên vẫn là 'cpp'/'python' như cũ. --}}
+                                                {{-- SỬA 9/10 (khách: "thêm C++14") — máy chấm vẫn chỉ có 2 họ ngôn ngữ (cpp,
+                                                     python); C++14 là 'cpp14' = cùng trình biên dịch C++ nhưng thêm cờ
+                                                     -std=c++14 (xem CodeJudgingService::compilerOptions()). 'cpp' vẫn là C++17. --}}
                                                 <select x-model="languages[{{ $qid }}]" data-code-language @change="onLanguageChange({{ $qid }})" :disabled="expired"
                                                         aria-label="Chọn ngôn ngữ lập trình"
                                                         class="rounded-lg bg-[#F4F9FB] px-2 py-1.5 text-[10px] font-bold text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
                                                     <option value="cpp">C++17</option>
+                                                    <option value="cpp14">C++14</option>
                                                     <option value="python">Python 3</option>
                                                 </select>
                                                 <div class="flex items-center gap-1.5">

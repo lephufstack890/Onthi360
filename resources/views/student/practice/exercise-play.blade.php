@@ -383,12 +383,12 @@
                                         {{-- ── Trình soạn mã (CodeEditorPanel của bản mẫu) ── --}}
                                         <section class="flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl bg-[#F4F9FB]">
                                             <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-white px-3 py-2.5 text-[#123B68] sm:px-4">
-                                                {{-- Chỉ 2 ngôn ngữ vì máy chấm CHỈ nhận 2 (config/judge0.php) — bày
-                                                     thêm là hứa cái hệ thống không chấm được. Giá trị gửi lên giữ
-                                                     nguyên 'cpp'/'python' như cũ. --}}
+                                                {{-- SỬA 9/10 (khách: "thêm C++14") — 'cpp' = C++17, 'cpp14' = C++14 (cùng bộ
+                                                     biên dịch, thêm cờ -std=c++14), 'python' = Python 3. --}}
                                                 <select name="language" data-code-language aria-label="Chọn ngôn ngữ lập trình"
                                                         class="rounded-lg bg-[#F4F9FB] px-2 py-1.5 text-[10px] font-bold text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
                                                     <option value="cpp" @selected(($feedback['yourLanguage'] ?? 'cpp') === 'cpp')>C++17</option>
+                                                    <option value="cpp14" @selected(($feedback['yourLanguage'] ?? null) === 'cpp14')>C++14</option>
                                                     <option value="python" @selected(($feedback['yourLanguage'] ?? null) === 'python')>Python 3</option>
                                                 </select>
                                                 <div class="flex items-center gap-1.5">

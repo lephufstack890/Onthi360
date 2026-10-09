@@ -140,6 +140,11 @@ class Judge0Client
             if (isset($s['memory_limit'])) {
                 $payload['memory_limit'] = $s['memory_limit'];
             }
+            // SỬA 9/10 — cờ biên dịch (vd "-std=c++14") cho lựa chọn C++14. Không có thì không gửi,
+            // Judge0 dùng cách biên dịch mặc định như trước.
+            if (isset($s['compiler_options']) && is_string($s['compiler_options'])) {
+                $payload['compiler_options'] = $s['compiler_options'];
+            }
 
             return $payload;
         }, $submissions);

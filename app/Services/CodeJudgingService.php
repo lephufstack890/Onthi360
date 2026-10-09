@@ -30,6 +30,7 @@ class CodeJudgingService
         }
 
         $sourceCode = $this->withFileIo($sourceCode, self::languageKey($language), $fileIo);
+        $compilerOptions = self::compilerOptions($language);
 
         $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
         $wallTimeLimit = min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10);
@@ -48,7 +49,7 @@ class CodeJudgingService
          * hơn không chấm được.
          */
         if ((bool) config('judge0.bundled_run')) {
-            $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo);
+            $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo, $compilerOptions);
 
             if ($bundled !== null) {
                 return $bundled;
@@ -58,6 +59,7 @@ class CodeJudgingService
         $submissions = array_map(static fn (array $tc) => [
             'source_code' => $sourceCode,
             'language_id' => $languageId,
+            'compiler_options' => $compilerOptions,
             'stdin' => $tc['input'],
             'expected_output' => $tc['expected_output'],
             'cpu_time_limit' => $cpuTimeLimit,
@@ -155,6 +157,7 @@ class CodeJudgingService
         $results = $this->client->runBatch([[
             'source_code' => $sourceCode,
             'language_id' => $languageId,
+            'compiler_options' => self::compilerOptions($language),
             'stdin' => $stdin,
             'cpu_time_limit' => $cpuTimeLimit,
             'wall_time_limit' => min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10),
@@ -198,6 +201,23 @@ class CodeJudgingService
             str_starts_with($l, 'cpp'), str_starts_with($l, 'c++'), str_starts_with($l, 'g++'), str_starts_with($l, 'gnuc++') => 'cpp',
             str_starts_with($l, 'py') => 'python',
             default => $l,
+        };
+    }
+
+    /**
+     * SỬA 9/10 (khách: "thêm C++14") — cờ biên dịch theo lựa chọn của học sinh. Ô chọn gửi 'cpp14'
+     * cho C++14 và 'cpp' cho C++17: CHỈ 'cpp14' (hoặc 'cpp17' khai rõ) mới thêm cờ -std; 'cpp'
+     * trơn và Python trả null nên cách biên dịch của bài đang chạy KHÔNG đổi gì.
+     * Cả hai đều quy về cùng khoá 'cpp' ở languageKey() nên language_id, file_io, chấm gộp giữ nguyên.
+     */
+    public static function compilerOptions(?string $language): ?string
+    {
+        $l = strtolower(str_replace([' ', '_', '-'], '', (string) $language));
+
+        return match (true) {
+            (bool) preg_match('/^(cpp|c\+\+|g\+\+|gnuc\+\+)14$/', $l) => '-std=c++14',
+            (bool) preg_match('/^(cpp|c\+\+|g\+\+|gnuc\+\+)17$/', $l) => '-std=c++17',
+            default => null,
         };
     }
 
@@ -303,7 +323,7 @@ PY;
      * @param  array<int, array{input:string, expected_output:string}>  $testCases
      * @return array{verdict: VerdictStatus, isAccepted: bool, details: array}|null  null = không gộp được, hãy dùng cách cũ
      */
-    private function judgeBundled(string $sourceCode, ?string $langKey, array $testCases, float $perTestCpu, int $memoryLimit, ?array $fileIo): ?array
+    private function judgeBundled(string $sourceCode, ?string $langKey, array $testCases, float $perTestCpu, int $memoryLimit, ?array $fileIo, ?string $compilerOptions = null): ?array
     {
         if (! BundledJudgePackage::supports($langKey) || ! BundledJudgePackage::available()) {
             return null;
@@ -357,7 +377,7 @@ PY;
         $outputCap = max(65536, $longestExpected * 2 + 65536);
 
         try {
-            $zip = $package->build($sourceCode, (string) $langKey, $testCases, $perTestSeconds, $runBudget, $outputCap);
+            $zip = $package->build($sourceCode, (string) $langKey, $testCases, $perTestSeconds, $runBudget, $outputCap, $compilerOptions);
             $result = $this->client->runBundled($zip, (float) $cpuTimeLimit, $wallTimeLimit, $memoryLimit);
         } catch (Throwable $e) {
             Log::warning('Chấm gộp không chạy được, quay về chấm từng test: '.$e->getMessage());

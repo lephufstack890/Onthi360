@@ -63,7 +63,7 @@ class BundledJudgePackage
      *
      * @throws RuntimeException khi máy chủ thiếu ext-zip hoặc không ghi được tệp tạm.
      */
-    public function build(string $sourceCode, string $langKey, array $testCases, int $perTestSeconds, int $runBudgetSeconds, int $outputCapBytes): string
+    public function build(string $sourceCode, string $langKey, array $testCases, int $perTestSeconds, int $runBudgetSeconds, int $outputCapBytes, ?string $compilerOptions = null): string
     {
         if (! self::available()) {
             throw new RuntimeException('Máy chủ chưa bật phần mở rộng PHP "zip" nên không dựng được gói chấm.');
@@ -85,7 +85,7 @@ class BundledJudgePackage
         }
 
         $zip->addFromString($sourceName, $sourceCode);
-        $this->addScript($zip, 'compile', $this->compileScript($langKey));
+        $this->addScript($zip, 'compile', $this->compileScript($langKey, $compilerOptions));
         $this->addScript($zip, 'run', $this->runScript($langKey, count($testCases), $perTestSeconds, $runBudgetSeconds, $outputCapBytes));
 
         foreach (array_values($testCases) as $i => $tc) {
@@ -159,8 +159,12 @@ class BundledJudgePackage
      * mục /usr/local/gcc-<phiên bản>/bin chứ không phải lúc nào cũng có sẵn trong PATH, và số
      * phiên bản đổi theo từng bản ảnh.
      */
-    private function compileScript(string $langKey): string
+    private function compileScript(string $langKey, ?string $compilerOptions = null): string
     {
+        // SỬA 9/10 — chuẩn C++ chọn từ ô ngôn ngữ (C++14 / C++17). CHỈ nhận đúng 2 giá trị này để
+        // không ai nhét được lệnh lạ vào script biên dịch; không khớp thì giữ -std=c++17 như cũ.
+        $std = in_array($compilerOptions, ['-std=c++14', '-std=c++17'], true) ? $compilerOptions : '-std=c++17';
+
         if ($langKey === 'python') {
             return <<<'SH'
 #!/bin/sh
@@ -173,14 +177,14 @@ exit 0
 SH;
         }
 
-        return <<<'SH'
+        return str_replace('__STD__', $std, <<<'SH'
 #!/bin/sh
 CXX=$(command -v g++ 2>/dev/null)
 [ -z "$CXX" ] && CXX=$(ls -d /usr/local/gcc-*/bin/g++ 2>/dev/null | tail -1)
 [ -z "$CXX" ] && { echo "Khong tim thay g++ tren may cham." >&2; exit 1; }
-"$CXX" -O2 -std=c++17 -o main main.cpp || exit 1
+"$CXX" -O2 __STD__ -o main main.cpp || exit 1
 exit 0
-SH;
+SH);
     }
 
     /**
