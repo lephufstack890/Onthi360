@@ -8,6 +8,8 @@
         $questions = $questions ?? [];
         $selectedIds = $selectedIds ?? [];
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻'];
+        // SỬA 9/10 — dữ liệu cho danh sách "Thứ tự câu trong đề" (partials/assessment-question-order).
+        $pickMeta = (object) collect($questions)->mapWithKeys(fn ($q) => [$q['id'] => ['title' => $q['title'], 'points' => (int) $q['points']]])->all();
     @endphp
 
     <a href="{{ route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
@@ -23,23 +25,7 @@
          số CỘNG LẠI từ các câu được tick, chạy ngay trên màn hình để admin thấy mình đang cho
          đề bao nhiêu điểm trước khi bấm Lưu. --}}
     <form method="POST" action="{{ route('admin.content.assessments.items.update', $assessment->id) }}"
-          x-data="{
-              total: 0,
-              count: 0,
-              recalc() {
-                  let t = 0, c = 0;
-                  this.$el.querySelectorAll('[data-question-row]').forEach((row) => {
-                      const picked = row.querySelector('input[type=checkbox]');
-                      if (picked && picked.checked) {
-                          c += 1;
-                          t += parseInt(row.dataset.points || '0', 10) || 0;
-                      }
-                  });
-                  this.total = t;
-                  this.count = c;
-              }
-          }"
-          x-init="recalc()" @change="recalc()" @input="recalc()">
+          x-data="assessmentPicker(@js(old('question_ids', $selectedIds)), @js($pickMeta))">
         @csrf
         @method('PUT')
 
@@ -65,11 +51,13 @@
             @if (empty($questions))
                 <x-ws.empty-state title="Kho câu hỏi đang trống" description="Tạo câu hỏi trước khi gắn vào đề này." actionLabel="Tạo câu hỏi" :actionHref="route('admin.content.questions.create')" />
             @else
+                @include('partials.assessment-question-order')
+
                 <div class="divide-y divide-slate-100 max-h-[32rem] overflow-y-auto">
                     @foreach ($questions as $q)
                         <label class="flex items-center justify-between py-3 gap-3 cursor-pointer" data-question-row data-points="{{ $q['points'] }}">
                             <div class="flex items-center gap-3 min-w-0">
-                                <input type="checkbox" name="question_ids[]" value="{{ $q['id'] }}" @checked(in_array($q['id'], old('question_ids', $selectedIds)))>
+                                <input type="checkbox" value="{{ $q['id'] }}" :checked="has({{ $q['id'] }})" @change="toggle({{ $q['id'] }}, $event.target.checked)">
                                 <span class="text-base shrink-0">{{ $typeIcons[$q['type']] ?? '❓' }}</span>
                                 <div class="min-w-0">
                                     <p class="text-[13px] text-slate-700 truncate">{{ $q['title'] }}</p>

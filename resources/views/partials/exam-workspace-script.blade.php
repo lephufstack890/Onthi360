@@ -239,7 +239,10 @@
                 // ── Đếm đã trả lời ──
                 isAnswered(id) {
                     var q = this.questions.find((item) => item.id === id);
-                    if (q && q.kind === 'code') return String(this.codes[id] || '').trim().length > 0;
+                    // SỬA 9/10 (khách: "tôi làm có 1 câu mà nó báo 4 câu đã làm") — ô mã nào cũng
+                    // được điền sẵn MÃ MẪU lúc mở đề, nên đếm "có chữ là đã làm" thì câu chưa đụng
+                    // tới cũng thành đã làm. Mã còn nguyên là mã mẫu (isStarterCode) = chưa làm.
+                    if (q && q.kind === 'code') return !isStarterCode(this.codes[id], this.fileIoOf(id));
                     return String(this.answers[id] === undefined || this.answers[id] === null ? '' : this.answers[id]).trim().length > 0;
                 },
                 answeredCount() {
@@ -475,6 +478,9 @@
                     this.questions.forEach(function (q) {
                         if (q.kind === 'code') {
                             var code = self.codes[q.id];
+                            // SỬA 9/10 — mã còn nguyên là mã mẫu thì KHÔNG gửi đi: nếu gửi, máy chủ
+                            // tưởng học sinh đã làm câu đó (đếm "đã làm", đem đi chấm).
+                            if (isStarterCode(code, self.fileIoOf(q.id))) code = '';
                             put('answers[' + q.id + '][code_source]', code);
                             // Ngôn ngữ chỉ có nghĩa khi có mã — bám theo trạng thái của ô mã.
                             put('answers[' + q.id + '][language]', String(code || '').trim() === '' ? '' : self.languages[q.id]);
