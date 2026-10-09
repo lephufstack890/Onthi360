@@ -2825,6 +2825,7 @@ class ContentService
             'assessment' => $assessment,
             'questions' => $this->questions->allLatestWithOwner(200)->map(fn (Question $q) => [
                 'id' => $q->id,
+                'code' => (string) $q->code, // SỬA 10/10 — để tìm theo mã ở màn chọn câu
                 'title' => $q->title,
                 'type' => $q->type->value,
                 // SỬA 1/10 — điểm hiện trên màn chọn câu KHÔNG phải cột questions.points nữa mà

@@ -63,6 +63,24 @@
         return {
             meta: meta,
             order: start,
+            // SỬA 10/10 — ô tìm theo tên/mã (xem assessment-question-search). Chỉ lọc HIỂN THỊ, không đụng tới order.
+            query: '',
+            onlySelected: false,
+            norm: function (s) {
+                return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/\s+/g, ' ').trim();
+            },
+            matches: function (id) {
+                id = Number(id);
+                if (this.onlySelected && this.order.indexOf(id) === -1) return false;
+                var q = this.norm(this.query);
+                if (!q) return true;
+                var hay = this.meta[id] ? String(this.meta[id].search || '') : '';
+                return q.split(' ').every(function (w) { return hay.indexOf(w) !== -1; });
+            },
+            get shown() {
+                var self = this;
+                return Object.keys(this.meta).filter(function (id) { return self.matches(id); }).length;
+            },
             has: function (id) { return this.order.indexOf(Number(id)) !== -1; },
             toggle: function (id, on) {
                 id = Number(id);

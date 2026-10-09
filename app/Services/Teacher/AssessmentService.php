@@ -191,6 +191,7 @@ class AssessmentService
         $questions = $this->questions->byOwner($teacher->id, null, 200)
             ->map(fn ($q) => [
                 'id' => $q->id,
+                'code' => (string) $q->code, // SỬA 10/10 — để tìm theo mã ở màn chọn câu
                 'title' => $q->title,
                 'type' => $q->type->value,
                 // SỬA 1/10 — điểm hiện trên màn chọn câu là điểm suy từ ĐỘ KHÓ, không phải cột

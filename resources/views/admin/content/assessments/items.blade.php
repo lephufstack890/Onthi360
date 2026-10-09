@@ -9,7 +9,12 @@
         $selectedIds = $selectedIds ?? [];
         $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻'];
         // SỬA 9/10 — dữ liệu cho danh sách "Thứ tự câu trong đề" (partials/assessment-question-order).
-        $pickMeta = (object) collect($questions)->mapWithKeys(fn ($q) => [$q['id'] => ['title' => $q['title'], 'points' => (int) $q['points']]])->all();
+        // SỬA 10/10 — thêm mã + chuỗi tìm (không dấu, chữ thường) để ô tìm theo tên/mã chạy ở trình duyệt.
+        $pickMeta = (object) collect($questions)->mapWithKeys(fn ($q) => [$q['id'] => [
+            'title' => $q['title'],
+            'points' => (int) $q['points'],
+            'search' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(($q['code'] ?? '').' '.$q['title'])),
+        ]])->all();
     @endphp
 
     <a href="{{ route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']) }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại chi tiết</a>
@@ -52,16 +57,17 @@
                 <x-ws.empty-state title="Kho câu hỏi đang trống" description="Tạo câu hỏi trước khi gắn vào đề này." actionLabel="Tạo câu hỏi" :actionHref="route('admin.content.questions.create')" />
             @else
                 @include('partials.assessment-question-order')
+                @include('partials.assessment-question-search')
 
                 <div class="divide-y divide-slate-100 max-h-[32rem] overflow-y-auto">
                     @foreach ($questions as $q)
-                        <label class="flex items-center justify-between py-3 gap-3 cursor-pointer" data-question-row data-points="{{ $q['points'] }}">
+                        <label class="flex items-center justify-between py-3 gap-3 cursor-pointer" data-question-row data-points="{{ $q['points'] }}" x-show="matches({{ $q['id'] }})">
                             <div class="flex items-center gap-3 min-w-0">
                                 <input type="checkbox" value="{{ $q['id'] }}" :checked="has({{ $q['id'] }})" @change="toggle({{ $q['id'] }}, $event.target.checked)">
                                 <span class="text-base shrink-0">{{ $typeIcons[$q['type']] ?? '❓' }}</span>
                                 <div class="min-w-0">
                                     <p class="text-[13px] text-slate-700 truncate">{{ $q['title'] }}</p>
-                                    <p class="text-xs text-slate-400">{{ $q['ownerLabel'] }} · {{ $q['status'] === 'published' ? 'Đã phát hành' : 'Nháp' }}</p>
+                                    <p class="text-xs text-slate-400">@if (($q['code'] ?? '') !== '')<span class="font-mono">{{ $q['code'] }}</span> · @endif{{ $q['ownerLabel'] }} · {{ $q['status'] === 'published' ? 'Đã phát hành' : 'Nháp' }}</p>
                                 </div>
                             </div>
                                 {{-- SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu
@@ -78,6 +84,7 @@
                         </label>
                     @endforeach
                 </div>
+                <p class="qs-empty" x-show="shown === 0" x-cloak>Không tìm thấy câu hỏi phù hợp — thử tên hoặc mã khác.</p>
                 <p class="text-xs text-slate-400 mt-2">Điểm từng câu <strong>tính theo độ khó</strong> của chính câu đó (Cơ bản 2 · Dễ 4 · Khá 6 · Khó 8 · Rất khó 10), không nhập tay. Muốn đổi điểm một câu thì sửa Độ khó của câu đó trong Kho câu hỏi.</p>
                 <p class="text-xs text-slate-400 mt-1">Số điểm được <strong>chốt vào đề</strong> lúc bấm Lưu: sau này đổi độ khó của câu trong kho thì đề đã lưu vẫn giữ nguyên điểm cũ, lưu lại màn này mới cập nhật theo.</p>
                 <p class="text-xs text-slate-400 mt-1">Câu còn "Nháp" vẫn gắn được vào đề, nhưng đề chỉ phát hành được khi mọi câu đã Phát hành (6.2).</p>
