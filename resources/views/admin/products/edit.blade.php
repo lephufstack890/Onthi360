@@ -51,17 +51,7 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="apx-lbl" for="cover_image">Ảnh bìa (tùy chọn)</label>
-                    @if ($product->cover_image_path)
-                        <div class="apx-cover">
-                            <img src="{{ asset('storage/'.$product->cover_image_path) }}" alt="Ảnh bìa hiện tại">
-                            <p class="apx-note" style="margin:0">Ảnh hiện tại — chọn ảnh mới bên dưới để thay thế.</p>
-                        </div>
-                    @endif
-                            <input id="cover_image" name="cover_image" type="file" accept="image/*" class="admin-input apx-file">
-                            <p class="apx-note">Ảnh JPG/PNG/WebP, tối đa 4MB. Để trống nếu không đổi ảnh.</p>
-                        </div>
+                        @include('admin.products._cover-catalog')
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>

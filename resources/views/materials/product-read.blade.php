@@ -63,9 +63,8 @@
 
         // Ảnh thu nhỏ ở thanh đầu: bìa sản phẩm; chưa có thì dùng ảnh nền chung của khu Tài liệu
         // chứ KHÔNG mượn ảnh của tài liệu khác.
-        $readerCoverUrl = $product->cover_image_path
-            ? asset('storage/'.$product->cover_image_path)
-            : asset('assets/hero-materials.jpg');
+        $readerCoverUrl = \App\Support\ProductCover::url($product->cover_image_path)
+            ?? asset('assets/hero-materials.jpg');
     @endphp
 
     <style>

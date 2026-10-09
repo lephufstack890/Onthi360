@@ -537,7 +537,7 @@
                     <div class="flex items-start gap-3">
                         <div class="w-12 h-14 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-sky-100 to-blue-50 flex items-center justify-center">
                             @if ($p['coverPath'])
-                                <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
+                                <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
                             @else
                                 <span class="text-lg"><x-lucide name="book-open" class="h-4 w-4" /></span>
                             @endif

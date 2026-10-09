@@ -19,7 +19,7 @@
                 <span class="acx-avatar"><x-lucide name="wallet-cards" /></span>
                 <div>
                     <h1>Tạo tài liệu</h1>
-                    <div class="acx-head__meta"><span>Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, đề thi, khóa học (5.1).</span></div>
+                    <div class="acx-head__meta"><span>Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, bộ đề (5.1).</span></div>
                 </div>
             </div>
         </div>
@@ -51,11 +51,7 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="apx-lbl" for="cover_image">Ảnh bìa (tùy chọn)</label>
-                            <input id="cover_image" name="cover_image" type="file" accept="image/*" class="admin-input apx-file">
-                            <p class="apx-note">Ảnh JPG/PNG/WebP, tối đa 4MB.</p>
-                        </div>
+                        @include('admin.products._cover-catalog')
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>

@@ -40,7 +40,7 @@
                     {{-- Bìa --}}
                     <div class="relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-[#F3F9FC] to-[#E4F0F6] p-3">
                         @if ($p['coverPath'])
-                            <img src="{{ asset('storage/'.$p['coverPath']) }}" alt="Bìa {{ $p['title'] }}"
+                            <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}"
                                  class="h-full w-auto object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105">
                         @else
                             <span class="grid h-16 w-16 place-items-center rounded-2xl bg-white/80 text-[#23869B] shadow-inner"><x-lucide name="book-open" class="h-7 w-7" /></span>

@@ -72,6 +72,16 @@
     .apx-aside{position:sticky;top:12px}
     .apx-save{width:100%;margin-top:6px}
     .apx-note{margin:6px 0 0;font-size:12px;line-height:1.6;color:#7a8ea3}
+    /* ===== Ảnh bìa từ catalog (bê từ .cm-cover-catalog của source mới) ===== */
+    .apx-cc{min-width:0;margin:0;border:1px solid #dce8f6;border-radius:16px;padding:14px;background:#f8fbff}
+    .apx-cc legend{padding:0 5px;font-size:13px;font-weight:700;color:#334d70}
+    .apx-cc__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px}
+    .apx-cc__item{position:relative;display:flex;min-width:0;flex-direction:column;gap:6px;border:2px solid transparent;border-radius:12px;padding:7px;background:#fff;cursor:pointer;box-sizing:border-box}
+    .apx-cc__item:hover{border-color:#bfdbfe}
+    .apx-cc__item.is-on{border-color:#2563eb;box-shadow:0 0 0 2px #dbeafe}
+    .apx-cc__item input{position:absolute;right:10px;top:10px;width:16px;height:16px;accent-color:#2563eb;margin:0}
+    .apx-cc__item img{display:block;width:100%;height:110px;border-radius:8px;object-fit:cover;background:#eaf2fb}
+    .apx-cc__item span{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:11px;line-height:1.35;font-weight:600;color:#475569}
     .apx-cover{display:flex;align-items:center;gap:12px;margin-bottom:8px}
     .apx-cover img{width:80px;height:80px;border-radius:12px;object-fit:cover;border:1px solid #d7e3f0;background:#fff}
 

@@ -302,7 +302,7 @@
                 <div class="flex items-center gap-3 rounded-2xl border border-sky-100 bg-white p-3.5">
                     <div class="grid h-12 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-100 to-blue-50">
                         @if ($productItem['coverPath'])
-                            <img src="{{ asset('storage/'.$productItem['coverPath']) }}" alt="Bìa {{ $productItem['title'] }}" class="h-full w-full object-cover">
+                            <img src="{{ \App\Support\ProductCover::url($productItem['coverPath']) }}" alt="Bìa {{ $productItem['title'] }}" class="h-full w-full object-cover">
                         @else
                             <x-lucide name="book-open" class="h-4 w-4 text-[#2D7FA3]" />
                         @endif

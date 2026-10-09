@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Support\ImageOptimizer;
+use App\Support\ProductCover;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\Admin\ProductService;
@@ -10,6 +10,7 @@ use App\Services\PdfAssessmentEditingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -33,13 +34,23 @@ class ProductController extends Controller
 
     private const MAX_MEDIA_KB = 51200; // 50MB — ảnh động/audio ngắn
 
-    private function validationRules(): array
+    /**
+     * SỬA 9/10 — bỏ loại "Khóa học" khỏi form tài liệu (khách yêu cầu). Riêng tài liệu CŨ đang là
+     * loại khóa học vẫn được sửa/lưu (giữ nguyên loại) để không vỡ dữ liệu có sẵn → $keepType.
+     */
+    private function validationRules(?string $keepType = null): array
     {
+        $types = ['book', 'topic', 'exam'];
+        if ($keepType === 'course') {
+            $types[] = 'course';
+        }
+
         return [
-            'type' => ['required', 'string', 'in:book,topic,exam,course'],
+            'type' => ['required', 'string', 'in:'.implode(',', $types)],
+            // Ảnh bìa chọn từ catalog (id trong App\Support\ProductCover), kiểm đúng loại ở applyCatalogCover().
+            'cover_catalog' => ['nullable', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'cover_image' => ['nullable', 'image', 'max:4096'],
             'subject' => ['nullable', 'string', 'max:60'],
             'grade' => ['nullable', 'string', 'max:20'],
             'topic' => ['nullable', 'string', 'max:120'],
@@ -100,14 +111,52 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * SỬA 9/10 — ảnh bìa chọn từ catalog thay cho ô tải ảnh lên.
+     *  - Có chọn ảnh trong catalog → ghi "catalog:<id>" (phải đúng loại tài liệu, sai loại → báo lỗi).
+     *  - Không chọn: tạo mới → dùng ảnh đầu tiên của loại; sửa → GIỮ NGUYÊN ảnh cũ (kể cả ảnh tải lên
+     *    từ trước, không ghi đè thành null).
+     *  - Đổi sang ảnh catalog thì dọn ảnh tải lên cũ trên đĩa public (không đụng tới ảnh catalog).
+     */
+    private function applyCatalogCover(array &$data, ?Product $product): void
+    {
+        $id = $data['cover_catalog'] ?? null;
+        unset($data['cover_catalog']);
+
+        if ($id === null || $id === '') {
+            if ($product === null) {
+                $default = ProductCover::defaultIdFor($data['type']);
+                if ($default !== null) {
+                    $data['cover_image_path'] = ProductCover::marker($default);
+                }
+            } elseif ($product->type->value !== $data['type']
+                && ProductCover::isCatalog($product->cover_image_path)
+                && ! ProductCover::belongsToType(ProductCover::idOf($product->cover_image_path), $data['type'])) {
+                // Đổi loại mà ảnh catalog cũ không thuộc loại mới → tự chuyển sang ảnh đầu của loại mới.
+                $default = ProductCover::defaultIdFor($data['type']);
+                if ($default !== null) {
+                    $data['cover_image_path'] = ProductCover::marker($default);
+                }
+            }
+
+            return;
+        }
+
+        if (! ProductCover::belongsToType($id, $data['type'])) {
+            throw ValidationException::withMessages(['cover_catalog' => 'Ảnh bìa không thuộc loại tài liệu đã chọn.']);
+        }
+
+        if ($product !== null && $product->cover_image_path && ! ProductCover::isCatalog($product->cover_image_path)) {
+            Storage::disk('public')->delete($product->cover_image_path);
+        }
+        $data['cover_image_path'] = ProductCover::marker($id);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->validationRules());
 
-        if ($request->hasFile('cover_image')) {
-            $data['cover_image_path'] = ImageOptimizer::store($request->file('cover_image'), 'products/covers', 'public');
-        }
-        unset($data['cover_image']);
+        $this->applyCatalogCover($data, null);
 
         $this->applyResourceUploads($request, $data, null);
 
@@ -123,15 +172,9 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        $data = $request->validate($this->validationRules());
+        $data = $request->validate($this->validationRules($product->type->value));
 
-        if ($request->hasFile('cover_image')) {
-            if ($product->cover_image_path) {
-                Storage::disk('public')->delete($product->cover_image_path);
-            }
-            $data['cover_image_path'] = ImageOptimizer::store($request->file('cover_image'), 'products/covers', 'public');
-        }
-        unset($data['cover_image']);
+        $this->applyCatalogCover($data, $product);
 
         $this->applyResourceUploads($request, $data, $product);
 

@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Repositories\Contracts\AccessRightRepositoryInterface;
 use App\Repositories\Contracts\MaterialRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
+use App\Support\ProductCover;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -35,14 +36,24 @@ class ProductService
         private ContentService $contentService,
     ) {}
 
+    /**
+     * Nhãn mọi loại (kể cả "Khóa học" cũ) — dùng cho danh sách/chi tiết. Form Tạo/Sửa chỉ cho chọn
+     * Sách/Chuyên đề/Bộ đề (SỬA 9/10: khách yêu cầu bỏ loại Khóa học).
+     */
+    private function typeLabels(): array
+    {
+        return [
+            ProductType::Book->value => 'Sách', ProductType::Topic->value => 'Chuyên đề',
+            ProductType::Exam->value => 'Bộ đề', ProductType::Course->value => 'Khóa học',
+        ];
+    }
+
     /** @return array{types: array, visibilities: array, statuses: array} */
     private function formOptions(): array
     {
         return [
-            'types' => [
-                ProductType::Book->value => 'Sách', ProductType::Topic->value => 'Chuyên đề',
-                ProductType::Exam->value => 'Bộ đề', ProductType::Course->value => 'Khóa học',
-            ],
+            'types' => array_diff_key($this->typeLabels(), [ProductType::Course->value => true]),
+            'coverCatalog' => ProductCover::byType(),
             'visibilities' => [Visibility::Public->value => 'Công khai', Visibility::Private->value => 'Riêng tư'],
             'statuses' => [
                 ContentStatus::Draft->value => 'Bản nháp', ContentStatus::Published->value => 'Xuất bản',
@@ -136,9 +147,14 @@ class ProductService
     /** admin.products.edit — sản phẩm hiện tại + option form. Slug KHÔNG cho sửa (giữ SEO/link). */
     public function editFormData(int $productId): array
     {
-        return array_merge($this->formOptions(), [
-            'product' => $this->products->findOrFail($productId),
-        ]);
+        $options = $this->formOptions();
+        $product = $this->products->findOrFail($productId);
+        // Tài liệu cũ đang là "Khóa học": giữ lựa chọn này trong ô Loại để lưu không đổi loại ngầm.
+        if ($product->type === ProductType::Course) {
+            $options['types'][ProductType::Course->value] = 'Khóa học (cũ)';
+        }
+
+        return array_merge($options, ['product' => $product]);
     }
 
     public function update(Product $product, array $data): Product
@@ -202,7 +218,7 @@ class ProductService
         // book,... người dùng khó hiểu") — dùng LẠI đúng nhãn ở $typeLabels (nguồn duy nhất,
         // cũng dùng cho dropdown "Loại tài liệu" ở form Tạo/Sửa, xem formOptions()) thay vì
         // hiện thẳng $p->type->value (chuỗi thô "book"/"topic"/"exam"/"course").
-        $typeLabels = $this->formOptions()['types'];
+        $typeLabels = $this->typeLabels();
 
         $products = $this->products->latest(50)->map(fn ($p) => [
             'id' => $p->id,

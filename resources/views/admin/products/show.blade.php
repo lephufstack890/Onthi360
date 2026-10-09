@@ -66,7 +66,7 @@
             'info' => 'acx-badge--info',
             default => '',
         };
-        $coverUrl = $product->cover_image_path ? asset('storage/'.$product->cover_image_path) : null;
+        $coverUrl = \App\Support\ProductCover::url($product->cover_image_path);
         $typeIconMap = ['book' => 'book-open', 'topic' => 'layers', 'exam' => 'file-text', 'course' => 'graduation-cap'];
     @endphp
 

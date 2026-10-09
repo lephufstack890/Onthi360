@@ -174,9 +174,8 @@
 
     // Ảnh thu nhỏ ở thanh đầu: bìa sản phẩm chứa tài liệu; chưa có thì dùng ảnh nền chung của
     // khu Tài liệu chứ KHÔNG mượn ảnh của tài liệu khác.
-    $readerCoverUrl = $material->product?->cover_image_path
-        ? asset('storage/'.$material->product->cover_image_path)
-        : asset('assets/hero-materials.jpg');
+    $readerCoverUrl = \App\Support\ProductCover::url($material->product?->cover_image_path)
+        ?? asset('assets/hero-materials.jpg');
 
         /*
          * SỬA 2/10 (khách: "update lại cho tôi UI khi click vào đọc tài liệu dựa vào source mới")

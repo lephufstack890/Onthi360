@@ -18,6 +18,7 @@ use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\RatingSummaryRepositoryInterface;
 use App\Services\Access\AccessService;
 use App\Services\AccessGateService;
+use App\Support\ProductCover;
 use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
 
@@ -490,9 +491,8 @@ class MaterialService
 
     private function coverUrl(Product $product): string
     {
-        return $product->cover_image_path
-            ? asset('storage/'.$product->cover_image_path)
-            : $this->placeholderCoverDataUri($product->title);
+        return ProductCover::url($product->cover_image_path)
+            ?? $this->placeholderCoverDataUri($product->title);
     }
 
     private function placeholderCoverDataUri(string $title): string
