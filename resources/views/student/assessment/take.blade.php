@@ -15,6 +15,7 @@
             'id' => $q['questionId'],
             'no' => $q['no'],
             'kind' => $q['kind'],
+            'fileIo' => $q['fileIo'] ?? null,
         ])->values();
 
         $firstId = $vm->first()['id'] ?? null;
@@ -320,6 +321,8 @@
                                                     </div>
                                                 @endif
                                             @endif
+
+                                            @include('partials.file-io-hint', ['fileIo' => $q['fileIo'] ?? null])
 
                                             {{-- Lớp tô màu cú pháp nằm dưới, textarea trong suốt nằm trên — đúng cách bản mẫu làm.
                                                  SỬA 1/10 — min-h-[240px] cho khớp màn Luyện tập: min-h-0 làm ô gõ code

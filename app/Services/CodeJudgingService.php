@@ -52,7 +52,7 @@ class CodeJudgingService
             $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo, $compilerOptions);
 
             if ($bundled !== null) {
-                return $bundled;
+                return $this->withFileIoNotes($bundled, $fileIo);
             }
         }
 
@@ -115,11 +115,11 @@ class CodeJudgingService
             ];
         }
 
-        return [
+        return $this->withFileIoNotes([
             'verdict' => $verdict,
             'isAccepted' => $verdict === VerdictStatus::Accepted,
             'details' => $details,
-        ];
+        ], $fileIo);
     }
 
     /**
@@ -171,6 +171,7 @@ class CodeJudgingService
         }
 
         $verdict = $this->mapStatus((int) ($r['status']['id'] ?? 13), $r['memory'] ?? null, $memoryLimit);
+        $missingNote = $this->explainMissingOutputFile((string) ($r['stdout'] ?? ''), $fileIo);
 
         return [
             // 'ranCleanly' = chương trình chạy xong bình thường. CỐ Ý không đặt tên 'ok': nơi
@@ -179,8 +180,8 @@ class CodeJudgingService
             // đọc (ok = true, ranCleanly = false), chỉ khác cái nhãn.
             'ranCleanly' => $verdict === VerdictStatus::Accepted,
             'statusLabel' => $verdict === VerdictStatus::Accepted ? 'Chạy xong' : $verdict->label(),
-            'output' => (string) ($r['stdout'] ?? ''),
-            'stderr' => $r['stderr'] !== null && $r['stderr'] !== '' ? $r['stderr'] : null,
+            'output' => $missingNote === null ? (string) ($r['stdout'] ?? '') : '',
+            'stderr' => $missingNote ?? ($r['stderr'] !== null && $r['stderr'] !== '' ? $r['stderr'] : null),
             'compileOutput' => $r['compile_output'] !== null && $r['compile_output'] !== '' ? $r['compile_output'] : null,
             'time' => $r['time'] ?? null,
             'memory' => $r['memory'] ?? null,
@@ -230,15 +231,41 @@ class CodeJudgingService
     }
 
     /**
-     * SỬA 21/9 — đề kiểu thi HSG khai file_io (vd TONG.INP / TONG.OUT): học sinh được phép đọc
-     * từ file TONG.INP và ghi ra TONG.OUT (freopen / ifstream / open()). Judge0 chỉ đưa dữ liệu
-     * qua stdin và chỉ lấy stdout, nên trước đây bài làm đúng đề vẫn sai 100% test.
+     * SỬA 9/10 — tên tệp vào/ra của đề đã làm sạch (chỉ chữ/số/./_/-), dùng chung cho máy chấm và
+     * giao diện học sinh (dòng gợi ý + mã mẫu freopen). null = đề đọc/ghi bằng bàn phím/màn hình.
      *
-     * Cách làm: chèn trước mã học sinh một đoạn chạy TRƯỚC main:
-     *   1. đọc hết stdin, ghi ra file INP, rồi nối stdin vào file đó → đọc cin hay đọc file đều được;
-     *   2. giữ lại "cửa" stdout gốc; khi chương trình kết thúc, nếu có file OUT thì chép nội dung
-     *      ra stdout gốc để Judge0 so với đáp án. Không ghi file thì in màn hình vẫn chấm như cũ.
-     * Đề không khai file_io → trả nguyên mã, hành vi không đổi.
+     * @return array{input: ?string, output: ?string}|null
+     */
+    public static function fileIoNames(?array $fileIo): ?array
+    {
+        $clean = static fn ($name) => preg_match('/^[A-Za-z0-9._-]{1,64}$/', (string) $name) ? (string) $name : null;
+        $in = $clean($fileIo['input'] ?? null);
+        $out = $clean($fileIo['output'] ?? null);
+
+        return $in === null && $out === null ? null : ['input' => $in, 'output' => $out];
+    }
+
+    /**
+     * Mốc mà đoạn chèn in ra khi bài khai file_io nhưng chương trình KHÔNG tạo tệp kết quả. Chỉ dùng
+     * nội bộ: explainMissingOutputFile() đổi nó thành lời nhắc cho học sinh trước khi trả về.
+     */
+    public const FILE_IO_MISSING_MARK = '@@O360_NO_OUTPUT_FILE@@';
+
+    /**
+     * SỬA 9/10 (khách: "đề bắt đọc dữ liệu từ file .INP, thiếu freopen thì chấm sai") — bài khai
+     * file_io (vd HELLOWORLD.INP / HELLOWORLD.OUT) giờ BẮT BUỘC làm việc qua tệp.
+     *
+     * Trước đây (SỬA 21/9) đoạn chèn nối cả hai đường nên cin/cout hay freopen đều đúng. Giờ:
+     *   1. Dữ liệu vào được ghi ra tệp INP rồi stdin để CẠN — chương trình đọc bằng cin/scanf mà
+     *      không freopen/ifstream thì chẳng nhận được gì;
+     *   2. stdout bị trỏ vào /dev/null — in ra màn hình không được tính; chỉ nội dung chương trình
+     *      tự ghi vào tệp OUT mới được chép ra stdout gốc để so với đáp án;
+     *   3. không có tệp OUT khi kết thúc -> in FILE_IO_MISSING_MARK để phía PHP báo đúng lý do
+     *      ("chưa ghi tệp kết quả") thay vì chỉ hiện "Sai".
+     *
+     * Chỉ ép phía ĐÃ KHAI: khai mỗi tên tệp vào thì chỉ stdin bị ép, khai mỗi tên tệp ra thì chỉ
+     * stdout bị ép. Không ghi được tệp vào thì để stdin nguyên như cũ (lỗi hạ tầng, không phạt học sinh).
+     * Đề không khai file_io -> trả nguyên mã, hành vi không đổi.
      */
     private function withFileIo(string $sourceCode, ?string $languageKey, ?array $fileIo): string
     {
@@ -250,21 +277,25 @@ class CodeJudgingService
             return $sourceCode;
         }
 
+        $mark = self::FILE_IO_MISSING_MARK;
+
         if ($languageKey === 'cpp') {
             $prelude = "#include <cstdio>\n#include <iostream>\n#include <unistd.h>\n#include <fcntl.h>\n"
                 ."namespace onthi360_file_io { struct Guard { int saved = -1;\n"
                 ."  Guard() {\n"
                 .($in !== null
-                    // Chỉ nối stdin sang file khi GHI ĐƯỢC file — không ghi được thì để stdin nguyên như cũ.
-                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f);\n"
-                      ."      if (!std::freopen(\"{$in}\", \"rb\", stdin)) {} }\n"
+                    // Mở tệp ghi được TRƯỚC khi đọc stdin: không ghi được thì stdin còn nguyên, chương trình vẫn đọc được.
+                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); }\n"
                     : '')
-                .($out !== null ? "    std::remove(\"{$out}\"); saved = dup(1);\n" : '')
+                .($out !== null
+                    ? "    std::remove(\"{$out}\"); saved = dup(1); int nul = open(\"/dev/null\", O_WRONLY); if (nul >= 0) { dup2(nul, 1); close(nul); }\n"
+                    : '')
                 ."  }\n"
                 ."  ~Guard() {\n"
                 ."    std::cout.flush(); std::fflush(nullptr);\n"
                 .($out !== null
-                    ? "    if (saved < 0) return; int fd = open(\"{$out}\", O_RDONLY); if (fd < 0) return;\n"
+                    ? "    if (saved < 0) return; int fd = open(\"{$out}\", O_RDONLY);\n"
+                      ."    if (fd < 0) { const char m[] = \"{$mark}\"; ssize_t w = write(saved, m, sizeof m - 1); (void)w; return; }\n"
                       ."    char b[65536]; ssize_t n; while ((n = read(fd, b, sizeof b)) > 0) { ssize_t o = 0; while (o < n) { ssize_t w = write(saved, b + o, n - o); if (w <= 0) break; o += w; } }\n"
                       ."    close(fd);\n"
                     : '')
@@ -277,15 +308,15 @@ class CodeJudgingService
         if ($languageKey === 'python') {
             $inLit = var_export($in, true);
             $outLit = var_export($out, true);
+            $markLit = var_export($mark, true);
             // Gói gọn 1 dòng để số dòng báo lỗi của học sinh chỉ lệch đúng 1.
             $code = <<<PY
 import sys as _s, os as _o, io as _io, gc as _gc, atexit as _a
-_IN, _OUT = {$inLit}, {$outLit}
+_IN, _OUT, _MARK = {$inLit}, {$outLit}, {$markLit}
 if _IN:
     _d = _s.stdin.buffer.read()
     try:
         with open(_IN, 'wb') as _f: _f.write(_d)
-        _s.stdin = open(_IN, 'r')
     except OSError:
         _s.stdin = _io.TextIOWrapper(_io.BytesIO(_d))
 _saved = -1
@@ -293,13 +324,19 @@ if _OUT:
     try: _o.remove(_OUT)
     except OSError: pass
     _saved = _o.dup(1)
+    try:
+        _n = _o.open(_o.devnull, _o.O_WRONLY); _o.dup2(_n, 1); _o.close(_n)
+    except OSError: pass
 def _fin():
     for _x in _gc.get_objects():
         try:
             if isinstance(_x, _io.IOBase) and not _x.closed and _x.writable(): _x.flush()
         except Exception: pass
-    if _saved >= 0 and _o.path.exists(_OUT):
-        with open(_OUT, 'rb') as _f: _o.write(_saved, _f.read())
+    if _saved >= 0:
+        if _o.path.exists(_OUT):
+            with open(_OUT, 'rb') as _f: _o.write(_saved, _f.read())
+        else:
+            _o.write(_saved, _MARK.encode())
 _a.register(_fin)
 PY;
 
@@ -307,6 +344,40 @@ PY;
         }
 
         return $sourceCode;
+    }
+
+    /**
+     * Lời nhắc khi bài khai file_io mà chương trình không tạo tệp kết quả (xem FILE_IO_MISSING_MARK).
+     * Trả null nếu $text không có mốc đó.
+     */
+    private function explainMissingOutputFile(string $text, ?array $fileIo): ?string
+    {
+        if (! str_contains($text, self::FILE_IO_MISSING_MARK)) {
+            return null;
+        }
+
+        $in = is_array($fileIo) ? trim((string) ($fileIo['input'] ?? '')) : '';
+        $out = is_array($fileIo) ? trim((string) ($fileIo['output'] ?? '')) : '';
+
+        return 'Bài này yêu cầu đọc/ghi qua tệp'
+            .($in !== '' ? ' (đọc từ '.$in : ' (')
+            .($out !== '' ? ($in !== '' ? ', ghi ra ' : 'ghi ra ').$out : '')
+            .') nhưng chương trình chưa ghi tệp kết quả'.($out !== '' ? ' '.$out : '')
+            .'. Cần mở tệp đúng tên rồi ghi vào, ví dụ C++: freopen("'.($in !== '' ? $in : 'TEN.INP').'", "r", stdin); freopen("'.($out !== '' ? $out : 'TEN.OUT').'", "w", stdout); — in ra màn hình không được tính.';
+    }
+
+    /** Áp lời nhắc ở trên vào từng test của kết quả chấm: bỏ mốc khỏi "kết quả của bạn", ghi lý do vào stderr. */
+    private function withFileIoNotes(array $result, ?array $fileIo): array
+    {
+        foreach ($result['details'] ?? [] as $i => $d) {
+            $note = $this->explainMissingOutputFile((string) ($d['actualOutput'] ?? ''), $fileIo);
+            if ($note !== null) {
+                $result['details'][$i]['actualOutput'] = '';
+                $result['details'][$i]['stderr'] = $note;
+            }
+        }
+
+        return $result;
     }
 
     /**

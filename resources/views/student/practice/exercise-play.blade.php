@@ -1367,7 +1367,10 @@
                 var langSelect = form ? form.querySelector('select[name="language"]') : null;
                 var lang = function () { return langSelect ? langSelect.value : 'cpp'; };
 
-                if (ta.value === '') ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+                // SỬA 9/10 — đề khai tên tệp vào/ra thì mã mẫu có sẵn freopen đúng tên.
+                var fileIo = @js($fileIo ?? null);
+
+                if (ta.value === '') ta.value = starterCodeFor(lang(), fileIo);
 
                 // SỬA 18/9 — bảng màu phải BÁM theo nền đang bật, trước đây ghi cứng 'light'
                 // nên bật nền tối là chữ sáng trên ô tối, đọc không ra.
@@ -1381,9 +1384,8 @@
                 if (langSelect) {
                     langSelect.addEventListener('change', function () {
                         // Chỉ thay mã mẫu khi học sinh CHƯA viết gì khác — không xoá bài đang viết dở.
-                        var cur = ta.value.trim();
-                        if (cur === '' || cur === String(STARTER_CODE.cpp).trim() || cur === String(STARTER_CODE.python).trim()) {
-                            ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+                        if (isStarterCode(ta.value, fileIo)) {
+                            ta.value = starterCodeFor(lang(), fileIo);
                         }
                         paint();
                     });
@@ -1391,7 +1393,7 @@
 
                 var reset = form ? form.querySelector('[data-code-reset]') : null;
                 if (reset) reset.addEventListener('click', function () {
-                    ta.value = STARTER_CODE[lang()] || STARTER_CODE.cpp;
+                    ta.value = starterCodeFor(lang(), fileIo);
                     paint();
                 });
 

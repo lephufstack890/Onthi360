@@ -121,6 +121,10 @@ class AssessmentService
                 'statementPdfUrl' => $question->attachmentInfo('statement') !== null
                     ? route('student.practiceByQuestion.statement', $question->id)
                     : null,
+                // SỬA 9/10 — đề khai tên tệp vào/ra (vd HELLOWORLD.INP/.OUT): giao diện hiện dòng nhắc + mã mẫu freopen.
+                'fileIo' => $question->type === QuestionType::Coding
+                    ? \App\Services\CodeJudgingService::fileIoNames($question->grading_config['file_io'] ?? null)
+                    : null,
             ];
         })->all();
 

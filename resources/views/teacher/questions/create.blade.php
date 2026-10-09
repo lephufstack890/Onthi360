@@ -211,23 +211,73 @@
                         <textarea id="test_cases" name="test_cases" rows="4" class="w-full rounded-xl border border-sky-100 text-[13px] p-3 font-mono" placeholder="1 2 => 3&#10;5 5 => 10">{{ $testCasesText }}</textarea>
                         <p class="text-xs text-slate-400 mt-1">Thiếu test/giới hạn thời gian-bộ nhớ = chặn phát hành (6.2).</p>
                     </div>
-                    {{-- SỬA 1/10 — quy ước tên tệp vào/ra. KHÔNG phải trường trang trí:
-                         CodeJudgingService::withFileIo() chèn đoạn mở/đóng tệp vào mã của học
-                         sinh dựa đúng vào 2 ô này, trước đây chỉ gói ZIP điền được nên bài nhập
-                         tay mà học sinh viết freopen("TONG.INP") bị chấm sai sạch. --}}
-                    <div class="grid grid-cols-2 gap-4">
+                    {{-- SỬA 9/10 (khách: đề kiểu HELLOWORLD bắt đọc HELLOWORLD.INP / ghi HELLOWORLD.OUT, thiếu freopen thì chấm sai) —
+                         "Tệp có tên" = học sinh BẮT BUỘC đọc/ghi qua đúng 2 tệp này (CodeJudgingService::withFileIo()), tên tệp tự
+                         lấy theo mã câu hỏi (<MÃ>.INP / <MÃ>.OUT). Câu mới chưa có mã (mã do hệ thống cấp lúc lưu) thì để trống,
+                         Teacher\QuestionService tự điền theo mã vừa cấp. "Bàn phím / màn hình" = xoá trắng 2 ô (stdin/stdout). --}}
+                    <script>
+                        {{-- SỬA 9/10 — ô "Đọc / ghi dữ liệu": chọn "Tệp có tên" thì tên tệp vào/ra TỰ lấy theo mã câu hỏi
+                             (<MÃ>.INP / <MÃ>.OUT) và tự đổi theo khi gõ lại mã, trừ khi người ra đề đã tự sửa tay. --}}
+                        window.qeFileIo = window.qeFileIo || function (cfg) {
+                            return {
+                                ioMode: cfg.mode,
+                                auto: true,
+                                codeId: cfg.codeId || null,
+                                code() {
+                                    var el = this.codeId ? document.getElementById(this.codeId) : null;
+                                    var c = el ? el.value : (cfg.code || '');
+                                    return String(c || '').trim().replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 59);
+                                },
+                                init() {
+                                    var i = this.$refs.fioIn.value.trim(), o = this.$refs.fioOut.value.trim(), c = this.code();
+                                    this.auto = (i === '' && o === '') || (c !== '' && i === c + '.INP' && o === c + '.OUT');
+                                    if (this.ioMode === 'file') this.fill();
+                                },
+                                fill() {
+                                    var c = this.code();
+                                    if (!this.auto || c === '') return;
+                                    this.$refs.fioIn.value = c + '.INP';
+                                    this.$refs.fioOut.value = c + '.OUT';
+                                },
+                                pick() {
+                                    if (this.ioMode === 'std') {
+                                        this.$refs.fioIn.value = '';
+                                        this.$refs.fioOut.value = '';
+                                        this.auto = true;
+                                        return;
+                                    }
+                                    if (this.$refs.fioIn.value.trim() === '' && this.$refs.fioOut.value.trim() === '') this.auto = true;
+                                    this.fill();
+                                },
+                            };
+                        };
+                    </script>
+<div class="space-y-3"
+                         x-data="qeFileIo({ mode: {{ (trim((string) $fileIoInput) !== '' || trim((string) $fileIoOutput) !== '') ? "'file'" : "'std'" }}, code: @js($question->code ?? '') })">
                         <div>
-                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_input">Tên tệp dữ liệu vào</label>
-                            <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ $fileIoInput }}"
-                                   placeholder="Ví dụ: TONG.INP" class="admin-input font-mono">
+                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="io_mode">Đọc / ghi dữ liệu</label>
+                            <x-ws.select id="io_mode" name="io_mode" x-model="ioMode" x-on:change="pick()">
+                                <option value="std">Bàn phím / màn hình</option>
+                                <option value="file">Tệp có tên</option>
+                            </x-ws.select>
                         </div>
-                        <div>
-                            <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_output">Tên tệp dữ liệu ra</label>
-                            <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ $fileIoOutput }}"
-                                   placeholder="Ví dụ: TONG.OUT" class="admin-input font-mono">
+                        <div class="grid grid-cols-2 gap-4" x-show="ioMode === 'file'" x-cloak>
+                            <div>
+                                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_input">Tên tệp vào</label>
+                                <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ $fileIoInput }}" x-ref="fioIn" x-on:input="auto = false"
+                                       placeholder="{{ ($question ?? null) ? 'Tự lấy theo mã câu hỏi: MÃ.INP' : 'Tự lấy theo mã câu hỏi (cấp khi lưu)' }}"
+                                       class="admin-input font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="file_io_output">Tên tệp ra</label>
+                                <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ $fileIoOutput }}" x-ref="fioOut" x-on:input="auto = false"
+                                       placeholder="{{ ($question ?? null) ? 'Tự lấy theo mã câu hỏi: MÃ.OUT' : 'Tự lấy theo mã câu hỏi (cấp khi lưu)' }}"
+                                       class="admin-input font-mono">
+                            </div>
                         </div>
+                        <p class="text-xs text-slate-400" x-show="ioMode === 'std'">Học sinh đọc bằng bàn phím và in ra màn hình (stdin/stdout), như bình thường.</p>
+                        <p class="text-xs text-slate-400" x-show="ioMode === 'file'" x-cloak>Tên tệp tự lấy theo mã câu hỏi (để trống = hệ thống tự điền khi lưu), có thể sửa tay. Học sinh <strong>bắt buộc</strong> đọc/ghi bằng đúng 2 tệp này (C++: <code>freopen</code> hoặc <code>ifstream/ofstream</code>; Python: <code>open</code>). Chỉ dùng cin/cout hoặc input/print thì bị chấm sai. Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
                     </div>
-                    <p class="text-xs text-slate-400">Để trống nếu bài đọc/ghi bằng bàn phím và màn hình (stdin/stdout). Điền tên tệp thì máy chấm tự nối, bài dùng <code>freopen</code> vẫn chấm đúng. Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
                 @endif
 
                 {{-- SỬA 1/10 — 3 tệp đính kèm cố định + ảnh/âm thanh, trước đây CHỈ nhập được qua

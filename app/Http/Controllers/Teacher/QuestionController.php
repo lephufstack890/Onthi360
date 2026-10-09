@@ -254,6 +254,7 @@ class QuestionController extends Controller
             'asset_files.*' => ['file', 'max:20480', 'mimetypes:image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/mp4,audio/aac,audio/ogg,audio/wav,audio/x-wav,audio/webm'],
             'remove_assets' => ['nullable', 'array'],
             'remove_assets.*' => ['string', 'max:64'],
+            'io_mode' => ['nullable', 'in:std,file'],
             'file_io_input' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
             'file_io_output' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
         ];

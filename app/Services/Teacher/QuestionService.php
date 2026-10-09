@@ -227,9 +227,12 @@ class QuestionService
     {
         $bank = $this->findOrCreatePersonalBank($teacher);
 
+        $code = 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999);
+        $data = $this->applyIoMode($data, $code);
+
         $question = $this->questions->create([
             'bank_id' => $bank->id,
-            'code' => 'Q-'.$teacher->id.'-'.now()->format('ymd').'-'.random_int(1000, 9999),
+            'code' => $code,
             'owner_type' => OwnerType::Teacher,
             'owner_id' => $teacher->id,
             'visibility' => Visibility::Private,
@@ -255,6 +258,7 @@ class QuestionService
      */
     public function update(Question $question, array $data): Question
     {
+        $data = $this->applyIoMode($data, (string) $question->code);
         $attributes = $this->buildAttributes($data, $question);
 
         // SỬA 21/9 — luật 6.2 đang TẮT (QuestionPublishGuard::VERSION_ON_EDIT) → sửa thẳng câu gốc.
@@ -587,6 +591,33 @@ class QuestionService
             'mp4', 'webm', 'mov', 'm4v' => 'video',
             default => 'file',
         };
+    }
+
+    /**
+     * SỬA 9/10 — ô "Đọc / ghi dữ liệu" của form (io_mode):
+     *   - 'std'  (Bàn phím / màn hình): xoá trắng 2 tên tệp -> đề đọc/ghi stdin/stdout như bình thường;
+     *   - 'file' (Tệp có tên) mà để trống 2 ô: lấy theo MÃ câu hỏi (<MÃ>.INP / <MÃ>.OUT) — câu mới chưa
+     *     có mã lúc người dùng bấm Lưu nên phải điền ở đây, sau khi mã đã được cấp.
+     * Không có io_mode (nguồn khác như gói ZIP) thì không đụng gì.
+     */
+    private function applyIoMode(array $data, string $code): array
+    {
+        $mode = $data['io_mode'] ?? null;
+
+        if ($mode === 'std') {
+            $data['file_io_input'] = '';
+            $data['file_io_output'] = '';
+        } elseif ($mode === 'file'
+            && trim((string) ($data['file_io_input'] ?? '')) === ''
+            && trim((string) ($data['file_io_output'] ?? '')) === '') {
+            $base = mb_substr((string) preg_replace('/[^A-Za-z0-9._-]+/', '_', trim($code)), 0, 59);
+            if ($base !== '') {
+                $data['file_io_input'] = $base.'.INP';
+                $data['file_io_output'] = $base.'.OUT';
+            }
+        }
+
+        return $data;
     }
 
     /**

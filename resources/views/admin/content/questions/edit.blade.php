@@ -177,25 +177,74 @@
                                                class="admin-input">
                                     </div>
                                 </div>
-                                {{-- SỬA 1/10 — quy ước tên tệp vào/ra, trước đây chỉ gói ZIP điền được.
-                                     CodeJudgingService::withFileIo() dùng ĐÚNG 2 giá trị này để chèn đoạn
-                                     mở/đóng tệp vào mã của học sinh. Giá trị điền sẵn từ grading_config —
-                                     xoá trắng rồi Lưu nghĩa là bỏ quy ước tên tệp của câu này. --}}
-                                <div class="qe-grid2">
+                                {{-- SỬA 9/10 (khách: đề kiểu HELLOWORLD bắt đọc HELLOWORLD.INP / ghi HELLOWORLD.OUT, thiếu freopen thì chấm sai) —
+                                     "Tệp có tên" = học sinh BẮT BUỘC đọc/ghi qua đúng 2 tệp này (CodeJudgingService::withFileIo()), tên tệp
+                                     tự lấy theo mã câu hỏi (<MÃ>.INP / <MÃ>.OUT). "Bàn phím / màn hình" = xoá trắng 2 ô, đề đọc/ghi
+                                     stdin/stdout như bình thường. --}}
+                                <script>
+                                    {{-- SỬA 9/10 — ô "Đọc / ghi dữ liệu": chọn "Tệp có tên" thì tên tệp vào/ra TỰ lấy theo mã câu hỏi
+                                         (<MÃ>.INP / <MÃ>.OUT) và tự đổi theo khi gõ lại mã, trừ khi người ra đề đã tự sửa tay. --}}
+                                    window.qeFileIo = window.qeFileIo || function (cfg) {
+                                        return {
+                                            ioMode: cfg.mode,
+                                            auto: true,
+                                            codeId: cfg.codeId || null,
+                                            code() {
+                                                var el = this.codeId ? document.getElementById(this.codeId) : null;
+                                                var c = el ? el.value : (cfg.code || '');
+                                                return String(c || '').trim().replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 59);
+                                            },
+                                            init() {
+                                                var i = this.$refs.fioIn.value.trim(), o = this.$refs.fioOut.value.trim(), c = this.code();
+                                                this.auto = (i === '' && o === '') || (c !== '' && i === c + '.INP' && o === c + '.OUT');
+                                                if (this.ioMode === 'file') this.fill();
+                                            },
+                                            fill() {
+                                                var c = this.code();
+                                                if (!this.auto || c === '') return;
+                                                this.$refs.fioIn.value = c + '.INP';
+                                                this.$refs.fioOut.value = c + '.OUT';
+                                            },
+                                            pick() {
+                                                if (this.ioMode === 'std') {
+                                                    this.$refs.fioIn.value = '';
+                                                    this.$refs.fioOut.value = '';
+                                                    this.auto = true;
+                                                    return;
+                                                }
+                                                if (this.$refs.fioIn.value.trim() === '' && this.$refs.fioOut.value.trim() === '') this.auto = true;
+                                                this.fill();
+                                            },
+                                        };
+                                    };
+                                </script>
+<div class="qe-stack" style="gap:10px;"
+                                     x-data="qeFileIo({ mode: {{ (trim((string) old('file_io_input', $fileIoInput)) !== '' || trim((string) old('file_io_output', $fileIoOutput)) !== '') ? "'file'" : "'std'" }}, codeId: 'code' })"
+                                     x-on:input.window="if ($event.target && $event.target.id === codeId) fill()">
                                     <div class="qe-field">
-                                        <label for="file_io_input">Tên tệp dữ liệu vào</label>
-                                        <input id="file_io_input" name="file_io_input" type="text" maxlength="64"
-                                               value="{{ old('file_io_input', $fileIoInput) }}" placeholder="Ví dụ: TONG.INP"
-                                               class="admin-input font-mono">
+                                        <label for="io_mode">Đọc / ghi dữ liệu</label>
+                                        <x-ws.select id="io_mode" x-model="ioMode" x-on:change="pick()">
+                                            <option value="std">Bàn phím / màn hình</option>
+                                            <option value="file">Tệp có tên</option>
+                                        </x-ws.select>
                                     </div>
-                                    <div class="qe-field">
-                                        <label for="file_io_output">Tên tệp dữ liệu ra</label>
-                                        <input id="file_io_output" name="file_io_output" type="text" maxlength="64"
-                                               value="{{ old('file_io_output', $fileIoOutput) }}" placeholder="Ví dụ: TONG.OUT"
-                                               class="admin-input font-mono">
+                                    <div class="qe-grid2" x-show="ioMode === 'file'" x-cloak>
+                                        <div class="qe-field">
+                                            <label for="file_io_input">Tên tệp vào</label>
+                                            <input id="file_io_input" name="file_io_input" type="text" maxlength="64" x-ref="fioIn" x-on:input="auto = false"
+                                                   value="{{ old('file_io_input', $fileIoInput) }}" placeholder="Tự lấy theo mã câu hỏi: MÃ.INP"
+                                                   x-bind:required="ioMode === 'file' && type === 'coding'" class="admin-input font-mono">
+                                        </div>
+                                        <div class="qe-field">
+                                            <label for="file_io_output">Tên tệp ra</label>
+                                            <input id="file_io_output" name="file_io_output" type="text" maxlength="64" x-ref="fioOut" x-on:input="auto = false"
+                                                   value="{{ old('file_io_output', $fileIoOutput) }}" placeholder="Tự lấy theo mã câu hỏi: MÃ.OUT"
+                                                   x-bind:required="ioMode === 'file' && type === 'coding'" class="admin-input font-mono">
+                                        </div>
                                     </div>
+                                    <p class="qe-note" x-show="ioMode === 'std'">Học sinh đọc bằng bàn phím và in ra màn hình (stdin/stdout), như bình thường.</p>
+                                    <p class="qe-note" x-show="ioMode === 'file'" x-cloak>Tên tệp tự lấy theo mã câu hỏi, có thể sửa tay. Học sinh <strong>bắt buộc</strong> đọc/ghi bằng đúng 2 tệp này (C++: <code>freopen</code> hoặc <code>ifstream/ofstream</code>; Python: <code>open</code>). Chỉ dùng cin/cout hoặc input/print thì bị chấm sai. Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
                                 </div>
-                                <p class="qe-note">Để trống nếu bài đọc/ghi bằng bàn phím và màn hình (stdin/stdout). Chỉ dùng chữ, số và các dấu <code>.</code> <code>_</code> <code>-</code>.</p>
                             </div>
                         </section>
 

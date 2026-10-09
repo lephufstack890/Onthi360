@@ -70,6 +70,35 @@
             python: 'print("Hello, World!")'
         };
 
+        // SỬA 9/10 (khách: đề kiểu HELLOWORLD bắt đọc HELLOWORLD.INP / ghi HELLOWORLD.OUT, thiếu freopen
+        // thì chấm sai) — đề khai tên tệp vào/ra thì mã mẫu có sẵn dòng mở tệp đúng tên. fileIo =
+        // { input, output } hoặc null; đề bình thường (null) trả về ĐÚNG mã mẫu cũ, không đổi gì.
+        function starterCodeFor(language, fileIo) {
+            var base = STARTER_CODE[language] || STARTER_CODE.cpp;
+            var inName = fileIo && fileIo.input ? String(fileIo.input) : '';
+            var outName = fileIo && fileIo.output ? String(fileIo.output) : '';
+            if (!inName && !outName) return base;
+            if (language === 'python') {
+                var py = ['import sys'];
+                if (inName) py.push('sys.stdin = open(' + JSON.stringify(inName) + ', "r")');
+                if (outName) py.push('sys.stdout = open(' + JSON.stringify(outName) + ', "w")');
+                return py.join('\n') + '\n\n' + base;
+            }
+            var lines = [];
+            if (inName) lines.push('    freopen("' + inName + '", "r", stdin);');
+            if (outName) lines.push('    freopen("' + outName + '", "w", stdout);');
+            return base.replace('{\n', '{\n' + lines.join('\n') + '\n');
+        }
+
+        // Mã đang có còn là MÃ MẪU (bản thường hoặc bản có freopen) — chưa viết gì thêm -> đổi ngôn
+        // ngữ/đặt lại thì được thay bằng mã mẫu mới, không xoá bài đang viết dở.
+        function isStarterCode(text, fileIo) {
+            var cur = String(text || '').trim();
+            if (cur === '') return true;
+            return [STARTER_CODE.cpp, STARTER_CODE.python, starterCodeFor('cpp', fileIo), starterCodeFor('python', fileIo)]
+                .some(function (s) { return cur === String(s).trim(); });
+        }
+
         // ══════════════════════════════════════════════════════════════════════════════
         // PHÍM TẮT CHO Ô SOẠN MÃ
         //

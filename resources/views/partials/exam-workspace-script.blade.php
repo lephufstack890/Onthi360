@@ -124,7 +124,7 @@
                         if (self.recording[q.id] === undefined) self.recording[q.id] = false;
                         if (self.recordStatus[q.id] === undefined) self.recordStatus[q.id] = '';
                         if (q.kind === 'code' && !String(self.codes[q.id] || '').length) {
-                            self.codes[q.id] = STARTER_CODE[self.languages[q.id]] || STARTER_CODE.cpp;
+                            self.codes[q.id] = starterCodeFor(self.languages[q.id], q.fileIo);
                         }
                     });
 
@@ -251,13 +251,17 @@
                 onLanguageChange(id) {
                     // Đổi ngôn ngữ thì thay mã khởi tạo, ĐÚNG như bản mẫu — nhưng chỉ khi học
                     // sinh chưa viết gì khác mã khởi tạo, tránh xoá mất bài đang viết dở.
-                    var current = String(this.codes[id] || '').trim();
-                    var isStarter = current === '' || current === String(STARTER_CODE.cpp).trim() || current === String(STARTER_CODE.python).trim();
-                    if (isStarter) this.codes[id] = STARTER_CODE[this.languages[id]] || STARTER_CODE.cpp;
+                    var fileIo = this.fileIoOf(id);
+                    if (isStarterCode(this.codes[id], fileIo)) this.codes[id] = starterCodeFor(this.languages[id], fileIo);
                     this.onCode(id);
                 },
+                // SỬA 9/10 — tên tệp vào/ra của câu (null nếu đề đọc/ghi bằng bàn phím/màn hình).
+                fileIoOf(id) {
+                    var q = this.questions.find(function (x) { return x.id === id; });
+                    return q ? (q.fileIo || null) : null;
+                },
                 resetCode(id) {
-                    this.codes[id] = STARTER_CODE[this.languages[id]] || STARTER_CODE.cpp;
+                    this.codes[id] = starterCodeFor(this.languages[id], this.fileIoOf(id));
                     this.onCode(id);
                 },
                 loadCodeFile(id, event) {

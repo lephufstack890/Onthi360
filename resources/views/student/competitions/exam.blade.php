@@ -48,6 +48,7 @@
             'id' => $q['questionId'],
             'no' => $q['no'],
             'kind' => $q['kind'],
+            'fileIo' => $q['fileIo'] ?? null,
         ])->values();
 
         $firstId = $vm->first()['id'] ?? null;
@@ -333,6 +334,8 @@
                                                     <div class="rich-content mt-1 max-h-[26vh] overflow-y-auto">{!! $q['body'] !!}</div>
                                                 @endif
                                             </div>
+
+                                            @include('partials.file-io-hint', ['fileIo' => $q['fileIo'] ?? null])
 
                                             {{-- Lớp tô màu cú pháp nằm dưới, textarea trong suốt nằm trên. --}}
                                             <div class="relative min-h-0 flex-1 overflow-hidden">
