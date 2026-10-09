@@ -850,16 +850,37 @@ class ContentController extends Controller
         $data = $request->validate([
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer', 'exists:questions,id'],
-            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ
-            // khó của câu đó") — ĐÃ BỎ HẲN 'points_override' khỏi đây: form không còn ô nhập, và
-            // điểm được tính ở server từ độ khó (ContentService::assessmentItemsUpdate ->
-            // QuestionDifficulty::pointsForQuestion). Bỏ luật này nghĩa là dù ai có tự gửi
-            // points_override lên thì validate() cũng loại bỏ, không có đường nào đặt điểm tay.
-        ], [], ['question_ids' => 'Câu hỏi']);
+            // SỬA 11/10 (khách: "điểm từng câu để người dùng nhập") — points[<question_id>] là điểm
+            // người ra đề nhập cho từng câu (số nguyên hoặc thập phân). Gửi kèm question_ids[]
+            // theo đúng thứ tự trong đề; service ghi vào assessment_items.points_override.
+            ...\App\Support\AssessmentPoints::rules(),
+        ], [], ['question_ids' => 'Câu hỏi'] + \App\Support\AssessmentPoints::attributeNames());
 
         $this->contentService->assessmentItemsUpdate($assessment, $data);
 
         return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
+    }
+
+    /**
+     * SỬA 11/10 (khách: "điểm từng câu hỏi trong đề cho nhập chứ không lấy từ độ khó") — đổi điểm
+     * MỘT câu ngay trên trang chi tiết đề (danh sách "Câu hỏi trong đề"). Số nguyên hoặc thập
+     * phân; tổng điểm đề được cộng lại ngay.
+     */
+    public function assessmentsItemsPoints(Request $request, Assessment $assessment, \App\Models\AssessmentItem $item): RedirectResponse
+    {
+        abort_unless((int) $item->assessment_id === (int) $assessment->id, 404);
+
+        $data = $request->validate(
+            ['points' => ['required', 'numeric', 'min:0', 'max:'.\App\Support\AssessmentPoints::MAX]],
+            [],
+            ['points' => 'Điểm']
+        );
+
+        $this->contentService->assessmentItemSetPoints($assessment, $item, (float) $data['points']);
+
+        return redirect()
+            ->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
+            ->with('status', 'assessment-updated');
     }
 
     /**

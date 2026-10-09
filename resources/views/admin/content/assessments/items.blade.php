@@ -30,7 +30,7 @@
          số CỘNG LẠI từ các câu được tick, chạy ngay trên màn hình để admin thấy mình đang cho
          đề bao nhiêu điểm trước khi bấm Lưu. --}}
     <form method="POST" action="{{ route('admin.content.assessments.items.update', $assessment->id) }}"
-          x-data="assessmentPicker(@js(old('question_ids', $selectedIds)), @js($pickMeta))">
+          x-data="assessmentPicker(@js(old('question_ids', $selectedIds)), @js($pickMeta), @js(old('points', $pointsOverrides ?? [])))">
         @csrf
         @method('PUT')
 
@@ -70,23 +70,25 @@
                                     <p class="text-xs text-slate-400">@if (($q['code'] ?? '') !== '')<span class="font-mono">{{ $q['code'] }}</span> · @endif{{ $q['ownerLabel'] }} · {{ $q['status'] === 'published' ? 'Đã phát hành' : 'Nháp' }}</p>
                                 </div>
                             </div>
-                                {{-- SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu
-                                     theo độ khó của câu đó tại vì mỗi câu đều có điểm dựa vào độ khó rồi") —
-                                     ô nhập điểm đã BỎ. Con số dưới đây do
-                                     QuestionDifficulty::pointsForQuestion() tính từ độ khó, và service ghi
-                                     vào đề cũng gọi ĐÚNG hàm đó, nên số nhìn thấy = số máy chấm.
-                                     data-points để phần cộng tổng ở trên đọc được (trước đây nó đọc ô
-                                     input[type=number], giờ không còn ô nào). --}}
-                            <div class="flex shrink-0 items-center gap-2">
-                                <span class="rounded-full border border-sky-100 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-slate-500">{{ $q['difficultyLabel'] }}</span>
-                                <span class="w-16 rounded-xl border border-sky-100 bg-slate-50 p-1.5 text-center text-[13px] font-bold text-slate-600">{{ $q['points'] }} đ</span>
+                            {{-- SỬA 11/10 (khách: "điểm từng câu để người dùng nhập nha đừng lấy điểm của độ
+                                 khó") — ô NHẬP điểm (số nguyên hoặc thập phân). Độ khó chỉ còn là nhãn
+                                 tham khảo; số trong ô là số ghi vào đề và dùng để chấm. Giá trị lưu ở
+                                 `pts[id]` của assessmentPicker, ô thật gửi lên (name="points[id]") nằm ở
+                                 danh sách "Thứ tự câu trong đề" phía trên. --}}
+                            <div class="flex shrink-0 items-center gap-2" @click.stop>
+                                <span class="rounded-full border border-sky-100 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-slate-500" title="Độ khó (tham khảo)">{{ $q['difficultyLabel'] }}</span>
+                                <span class="qo-pin">
+                                    <input type="number" class="qo-in" :class="has({{ $q['id'] }}) ? '' : 'is-off'" inputmode="decimal" min="0" max="1000" step="any"
+                                           x-model="pts[{{ $q['id'] }}]" aria-label="Điểm câu {{ $q['id'] }}" title="Nhập điểm của câu này">
+                                    đ
+                                </span>
                             </div>
                         </label>
                     @endforeach
                 </div>
                 <p class="qs-empty" x-show="shown === 0" x-cloak>Không tìm thấy câu hỏi phù hợp — thử tên hoặc mã khác.</p>
-                <p class="text-xs text-slate-400 mt-2">Điểm từng câu <strong>tính theo độ khó</strong> của chính câu đó (Cơ bản 2 · Dễ 4 · Khá 6 · Khó 8 · Rất khó 10), không nhập tay. Muốn đổi điểm một câu thì sửa Độ khó của câu đó trong Kho câu hỏi.</p>
-                <p class="text-xs text-slate-400 mt-1">Số điểm được <strong>chốt vào đề</strong> lúc bấm Lưu: sau này đổi độ khó của câu trong kho thì đề đã lưu vẫn giữ nguyên điểm cũ, lưu lại màn này mới cập nhật theo.</p>
+                <p class="text-xs text-slate-400 mt-2"><strong>Nhập điểm cho từng câu</strong> ở ô bên phải (số nguyên hoặc thập phân, vd 2 hoặc 1.5). Ô được điền sẵn số gợi ý theo độ khó (Cơ bản 2 · Dễ 4 · Khá 6 · Khó 8 · Rất khó 10) — sửa lại theo ý bạn. Tổng điểm đề = cộng điểm các câu đã chọn.</p>
+                <p class="text-xs text-slate-400 mt-1">Điểm bạn nhập được <strong>chốt vào đề</strong> lúc bấm Lưu và dùng để chấm bài: sau này đổi độ khó hay điểm gốc của câu trong kho thì đề đã lưu vẫn giữ nguyên điểm.</p>
                 <p class="text-xs text-slate-400 mt-1">Câu còn "Nháp" vẫn gắn được vào đề, nhưng đề chỉ phát hành được khi mọi câu đã Phát hành (6.2).</p>
             @endif
         </div>

@@ -682,6 +682,11 @@ class AttemptService
             // câu lập trình qua 14/20 test được 2,1 điểm bị cắt còn 2 — càng nhiều câu càng lệch.
             $totalScore = round((float) $locked->answers->whereNotNull('score')->sum('score'), 2);
 
+            // SỬA 11/10 — chấm xong thì TỔNG ĐIỂM ĐỀ cũng cộng lại từ điểm từng câu người dùng
+            // nhập, để "điểm đạt / tổng điểm" luôn cùng một thang.
+            $locked->loadMissing('assessment.items.question');
+            $locked->assessment?->syncTotalPointsFromItems();
+
             $locked->recalculateProvisionalFlag();
             $locked->total_score = $totalScore;
             $locked->submitted_at = now();

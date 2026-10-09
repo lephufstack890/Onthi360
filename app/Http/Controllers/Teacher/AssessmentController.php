@@ -224,9 +224,9 @@ class AssessmentController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'question_ids' => ['required', 'array', 'min:1'],
             'question_ids.*' => ['integer'],
-            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ
-            // khó của câu đó") — ĐÃ BỎ HẲN 'points_override': form không còn ô nhập, điểm tính ở
-            // server từ độ khó. Bỏ luật này thì dù ai tự gửi lên, validate() cũng loại bỏ.
+            // SỬA 11/10 (khách: "điểm từng câu để người dùng nhập") — points[<question_id>] là điểm
+            // người ra đề nhập cho từng câu (số nguyên hoặc thập phân), ghi vào points_override.
+            ...\App\Support\AssessmentPoints::rules(),
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
             'max_resubmissions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'publish_answer_rule' => ['nullable', 'in:never,after_deadline,immediately'],

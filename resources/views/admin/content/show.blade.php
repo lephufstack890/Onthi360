@@ -191,6 +191,10 @@
                                     .ai-btn { display:grid; place-items:center; width:30px; height:30px; border:1px solid #DDEAF0; border-radius:8px; background:#fff; color:#45657D; font-size:13px; line-height:1; cursor:pointer; }
                                     .ai-btn:hover:not(:disabled) { border-color:#126F91; color:#126F91; background:#EAF5F8; }
                                     .ai-btn:disabled { opacity:.35; cursor:not-allowed; }
+                                    .ai-pt { display:flex; align-items:center; gap:6px; flex:none; margin:0 0 0 10px; font-size:12px; font-weight:700; color:#607A90; }
+                                    .ai-pt input { width:76px; height:32px; box-sizing:border-box; border:1px solid #BFD9E4; border-radius:9px; background:#fff; padding:0 8px; text-align:center; font-size:13px; font-weight:700; color:#123B68; }
+                                    .ai-pt input:focus { outline:none; border-color:#126F91; box-shadow:0 0 0 3px rgba(18,111,145,.15); }
+                                    .ai-save { width:32px; height:32px; color:#126F91; border-color:#BFD9E4; }
                                 </style>
                                 @php $itemCount = $model->items->count(); @endphp
                                 @foreach ($model->items as $it)
@@ -200,7 +204,16 @@
                                             <span class="shrink-0">{{ $assessmentTypeIcons[$it->question?->type?->value] ?? '❓' }}</span>
                                             <p class="apx-item__title" style="font-weight:500">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
                                         </div>
-                                        <span class="apx-count">{{ $it->effectivePoints() }} điểm</span>
+                                        {{-- SỬA 11/10 (khách: "điểm từng câu hỏi trong đề cho nhập chứ k lấy từ độ khó") —
+                                             ô NHẬP điểm của câu (số nguyên hoặc thập phân), bấm ✓ để lưu; tổng điểm
+                                             đề tự cộng lại. --}}
+                                        <form method="POST" action="{{ route('admin.content.assessments.items.points', [$model->id, $it->id]) }}" class="ai-pt">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="number" name="points" value="{{ rtrim(rtrim(number_format($it->effectivePoints(), 2, '.', ''), '0'), '.') }}" min="0" max="1000" step="any" required inputmode="decimal" aria-label="Điểm câu {{ $loop->iteration }}">
+                                            <span>điểm</span>
+                                            <button type="submit" class="ai-btn ai-save" title="Lưu điểm" aria-label="Lưu điểm">✓</button>
+                                        </form>
                                         <div class="ai-mv">
                                             @foreach ([['top', '⤒', 'Đưa lên đầu', $loop->first], ['up', '▲', 'Đưa lên trước', $loop->first], ['down', '▼', 'Đưa xuống sau', $loop->last]] as [$dir, $icon, $label, $off])
                                                 <form method="POST" action="{{ route('admin.content.assessments.items.move', [$model->id, $it->id]) }}">

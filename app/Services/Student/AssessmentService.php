@@ -70,6 +70,9 @@ class AssessmentService
             return $this->buildPdfTakeData($user, $assessmentModel, $assignment);
         }
 
+        // SỬA 11/10 — tổng điểm hiển thị = cộng điểm từng câu người ra đề đã nhập.
+        $assessmentModel->syncTotalPointsFromItems();
+
         $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
 
         // Hết giờ trong lúc học sinh không mở trang (đóng tab, mất mạng, rớt wifi giữa
@@ -604,7 +607,8 @@ class AssessmentService
 
         $isFinal = ! $attemptModel->is_provisional;
         $score = $attemptModel->total_score;
-        $total = $attemptModel->assessment->total_points ?? null;
+        // SỬA 11/10 — tổng điểm đề = cộng điểm từng câu đã nhập (tự sửa nếu cột total_points lệch).
+        $total = $attemptModel->assessment->syncTotalPointsFromItems();
 
         /*
          * SỬA 23/9 (khách: "làm xong bấm nộp thì tổng lại được bao nhiêu điểm") — mỗi dòng nói

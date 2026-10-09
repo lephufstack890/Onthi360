@@ -44,6 +44,8 @@ class Assessment extends Model
 
     protected $casts = [
         'rating_score' => 'float',
+        // SỬA 11/10 — tổng điểm có thể là số thập phân (cột decimal trả chuỗi "26.00" nếu không cast).
+        'total_points' => 'float',
         'rating_count' => 'integer',
         'type' => AssessmentType::class,
         'status' => ContentStatus::class,
@@ -56,6 +58,31 @@ class Assessment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(AssessmentItem::class)->orderBy('order');
+    }
+
+    /**
+     * SỬA 11/10 (khách: "tổng điểm của đề lấy điểm từng câu tổng lại khi chấm điểm") — TỔNG ĐIỂM
+     * ĐỀ = cộng điểm từng câu NGƯỜI DÙNG NHẬP (assessment_items.points_override). Gọi lúc chấm bài /
+     * xem kết quả để cột total_points luôn khớp với điểm các câu — đề cũ lệch số thì tự sửa lại.
+     * Đề không có câu nào (đề PDF…) giữ nguyên số đang có. Trả về tổng điểm hiện hành.
+     */
+    public function syncTotalPointsFromItems(): float
+    {
+        $this->loadMissing('items.question');
+
+        if ($this->items->isEmpty()) {
+            return (float) $this->total_points;
+        }
+
+        $sum = \App\Support\AssessmentPoints::sum(
+            $this->items->map(fn ($item) => $item->points_override ?? $item->question?->points ?? 0)
+        );
+
+        if (abs($sum - (float) $this->total_points) >= 0.005) {
+            $this->forceFill(['total_points' => $sum])->save();
+        }
+
+        return $sum;
     }
 
     /** SỬA 2/10 — nhãn tỉnh/thành ("HANOI" -> "Hà Nội"); chưa gán hoặc mã lạ -> null. */

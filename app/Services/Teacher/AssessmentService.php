@@ -11,6 +11,7 @@ use App\Enums\PublishAnswerRule;
 use App\Enums\QuestionType;
 use App\Enums\UploadedDocumentStatus;
 use App\Models\Assessment;
+use App\Support\AssessmentPoints;
 use App\Support\ExamCategory;
 use App\Support\ImageOptimizer;
 use App\Support\ProvinceCatalog;
@@ -194,9 +195,8 @@ class AssessmentService
                 'code' => (string) $q->code, // SỬA 10/10 — để tìm theo mã ở màn chọn câu
                 'title' => $q->title,
                 'type' => $q->type->value,
-                // SỬA 1/10 — điểm hiện trên màn chọn câu là điểm suy từ ĐỘ KHÓ, không phải cột
-                // questions.points. Dùng đúng hàm mà store() dùng để ghi vào đề, nên số nhìn
-                // thấy = số máy chấm. Xem QuestionDifficulty::pointsForQuestion().
+                // SỬA 11/10 — CHỈ là số GỢI Ý điền sẵn vào ô nhập điểm (suy từ độ khó). Người ra
+                // đề nhập số của mình, số đó mới được ghi vào đề và dùng để chấm — xem store().
                 'points' => QuestionDifficulty::pointsForQuestion($q->metadata, (int) $q->points),
                 'difficultyLabel' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
                 'status' => $q->status->value,
@@ -222,7 +222,7 @@ class AssessmentService
             ->keyBy('id');
 
         $items = [];
-        $totalPoints = 0;
+        $pointsList = [];
         foreach ($questionIds as $order => $questionId) {
             $question = $ownedQuestions->get($questionId);
             if ($question === null) {
@@ -233,12 +233,15 @@ class AssessmentService
             // nên sửa điểm gốc của câu (cho đề khác) là điểm đề này âm thầm đổi theo. Xem
             // Admin\ContentService::assessmentItemsUpdate(), cùng một lý do.
             //
-            // SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ khó
-            // của câu đó") — con số không còn lấy từ ô nhập (đã bỏ) mà tính từ độ khó, đúng hàm
-            // mà màn chọn câu dùng để hiển thị.
-            $points = QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points);
+            // SỬA 11/10 (khách: "điểm từng câu để người dùng nhập, đừng lấy điểm của độ khó")
+            // — con số lấy từ ô nhập $data['points'][id] (số nguyên hoặc thập phân); chỉ khi ô
+            // để trống mới rơi về số gợi ý theo độ khó.
+            $points = AssessmentPoints::resolve(
+                $data['points'][$question->id] ?? null,
+                (float) QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points)
+            );
             $items[] = ['question_id' => $question->id, 'order' => $order, 'points_override' => $points];
-            $totalPoints += $points;
+            $pointsList[] = $points;
         }
 
         if ($items === []) {
@@ -248,7 +251,7 @@ class AssessmentService
         $assessment = $this->assessments->create([
             'title' => $data['title'],
             'type' => AssessmentType::Assignment,
-            'total_points' => $totalPoints,
+            'total_points' => AssessmentPoints::sum($pointsList),
             'duration_minutes' => filled($data['duration_minutes'] ?? null) ? (int) $data['duration_minutes'] : null,
             'resubmission_policy' => filled($data['max_resubmissions'] ?? null) ? ['max_attempts' => (int) $data['max_resubmissions']] : null,
             'publish_answer_rule' => $data['publish_answer_rule'] ?? PublishAnswerRule::AfterDeadline->value,

@@ -34,6 +34,7 @@ use App\Services\PdfAssessmentPublishGuard;
 use App\Services\PdfBulkImportService;
 use App\Services\PdfTextExtractor;
 use App\Services\QuestionPublishGuard;
+use App\Support\AssessmentPoints;
 use App\Support\QuestionDifficulty;
 use App\Support\ExamCategory;
 use App\Support\ImageOptimizer;
@@ -2828,18 +2829,40 @@ class ContentService
                 'code' => (string) $q->code, // SỬA 10/10 — để tìm theo mã ở màn chọn câu
                 'title' => $q->title,
                 'type' => $q->type->value,
-                // SỬA 1/10 — điểm hiện trên màn chọn câu KHÔNG phải cột questions.points nữa mà
-                // là điểm suy từ ĐỘ KHÓ (xem QuestionDifficulty::pointsForQuestion). Dùng đúng
-                // hàm mà assessmentItemsUpdate() dùng để ghi, nên số nhìn thấy = số được chấm.
+                // SỬA 11/10 — đây CHỈ là số GỢI Ý điền sẵn vào ô nhập điểm của câu chưa có trong
+                // đề (suy từ độ khó). Người ra đề nhập số của mình, số đó mới là điểm được chấm
+                // — xem assessmentItemsUpdate().
                 'points' => QuestionDifficulty::pointsForQuestion($q->metadata, (int) $q->points),
                 'difficultyLabel' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
                 'status' => $q->status->value,
                 'ownerLabel' => $q->owner_type === OwnerType::Shared ? 'Kho chung' : ('GV '.($q->owner->name ?? '')),
             ])->all(),
             'selectedIds' => $existingItems->keys()->all(),
-            // SỬA 1/10 — 'pointsOverrides' đã BỎ: màn chọn câu không còn ô nhập điểm nên không
-            // cần điền lại điểm cũ của đề. Điểm hiển thị giờ tính từ độ khó ('points' ở trên).
+            // SỬA 11/10 (khách: "điểm từng câu để người dùng nhập") — điểm ĐÃ CHỐT trong đề, điền
+            // lại vào ô nhập khi mở màn sửa. Câu chưa có trong đề thì ô hiện số gợi ý ban đầu
+            // ('points' ở trên, suy từ độ khó) để người ra đề sửa theo ý mình.
+            'pointsOverrides' => $existingItems
+                ->filter(fn ($item) => $item->points_override !== null)
+                ->map(fn ($item) => (float) $item->points_override)
+                ->all(),
         ];
+    }
+
+    /**
+     * SỬA 11/10 — đặt điểm cho MỘT câu trong đề (người dùng nhập), rồi cộng lại total_points.
+     */
+    public function assessmentItemSetPoints(Assessment $assessment, \App\Models\AssessmentItem $item, float $points): void
+    {
+        DB::transaction(function () use ($assessment, $item, $points) {
+            $item->forceFill(['points_override' => AssessmentPoints::resolve($points, $points)])->save();
+
+            $assessment->unsetRelation('items');
+            $total = $this->derivedTotalPoints($assessment);
+
+            if ($total !== null) {
+                $this->assessments->update($assessment, ['total_points' => $total]);
+            }
+        });
     }
 
     /**
@@ -2883,7 +2906,7 @@ class ContentService
      * admin.content.assessments.items.update — thay TOÀN BỘ danh sách câu hỏi trong đề bằng
      * danh sách mới chọn (xoá hết item cũ rồi tạo lại theo đúng thứ tự tick trên form — đơn
      * giản, đủ dùng cho phạm vi này, giống cách teacher.assessments.store xử lý lúc tạo mới).
-     * Tự tính lại total_points = tổng điểm từng câu (ưu tiên points_override nếu có nhập).
+     * Tự tính lại total_points = tổng điểm từng câu NGƯỜI DÙNG NHẬP (points_override).
      */
     public function assessmentItemsUpdate(Assessment $assessment, array $data): Assessment
     {
@@ -2893,7 +2916,7 @@ class ContentService
 
         $assessment->items()->delete();
 
-        $totalPoints = 0;
+        $pointsList = [];
         foreach (array_values($questionIds) as $order => $questionId) {
             $question = $validQuestions->get($questionId);
             if ($question === null) {
@@ -2902,20 +2925,19 @@ class ContentService
 
             /*
              * SỬA 23/9 (khách: "nhập điểm cho từng câu") — LUÔN GHI points_override, kể cả khi
-             * trùng đúng điểm của câu trong kho.
+             * trùng đúng điểm của câu trong kho (để null thì AttemptService::maxPointsFor() quay
+             * về questions.points, sửa điểm gốc trong kho là điểm đề đã chốt âm thầm đổi theo).
              *
-             * Trước đây để null trong trường hợp đó, và AttemptService::maxPointsFor() sẽ quay
-             * về đọc questions.points. Hậu quả: sửa điểm gốc của câu trong kho (cho đề khác)
-             * là điểm của ĐỀ NÀY âm thầm đổi theo, học sinh làm xong ra điểm khác hẳn tổng ghi
-             * trên đề. Ghi hẳn số vào đề thì đề đã chốt điểm là chốt luôn.
-             *
-             * SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ khó
-             * của câu đó tại vì mỗi câu đều có điểm dựa vào độ khó rồi") — con số KHÔNG còn lấy
-             * từ ô nhập trên form nữa (ô đó đã bỏ), mà tính từ độ khó qua
-             * QuestionDifficulty::pointsForQuestion() — đúng hàm mà màn chọn câu dùng để hiển
-             * thị, nên số admin nhìn thấy chính là số máy chấm.
+             * SỬA 11/10 (khách: "điểm từng câu để người dùng nhập, đừng lấy điểm của độ khó.
+             * Khi chấm điểm tính theo số điểm nhập") — con số lấy từ ô nhập $data['points'][id]
+             * (số nguyên hoặc thập phân). Chỉ khi ô để trống mới rơi về số gợi ý theo độ khó.
+             * Số này ghi vào assessment_items.points_override, và việc chấm bài, tổng điểm đề,
+             * kết quả làm bài đều đọc đúng cột đó.
              */
-            $points = QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points);
+            $points = AssessmentPoints::resolve(
+                $data['points'][$question->id] ?? null,
+                (float) QuestionDifficulty::pointsForQuestion($question->metadata, (int) $question->points)
+            );
 
             $assessment->items()->create([
                 'question_id' => $question->id,
@@ -2923,10 +2945,10 @@ class ContentService
                 'points_override' => $points,
             ]);
 
-            $totalPoints += $points;
+            $pointsList[] = $points;
         }
 
-        return $this->assessments->update($assessment, ['total_points' => $totalPoints]);
+        return $this->assessments->update($assessment, ['total_points' => AssessmentPoints::sum($pointsList)]);
     }
 
     /**
@@ -2943,7 +2965,7 @@ class ContentService
      * số gõ tay bị bỏ qua. Đề CHƯA CÓ CÂU nào mới dùng số gõ tay (đề PDF tự chấm điểm riêng
      * qua PdfAssessmentEditingService, cũng không có item nên không bị đụng).
      */
-    private function derivedTotalPoints(Assessment $assessment): ?int
+    private function derivedTotalPoints(Assessment $assessment): ?float
     {
         $assessment->loadMissing('items.question');
 
@@ -2951,8 +2973,9 @@ class ContentService
             return null;
         }
 
-        return (int) $assessment->items->sum(
-            fn ($item) => (int) ($item->points_override ?? $item->question?->points ?? 0)
+        // SỬA 11/10 — điểm có thể là số thập phân, KHÔNG ép int (ép là 4.5 + 4.5 thành 8).
+        return AssessmentPoints::sum(
+            $assessment->items->map(fn ($item) => $item->points_override ?? $item->question?->points ?? 0)
         );
     }
 
