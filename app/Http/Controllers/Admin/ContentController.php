@@ -297,9 +297,58 @@ class ContentController extends Controller
             'accepted_answers' => ['nullable', 'string', 'max:2000'],
             'case_sensitive' => ['nullable', 'boolean'],
             'test_cases_raw' => ['nullable', 'string', 'max:10000'],
+            // SỬA 9/10 — bộ test dựng từ cặp tệp .in/.out ở khối "Bộ test" (JSON [{input, output}]).
+            // Xem testCasesFromJson() bên dưới: đổi sang 'test_cases_parsed' — cùng đường nhập ZIP.
+            'test_cases_json' => ['nullable', 'string', 'max:8000000'],
             'time_limit_ms' => ['nullable', 'integer', 'min:1'],
             'memory_limit_mb' => ['nullable', 'integer', 'min:1'],
         ];
+    }
+
+    /**
+     * SỬA 9/10 (khách: "chỉ thêm chỗ nhập bộ test… đừng ảnh hưởng gì đến máy chấm") — đổi ô ẩn
+     * `test_cases_json` của khối "Bộ test" thành 'test_cases_parsed' = [{input, output}, …].
+     *
+     * Vì sao KHÔNG cần sửa gì ở máy chấm: 'test_cases_parsed' chính là khoá mà nhập gói ZIP đã
+     * dùng từ lâu (ContentService::buildGradingConfig() ưu tiên nó trước ô "Test cases" cũ), nên
+     * grading_config.test_cases ra đúng cấu trúc cũ {input, output} và giữ NGUYÊN xuống dòng —
+     * CodeJudgingService / PracticeByQuestionService đọc y như trước.
+     *
+     * Không gửi ô này (form Sửa khi không đổi bộ test) -> trả nguyên $data, server giữ test cũ.
+     * Gửi sai định dạng -> báo lỗi, KHÔNG lưu gì (không âm thầm bỏ test).
+     *
+     * @throws ValidationException
+     */
+    private function testCasesFromJson(array $data): array
+    {
+        $json = $data['test_cases_json'] ?? null;
+        unset($data['test_cases_json']);
+
+        if ($json === null || $json === '') {
+            return $data;
+        }
+
+        $fail = fn (string $message) => ValidationException::withMessages(['test_cases_json' => $message]);
+
+        $decoded = json_decode((string) $json, true);
+        if (! is_array($decoded) || ! array_is_list($decoded)) {
+            throw $fail('Bộ test gửi lên không đọc được — chưa lưu gì. Hãy nhập lại cặp tệp .in/.out rồi lưu lại.');
+        }
+        if (count($decoded) > 500) {
+            throw $fail('Bộ test có quá 500 test — chưa lưu gì. Hãy chia nhỏ bài hoặc giảm số test.');
+        }
+
+        $cases = [];
+        foreach ($decoded as $index => $case) {
+            if (! is_array($case) || ! is_string($case['input'] ?? null) || ! is_string($case['output'] ?? null)) {
+                throw $fail('Test thứ '.($index + 1).' không đúng định dạng (cần có dữ liệu vào và kết quả) — chưa lưu gì.');
+            }
+            $cases[] = ['input' => $case['input'], 'output' => $case['output']];
+        }
+
+        $data['test_cases_parsed'] = $cases;
+
+        return $data;
     }
 
     /**
@@ -374,6 +423,8 @@ class ContentController extends Controller
             'visibility' => ['required', 'string', 'in:public,private'],
         ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
 
+        $data = $this->testCasesFromJson($data);
+
         $question = $this->contentService->questionStore(Auth::user(), $data);
 
         return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-created');
@@ -413,6 +464,8 @@ class ContentController extends Controller
             'visibility' => ['required', 'string', 'in:public,private'],
         ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
 
+        $data = $this->testCasesFromJson($data);
+
         $this->contentService->questionUpdate($question, $data);
 
         // SỬA 4/10 — về thẳng danh sách (giữ nguyên tab + bộ lọc) thay vì màn chi tiết.
@@ -447,6 +500,8 @@ class ContentController extends Controller
             // questionCreateNewVersion() hiểu là "bỏ trống" -> XOÁ mất độ khó của bản mới.
             'difficulty' => ['nullable', 'string', QuestionDifficulty::validationRule()],
         ], $this->questionGradingRules(), $this->questionUploadRules(), $this->tagRules()));
+
+        $data = $this->testCasesFromJson($data);
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
 

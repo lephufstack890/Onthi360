@@ -146,7 +146,8 @@
                     'province' => ($question ?? null) === null
                         ? \App\Support\ProvinceCatalog::DEFAULT_QUESTION_SCOPE
                         : ($question->province ?? null),
-                    'examYear' => $question->exam_year ?? null,
+                    // SỬA 9/10 (khách: "năm mặc định là năm hiện tại") — chỉ khi TẠO MỚI; Sửa giữ giá trị đã lưu.
+                    'examYear' => ($question ?? null) === null ? (int) date('Y') : ($question->exam_year ?? null),
                 ])
 
                 {{-- SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn nha") — ẩn TẠM ô
@@ -249,22 +250,13 @@
                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 text-xs text-slate-600 hover:border-blue-200 hover:text-blue-600">
                                         ⬇ {{ $currentAttachments[$kind]['filename'] ?? 'Tệp đang có' }}
                                     </a>
-                                    {{-- SỬA 4/10 (khách: "khi sửa câu hỏi thì mặc định tích ở nút bỏ tệp
-                                         này") — TÍCH SẴN.
-
-                                         CẢNH BÁO CHO NGƯỜI ĐỌC MÃ VỀ SAU: vì tích sẵn nên mở câu hỏi
-                                         ra sửa rồi bấm Lưu mà không đụng gì tới phần tệp là MẤT tệp
-                                         đang có. Đây là hành vi KHÁCH YÊU CẦU, không phải lỗi — muốn
-                                         giữ tệp thì phải bỏ tích. Đừng "sửa" lại nếu không có yêu cầu mới.
-
-                                         $ftaRemoveSubmitted phân biệt "mới mở trang" với "vừa gửi
-                                         hỏng, người dùng đã bỏ tích": ô tick KHÔNG gửi gì lên khi
-                                         không được tích, nên nếu chỉ nhìn old('remove_attachments')
-                                         thì lần gửi hỏng sẽ tự tích lại, xoá đúng cái người ta vừa
-                                         cố giữ. Ô ẩn bên dưới là dấu hiệu "form này đã từng gửi". --}}
+                                    {{-- SỬA 9/10 (khách: "bỏ luôn mặc định tick bỏ tệp này khi cập nhật câu hỏi") — KHÔNG còn
+     tích sẵn: mở câu hỏi ra sửa rồi Lưu thì tệp đang có được GIỮ NGUYÊN. Chỉ khi người dùng tự
+     tích "Bỏ tệp này" thì tệp mới bị xoá. (Trước đây 4/10 từng tích sẵn theo yêu cầu cũ.)
+     old() giữ lại lựa chọn nếu lần gửi trước bị báo lỗi. --}}
                                     <label class="inline-flex items-center gap-1.5 text-xs text-rose-600">
                                         <input type="checkbox" name="remove_attachments[]" value="{{ $kind }}"
-                                               @checked($ftaRemoveSubmitted ? in_array($kind, (array) old('remove_attachments', []), true) : true)> Bỏ tệp này
+                                               @checked(in_array($kind, (array) old('remove_attachments', []), true))> Bỏ tệp này
                                     </label>
                                 </div>
                             @endif
