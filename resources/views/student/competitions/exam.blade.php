@@ -335,7 +335,8 @@
                                                 @endif
                                             </div>
 
-                                            @include('partials.file-io-hint', ['fileIo' => $q['fileIo'] ?? null])
+                                            {{-- SỬA 9/10 (khách: "chỗ làm đề ẩn thông báo đọc/ghi qua tệp đi") — phòng làm ĐỀ không hiện dòng nhắc
+                                                 partials/file-io-hint nữa (màn luyện tập từng bài vẫn hiện). Mã mẫu freopen và việc chấm giữ nguyên. --}}
 
                                             {{-- Lớp tô màu cú pháp nằm dưới, textarea trong suốt nằm trên. --}}
                                             <div class="relative min-h-0 flex-1 overflow-hidden">

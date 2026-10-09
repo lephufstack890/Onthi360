@@ -6,7 +6,8 @@
      học sinh, không nên để lọt ra ngoài. Ở đây không gọi ra ngoài một chút nào.
 
      Màu nền suy ra từ chính tên nên mỗi người luôn ra cùng một màu, không đổi mỗi lần tải. --}}
-@props(['name' => '', 'size' => 'md'])
+{{-- SỬA 9/10 — thêm tham số `src` (URL ảnh người dùng tự tải lên, User::avatarUrl()): có thì vẽ <img> thay cho chữ cái đầu. Không truyền thì y như cũ. --}}
+@props(['name' => '', 'size' => 'md', 'src' => null])
 @php
     $clean = trim(preg_replace('/\s+/u', ' ', (string) $name));
     $parts = $clean !== '' ? preg_split('/\s+/u', $clean) : [];
@@ -32,7 +33,12 @@
         'xl' => 'h-16 w-16 text-lg',
     ];
 @endphp
+@if (filled($src))
+    <img src="{{ $src }}" alt="Ảnh đại diện của {{ $clean !== '' ? $clean : 'người dùng' }}" loading="lazy"
+         {{ $attributes->merge(['class' => 'inline-block shrink-0 rounded-full border border-slate-200 object-cover bg-slate-100 '.(['sm' => 'h-7 w-7', 'md' => 'h-9 w-9', 'lg' => 'h-12 w-12', 'xl' => 'h-16 w-16'][$size] ?? 'h-9 w-9')]) }}>
+@else
 <span role="img" aria-label="Ảnh đại diện của {{ $clean !== '' ? $clean : 'người dùng' }}"
       {{ $attributes->merge(['class' => 'inline-grid shrink-0 place-items-center rounded-full border font-black select-none '.$tone.' '.($sizes[$size] ?? $sizes['md'])]) }}>
     {{ $initials }}
 </span>
+@endif

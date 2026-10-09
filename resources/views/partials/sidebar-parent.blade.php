@@ -15,6 +15,7 @@
             'active' => request()->routeIs('parent.results.index') || ($onChildShow && $currentTab === 'results')],
         ['label' => 'Thông báo', 'route' => 'parent.notifications.index', 'icon' => 'message-square-text', 'active' => request()->routeIs('parent.notifications.index')],
         ['label' => 'Hồ sơ', 'route' => 'parent.profile', 'icon' => 'user-cog', 'active' => request()->routeIs('parent.profile')],
+        ['label' => 'Đổi mật khẩu', 'route' => 'parent.password.edit', 'icon' => 'lock', 'active' => request()->routeIs('parent.password.edit')],
     ];
 
     $navItems = array_map(fn ($item) => [

@@ -45,6 +45,7 @@
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => 'scroll-text'],
         ['label' => 'Cấu hình', 'route' => 'admin.settings.index', 'icon' => 'settings', 'superAdminOnly' => true],
         ['label' => 'Tài khoản', 'route' => 'admin.profile.show', 'icon' => 'user-cog', 'editorOk' => true],
+        ['label' => 'Đổi mật khẩu', 'route' => 'admin.password.edit', 'icon' => 'lock', 'editorOk' => true],
     ];
     $currentUser = auth()->user();
     $isSuperAdmin = $currentUser?->hasRole(\App\Models\Role::SUPER_ADMIN) ?? false;

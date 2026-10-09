@@ -21,7 +21,7 @@
         <div class="border-b border-slate-100 px-2 pb-3 pt-1">
             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $wsNavTitle }}</p>
             <div class="mt-2 flex items-center gap-2.5">
-                <x-ws.avatar :name="$wsUserName ?? ''" />
+                <x-ws.avatar :name="$wsUserName ?? ''" :src="auth()->user()?->avatarUrl()" />
                 <span class="min-w-0">
                     <span class="block truncate text-[13px] font-bold text-slate-700">{{ $wsUserName }}</span>
                     <span class="block text-[11px] text-slate-400">{{ $wsRoleLabel }}</span>

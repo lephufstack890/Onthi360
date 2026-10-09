@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Services\Account\AvatarService;
 use App\Services\Teacher\ProfileService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,9 +24,16 @@ class ProfileController extends Controller
             'phone' => ['nullable', 'string', 'max:32'],
             'province' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
+            ...AvatarService::rules(),
         ]);
 
+        // SỬA 9/10 — ảnh đại diện: tệp 'avatar' (đã cắt ở trình duyệt) hoặc 'remove_avatar'. Không đi vào updateProfile().
+        $avatar = $request->file('avatar');
+        $removeAvatar = (bool) ($data['remove_avatar'] ?? false);
+        unset($data['avatar'], $data['remove_avatar']);
+
         $this->profileService->updateProfile($request->user(), $data);
+        app(AvatarService::class)->apply($request->user(), $avatar, $removeAvatar);
 
         return back()->with('status', 'profile-updated');
     }

@@ -32,6 +32,12 @@ class User extends Authenticatable // implements MustVerifyEmail
         ];
     }
 
+    /** SỬA 9/10 — URL ảnh đại diện (users.avatar_path), null nếu chưa có. Xem Account\AvatarService. */
+    public function avatarUrl(): ?string
+    {
+        return \App\Services\Account\AvatarService::url($this->avatar_path);
+    }
+
     // -- Hồ sơ theo vai trò --------------------------------------------------
 
     public function teacherProfile()

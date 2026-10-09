@@ -14,6 +14,7 @@
         ['label' => 'Mã kích hoạt', 'route' => 'access.activate', 'icon' => 'key-round'],
         ['label' => 'Thông báo', 'route' => 'student.notifications', 'icon' => 'message-square-text'],
         ['label' => 'Hồ sơ', 'route' => 'student.profile', 'icon' => 'user-cog'],
+        ['label' => 'Đổi mật khẩu', 'route' => 'student.password.edit', 'icon' => 'lock'],
     ];
 
     $navItems = array_map(fn ($item) => [

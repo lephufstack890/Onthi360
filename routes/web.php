@@ -54,6 +54,7 @@ use App\Http\Controllers\Access\WalletController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\AccessRightController as AdminAccessRightController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Account\PasswordController as AccountPasswordController;
 use App\Http\Controllers\Admin\ActivationCodeController as AdminActivationCodeController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
@@ -248,6 +249,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
+        // SỬA 9/10 — màn Đổi mật khẩu riêng (App\Http\Controllers\Account\PasswordController); khu suy ra từ tên route.
+        Route::get('password', [AccountPasswordController::class, 'edit'])->name('password.edit');
+        Route::put('password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
     });
 
     /*
@@ -455,6 +459,9 @@ Route::middleware(['auth'])->group(function () {
         Route::put('profile', [TeacherProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/teacher-profile', [TeacherProfileController::class, 'updateTeacherProfile'])->name('profile.teacherProfile.update');
         Route::put('profile/password', [TeacherProfileController::class, 'updatePassword'])->name('profile.password');
+        // SỬA 9/10 — màn Đổi mật khẩu riêng (App\Http\Controllers\Account\PasswordController); khu suy ra từ tên route.
+        Route::get('password', [AccountPasswordController::class, 'edit'])->name('password.edit');
+        Route::put('password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
     });
 
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
@@ -467,6 +474,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('notifications', [ParentNotificationController::class, 'index'])->name('notifications.index');
         Route::get('profile', [ParentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [ParentProfileController::class, 'update'])->name('profile.update');
+        // SỬA 9/10 — màn Đổi mật khẩu riêng (App\Http\Controllers\Account\PasswordController); khu suy ra từ tên route.
+        Route::get('password', [AccountPasswordController::class, 'edit'])->name('password.edit');
+        Route::put('password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
     });
 
     Route::prefix('danh-gia')->name('reviews.')->group(function () {
@@ -770,5 +780,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('profile', [AdminProfileController::class, 'show'])->name('profile.show');
         Route::put('profile', [AdminProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');
+        // SỬA 9/10 — màn Đổi mật khẩu riêng (App\Http\Controllers\Account\PasswordController); khu suy ra từ tên route.
+        Route::get('password', [AccountPasswordController::class, 'edit'])->name('password.edit');
+        Route::put('password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
     });
 });

@@ -5,16 +5,26 @@
     @php
         $authUser = auth()->user();
         $profileRouteName = null;
-        if ($authUser->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)) {
+        $passwordRouteName = null;
+        // SỬA 9/10 — ưu tiên khu ĐANG đứng (theo tên route), để giáo viên/phụ huynh cũng có Hồ sơ + Đổi mật khẩu
+        // trong menu; ngoài 4 khu thì rơi về logic theo vai trò như cũ.
+        $menuArea = explode('.', (string) request()->route()?->getName())[0];
+        $areaProfile = ['admin' => 'admin.profile.show', 'teacher' => 'teacher.profile.show', 'parent' => 'parent.profile', 'student' => 'student.profile'];
+        if (isset($areaProfile[$menuArea])) {
+            $profileRouteName = $areaProfile[$menuArea];
+            $passwordRouteName = $menuArea.'.password.edit';
+        } elseif ($authUser->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)) {
             $profileRouteName = 'admin.profile.show';
+            $passwordRouteName = 'admin.password.edit';
         } elseif ($authUser->hasRole(\App\Models\Role::STUDENT)) {
             $profileRouteName = 'student.profile';
+            $passwordRouteName = 'student.password.edit';
         }
     @endphp
     <div class="relative" x-data="{ open: false }" @click.outside="open = false">
         <button type="button" @click="open = !open" :aria-expanded="open"
                 class="flex min-h-9 items-center gap-2 rounded-xl border border-transparent px-1.5 py-1 text-xs font-bold text-slate-600 transition-colors hover:border-sky-100 hover:bg-sky-50">
-            <x-ws.avatar :name="$authUser->name ?? ''" size="sm" />
+            <x-ws.avatar :name="$authUser->name ?? ''" :src="$authUser->avatarUrl()" size="sm" />
             <span class="hidden max-w-[140px] truncate sm:inline">{{ $authUser->name }}</span>
             <x-lucide name="chevron-down" class="h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform" ::class="open ? 'rotate-180' : ''" />
         </button>
@@ -30,6 +40,12 @@
                 <a href="{{ route($profileRouteName) }}"
                    class="flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-sky-50 hover:text-blue-700">
                     <x-lucide name="user-cog" class="h-3.5 w-3.5" />Hồ sơ
+                </a>
+            @endif
+            @if ($passwordRouteName)
+                <a href="{{ route($passwordRouteName) }}"
+                   class="flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-sky-50 hover:text-blue-700">
+                    <x-lucide name="lock" class="h-3.5 w-3.5" />Đổi mật khẩu
                 </a>
             @endif
 

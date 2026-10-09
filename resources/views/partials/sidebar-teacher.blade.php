@@ -22,6 +22,7 @@
         ['label' => 'Ví token', 'route' => 'wallet.index', 'icon' => 'wallet-cards'],
         ['label' => 'Mã kích hoạt', 'route' => 'access.activate', 'icon' => 'key-round'],
         ['label' => 'Hồ sơ', 'route' => 'teacher.profile.show', 'icon' => 'user-cog'],
+        ['label' => 'Đổi mật khẩu', 'route' => 'teacher.password.edit', 'icon' => 'lock'],
     ];
 
     // Giữ nguyên luật cũ: route trùng nhau thì chỉ mục ĐẦU TIÊN được tính là đang mở.
