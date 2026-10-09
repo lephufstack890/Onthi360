@@ -54,12 +54,15 @@ class CompetitionService
     ];
 
     /** @return array{types: array, assessmentOptions: array, organizerTypes: array, teacherOptions: array} */
-    private function formOptions(): array
+    private function formOptions(?int $keepAssessmentId = null): array
     {
         return [
             'types' => [CompetitionType::Contest->value => 'Cuộc thi', CompetitionType::Survey->value => 'Khảo sát'],
             // Đề thi luôn thuộc Tài liệu (11.1) — cuộc thi chỉ THAM CHIẾU, không tạo đề riêng.
-            'assessmentOptions' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
+            // SỬA 11/10 (khách: "Đề/bộ bài tham chiếu chỉ đổ ra đề thuộc loại Đề thi") — chỉ liệt kê đề
+            // có Loại = "Đề thi" (AssessmentType::Exam). Khi SỬA cuộc thi mà đề đang gắn thuộc loại khác
+            // (dữ liệu cũ) thì vẫn giữ nó trong danh sách để lưu lại không làm mất liên kết ngầm.
+            'assessmentOptions' => $this->examAssessmentOptions($keepAssessmentId),
             'organizerTypes' => [
                 CompetitionOrganizerType::Internal->value => 'Nội bộ (nền tảng tự tổ chức)',
                 CompetitionOrganizerType::External->value => 'Bên ngoài tổ chức',
@@ -156,6 +159,46 @@ class CompetitionService
         ];
     }
 
+    /**
+     * SỬA 11/10 — danh sách đề cho ô "Đề/bộ bài tham chiếu": chỉ đề Loại "Đề thi".
+     *
+     * @return array<int, \App\Models\Assessment>
+     */
+    private function examAssessmentOptions(?int $keepId = null): array
+    {
+        return $this->assessments->query()
+            ->where(function ($q) use ($keepId) {
+                $q->where('type', \App\Enums\AssessmentType::Exam->value);
+                if ($keepId !== null) {
+                    $q->orWhere('id', $keepId);
+                }
+            })
+            ->orderBy('title')
+            ->get(['id', 'title'])
+            ->all();
+    }
+
+    /**
+     * SỬA 11/10 — chặn gửi tay id đề không phải "Đề thi" (trừ khi chính là đề đang gắn sẵn).
+     *
+     * @throws ValidationException
+     */
+    private function assertExamAssessment(mixed $assessmentId, ?int $currentId = null): void
+    {
+        if (blank($assessmentId) || (int) $assessmentId === (int) $currentId) {
+            return;
+        }
+
+        $ok = $this->assessments->query()
+            ->whereKey((int) $assessmentId)
+            ->where('type', \App\Enums\AssessmentType::Exam->value)
+            ->exists();
+
+        if (! $ok) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "Đề thi".']);
+        }
+    }
+
     /** admin.competitions.create — dữ liệu tĩnh cho form. */
     public function createFormData(): array
     {
@@ -219,6 +262,7 @@ class CompetitionService
     public function store(array $data): Competition
     {
         $this->assertOrganizerDataValid($data);
+        $this->assertExamAssessment($data['assessment_id'] ?? null);
         $this->assertDatesValid($data);
 
         $baseSlug = Str::slug($data['title']);
@@ -259,7 +303,7 @@ class CompetitionService
     {
         $competition = $this->competitions->query()->with('advisors')->findOrFail($competitionId);
 
-        return array_merge($this->formOptions(), [
+        return array_merge($this->formOptions($competition->assessment_id !== null ? (int) $competition->assessment_id : null), [
             'competition' => $competition,
             'selectedAdvisorIds' => $competition->advisors->pluck('id')->all(),
         ]);
@@ -268,6 +312,7 @@ class CompetitionService
     public function update(Competition $competition, array $data): Competition
     {
         $this->assertOrganizerDataValid($data);
+        $this->assertExamAssessment($data['assessment_id'] ?? null, $competition->assessment_id);
         $this->assertDatesValid($data);
 
         // Trạng thái TỰ TÍNH lại theo lịch mới nhập — trừ khi cuộc thi ĐANG "Lưu trữ" thì giữ
