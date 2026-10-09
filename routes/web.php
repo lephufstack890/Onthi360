@@ -764,6 +764,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('content/assessments/{assessment}', [AdminContentController::class, 'assessmentsUpdate'])->name('content.assessments.update');
         Route::get('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsEdit'])->name('content.assessments.items.edit');
         Route::put('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsUpdate'])->name('content.assessments.items.update');
+        // SỬA 9/10 — dời một câu lên/xuống ngay ở trang chi tiết đề (khỏi mở form Chọn câu hỏi).
+        Route::post('content/assessments/{assessment}/items/{item}/move', [AdminContentController::class, 'assessmentsItemsMove'])->name('content.assessments.items.move');
         Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
         Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');
         Route::post('content/assessments/{assessment}/archive', [AdminContentController::class, 'assessmentsArchive'])->name('content.assessments.archive');

@@ -2839,6 +2839,43 @@ class ContentService
     }
 
     /**
+     * SỬA 9/10 — dời 1 câu trong đề: 'up' lên một bậc, 'down' xuống một bậc, 'top' lên đầu.
+     * Chuẩn hoá cột order về 0..n-1 trước (đề cũ có thể trùng/lệch số), rồi đổi chỗ — nên bấm
+     * lần nào cũng có tác dụng. Chỉ đổi order, KHÔNG đụng điểm hay câu hỏi.
+     */
+    public function assessmentItemMove(Assessment $assessment, \App\Models\AssessmentItem $item, string $direction): void
+    {
+        DB::transaction(function () use ($assessment, $item, $direction) {
+            $ids = \App\Models\AssessmentItem::query()
+                ->where('assessment_id', $assessment->id)
+                ->orderBy('order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->all();
+
+            $from = array_search($item->id, $ids, true);
+            if ($from === false) {
+                return;
+            }
+
+            $to = match ($direction) {
+                'up' => max(0, $from - 1),
+                'down' => min(count($ids) - 1, $from + 1),
+                default => 0,
+            };
+
+            if ($to !== $from) {
+                $moved = array_splice($ids, $from, 1);
+                array_splice($ids, $to, 0, $moved);
+            }
+
+            foreach ($ids as $position => $id) {
+                \App\Models\AssessmentItem::query()->whereKey($id)->update(['order' => $position]);
+            }
+        });
+    }
+
+    /**
      * admin.content.assessments.items.update — thay TOÀN BỘ danh sách câu hỏi trong đề bằng
      * danh sách mới chọn (xoá hết item cũ rồi tạo lại theo đúng thứ tự tick trên form — đơn
      * giản, đủ dùng cho phạm vi này, giống cách teacher.assessments.store xử lý lúc tạo mới).

@@ -172,7 +172,7 @@
                     {{-- SỬA 18/8: trước đây chỗ này chỉ có 1 dòng TODO, click "Xem" không thấy câu hỏi
                          nào trong đề — nay hiện đúng danh sách câu hỏi thật ($model->items, đã eager-load
                          items.question ở ContentService::showData()) + nút sang màn "Chọn câu hỏi". --}}
-                    <section class="acx-card acx-card--white">
+                    <section class="acx-card acx-card--white" id="assessment-items">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="clipboard-list" /> Câu hỏi trong đề ({{ $model->items->count() }})</h2>
                             <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="akx-lnk">Quản lý câu hỏi ›</a>
@@ -182,13 +182,34 @@
                             <x-ws.empty-state title="Đề này chưa có câu hỏi nào" description="Bấm 'Quản lý câu hỏi' để chọn câu hỏi cho đề." actionLabel="Chọn câu hỏi" :actionHref="route('admin.content.assessments.items.edit', $model->id)" />
                         @else
                             <div class="apx-list">
+                                {{-- SỬA 9/10 (khách: "có nút đưa lên trước … cho từng câu hỏi để tôi thay đổi thứ
+                                     tự") — số thứ tự = "Câu N" học sinh thấy; ▲ ▼ dời một bậc, ⤒ đưa lên đầu. --}}
+                                <style>
+                                    .ai-no { display:inline-grid; place-items:center; flex:none; width:26px; height:26px; border-radius:999px; background:#EAF5F8; color:#126F91; font-size:11px; font-weight:800; }
+                                    .ai-mv { display:flex; align-items:center; gap:4px; flex:none; margin-left:10px; }
+                                    .ai-mv form { margin:0; }
+                                    .ai-btn { display:grid; place-items:center; width:30px; height:30px; border:1px solid #DDEAF0; border-radius:8px; background:#fff; color:#45657D; font-size:13px; line-height:1; cursor:pointer; }
+                                    .ai-btn:hover:not(:disabled) { border-color:#126F91; color:#126F91; background:#EAF5F8; }
+                                    .ai-btn:disabled { opacity:.35; cursor:not-allowed; }
+                                </style>
+                                @php $itemCount = $model->items->count(); @endphp
                                 @foreach ($model->items as $it)
                                     <div class="apx-item" style="padding:10px 2px">
                                         <div class="apx-item__main" style="display:flex;align-items:center;gap:8px">
+                                            <span class="ai-no">{{ $loop->iteration }}</span>
                                             <span class="shrink-0">{{ $assessmentTypeIcons[$it->question?->type?->value] ?? '❓' }}</span>
                                             <p class="apx-item__title" style="font-weight:500">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
                                         </div>
                                         <span class="apx-count">{{ $it->effectivePoints() }} điểm</span>
+                                        <div class="ai-mv">
+                                            @foreach ([['top', '⤒', 'Đưa lên đầu', $loop->first], ['up', '▲', 'Đưa lên trước', $loop->first], ['down', '▼', 'Đưa xuống sau', $loop->last]] as [$dir, $icon, $label, $off])
+                                                <form method="POST" action="{{ route('admin.content.assessments.items.move', [$model->id, $it->id]) }}">
+                                                    @csrf
+                                                    <input type="hidden" name="direction" value="{{ $dir }}">
+                                                    <button type="submit" class="ai-btn" title="{{ $label }}" aria-label="{{ $label }}" @disabled($off)>{{ $icon }}</button>
+                                                </form>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>

@@ -858,6 +858,23 @@ class ContentController extends Controller
         return redirect()->route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment'])->with('status', 'assessment-updated');
     }
 
+    /**
+     * SỬA 9/10 (khách: "có nút đưa lên trước … cho từng câu hỏi để tôi thay đổi thứ tự") — dời
+     * một câu trong đề lên/xuống một vị trí; thứ tự này chính là "Câu 1, Câu 2…" học sinh thấy.
+     */
+    public function assessmentsItemsMove(Request $request, Assessment $assessment, \App\Models\AssessmentItem $item): RedirectResponse
+    {
+        abort_unless((int) $item->assessment_id === (int) $assessment->id, 404);
+
+        $data = $request->validate(['direction' => ['required', 'in:up,down,top']]);
+
+        $this->contentService->assessmentItemMove($assessment, $item, $data['direction']);
+
+        return redirect()
+            ->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
+            ->with('status', 'assessment-updated');
+    }
+
     public function assessmentsUpdate(Request $request, Assessment $assessment): RedirectResponse
     {
         $data = $request->validate([
