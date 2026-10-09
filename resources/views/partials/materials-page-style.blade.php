@@ -50,11 +50,16 @@
     .mp-cat[aria-pressed="true"] { background: #138a8a; color: #fff; }
     .mp-grid-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     @media (min-width: 1024px) { .mp-grid-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .mp-span-2 { grid-column: span 2 / span 2; min-width: 0; }
     .mp-span-all { grid-column: 1 / -1; min-width: 0; }
     @media (min-width: 1024px) { .mp-span-3 { grid-column: span 3 / span 3; } }
-    .mp-span-2 { grid-column: span 2 / span 2; min-width: 0; }
     .mp-input { display: block; width: 100%; min-width: 0; min-height: 40px; border: 1px solid #d6e3ef; border-radius: 10px; background: #f8fafb; padding: 9px 12px; color: #365b7a; font-size: 12px; }
-    .mp-input:focus { outline: 2px solid #9dc8d7; outline-offset: 1px; background: #fff; }
+    .mp-input:focus { outline: 2px solid #9dc8d7; outline-offset: 1px; background-color: #fff; }
+    /* Ô chọn: bỏ giao diện gốc của trình duyệt (nền chuyển sắc + mũi tên đôi), vẽ phẳng đúng .material-input của bản mẫu. */
+    select.mp-input { -webkit-appearance: none; appearance: none; cursor: pointer; padding-right: 34px; line-height: 20px; text-overflow: ellipsis;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352687b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
+    select.mp-input:hover { border-color: #bddbe6; }
     .mp-search { position: relative; display: block; }
     .mp-search svg { position: absolute; left: 12px; top: 12px; width: 16px; height: 16px; color: #94a3b8; pointer-events: none; }
     .mp-search .mp-input { padding-left: 36px; }

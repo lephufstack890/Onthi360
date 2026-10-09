@@ -123,7 +123,7 @@
 
     {{-- ══════ 2. BỘ LỌC + CÁC KHÔNG GIAN THEO VAI TRÒ ══════ --}}
     <section aria-label="Bộ lọc tài liệu" class="mp-filters">
-        <div class="mp-scopes" role="tablist" aria-label="Không gian tài liệu" x-show="tabs.length > 1">
+        <div class="mp-scopes" role="tablist" aria-label="Không gian tài liệu">
             <template x-for="(tab, index) in tabs" :key="tab.id">
                 <button type="button" role="tab" :id="'mp-tab-' + tab.id" aria-controls="mp-panel"
                         :aria-selected="activeScope === tab.id ? 'true' : 'false'" :tabindex="activeScope === tab.id ? 0 : -1"
@@ -159,7 +159,7 @@
                 <span class="mp-search">
                     <x-lucide name="search" />
                     <input type="search" class="mp-input" aria-label="Tìm kiếm tài liệu" x-model="query"
-                           :placeholder="isAssignmentView ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)'">
+                           :placeholder="isAssignmentView ? (activeScope === 'managed' ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, người giao, lời nhắn...') : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)'">
                 </span>
             </label>
 
@@ -231,14 +231,6 @@
             </div>
             <button type="button" class="mp-text-btn" x-show="hasFilters" x-cloak @click="resetFilters()">Xóa bộ lọc</button>
         </div>
-
-        @if ($role === 'guest')
-            <p class="mp-alert-info">Bạn đang xem với tư cách khách. <a href="{{ route('login') }}" style="font-weight:700;color:#126f91">Đăng nhập</a> để mua, kích hoạt mã và theo dõi quyền sử dụng tài liệu.</p>
-        @elseif ($isAdmin)
-            <p class="mp-alert-info">Quản trị viên: bấm <b>Giao tài liệu</b> để cấp quyền đọc cho học sinh, hoặc <b>Quản lý tài liệu</b> để sửa nội dung, giá, độ khó và đánh giá của tài liệu.</p>
-        @elseif ($scope['canManage'])
-            <p class="mp-alert-info">Giáo viên: bấm <b>Giao tài liệu</b> trên thẻ tài liệu để cấp quyền đọc cho học sinh, rồi theo dõi trạng thái ở tab “Tài liệu đã giao”.</p>
-        @endif
 
         {{-- ── Lưới thẻ: Kho tài liệu / Tài liệu của tôi (dựng sẵn ở máy chủ) ── --}}
         <div class="mp-cards" x-show="!isAssignmentView && total > 0">
