@@ -57,8 +57,8 @@ class ContentController extends Controller
             // SỬA 4/10 (khách: "thêm phần lọc câu hỏi: câu hỏi xuất hiện trong đề, và câu hỏi
             // không xuất hiện trong đề") — 'used' / 'unused', xem applyQuestionBankFilters().
             // SỬA 7/10 (khách: tách tab "đã dùng / chưa dùng trong đề") — đây giờ là HAI TAB, không
-            // còn là ô lọc. Không có hoặc giá trị lạ -> tab "Đã dùng trong đề" (tab đầu tiên).
-            'in_exam' => in_array($request->query('in_exam'), ['used', 'unused'], true) ? $request->query('in_exam') : 'used',
+            // còn là ô lọc. Không có hoặc giá trị lạ -> tab "Bài chung" (tab đầu tiên, SỬA 9/10).
+            'in_exam' => in_array($request->query('in_exam'), ['used', 'unused'], true) ? $request->query('in_exam') : 'unused',
             'q' => $request->query('q') ?: null,
         ];
 

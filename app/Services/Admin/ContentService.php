@@ -262,12 +262,13 @@ class ContentService
         // SỬA 7/10 (khách: "tách thành 2 tab câu hỏi đã dùng trong đề và câu hỏi chưa dùng trong
         // đề") — tab "Câu hỏi" cũ tách đôi theo việc câu đã nằm trong đề nào chưa. Hai tab dùng
         // chung tab=questions, phân biệt bằng in_exam (xem ContentController::index()).
-        $inExamTab = ($filters['in_exam'] ?? 'used') === 'unused' ? 'unused' : 'used';
+        // SỬA 9/10 (khách: "chuyển tab Bài chung lên đầu") — tab đầu tiên là "Bài chung" nên đây cũng là mặc định.
+        $inExamTab = ($filters['in_exam'] ?? 'unused') === 'used' ? 'used' : 'unused';
         $usedCount = $this->questions->countAllFiltered(['in_exam' => 'used']);
         $unusedCount = $this->questions->countAllFiltered(['in_exam' => 'unused']);
         $tabs = [
-            ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
             ['label' => 'Bài chung', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
+            ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
             ['label' => 'Đề thi', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],

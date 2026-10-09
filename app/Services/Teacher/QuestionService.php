@@ -81,7 +81,7 @@ class QuestionService
     public function listForTeacher(User $user, string $tab, array $filters = [], int $paperCount = 0): array
     {
         // Link cũ (?tab=all|published|draft) rơi về tab mặc định.
-        $activeTab = in_array($tab, ['used', 'unused', 'assessments', 'shared'], true) ? $tab : 'used';
+        $activeTab = in_array($tab, ['used', 'unused', 'assessments', 'shared'], true) ? $tab : 'unused';
         $isShared = $activeTab === 'shared';
         $isQuestionTab = $activeTab !== 'assessments';
 
@@ -92,8 +92,8 @@ class QuestionService
         ];
 
         $tabs = [
-            ['label' => 'Bài của đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
             ['label' => 'Bài chung', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
+            ['label' => 'Bài của đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
             ['label' => 'Đề thi', 'href' => route('teacher.questions.index', ['tab' => 'assessments']), 'active' => $activeTab === 'assessments', 'count' => $paperCount],
             ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', ['tab' => 'shared']), 'active' => $isShared, 'count' => $counts['shared']],
         ];

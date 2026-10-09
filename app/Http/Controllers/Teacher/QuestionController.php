@@ -25,7 +25,7 @@ class QuestionController extends Controller
     public function index(Request $request): View
     {
         $user = Auth::user();
-        $tab = (string) $request->query('tab', 'used');
+        $tab = (string) $request->query('tab', 'unused');
 
         // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
         // admin") — đọc bộ lọc y hệt Admin\ContentController::index(). Chuỗi rỗng -> null để
