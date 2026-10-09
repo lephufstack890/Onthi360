@@ -27,6 +27,9 @@
 
     $assessment = $assessment ?? null;
     $adCoverUrl = $assessment?->coverUrl();
+    // SỬA 10/10 — ảnh bìa chọn từ catalog (App\Support\AssessmentCover): ảnh gắn sẵn lấy từ source mới.
+    $adCatalog = \App\Support\AssessmentCover::options();
+    $adCatalogPicked = (string) old('cover_catalog', \App\Support\AssessmentCover::idOf($assessment?->cover_image_path) ?? '');
 
     // Loại đang chọn: ưu tiên giá trị vừa nhập hỏng (old), rồi tới đề đang sửa, cuối cùng là
     // Luyện tập — đúng mặc định của ô "Loại" ở form tạo mới.
@@ -226,8 +229,41 @@
                 <p data-upload-too-big class="mt-1 hidden text-[11px] font-semibold text-rose-600"></p>
             </div>
         </div>
+
+        {{-- SỬA 10/10 — ẢNH BÌA TỪ CATALOG: bộ ảnh mặc định của source mới, bấm chọn là xong, khỏi phải
+             có sẵn tệp ảnh. Tải ảnh riêng ở ô trên thì ảnh riêng được ưu tiên. Chưa chọn gì = giữ nguyên
+             (tạo mới: đề không có ảnh bìa như trước). --}}
+        <div class="mt-3" x-data="{ picked: @js($adCatalogPicked) }">
+            <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <span class="block text-[13px] font-medium text-slate-600">Hoặc chọn ảnh bìa từ catalog</span>
+                <button type="button" class="adc-clear" x-show="picked !== ''" x-cloak @click="picked = ''">Bỏ chọn</button>
+            </div>
+            <div class="adc-grid" role="radiogroup" aria-label="Ảnh bìa đề từ catalog">
+                @foreach ($adCatalog as $adc)
+                    <label class="adc-item" :class="{ 'is-on': picked === @js($adc['id']) }">
+                        <input type="radio" name="cover_catalog" value="{{ $adc['id'] }}" x-model="picked">
+                        <img src="{{ $adc['url'] }}" alt="" loading="lazy">
+                        <span>{{ $adc['title'] }}</span>
+                    </label>
+                @endforeach
+            </div>
+            <p class="mt-1 text-xs leading-relaxed text-slate-400">Chọn một ảnh để dùng làm ảnh bìa. Nếu cũng tải ảnh riêng ở ô phía trên thì ảnh tải lên được ưu tiên.</p>
+            @error('cover_catalog')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+        </div>
     </div>
 </div>
+
+<style>
+    .adc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .adc-item { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 6px; box-sizing: border-box; border: 2px solid transparent; border-radius: 12px; background: #fff; padding: 7px; cursor: pointer; }
+    .adc-item:hover { border-color: #bfdbfe; }
+    .adc-item.is-on { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }
+    .adc-item input { position: absolute; right: 12px; top: 12px; width: 16px; height: 16px; margin: 0; accent-color: #2563eb; }
+    .adc-item img { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; object-fit: contain; background: #f8fbfc; }
+    .adc-item span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 11px; line-height: 1.35; font-weight: 600; color: #475569; }
+    .adc-clear { border: 0; background: transparent; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #126f91; cursor: pointer; }
+    .adc-clear:hover { background: #eaf5f8; }
+</style>
 
 {{-- Chặn sớm ở trình duyệt: tệp quá cỡ thì PHP vứt NGAY ở tầng web server, Laravel chỉ còn
      biết trả về đúng một câu ":attribute tải lên thất bại." mà không nói được cỡ tối đa là bao

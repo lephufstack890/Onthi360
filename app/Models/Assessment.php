@@ -99,7 +99,8 @@ class Assessment extends Model
      */
     public function coverUrl(): ?string
     {
-        return $this->cover_image_path ? asset('storage/'.$this->cover_image_path) : null;
+        // SỬA 10/10 — hiểu cả ảnh chọn từ catalog ("catalog:<id>") lẫn ảnh tải lên.
+        return \App\Support\AssessmentCover::url($this->cover_image_path);
     }
 
     /** Các material (chương/mục) trong sách/chuyên đề trỏ tới đề này qua type=assessment_ref. */

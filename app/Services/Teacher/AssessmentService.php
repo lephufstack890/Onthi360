@@ -264,7 +264,12 @@ class AssessmentService
             // SỬA 7/10 — số sao đánh giá nhập tay; chỉ lưu khi có ĐỦ cả điểm lẫn số lượt.
             'rating_score' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? round(max(0, min(5, (float) $data['rating_score'])), 1) : null,
             'rating_count' => filled($data['rating_score'] ?? null) && filled($data['rating_count'] ?? null) ? max(0, (int) $data['rating_count']) : 0,
-            'cover_image_path' => $cover !== null ? ImageOptimizer::store($cover, 'assessments/covers', 'public') : null,
+            // SỬA 10/10 — ưu tiên: ảnh tải lên > ảnh chọn từ catalog (App\Support\AssessmentCover) > không có.
+            'cover_image_path' => $cover !== null
+                ? ImageOptimizer::store($cover, 'assessments/covers', 'public')
+                : (($catalogId = \App\Support\AssessmentCover::normalize($data['cover_catalog'] ?? null)) !== null
+                    ? \App\Support\AssessmentCover::marker($catalogId)
+                    : null),
             // SỬA 2/10 lần 3 — tệp PDF xem trước (disk riêng tư 'local', ra ngoài qua route
             // practice.exam.preview). Lấy thẳng từ $data vì Validator trả về UploadedFile.
             'preview_pdf_path' => ($data['preview_pdf'] ?? null) instanceof UploadedFile
@@ -560,9 +565,15 @@ class AssessmentService
             $attributes['preview_pdf_original_name'] = null;
         }
 
+        // SỬA 10/10 — ưu tiên: tải ảnh riêng > chọn catalog > gỡ ảnh (xem App\Support\AssessmentCover).
+        $catalogId = \App\Support\AssessmentCover::normalize($data['cover_catalog'] ?? null);
+
         if ($cover !== null) {
             $this->forgetStoredFile('public', $assessment->cover_image_path);
             $attributes['cover_image_path'] = ImageOptimizer::store($cover, 'assessments/covers', 'public');
+        } elseif ($catalogId !== null) {
+            $this->forgetStoredFile('public', $assessment->cover_image_path);
+            $attributes['cover_image_path'] = \App\Support\AssessmentCover::marker($catalogId);
         } elseif ($removeCover) {
             $this->forgetStoredFile('public', $assessment->cover_image_path);
             $attributes['cover_image_path'] = null;

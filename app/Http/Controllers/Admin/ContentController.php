@@ -775,6 +775,7 @@ class ContentController extends Controller
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
             'remove_cover' => ['nullable', 'boolean'],
         ]);
 
@@ -907,6 +908,7 @@ class ContentController extends Controller
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
             'remove_cover' => ['nullable', 'boolean'],
         ]);
 

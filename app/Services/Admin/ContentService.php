@@ -3021,9 +3021,16 @@ class ContentService
             $attributes['preview_pdf_original_name'] = null;
         }
 
+        // SỬA 10/10 — ảnh bìa chọn từ catalog (AssessmentCover). Ưu tiên: tải ảnh riêng > chọn catalog > gỡ ảnh.
+        // Ảnh tải lên cũ bị xoá khỏi disk khi chuyển sang ảnh khác; ảnh catalog là ảnh dùng chung, không xoá.
+        $catalogId = \App\Support\AssessmentCover::normalize($data['cover_catalog'] ?? null);
+
         if ($cover !== null) {
             $this->forgetAssessmentCover($existing?->cover_image_path);
             $attributes['cover_image_path'] = ImageOptimizer::store($cover, self::ASSESSMENT_COVER_DIR, self::ASSESSMENT_COVER_DISK);
+        } elseif ($catalogId !== null) {
+            $this->forgetAssessmentCover($existing?->cover_image_path);
+            $attributes['cover_image_path'] = \App\Support\AssessmentCover::marker($catalogId);
         } elseif ($removeCover) {
             $this->forgetAssessmentCover($existing?->cover_image_path);
             $attributes['cover_image_path'] = null;

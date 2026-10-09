@@ -250,6 +250,7 @@ class AssessmentController extends Controller
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
         ];
     }
 
@@ -437,6 +438,7 @@ class AssessmentController extends Controller
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
+            'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
             'remove_cover' => ['nullable', 'boolean'],
             'answer_keys' => ['nullable', 'array'],
             'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
