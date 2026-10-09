@@ -32,6 +32,8 @@
     $bellViewAllRoute = $bellViewAllRoute ?? null;
 
     $headerUser = auth()->user();
+    // SỬA 9/10 — ảnh đại diện người dùng tự tải ở màn Hồ sơ (users.avatar_path); chưa có thì dùng ảnh mặc định như cũ.
+    $headerAvatar = $headerUser?->avatarUrl() ?: asset('assets/user-avatar.png');
     $headerRoleLabel = 'Khách vãng lai';
     $headerSub = 'Chưa đăng nhập';
     if ($headerUser) {
@@ -151,7 +153,7 @@
                 <button type="button" @click="roleDropdownOpen = !roleDropdownOpen"
                         class="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-slate-200 cursor-pointer shrink-0 select-none rounded-r-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         aria-label="Mở menu người dùng" :aria-expanded="roleDropdownOpen">
-                    <img src="{{ asset('assets/user-avatar.png') }}" alt="Avatar"
+                    <img src="{{ $headerAvatar }}" alt="Avatar"
                          class="w-8 h-8 rounded-full border-2 border-sky-300 object-cover shadow-2xs shrink-0">
                     <span class="text-left hidden min-[1800px]:block leading-tight">
                         <span class="block text-[13px] font-bold text-slate-800 leading-snug truncate max-w-[140px]">{{ $headerUser?->name ?? 'Khách khám phá' }}</span>
@@ -170,7 +172,7 @@
                     </div>
 
                     <div class="flex items-center gap-3 p-2.5 rounded-xl bg-blue-50/90 border border-blue-200">
-                        <img src="{{ asset('assets/user-avatar.png') }}" alt="{{ $headerUser?->name ?? 'Khách' }}"
+                        <img src="{{ $headerAvatar }}" alt="{{ $headerUser?->name ?? 'Khách' }}"
                              class="w-8 h-8 rounded-full object-cover border border-sky-200">
                         <span class="overflow-hidden">
                             <span class="type-card-title block truncate">{{ $headerUser?->name ?? 'Khách khám phá' }}</span>
