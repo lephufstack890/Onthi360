@@ -150,6 +150,9 @@
                     'examYear' => ($question ?? null) === null ? (int) date('Y') : ($question->exam_year ?? null),
                 ])
 
+                {{-- SỬA 10/10 (khách: "thêm 1 field Nguồn cho nhập vào") — ô Nguồn, ghi vào questions.source_name. --}}
+                @include('partials.question-source', ['source' => ($question ?? null)?->source_name])
+
                 {{-- SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn nha") — ẩn TẠM ô
                      "Nội dung đề bài" đúng như Kho chung bên admin; đề bài nhập bằng tệp PDF ở
                      mục "Tệp đính kèm" bên dưới. ĐÃ SỬA KÈM 2 chỗ, thiếu 1 trong 2 là hỏng:

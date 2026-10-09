@@ -604,7 +604,8 @@
                             @endauth
                             <span class="flex min-w-0 items-center gap-1 truncate">
                                 <x-lucide name="sparkles" class="h-3 w-3 shrink-0 text-[#3B9374]" />
-                                <span class="truncate">Nguồn: Kho {{ $prob['subjectLabel'] ?: 'Kho luyện tập Ôn Thi 360' }}</span>
+                                {{-- SỬA 10/10 — hiện ô Nguồn nhập tay; chưa nhập thì mặc định "Kho luyện tập Ôn Thi 360". --}}
+                                <span class="truncate" title="{{ ($prob['sourceName'] ?? '') !== '' ? $prob['sourceName'] : '' }}">Nguồn: {{ ($prob['sourceName'] ?? '') !== '' ? $prob['sourceName'] : 'Kho luyện tập Ôn Thi 360' }}</span>
                             </span>
                             @if ($asg)
                                 <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-meta" style="margin-top:0" title="Giao bởi {{ $asg['teacher'] }}">

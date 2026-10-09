@@ -1180,6 +1180,7 @@ class ContentService
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
             'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            ...\App\Support\QuestionSource::attributes($data), // SỬA 10/10 — ô Nguồn
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
             // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).
@@ -1253,6 +1254,7 @@ class ContentService
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
             'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            ...\App\Support\QuestionSource::attributes($data), // SỬA 10/10 — ô Nguồn
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
             // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).
@@ -1307,6 +1309,7 @@ class ContentService
             // null = "Chưa gán", không lưu rác vào cột lọc. Giống hệt cách làm với subject/grade.
             'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            ...\App\Support\QuestionSource::attributes($data), // SỬA 10/10 — ô Nguồn
             // SỬA 1/10 (khách: "chọn cơ bản là 2 điểm… khi chọn thì nó tự active vô field điểm
             // luôn không cho nhập điểm") — ĐIỂM tính lại Ở ĐÂY từ độ khó, KHÔNG tin ô input
             // (ô readonly vẫn sửa được bằng DevTools mà điểm thì ảnh hưởng kết quả chấm).

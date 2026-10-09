@@ -34,6 +34,8 @@ class Question extends Model
         // (App\Support\ProvinceCatalog, vd "HANOI") + năm của đề. Xem migration
         // add_province_exam_year_to_questions_table.
         'province', 'exam_year',
+        // SỬA 10/10 — ô "Nguồn" nhập tay (văn bản tự do), xem migration add_source_name_to_questions_table.
+        'source_name',
         'owner_type', 'owner_id', 'visibility', 'status', 'version', 'parent_version_id', 'created_by',
         // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — product_id khác null nghĩa là câu hỏi
         // này là bài tập riêng của 1 sản phẩm, không thuộc Kho câu hỏi dùng chung. Mọi nơi lấy

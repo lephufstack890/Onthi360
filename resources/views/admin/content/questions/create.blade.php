@@ -126,6 +126,9 @@
                                 'examYear' => (int) date('Y'),
                             ])
 
+                            {{-- SỬA 10/10 (khách: "thêm 1 field Nguồn cho nhập vào") — ô Nguồn, ghi vào questions.source_name. --}}
+                            @include('partials.question-source', ['source' => null])
+
                             {{-- SỬA 1/10 (khách: "trong admin chỗ tạo câu hỏi tạm thời ẩn nội dung đề bài đi") —
                                  Ô "Nội dung đề bài" được ẩn TẠM ở form TẠO: đề bài nhập bằng tệp PDF ở mục
                                  "Tệp đính kèm" bên dưới (statement_file). Form SỬA vẫn còn ô này, CỐ Ý:

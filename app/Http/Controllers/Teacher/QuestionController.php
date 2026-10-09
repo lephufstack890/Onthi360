@@ -213,6 +213,7 @@ class QuestionController extends Controller
             // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
             'province' => ['nullable', 'string', 'max:20'],
             'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
+            'source_name' => ['nullable', 'string', 'max:255'],
             // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
             // đang ẩn ở form (đề bài nhập bằng tệp PDF), nên KHÔNG còn 'required': để 'required'
             // thì mọi lần Lưu đều bị chặn "Nội dung đề bài là bắt buộc". Teacher\QuestionService

@@ -416,6 +416,7 @@ class ContentController extends Controller
             // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
             'province' => ['nullable', 'string', 'max:20'],
             'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
+            'source_name' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
@@ -457,6 +458,7 @@ class ContentController extends Controller
             // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
             'province' => ['nullable', 'string', 'max:20'],
             'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
+            'source_name' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.
@@ -490,6 +492,7 @@ class ContentController extends Controller
             // chặn cả form chỉ vì 1 ô phân loại tuỳ chọn.
             'province' => ['nullable', 'string', 'max:20'],
             'exam_year' => ['nullable', 'integer', 'min:'.ProvinceCatalog::MIN_YEAR, 'max:'.((int) date('Y') + 1)],
+            'source_name' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 30/9 — "thứ tự ưu tiên hiển thị": số càng lớn càng hiện trước, 0 = bình thường.

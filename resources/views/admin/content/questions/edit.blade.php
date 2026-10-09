@@ -116,6 +116,9 @@
                                  chạy nhanh. Xem partial + App\Support\ProvinceCatalog. --}}
                             @include('partials.question-province-year', ['province' => $question->province, 'examYear' => $question->exam_year])
 
+                            {{-- SỬA 10/10 (khách: "thêm 1 field Nguồn cho nhập vào") — ô Nguồn, ghi vào questions.source_name. --}}
+                            @include('partials.question-source', ['source' => $question->source_name])
+
                             {{-- SỬA 1/10 (khách: "nội dung đề bài bên chỗ cập nhật câu hỏi trong admin cũng
                                  ẩn đi nha") — ẩn TẠM, đề bài nhập bằng tệp PDF ở mục "Tệp đính kèm" dưới.
                                  ĐÃ SỬA KÈM ở ContentService::questionUpdate()/questionCreateNewVersion():

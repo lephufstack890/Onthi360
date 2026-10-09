@@ -544,6 +544,9 @@ class PracticeService
                 // Chưa gán -> provinceLabel()/examYearLabel() trả "—", cột vẫn có chỗ, không rỗng trơn.
                 'provinceLabel' => $q->provinceLabel(),
                 'examYearLabel' => $q->examYearLabel(),
+                // SỬA 10/10 (khách: "chỗ nguồn thì đổ field này ra") — ô Nguồn nhập tay ở form câu hỏi
+                // (questions.source_name). Trống -> '' để view tự rơi về nhãn mặc định như cũ.
+                'sourceName' => (string) ($q->source_name ?? ''),
                 // SỬA 7/10 — hai huy hiệu "Tỉnh/thành · Khu vực" dưới tên bài (ContentLocation.jsx).
                 // Khu vực suy ra từ mã tỉnh (ProvinceCatalog::region), không có cột riêng; chưa gán -> null.
                 'locProvince' => \App\Support\ProvinceCatalog::label($q->province),

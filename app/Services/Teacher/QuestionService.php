@@ -325,6 +325,7 @@ class QuestionService
             // sửa tay/link cũ) thành null = "Chưa gán", không lưu rác vào cột lọc.
             'province' => ProvinceCatalog::normalizeForQuestion($data['province'] ?? null),
             'exam_year' => ProvinceCatalog::normalizeYear($data['exam_year'] ?? null),
+            ...\App\Support\QuestionSource::attributes($data), // SỬA 10/10 — ô Nguồn
             // SỬA 1/10 (khách: "bên giáo viên cũng update giúp tôi luôn") — ô "Nội dung đề bài"
             // đang ẩn ở form, nên PHẢI phân biệt "form không gửi ô body" (GIỮ NGUYÊN đề bài cũ)
             // với "form gửi ô body rỗng" (CỐ Ý xoá). Trước đây dòng này là `$data['body']` nên
