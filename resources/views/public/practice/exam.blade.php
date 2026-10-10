@@ -233,13 +233,13 @@
 
                 <a href="{{ $takeHref }}"
                    class="hidden min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 text-[12px] font-semibold text-white transition hover:bg-[#0D5B77] sm:inline-flex">
-                    <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm lại đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
+                    <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
                 </a>
             </div>
 
             <a href="{{ $takeHref }}"
                class="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3 text-[12px] font-semibold text-white transition hover:bg-[#0D5B77] sm:hidden">
-                <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm lại đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
+                <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
             </a>
         </div>
     </header>

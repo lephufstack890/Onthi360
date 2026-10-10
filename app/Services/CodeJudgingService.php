@@ -87,6 +87,17 @@ class CodeJudgingService
             return $this->compileErrorResult($first, count($testCases), self::languageKey($language), $fileIo);
         }
 
+        /*
+         * SỬA 10/10 (khách: "chọn Python 3 nhập code Python mà không chấm được") — Python không có
+         * bước biên dịch, Judge0 báo lỗi cú pháp/thụt dòng của Python bằng trạng thái "Runtime Error"
+         * (NZEC) kèm traceback ở stderr chứ KHÔNG phải status 6. Nhận ra dấu hiệu đó ở test đầu để dừng
+         * ngay và hiện "Lỗi ở dòng N" như bản chấm gộp (py_compile) đang làm — không đốt thêm lượt chạy.
+         */
+        if (self::languageKey($language) === 'python' && $firstStatusId >= 7 && $firstStatusId <= 12
+            && self::looksLikePythonSyntaxError((string) ($first['stderr'] ?? ''))) {
+            return $this->compileErrorResult($first, count($testCases), 'python', $fileIo);
+        }
+
         $results = $firstResults;
 
         if (count($submissions) > 1) {
@@ -186,6 +197,12 @@ class CodeJudgingService
             'time' => $r['time'] ?? null,
             'memory' => $r['memory'] ?? null,
         ];
+    }
+
+    /** SỬA 10/10 — stderr của Python có phải lỗi CÚ PHÁP/THỤT DÒNG (không chạy nổi, khỏi chấm tiếp). */
+    public static function looksLikePythonSyntaxError(string $text): bool
+    {
+        return (bool) preg_match('/\b(SyntaxError|IndentationError|TabError)\b/', $text);
     }
 
     /**
@@ -460,6 +477,23 @@ PY;
 
         // 6 = Compilation Error — script `compile` thất bại. Dừng luôn, y như cách cũ.
         if ($statusId === 6) {
+            /*
+             * SỬA 10/10 (khách: "chọn Python 3 nhập code Python mà không chấm được") — với Python,
+             * script `compile` còn có thể hỏng vì lý do KHÔNG phải lỗi của học sinh: hộp cách ly không
+             * tìm thấy python3 ("Khong tim thay python3 tren may cham."), py_compile không ghi được
+             * __pycache__... Trước đây mọi trường hợp đó đều bị báo thành "Lỗi biên dịch" cho bài đúng.
+             * Chỉ tin khi log đúng là lỗi cú pháp/thụt dòng; còn lại quay về chấm từng test bằng
+             * trình chạy Python gốc của Judge0 (cách chấm không phụ thuộc script của mình).
+             */
+            if ($langKey === 'python' && ! self::looksLikePythonSyntaxError(
+                (string) ($result['compile_output'] ?? '').(string) ($result['stderr'] ?? '')
+            )) {
+                Log::warning('Chấm gộp Python: bước compile hỏng không phải do cú pháp, quay về chấm từng test: '
+                    .mb_substr(trim((string) ($result['compile_output'] ?? $result['stderr'] ?? '')), 0, 300));
+
+                return null;
+            }
+
             return $this->compileErrorResult($result, $count, $langKey, $fileIo);
         }
 
@@ -477,6 +511,17 @@ PY;
                 $count,
                 (string) ($result['status']['description'] ?? '?')
             ));
+
+            return null;
+        }
+
+        // SỬA 10/10 — mọi test cùng thoát mã 126/127 ("không chạy được / không tìm thấy lệnh") nghĩa là
+        // script không gọi được python3 chứ không phải bài sai: quay về cách chấm từng test.
+        if ($langKey === 'python' && $rows !== [] && count(array_filter(
+            $rows,
+            static fn (array $r) => in_array($r['exitCode'], [126, 127], true)
+        )) === count($rows)) {
+            Log::warning('Chấm gộp Python: mọi test đều thoát mã 126/127 (không gọi được python3), quay về chấm từng test.');
 
             return null;
         }
