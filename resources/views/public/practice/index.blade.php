@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Kho bài tập Thuật toán & Lập trình')
+@section('title', 'Luyện tập Thuật toán & Lập trình')
 @section('meta-description', 'Kho luyện tập Tin học của Ôn Thi 360 — bài tập theo chuyên đề có chấm tự động và đề thi luyện tập mô phỏng, lọc theo chuyên đề, độ khó và loại đề.')
 
 @section('content')
