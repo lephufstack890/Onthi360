@@ -48,7 +48,17 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v5';
+    private const CACHE_VERSION = 'v6';
+
+    /**
+     * SỬA 10/10 (khách: "đăng 62 bài mà trang Luyện tập chỉ hiện 60") — trần cứng cũ là 60 câu / 30 đề nên
+     * câu thứ 61 trở đi không bao giờ lên được trang công khai. Nâng trần cao hơn nhiều; danh sách vẫn được chia
+     * trang ở trình duyệt nên số lượng lớn không làm trang nặng thêm đáng kể. Chỉ là chốt an toàn, KHÔNG phải
+     * hạn mức nghiệp vụ.
+     */
+    private const PROBLEM_LIMIT = 2000;
+
+    private const EXAM_LIMIT = 500;
     /* v5 (8/10) — hàng bài tập nay có Time/Memory limit thật (trước đó luôn "—"). */
     /*
      * v3 (7/10) — hàng thẻ đề thêm độ khó, khu vực, điểm sao đánh giá và số lượt đánh giá.
@@ -218,7 +228,7 @@ class PracticeService
             ->where('status', 'published')
             ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
-            ->limit(30)
+            ->limit(self::EXAM_LIMIT)
             ->get();
 
         return $this->examRowsFor($assessments);
@@ -464,7 +474,7 @@ class PracticeService
                 // kéo cả hàng users (có email, số điện thoại… không việc gì ra trang công khai).
                 ->with(['tags:id,name', 'creator:id,name'])
             )
-        )->limit(60)->get();
+        )->limit(self::PROBLEM_LIMIT)->get();
 
         return $this->mapQuestionRows($questions);
     }
