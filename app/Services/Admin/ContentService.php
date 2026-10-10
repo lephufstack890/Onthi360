@@ -300,9 +300,11 @@ class ContentService
 
             // SỬA 7/10 — câu đứng NGAY TRƯỚC câu đầu trang này (ở trang trước), để nút "Đưa lên
             // trước" của dòng đầu trang 2+ biết phải chen lên trước câu nào.
-            $leadPrevId = $page > 1
-                ? ($this->questions->allWithOwnerFiltered($filters, 1, ($page - 1) * $perPage - 1)->first()?->id)
+            $leadPrev = $page > 1
+                ? $this->questions->allWithOwnerFiltered($filters, 1, ($page - 1) * $perPage - 1)->first()
                 : null;
+            $leadPrevId = $leadPrev?->id;
+            $leadPrevType = $leadPrev?->type->value;
 
             $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
@@ -332,6 +334,7 @@ class ContentService
                     'editHref' => route('admin.content.questions.edit', $q->id),
                     // SỬA 7/10 (khách: "hiển thị cột thứ tự hiển thị ra ngoài danh sách, sửa trực tiếp
                     // trên từng dòng") — số thứ tự hiện tại + địa chỉ lưu nhanh (PATCH, trả JSON).
+                    'typeValue' => $q->type->value,
                     'displayOrder' => (int) $q->display_order,
                     'orderHref' => route('admin.content.questions.displayOrder', $q->id),
                     // SỬA 4/10 — nút Xoá trên từng dòng. Bày cho mọi dòng; việc có xoá được hay
@@ -399,6 +402,7 @@ class ContentService
             // SỬA 7/10 — số thứ tự LỚN NHẤT toàn kho: nút "Đưa lên đầu" và nhãn "Đang ở đầu".
             'orderMax' => $tab === 'questions' ? $this->displayOrderMax() : 0,
             'leadPrevId' => $leadPrevId ?? null,
+            'leadPrevType' => $leadPrevType ?? null,
             'documents' => $documents,
             'tags' => $tags,
             'total' => match (true) {
@@ -1767,14 +1771,15 @@ class ContentService
      * lên đứng NGAY TRƯỚC $before (câu đang nằm liền phía trên nó trong danh sách), không động
      * tới thứ tự của các câu còn lại.
      *
-     * Vì sao không chỉ "+1 là xong": danh sách admin xếp display_order giảm dần rồi tới mới nhất
-     * trước, còn trang Luyện tập của học sinh lại xếp display_order giảm dần rồi tới id TĂNG
-     * dần (QuestionOrder::apply). Hai cách phá hoà khác nhau, nên cách duy nhất để HAI nơi cùng
-     * thấy câu này đứng trước câu kia là cho nó số LỚN HƠN HẲN, không để hoà. Vì vậy:
+     * Thứ tự này là thứ tự CHUNG của admin và trang Luyện tập (QuestionOrder::apply): gom theo dạng
+     * bài → display_order giảm dần → id TĂNG dần. Vì hoà số thì id nhỏ đứng trước, nên muốn chắc chắn
+     * câu này đứng trước câu kia ở cả hai nơi thì cho nó số LỚN HƠN HẲN, không để hoà. Vì vậy:
      *   - $question nhận số = $before + 1;
-     *   - nếu phía trên $before đã có câu nào số ≤ $before + 1 (hoặc hoà với $before) thì
-     *     đẩy tất cả các câu đứng trước $before lên 2 bậc để chúng vẫn ở trên $question.
+     *   - nếu phía trên $before (cùng dạng bài) đã có câu nào số ≤ $before + 1 thì đẩy các câu đó
+     *     lên 2 bậc để chúng vẫn ở trên $question.
      * Trường hợp hay gặp (cả kho đang 0 hết) chỉ cần: các câu phía trên thành 2, câu này thành 1.
+     * Thứ tự chỉ có nghĩa TRONG một dạng bài (dạng khác nhau thì xếp theo nhóm dạng) nên 2 câu khác
+     * dạng thì từ chối.
      *
      * @return array{ok:bool, message?:string}
      */
@@ -1784,24 +1789,24 @@ class ContentService
             return ['ok' => false, 'message' => 'Không thể đặt một câu trước chính nó.'];
         }
 
+        if ($question->type !== $before->type) {
+            return ['ok' => false, 'message' => 'Hai câu khác dạng bài — thứ tự chỉ đổi được trong cùng một dạng bài.'];
+        }
+
         $beforeOrder = (int) $before->display_order;
         if ((int) $question->display_order > $beforeOrder) {
             return ['ok' => true]; // đã đứng trước hẳn rồi (số lớn hơn) — không cần làm gì
         }
 
         return DB::transaction(function () use ($question, $before, $beforeOrder): array {
-            // Nhóm "đứng trước $before" theo thứ tự danh sách admin (không tính chính $question).
+            // Nhóm "đứng trước $before" theo thứ tự chung (cùng dạng bài, không tính chính $question).
+            $typeValue = $before->type->value;
             $above = fn () => Question::query()->where('id', '!=', $question->id)
+                ->where('type', $typeValue)
                 ->where(function ($q) use ($before, $beforeOrder) {
                     $q->where('display_order', '>', $beforeOrder)
                         ->orWhere(function ($q) use ($before, $beforeOrder) {
-                            $q->where('display_order', $beforeOrder)
-                                ->where(function ($q) use ($before) {
-                                    $q->where('created_at', '>', $before->created_at)
-                                        ->orWhere(function ($q) use ($before) {
-                                            $q->where('created_at', $before->created_at)->where('id', '>', $before->id);
-                                        });
-                                });
+                            $q->where('display_order', $beforeOrder)->where('id', '<', $before->id);
                         });
                 });
 
@@ -1815,7 +1820,7 @@ class ContentService
                     return ['ok' => false, 'message' => 'Không đẩy thêm được: thứ tự đã chạm mốc '.self::DISPLAY_ORDER_LIMIT.'. Hãy đặt lại số nhỏ hơn cho các câu đứng đầu.'];
                 }
                 // Thứ tự quan trọng: tăng nhóm "số lớn hơn" TRƯỚC, rồi mới nâng nhóm hoà số.
-                Question::query()->where('id', '!=', $question->id)
+                Question::query()->where('id', '!=', $question->id)->where('type', $typeValue)
                     ->where('display_order', '>', $beforeOrder)->increment('display_order', 2);
                 $above()->where('display_order', $beforeOrder)->update(['display_order' => $beforeOrder + 2]);
             } elseif ($newValue > self::DISPLAY_ORDER_LIMIT) {

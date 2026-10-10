@@ -346,9 +346,9 @@
                                              — chỉ còn nút chen câu này lên ngay trước câu phía trên nó; số thứ tự nằm trong
                                              ô ẩn để máy chủ trả số mới về. Dòng đầu trang 1 → "Đang ở đầu". --}}
                                         @if ($isQuestions)
-                                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}">
+                                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}" data-type="{{ $r['typeValue'] ?? '' }}">
                                                 <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
-                                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
+                                                <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" data-prevtype="{{ $leadPrevType ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
                                                 <span class="oi-ord__st" aria-live="polite"></span>
                                             </span>
                                         @endif
@@ -516,14 +516,19 @@
                 // Nút "Đưa lên trước": dòng đầu trang 1 → "Đang ở đầu"; nếu số trên màn hình đã lệch
                 // với danh sách (dirty) thì khoá cho tới khi bấm "Sắp xếp lại danh sách".
                 function refreshButtons() {
-                    boxes().forEach(function (box, i) {
+                    var all = boxes();
+                    all.forEach(function (box, i) {
                         var v = parseInt(box.dataset.saved, 10) || 0;
                         var btn = box.querySelector('[data-act="up"]');
                         var atTop = i === 0 && pageNo === 1;
-                        btn.disabled = atTop || dirty;
-                        btn.textContent = atTop ? 'Đang ở đầu' : 'Đưa lên trước';
+                        // Thứ tự chỉ đổi được trong cùng một dạng bài: câu đầu nhóm dạng thì không có câu "phía trên" cùng dạng.
+                        var prevType = i > 0 ? all[i - 1].dataset.type : (btn.dataset.prevtype || '');
+                        var groupTop = !atTop && !!prevType && prevType !== (box.dataset.type || '');
+                        btn.disabled = atTop || groupTop || dirty;
+                        btn.textContent = atTop || groupTop ? 'Đang ở đầu' : 'Đưa lên trước';
                         btn.title = atTop ? 'Câu này đang đứng đầu danh sách'
-                            : (dirty ? 'Bấm "Sắp xếp lại danh sách" trước khi chuyển vị trí' : 'Đưa câu này lên đứng ngay trước câu phía trên nó');
+                            : (groupTop ? 'Câu này đang đứng đầu dạng bài của nó'
+                            : (dirty ? 'Bấm "Sắp xếp lại danh sách" trước khi chuyển vị trí' : 'Đưa câu này lên đứng ngay trước câu phía trên nó'));
                         box.querySelector('.oi-ord__in').classList.toggle('is-set', v > 0);
                     });
                 }

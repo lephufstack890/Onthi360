@@ -80,6 +80,9 @@
         .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 190px 132px; }
     }
 
+    /* SỬA 10/10 — chip Chuyên đề dài quá thì cắt "…" trong đúng cột của nó (không đè sang cột Năm). Rê chuột vẫn đọc đủ nhờ title. */
+    .oi-topic-chip { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     /* SỬA 8/10 — nút sắp xếp ở đầu cột (PracticeSortButton của source mới). */
     .oi-sort-btn { display: inline-flex; align-items: center; gap: .375rem; padding: 0; margin: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; transition: color .15s; }
     .oi-sort-btn:hover, .oi-sort-btn:focus-visible { color: #126F91; outline: none; }
@@ -663,7 +666,7 @@
                     <div class="col-span-1 grid grid-cols-2 gap-2 lg:contents">
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
-                            <span class="block truncate rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A] lg:inline-block" title="{{ $prob['topicLabel'] }}">{{ $prob['topicLabel'] }}</span>
+                            <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['topicLabel'] }}">{{ $prob['topicLabel'] }}</span>
                         </div>
 
                         {{-- SỬA 1/10 — 2 ô mới. Trên mobile là ô có nhãn như các ô khác, lên lg
@@ -780,11 +783,12 @@
                                 class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                             <x-lucide name="chevron-left" class="h-4 w-4" />
                         </button>
-                        <template x-for="n in problemTotalPages" :key="'pp' + n">
-                            <button type="button" :aria-label="'Trang ' + n" :aria-current="problemPage === n ? 'page' : null" @click="problemPageIndex = n"
+                        <template x-for="it in problemPageItems" :key="'pp' + it.key">
+                            <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                            <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="problemPage === it.n ? 'page' : null" @click="problemPageIndex = it.n"
                                     class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
-                                    :class="problemPage === n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
-                                    x-text="n"></button>
+                                    :class="problemPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                                    x-text="it.n"></button>
                         </template>
                         <button type="button" aria-label="Trang sau" :disabled="problemPage === problemTotalPages" @click="problemPageIndex = Math.min(problemTotalPages, problemPage + 1)"
                                 class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
@@ -1192,11 +1196,12 @@
                         class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
                     <x-lucide name="chevron-left" class="h-4 w-4" />
                 </button>
-                <template x-for="n in examTotalPages" :key="'ep' + n">
-                    <button type="button" :aria-label="'Trang ' + n" :aria-current="examPage === n ? 'page' : null" @click="examPageIndex = n"
+                <template x-for="it in examPageItems" :key="'ep' + it.key">
+                    <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                    <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="examPage === it.n ? 'page' : null" @click="examPageIndex = it.n"
                             class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
-                            :class="examPage === n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
-                            x-text="n"></button>
+                            :class="examPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                            x-text="it.n"></button>
                 </template>
                 <button type="button" aria-label="Trang sau" :disabled="examPage === examTotalPages" @click="examPageIndex = Math.min(examTotalPages, examPage + 1)"
                         class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">

@@ -279,6 +279,27 @@
                 return list;
             },
 
+            // Dãy số trang rút gọn: 1 … 4 5 6 … 20. Ít trang (<= 7) thì hiện hết.
+            pageItems(current, total) {
+                const items = [];
+                const add = (n) => items.push({ key: 'n' + n, n, gap: false });
+                if (total <= 7) { for (let i = 1; i <= total; i++) add(i); return items; }
+                let from = Math.max(2, current - 1);
+                let to = Math.min(total - 1, current + 1);
+                if (current <= 3) { from = 2; to = 4; }
+                if (current >= total - 2) { from = total - 3; to = total - 1; }
+                if (from === 3) from = 2;            // dấu … chỉ che 1 trang thì hiện luôn trang đó
+                if (to === total - 2) to = total - 1;
+                add(1);
+                if (from > 2) items.push({ key: 'gl', n: 0, gap: true });
+                for (let i = from; i <= to; i++) add(i);
+                if (to < total - 1) items.push({ key: 'gr', n: 0, gap: true });
+                add(total);
+                return items;
+            },
+            get problemPageItems() { return this.pageItems(this.problemPage, this.problemTotalPages); },
+            get examPageItems() { return this.pageItems(this.examPage, this.examTotalPages); },
+
             get problemTotalPages() { return Math.max(1, Math.ceil(this.filteredProblems.length / this.problemPageSize)); },
             get examPageSizeNow() { return this.examScope === 'assigned' ? 8 : this.examPageSize; },
             get examTotalPages() { return Math.max(1, Math.ceil(this.filteredExams.length / this.examPageSizeNow)); },

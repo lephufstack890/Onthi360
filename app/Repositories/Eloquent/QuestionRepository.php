@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Support\QuestionOrder;
 use App\Models\Question;
 use App\Repositories\Contracts\QuestionRepositoryInterface;
 use App\Support\PracticeQuestionPool;
@@ -63,14 +64,11 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      */
     public function allWithOwnerFiltered(array $filters, int $limit = 50, int $offset = 0): Collection
     {
-        // SỬA 30/9 (khách: "chưa có thứ tự ưu tiên hiển thị") — câu được đặt ưu tiên cao hiện
-        // lên đầu kho; phần còn lại giữ nguyên thứ tự cũ (mới nhất trước), xem migration
-        // add_display_order_to_questions_table.
-        return $this->applyQuestionBankFilters($this->query()->with('owner'), $filters)
-            ->orderByDesc('display_order')
-            // SỬA 7/10 — thêm id làm khoá phụ: nhiều câu cùng created_at (nhập hàng loạt) mà không có
-            // khoá phụ thì thứ tự giữa các câu đó không ổn định, sang trang 2 có thể lặp/mất câu.
-            ->latest()->orderByDesc('id')
+        // SỬA 10/10 (khách: "thứ tự các câu ở danh sách admin phải trùng trang luyện tập public để
+        // người ta đưa lên trước theo dõi cho dễ") — dùng CHUNG QuestionOrder::apply() với trang
+        // Luyện tập: gom theo dạng bài → thứ tự hiển thị giảm dần → id tăng dần. Trước đây admin xếp
+        // "mới nhất trước" nên hai nơi lệch nhau. id đã là khoá phụ cố định nên phân trang không lặp/mất câu.
+        return QuestionOrder::apply($this->applyQuestionBankFilters($this->query()->with('owner'), $filters))
             ->offset($offset)->limit($limit)->get();
     }
 
