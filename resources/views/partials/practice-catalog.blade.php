@@ -784,11 +784,13 @@
                             <x-lucide name="chevron-left" class="h-4 w-4" />
                         </button>
                         <template x-for="it in problemPageItems" :key="'pp' + it.key">
-                            <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
-                            <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="problemPage === it.n ? 'page' : null" @click="problemPageIndex = it.n"
-                                    class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
-                                    :class="problemPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
-                                    x-text="it.n"></button>
+                            <span style="display:contents">
+                                <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                                <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="problemPage === it.n ? 'page' : null" @click="problemPageIndex = it.n"
+                                        class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
+                                        :class="problemPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                                        x-text="it.n"></button>
+                            </span>
                         </template>
                         <button type="button" aria-label="Trang sau" :disabled="problemPage === problemTotalPages" @click="problemPageIndex = Math.min(problemTotalPages, problemPage + 1)"
                                 class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
@@ -1197,11 +1199,13 @@
                     <x-lucide name="chevron-left" class="h-4 w-4" />
                 </button>
                 <template x-for="it in examPageItems" :key="'ep' + it.key">
-                    <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
-                    <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="examPage === it.n ? 'page' : null" @click="examPageIndex = it.n"
-                            class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
-                            :class="examPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
-                            x-text="it.n"></button>
+                    <span style="display:contents">
+                        <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                        <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="examPage === it.n ? 'page' : null" @click="examPageIndex = it.n"
+                                class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
+                                :class="examPage === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                                x-text="it.n"></button>
+                    </span>
                 </template>
                 <button type="button" aria-label="Trang sau" :disabled="examPage === examTotalPages" @click="examPageIndex = Math.min(examTotalPages, examPage + 1)"
                         class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
