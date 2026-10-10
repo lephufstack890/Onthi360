@@ -1569,6 +1569,12 @@ class ContentService
      */
     private function resolveFileIo(array $data): ?array
     {
+        // SỬA 10/10 (khách: "để mặc định Bàn phím / màn hình thì phải lưu cái đó, không phải lưu tệp có tên")
+        // — người dùng chọn 'std' thì KHÔNG lưu tên tệp nào, dù 2 ô (đang ẩn) có chứa gì.
+        if (($data['io_mode'] ?? null) === 'std') {
+            return null;
+        }
+
         if (! array_key_exists('file_io_input', $data) && ! array_key_exists('file_io_output', $data)) {
             return $data['file_io'] ?? null;
         }

@@ -237,6 +237,9 @@
                                     if (this.ioMode === 'file') this.fill();
                                 },
                                 fill() {
+                                    // SỬA 10/10 (khách: chọn "Bàn phím / màn hình" mà vẫn lưu tên tệp) — CHỈ tự điền khi đang chọn "Tệp có tên".
+                                    // Trước đây gõ mã câu hỏi là điền MÃ.INP/MÃ.OUT vào 2 ô đang bị ẩn, rồi form gửi chúng lên và lưu thành đề đọc/ghi tệp.
+                                    if (this.ioMode !== 'file') return;
                                     var c = this.code();
                                     if (!this.auto || c === '') return;
                                     this.$refs.fioIn.value = c + '.INP';

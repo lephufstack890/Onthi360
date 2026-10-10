@@ -203,6 +203,9 @@
                                                 if (this.ioMode === 'file') this.fill();
                                             },
                                             fill() {
+                                                // SỬA 10/10 (khách: chọn "Bàn phím / màn hình" mà vẫn lưu tên tệp) — CHỈ tự điền khi đang chọn "Tệp có tên".
+                                                // Trước đây gõ mã câu hỏi là điền MÃ.INP/MÃ.OUT vào 2 ô đang bị ẩn, rồi form gửi chúng lên và lưu thành đề đọc/ghi tệp.
+                                                if (this.ioMode !== 'file') return;
                                                 var c = this.code();
                                                 if (!this.auto || c === '') return;
                                                 this.$refs.fioIn.value = c + '.INP';
@@ -226,7 +229,7 @@
                                      x-on:input.window="if ($event.target && $event.target.id === codeId) fill()">
                                     <div class="qe-field">
                                         <label for="io_mode">Đọc / ghi dữ liệu</label>
-                                        <x-ws.select id="io_mode" x-model="ioMode" x-on:change="pick()">
+                                        <x-ws.select id="io_mode" name="io_mode" x-model="ioMode" x-on:change="pick()">
                                             <option value="std">Bàn phím / màn hình</option>
                                             <option value="file">Tệp có tên</option>
                                         </x-ws.select>
