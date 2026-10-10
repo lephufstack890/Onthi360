@@ -445,12 +445,47 @@
              cuộn hai bên để danh sách nhiều thẻ vẫn gọn. Cuộn bằng $refs của Alpine, không
              thêm mã script mới. --}}
         <div class="relative">
-            <button type="button" aria-label="Cuộn chuyên đề sang trái" title="Cuộn sang trái"
-                    @click="$refs.topicRail.scrollBy({ left: -260, behavior: 'smooth' })"
+            <button type="button" x-ref="topicPrev" aria-label="Cuộn chuyên đề sang trái" title="Cuộn sang trái"
+                    @click="$refs.topicRail.scrollBy({ left: -Math.max(260, $refs.topicRail.clientWidth * 0.7), behavior: 'smooth' })"
                     class="absolute left-0 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[#D6E3EF] bg-white/95 text-[#123B68] shadow-[0_3px_10px_rgba(18,59,104,0.1)] transition hover:bg-[#EEF4FA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:grid">
                 <x-lucide name="chevron-left" class="h-4 w-4" />
             </button>
-            <div x-ref="topicRail" class="flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar py-0.5 sm:px-9">
+            {{-- SỬA 10/10 (khách: "2 nút mũi tên bấm qua lại không được, kéo qua kéo lại không được") —
+                 (1) trước đây chỉ liệt kê 12 chuyên đề đầu nên băng gần như vừa khít màn hình, không có
+                 gì để cuộn; giờ liệt kê ĐỦ. (2) Thêm KÉO BẰNG CHUỘT (điện thoại vẫn vuốt tay như cũ);
+                 vừa kéo xong không bấm nhầm vào thẻ chuyên đề dưới con trỏ. (3) Hai nút mũi tên mờ đi
+                 khi đã tới đầu/cuối và TỰ ẨN khi băng không dài hơn khung (không còn nút "bấm không ăn"). --}}
+            <div x-ref="topicRail" style="cursor:grab" class="flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar py-0.5 sm:px-9"
+                 x-init="(() => {
+                    const el = $el;
+                    let down = false, moved = false, startX = 0, startLeft = 0;
+                    const sync = () => {
+                        const prev = $refs.topicPrev, next = $refs.topicNext; // nút 'next' nằm SAU băng nên phải lấy lúc chạy, không lấy lúc khởi tạo
+                        const max = el.scrollWidth - el.clientWidth;
+                        const overflow = max > 2;
+                        [prev, next].forEach((b) => { if (b) b.style.display = overflow ? '' : 'none'; });
+                        if (prev) { prev.disabled = el.scrollLeft <= 2; prev.style.opacity = prev.disabled ? '.4' : ''; }
+                        if (next) { next.disabled = el.scrollLeft >= max - 2; next.style.opacity = next.disabled ? '.4' : ''; }
+                    };
+                    el.addEventListener('scroll', sync, { passive: true });
+                    window.addEventListener('resize', sync);
+                    if (window.ResizeObserver) new ResizeObserver(sync).observe(el);
+                    setTimeout(sync, 0); setTimeout(sync, 400);
+                    el.addEventListener('pointerdown', (e) => {
+                        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+                        down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft;
+                    });
+                    window.addEventListener('pointermove', (e) => {
+                        if (!down) return;
+                        const dx = e.clientX - startX;
+                        if (!moved && Math.abs(dx) > 5) { moved = true; el.style.scrollBehavior = 'auto'; el.style.cursor = 'grabbing'; }
+                        if (moved) { el.scrollLeft = startLeft - dx; e.preventDefault(); }
+                    });
+                    const end = () => { if (!down) return; down = false; el.style.scrollBehavior = ''; el.style.cursor = 'grab'; };
+                    window.addEventListener('pointerup', end);
+                    window.addEventListener('pointercancel', end);
+                    el.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+                 })()">
             <button type="button" @click="setTopic('all')" :aria-pressed="selectedTopic === 'all'"
                     class="inline-flex min-h-9 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
                     :class="selectedTopic === 'all' ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">
@@ -459,7 +494,7 @@
                 </span>
                 Tất cả chuyên đề
             </button>
-            @foreach (array_slice($practiceTags, 0, 12) as $i => $tag)
+            @foreach ($practiceTags as $i => $tag)
                 @php $icon = $topicChipIcons[$i % count($topicChipIcons)]; @endphp
                 <button type="button" @click="setTopic({{ $tag['id'] }})" :aria-pressed="selectedTopic === {{ $tag['id'] }}"
                         class="inline-flex min-h-9 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
@@ -471,8 +506,8 @@
                 </button>
             @endforeach
             </div>
-            <button type="button" aria-label="Cuộn chuyên đề sang phải" title="Cuộn sang phải"
-                    @click="$refs.topicRail.scrollBy({ left: 260, behavior: 'smooth' })"
+            <button type="button" x-ref="topicNext" aria-label="Cuộn chuyên đề sang phải" title="Cuộn sang phải"
+                    @click="$refs.topicRail.scrollBy({ left: Math.max(260, $refs.topicRail.clientWidth * 0.7), behavior: 'smooth' })"
                     class="absolute right-0 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[#D6E3EF] bg-white/95 text-[#123B68] shadow-[0_3px_10px_rgba(18,59,104,0.1)] transition hover:bg-[#EEF4FA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:grid">
                 <x-lucide name="chevron-right" class="h-4 w-4" />
             </button>
