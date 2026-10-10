@@ -279,22 +279,24 @@
                 return list;
             },
 
-            // Dãy số trang rút gọn: 1 … 4 5 6 … 20. Ít trang (<= 7) thì hiện hết.
+            // Dãy số trang rút gọn, vd 8 trang: 1 2 3 4 5 6 … 8. Đứng gần đầu thì hiện 6 trang đầu,
+            // gần cuối thì hiện 6 trang cuối (1 … 3 4 5 6 7 8), ở giữa thì 1 … 4 5 6 … 8. Tối đa 7 trang thì hiện hết.
             pageItems(current, total) {
                 const items = [];
                 const add = (n) => items.push({ key: 'n' + n, n, gap: false });
+                const gap = (k) => items.push({ key: k, n: 0, gap: true });
                 if (total <= 7) { for (let i = 1; i <= total; i++) add(i); return items; }
-                let from = Math.max(2, current - 1);
-                let to = Math.min(total - 1, current + 1);
-                if (current <= 3) { from = 2; to = 4; }
-                if (current >= total - 2) { from = total - 3; to = total - 1; }
-                if (from === 3) from = 2;            // dấu … chỉ che 1 trang thì hiện luôn trang đó
-                if (to === total - 2) to = total - 1;
-                add(1);
-                if (from > 2) items.push({ key: 'gl', n: 0, gap: true });
-                for (let i = from; i <= to; i++) add(i);
-                if (to < total - 1) items.push({ key: 'gr', n: 0, gap: true });
-                add(total);
+                if (current <= 4) {
+                    for (let i = 1; i <= 6; i++) add(i);
+                    gap('gr'); add(total);
+                } else if (current >= total - 3) {
+                    add(1); gap('gl');
+                    for (let i = total - 5; i <= total; i++) add(i);
+                } else {
+                    add(1); gap('gl');
+                    for (let i = current - 1; i <= current + 1; i++) add(i);
+                    gap('gr'); add(total);
+                }
                 return items;
             },
             get problemPageItems() { return this.pageItems(this.problemPage, this.problemTotalPages); },
