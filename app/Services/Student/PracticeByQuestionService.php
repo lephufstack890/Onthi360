@@ -243,6 +243,10 @@ class PracticeByQuestionService
         return [
             'finished' => false,
             'question' => $question,
+            // SỬA 10/10 — tên tệp vào/ra (null = bàn phím/màn hình): dòng Input/Output ở thanh dưới + mã mẫu freopen.
+            'fileIo' => $question->type->value === 'coding'
+                ? \App\Services\CodeJudgingService::fileIoNames($question->grading_config['file_io'] ?? null)
+                : null,
             'options' => $question->grading_config['options'] ?? [],
             'compositeParts' => $question->type->value === 'composite'
                 ? $this->sanitizedCompositeParts($question->grading_config['parts'] ?? [])

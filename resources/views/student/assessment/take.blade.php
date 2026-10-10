@@ -471,10 +471,20 @@
              rõ): đây là điểm của CẢ ĐỀ gồm nhiều câu đủ dạng, cộng số test của các câu lập trình
              lại với nhau thì con số chẳng có nghĩa gì. --}}
         @php $last = $lastResult ?? null; @endphp
+        <style>
+            .oi-io-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 2px; margin: 0; font-size: 10px; line-height: 1.4; color: #607A90; }
+            .oi-io-line > span { display: inline-flex; align-items: baseline; gap: 4px; }
+            .oi-io-line code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-weight: 700; color: #365B7A; }
+        </style>
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
                 <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $assessmentTitle }}</p>
-                <p class="hidden text-[10px] text-[#607A90] sm:block"
+                {{-- SỬA 10/10 — câu lập trình đang mở: hiện Input/Output (tên tệp INP/OUT nếu câu đọc/ghi qua tệp, không thì stdin/stdout). --}}
+                <p class="oi-io-line" x-show="currentKind() === 'code'" x-cloak data-io-line>
+                    <span>Input <template x-if="activeFileIo() && activeFileIo().input"><code x-text="activeFileIo().input"></code></template><template x-if="!(activeFileIo() && activeFileIo().input)"><span>chuẩn <code>(stdin)</code></span></template></span>
+                    <span>Output <template x-if="activeFileIo() && activeFileIo().output"><code x-text="activeFileIo().output"></code></template><template x-if="!(activeFileIo() && activeFileIo().output)"><span>chuẩn <code>(stdout)</code></span></template></span>
+                </p>
+                                <p class="hidden text-[10px] text-[#607A90] sm:block" x-show="currentKind() !== 'code'"
                    {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, câu nhắc phải nói rõ lý do. --}}
                    x-text="activeTab === 'work' ? 'Bài làm tự lưu — bấm Nộp đề khi xong.' : 'Chuyển sang tab Làm bài để nộp đề.'">Bài làm tự lưu — bấm Nộp đề khi xong.</p>
             </div>

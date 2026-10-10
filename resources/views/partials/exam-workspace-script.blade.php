@@ -258,6 +258,8 @@
                     if (isStarterCode(this.codes[id], fileIo)) this.codes[id] = starterCodeFor(this.languages[id], fileIo);
                     this.onCode(id);
                 },
+                // SỬA 10/10 — tên tệp vào/ra của câu đang mở (dòng Input/Output ở thanh dưới).
+                activeFileIo() { return this.fileIoOf(this.activeId); },
                 // SỬA 9/10 — tên tệp vào/ra của câu (null nếu đề đọc/ghi bằng bàn phím/màn hình).
                 fileIoOf(id) {
                     var q = this.questions.find(function (x) { return x.id === id; });
