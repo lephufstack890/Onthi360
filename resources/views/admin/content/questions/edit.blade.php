@@ -345,17 +345,8 @@
                         </div>
                         <div class="qe-field">
                             <label>Tag/Chuyên đề</label>
-                            @if ($allTags->isNotEmpty())
-                                <div class="flex flex-wrap gap-2 mb-2">
-                                    @foreach ($allTags as $tagOption)
-                                        <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-sky-100 text-xs text-slate-600 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 has-[:checked]:text-blue-600">
-                                            <input type="checkbox" name="tag_ids[]" value="{{ $tagOption->id }}"
-                                                   @checked(collect(old('tag_ids', $question->tags->pluck('id')->all()))->contains((string) $tagOption->id))>
-                                            {{ $tagOption->name }}
-                                        </label>
-                                    @endforeach
-                                </div>
-                            @endif
+                            @include('partials.tag-picker', ['tags' => $allTags, 'selected' => old('tag_ids', $question->tags->pluck('id')->all())])
+                            <div style="height:8px"></div>
                             <input type="text" name="new_tags" value="{{ old('new_tags') }}" maxlength="500" placeholder="Tag mới, cách nhau bằng dấu phẩy"
                                    class="admin-input">
                         </div>
