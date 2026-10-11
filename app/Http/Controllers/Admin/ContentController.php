@@ -781,6 +781,11 @@ class ContentController extends Controller
             // ghi cứng — xem App\Support\UploadLimit.
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
+            // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu (hiện ở tab Hướng dẫn, Bài mẫu khi làm đề).
+            'guide_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
+            'remove_guide_pdf' => ['nullable', 'boolean'],
+            'sample_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
+            'remove_sample_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
             'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
             'remove_cover' => ['nullable', 'boolean'],
@@ -935,6 +940,11 @@ class ContentController extends Controller
             // ghi cứng — xem App\Support\UploadLimit.
             'preview_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
             'remove_preview_pdf' => ['nullable', 'boolean'],
+            // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu (hiện ở tab Hướng dẫn, Bài mẫu khi làm đề).
+            'guide_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
+            'remove_guide_pdf' => ['nullable', 'boolean'],
+            'sample_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:'.UploadLimit::maxKilobytes()],
+            'remove_sample_pdf' => ['nullable', 'boolean'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.UploadLimit::maxKilobytes(4096)],
             'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 10/10 — id ảnh trong App\Support\AssessmentCover
             'remove_cover' => ['nullable', 'boolean'],

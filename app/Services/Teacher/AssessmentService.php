@@ -281,6 +281,20 @@ class AssessmentService
             'preview_pdf_original_name' => ($data['preview_pdf'] ?? null) instanceof UploadedFile
                 ? $data['preview_pdf']->getClientOriginalName()
                 : null,
+            // SỬA 11/10 — PDF Hướng dẫn (disk riêng tư 'local').
+            'guide_pdf_path' => ($data['guide_pdf'] ?? null) instanceof UploadedFile
+                ? $data['guide_pdf']->store('assessments/guide', 'local')
+                : null,
+            'guide_pdf_original_name' => ($data['guide_pdf'] ?? null) instanceof UploadedFile
+                ? $data['guide_pdf']->getClientOriginalName()
+                : null,
+            // SỬA 11/10 — PDF Bài mẫu (disk riêng tư 'local').
+            'sample_pdf_path' => ($data['sample_pdf'] ?? null) instanceof UploadedFile
+                ? $data['sample_pdf']->store('assessments/sample', 'local')
+                : null,
+            'sample_pdf_original_name' => ($data['sample_pdf'] ?? null) instanceof UploadedFile
+                ? $data['sample_pdf']->getClientOriginalName()
+                : null,
             'status' => ContentStatus::Draft,
             'version' => 1,
             'owner_type' => OwnerType::Teacher,
@@ -566,6 +580,21 @@ class AssessmentService
             $this->forgetStoredFile('local', $assessment->preview_pdf_path);
             $attributes['preview_pdf_path'] = null;
             $attributes['preview_pdf_original_name'] = null;
+        }
+
+        // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu: thay tệp mới / tích "Gỡ" thì xoá tệp cũ khỏi disk.
+        foreach (['guide', 'sample'] as $docKind) {
+            $docFile = ($data[$docKind.'_pdf'] ?? null) instanceof UploadedFile ? $data[$docKind.'_pdf'] : null;
+
+            if ($docFile !== null) {
+                $this->forgetStoredFile('local', $assessment->{$docKind.'_pdf_path'});
+                $attributes[$docKind.'_pdf_path'] = $docFile->store('assessments/'.$docKind, 'local');
+                $attributes[$docKind.'_pdf_original_name'] = $docFile->getClientOriginalName();
+            } elseif (! empty($data['remove_'.$docKind.'_pdf'])) {
+                $this->forgetStoredFile('local', $assessment->{$docKind.'_pdf_path'});
+                $attributes[$docKind.'_pdf_path'] = null;
+                $attributes[$docKind.'_pdf_original_name'] = null;
+            }
         }
 
         // SỬA 10/10 — ưu tiên: tải ảnh riêng > chọn catalog > gỡ ảnh (xem App\Support\AssessmentCover).

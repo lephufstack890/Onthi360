@@ -327,7 +327,7 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::get('assessments/{assessment}/take', [StudentAssessmentController::class, 'take'])->name('assessment.take');
         Route::get('assessments/{assessment}/pdf/{which}', [StudentAssessmentController::class, 'pdfFile'])
-            ->whereIn('which', ['exam', 'solution'])
+            ->whereIn('which', ['exam', 'solution', 'guide', 'sample'])
             ->name('assessment.pdf.file');
         Route::get('assessments/{question}/oj', [StudentAssessmentController::class, 'oj'])->name('assessment.oj');
         Route::get('attempts/{attempt}/result', [StudentAssessmentController::class, 'result'])->name('assessment.result');

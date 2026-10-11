@@ -148,6 +148,12 @@ class AssessmentService
                 && $assessmentModel->type?->value === 'practice'
                 && $assessmentModel->status?->value === 'published'
             ) ? route('practice.exam.preview', $assessmentModel->id) : null,
+            // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu do người ra đề tải lên (tab Hướng dẫn, Bài mẫu). Đi qua
+            // streamPdfFile() — chỉ người đã có lượt làm đề mới mở được. Không có tệp = null, tab giữ nội dung mặc định.
+            'guidePdfUrl' => $assessmentModel->guide_pdf_path !== null
+                ? route('student.assessment.pdf.file', ['assessment' => $assessmentModel->id, 'which' => 'guide']) : null,
+            'samplePdfUrl' => $assessmentModel->sample_pdf_path !== null
+                ? route('student.assessment.pdf.file', ['assessment' => $assessmentModel->id, 'which' => 'sample']) : null,
             'attempt' => $attempt,
             'questions' => $questions,
             // SỬA 18/9 — dòng nhãn nhỏ trên đầu phòng thi của bản mẫu ("EXAM_HSG_01 · 100 ĐIỂM").
@@ -840,6 +846,23 @@ class AssessmentService
      */
     public function streamPdfFile(User $user, int $assessmentId, string $which): StreamedResponse
     {
+        // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu: dùng được cho cả đề Luyện tập dạng câu hỏi (không chỉ đề PDF);
+        // vẫn bắt buộc người xem đã có lượt làm đề. Việc trừ điểm khi mở tab do nhật ký làm đề lo.
+        if (in_array($which, ['guide', 'sample'], true)) {
+            $docAssessment = $this->assessments->find($assessmentId);
+            abort_if($docAssessment === null, 404);
+
+            abort_unless($this->attempts->query()
+                ->where('user_id', $user->id)
+                ->where('assessment_id', $docAssessment->id)
+                ->exists(), 403);
+
+            $docPath = $which === 'guide' ? $docAssessment->guide_pdf_path : $docAssessment->sample_pdf_path;
+            abort_if(blank($docPath) || ! Storage::disk('local')->exists($docPath), 404);
+
+            return Storage::disk('local')->response($docPath);
+        }
+
         $assessmentModel = $this->assessments->find($assessmentId);
         abort_if($assessmentModel === null || ! $assessmentModel->isPdfMode(), 404);
 

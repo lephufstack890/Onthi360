@@ -45,6 +45,14 @@
     $adPreviewName = $assessment?->preview_pdf_path !== null
         ? ($assessment->preview_pdf_original_name ?: basename($assessment->preview_pdf_path))
         : null;
+
+    // SỬA 11/10 — tên tệp PDF Hướng dẫn / Bài mẫu đang có (nếu đã tải lên).
+    $adGuideName = $assessment?->guide_pdf_path !== null
+        ? ($assessment->guide_pdf_original_name ?: basename($assessment->guide_pdf_path))
+        : null;
+    $adSampleName = $assessment?->sample_pdf_path !== null
+        ? ($assessment->sample_pdf_original_name ?: basename($assessment->sample_pdf_path))
+        : null;
 @endphp
 
 {{-- x-init bám vào ô select#type của form bao ngoài: ở form sửa, khi loại bị ẩn khỏi danh sách
@@ -201,6 +209,52 @@
         </div>
     </div>
 
+    {{-- SỬA 11/10 (khách: "phần tạo đề và cập nhật thêm field để chọn file pdf hướng dẫn và field để
+         chọn file pdf bài mẫu") — hai tệp PDF hiện ở tab "Hướng dẫn" và "Bài mẫu" khi học sinh làm
+         đề. Cùng cách làm với "Tệp PDF xem trước": tệp ở disk riêng tư, thay tệp mới = ghi đè,
+         tích "Gỡ" = xoá. Để trống = tab giữ nội dung mặc định. --}}
+    <div class="rounded-xl border border-sky-100 bg-white/70 p-3">
+        <h4 class="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+            <x-lucide name="book-open" class="h-4 w-4 text-blue-600" />Hướng dẫn &amp; bài mẫu khi làm đề
+        </h4>
+
+        <div class="mt-2 grid gap-3 md:grid-cols-2">
+            @foreach ([
+                ['guide', 'Tệp PDF hướng dẫn', 'Hiện ở tab Hướng dẫn.', $adGuideName],
+                ['sample', 'Tệp PDF bài mẫu', 'Hiện ở tab Bài mẫu.', $adSampleName],
+            ] as [$adDocKey, $adDocLabel, $adDocHint, $adDocName])
+                <div>
+                    <label class="mb-1 block text-[13px] font-medium text-slate-600" for="{{ $adDocKey }}_pdf">{{ $adDocLabel }}</label>
+
+                    @if ($adDocName)
+                        <div class="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-sky-100 bg-white px-3 py-2">
+                            <x-lucide name="file-text" class="h-4 w-4 shrink-0 text-blue-600" />
+                            <span class="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-600">{{ $adDocName }}</span>
+                        </div>
+                        <label class="mb-2 flex w-fit items-center gap-2 text-[11px] font-semibold text-rose-600">
+                            <input type="checkbox" name="remove_{{ $adDocKey }}_pdf" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600">
+                            Gỡ tệp hiện tại
+                        </label>
+                    @endif
+
+                    <input id="{{ $adDocKey }}_pdf" name="{{ $adDocKey }}_pdf" type="file" accept="application/pdf,.pdf"
+                           class="admin-input file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
+                    @error($adDocKey.'_pdf')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                    <p data-upload-too-big class="mt-1 hidden text-[11px] font-semibold text-rose-600"></p>
+
+                    <p class="mt-1 text-xs leading-relaxed text-slate-400">
+                        Chỉ nhận PDF, tối đa <b class="text-slate-500">{{ $adMaxLabel }}</b>. {{ $adDocHint }}
+                        @if ($adDocName)
+                            Chọn tệp mới là <b class="text-slate-500">thay</b> tệp đang có.
+                        @else
+                            Bỏ trống thì tab giữ nội dung mặc định.
+                        @endif
+                    </p>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
     <div>
         <label class="mb-1 block text-[13px] font-medium text-slate-600" for="cover">Ảnh bìa đề</label>
         <div class="flex flex-wrap items-start gap-3">
@@ -274,7 +328,7 @@
         var MAX = {{ $adMaxBytes }};
         var LABEL = @js($adMaxLabel);
 
-        document.querySelectorAll('#preview_pdf, #cover').forEach(function (input) {
+        document.querySelectorAll('#preview_pdf, #guide_pdf, #sample_pdf, #cover').forEach(function (input) {
             var note = input.parentElement && input.parentElement.querySelector('[data-upload-too-big]');
 
             input.addEventListener('change', function () {

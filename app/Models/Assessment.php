@@ -31,6 +31,8 @@ class Assessment extends Model
         // SỬA 2/10 — tệp PDF XEM TRƯỚC riêng của đề (người ra đề tự tải lên), xem migration
         // add_preview_pdf_to_assessments_table.
         'preview_pdf_path', 'preview_pdf_original_name',
+        // SỬA 11/10 — tệp PDF Hướng dẫn / Bài mẫu của đề (tab Hướng dẫn, Bài mẫu khi làm đề).
+        'guide_pdf_path', 'guide_pdf_original_name', 'sample_pdf_path', 'sample_pdf_original_name',
         // SỬA 2/10 — 6 trường mô tả đề cho màn chi tiết + thẻ đề ngoài trang công khai, xem
         // migration add_detail_fields_to_assessments_table.
         'subtitle', 'author', 'province', 'academic_year', 'exam_category', 'cover_image_path',

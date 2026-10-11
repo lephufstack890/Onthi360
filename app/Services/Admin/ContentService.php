@@ -2694,6 +2694,8 @@ class ContentService
 
         $this->forgetAssessmentCover($assessment->cover_image_path);
         $this->forgetAssessmentPreviewPdf($assessment->preview_pdf_path);
+        $this->forgetAssessmentPreviewPdf($assessment->guide_pdf_path);
+        $this->forgetAssessmentPreviewPdf($assessment->sample_pdf_path);
 
         foreach ([$assessment->pdf_path, $assessment->solution_pdf_path] as $pdfPath) {
             if (filled($pdfPath)) {
@@ -3017,6 +3019,21 @@ class ContentService
             $this->forgetAssessmentPreviewPdf($existing?->preview_pdf_path);
             $attributes['preview_pdf_path'] = null;
             $attributes['preview_pdf_original_name'] = null;
+        }
+
+        // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu: cùng nếp với tệp xem trước (thay tệp mới / tích "Gỡ" thì xoá tệp cũ khỏi disk).
+        foreach (['guide', 'sample'] as $docKind) {
+            $docFile = ($data[$docKind.'_pdf'] ?? null) instanceof UploadedFile ? $data[$docKind.'_pdf'] : null;
+
+            if ($docFile !== null) {
+                $this->forgetAssessmentPreviewPdf($existing?->{$docKind.'_pdf_path'});
+                $attributes[$docKind.'_pdf_path'] = $docFile->store('assessments/'.$docKind, self::ASSESSMENT_PREVIEW_DISK);
+                $attributes[$docKind.'_pdf_original_name'] = $docFile->getClientOriginalName();
+            } elseif (! empty($data['remove_'.$docKind.'_pdf'])) {
+                $this->forgetAssessmentPreviewPdf($existing?->{$docKind.'_pdf_path'});
+                $attributes[$docKind.'_pdf_path'] = null;
+                $attributes[$docKind.'_pdf_original_name'] = null;
+            }
         }
 
         // SỬA 10/10 — ảnh bìa chọn từ catalog (AssessmentCover). Ưu tiên: tải ảnh riêng > chọn catalog > gỡ ảnh.

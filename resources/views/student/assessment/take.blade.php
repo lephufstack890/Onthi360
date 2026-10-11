@@ -440,6 +440,15 @@
 
                 {{-- ───────── TAB: HƯỚNG DẪN ───────── --}}
                 <section x-show="activeTab === 'guide'" x-cloak class="h-full min-h-0 overflow-y-auto p-2 sm:p-3">
+                    {{-- SỬA 11/10 — đề có tệp PDF hướng dẫn (người ra đề tải lên) thì tab CHỈ hiện tệp đó,
+                         cùng khung với tab Đề bài. Không có tệp thì giữ nội dung mặc định bên dưới. --}}
+                    @if ($guidePdfUrl ?? null)
+                        <div class="assessment-pdf-surface min-h-full rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                            <div class="oi-doc-col">
+                                <div data-pdf-fit data-pdf-url="{{ $guidePdfUrl }}" data-pdf-max-width="820" class="min-h-[320px]"></div>
+                            </div>
+                        </div>
+                    @else
                     <article class="min-h-full rounded-xl bg-white p-4 sm:p-6">
                         <h3 class="text-sm font-extrabold text-[#123B68]">Hướng dẫn làm bài</h3>
                         <ul class="mt-3 space-y-2 text-[13px] leading-7 text-[#45657D]">
@@ -452,10 +461,21 @@
                         </ul>
                         <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng câu chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của câu đang làm.</p>
                     </article>
+                    @endif
                 </section>
+
 
                 {{-- ───────── TAB: BÀI MẪU ───────── --}}
                 <section x-show="activeTab === 'sample'" x-cloak class="assessment-sample-panel h-full min-h-0 overflow-y-auto p-2 sm:p-3">
+                    {{-- SỬA 11/10 — đề có tệp PDF bài mẫu thì tab hiện tệp đó (xem tab này bị trừ điểm theo
+                         luật nhật ký làm đề); không có tệp thì giữ thông báo "mở sau khi nộp" như cũ. --}}
+                    @if ($samplePdfUrl ?? null)
+                        <div class="assessment-pdf-surface min-h-full rounded-xl border border-[#DDEAF0] bg-[#EAF4F8] p-1.5 shadow-inner sm:p-3">
+                            <div class="oi-doc-col">
+                                <div data-pdf-fit data-pdf-url="{{ $samplePdfUrl }}" data-pdf-max-width="820" class="min-h-[320px]"></div>
+                            </div>
+                        </div>
+                    @else
                     <article class="grid min-h-full place-items-center rounded-xl bg-white p-6 text-center">
                         <div>
                             <span class="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF5F8] text-[#126F91]"><x-lucide name="book-open" class="h-5 w-5" /></span>
@@ -467,6 +487,7 @@
                             <p class="mx-auto mt-1 max-w-sm text-[11px] leading-6 text-[#607A90]">Đáp án tham khảo chỉ hiển thị ở trang kết quả, và chỉ khi đề cho phép công bố đáp án.</p>
                         </div>
                     </article>
+                    @endif
                 </section>
                 {{-- SỬA 1/10 — tab thứ 5 "Nhật ký", dùng CHUNG partial với màn Luyện tập. --}}
                 @include('partials.work-activity-panel', ['activityTabExpr' => "activeTab === 'activity'"])
