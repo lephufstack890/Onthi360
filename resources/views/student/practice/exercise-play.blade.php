@@ -297,7 +297,7 @@
                         {{-- SỬA 10/10 — cảnh báo TRƯỚC: các hành vi bị ghi nhật ký sẽ bị trừ điểm bài. Số % lấy từ PracticeActivityLog::PENALTY_PERCENT. --}}
                         <span class="oi-penalty-warn" role="note">
                             <x-lucide name="alert-triangle" class="h-3.5 w-3.5 shrink-0" />
-                            <span>Lưu ý: mỗi lần chuyển tab/cửa sổ trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['tab'] }}%, chụp màn hình {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm bài.</span>
+                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm bài.</span>
                             <b data-penalty-badge class="oi-penalty-badge"></b>
                         </span>
                     </div>

@@ -121,15 +121,15 @@ final class PracticeActivityLog
     }
 
     /**
-     * SỬA 10/10 (khách: "mỗi lần chuyển tab trừ 30% điểm bài, mỗi lần chụp màn hình 30%, mỗi lần xem lời giải/hướng dẫn 20%")
+     * SỬA 10/10 (khách: "mỗi lần chụp màn hình 30%, mỗi lần xem lời giải/hướng dẫn 20%") — SỬA 11/10: KHÔNG trừ điểm
+     * khi chuyển tab/cửa sổ nữa (khách bỏ), vẫn ghi vào nhật ký như cũ.
      * — % ĐIỂM TỐI ĐA CỦA BÀI bị trừ cho MỖI lần vi phạm ghi trong nhật ký. Cộng dồn, tối đa trừ hết (100%).
      * Chỉ đếm đúng các loại sự kiện mà trình duyệt thật sự ghi (xem partials/work-activity-log).
      */
-    public const PENALTY_PERCENT = ['tab' => 30, 'screenshot' => 30, 'guide' => 20];
+    public const PENALTY_PERCENT = ['screenshot' => 30, 'guide' => 20];
 
     /** Loại sự kiện bị trừ điểm → nhóm. */
     private const PENALTY_TYPES = [
-        'tab_visibility_lost' => 'tab',
         'screenshot_key' => 'screenshot',
         'screen_capture_requested' => 'screenshot',
         'solution_guide_opened' => 'guide',
@@ -138,7 +138,6 @@ final class PracticeActivityLog
 
     /** Nhãn hiển thị cho từng nhóm bị trừ. */
     public const PENALTY_LABELS = [
-        'tab' => 'chuyển tab/cửa sổ',
         'screenshot' => 'chụp/quay màn hình',
         'guide' => 'xem Hướng dẫn/Bài mẫu',
     ];
@@ -151,7 +150,7 @@ final class PracticeActivityLog
      */
     public static function penalty(?array $events): array
     {
-        $counts = ['tab' => 0, 'screenshot' => 0, 'guide' => 0];
+        $counts = ['screenshot' => 0, 'guide' => 0];
 
         foreach ($events ?? [] as $event) {
             $type = is_array($event) ? ($event['eventType'] ?? null) : null;

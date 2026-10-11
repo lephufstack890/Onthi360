@@ -68,7 +68,7 @@
                 // SỬA 10/10 — % điểm đã bị trừ theo nhật ký (chỉ màn Luyện tập có window.oiPenaltyRules). Máy chủ tính lại khi nộp.
                 var rules = window.oiPenaltyRules;
                 if (rules) {
-                    var groupOf = { tab_visibility_lost: 'tab', screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
+                    var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
                     var pct = 0;
                     entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) pct += (rules[g] || 0); });
                     pct = Math.min(100, pct);
@@ -130,7 +130,7 @@
             function penaltyTotal() {
                 var rules = window.oiPenaltyRules;
                 if (!rules) return 0;
-                var groupOf = { tab_visibility_lost: 'tab', screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
+                var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
                 var t = 0;
                 entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) t += (rules[g] || 0); });
                 return Math.min(100, t);
@@ -145,8 +145,6 @@
                     }));
                 } catch (e) {}
             }
-
-            var originalTitle = null;
 
             /*
              * SỬA 1/10 (khách: "chỉ muốn lưu nhật ký nếu chuyển tab giữa Hướng dẫn và Bài mẫu,
@@ -225,14 +223,9 @@
                     // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
                     add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.', 'tab_visibility_lost');
                     away = { at: Date.now(), entry: entries[0] };
-                    if (window.oiPenaltyRules && window.oiPenaltyRules.tab) {
-                        if (originalTitle === null) originalTitle = document.title;
-                        document.title = '⚠ Đã bị trừ ' + penaltyTotal() + '% — quay lại làm bài';
-                    }
                     return;
                 }
 
-                if (originalTitle !== null) { document.title = originalTitle; originalTitle = null; }
                 if (!away) return;
                 var gone = elapsed(away.at);
                 if (away.entry) {
@@ -241,7 +234,6 @@
                     render();
                 }
                 away = null;
-                notifyPenalty('tab', 'Bạn vừa rời khỏi trang làm bài');
             });
 
             // ── 2 + 4. Chụp màn hình / quay màn hình ───────────────────────────────────
