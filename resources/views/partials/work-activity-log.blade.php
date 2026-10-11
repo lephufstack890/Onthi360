@@ -38,6 +38,15 @@
             if (!listEl) return;
 
             var KEY = 'onthi360:practice-activity:' + (document.querySelector('[data-activity-key]')?.getAttribute('data-activity-key') || 'exercise');
+            // SỬA 11/10 — mỗi LẦN LÀM có mã riêng (nằm trong KEY). Thoát ra vào làm lại = KEY mới = nhật ký trống;
+            // dọn luôn nhật ký luyện tập của các lần trước (không đụng nhật ký phòng thi 'exam-…').
+            try {
+                var PREFIX = 'onthi360:practice-activity:';
+                for (var si = window.sessionStorage.length - 1; si >= 0; si--) {
+                    var sk = window.sessionStorage.key(si);
+                    if (sk && sk.indexOf(PREFIX) === 0 && sk !== KEY && sk.indexOf(PREFIX + 'exam-') !== 0) window.sessionStorage.removeItem(sk);
+                }
+            } catch (e) {}
             var filter = 'all';
             var entries = [];
             try {
@@ -164,9 +173,29 @@
                 return s < 60 ? s + ' giây' : Math.floor(s / 60) + ' phút ' + (s % 60) + ' giây';
             }
 
+            /*
+             * SỬA 11/10 — TẢI LẠI / RỜI TRANG KHÔNG PHẢI "chuyển tab". Khi trang đang bị đóng/tải lại/chuyển
+             * sang trang khác, trình duyệt vẫn bắn visibilitychange(hidden); nếu ghi lại thì F5 cũng bị trừ 30%.
+             * beforeunload/pagehide đánh dấu 'unloading' (hoặc gỡ dòng vừa ghi nếu visibilitychange đến trước).
+             * Cờ tự hạ sau 2 giây phòng khi việc rời trang bị huỷ (người dùng bấm Ở lại).
+             */
+            var unloading = false, unloadTimer = null;
+            function markUnloading() {
+                unloading = true;
+                clearTimeout(unloadTimer);
+                unloadTimer = setTimeout(function () { unloading = false; }, 2000);
+                if (away && Date.now() - away.at < 1500) {
+                    var idx = entries.indexOf(away.entry);
+                    if (idx >= 0) { entries.splice(idx, 1); persist(); render(); }
+                    away = null;
+                }
+            }
+            window.addEventListener('beforeunload', markUnloading);
+            window.addEventListener('pagehide', markUnloading);
+
             document.addEventListener('visibilitychange', function () {
                 if (document.hidden) {
-                    if (away) return;
+                    if (away || unloading) return;
                     // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
                     add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.', 'tab_visibility_lost');
                     away = { at: Date.now(), entry: entries[0] };

@@ -129,7 +129,7 @@
          }" x-init="init(); $watch('tab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
 
         <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl"
-             data-activity-key="{{ $headCode ?: 'exercise' }}">
+             data-activity-key="{{ ! empty($runToken) ? $runToken.'-' : '' }}{{ $headCode ?: 'exercise' }}">
 
         {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
         <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">

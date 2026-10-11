@@ -74,9 +74,16 @@ class PracticeByQuestionService
             'correct' => 0,
             'filters' => ['tag_ids' => $tagIds, 'type' => $type],
             'feedback' => null,
+            'run' => self::newRunToken(),
         ]);
 
         return true;
+    }
+
+    /** Mã ngẫu nhiên cho mỗi lần bắt đầu làm (xem 'run' trong session). */
+    private static function newRunToken(): string
+    {
+        return bin2hex(random_bytes(6));
     }
 
     /**
@@ -94,6 +101,9 @@ class PracticeByQuestionService
             'correct' => 0,
             'filters' => null,
             'feedback' => null,
+            // SỬA 11/10 — mã của LẦN LÀM này. Nhật ký phía trình duyệt (trừ điểm) gắn theo mã này, nên
+            // thoát ra vào làm lại = mã mới = nhật ký mới, không dính vi phạm của lần trước.
+            'run' => self::newRunToken(),
             'mode' => 'single_question',
             'returnUrl' => $returnUrl,
             'backLabel' => $backLabel,
@@ -270,6 +280,7 @@ class PracticeByQuestionService
             ])->all(),
             'progress' => ['current' => $index + 1, 'total' => $total, 'correct' => $state['correct'], 'answered' => $state['answered']],
             'feedback' => $state['feedback'],
+            'runToken' => $state['run'] ?? null,
             'mode' => $state['mode'] ?? null,
             'returnUrl' => $state['returnUrl'] ?? null,
             'backLabel' => $state['backLabel'] ?? null,
