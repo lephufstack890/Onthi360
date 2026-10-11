@@ -970,7 +970,11 @@
         html.theme-dark .assessment-modal .assessment-a4-page [class~="text-[#126F91]"] { color: #126f91 !important; }
 
         #practice-container { display: flex; flex-direction: column; min-height: 100%; }
-        #practice-container > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+        /* SỬA 10/10 (khách: "chấm xong 2 khung bị co chiều cao") — chỉ áp cho form TRẢ LỜI. Trước đây luật này nhắm mọi
+           <form> con trực tiếp, kể cả form ẩn #practice-finish-form (chỉ có sau khi chấm): id thắng class .hidden nên form ẩn
+           bị bật thành flex và chiếm ~160px, ép 2 khung soạn mã/kết quả co lại. */
+        #practice-container > form[data-ajax-answer] { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+        #practice-container > form.hidden { display: none; }
         .oi-work-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 
         /* Chỉ ép hàng lưới cao bằng khung ở MÀN RỘNG — màn hẹp xếp dọc 2 khối, để cao tự nhiên
@@ -983,7 +987,7 @@
            chúng co theo khung thay vì giữ cứng 420px. */
         @media (min-width: 1024px) {
             #practice-container { height: 100%; min-height: 0; }
-            #practice-container > form { min-height: 0; }
+            #practice-container > form[data-ajax-answer] { min-height: 0; }
             .oi-work-fill { min-height: 0; }
             .oi-work-grid { min-height: 0; flex: 1 1 0%; grid-template-rows: minmax(0, 1fr); }
             .oi-work-grid > * { min-height: 0; }
