@@ -503,6 +503,9 @@ class PracticeHistoryService
                 // lượt này sau khi trừ theo nhật ký (total_score đã là điểm sau trừ, xem Student\AssessmentService::applyActivityPenalty),
                 // kèm số điểm đã bị trừ và số dấu hiệu trong nhật ký. Chỉ gửi cho người được mở bài (admin / chính chủ).
                 'proposed' => ($canOpen && ! $pending) ? $score : null,
+                // SỬA 11/10 (khách: cột Tổng điểm phải hiện điểm CHƯA bị trừ) — rawScore = điểm sau trừ + điểm đã bị trừ.
+                // `score` giữ nguyên (điểm sau trừ) để xếp hạng / thống kê / popup không đổi.
+                'rawScore' => $pending ? null : round(min((float) $max, (float) $score + (float) ($canOpen ? ($penalties[$a->id]['deducted'] ?? 0.0) : 0.0)), 2),
                 'deducted' => $canOpen ? ($penalties[$a->id]['deducted'] ?? 0.0) : 0.0,
                 'signals' => $canOpen ? ($penalties[$a->id]['signals'] ?? 0) : 0,
                 'maxScore' => $max,

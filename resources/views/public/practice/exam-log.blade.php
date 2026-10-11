@@ -343,7 +343,7 @@
                                     </template>
                                     <td class="exam-total-column" :class="hasFinal(it.row.best || it.row.latest) ? 'result-partial' : 'result-pending'">
                                         <strong>
-                                            <template x-if="hasFinal(it.row.best || it.row.latest)"><span><span x-text="fmt((it.row.best || it.row.latest).score)"></span><small>/<span x-text="fmt((it.row.best || it.row.latest).maxScore)"></span></small></span></template>
+                                            <template x-if="hasFinal(it.row.best || it.row.latest)"><span><span x-text="fmt(rawOf(it.row.best || it.row.latest))"></span><small>/<span x-text="fmt((it.row.best || it.row.latest).maxScore)"></span></small></span></template>
                                             <template x-if="!hasFinal(it.row.best || it.row.latest)"><span>Chờ chấm</span></template>
                                         </strong>
                                         <span x-text="it.row.rank ? 'Tốt nhất' : 'Chưa xếp hạng'"></span>
@@ -397,7 +397,7 @@
                                             </template>
                                             <td class="exam-total-column" :class="hasFinal(it.attempt) ? 'result-partial' : 'result-pending'">
                                                 <strong>
-                                                    <template x-if="hasFinal(it.attempt)"><span><span x-text="fmt(it.attempt.score)"></span><small>/<span x-text="fmt(it.attempt.maxScore)"></span></small></span></template>
+                                                    <template x-if="hasFinal(it.attempt)"><span><span x-text="fmt(rawOf(it.attempt))"></span><small>/<span x-text="fmt(it.attempt.maxScore)"></span></small></span></template>
                                                     <template x-if="!hasFinal(it.attempt)"><span>Chờ chấm</span></template>
                                                 </strong>
                                             </td>
@@ -590,6 +590,8 @@
                 if (!r || !r.canOpen || !this.hasFinal(r) || r.proposed === null || r.proposed === undefined) { return null; }
                 return r.proposed;
             },
+            // Cột Tổng điểm hiện điểm chưa bị trừ (rawScore); thiếu thì dùng điểm hiện có.
+            rawOf(r) { return (r && r.rawScore !== null && r.rawScore !== undefined) ? r.rawScore : (r ? r.score : null); },
             rounded(r) { return Math.round(r.score * 100); },
             get ranking() {
                 const groups = new Map();
