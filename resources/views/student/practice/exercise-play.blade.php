@@ -133,14 +133,42 @@
                  if (id) this.tab = id;
              },
              penaltyCancel() { this.penaltyAsk.open = false; },
+             {{-- SỬA 11/10 — hộp báo "vừa bị trừ điểm" khi vi phạm (chuyển tab / chụp màn hình); sự kiện do work-activity-log phát ra. --}}
+             penaltyNotice: { open: false, title: '', percent: 0, total: 0 },
+             showPenaltyNotice(d) {
+                 if (!d) return;
+                 this.penaltyNotice = { open: true, title: d.title || 'Vi phạm quy định làm bài', percent: d.percent || 0, total: d.total || 0 };
+             },
              toggleTheme() {
                  this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
                  try { window.localStorage.setItem('onthi360-exam-theme', this.theme); } catch (e) {}
              },
-         }" x-init="init(); $watch('tab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
+         }" @oi-penalty-notice.window="showPenaltyNotice($event.detail)" x-init="init(); $watch('tab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); })">
 
         <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl"
              data-activity-key="{{ ! empty($runToken) ? $runToken.'-' : '' }}{{ $headCode ?: 'exercise' }}">
+
+        {{-- SỬA 11/10 — HỘP BÁO ĐÃ BỊ TRỪ ĐIỂM (chuyển tab / chụp màn hình): chỉ có nút "Đã hiểu". --}}
+        <div class="oi-confirm-backdrop" style="z-index: 95" x-show="penaltyNotice.open" x-cloak
+             x-transition.opacity.duration.150ms
+             @keydown.escape.window="penaltyNotice.open = false"
+             @click.self="penaltyNotice.open = false">
+            <div class="oi-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="oi-notice-title"
+                 x-show="penaltyNotice.open"
+                 x-transition:enter="oi-confirm-enter" x-transition:enter-start="oi-confirm-enter-from" x-transition:enter-end="oi-confirm-enter-to"
+                 x-effect="if (penaltyNotice.open) $nextTick(function () { var b = $el.querySelector('[data-oi-notice-ok]'); if (b) b.focus(); })">
+                <div class="oi-confirm-icon"><x-lucide name="alert-triangle" class="h-6 w-6" /></div>
+                <h3 id="oi-notice-title" class="oi-confirm-title" x-text="penaltyNotice.title"></h3>
+                <div class="oi-confirm-pct">Bị trừ −<span x-text="penaltyNotice.percent"></span>% điểm bài</div>
+                <p class="oi-confirm-desc">
+                    Hành vi này đã được ghi vào Nhật ký làm bài. Tổng điểm đã bị trừ cho lần làm này:
+                    <b><span x-text="penaltyNotice.total"></span>%</b>.
+                </p>
+                <div class="oi-confirm-actions">
+                    <button type="button" class="oi-confirm-btn oi-confirm-btn-warn" data-oi-notice-ok @click="penaltyNotice.open = false">Đã hiểu</button>
+                </div>
+            </div>
+        </div>
 
         {{-- SỬA 11/10 — HỘP CẢNH BÁO TRỪ ĐIỂM khi mở Hướng dẫn / Bài mẫu (thay window.confirm). --}}
         <div class="oi-confirm-backdrop" x-show="penaltyAsk.open" x-cloak

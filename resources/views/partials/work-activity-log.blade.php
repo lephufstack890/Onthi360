@@ -123,6 +123,32 @@
             }
 
             /*
+             * SỬA 11/10 — CẢNH BÁO NGAY khi vi phạm (chỉ màn Luyện tập: có window.oiPenaltyRules). Trang không thể
+             * hiện gì lúc đang bị ẩn, nên: (1) lúc rời đi đổi tiêu đề tab trình duyệt thành lời nhắc; (2) lúc quay
+             * lại bật hộp cảnh báo "bị trừ X% — tổng đã trừ Y%". Hộp do exercise-play lắng nghe sự kiện bên dưới.
+             */
+            function penaltyTotal() {
+                var rules = window.oiPenaltyRules;
+                if (!rules) return 0;
+                var groupOf = { tab_visibility_lost: 'tab', screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
+                var t = 0;
+                entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) t += (rules[g] || 0); });
+                return Math.min(100, t);
+            }
+
+            function notifyPenalty(group, title) {
+                var rules = window.oiPenaltyRules;
+                if (!rules || !rules[group]) return;
+                try {
+                    window.dispatchEvent(new CustomEvent('oi-penalty-notice', {
+                        detail: { group: group, title: title, percent: rules[group], total: penaltyTotal() },
+                    }));
+                } catch (e) {}
+            }
+
+            var originalTitle = null;
+
+            /*
              * SỬA 1/10 (khách: "chỉ muốn lưu nhật ký nếu chuyển tab giữa Hướng dẫn và Bài mẫu,
              * chụp màn hình, bật tab mới, quay chụp ảnh màn hình — chỉ cần vậy thôi").
              *
@@ -199,9 +225,14 @@
                     // add() chèn vào ĐẦU mảng, nên gọi xong thì entries[0] chính là dòng vừa thêm.
                     add('signal', 'Mở tab hoặc cửa sổ khác', 'Trang làm bài bị ẩn đi.', 'tab_visibility_lost');
                     away = { at: Date.now(), entry: entries[0] };
+                    if (window.oiPenaltyRules && window.oiPenaltyRules.tab) {
+                        if (originalTitle === null) originalTitle = document.title;
+                        document.title = '⚠ Đã bị trừ ' + penaltyTotal() + '% — quay lại làm bài';
+                    }
                     return;
                 }
 
+                if (originalTitle !== null) { document.title = originalTitle; originalTitle = null; }
                 if (!away) return;
                 var gone = elapsed(away.at);
                 if (away.entry) {
@@ -210,6 +241,7 @@
                     render();
                 }
                 away = null;
+                notifyPenalty('tab', 'Bạn vừa rời khỏi trang làm bài');
             });
 
             // ── 2 + 4. Chụp màn hình / quay màn hình ───────────────────────────────────
@@ -218,6 +250,7 @@
 
                 if (event.key === 'PrintScreen' || event.code === 'PrintScreen') {
                     add('signal', 'Bấm phím chụp màn hình', 'Trang nhận được phím Print Screen.', 'screenshot_key');
+                    notifyPenalty('screenshot', 'Phát hiện thao tác chụp màn hình');
                     return;
                 }
 
@@ -233,6 +266,7 @@
                 if (event.shiftKey && (event.metaKey || event.ctrlKey)
                     && ['3', '4', '5', 'S', 's'].indexOf(event.key) >= 0) {
                     add('signal', 'Tổ hợp phím chụp/quay màn hình', 'Trang nhận được tổ hợp phím chụp hoặc quay màn hình.', 'screenshot_key');
+                    notifyPenalty('screenshot', 'Phát hiện thao tác chụp/quay màn hình');
                 }
             }, true);
 
@@ -247,6 +281,7 @@
                     var original = media.getDisplayMedia.bind(media);
                     media.getDisplayMedia = function () {
                         add('signal', 'Yêu cầu quay/chụp màn hình', 'Trang nhận được yêu cầu chia sẻ hoặc quay màn hình.', 'screen_capture_requested');
+                        notifyPenalty('screenshot', 'Phát hiện yêu cầu quay/chụp màn hình');
                         return original.apply(null, arguments);
                     };
                 }
