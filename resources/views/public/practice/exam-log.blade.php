@@ -109,6 +109,13 @@
 .exam-matrix .exam-total-column { text-align:center; min-width:94px; }
 .exam-total-column>strong { display:block; color:var(--result-color,var(--history-heading)); font-size:15px; }
 .exam-total-column small { font-size:10px; color:var(--history-muted); font-weight:400; }
+/* SỬA 11/10 — cột ĐIỂM ĐỀ XUẤT (điểm sau khi bị trừ theo nhật ký làm đề). */
+.exam-matrix .exam-proposed-column { text-align:center; min-width:112px; }
+.exam-proposed-column>small { display:block; color:var(--history-muted); font-size:10px; font-weight:500; margin-top:3px; text-transform:none; letter-spacing:normal; }
+.exam-proposed-column strong { display:block; color:var(--history-heading); font-size:15px; }
+.exam-proposed-column .exam-proposed-adjust { display:block; margin-top:3px; color:var(--history-muted); font-size:10px; font-weight:600; }
+.exam-proposed-column div>small { display:block; margin-top:3px; color:var(--history-muted); font-size:10px; }
+.exam-proposed-column .exam-proposed-none { color:var(--history-muted); font-size:11px; }
 .exam-total-column>span { display:block; margin-top:4px; color:var(--result-color,var(--history-body)); font-size:10px; }
 .exam-submission-dialog { padding:0; margin:auto; width:min(1060px,calc(100vw - 32px)); height:min(880px,calc(100dvh - 32px)); max-width:none; max-height:calc(100dvh - 32px); border:1px solid var(--history-border); border-radius:12px; color:var(--history-body); background:#fff; font-family:inherit; font-size:12px; overflow:hidden; box-shadow:0 24px 90px #112e4c40; }
 .exam-submission-dialog:not([open]) { display:none; }
@@ -293,6 +300,8 @@
                                     <th scope="col" class="exam-question-column" :title="q.title"><span x-text="'Bài ' + (index + 1)"></span><small>/<span x-text="fmt(q.points)"></span> điểm</small></th>
                                 </template>
                                 <th scope="col" class="exam-total-column">Tổng điểm<small>/<span x-text="fmt(maxScore)"></span> điểm</small></th>
+                                {{-- SỬA 11/10 — cột ĐIỂM ĐỀ XUẤT (điểm sau khi bị trừ theo nhật ký làm đề). --}}
+                                <th scope="col" class="exam-proposed-column">Điểm đề xuất<small>Chờ duyệt</small></th>
                                 <th scope="col">Bài làm</th>
                             </tr>
                         </thead>
@@ -339,6 +348,18 @@
                                         </strong>
                                         <span x-text="it.row.rank ? 'Tốt nhất' : 'Chưa xếp hạng'"></span>
                                     </td>
+                                    <td class="exam-proposed-column">
+                                        <template x-if="proposedOf(it.row.best || it.row.latest) !== null">
+                                            <div>
+                                                <strong x-text="fmt(proposedOf(it.row.best || it.row.latest))"></strong>
+                                                <span class="exam-proposed-adjust" :title="'Cộng thêm / điểm bị trừ theo nhật ký làm đề'">+0 / −<span x-text="fmt((it.row.best || it.row.latest).deducted || 0)"></span></span>
+                                                <small><span x-text="((it.row.best || it.row.latest).signals || 0) + ' dấu hiệu'"></span> · Chưa duyệt</small>
+                                            </div>
+                                        </template>
+                                        <template x-if="proposedOf(it.row.best || it.row.latest) === null">
+                                            <span class="exam-proposed-none" x-text="((it.row.best || it.row.latest).canOpen && !hasFinal(it.row.best || it.row.latest)) ? 'Chờ chấm' : '–'"></span>
+                                        </template>
+                                    </td>
                                     <td>
                                         <template x-if="(it.row.best || it.row.latest).canOpen">
                                             <button type="button" class="submission-view" aria-haspopup="dialog" :aria-label="'Xem lượt nộp ' + (it.row.best || it.row.latest).id + ' của ' + it.row.latest.submitter" @click="openRecord(it.row.best || it.row.latest)">Xem bài<x-lucide name="chevron-right" class="h-3.5 w-3.5" /></button>
@@ -379,6 +400,18 @@
                                                     <template x-if="hasFinal(it.attempt)"><span><span x-text="fmt(it.attempt.score)"></span><small>/<span x-text="fmt(it.attempt.maxScore)"></span></small></span></template>
                                                     <template x-if="!hasFinal(it.attempt)"><span>Chờ chấm</span></template>
                                                 </strong>
+                                            </td>
+                                            <td class="exam-proposed-column">
+                                                <template x-if="proposedOf(it.attempt) !== null">
+                                                    <div>
+                                                        <strong x-text="fmt(proposedOf(it.attempt))"></strong>
+                                                        <span class="exam-proposed-adjust">+0 / −<span x-text="fmt(it.attempt.deducted || 0)"></span></span>
+                                                        <small><span x-text="(it.attempt.signals || 0) + ' dấu hiệu'"></span> · Chưa duyệt</small>
+                                                    </div>
+                                                </template>
+                                                <template x-if="proposedOf(it.attempt) === null">
+                                                    <span class="exam-proposed-none" x-text="(it.attempt.canOpen && !hasFinal(it.attempt)) ? 'Chờ chấm' : '–'"></span>
+                                                </template>
                                             </td>
                                             <td>
                                                 <template x-if="it.attempt.canOpen">
@@ -551,6 +584,11 @@
             hasFinal(r) {
                 if (!r || r.pending || r.score === null || r.score === undefined || !(r.maxScore > 0)) { return false; }
                 return !Object.values(r.items || {}).some((it) => it.status === 'pending');
+            },
+            // SỬA 11/10 — điểm đề xuất của một lượt (điểm sau khi trừ theo nhật ký); null = chưa có / không được xem.
+            proposedOf(r) {
+                if (!r || !r.canOpen || !this.hasFinal(r) || r.proposed === null || r.proposed === undefined) { return null; }
+                return r.proposed;
             },
             rounded(r) { return Math.round(r.score * 100); },
             get ranking() {
