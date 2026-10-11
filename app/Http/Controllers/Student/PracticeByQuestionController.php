@@ -71,9 +71,11 @@ class PracticeByQuestionController extends Controller
             // Quay về ĐÚNG trang vừa bấm. route(..., absolute: false) cho ra đường dẫn tương
             // đối ('/luyen-tap') — cùng dạng mà stop() chấp nhận (chỉ nhận path nội bộ bắt đầu
             // bằng một dấu '/'), nên hai lối quay lại không lệch nhau.
+            // SỬA 11/10 — trang Luyện tập gửi kèm ?return_url (số trang + bộ lọc đang xem) để "Thoát bài tập"
+            // về ĐÚNG chỗ đó; không có/không hợp lệ thì về /luyen-tap như cũ. Xem App\Support\PracticeReturnUrl.
             $this->service->startForQuestion(
                 $question->id,
-                route('practice.index', absolute: false),
+                \App\Support\PracticeReturnUrl::clean($request->query('return_url')) ?? route('practice.index', absolute: false),
                 'Quay lại Luyện tập',
             );
 
@@ -176,7 +178,12 @@ class PracticeByQuestionController extends Controller
                 ->withErrors(['practice' => 'Kho luyện tập chưa có câu nào đang phát hành.']);
         }
 
-        $this->service->startForQuestion($question->id, route('practice.index'), 'Về Luyện tập');
+        // SỬA 11/10 — như setup(): nhớ trang/bộ lọc đang xem để "Thoát bài tập" quay lại đúng chỗ.
+        $this->service->startForQuestion(
+            $question->id,
+            \App\Support\PracticeReturnUrl::clean($request->input('return_url')) ?? route('practice.index'),
+            'Về Luyện tập',
+        );
 
         return redirect()->route('student.practiceByQuestion.play');
     }

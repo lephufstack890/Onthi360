@@ -46,10 +46,57 @@
             examPageIndex: 1,
 
             init() {
+                // SỬA 11/10 (khách: "làm bài xong bấm thoát phải về lại đúng trang đang xem") — khôi phục số trang +
+                // bộ lọc từ URL TRƯỚC khi gắn các $watch bên dưới (gắn sau thì việc gán ở đây không bị $watch
+                // đẩy về trang 1). Trang Luyện tập ghi lại các tham số này ở syncUrl(), và gửi kèm khi bấm "Làm bài".
+                this.restoreFromUrl();
+
                 this.$watch('searchQuery', () => { this.problemPageIndex = 1; this.examPageIndex = 1; });
                 // SỬA 2/10 — đổi cách sắp xếp thì về trang 1, nếu không đang ở trang 3 mà sắp xếp
                 // lại là nhìn vào giữa danh sách, tưởng mất đề.
                 this.$watch('examSort', () => { this.examPageIndex = 1; });
+
+                // Mọi thay đổi trang/bộ lọc đều ghi lên URL (replaceState — không thêm mục vào lịch sử).
+                ['problemPageIndex', 'examPageIndex', 'activeTab', 'selectedTopic', 'selectedDifficulty', 'selectedExamType', 'onlyUndone', 'searchQuery']
+                    .forEach((key) => this.$watch(key, () => this.syncUrl()));
+            },
+
+            // Đọc lại trạng thái trang từ URL (số trang, bộ lọc). Giá trị lạ/hỏng thì bỏ qua; số trang vượt quá thì
+            // problemPage/examPage tự kẹp về trang cuối.
+            restoreFromUrl() {
+                try {
+                    const q = new URL(window.location.href).searchParams;
+                    const num = (k) => { const n = parseInt(q.get(k) || '', 10); return Number.isFinite(n) && n >= 1 ? n : null; };
+
+                    if (this.practiceMode === 'exams') {
+                        const t = q.get('etype'); if (t) { this.selectedExamType = t; }
+                        const p = num('pg'); if (p) { this.examPageIndex = p; }
+                    } else {
+                        const t = q.get('type'); if (t) { this.activeTab = t; }
+                        const tp = q.get('topic'); if (tp) { this.selectedTopic = tp; }
+                        const df = q.get('diff'); if (df) { this.selectedDifficulty = df; }
+                        if (q.get('undone') === '1') { this.onlyUndone = true; }
+                        const p = num('pg'); if (p) { this.problemPageIndex = p; }
+                    }
+                    const s = q.get('q'); if (s) { this.searchQuery = s; }
+                } catch (e) { /* bỏ qua */ }
+            },
+
+            // Địa chỉ trang đang xem (đường dẫn + query) để gửi kèm khi bấm "Làm bài".
+            returnTarget() {
+                this.syncUrl();
+                return window.location.pathname + window.location.search;
+            },
+
+            // Gắn ?return_url vào liên kết "Làm bài" ngay lúc bấm (liên kết do máy chủ dựng sẵn).
+            withReturn(event) {
+                try {
+                    const a = event.currentTarget;
+                    const url = new URL(a.href, window.location.origin);
+                    if (url.origin !== window.location.origin) { return; }
+                    url.searchParams.set('return_url', this.returnTarget());
+                    a.href = url.pathname + url.search;
+                } catch (e) { /* bỏ qua — vẫn mở bài như cũ */ }
             },
 
             changeMode(mode) {
@@ -90,6 +137,17 @@
                     if (this.practiceMode === 'exams') { url.searchParams.set('tab', 'de-thi'); } else { url.searchParams.delete('tab'); }
                     const scope = this.practiceMode === 'exams' ? this.examScope : this.problemScope;
                     if (scope && scope !== 'all') { url.searchParams.set('scope', scope); } else { url.searchParams.delete('scope'); }
+
+                    // SỬA 11/10 — số trang + bộ lọc đang xem. Giá trị mặc định thì bỏ khỏi URL cho gọn.
+                    const put = (k, v, def) => { if (v !== undefined && v !== null && String(v) !== '' && String(v) !== String(def)) { url.searchParams.set(k, v); } else { url.searchParams.delete(k); } };
+                    const exams = this.practiceMode === 'exams';
+                    put('pg', exams ? this.examPage : this.problemPage, 1);
+                    put('type', exams ? '' : this.activeTab, 'all');
+                    put('topic', exams ? '' : this.selectedTopic, 'all');
+                    put('diff', exams ? '' : this.selectedDifficulty, 'all');
+                    put('undone', !exams && this.onlyUndone ? '1' : '', '');
+                    put('etype', exams ? this.selectedExamType : '', 'all');
+                    put('q', this.searchQuery.trim(), '');
                     window.history.replaceState({}, '', url.toString());
                 } catch (e) { /* bỏ qua */ }
             },

@@ -304,8 +304,10 @@
                          Dùng form POST chứ không phải thẻ <a>: hành động này GHI phiên luyện vào
                          session. Khách chưa đăng nhập thì vẫn là liên kết sang trang đăng nhập. --}}
                     @if ($canTakeDirectly)
-                        <form method="POST" action="{{ route('student.practiceByQuestion.random') }}">
+                        <form method="POST" action="{{ route('student.practiceByQuestion.random') }}" @submit="$el.querySelector('[name=return_url]').value = returnTarget()">
                             @csrf
+                            {{-- SỬA 11/10 — địa chỉ trang đang xem (số trang, bộ lọc) để "Thoát bài tập" quay về đúng chỗ. --}}
+                            <input type="hidden" name="return_url" value="">
                             <button type="submit"
                                     class="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[11px] font-black text-[#126F91] shadow-[0_5px_12px_rgba(4,45,105,0.14)] transition hover:-translate-y-0.5 hover:bg-[#F4FBFF] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40 active:scale-[.98]">
                                 <x-lucide name="shuffle" class="h-3.5 w-3.5" />Làm bài ngay<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
@@ -605,7 +607,7 @@
                                     <x-lucide name="check-circle-2" class="h-4 w-4" />
                                 </span>
                             @endif
-                            <a href="{{ $openHref }}" title="{{ $prob['title'] }}"
+                            <a href="{{ $openHref }}" title="{{ $prob['title'] }}" @click="withReturn($event)"
                                class="min-w-0 flex-1 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $prob['title'] }}</a>
                             <span x-show="problemScope !== 'assigned'" class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $prob['userSubmissions'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
                                 {{ $prob['userSubmissions'] > 0 ? 'Đã làm '.$prob['userSubmissions'].' lần' : 'Chưa làm' }}
@@ -764,7 +766,7 @@
 
                     {{-- Hành động --}}
                     <div class="col-span-1 flex items-center justify-end gap-2 border-t border-[#E7EFF3] pt-2 lg:col-auto lg:flex-col lg:items-stretch lg:gap-1 lg:border-t-0 lg:pt-0">
-                        <a href="{{ $openHref }}"
+                        <a href="{{ $openHref }}" @click="withReturn($event)"
                            class="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-bold text-white shadow-none transition-colors active:scale-[.98] lg:w-full {{ $ctaClass }}">
                             <x-lucide name="code" class="h-3.5 w-3.5" />
                             <span>{{ $ctaLabel }}</span>
