@@ -677,15 +677,35 @@ class PracticeByQuestionService
             $state['attempt_id'] = $attempt->id;
         }
 
-        $score = $isCorrect ? (int) $question->points : 0;
+        $existing = $attempt->answers()->where('question_id', $question->id)->first();
+
+        /*
+         * SỬA 10/10 — TRỪ ĐIỂM THEO NHẬT KÝ: mỗi lần chuyển tab 30%, chụp/quay màn hình 30%, xem Hướng dẫn/Bài mẫu
+         * 20% điểm tối đa của bài (PracticeActivityLog::PENALTY_PERCENT). Tính ở MÁY CHỦ trên nhật ký đã GỘP mọi
+         * lần nộp của câu này, nên nộp lại nhiều lần không "xoá" vi phạm cũ. Verdict (đúng/sai) giữ nguyên — chỉ
+         * điểm bị trừ. Nhật ký do trình duyệt gửi nên người cố tình tắt JS/xoá nhật ký thì không bị bắt: đây là
+         * tín hiệu, không phải kiểm soát tuyệt đối.
+         */
+        $mergedLog = null;
+        if (AttemptAnswer::supportsActivityLog()) {
+            $incoming = PracticeActivityLog::clean($data['activity_log'] ?? null);
+            $mergedLog = $incoming !== null
+                ? PracticeActivityLog::merge($existing?->activity_log, $incoming)
+                : $existing?->activity_log;
+        }
+        $penalty = PracticeActivityLog::penalty($mergedLog);
+        $baseScore = $isCorrect ? (float) $question->points : 0.0;
+        $score = round($baseScore * (100 - $penalty['percent']) / 100, 2);
+
+        if ($penalty['percent'] > 0) {
+            $state['feedback']['penalty'] = $penalty + ['baseScore' => $baseScore, 'score' => $score, 'maxPoints' => (float) $question->points];
+        }
 
         $verdict = match (true) {
             $question->type->value === 'coding' => $codingResult['verdict'] ?? VerdictStatus::SystemError->value,
             $isCorrect => VerdictStatus::Accepted->value,
             default => VerdictStatus::WrongAnswer->value,
         };
-
-        $existing = $attempt->answers()->where('question_id', $question->id)->first();
 
         $payload = [
             // 'answer' là cột JSON — gom cả 3 dạng trả lời vào đây, bỏ khoá rỗng cho gọn.
@@ -724,12 +744,8 @@ class PracticeByQuestionService
          * mẫu…). Làm sạch + GỘP với nhật ký đã lưu của lượt nộp này (nộp lại nhiều lần vẫn không mất
          * dòng cũ). Không gửi / hỏng thì giữ nguyên, không ghi đè.
          */
-        if (AttemptAnswer::supportsActivityLog()) {
-            $incoming = PracticeActivityLog::clean($data['activity_log'] ?? null);
-
-            if ($incoming !== null) {
-                $payload['activity_log'] = PracticeActivityLog::merge($existing?->activity_log, $incoming);
-            }
+        if ($mergedLog !== null) {
+            $payload['activity_log'] = $mergedLog;
         }
 
         $attempt->answers()->updateOrCreate(['question_id' => $question->id], $payload);
@@ -737,7 +753,7 @@ class PracticeByQuestionService
         // Điểm của phiên = tổng điểm các câu đã chấm trong phiên. submitted_at đặt mỗi lần nộp
         // để lượt này nổi lên đầu tab "Lịch sử làm bài" (truy vấn ở đó lọc whereNotNull).
         $attempt->update([
-            'total_score' => (int) $attempt->answers()->sum('score'),
+            'total_score' => round((float) $attempt->answers()->sum('score'), 2),
             'submitted_at' => now(),
         ]);
     }

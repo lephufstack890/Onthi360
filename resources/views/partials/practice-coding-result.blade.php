@@ -170,4 +170,5 @@
             </ul>
         @endif
     @endif
+    @include('partials.practice-penalty-note')
 </section>

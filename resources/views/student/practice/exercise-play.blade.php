@@ -114,6 +114,14 @@
                  this.theme = next;
                  document.documentElement.classList.toggle('theme-dark', next === 'dark');
              },
+             {{-- SỬA 10/10 — xem Hướng dẫn / Bài mẫu bị trừ điểm: hỏi xác nhận TRƯỚC khi mở (mỗi lần mở là một lần trừ). --}}
+             askTab(id) {
+                 if ((id === 'guide' || id === 'sample') && this.tab !== id) {
+                     var pct = (window.oiPenaltyRules && window.oiPenaltyRules.guide) || 0;
+                     if (pct > 0 && !window.confirm('Mỗi lần xem Hướng dẫn / Bài mẫu bị trừ ' + pct + '% điểm bài (ghi trong Nhật ký). Bạn vẫn muốn mở?')) return;
+                 }
+                 this.tab = id;
+             },
              toggleTheme() {
                  this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
                  try { window.localStorage.setItem('onthi360-exam-theme', this.theme); } catch (e) {}
@@ -178,7 +186,7 @@
                 {{-- SỬA 30/9 — bản mẫu mới có 5 tab: thêm "Nhật ký" (tín hiệu trong lúc làm bài). --}}
                 <div class="oi-tab-rail grid h-full gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
                     @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
-                        <button type="button" @click="tab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
+                        <button type="button" @click="askTab('{{ $tabId }}')" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
                                 :class="tab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
                             <span class="min-w-0"><span class="block text-[10px] font-extrabold leading-tight md:rotate-180 md:[writing-mode:vertical-rl]">{{ $tabLabel }}</span></span>
@@ -224,6 +232,12 @@
                 <section x-show="tab === 'work'" class="assessment-work-panel flex h-full min-h-0 flex-col overflow-hidden p-1.5 sm:p-2">
                     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]">{{ $isCode ? 'Soạn mã' : 'Trả lời câu hỏi' }}</span>
+                        {{-- SỬA 10/10 — cảnh báo TRƯỚC: các hành vi bị ghi nhật ký sẽ bị trừ điểm bài. Số % lấy từ PracticeActivityLog::PENALTY_PERCENT. --}}
+                        <span class="oi-penalty-warn" role="note">
+                            <x-lucide name="alert-triangle" class="h-3.5 w-3.5 shrink-0" />
+                            <span>Lưu ý: mỗi lần chuyển tab/cửa sổ trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['tab'] }}%, chụp màn hình {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm bài.</span>
+                            <b data-penalty-badge class="oi-penalty-badge"></b>
+                        </span>
                     </div>
 
                     {{--
@@ -1008,6 +1022,14 @@
            cuộn khung ngoài như cũ. */
         .oi-result-fill > * { min-height: 100%; }
 
+        /* SỬA 10/10 — dải cảnh báo trừ điểm theo nhật ký (viết CSS thường: màn chủ không build lại được Tailwind). */
+        .oi-penalty-warn { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; padding: 3px 8px; border: 1px solid #FED7AA; border-radius: 8px; background: #FFF7ED; color: #9A3412; font-size: 11px; line-height: 1.4; }
+        .oi-penalty-badge { padding: 0 6px; border-radius: 6px; background: #FDBA74; color: #7C2D12; font-weight: 800; }
+        .oi-penalty-badge:empty, .oi-penalty-badge[data-on="0"] { display: none; }
+        html.theme-dark .assessment-modal .oi-penalty-warn { background: #3A2A18; border-color: #7C4A1E; color: #FDD9A8; }
+        html.theme-dark .assessment-modal .oi-penalty-badge { background: #B45309; color: #FFF7ED; }
+        html.theme-dark .assessment-modal [data-penalty-note] { background: #3A2A18 !important; border-color: #7C4A1E !important; color: #FDD9A8 !important; }
+
         .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .rich-content p { margin-bottom: 0.5rem; }
@@ -1431,6 +1453,7 @@
     </script>
 
     {{-- SỬA 1/10 — đồng hồ + nhật ký đã chuyển sang partial dùng CHUNG với màn Phòng thi. --}}
+    <script>window.oiPenaltyRules = @json(\App\Support\PracticeActivityLog::PENALTY_PERCENT);</script>
     @include('partials.work-activity-log')
 
     {{-- SỬA 30/9 — ĐÃ GỠ đoạn script của nút "Chạy test" (gửi mã + dữ liệu ô Input lên

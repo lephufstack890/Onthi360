@@ -106,4 +106,5 @@
         Hoàn tất bài tập
         <x-lucide name="arrow-right" class="h-3.5 w-3.5" />
     </button>
+    @include('partials.practice-penalty-note')
 </div>

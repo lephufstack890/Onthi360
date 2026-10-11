@@ -56,6 +56,19 @@
                 if (countEl) countEl.textContent = entries.length + ' sự kiện · ' + signals + ' dấu hiệu cần xem xét';
                 if (signalEl) signalEl.textContent = String(signals);
 
+                // SỬA 10/10 — % điểm đã bị trừ theo nhật ký (chỉ màn Luyện tập có window.oiPenaltyRules). Máy chủ tính lại khi nộp.
+                var rules = window.oiPenaltyRules;
+                if (rules) {
+                    var groupOf = { tab_visibility_lost: 'tab', screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
+                    var pct = 0;
+                    entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) pct += (rules[g] || 0); });
+                    pct = Math.min(100, pct);
+                    document.querySelectorAll('[data-penalty-badge]').forEach(function (el) {
+                        el.textContent = pct > 0 ? 'Đã bị trừ ' + pct + '%' : '';
+                        el.setAttribute('data-on', pct > 0 ? '1' : '0');
+                    });
+                }
+
                 var visible = filter === 'signals' ? entries.filter(function (e) { return e.kind === 'signal'; }) : entries;
                 listEl.innerHTML = '';
 

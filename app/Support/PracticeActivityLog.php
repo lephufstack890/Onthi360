@@ -120,6 +120,62 @@ final class PracticeActivityLog
         return array_slice(self::sorted(array_values($byId)), -self::MAX_EVENTS);
     }
 
+    /**
+     * SỬA 10/10 (khách: "mỗi lần chuyển tab trừ 30% điểm bài, mỗi lần chụp màn hình 30%, mỗi lần xem lời giải/hướng dẫn 20%")
+     * — % ĐIỂM TỐI ĐA CỦA BÀI bị trừ cho MỖI lần vi phạm ghi trong nhật ký. Cộng dồn, tối đa trừ hết (100%).
+     * Chỉ đếm đúng các loại sự kiện mà trình duyệt thật sự ghi (xem partials/work-activity-log).
+     */
+    public const PENALTY_PERCENT = ['tab' => 30, 'screenshot' => 30, 'guide' => 20];
+
+    /** Loại sự kiện bị trừ điểm → nhóm. */
+    private const PENALTY_TYPES = [
+        'tab_visibility_lost' => 'tab',
+        'screenshot_key' => 'screenshot',
+        'screen_capture_requested' => 'screenshot',
+        'solution_guide_opened' => 'guide',
+        'sample_opened' => 'guide',
+    ];
+
+    /** Nhãn hiển thị cho từng nhóm bị trừ. */
+    public const PENALTY_LABELS = [
+        'tab' => 'chuyển tab/cửa sổ',
+        'screenshot' => 'chụp/quay màn hình',
+        'guide' => 'xem Hướng dẫn/Bài mẫu',
+    ];
+
+    /**
+     * Tính phần trăm điểm bị trừ từ nhật ký đã lưu (cũ → mới, đã gộp các lần nộp).
+     *
+     * @param  list<array<string,mixed>>|null  $events
+     * @return array{percent:int, counts:array<string,int>, parts:list<array{group:string,label:string,count:int,percent:int}>}
+     */
+    public static function penalty(?array $events): array
+    {
+        $counts = ['tab' => 0, 'screenshot' => 0, 'guide' => 0];
+
+        foreach ($events ?? [] as $event) {
+            $type = is_array($event) ? ($event['eventType'] ?? null) : null;
+
+            if (is_string($type) && isset(self::PENALTY_TYPES[$type])) {
+                $counts[self::PENALTY_TYPES[$type]]++;
+            }
+        }
+
+        $parts = [];
+        $total = 0;
+
+        foreach ($counts as $group => $count) {
+            if ($count === 0) {
+                continue;
+            }
+            $pct = $count * self::PENALTY_PERCENT[$group];
+            $total += $pct;
+            $parts[] = ['group' => $group, 'label' => self::PENALTY_LABELS[$group], 'count' => $count, 'percent' => $pct];
+        }
+
+        return ['percent' => min(100, $total), 'counts' => $counts, 'parts' => $parts];
+    }
+
     /** Nhóm dấu hiệu của một dòng: screenshot | tab | guide | other | null (không phải dấu hiệu). */
     public static function category(array $event): ?string
     {
