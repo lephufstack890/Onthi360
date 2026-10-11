@@ -475,6 +475,9 @@
             .oi-io-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 2px; margin: 0; font-size: 12px; line-height: 1.45; color: #45657D; }
             .oi-io-line > span { display: inline-flex; align-items: baseline; gap: 4px; }
             .oi-io-line code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 700; color: #123B68; }
+        /* Nền tối: màu chữ viết thẳng nên luật lật màu chung không với tới — tự khai để chữ SÁNG, dễ đọc. */
+        html.theme-dark .assessment-modal .oi-io-line { color: #C9D8E1; }
+        html.theme-dark .assessment-modal .oi-io-line code { color: #F1F8FC; }
         </style>
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
