@@ -129,9 +129,12 @@ class AssessmentController extends Controller
         $user = $request->user();
         $answers = $request->input('answers', []);
         $wantsJson = $request->ajax() || $request->wantsJson();
+        // SỬA 11/10 — nhật ký làm đề (JSON do trình duyệt gửi kèm) để trừ điểm theo câu; quá dài/không phải chuỗi thì bỏ qua.
+        $activityLog = $request->input('activity_log');
+        $activityLog = is_string($activityLog) && strlen($activityLog) <= 60000 ? $activityLog : null;
 
         try {
-            $attemptModel = $this->assessmentService->submitAttempt($user, $attempt, $answers);
+            $attemptModel = $this->assessmentService->submitAttempt($user, $attempt, $answers, $activityLog);
         } catch (ValidationException $e) {
             if ($wantsJson) {
                 return response()->json([

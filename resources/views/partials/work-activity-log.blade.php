@@ -70,7 +70,7 @@
                 if (rules) {
                     var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
                     var pct = 0;
-                    entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) pct += (rules[g] || 0); });
+                    scoped().forEach(function (e) { var g = groupOf[e.eventType]; if (g) pct += (rules[g] || 0); });
                     pct = Math.min(100, pct);
                     document.querySelectorAll('[data-penalty-badge]').forEach(function (el) {
                         el.textContent = pct > 0 ? 'Đã bị trừ ' + pct + '%' : '';
@@ -110,11 +110,24 @@
             // SỬA 7/10 — eventType (tham số thứ 4) để máy chủ phân nhóm dấu hiệu cho cột "Hoạt động"
             // ở trang Nhật ký nộp bài của admin (screenshot_key, tab_visibility_lost,
             // solution_guide_opened, sample_opened, screen_capture_requested).
+            // SỬA 11/10 — LÀM ĐỀ: màn làm đề đặt window.oiWorkLogQuestionId() trả id câu đang xem; mỗi dòng nhật ký ghi kèm
+            // questionId để máy chủ trừ điểm đúng câu. Màn Luyện tập 1 bài không đặt -> null (hành vi như cũ).
+            function currentQid() {
+                try { return typeof window.oiWorkLogQuestionId === 'function' ? (Number(window.oiWorkLogQuestionId()) || null) : null; } catch (e) { return null; }
+            }
+
+            // Các dòng thuộc phạm vi đang tính điểm: cả bài (Luyện tập) hoặc riêng câu đang xem (Làm đề).
+            function scoped() {
+                var q = currentQid();
+                return q === null ? entries : entries.filter(function (e) { return e.questionId === q; });
+            }
+
             function add(kind, title, detail, eventType) {
                 var now = new Date();
                 entries.unshift({
                     id: now.getTime() + '-' + Math.random().toString(36).slice(2, 7),
                     kind: kind, title: title, detail: detail, eventType: eventType || null,
+                    questionId: currentQid(),
                     occurredAt: now.toISOString(), time: fmt.format(now),
                 });
                 entries = entries.slice(0, 100);
@@ -132,7 +145,7 @@
                 if (!rules) return 0;
                 var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
                 var t = 0;
-                entries.forEach(function (e) { var g = groupOf[e.eventType]; if (g) t += (rules[g] || 0); });
+                scoped().forEach(function (e) { var g = groupOf[e.eventType]; if (g) t += (rules[g] || 0); });
                 return Math.min(100, t);
             }
 
@@ -141,7 +154,7 @@
                 if (!rules || !rules[group]) return;
                 try {
                     window.dispatchEvent(new CustomEvent('oi-penalty-notice', {
-                        detail: { group: group, title: title, percent: rules[group], total: penaltyTotal() },
+                        detail: { group: group, title: title, percent: rules[group], total: penaltyTotal(), perQuestion: currentQid() !== null },
                     }));
                 } catch (e) {}
             }
@@ -171,9 +184,12 @@
                         return {
                             id: e.id, kind: e.kind, eventType: e.eventType || null,
                             title: e.title, detail: e.detail || '', occurredAt: e.occurredAt || null,
+                            questionId: e.questionId || null,
                         };
                     });
                 },
+                /** Vẽ lại (đổi câu đang xem thì % đã bị trừ của câu đó đổi theo). */
+                refresh: function () { render(); },
                 tabChanged: function (tab) {
                     // CHỈ hai tab này. Đề bài / Làm bài / Nhật ký là chỗ phải qua lại liên tục
                     // trong lúc làm, ghi vào thì nhật ký thành một dải vô nghĩa.

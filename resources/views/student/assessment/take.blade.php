@@ -54,7 +54,8 @@
                   với màn Luyện tập (xem $statementUrl ở exercise-play). --}}
              initialTab: @js(filled($examPdfUrl ?? null) || collect($questions)->contains(fn ($q) => filled($q['statementPdfUrl'] ?? null)) ? 'pdf' : 'work'),
          })"
-         x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); }); $watch('activeId', function (id) { scrollToStatement(id); })">
+         @oi-penalty-notice.window="showPenaltyNotice($event.detail)"
+         x-init="init(); $watch('activeTab', function (value) { if (window.oiWorkLog) window.oiWorkLog.tabChanged(value); }); $watch('activeId', function (id) { onActiveChanged(); scrollToStatement(id); })">
 
         {{-- SỬA 1/10 — data-activity-key: nhật ký lưu theo TỪNG LƯỢT THI (attempt), không lẫn
              với nhật ký của màn Luyện tập hay của lượt thi khác. --}}
@@ -184,7 +185,7 @@
                      phần JS dùng CHUNG partial với màn đó (work-activity-panel/-log). --}}
                 <div class="oi-tab-rail grid h-full gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
                     @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
-                        <button type="button" @click="activeTab = '{{ $tabId }}'" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
+                        <button type="button" @click="askTab('{{ $tabId }}')" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
                                 :class="activeTab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
                             <span class="min-w-0"><span class="block text-[10px] font-extrabold leading-tight md:rotate-180 md:[writing-mode:vertical-rl]">{{ $tabLabel }}</span></span>
@@ -266,6 +267,12 @@
                          nguyên theo yêu cầu) — ba chỗ làm cùng một việc là thừa. --}}
                     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2">
                         <span class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#7A92A3]" x-text="currentKind() === 'code' ? 'Soạn mã' : 'Trả lời câu hỏi'"></span>
+                        {{-- SỬA 11/10 — nhắc luật trừ điểm theo nhật ký (tính theo CÂU đang làm) + huy hiệu % đã bị trừ của câu này. --}}
+                        <span class="oi-penalty-warn" role="note">
+                            <x-lucide name="alert-triangle" class="h-3.5 w-3.5 shrink-0" />
+                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm của câu đang làm.</span>
+                            <b data-penalty-badge class="oi-penalty-badge"></b>
+                        </span>
                     </div>
 
                     <div class="oi-exam-body mt-2 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
@@ -537,6 +544,8 @@
         {{-- ══════ FORM NỘP THẬT — giữ NGUYÊN hợp đồng tên trường như bản cũ ══════ --}}
         <form method="POST" action="{{ route('student.assessment.take.submit', $attempt->id) }}" id="take-form" x-ref="examForm" class="hidden">
             @csrf
+            {{-- SỬA 11/10 — nhật ký làm bài (JSON) để máy chủ trừ điểm theo câu; syncForm() điền lúc nộp. --}}
+            <input type="hidden" name="activity_log" value="">
             @foreach ($questions as $q)
                 @php $qid = $q['questionId']; @endphp
                 @if ($q['kind'] === 'code')
@@ -556,6 +565,7 @@
 
              PHẢI nằm TRONG khối x-data thì x-show="submitting" mới đọc được biến. Kiểu dáng
              dùng chung với màn Luyện tập theo câu. --}}
+        @include('partials.exam-penalty-dialogs')
         @include('partials.grading-overlay', [
             'overlayMode' => 'alpine-result',
             'overlayTitle' => 'Đang nộp và chấm bài…',
@@ -598,5 +608,7 @@
     @include('partials.assessment-chip-style')
     @include('partials.exam-workspace-script')
     {{-- SỬA 1/10 — đồng hồ + nhật ký làm bài, dùng CHUNG partial với màn Luyện tập. --}}
+    {{-- SỬA 11/10 — luật trừ điểm (% mỗi lần) cho nhật ký: có biến này thì work-activity-log hiện huy hiệu + hộp báo. --}}
+    <script>window.oiPenaltyRules = @json(\App\Support\PracticeActivityLog::PENALTY_PERCENT);</script>
     @include('partials.work-activity-log')
 @endpush

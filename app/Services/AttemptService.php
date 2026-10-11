@@ -879,6 +879,20 @@ class AttemptService
             $this->maxPointsFor($attempt, $question),
         );
 
+        /*
+         * SỬA 11/10 — LÀM ĐỀ: trừ điểm theo nhật ký của CÂU NÀY (chụp màn hình 30%, xem Hướng dẫn/Bài mẫu 20% mỗi lần).
+         * Nhật ký được ghi vào answer->activity_log lúc nộp đề (Student\AssessmentService::applyActivityPenalty()), trước
+         * khi việc chấm nền được đẩy đi nên ở đây luôn đọc được. Chỉ đề thi (assessment_id có giá trị); câu nào không có
+         * nhật ký (cuộc thi, nộp không kèm nhật ký) thì giữ nguyên điểm. Hàm thoát sớm khi câu đã chấm xong nên chỉ trừ một lần.
+         */
+        if ($attempt->assessment_id !== null && AttemptAnswer::supportsActivityLog() && is_array($answer->activity_log)) {
+            $penaltyPercent = \App\Support\PracticeActivityLog::penalty($answer->activity_log)['percent'];
+
+            if ($penaltyPercent > 0) {
+                $score = \App\Support\PracticeActivityLog::applyPercent((float) $score, $penaltyPercent);
+            }
+        }
+
         $answer->verdict = $result['verdict']->value;
         $answer->score = $score;
         $answer->graded_at = now();

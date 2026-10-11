@@ -329,7 +329,7 @@ class AssessmentService
      *
      * @throws \Illuminate\Validation\ValidationException nếu attempt đã nộp trước đó.
      */
-    public function submitAttempt(User $user, int $attemptId, array $answersInput): Attempt
+    public function submitAttempt(User $user, int $attemptId, array $answersInput, ?string $activityLog = null): Attempt
     {
         $this->saveDraftAnswers($user, $attemptId, $answersInput);
 
@@ -339,7 +339,57 @@ class AssessmentService
             return $this->pdfAttemptService->submit($attempt);
         }
 
+        $this->applyActivityPenalty($attempt, $activityLog);
+
         return $this->attemptService->submit($attempt);
+    }
+
+    /**
+     * SỬA 11/10 (khách: "chụp màn hình trừ 30%, xem Hướng dẫn/Bài mẫu trừ 20% điểm bài — áp dụng cả làm đề") — TRỪ ĐIỂM
+     * THEO NHẬT KÝ LÀM ĐỀ, tính THEO TỪNG CÂU: vi phạm xảy ra lúc đang xem câu nào thì trừ % điểm của CÂU ĐÓ (cộng dồn, tối đa
+     * 100% điểm câu; chuyển tab KHÔNG trừ — xem PracticeActivityLog::PENALTY_PERCENT).
+     *
+     *  · Nhật ký từng câu được lưu vào attempt_answers.activity_log của câu đó.
+     *  · Câu trắc nghiệm / điền đáp án đã có điểm: trừ NGAY ở đây (trước khi AttemptService::submit() cộng tổng).
+     *  · Câu lập trình còn chờ chấm: chỉ lưu nhật ký; AttemptService::gradeCodingAnswer() trừ khi máy chấm trả điểm.
+     *  · Chỉ trừ MỘT lần: câu nào đã có activity_log thì bỏ qua (nộp đồng thời hai request không trừ chồng).
+     *  · Chỉ áp dụng khi trình duyệt gửi nhật ký kèm lúc nộp. Người tắt JavaScript / xoá nhật ký thì không bị bắt.
+     */
+    private function applyActivityPenalty(Attempt $attempt, ?string $rawLog): void
+    {
+        if (! \App\Models\AttemptAnswer::supportsActivityLog()) {
+            return;
+        }
+
+        $events = \App\Support\PracticeActivityLog::clean($rawLog);
+
+        if ($events === null || $events === []) {
+            return;
+        }
+
+        $byQuestion = \App\Support\PracticeActivityLog::groupByQuestion($events);
+
+        if ($byQuestion === []) {
+            return;
+        }
+
+        foreach ($attempt->answers()->get() as $answer) {
+            $questionEvents = $byQuestion[(int) $answer->question_id] ?? null;
+
+            if ($questionEvents === null || $answer->activity_log !== null) {
+                continue;
+            }
+
+            $percent = \App\Support\PracticeActivityLog::penalty($questionEvents)['percent'];
+
+            $answer->activity_log = $questionEvents;
+
+            if ($percent > 0 && $answer->score !== null && $answer->verdict->isFinal()) {
+                $answer->score = \App\Support\PracticeActivityLog::applyPercent((float) $answer->score, $percent);
+            }
+
+            $answer->save();
+        }
     }
 
     /**
@@ -517,6 +567,17 @@ class AssessmentService
                 $verdict = $a?->verdict;
                 $score = $a?->score !== null ? (float) $a->score : null;
                 $pending = $has && (($verdict !== null && ! $verdict->isFinal()) || ($verdict === null && $score === null));
+                // SỬA 11/10 — ghi chú điểm bị trừ do nhật ký làm đề (chụp màn hình / xem Hướng dẫn-Bài mẫu).
+                $penaltyNote = null;
+                if ($has && ! $pending && \App\Models\AttemptAnswer::supportsActivityLog() && is_array($a->activity_log)) {
+                    $pen = \App\Support\PracticeActivityLog::penalty($a->activity_log);
+                    if ($pen['percent'] > 0) {
+                        $penaltyNote = 'Bị trừ '.$pen['percent'].'% ('.implode(', ', array_map(fn ($p) => $p['label'].' '.$p['count'].' lần', $pen['parts'])).')';
+                    }
+                }
+                $testsNote = ($has && \App\Models\AttemptAnswer::supportsTestCounts() && (int) ($a->total_tests ?? 0) > 0)
+                    ? 'Qua '.(int) $a->passed_tests.'/'.(int) $a->total_tests.' test' : null;
+
                 $rows[] = [
                     'id' => 'q'.$item->question_id,
                     'title' => $item->question?->title ?? 'Câu hỏi',
@@ -524,8 +585,7 @@ class AssessmentService
                     'score' => $has && ! $pending ? ($score ?? 0.0) : 0.0,
                     'maxScore' => $max,
                     'answered' => $has,
-                    'note' => ($has && \App\Models\AttemptAnswer::supportsTestCounts() && (int) ($a->total_tests ?? 0) > 0)
-                        ? 'Qua '.(int) $a->passed_tests.'/'.(int) $a->total_tests.' test' : null,
+                    'note' => ($testsNote !== null || $penaltyNote !== null) ? implode(' · ', array_filter([$testsNote, $penaltyNote])) : null,
                 ];
             }
         }

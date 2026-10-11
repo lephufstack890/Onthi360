@@ -92,6 +92,9 @@ final class PracticeActivityLog
                 'title' => $title,
                 'detail' => self::text($row['detail'] ?? '', 240),
                 'occurredAt' => self::time($row['occurredAt'] ?? null),
+                // SỬA 11/10 — LÀM ĐỀ: dòng nhật ký gắn với câu đang xem lúc xảy ra (để trừ điểm đúng câu).
+                // Màn Luyện tập 1 bài không gửi trường này -> null.
+                'questionId' => isset($row['questionId']) && is_numeric($row['questionId']) ? (int) $row['questionId'] : null,
             ];
         }
 
@@ -173,6 +176,33 @@ final class PracticeActivityLog
         }
 
         return ['percent' => min(100, $total), 'counts' => $counts, 'parts' => $parts];
+    }
+
+    /**
+     * SỬA 11/10 — LÀM ĐỀ: chia nhật ký theo CÂU (questionId). Dòng không gắn câu nào thì bỏ qua (không biết trừ câu nào).
+     *
+     * @param  list<array<string,mixed>>  $events
+     * @return array<int, list<array<string,mixed>>>
+     */
+    public static function groupByQuestion(array $events): array
+    {
+        $out = [];
+
+        foreach ($events as $event) {
+            $qid = is_array($event) ? ($event['questionId'] ?? null) : null;
+
+            if (is_int($qid) && $qid > 0) {
+                $out[$qid][] = $event;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Điểm sau khi trừ $percent% (làm tròn 2 chữ số, không âm). */
+    public static function applyPercent(float $score, int $percent): float
+    {
+        return max(0.0, round($score * (100 - max(0, min(100, $percent))) / 100, 2));
     }
 
     /** Nhóm dấu hiệu của một dòng: screenshot | tab | guide | other | null (không phải dấu hiệu). */

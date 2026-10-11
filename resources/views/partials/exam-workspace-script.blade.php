@@ -106,6 +106,13 @@
                  *   exitOpen    : hộp cảnh báo khi bấm X lúc đang chấm.
                  */
                 resultReady: false,
+                /*
+                 * SỬA 11/10 — LÀM ĐỀ: trừ điểm theo nhật ký (chụp màn hình 30%, xem Hướng dẫn/Bài mẫu 20% — mỗi lần, tính trên điểm
+                 * của CÂU đang xem). penaltyAsk = hộp xác nhận trước khi mở Hướng dẫn/Bài mẫu; penaltyNotice = hộp báo vừa bị trừ.
+                 * Chỉ màn có window.oiPenaltyRules (take.blade) mới hỏi/báo; phòng thi Cuộc thi không có nên hành vi như cũ.
+                 */
+                penaltyAsk: { open: false, id: null, label: '', pct: 0 },
+                penaltyNotice: { open: false, title: '', percent: 0, total: 0 },
                 exitOpen: false,
                 exitUrl: null,
                 submitResult: { score: '—', totalPoints: '—', isProvisional: false, resultUrl: '#', questions: [], answered: 0, correct: 0, total: 0, maxScore: null },
@@ -127,6 +134,8 @@
                     var self = this;
                     this.registerLeaveGuard();
                     this.registerGradingGuard();
+                    // Nhật ký làm đề gắn từng dòng với câu đang xem (xem work-activity-log: currentQid).
+                    window.oiWorkLogQuestionId = function () { return self.activeId; };
                     this.questions.forEach(function (q) {
                         if (self.testInputs[q.id] === undefined) self.testInputs[q.id] = '';
                         if (self.testOutputs[q.id] === undefined) self.testOutputs[q.id] = 'Chưa chạy test';
@@ -247,6 +256,33 @@
                     var self = this;
                     clearInterval(this.statusTimer);
                     setTimeout(function () { self.resultReady = true; self.exitOpen = false; }, 450);
+                },
+
+                // ── SỬA 11/10 — TRỪ ĐIỂM KHI MỞ HƯỚNG DẪN / BÀI MẪU (làm đề) ──
+                askTab(id) {
+                    if ((id === 'guide' || id === 'sample') && this.activeTab !== id) {
+                        var pct = (window.oiPenaltyRules && window.oiPenaltyRules.guide) || 0;
+                        if (pct > 0) {
+                            this.penaltyAsk = { open: true, id: id, label: id === 'guide' ? 'Hướng dẫn' : 'Bài mẫu', pct: pct };
+                            return;
+                        }
+                    }
+                    this.activeTab = id;
+                },
+                penaltyAccept() {
+                    var id = this.penaltyAsk.id;
+                    this.penaltyAsk.open = false;
+                    if (id) this.activeTab = id;
+                },
+                penaltyCancel() { this.penaltyAsk.open = false; },
+                showPenaltyNotice(d) {
+                    if (! d || this.submitting) return;
+                    this.penaltyNotice = { open: true, title: d.title || 'Vi phạm quy định làm bài', percent: d.percent || 0, total: d.total || 0 };
+                },
+                /** Đổi câu khi đang ở tab Hướng dẫn/Bài mẫu: về tab Làm bài — muốn xem tiếp phải xác nhận lại (mỗi câu một lần trừ). */
+                onActiveChanged() {
+                    if (this.activeTab === 'guide' || this.activeTab === 'sample') this.activeTab = 'work';
+                    if (window.oiWorkLog && typeof window.oiWorkLog.refresh === 'function') window.oiWorkLog.refresh();
                 },
 
                 // ── Điều hướng câu ──
@@ -543,6 +579,14 @@
                         el.value = text;
                         el.disabled = text.trim() === '';
                     };
+
+                    // SỬA 11/10 — gửi kèm nhật ký làm bài (máy chủ trừ điểm theo câu). Không có nhật ký thì để rỗng.
+                    var logEl = form.querySelector('[name="activity_log"]');
+                    if (logEl) {
+                        try {
+                            logEl.value = (window.oiWorkLog && typeof window.oiWorkLog.snapshot === 'function') ? JSON.stringify(window.oiWorkLog.snapshot()) : '';
+                        } catch (e) { logEl.value = ''; }
+                    }
 
                     this.questions.forEach(function (q) {
                         if (q.kind === 'code') {
