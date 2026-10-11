@@ -352,8 +352,8 @@
                                         <template x-if="proposedOf(it.row.best || it.row.latest) !== null">
                                             <div>
                                                 <strong x-text="fmt(proposedOf(it.row.best || it.row.latest))"></strong>
-                                                <span class="exam-proposed-adjust" :title="'Cộng thêm / điểm bị trừ theo nhật ký làm đề'">+0 / −<span x-text="fmt((it.row.best || it.row.latest).deducted || 0)"></span></span>
-                                                <small><span x-text="((it.row.best || it.row.latest).signals || 0) + ' dấu hiệu'"></span> · Chưa duyệt</small>
+                                                <span class="exam-proposed-adjust" :title="'Số dấu hiệu vi phạm / điểm bị trừ theo nhật ký làm đề'">+<span x-text="(it.row.best || it.row.latest).signals || 0"></span> / −<span x-text="fmt((it.row.best || it.row.latest).deducted || 0)"></span></span>
+                                                <small>Chưa duyệt</small>
                                             </div>
                                         </template>
                                         <template x-if="proposedOf(it.row.best || it.row.latest) === null">
@@ -405,8 +405,8 @@
                                                 <template x-if="proposedOf(it.attempt) !== null">
                                                     <div>
                                                         <strong x-text="fmt(proposedOf(it.attempt))"></strong>
-                                                        <span class="exam-proposed-adjust">+0 / −<span x-text="fmt(it.attempt.deducted || 0)"></span></span>
-                                                        <small><span x-text="(it.attempt.signals || 0) + ' dấu hiệu'"></span> · Chưa duyệt</small>
+                                                        <span class="exam-proposed-adjust" :title="'Số dấu hiệu vi phạm / điểm bị trừ theo nhật ký làm đề'">+<span x-text="it.attempt.signals || 0"></span> / −<span x-text="fmt(it.attempt.deducted || 0)"></span></span>
+                                                        <small>Chưa duyệt</small>
                                                     </div>
                                                 </template>
                                                 <template x-if="proposedOf(it.attempt) === null">
