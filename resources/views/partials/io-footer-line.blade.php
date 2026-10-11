@@ -10,7 +10,7 @@
 </p>
 @once
     <style>
-        .oi-io-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 2px; margin: 0; font-size: 10px; line-height: 1.4; color: #607A90; }
-        .oi-io-line code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-weight: 700; color: #365B7A; }
+        .oi-io-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 2px; margin: 0; font-size: 12px; line-height: 1.45; color: #45657D; }
+        .oi-io-line code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 700; color: #123B68; }
     </style>
 @endonce

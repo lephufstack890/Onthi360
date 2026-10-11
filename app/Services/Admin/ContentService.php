@@ -306,6 +306,13 @@ class ContentService
             $leadPrevId = $leadPrev?->id;
             $leadPrevType = $leadPrev?->type->value;
 
+            // SỬA 10/10 — câu đứng NGAY SAU câu cuối trang này (ở trang sau), để nút "Đưa xuống dưới" của dòng cuối trang biết đảo với câu nào.
+            $leadNext = $page < $lastPage
+                ? $this->questions->allWithOwnerFiltered($filters, 1, $page * $perPage)->first()
+                : null;
+            $leadNextId = $leadNext?->id;
+            $leadNextType = $leadNext?->type->value;
+
             $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
@@ -403,6 +410,8 @@ class ContentService
             'orderMax' => $tab === 'questions' ? $this->displayOrderMax() : 0,
             'leadPrevId' => $leadPrevId ?? null,
             'leadPrevType' => $leadPrevType ?? null,
+            'leadNextId' => $leadNextId ?? null,
+            'leadNextType' => $leadNextType ?? null,
             'documents' => $documents,
             'tags' => $tags,
             'total' => match (true) {
@@ -1785,52 +1794,7 @@ class ContentService
      */
     public function questionMoveBefore(Question $question, Question $before): array
     {
-        if ($question->id === $before->id) {
-            return ['ok' => false, 'message' => 'Không thể đặt một câu trước chính nó.'];
-        }
-
-        if ($question->type !== $before->type) {
-            return ['ok' => false, 'message' => 'Hai câu khác dạng bài — thứ tự chỉ đổi được trong cùng một dạng bài.'];
-        }
-
-        $beforeOrder = (int) $before->display_order;
-        if ((int) $question->display_order > $beforeOrder) {
-            return ['ok' => true]; // đã đứng trước hẳn rồi (số lớn hơn) — không cần làm gì
-        }
-
-        return DB::transaction(function () use ($question, $before, $beforeOrder): array {
-            // Nhóm "đứng trước $before" theo thứ tự chung (cùng dạng bài, không tính chính $question).
-            $typeValue = $before->type->value;
-            $above = fn () => Question::query()->where('id', '!=', $question->id)
-                ->where('type', $typeValue)
-                ->where(function ($q) use ($before, $beforeOrder) {
-                    $q->where('display_order', '>', $beforeOrder)
-                        ->orWhere(function ($q) use ($before, $beforeOrder) {
-                            $q->where('display_order', $beforeOrder)->where('id', '<', $before->id);
-                        });
-                });
-
-            $newValue = $beforeOrder + 1;
-            $minAbove = $above()->min('display_order');
-            $needBump = $minAbove !== null && (int) $minAbove < $beforeOrder + 2;
-
-            if ($needBump) {
-                $maxAbove = (int) $above()->max('display_order');
-                if (max($maxAbove + 2, $beforeOrder + 2) > self::DISPLAY_ORDER_LIMIT) {
-                    return ['ok' => false, 'message' => 'Không đẩy thêm được: thứ tự đã chạm mốc '.self::DISPLAY_ORDER_LIMIT.'. Hãy đặt lại số nhỏ hơn cho các câu đứng đầu.'];
-                }
-                // Thứ tự quan trọng: tăng nhóm "số lớn hơn" TRƯỚC, rồi mới nâng nhóm hoà số.
-                Question::query()->where('id', '!=', $question->id)->where('type', $typeValue)
-                    ->where('display_order', '>', $beforeOrder)->increment('display_order', 2);
-                $above()->where('display_order', $beforeOrder)->update(['display_order' => $beforeOrder + 2]);
-            } elseif ($newValue > self::DISPLAY_ORDER_LIMIT) {
-                return ['ok' => false, 'message' => 'Không đẩy thêm được: thứ tự đã chạm mốc '.self::DISPLAY_ORDER_LIMIT.'.'];
-            }
-
-            $this->saveDisplayOrder($question, $newValue);
-
-            return ['ok' => true];
-        });
+        return \App\Support\QuestionReorder::moveBefore($question, $before);
     }
 
     private function saveDisplayOrder(Question $question, int $new): void

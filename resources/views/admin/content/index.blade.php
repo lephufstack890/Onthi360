@@ -287,7 +287,7 @@
             @if ($isQuestions)
                 {{-- SỬA 7/10 (khách: "hiển thị cột thứ tự ra ngoài danh sách, sửa trực tiếp trên từng dòng")
                      — chú thích cách đọc cột Thứ tự. --}}
-                <p class="oi-ord-hint akx-hint">Nút <strong>Đưa lên trước</strong> (cột cuối) chen câu lên đứng ngay trước câu phía trên nó — hệ thống tự lưu.</p>
+                <p class="oi-ord-hint akx-hint">Nút <strong>Đưa lên trước</strong> / <strong>Đưa xuống dưới</strong> (cột cuối) đổi chỗ câu với câu liền trên / liền dưới trong cùng dạng bài — hệ thống tự lưu.</p>
             @endif
 
             <div class="acx-scroll" @unless ($isQuestions) data-pg="rows" data-unit="kết quả" @endunless>
@@ -349,6 +349,7 @@
                                             <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}" data-type="{{ $r['typeValue'] ?? '' }}">
                                                 <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
                                                 <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" data-prevtype="{{ $leadPrevType ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
+                                                <button type="button" class="oi-ord__top oi-ord__down" data-act="down" @if ($loop->last) data-next="{{ $leadNextId ?? '' }}" data-nexttype="{{ $leadNextType ?? '' }}" @endif title="Đưa câu này xuống đứng ngay sau câu phía dưới nó">Đưa xuống dưới</button>
                                                 <span class="oi-ord__st" aria-live="polite"></span>
                                             </span>
                                         @endif
@@ -467,6 +468,8 @@
             .oi-ord__in.is-set{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
             .oi-ord__top{height:auto;padding:0;border:0;background:transparent;color:#2563eb;border-radius:0;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:0}
             .oi-ord__top::before{content:"\2191";margin-right:4px}
+            .oi-ord__down::before{content:"\2193"}
+            .oi-ord{flex-wrap:wrap;justify-content:flex-end;column-gap:12px}
             .oi-ord__top:hover{background:transparent;text-decoration:underline}
             .oi-ord-flash{background:#ecfdf5 !important;transition:background 1.2s}
             .oi-ord__top[disabled]{background:transparent;color:#8aa0b6;cursor:default;text-decoration:none}
@@ -517,18 +520,32 @@
                 // với danh sách (dirty) thì khoá cho tới khi bấm "Sắp xếp lại danh sách".
                 function refreshButtons() {
                     var all = boxes();
+                    var total = {{ (int) ($pagination['total'] ?? 0) }};
+                    var lastPage = {{ (int) ($pagination['lastPage'] ?? 1) }};
                     all.forEach(function (box, i) {
                         var v = parseInt(box.dataset.saved, 10) || 0;
                         var btn = box.querySelector('[data-act="up"]');
+                        var dn = box.querySelector('[data-act="down"]');
                         var atTop = i === 0 && pageNo === 1;
-                        // Thứ tự chỉ đổi được trong cùng một dạng bài: câu đầu nhóm dạng thì không có câu "phía trên" cùng dạng.
+                        var atBottom = i === all.length - 1 && pageNo === lastPage;
+                        // Thứ tự chỉ đổi được trong cùng một dạng bài: câu đầu/cuối nhóm dạng thì không có câu liền kề cùng dạng.
+                        var myType = box.dataset.type || '';
                         var prevType = i > 0 ? all[i - 1].dataset.type : (btn.dataset.prevtype || '');
-                        var groupTop = !atTop && !!prevType && prevType !== (box.dataset.type || '');
+                        var nextType = i < all.length - 1 ? all[i + 1].dataset.type : (dn ? (dn.dataset.nexttype || '') : '');
+                        var groupTop = !atTop && !!prevType && prevType !== myType;
+                        var groupBottom = !atBottom && !!nextType && nextType !== myType;
                         btn.disabled = atTop || groupTop || dirty;
                         btn.textContent = atTop || groupTop ? 'Đang ở đầu' : 'Đưa lên trước';
                         btn.title = atTop ? 'Câu này đang đứng đầu danh sách'
                             : (groupTop ? 'Câu này đang đứng đầu dạng bài của nó'
                             : (dirty ? 'Bấm "Sắp xếp lại danh sách" trước khi chuyển vị trí' : 'Đưa câu này lên đứng ngay trước câu phía trên nó'));
+                        if (dn) {
+                            dn.disabled = atBottom || groupBottom || dirty;
+                            dn.textContent = atBottom || groupBottom ? 'Đang ở cuối' : 'Đưa xuống dưới';
+                            dn.title = atBottom ? 'Câu này đang đứng cuối danh sách'
+                                : (groupBottom ? 'Câu này đang đứng cuối dạng bài của nó'
+                                : (dirty ? 'Bấm "Sắp xếp lại danh sách" trước khi chuyển vị trí' : 'Đưa câu này xuống đứng ngay sau câu phía dưới nó'));
+                        }
                         box.querySelector('.oi-ord__in').classList.toggle('is-set', v > 0);
                     });
                 }
@@ -620,6 +637,29 @@
                     });
                 }
 
+                function moveDown(box) {
+                    var all = boxes();
+                    var i = all.indexOf(box);
+                    var next = i < all.length - 1 ? all[i + 1] : null;
+                    var afterId = next ? next.dataset.id : box.querySelector('[data-act="down"]').dataset.next;
+                    if (!afterId) return;
+                    send(box, { mode: 'after', after_id: parseInt(afterId, 10) }).then(function (j) {
+                        if (!j) return;
+                        var row = box.closest('tr');
+                        if (next) {
+                            // Đổi chỗ ngay trên màn hình: dòng này tụt xuống sau dòng phía dưới.
+                            var nrow = next.closest('tr');
+                            nrow.parentNode.insertBefore(row, nrow.nextSibling);
+                            row.classList.add('oi-ord-flash');
+                            setTimeout(function () { row.classList.remove('oi-ord-flash'); }, 1400);
+                            refreshButtons();
+                        } else {
+                            // Câu phía dưới nằm ở trang sau → tải lại để thấy vị trí mới.
+                            window.location.reload();
+                        }
+                    });
+                }
+
                 document.addEventListener('click', function (e) {
                     var btn = e.target.closest('[data-ord] [data-act]');
                     if (!btn || btn.disabled) return;
@@ -627,6 +667,7 @@
                     var input = box.querySelector('.oi-ord__in');
                     var act = btn.dataset.act;
                     if (act === 'up') { moveUp(box); return; }
+                    if (act === 'down') { moveDown(box); return; }
                     var cur = parse(box);
                     if (cur === null) cur = parseInt(box.dataset.saved, 10) || 0;
                     input.value = clamp(cur + (act === 'inc' ? 1 : -1));

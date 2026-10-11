@@ -104,6 +104,30 @@ class QuestionController extends Controller
         return redirect()->route('teacher.questions.index')->with('status', 'question-published');
     }
 
+    /**
+     * SỬA 10/10 — nút "Đưa lên trước / Đưa xuống dưới" ở danh sách câu hỏi của giáo viên (gọi bằng fetch, trả JSON).
+     * dir=up   : câu này lên NGAY TRƯỚC câu neighbor_id (câu liền trên);
+     * dir=down : câu này xuống NGAY SAU câu neighbor_id (câu liền dưới).
+     * Cả hai câu phải là câu CỦA GIÁO VIÊN này; chỉ số thứ tự của câu mình bị đổi, không đụng câu người khác.
+     */
+    public function move(Request $request, int $question): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'dir' => ['required', 'in:up,down'],
+            'neighbor_id' => ['required', 'integer'],
+        ]);
+
+        $user = Auth::user();
+        $questionModel = $this->questionService->findOwned($user, $question);
+        $neighbor = $this->questionService->findOwned($user, (int) $data['neighbor_id']);
+
+        $result = $this->questionService->moveNeighbor($user, $questionModel, $neighbor, $data['dir']);
+
+        return $result['ok']
+            ? response()->json(['ok' => true])
+            : response()->json(['ok' => false, 'message' => $result['message'] ?? 'Không đổi được thứ tự.'], 422);
+    }
+
     public function archive(Request $request, int $question): RedirectResponse
     {
         $questionModel = $this->questionService->findOwned(Auth::user(), $question);

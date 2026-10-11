@@ -198,6 +198,19 @@ class QuestionService
     }
 
     /** Chỉ giáo viên sở hữu mới được xem/sửa (6.5: không mặc định thấy/sửa kho giáo viên khác). */
+    /**
+     * SỬA 10/10 — đổi chỗ 2 câu LIỀN KỀ trong danh sách của giáo viên (xem App\Support\QuestionReorder).
+     * "up"  : $question lên trước $neighbor; "down" : $question xuống sau $neighbor (= $neighbor lên trước $question).
+     *
+     * @return array{ok:bool, message?:string}
+     */
+    public function moveNeighbor(User $teacher, Question $question, Question $neighbor, string $dir): array
+    {
+        return $dir === 'down'
+            ? \App\Support\QuestionReorder::moveBefore($neighbor, $question, $teacher->id)
+            : \App\Support\QuestionReorder::moveBefore($question, $neighbor, $teacher->id);
+    }
+
     public function findOwned(User $teacher, int $id): Question
     {
         $question = $this->questions->findOrFail($id);

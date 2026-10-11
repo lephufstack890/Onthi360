@@ -751,14 +751,14 @@
         @endphp
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
-                <p class="truncate text-[11px] font-bold text-[#123B68]">{{ $headTitle }}@if (($nav['total'] ?? 0) > 1) <span class="font-semibold text-[#607A90]">· bài {{ $nav['position'] }}/{{ $nav['total'] }}</span>@endif</p>
+                <p class="truncate text-[13px] font-bold text-[#123B68]">{{ $headTitle }}@if (($nav['total'] ?? 0) > 1) <span class="font-semibold text-[#607A90]">· bài {{ $nav['position'] }}/{{ $nav['total'] }}</span>@endif</p>
                 {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, nên câu nhắc phải nói rõ lý do
                      thay vì để người học bấm mãi không được. --}}
                 @if ($isCode)
                     {{-- SỬA 10/10 — câu lập trình: hiện Input/Output (tên tệp INP/OUT nếu đọc/ghi qua tệp, không thì stdin/stdout). --}}
                     @include('partials.io-footer-line', ['fileIo' => $fileIo ?? null])
                 @else
-                <p class="hidden text-[10px] text-[#607A90] sm:block" x-text="tab === 'work' ? 'Nộp bài để xem kết quả chấm.' : 'Chuyển sang tab Làm bài để nộp bài.'">Nộp bài để xem kết quả chấm.</p>
+                <p class="hidden text-[12px] text-[#607A90] sm:block" x-text="tab === 'work' ? 'Nộp bài để xem kết quả chấm.' : 'Chuyển sang tab Làm bài để nộp bài.'">Nộp bài để xem kết quả chấm.</p>
                 @endif
             </div>
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">

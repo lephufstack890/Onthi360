@@ -210,21 +210,26 @@ class ContentController extends Controller
      * SỬA 7/10 — đổi nhanh "Thứ tự hiển thị" ngay trên danh sách (gọi bằng fetch, trả JSON).
      *   mode=set    + value (0..65535)  : đặt đúng số đó.
      *   mode=before + before_id         : đưa câu này lên NGAY TRƯỚC câu before_id (câu liền trên).
+     *   mode=after  + after_id          : đưa câu này xuống NGAY SAU câu after_id (câu liền dưới).
      * visible_ids = các câu đang hiện trên trang, để trả lại số mới của chúng cho ô số.
      */
     public function questionsDisplayOrder(Request $request, Question $question): JsonResponse
     {
         $data = $request->validate([
-            'mode' => ['required', 'in:set,before'],
+            'mode' => ['required', 'in:set,before,after'],
             'value' => ['required_if:mode,set', 'nullable', 'integer', 'min:0', 'max:65535'],
             'before_id' => ['required_if:mode,before', 'nullable', 'integer', 'exists:questions,id'],
+            'after_id' => ['required_if:mode,after', 'nullable', 'integer', 'exists:questions,id'],
             'visible_ids' => ['nullable', 'array', 'max:200'],
             'visible_ids.*' => ['integer'],
         ], [], ['value' => 'Thứ tự hiển thị']);
 
-        $result = $data['mode'] === 'before'
-            ? $this->contentService->questionMoveBefore($question, Question::query()->findOrFail((int) $data['before_id']))
-            : $this->contentService->questionSetDisplayOrder($question, (int) $data['value']);
+        // SỬA 10/10 — mode=after + after_id: đưa câu này xuống NGAY SAU câu after_id (câu liền dưới) = đưa câu liền dưới lên trước câu này.
+        $result = match ($data['mode']) {
+            'before' => $this->contentService->questionMoveBefore($question, Question::query()->findOrFail((int) $data['before_id'])),
+            'after' => $this->contentService->questionMoveBefore(Question::query()->findOrFail((int) $data['after_id']), $question),
+            default => $this->contentService->questionSetDisplayOrder($question, (int) $data['value']),
+        };
 
         if (! $result['ok']) {
             return response()->json(['ok' => false, 'message' => $result['message'] ?? 'Không đổi được thứ tự.'], 422);

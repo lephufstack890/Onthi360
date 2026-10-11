@@ -397,6 +397,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('questions/{question}', [TeacherQuestionController::class, 'update'])->name('questions.update');
         Route::post('questions/{question}/publish', [TeacherQuestionController::class, 'publish'])->name('questions.publish');
         Route::post('questions/{question}/archive', [TeacherQuestionController::class, 'archive'])->name('questions.archive');
+        // SỬA 10/10 — đổi chỗ câu của mình với câu liền trên/dưới trong danh sách (JSON).
+        Route::patch('questions/{question}/move', [TeacherQuestionController::class, 'move'])->name('questions.move');
 
         // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
         // Teacher\QuestionService::storeFromZipPackage() + attachmentInfo().

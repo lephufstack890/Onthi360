@@ -184,7 +184,7 @@
                     </thead>
                     <tbody>
                         @foreach ($questions as $q)
-                            <tr data-pg-item>
+                            <tr data-pg-item data-qid="{{ $q['id'] }}" data-qtype="{{ $q['typeValue'] ?? '' }}" @if ($q['readOnly'] ?? false) data-ro="1" @endif>
                                 <td>
                                     <span class="akx-title akx-title--static"><span class="akx-ico">{{ $typeIcons[$q['typeValue'] ?? ''] ?? '❓' }}</span>{{ $q['title'] }}</span>
                                     <div class="akx-meta">
@@ -217,6 +217,11 @@
                                         @if ($q['readOnly'] ?? false)
                                             <span class="akx-mute" style="font-size:12px;text-align:right">Thuộc Kho chung — chỉ Admin/Editor sửa được (6.5).</span>
                                         @else
+                                            {{-- SỬA 10/10 — đổi chỗ câu với câu liền trên/dưới (cùng dạng bài); thứ tự này cũng là thứ tự trang Luyện tập public. --}}
+                                            <span class="tq-mv">
+                                                <button type="button" class="tq-mv__b" data-tmove="up" title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
+                                                <button type="button" class="tq-mv__b tq-mv__b--dn" data-tmove="down" title="Đưa câu này xuống đứng ngay sau câu phía dưới nó">Đưa xuống dưới</button>
+                                            </span>
                                             <div class="akx-act__links">
                                                 <a href="{{ route('teacher.questions.edit', $q['id']) }}" class="akx-lnk">Sửa</a>
                                                 @if ($q['canPublish'])
@@ -304,4 +309,60 @@
             <div class="akx-pg" data-pg-nav="rows" hidden></div>
         </section>
     @endif
+
+@push('scripts')
+<style>
+    .tq-mv{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;margin-bottom:6px}
+    .tq-mv__b{border:0;background:transparent;padding:0;color:#2563eb;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+    .tq-mv__b::before{content:"\2191";margin-right:4px}
+    .tq-mv__b--dn::before{content:"\2193"}
+    .tq-mv__b:hover{text-decoration:underline}
+    .tq-mv__b[disabled]{color:#8aa0b6;cursor:default;text-decoration:none}
+    .tq-flash{background:#ecfdf5 !important;transition:background 1.2s}
+</style>
+<script>
+    (function () {
+        var csrf = @json(csrf_token());
+        var moveUrl = @json(url('teacher/questions/__ID__/move'));
+        function rows() { return Array.prototype.slice.call(document.querySelectorAll('tr[data-qid]:not([data-ro])')); }
+        function refresh() {
+            var all = rows();
+            all.forEach(function (tr, i) {
+                var up = tr.querySelector('[data-tmove="up"]'), dn = tr.querySelector('[data-tmove="down"]');
+                if (!up || !dn) return;
+                var prev = all[i - 1], next = all[i + 1], t = tr.dataset.qtype;
+                var noUp = !prev || prev.dataset.qtype !== t, noDn = !next || next.dataset.qtype !== t;
+                up.disabled = noUp; dn.disabled = noDn;
+                up.textContent = noUp ? 'Đang ở đầu' : 'Đưa lên trước';
+                dn.textContent = noDn ? 'Đang ở cuối' : 'Đưa xuống dưới';
+            });
+        }
+        document.addEventListener('click', function (e) {
+            var b = e.target.closest ? e.target.closest('[data-tmove]') : null;
+            if (!b || b.disabled) return;
+            var tr = b.closest('tr'), all = rows(), i = all.indexOf(tr), dir = b.dataset.tmove;
+            var nb = dir === 'up' ? all[i - 1] : all[i + 1];
+            if (!nb || nb.dataset.qtype !== tr.dataset.qtype) return;
+            b.disabled = true;
+            fetch(moveUrl.replace('__ID__', tr.dataset.qid), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ dir: dir, neighbor_id: parseInt(nb.dataset.qid, 10) })
+            }).then(function (res) { return res.json().catch(function () { return {}; }).then(function (j) { return { ok: res.ok, j: j }; }); })
+              .then(function (r) {
+                  if (!r.ok) { alert((r.j && (r.j.message || (r.j.errors && Object.values(r.j.errors)[0][0]))) || 'Không đổi được thứ tự.'); refresh(); return; }
+                  // Đổi chỗ 2 dòng trên màn hình; ẩn/hiện theo VỊ TRÍ (trang đang xem) nên hoán đổi cờ hidden cho 2 dòng.
+                  var h1 = tr.hidden, h2 = nb.hidden;
+                  if (dir === 'up') nb.parentNode.insertBefore(tr, nb); else nb.parentNode.insertBefore(tr, nb.nextSibling);
+                  tr.hidden = h2; nb.hidden = h1;
+                  tr.classList.add('tq-flash'); setTimeout(function () { tr.classList.remove('tq-flash'); }, 1400);
+                  refresh();
+              })
+              .catch(function () { alert('Không đổi được thứ tự — kiểm tra kết nối rồi thử lại.'); refresh(); });
+        });
+        document.addEventListener('DOMContentLoaded', refresh);
+    })();
+</script>
+@endpush
 @endsection
