@@ -98,6 +98,7 @@
                  bấm Thoát là rơi vào giao diện quản trị. Trang /luyen-tap công khai không có
                  khung đó, ai vào cũng ra đúng một trang. --}}
             <a href="{{ route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
+               @click="if (grading()) { $event.preventDefault(); askExit($el.href); }"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
             <div class="min-w-0 flex-1">
@@ -153,6 +154,12 @@
                 <span x-show="theme === 'dark'" x-cloak><x-lucide name="sun" class="h-4 w-4" /></span>
                 <span x-show="theme !== 'dark'"><x-lucide name="moon" class="h-4 w-4" /></span>
             </button>
+
+            {{-- SỬA 11/10 — TIẾN ĐỘ CHẤM (chép bố cục bản mẫu: "n/N" + thanh) — chỉ hiện lúc đang nộp/chấm, thay cho popup xoay. --}}
+            <div class="oi-gp" x-cloak x-show="grading()" role="status" aria-live="polite" aria-label="Tiến độ chấm đề">
+                <span class="oi-gp-n"><span x-text="gradedCount()"></span>/<span x-text="gradeTotal()"></span></span>
+                <span class="oi-gp-track"><span class="oi-gp-fill" :class="gradePct() < 100 ? 'is-run' : ''" :style="'width:' + gradePct() + '%'"></span></span>
+            </div>
 
             <template x-if="deadlineAt !== null">
                 <div class="hidden items-center gap-2 rounded-xl px-3 py-2 tabular-nums sm:flex"
@@ -522,7 +529,7 @@
                         :disabled="expired || submitting || activeTab !== 'work'"
                         :title="activeTab === 'work' ? null : 'Chuyển sang tab Làm bài để nộp đề'"
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60 sm:px-4">
-                    <x-lucide name="send" class="h-4 w-4" />Nộp đề
+                    <x-lucide name="send" class="h-4 w-4" /><span x-text="grading() ? 'Đang chấm…' : 'Nộp đề'">Nộp đề</span>
                 </button>
             </div>
         </footer>

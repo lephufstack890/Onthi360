@@ -98,6 +98,16 @@
                  *               thi vẫn dùng đường đó, không đụng tới.
                  */
                 submitDone: false,
+                /*
+                 * SỬA 11/10 (khách: "nộp đề hiện thanh chạy + chấm đề giống source mới, đừng hiện popup; chấm xong mới hiện
+                 * kết quả; đang chấm mà bấm X / tắt trang thì cảnh báo") —
+                 *   resultReady : đã chấm xong (hoặc quá thời gian chờ) -> MỚI bật hộp "Kết quả chấm đề".
+                 *   grading()   : đang nộp/chấm = submitting && !resultReady -> header hiện "n/N" + thanh, nút thành "Đang chấm…".
+                 *   exitOpen    : hộp cảnh báo khi bấm X lúc đang chấm.
+                 */
+                resultReady: false,
+                exitOpen: false,
+                exitUrl: null,
                 submitResult: { score: '—', totalPoints: '—', isProvisional: false, resultUrl: '#', questions: [], answered: 0, correct: 0, total: 0, maxScore: null },
                 statusUrl: config.statusUrl || null,
                 submitUrl: config.submitUrl || null,
@@ -116,6 +126,7 @@
                 init() {
                     var self = this;
                     this.registerLeaveGuard();
+                    this.registerGradingGuard();
                     this.questions.forEach(function (q) {
                         if (self.testInputs[q.id] === undefined) self.testInputs[q.id] = '';
                         if (self.testOutputs[q.id] === undefined) self.testOutputs[q.id] = 'Chưa chạy test';
@@ -180,6 +191,62 @@
                         event.preventDefault();
                         event.returnValue = '';
                     });
+                },
+
+                // ── SỬA 11/10 — TRẠNG THÁI "ĐANG CHẤM" (thanh n/N trên header, cảnh báo khi thoát) ──
+                grading() { return this.submitting && !this.resultReady; },
+
+                gradeTotal() {
+                    return this.submitResult.total > 0 ? this.submitResult.total : this.questions.length;
+                },
+
+                /** Số câu máy chấm đã chấm xong (câu còn "Chờ chấm" thì chưa tính). Chưa nhận được phản hồi nộp bài = 0. */
+                gradedCount() {
+                    var total = this.gradeTotal();
+                    if (! this.submitDone) return 0;
+                    if (! this.submitResult.isProvisional) return total;
+                    var done = this.submitResult.questions.filter(function (q) { return q.status !== 'Chờ chấm'; }).length;
+                    return Math.min(done, total);
+                },
+
+                /** Bề rộng thanh: tối thiểu 6% để lúc mới nộp vẫn thấy thanh "đang chạy". */
+                gradePct() {
+                    var total = this.gradeTotal();
+                    var pct = this.submitDone && total > 0 ? Math.round(this.gradedCount() / total * 100) : 0;
+                    return Math.max(6, Math.min(100, pct));
+                },
+
+                /** Bấm X lúc đang chấm -> hộp cảnh báo đẹp thay vì thoát luôn. */
+                askExit(url) {
+                    this.exitUrl = url;
+                    this.exitOpen = true;
+                },
+
+                exitNow() {
+                    this.leaving = true;
+                    this.exitOpen = false;
+                    if (this.exitUrl) window.location.href = this.exitUrl;
+                },
+
+                /**
+                 * Đóng tab / F5 / nút Back lúc đang nộp-chấm. Trình duyệt tự hiện hộp hỏi của nó (không đổi được câu chữ,
+                 * không dựng giao diện riêng được) — chỉ bật/tắt ở đây. Các lối tự điều hướng của trang (nộp bằng form
+                 * dự phòng, chuyển sang trang kết quả) đặt leaving = true nên không bị hỏi.
+                 */
+                registerGradingGuard() {
+                    var self = this;
+                    window.addEventListener('beforeunload', function (event) {
+                        if (! self.grading() || self.leaving) return;
+                        event.preventDefault();
+                        event.returnValue = '';
+                    });
+                },
+
+                /** Chấm xong: để thanh chạm 100% một nhịp rồi mới bật hộp kết quả. */
+                completeGrading() {
+                    var self = this;
+                    clearInterval(this.statusTimer);
+                    setTimeout(function () { self.resultReady = true; self.exitOpen = false; }, 450);
                 },
 
                 // ── Điều hướng câu ──
@@ -502,6 +569,8 @@
                     this.confirmOpen = false;
                     clearInterval(this.timerId);
 
+                    this.leaving = true;
+
                     if (resultUrl) {
                         window.location.href = resultUrl;
                         return;
@@ -519,6 +588,7 @@
                     // View không truyền submitUrl -> đường CŨ: gửi form thật, trình duyệt
                     // chuyển sang trang kết quả. Giữ nguyên để phòng thi Cuộc thi không đổi.
                     if (! this.submitUrl) {
+                        this.leaving = true;
                         this.$nextTick(() => this.$refs.examForm.submit());
 
                         return;
@@ -590,8 +660,11 @@
 
                         if (this.submitResult.isProvisional) {
                             this.watchGrading();
+                        } else {
+                            this.completeGrading();
                         }
                     } catch (e) {
+                        this.leaving = true;
                         this.$refs.examForm.submit();
                     }
                 },
@@ -612,8 +685,9 @@
                     this.statusTimer = setInterval(async function () {
                         tries++;
 
-                        if (tries > 40) {
-                            clearInterval(self.statusTimer);
+                        // Quá ~3 phút vẫn chưa chấm xong: bật hộp ở dạng "Điểm tạm tính" (điểm vẫn tự cập nhật trên trang kết quả).
+                        if (tries > 90) {
+                            self.completeGrading();
 
                             return;
                         }
@@ -633,12 +707,12 @@
                             self.submitResult = self.toSubmitResult(data);
 
                             if (! self.submitResult.isProvisional) {
-                                clearInterval(self.statusTimer);
+                                self.completeGrading();
                             }
                         } catch (e) {
                             // Mạng chập chờn một nhịp thì thôi, vòng sau hỏi lại.
                         }
-                    }, 3000);
+                    }, 2000);
                 },
             };
         }

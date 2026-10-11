@@ -175,6 +175,48 @@
     html.theme-dark .oi-rs-wait { background: #3a3220; color: #fcd34d; }
     html.theme-dark .oi-rs-link { color: #8fd6e6; }
 
+    /* ── SỬA 11/10 — TIẾN ĐỘ CHẤM trên header ("n/N" + thanh, chép bản mẫu AssessmentModal) ── */
+    .oi-gp { display: flex; align-items: center; gap: 8px; min-width: 120px; padding: 8px 10px; border-radius: 12px; background: #FFF5DE; color: #A4621B; font-size: 10px; font-weight: 700; }
+    .oi-gp[hidden] { display: none; }
+    .oi-gp-n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .oi-gp-track { position: relative; flex: 1 1 auto; min-width: 64px; height: 6px; overflow: hidden; border-radius: 999px; background: #F2E1B6; }
+    .oi-gp-fill { display: block; height: 100%; border-radius: 999px; background: #B68032; transition: width .3s ease; }
+    .oi-gp-fill.is-run { background-image: linear-gradient(90deg, #B68032 0%, #D9A653 50%, #B68032 100%); background-size: 200% 100%; animation: oi-gp-shimmer 1.2s linear infinite; }
+    @keyframes oi-gp-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+    html.theme-dark .oi-gp { background: rgba(182, 128, 50, .22); color: #F3C77E; }
+    html.theme-dark .oi-gp-track { background: rgba(243, 199, 126, .22); }
+    html.theme-dark .oi-gp-fill { background-color: #E0A850; }
+    @media (prefers-reduced-motion: reduce) { .oi-gp-fill.is-run { animation: none; } }
+
+    /* ── SỬA 11/10 — HỘP CẢNH BÁO THOÁT LÚC ĐANG CHẤM ── */
+    .oi-xw-backdrop { position: fixed; inset: 0; z-index: 95; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    .oi-xw-card { width: 100%; max-width: 410px; padding: 24px 22px 20px; border-radius: 18px; background: #fff; color: #123B68; text-align: center; box-shadow: 0 24px 60px rgba(15, 23, 42, .35); }
+    .oi-xw-enter { transition: opacity .18s ease, transform .18s ease; }
+    .oi-xw-enter-from { opacity: 0; transform: translateY(8px) scale(.96); }
+    .oi-xw-enter-to { opacity: 1; transform: none; }
+    .oi-xw-icon { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 9999px; background: #FFEDD5; color: #EA580C; }
+    .oi-xw-title { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.35; }
+    .oi-xw-prog { display: flex; align-items: center; gap: 10px; margin: 12px auto 0; max-width: 260px; padding: 7px 12px; border-radius: 12px; background: #FFF5DE; color: #A4621B; font-size: 11px; font-weight: 700; }
+    .oi-xw-prog-n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .oi-xw-desc { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: #45657D; }
+    .oi-xw-desc b { color: #123B68; }
+    .oi-xw-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .oi-xw-btn { flex: 1 1 0; padding: 10px 12px; border: 0; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color .15s ease, transform .05s ease; }
+    .oi-xw-btn:active { transform: scale(.98); }
+    .oi-xw-btn:focus-visible { outline: 2px solid #0E7490; outline-offset: 2px; }
+    .oi-xw-btn-ghost { background: #FDECEC; color: #B42318; }
+    .oi-xw-btn-ghost:hover { background: #FBD9D9; }
+    .oi-xw-btn-main { background: #126F91; color: #fff; }
+    .oi-xw-btn-main:hover { background: #0D5B77; }
+    html.theme-dark .oi-xw-card { background: #12283A; color: #E6F1F7; border: 1px solid #25445C; box-shadow: 0 24px 60px rgba(0, 0, 0, .6); }
+    html.theme-dark .oi-xw-title { color: #F1F8FC !important; }
+    html.theme-dark .oi-xw-icon { background: #3A2A18; color: #FDBA74; }
+    html.theme-dark .oi-xw-prog { background: rgba(182, 128, 50, .22); color: #F3C77E; }
+    html.theme-dark .oi-xw-desc { color: #A9C2D3 !important; }
+    html.theme-dark .oi-xw-desc b { color: #E6F1F7; }
+    html.theme-dark .oi-xw-btn-ghost { background: #3A1F22; color: #FCA5A5; }
+    html.theme-dark .oi-xw-btn-ghost:hover { background: #4C2528; }
+
     @keyframes oi-grading-spin { to { transform: rotate(360deg); } }
     @keyframes oi-grading-slide {
         0%   { transform: translateX(-110%); }
@@ -204,17 +246,11 @@
          lời · c/b câu đúng", danh sách từng câu kèm trạng thái và điểm, chân hộp "Tải nhật ký" +
          "Đóng kết quả". Dữ liệu từng câu do Student\AssessmentService::resultSummary() cấp, gửi kèm
          JSON nộp bài / hỏi trạng thái (điểm câu lập trình tự nhích lên khi máy chấm xong). --}}
-    <div class="oi-grading-overlay" role="status" aria-live="polite" x-cloak x-show="submitting || submitDone">
-        <template x-if="! submitDone">
-            <div class="oi-grading-card">
-                <div class="oi-grading-ring" aria-hidden="true"></div>
-                <p class="oi-grading-title">{{ $overlayTitle }}</p>
-                <p class="oi-grading-text">{{ $overlayText }}</p>
-                <div class="oi-grading-bar" aria-hidden="true"><span></span></div>
-            </div>
-        </template>
-
-        <template x-if="submitDone">
+    {{-- SỬA 11/10 (khách: "nộp đề thì hiện thanh chạy + chấm đề như source mới, đừng hiện popup; chấm xong mới hiện kết quả")
+         — ĐÃ GỠ thẻ "vòng quay" ở đây: lúc đang chấm tiến độ nằm ở header (xem .oi-gp trong take.blade). Lớp phủ này giờ CHỈ
+         hiện khi chấm xong (resultReady). --}}
+    <div class="oi-grading-overlay" role="status" aria-live="polite" x-cloak x-show="resultReady">
+        <template x-if="resultReady">
             <section class="oi-rs-dialog" role="dialog" aria-modal="true" aria-labelledby="oi-rs-title">
                 <header class="oi-rs-head">
                     <h2 id="oi-rs-title" class="oi-rs-title">
@@ -256,6 +292,32 @@
                 </footer>
             </section>
         </template>
+    </div>
+
+    {{-- SỬA 11/10 — HỘP CẢNH BÁO khi bấm X lúc đang chấm đề. --}}
+    <div class="oi-xw-backdrop" x-cloak x-show="exitOpen" x-transition.opacity.duration.150ms
+         @keydown.escape.window="exitOpen = false" @click.self="exitOpen = false">
+        <div class="oi-xw-card" role="alertdialog" aria-modal="true" aria-labelledby="oi-xw-title" aria-describedby="oi-xw-desc"
+             x-show="exitOpen"
+             x-transition:enter="oi-xw-enter" x-transition:enter-start="oi-xw-enter-from" x-transition:enter-end="oi-xw-enter-to"
+             x-effect="if (exitOpen) $nextTick(function () { var b = $el.querySelector('[data-oi-xw-stay]'); if (b) b.focus(); })">
+            <div class="oi-xw-icon"><x-lucide name="alert-triangle" class="h-6 w-6" /></div>
+            <h3 id="oi-xw-title" class="oi-xw-title">Bài đang được chấm</h3>
+            <div class="oi-xw-prog" aria-hidden="true">
+                <span class="oi-xw-prog-n"><span x-text="gradedCount()"></span>/<span x-text="gradeTotal()"></span> câu</span>
+                <span class="oi-gp-track"><span class="oi-gp-fill is-run" :style="'width:' + gradePct() + '%'"></span></span>
+            </div>
+            <p id="oi-xw-desc" class="oi-xw-desc" x-show="! submitDone">
+                Bài làm <b>đang được gửi lên máy chủ</b>. Thoát lúc này có thể làm <b>mất bài nộp</b> hoặc không xem được điểm. Hãy chờ vài giây nhé.
+            </p>
+            <p class="oi-xw-desc" x-show="submitDone" x-cloak>
+                Bài của bạn <b>đã được nộp</b>, máy chấm đang chạy các câu lập trình. Nếu thoát bây giờ bạn sẽ <b>chưa thấy điểm ngay</b> — điểm vẫn được chấm và lưu, xem lại ở Lịch sử làm bài.
+            </p>
+            <div class="oi-xw-actions">
+                <button type="button" class="oi-xw-btn oi-xw-btn-ghost" @click="exitNow()">Vẫn thoát</button>
+                <button type="button" class="oi-xw-btn oi-xw-btn-main" data-oi-xw-stay @click="exitOpen = false">Ở lại chờ kết quả</button>
+            </div>
+        </div>
     </div>
 @else
     <div id="oi-grading-overlay" class="oi-grading-overlay" role="status" aria-live="polite"
