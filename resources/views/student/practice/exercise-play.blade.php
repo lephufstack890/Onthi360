@@ -115,13 +115,24 @@
                  document.documentElement.classList.toggle('theme-dark', next === 'dark');
              },
              {{-- SỬA 10/10 — xem Hướng dẫn / Bài mẫu bị trừ điểm: hỏi xác nhận TRƯỚC khi mở (mỗi lần mở là một lần trừ). --}}
+             {{-- SỬA 11/10 — thay hộp confirm() mặc định của trình duyệt bằng hộp cảnh báo riêng (oi-confirm). --}}
+             penaltyAsk: { open: false, id: null, label: '', pct: 0 },
              askTab(id) {
                  if ((id === 'guide' || id === 'sample') && this.tab !== id) {
                      var pct = (window.oiPenaltyRules && window.oiPenaltyRules.guide) || 0;
-                     if (pct > 0 && !window.confirm('Mỗi lần xem Hướng dẫn / Bài mẫu bị trừ ' + pct + '% điểm bài (ghi trong Nhật ký). Bạn vẫn muốn mở?')) return;
+                     if (pct > 0) {
+                         this.penaltyAsk = { open: true, id: id, label: id === 'guide' ? 'Hướng dẫn' : 'Bài mẫu', pct: pct };
+                         return;
+                     }
                  }
                  this.tab = id;
              },
+             penaltyAccept() {
+                 var id = this.penaltyAsk.id;
+                 this.penaltyAsk.open = false;
+                 if (id) this.tab = id;
+             },
+             penaltyCancel() { this.penaltyAsk.open = false; },
              toggleTheme() {
                  this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
                  try { window.localStorage.setItem('onthi360-exam-theme', this.theme); } catch (e) {}
@@ -130,6 +141,29 @@
 
         <div class="assessment-modal-shell flex h-full w-full max-w-none flex-col overflow-hidden bg-[#F8FBFC] shadow-2xl sm:h-[calc(100dvh-16px)] sm:max-w-[calc(100vw-16px)] sm:rounded-xl"
              data-activity-key="{{ ! empty($runToken) ? $runToken.'-' : '' }}{{ $headCode ?: 'exercise' }}">
+
+        {{-- SỬA 11/10 — HỘP CẢNH BÁO TRỪ ĐIỂM khi mở Hướng dẫn / Bài mẫu (thay window.confirm). --}}
+        <div class="oi-confirm-backdrop" x-show="penaltyAsk.open" x-cloak
+             x-transition.opacity.duration.150ms
+             @keydown.escape.window="if (penaltyAsk.open) penaltyCancel()"
+             @click.self="penaltyCancel()">
+            <div class="oi-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="oi-confirm-title" aria-describedby="oi-confirm-desc"
+                 x-show="penaltyAsk.open"
+                 x-transition:enter="oi-confirm-enter" x-transition:enter-start="oi-confirm-enter-from" x-transition:enter-end="oi-confirm-enter-to"
+                 x-effect="if (penaltyAsk.open) $nextTick(function () { var b = $el.querySelector('[data-oi-confirm-cancel]'); if (b) b.focus(); })">
+                <div class="oi-confirm-icon"><x-lucide name="alert-triangle" class="h-6 w-6" /></div>
+                <h3 id="oi-confirm-title" class="oi-confirm-title">Xem <span x-text="penaltyAsk.label"></span> sẽ bị trừ điểm</h3>
+                <div class="oi-confirm-pct">−<span x-text="penaltyAsk.pct"></span>% điểm bài</div>
+                <p id="oi-confirm-desc" class="oi-confirm-desc">
+                    Mỗi lần mở tab <b x-text="penaltyAsk.label"></b> được ghi vào Nhật ký làm bài và bị trừ
+                    <b><span x-text="penaltyAsk.pct"></span>%</b> điểm của bài này. Bạn có chắc muốn xem không?
+                </p>
+                <div class="oi-confirm-actions">
+                    <button type="button" class="oi-confirm-btn oi-confirm-btn-ghost" data-oi-confirm-cancel @click="penaltyCancel()">Không xem</button>
+                    <button type="button" class="oi-confirm-btn oi-confirm-btn-warn" @click="penaltyAccept()">Vẫn xem (−<span x-text="penaltyAsk.pct"></span>%)</button>
+                </div>
+            </div>
+        </div>
 
         {{-- ══════════════════════════ HEADER ══════════════════════════ --}}
         <header class="assessment-modal-header flex shrink-0 items-center gap-2 border-b border-[#DDEAF0] bg-white px-3 py-2 sm:px-4">
@@ -1024,6 +1058,33 @@
 
         /* SỬA 10/10 — dải cảnh báo trừ điểm theo nhật ký (viết CSS thường: màn chủ không build lại được Tailwind). */
         .oi-penalty-warn { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; padding: 3px 8px; border: 1px solid #FED7AA; border-radius: 8px; background: #FFF7ED; color: #9A3412; font-size: 11px; line-height: 1.4; }
+        /* SỬA 11/10 — hộp cảnh báo trừ điểm (thay confirm() của trình duyệt) */
+        .oi-confirm-backdrop { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+        .oi-confirm-card { width: 100%; max-width: 400px; padding: 24px 22px 20px; border-radius: 18px; background: #fff; color: #123B68; text-align: center; box-shadow: 0 24px 60px rgba(15, 23, 42, .35); }
+        .oi-confirm-enter { transition: opacity .18s ease, transform .18s ease; }
+        .oi-confirm-enter-from { opacity: 0; transform: translateY(8px) scale(.96); }
+        .oi-confirm-enter-to { opacity: 1; transform: none; }
+        .oi-confirm-icon { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 9999px; background: #FFEDD5; color: #EA580C; }
+        .oi-confirm-title { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.35; }
+        .oi-confirm-pct { display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 9999px; background: #FFF7ED; border: 1px solid #FED7AA; color: #C2410C; font-size: 14px; font-weight: 800; }
+        .oi-confirm-desc { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: #45657D; }
+        .oi-confirm-desc b { color: #123B68; }
+        .oi-confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .oi-confirm-btn { flex: 1 1 0; padding: 10px 12px; border: 0; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color .15s ease, transform .05s ease; }
+        .oi-confirm-btn:active { transform: scale(.98); }
+        .oi-confirm-btn:focus-visible { outline: 2px solid #0E7490; outline-offset: 2px; }
+        .oi-confirm-btn-ghost { background: #EAF3F7; color: #123B68; }
+        .oi-confirm-btn-ghost:hover { background: #DCEAF1; }
+        .oi-confirm-btn-warn { background: #EA580C; color: #fff; }
+        .oi-confirm-btn-warn:hover { background: #C2410C; }
+        html.theme-dark .assessment-modal .oi-confirm-card { background: #12283A; color: #E6F1F7; box-shadow: 0 24px 60px rgba(0, 0, 0, .6); border: 1px solid #25445C; }
+        html.theme-dark .assessment-modal .oi-confirm-title { color: #F1F8FC !important; }
+        html.theme-dark .assessment-modal .oi-confirm-icon { background: #3A2A18; color: #FDBA74; }
+        html.theme-dark .assessment-modal .oi-confirm-pct { background: #3A2A18; border-color: #7C4A1E; color: #FDD9A8; }
+        html.theme-dark .assessment-modal .oi-confirm-desc { color: #A9C2D3 !important; }
+        html.theme-dark .assessment-modal .oi-confirm-desc b { color: #E6F1F7; }
+        html.theme-dark .assessment-modal .oi-confirm-btn-ghost { background: #1E3B52; color: #E6F1F7; }
+        html.theme-dark .assessment-modal .oi-confirm-btn-ghost:hover { background: #28506C; }
         .oi-penalty-badge { padding: 0 6px; border-radius: 6px; background: #FDBA74; color: #7C2D12; font-weight: 800; }
         .oi-penalty-badge:empty, .oi-penalty-badge[data-on="0"] { display: none; }
         html.theme-dark .assessment-modal .oi-penalty-warn { background: #3A2A18; border-color: #7C4A1E; color: #FDD9A8; }
