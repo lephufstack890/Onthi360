@@ -13,6 +13,7 @@ class NotificationController extends Controller
 
     public function index(Request $request): View
     {
-        return view('parent.notifications.index', $this->notificationService->forUser($request->user()));
+        // SỬA 12/10 — lấy tối đa 60 thông báo mới nhất rồi phân trang 10 dòng/trang ở trình duyệt.
+        return view('parent.notifications.index', $this->notificationService->forUser($request->user(), 60));
     }
 }

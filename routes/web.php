@@ -43,7 +43,9 @@ use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
 use App\Http\Controllers\Teacher\ScheduleController as TeacherScheduleController;
 use App\Http\Controllers\Teacher\NotificationController as TeacherNotificationController;
 use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
+use App\Http\Controllers\Parent\AssignmentController as ParentAssignmentController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
+use App\Http\Controllers\Parent\ClassReviewController as ParentClassReviewController;
 use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Parent\NotificationController as ParentNotificationController;
 use App\Http\Controllers\Parent\ProfileController as ParentProfileController;
@@ -478,6 +480,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('children', [ParentChildController::class, 'index'])->name('children.index');
         Route::post('children/link-requests', [ParentChildController::class, 'storeLinkRequest'])->name('children.linkRequest');
         Route::get('children/{child}', [ParentChildController::class, 'show'])->name('children.show');
+        // SỬA 12/10 — 2 mục mới theo source (ParentContent): "Bài được giao" + "Đánh giá lớp".
+        Route::get('assignments', [ParentAssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('class-reviews', [ParentClassReviewController::class, 'index'])->name('reviews.index');
         Route::get('schedule', [ParentScheduleController::class, 'index'])->name('schedule.index');
         Route::get('results', [ParentResultController::class, 'index'])->name('results.index');
         Route::get('notifications', [ParentNotificationController::class, 'index'])->name('notifications.index');
