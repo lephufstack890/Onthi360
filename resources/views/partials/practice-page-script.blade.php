@@ -400,9 +400,12 @@
             query: '',
             status: 'all',
             sort: 'assigned',
+            sortKey: 'assigned',
+            sortDir: 'desc',
             page: 1,
             pageSize: 10,
             expandedId: null,
+            presets: { assigned: ['assigned', 'desc'], deadline: ['deadline', 'asc'], submitted: ['submitted', 'desc'], score: ['score', 'desc'] },
             states: {
                 unsubmitted: { label: 'Chưa nộp', tone: 'neutral' },
                 pending: { label: 'Chờ chấm', tone: 'amber' },
@@ -413,7 +416,23 @@
             init() {
                 this.$watch('query', () => { this.page = 1; this.expandedId = null; });
                 this.$watch('status', () => { this.page = 1; this.expandedId = null; });
-                this.$watch('sort', () => { this.page = 1; this.expandedId = null; });
+                this.$watch('sort', (v) => {
+                    if (this.presets[v]) { this.sortKey = this.presets[v][0]; this.sortDir = this.presets[v][1]; }
+                    this.page = 1; this.expandedId = null;
+                });
+            },
+
+            /* Bấm tiêu đề cột: lần đầu sắp xếp theo cột đó, bấm lại thì đảo chiều. */
+            toggleSort(key) {
+                if (this.sortKey === key) {
+                    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortKey = key;
+                    this.sortDir = (key === 'score' || key === 'submitted') ? 'desc' : 'asc';
+                }
+                const match = Object.keys(this.presets).find((k) => this.presets[k][0] === this.sortKey && this.presets[k][1] === this.sortDir);
+                this.sort = match || 'custom';
+                this.page = 1; this.expandedId = null;
             },
 
             get counts() {
@@ -434,11 +453,25 @@
                     return okStatus && (!q || hay.includes(q));
                 });
 
+                const dir = this.sortDir === 'asc' ? 1 : -1;
+                const statusOrder = { overdue: 0, unsubmitted: 1, pending: 2, completed: 3 };
+                /* Ô trống (chưa có điểm / chưa nộp) luôn nằm cuối, dù sắp tăng hay giảm. */
+                const num = (x, y, zeroEmpty) => {
+                    const ex = x === null || x === undefined || (zeroEmpty && x === 0), ey = y === null || y === undefined || (zeroEmpty && y === 0);
+                    if (ex || ey) { return ex && ey ? 0 : (ex ? 1 : -1); }
+                    return (x - y) * dir;
+                };
                 return [...list].sort((a, b) => {
-                    if (this.sort === 'deadline') { return a.deadlineTs - b.deadlineTs; }
-                    if (this.sort === 'score') { return (b.scoreRatio ?? -1) - (a.scoreRatio ?? -1); }
-                    if (this.sort === 'submitted') { return (b.submittedTs || 0) - (a.submittedTs || 0); }
-                    return b.assignedTs - a.assignedTs;
+                    let r = 0;
+                    switch (this.sortKey) {
+                        case 'title': r = (a.title + ' ' + a.studentName).localeCompare(b.title + ' ' + b.studentName, 'vi') * dir; break;
+                        case 'status': r = ((statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)) * dir; break;
+                        case 'score': r = num(a.scoreRatio, b.scoreRatio); break;
+                        case 'submitted': r = num(a.submittedTs, b.submittedTs, true); break;
+                        case 'deadline': r = (a.deadlineTs - b.deadlineTs) * dir; break;
+                        default: r = (a.assignedTs - b.assignedTs) * dir;
+                    }
+                    return r || (b.assignedTs - a.assignedTs);
                 });
             },
 

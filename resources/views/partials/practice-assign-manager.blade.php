@@ -85,6 +85,7 @@
                 <option value="deadline">Hạn nộp gần nhất</option>
                 <option value="submitted">Mới nộp gần nhất</option>
                 <option value="score">Điểm cao nhất</option>
+                <option value="custom" hidden disabled>Theo cột đã chọn</option>
             </select>
         </label>
     </div>
@@ -95,8 +96,13 @@
     </div>
 
     <div class="managed-list">
-        <div class="managed-grid managed-table-header" aria-hidden="true">
-            <span>{{ $isExam ? 'Đề' : 'Bài' }} / Học sinh</span><span>Trạng thái</span><span>Điểm gần nhất</span><span>Thời gian nộp</span><span>Hạn nộp</span><span>Chi tiết</span>
+        <div class="managed-grid managed-table-header">
+            <span><button type="button" class="oi-sort-btn" :class="{ 'is-active': sortKey === 'title' }" :aria-pressed="sortKey === 'title' ? 'true' : 'false'" title="Sắp xếp theo {{ $isExam ? 'đề' : 'bài' }}" @click="toggleSort('title')"><span>{{ $isExam ? 'Đề' : 'Bài' }} / Học sinh</span><x-lucide name="arrow-up-down" x-show="sortKey !== 'title'" /><x-lucide name="chevron-up" x-show="sortKey === 'title' && sortDir === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="sortKey === 'title' && sortDir === 'desc'" x-cloak /></button></span>
+            <span><button type="button" class="oi-sort-btn" :class="{ 'is-active': sortKey === 'status' }" :aria-pressed="sortKey === 'status' ? 'true' : 'false'" title="Sắp xếp theo Trạng thái" @click="toggleSort('status')"><span>Trạng thái</span><x-lucide name="arrow-up-down" x-show="sortKey !== 'status'" /><x-lucide name="chevron-up" x-show="sortKey === 'status' && sortDir === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="sortKey === 'status' && sortDir === 'desc'" x-cloak /></button></span>
+            <span><button type="button" class="oi-sort-btn" :class="{ 'is-active': sortKey === 'score' }" :aria-pressed="sortKey === 'score' ? 'true' : 'false'" title="Sắp xếp theo Điểm gần nhất" @click="toggleSort('score')"><span>Điểm gần nhất</span><x-lucide name="arrow-up-down" x-show="sortKey !== 'score'" /><x-lucide name="chevron-up" x-show="sortKey === 'score' && sortDir === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="sortKey === 'score' && sortDir === 'desc'" x-cloak /></button></span>
+            <span><button type="button" class="oi-sort-btn" :class="{ 'is-active': sortKey === 'submitted' }" :aria-pressed="sortKey === 'submitted' ? 'true' : 'false'" title="Sắp xếp theo Thời gian nộp" @click="toggleSort('submitted')"><span>Thời gian nộp</span><x-lucide name="arrow-up-down" x-show="sortKey !== 'submitted'" /><x-lucide name="chevron-up" x-show="sortKey === 'submitted' && sortDir === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="sortKey === 'submitted' && sortDir === 'desc'" x-cloak /></button></span>
+            <span><button type="button" class="oi-sort-btn" :class="{ 'is-active': sortKey === 'deadline' }" :aria-pressed="sortKey === 'deadline' ? 'true' : 'false'" title="Sắp xếp theo Hạn nộp" @click="toggleSort('deadline')"><span>Hạn nộp</span><x-lucide name="arrow-up-down" x-show="sortKey !== 'deadline'" /><x-lucide name="chevron-up" x-show="sortKey === 'deadline' && sortDir === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="sortKey === 'deadline' && sortDir === 'desc'" x-cloak /></button></span>
+            <span>Chi tiết</span>
         </div>
 
         <template x-for="row in visible" :key="row.id">

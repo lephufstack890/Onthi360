@@ -199,6 +199,10 @@
     .managed-list { border: 1px solid #dce7ec; border-radius: 15px; overflow: hidden; background: #fff; }
     .managed-grid { display: grid; grid-template-columns: minmax(180px, 1.6fr) minmax(115px, .8fr) minmax(100px, .7fr) minmax(135px, 1fr) minmax(140px, 1fr) 85px; align-items: center; gap: 12px; padding: 14px; }
     .managed-table-header { background: #edf4f8; font-size: 10px; text-transform: uppercase; font-weight: 750; letter-spacing: .04em; }
+    .managed-table-header .oi-sort-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0; margin: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; transition: color .15s; }
+    .managed-table-header .oi-sort-btn:hover, .managed-table-header .oi-sort-btn:focus-visible { color: #126f91; outline: none; }
+    .managed-table-header .oi-sort-btn > svg { flex: none; width: 14px; height: 14px; color: #8ba0af; }
+    .managed-table-header .oi-sort-btn.is-active, .managed-table-header .oi-sort-btn.is-active > svg { color: #126f91; }
     .managed-entry + .managed-entry { border-top: 1px solid #e7eff3; }
     .managed-row { font-size: 12px; }
     .managed-entry:nth-child(odd) .managed-row { background: #fafcfd; }
