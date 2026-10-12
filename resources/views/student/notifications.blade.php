@@ -4,40 +4,51 @@
 @section('page-title', 'Thông báo')
 
 @section('content')
+    {{-- SỬA 12/10 — DỰNG LẠI THEO education-main (source mới): StudentContent → "Thông báo của bạn" — mỗi thông báo là một hàng: ô icon màu,
+         tiêu đề, giờ, mô tả. Giữ NGUYÊN logic: NotificationService::forUser, link đọc notifications.read, "Đánh dấu tất cả đã đọc".
+         Thêm phân trang 10 dòng/trang trên trình duyệt. --}}
     @php
         $items = $items ?? [];
         $unreadCount = $unreadCount ?? 0;
-        $subtitle = $unreadCount > 0 ? "Bạn có {$unreadCount} thông báo chưa đọc." : 'Bạn đã xem hết thông báo.';
+        $toneMap = ['success' => 'emerald', 'warning' => 'amber', 'danger' => 'rose', 'error' => 'rose'];
     @endphp
 
-    <x-ws.page-header title="Thông báo" icon="message-square-text" :subtitle="$subtitle">
-        @if ($unreadCount > 0)
-            <x-slot:actions>
-                <form method="POST" action="{{ route('notifications.readAll') }}">
-                    @csrf
-                    <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">Đánh dấu tất cả đã đọc</button>
-                </form>
-            </x-slot:actions>
-        @endif
-    </x-ws.page-header>
+    <div class="sw" data-section="STUDENT-NOTIFICATIONS">
+        @include('student._hero')
 
-    <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] divide-y divide-slate-100">
-        @forelse ($items as $n)
-            <a href="{{ route('notifications.read', $n['id']) }}" class="flex items-start gap-3 p-4 hover:bg-slate-50 {{ !$n['read'] ? 'bg-blue-50/40' : '' }}">
-                <x-ws.icon-tile :emoji="$n['icon']" :tone="$n['tone']" />
-                <div class="flex-1">
-                    <p class="text-[13px] font-medium text-slate-700">{{ $n['title'] }}</p>
-                    <p class="text-[13px] text-slate-500 mt-0.5">{{ $n['text'] }}</p>
-                    <p class="text-xs text-slate-400 mt-1">{{ $n['time'] }}</p>
+        <section class="student-overview-card" x-data="stuNotices({{ count($items) }})">
+            <div class="sw-split">
+                <div>
+                    <h2 class="sw-h2"><x-lucide name="message-square-text" />Thông báo của bạn</h2>
+                    <p class="sw-sub">{{ $unreadCount > 0 ? "Bạn có {$unreadCount} thông báo chưa đọc." : 'Bạn đã xem hết thông báo.' }}</p>
                 </div>
-                @if (!$n['read'])
-                    <span class="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0"></span>
+                @if ($unreadCount > 0)
+                    <form method="POST" action="{{ route('notifications.readAll') }}">
+                        @csrf
+                        <button type="submit" class="student-overview-action">Đánh dấu tất cả đã đọc</button>
+                    </form>
                 @endif
-            </a>
-        @empty
-            <div class="p-8">
-                <x-ws.empty-state title="Chưa có thông báo nào" />
             </div>
-        @endforelse
+
+            <div style="margin-top:8px">
+                @forelse ($items as $n)
+                    <a href="{{ route('notifications.read', $n['id']) }}" class="sw-notice {{ ! $n['read'] ? 'unread' : '' }}" x-show="show({{ $loop->index }})">
+                        <span class="sw-tile {{ $toneMap[$n['tone']] ?? '' }}">@if (! empty($n['icon']) && $n['icon'] !== '🔔'){{ $n['icon'] }}@else<x-lucide name="message-square-text" />@endif</span>
+                        <div class="sw-notice-b">
+                            <div><h2>{{ $n['title'] }}</h2><time>{{ $n['time'] }}</time></div>
+                            @if ($n['text'] && $n['text'] !== $n['title'])<p>{{ $n['text'] }}</p>@endif
+                        </div>
+                        @if (! $n['read'])<span class="sw-new" aria-label="Chưa đọc"></span>@endif
+                    </a>
+                @empty
+                    <p class="sw-empty">Chưa có thông báo nào.</p>
+                @endforelse
+            </div>
+
+            @include('student._pager')
+        </section>
     </div>
+    <script>
+        function stuNotices(total) { return window.swPager(total, 10); }
+    </script>
 @endsection

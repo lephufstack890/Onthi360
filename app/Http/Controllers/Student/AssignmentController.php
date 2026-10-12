@@ -7,7 +7,7 @@ use App\Services\Student\StudentWorkspaceService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** student.assignments.index — "Bài được giao" (bài/đề giao riêng + bài của lớp) kèm lối vào làm bài. */
+/** student.assignments.index — "Bài & đề được giao" (bài/đề giao riêng + bài của lớp) kèm lối vào làm bài. */
 class AssignmentController extends Controller
 {
     public function __construct(private StudentWorkspaceService $workspace) {}
@@ -19,7 +19,6 @@ class AssignmentController extends Controller
         return view('student.assignments.index', [
             'assignments' => $data['rows'],
             'counts' => $data['counts'],
-            'next' => $data['next'],
         ]);
     }
 }

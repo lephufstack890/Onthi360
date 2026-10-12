@@ -4,111 +4,73 @@
 @section('page-title', 'Tài liệu của tôi')
 
 @section('content')
+    {{-- SỬA 12/10 — DỰNG LẠI THEO education-main (source mới): StudentMaterialsPanel.jsx — tiêu đề "Tài liệu của tôi" + số tài liệu có quyền đọc,
+         lưới 2 cột thẻ (bìa 64×96, nhãn quyền, tên, "N bài · hạn dùng", nút "Đọc tài liệu"). GIỮ NGUYÊN logic cũ: 3 tab Sách/Chuyên đề/Bộ đề,
+         tìm kiếm, ngăn "Tài nguyên" (tải tài nguyên + làm bài tập), quyền đọc qua $p['readHref']. Thêm phân trang 10 thẻ/trang. --}}
     @php
         $tabs = $tabs ?? [];
         $products = $products ?? [];
-
-        // Nhãn loại đang mở, lấy từ CHÍNH dải tab do LibraryService dựng (không đặt nhãn mới):
-        // bỏ emoji ở đầu để in lên bìa thẻ — "📘 Sách" -> "Sách".
-        $activeTabLabel = collect($tabs)->firstWhere('active', true)['label'] ?? '';
-        $activeTabLabel = trim(preg_replace('/^[^\p{L}]+/u', '', $activeTabLabel));
+        $titles = array_map(fn ($p) => mb_strtolower($p['title']), $products);
     @endphp
 
-    <x-ws.page-header title="Tài liệu của tôi" icon="book-open" subtitle="Sách, chuyên đề, bộ đề bạn đã mua hoặc kích hoạt — mở đọc, tải bài tập và học liệu đi kèm ngay tại đây." />
+    <div class="sw" data-section="STUDENT-MATERIALS">
+        @include('student._hero')
 
-    <x-ws.tabs :tabs="$tabs" />
+        <x-ws.tabs :tabs="$tabs" />
 
-    @if (empty($products))
-        <x-ws.empty-state title="Chưa có tài liệu nào trong mục này" description="Mua hoặc nhập mã kích hoạt ở trang Tài liệu để bắt đầu." actionLabel="Khám phá tài liệu" :actionHref="route('materials.index')" />
-    @else
-        {{-- ══════ THANH TÌM KIẾM ══════ --}}
-        <div class="mb-4 flex flex-wrap items-center gap-3">
-            <div class="relative w-full sm:w-72">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7FA5B8]"><x-lucide name="search" class="h-4 w-4" /></span>
-                <input type="search" id="materials-search" placeholder="Tìm theo tên tài liệu…"
-                       class="w-full rounded-xl border border-[#DDEAF0] bg-white py-2.5 pl-9 pr-3 text-[13px] text-[#123B68] placeholder:text-[#8FAABB] transition focus:border-[#9DC8D7] focus:outline-none focus:ring-2 focus:ring-[#CFE6EF]">
-            </div>
-            <span id="materials-count" class="shrink-0 rounded-full border border-[#DDEAF0] bg-[#F0F8FB] px-3 py-1.5 text-[11px] font-semibold text-[#466278]">{{ count($products) }} tài liệu</span>
-        </div>
+        @if (empty($products))
+            <section class="student-overview-card">
+                <p class="sw-empty">Chưa có tài liệu nào trong mục này. Mua hoặc nhập mã kích hoạt ở trang Tài liệu để bắt đầu.</p>
+                <div style="text-align:center"><a class="student-class-enter" style="display:inline-flex;padding-inline:16px" href="{{ route('materials.index') }}">Khám phá tài liệu <x-lucide name="arrow-right" class="h-3.5 w-3.5" /></a></div>
+            </section>
+        @else
+            <div x-data="stuMats(@js($titles))">
+                <div class="sw-split" style="align-items:center;margin-bottom:12px">
+                    <h2 class="sw-h2" style="font-size:14px">Tài liệu của tôi</h2>
+                    <p class="sw-note"><span x-text="total"></span> / {{ count($products) }} tài liệu có quyền đọc</p>
+                </div>
+                <div style="position:relative;max-width:320px;margin-bottom:12px">
+                    <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#7fa5b8;display:flex"><x-lucide name="search" class="h-4 w-4" /></span>
+                    <input type="search" x-model.debounce.150ms="q" @input="page = 1" placeholder="Tìm theo tên tài liệu…" aria-label="Tìm tài liệu"
+                           style="width:100%;min-height:38px;padding:8px 10px 8px 34px;border:1px solid #dce7ec;border-radius:10px;background:#f8fbfd;font-size:12px;color:#36566d;outline:none">
+                </div>
 
-        {{-- ══════ LƯỚI THẺ TÀI LIỆU ══════ --}}
-        <div id="materials-grid" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            @foreach ($products as $p)
-                <article class="material-card group flex flex-col overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(0,100,220,0.05)] transition-all duration-300 hover:border-[#9DC8D7] hover:shadow-[0_14px_30px_-16px_rgba(15,80,140,.35)]"
-                         data-title="{{ mb_strtolower($p['title']) }}" x-data="{ open: false }">
-
-                    {{-- Bìa --}}
-                    <div class="relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-[#F3F9FC] to-[#E4F0F6] p-3">
-                        @if ($p['coverPath'])
-                            <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}"
-                                 class="h-full w-auto object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105">
-                        @else
-                            <span class="grid h-16 w-16 place-items-center rounded-2xl bg-white/80 text-[#23869B] shadow-inner"><x-lucide name="book-open" class="h-7 w-7" /></span>
-                        @endif
-
-                        @if ($activeTabLabel !== '')
-                            <span class="absolute left-3 top-3 rounded-full border border-[#CFE6EF] bg-white/95 px-2.5 py-1 text-[10px] font-bold text-[#0F5B86] shadow-sm backdrop-blur-sm">{{ $activeTabLabel }}</span>
-                        @endif
-                    </div>
-
-                    {{-- Thân thẻ --}}
-                    <div class="flex flex-1 flex-col p-4">
-                        {{-- Huy hiệu quyền — y như bản mẫu: "Đã sở hữu" + hạn dùng thật từ AccessRight --}}
-                        <div class="mb-2 flex flex-wrap items-center gap-1.5">
-                            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                                <x-lucide name="check-circle" class="h-3 w-3" />Đã sở hữu
-                            </span>
-                            <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                                <x-lucide name="clock" class="h-3 w-3" />{{ $p['access']['remainingLabel'] }}
-                            </span>
-                        </div>
-
-                        <h3 class="mb-2 line-clamp-2 text-[13.5px] font-extrabold leading-snug text-[#123B68] transition-colors group-hover:text-[#126F91]">{{ $p['title'] }}</h3>
-
-                        {{-- Số liệu thật của sản phẩm --}}
-                        <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-[#61798B]">
-                            @if ($p['lessonCount'] > 0)
-                                <span class="inline-flex items-center gap-1"><x-lucide name="file-text" class="h-3.5 w-3.5 text-[#2D7FA3]" />{{ $p['lessonCount'] }} {{ $p['lessonWord'] }}</span>
-                            @endif
-                            @if (count($p['resources']) > 0)
-                                <span class="inline-flex items-center gap-1"><x-lucide name="download" class="h-3.5 w-3.5 text-[#2D7FA3]" />{{ count($p['resources']) }} tài nguyên</span>
-                            @endif
-                            @if (count($p['exercises']) > 0)
-                                <span class="inline-flex items-center gap-1"><x-lucide name="layers" class="h-3.5 w-3.5 text-[#AF7C32]" />{{ count($p['exercises']) }} bài tập</span>
-                            @endif
-                        </div>
-
-                        {{-- Hàng hành động --}}
-                        <div class="mt-auto flex items-center justify-between gap-2 border-t border-[#E9F1F5] pt-3">
-                            @if ($p['readHref'])
-                                <a href="{{ $p['readHref'] }}"
-                                   class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-[12px] font-bold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700">
-                                    <x-lucide name="book-open" class="h-3.5 w-3.5" />Đọc tài liệu<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                                </a>
+                <div class="sw-mats">
+                    @foreach ($products as $p)
+                        <article class="sw-mat" style="flex-wrap:wrap" aria-label="{{ $p['title'] }}" x-show="show({{ $loop->index }})" x-data="{ open: false }">
+                            @if ($p['coverPath'])
+                                <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" loading="lazy">
                             @else
-                                {{-- Sản phẩm chưa có bài nào gắn file PDF — nói thật thay vì đưa nút bấm không ra gì. --}}
-                                <span class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F5F8FA] px-3 py-2 text-[11.5px] font-semibold text-[#8399A8]" title="Sản phẩm chưa có bài đọc nào đính kèm file PDF">
-                                    <x-lucide name="lock" class="h-3.5 w-3.5" />Chưa có nội dung đọc
-                                </span>
+                                <span style="display:grid;place-items:center;width:64px;height:96px;flex-shrink:0;border-radius:8px;background:#eef6fa;color:#23869b"><x-lucide name="book-open" class="h-6 w-6" /></span>
                             @endif
+                            <div class="sw-mat-b">
+                                <span class="st ok">Có quyền đọc</span>
+                                <h3>{{ $p['title'] }}</h3>
+                                <p>
+                                    @if ($p['lessonCount'] > 0){{ $p['lessonCount'] }} {{ $p['lessonWord'] }} · @endif{{ $p['access']['remainingLabel'] }}
+                                </p>
+                                @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
+                                    <p>{{ count($p['resources']) > 0 ? count($p['resources']).' tài nguyên' : '' }}{{ count($p['resources']) > 0 && count($p['exercises']) > 0 ? ' · ' : '' }}{{ count($p['exercises']) > 0 ? count($p['exercises']).' bài tập' : '' }}</p>
+                                @endif
+                                <div class="row">
+                                    @if ($p['readHref'])
+                                        <a href="{{ $p['readHref'] }}" class="student-class-enter"><x-lucide name="book-open" class="h-3.5 w-3.5" />Đọc tài liệu</a>
+                                    @else
+                                        <span class="sw-note" title="Sản phẩm chưa có bài đọc nào đính kèm file PDF">Chưa có nội dung đọc</span>
+                                    @endif
+                                    @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
+                                        <button type="button" class="sw-act" @click="open = ! open" :aria-expanded="open ? 'true' : 'false'">
+                                            <span x-text="open ? 'Thu gọn' : 'Tài nguyên'"></span>
+                                            <svg class="sw-chev" :class="{ up: open }" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
 
+                            {{-- ══════ NGĂN KÉO: TÀI NGUYÊN + BÀI TẬP (logic giữ nguyên như cũ) ══════ --}}
                             @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
-                                <button type="button" @click="open = ! open" :aria-expanded="open ? 'true' : 'false'"
-                                        class="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#DDEAF0] px-2.5 py-2 text-[11.5px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
-                                    <span x-text="open ? 'Thu gọn' : 'Tài nguyên'"></span>
-                                    {{-- Mũi tên xoay bằng Alpine đặt trên THẺ THƯỜNG, không đặt ::class lên
-                                         component Blade (x-lucide dùng $attributes->merge cho 'class', trộn
-                                         thêm ':class' vào đó dễ sinh thuộc tính lạ). --}}
-                                    <span class="inline-flex transition-transform" :class="open ? 'rotate-180' : ''"><x-lucide name="chevron-down" class="h-3.5 w-3.5" /></span>
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-
-                    {{-- ══════ NGĂN KÉO: TÀI NGUYÊN + BÀI TẬP (logic giữ nguyên như cũ) ══════ --}}
-                    @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
-                        <div x-show="open" x-cloak class="space-y-4 border-t border-[#E9F1F5] bg-[#F8FBFC] p-4">
-                            @if (count($p['resources']) > 0)
+                                <div x-show="open" x-cloak class="space-y-4 border-t border-[#E9F1F5] bg-[#F8FBFC] p-4" style="width:100%;border-radius:12px">
+                                    @if (count($p['resources']) > 0)
                                 <div>
                                     <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#7FA5B8]">Tài nguyên đính kèm</p>
                                     <div class="space-y-2">
@@ -152,39 +114,27 @@
                                     <p class="mt-2 text-[11px] text-[#7A92A3]">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
                                 </div>
                             @endif
-                        </div>
-                    @endif
-                </article>
-            @endforeach
-        </div>
+                                </div>
+                            @endif
+                        </article>
+                    @endforeach
+                </div>
 
-        <p id="materials-empty-search" class="hidden rounded-3xl border border-dashed border-[#CFE6EF] bg-white py-10 text-center text-[13px] text-[#7A92A3]">Không tìm thấy tài liệu nào khớp từ khoá tìm kiếm.</p>
-    @endif
-
-    @push('scripts')
-        <style>
-            [x-cloak] { display: none !important; }
-        </style>
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                var search = document.getElementById('materials-search');
-                var cards = document.querySelectorAll('#materials-grid .material-card');
-                var countLabel = document.getElementById('materials-count');
-                var emptyMsg = document.getElementById('materials-empty-search');
-                if (!search || !cards.length) return;
-
-                search.addEventListener('input', function () {
-                    var q = search.value.trim().toLowerCase();
-                    var visible = 0;
-                    cards.forEach(function (card) {
-                        var match = !q || (card.getAttribute('data-title') || '').indexOf(q) !== -1;
-                        card.style.display = match ? '' : 'none';
-                        if (match) visible++;
-                    });
-                    if (countLabel) countLabel.textContent = visible + ' tài liệu';
-                    if (emptyMsg) emptyMsg.classList.toggle('hidden', visible !== 0);
-                });
+                <p class="sw-empty" x-show="total === 0" x-cloak>Không tìm thấy tài liệu nào khớp từ khoá tìm kiếm.</p>
+                <div class="student-overview-card" style="margin-top:12px;padding-block:2px" x-show="total > size" x-cloak>
+                    @include('student._pager')
+                </div>
+            </div>
+        @endif
+    </div>
+    <script>
+        function stuMats(titles) {
+            return window.swPager(titles.length, 10, {
+                q: '', titles: titles,
+                get idx() { var q = this.q.trim().toLowerCase(), out = []; this.titles.forEach(function (t, i) { if (!q || t.indexOf(q) !== -1) { out.push(i); } }); return out; },
+                get total() { return this.idx.length; },
+                show: function (i) { var p = this.idx.indexOf(i); return p >= (this.page - 1) * this.size && p !== -1 && p < this.page * this.size; },
             });
-        </script>
-    @endpush
+        }
+    </script>
 @endsection

@@ -34,6 +34,7 @@ use App\Http\Controllers\Student\ScheduleController as StudentScheduleController
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ResultController as StudentResultController;
 use App\Http\Controllers\Student\ReviewController as StudentReviewController;
+use App\Http\Controllers\Student\ParentController as StudentParentController;
 use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentController;
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
 use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionController;
@@ -262,6 +263,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('bai-duoc-giao', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         Route::get('ket-qua', [StudentResultController::class, 'index'])->name('results.index');
         Route::get('danh-gia-cua-toi', [StudentReviewController::class, 'index'])->name('reviews.index');
+        // SỬA 12/10 — trang "Phụ huynh" của học sinh (Student\StudentParentLinkService): tìm + liên kết, đồng ý/từ chối yêu cầu, hủy liên kết.
+        Route::get('phu-huynh', [StudentParentController::class, 'index'])->name('parents.index');
+        Route::post('phu-huynh/tim', [StudentParentController::class, 'search'])->middleware('throttle:20,1')->name('parents.search');
+        Route::post('phu-huynh', [StudentParentController::class, 'store'])->middleware('throttle:10,1')->name('parents.store');
+        Route::post('phu-huynh/{parentLink}/phan-hoi', [StudentParentController::class, 'respond'])->whereNumber('parentLink')->name('parents.respond');
+        Route::delete('phu-huynh/{parentLink}', [StudentParentController::class, 'destroy'])->whereNumber('parentLink')->name('parents.destroy');
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');

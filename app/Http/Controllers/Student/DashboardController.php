@@ -3,20 +3,19 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Services\Student\DashboardService;
+use App\Services\Student\StudentWorkspaceService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function __construct(
-        private DashboardService $dashboardService,
+        private StudentWorkspaceService $workspace,
     ) {}
 
+    /** SỬA 12/10 — Tổng quan dựng lại theo source mới (StudentOverview.jsx): dữ liệu từ StudentWorkspaceService::overview(). */
     public function index(Request $request): View
     {
-        $user = $request->user();
-
-        return view('student.dashboard', $this->dashboardService->buildDashboardData($user));
+        return view('student.dashboard', $this->workspace->overview($request->user()));
     }
 }

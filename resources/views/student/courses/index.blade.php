@@ -1,104 +1,80 @@
 @extends('layouts.student')
 
-@section('title', 'Khóa học của tôi')
-@section('page-title', 'Khóa học của tôi')
+@section('title', 'Lớp học của tôi')
+@section('page-title', 'Lớp học của tôi')
 
 @section('content')
     {{--
-      SỬA 24/9 (khách: "xem source mới nhất trong học sinh, xây lại trang khoá học cho giống UI
-      source mới, logic vẫn giữ nguyên").
-
-      DỰNG LẠI THEO education-main/src/components/RoleWorkspace.jsx — nhánh
-      StudentContent(active === "Khóa học của tôi"): lưới 2 cột, mỗi lớp là một thẻ NGANG (ảnh
-      bên trái, nội dung bên phải), nhãn nhỏ IN HOA màu xanh ở trên, thanh tiến độ mảnh và dòng
-      "% tiến độ" bên dưới.
-
-      LOGIC KHÔNG ĐỔI: vẫn đúng các khoá của Student\ClassRoomService (id, course, class,
-      teacher, percent, nextSession), vẫn cùng route, vẫn giữ nguyên 2 thông báo session và
-      khối "Có mã lớp?" đang tạm ẩn.
+      SỬA 12/10 — DỰNG LẠI THEO education-main (source mới): StudentClassesPanel.jsx — thẻ lớp có ảnh bìa,
+      mã lớp, giáo viên, lịch học hằng tuần, tóm tắt bài/đề của lớp và nút "Vào lớp".
+      Dữ liệu thật: Student\StudentWorkspaceService::classes(). Giữ nguyên các thông báo tham gia/đăng ký lớp
+      và khối "Có mã lớp?" đang ẩn (ClassRoomService::JOIN_BY_CODE_ENABLED = false).
     --}}
-    @php
-        $classes = $classes ?? [];
-        // Ảnh bìa xoay vòng theo VỊ TRÍ để mỗi lớp luôn nhận đúng một ảnh, không nhảy lung tung
-        // mỗi lần tải trang.
-        $covers = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
-    @endphp
+    @php($classes = $classes ?? [])
 
-    <x-ws.page-header title="Khóa học của tôi" icon="book-open" subtitle="Lớp là nơi tổ chức lịch, học viên và tiến độ của bạn (8.1).">
-        <x-slot:actions>
-            <a href="{{ route('courses.index') }}" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-sky-100 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-sky-200 hover:bg-sky-50">+ Khám phá khóa học mới</a>
-        </x-slot:actions>
-    </x-ws.page-header>
+    <div class="sw">
+        @include('student._hero')
 
-    @if (session('status') === 'joined-class')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tham gia lớp thành công!'])
-    @endif
+        @if (session('status') === 'joined-class')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tham gia lớp thành công!'])
+        @endif
+        @if (session('status') === 'class-join-requested')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi yêu cầu đăng ký — chờ giáo viên duyệt.'])
+        @endif
 
-    {{-- ẨN 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — khối "Có mã lớp?".
-         ẨN CHỨ KHÔNG XOÁ: đổi App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED
-         thành true rồi bỏ dấu chú thích quanh khối này là hiện lại nguyên vẹn.
-         Lối vào lớp bây giờ: trang Lớp học công khai -> bấm "Đăng ký học" -> giáo viên duyệt.
-    <div class="rounded-3xl bg-white border border-sky-100 p-5 mb-6">
-        <h2 class="font-medium text-slate-700 mb-1 flex items-center gap-2"><span><x-lucide name="ticket" class="h-4 w-4" /></span> Có mã lớp?</h2>
-        <p class="text-[13px] text-slate-500 mb-3">Giáo viên cung cấp mã lớp riêng cho từng lớp — nhập đúng mã để tham gia ngay.</p>
-        <form method="POST" action="{{ route('student.classes.join') }}" class="flex flex-col sm:flex-row gap-3 max-w-md">
-            @csrf
-            <input type="text" name="code" placeholder="Ví dụ: 10CT-2026"
-                   class="flex-1 rounded-xl border border-sky-100 text-[13px] p-2.5">
-            <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Tham gia lớp</button>
-        </form>
-    </div>
-    --}}
+        {{-- ẨN 16/9 (khách: "bỏ chỗ nhập mã lớp") — khối "Có mã lớp?" ẨN CHỨ KHÔNG XOÁ: đổi
+             ClassRoomService::JOIN_BY_CODE_ENABLED thành true rồi thêm lại form POST student.classes.join. --}}
 
-    {{-- SỬA 16/9 — kết quả gửi yêu cầu đăng ký (khi học sinh bấm từ trang lớp công khai rồi
-         quay lại đây). --}}
-    @if (session('status') === 'class-join-requested')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi yêu cầu đăng ký — chờ giáo viên duyệt.'])
-    @endif
+        <section class="student-classes" aria-label="Lớp học của tôi">
+            <div class="student-classes-heading">
+                <h2>Lớp đang tham gia <span>{{ count($classes) }}</span></h2>
+                <a class="student-overview-action" href="{{ route('courses.index') }}">+ Khám phá lớp học mới</a>
+            </div>
 
-    @if (empty($classes))
-        <x-ws.empty-state title="Bạn chưa tham gia lớp nào" description="Mở trang Lớp học, chọn lớp phù hợp rồi bấm &quot;Đăng ký học&quot; — giáo viên duyệt là bạn vào học được ngay." actionLabel="Xem các lớp đang mở" :actionHref="route('courses.index')" />
-    @else
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            @foreach ($classes as $i => $c)
-                @php($percent = max(0, min(100, (int) ($c['percent'] ?? 0))))
-                <a href="{{ route('student.classes.show', $c['id']) }}"
-                   class="student-course-card flex flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] sm:flex-row">
-                    <img src="{{ asset('assets/'.$covers[$i % count($covers)]) }}" alt="" decoding="async"
-                         class="student-course-cover h-28 w-full object-cover">
-
-                    <div class="min-w-0 flex-1 p-4">
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-blue-600">
-                            {{ $c['course'] !== '' ? $c['course'] : 'Khóa đang học' }}
-                        </span>
-                        <h2 class="mt-1 text-sm font-black text-slate-800">{{ $c['class'] }}</h2>
-                        <p class="mt-1 text-[11px] text-slate-500">
-                            {{ $c['teacher'] }}{{ $c['nextSession'] ? ' · Buổi tới: '.$c['nextSession'] : '' }}
-                        </p>
-
-                        <div class="mt-3">
-                            <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                <div class="h-full rounded-full bg-blue-500" style="width: {{ $percent }}%"></div>
+            @if (empty($classes))
+                <div class="student-overview-card">
+                    <p class="student-overview-empty" style="text-align:center">Bạn chưa tham gia lớp nào. Mở trang Lớp học, chọn lớp phù hợp rồi bấm "Đăng ký học" — giáo viên duyệt là bạn vào học được ngay.</p>
+                    <div style="text-align:center"><a class="student-class-enter" style="display:inline-flex;padding-inline:16px" href="{{ route('courses.index') }}">Xem các lớp đang mở <x-lucide name="arrow-right" class="h-3.5 w-3.5" /></a></div>
+                </div>
+            @else
+                <div class="student-classes-grid">
+                    @foreach ($classes as $c)
+                        <article class="student-class-card student-class-{{ $c['tone'] }}" aria-label="{{ $c['title'] }}">
+                            <div class="student-class-header">
+                                <img class="student-class-cover" src="{{ $c['cover'] }}" alt="" decoding="async" loading="lazy">
+                                <div class="student-class-title">
+                                    <span class="student-class-code">{{ $c['code'] }}</span>
+                                    <h3>{{ $c['title'] }}</h3>
+                                    <span class="student-class-format"><x-lucide name="video" class="h-3 w-3" /> {{ $c['format'] }}</span>
+                                </div>
                             </div>
-                            <p class="mt-1 text-[10px] text-slate-400">{{ $percent }}% tiến độ</p>
-                        </div>
-                    </div>
-                </a>
-            @endforeach
-        </div>
-    @endif
+                            <div class="student-class-teacher">
+                                @if ($c['teacherAvatar'])
+                                    <img src="{{ $c['teacherAvatar'] }}" alt="" loading="lazy">
+                                @else
+                                    <span class="ini">{{ $c['teacherInitial'] }}</span>
+                                @endif
+                                <div><span>Giáo viên</span><p>{{ $c['teacher'] }}</p></div>
+                            </div>
+                            <div class="student-class-schedule" aria-label="Lịch học">
+                                <x-lucide name="calendar-days" class="h-4 w-4" />
+                                <div><strong>{{ $c['schedule'] }}</strong></div>
+                                <span class="student-class-weekly">Lịch lớp</span>
+                            </div>
+                            <div class="student-class-progress">
+                                <div>
+                                    <span>{{ $c['assignTotal'] ? $c['pendingExercises'].' bài · '.$c['pendingExams'].' đề cần làm' : 'Chưa có bài hoặc đề được giao' }}</span>
+                                    <strong>{{ $c['assignTotal'] > 0 ? $c['completed'].' hoàn thành' : '' }}</strong>
+                                </div>
+                                @if ($c['submitted'] > 0)
+                                    <p class="sw-note" style="margin-top:4px">{{ $c['submitted'] }} đang chờ chấm</p>
+                                @endif
+                            </div>
+                            <a class="student-class-enter" href="{{ $c['url'] }}">Vào lớp <x-lucide name="arrow-right" class="h-3.5 w-3.5" /></a>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    </div>
 @endsection
-
-@push('scripts')
-    {{-- Bề ngang cố định của ảnh bìa ở khổ màn hình lớn (sm:w-28 của bản mẫu) + hiệu ứng rê
-         chuột. Viết CSS thường vì bản CSS trên máy chủ là bản build sẵn. --}}
-    <style>
-        .student-course-card { transition: border-color 160ms ease, box-shadow 160ms ease; }
-        .student-course-card:hover { border-color: #BFDBFE; box-shadow: 0 6px 18px rgba(0, 90, 180, .10); }
-
-        @media (min-width: 640px) {
-            /* sm:w-28 + sm:h-auto của bản mẫu — cả hai đều chưa có trong bản CSS build sẵn. */
-            .student-course-cover { width: 7rem; height: auto; flex-shrink: 0; }
-        }
-    </style>
-@endpush

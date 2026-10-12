@@ -12,7 +12,7 @@ class ParentLink extends Model
     use Auditable;
 
     protected $fillable = [
-        'parent_user_id', 'student_user_id', 'status', 'verification_method', 'verified_at',
+        'parent_user_id', 'student_user_id', 'status', 'verification_method', 'verified_at', 'relationship',
     ];
 
     protected $casts = [
