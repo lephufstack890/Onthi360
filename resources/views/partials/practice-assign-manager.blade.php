@@ -115,6 +115,7 @@
                     </div>
                     <div data-label="Điểm gần nhất">
                         <strong class="managed-score" x-text="row.scoreLabel ? row.scoreLabel : (row.status === 'pending' ? 'Chờ chấm' : '—')"></strong>
+                        <small x-show="row.scoreAfterLabel" x-cloak>Sau trừ: <span x-text="row.scoreAfterLabel"></span></small>
                         <small x-show="row.attempts > 0" x-cloak><span x-text="row.attempts"></span> lượt nộp</small>
                     </div>
                     <div data-label="Thời gian nộp">
@@ -159,6 +160,7 @@
                                 </dl>
                                 <p class="managed-result">
                                     <strong x-text="row.scoreLabel ? row.scoreLabel + ' điểm' : 'Chờ chấm'"></strong>
+                                    <span x-show="row.scoreAfterLabel" x-cloak>Sau trừ: <span x-text="row.scoreAfterLabel"></span> điểm</span>
                                     <span x-text="row.resultLabel"></span>
                                     <span class="managed-late" x-show="row.late" x-cloak>Nộp muộn</span>
                                     <span x-show="row.tests" x-cloak x-text="row.tests"></span>

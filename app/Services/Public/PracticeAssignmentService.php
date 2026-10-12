@@ -418,6 +418,7 @@ class PracticeAssignmentService
                 'late' => (bool) ($p['late'] ?? false),
                 'scoreLabel' => $p['scoreLabel'] ?? null,
                 'scoreRatio' => $p['scoreRatio'] ?? null,
+                'scoreAfterLabel' => $p['afterLabel'] ?? null,
                 'attempts' => (int) ($p['attempts'] ?? 0),
                 'submittedAt' => $p['submittedAtLabel'] ?? null,
                 'submittedTs' => $p['submittedTs'] ?? 0,
@@ -546,17 +547,45 @@ class PracticeAssignmentService
             ->get()
             ->groupBy(fn ($a) => $a->user_id.':'.$a->assessment_id);
 
-        $totals = Assessment::query()->whereIn('id', $examIds)->pluck('total_points', 'id');
+        $examModels = Assessment::query()->with('items')->whereIn('id', $examIds)->get()->keyBy('id');
+        $totals = $examModels->map(fn ($e) => $e->total_points);
 
-        $out = [];
-
+        // Lượt nộp mới nhất (sau thời điểm giao) của từng lượt giao.
+        $latestBy = [];
         foreach ($assignments as $assignment) {
             $rows = ($attempts->get($assignment->student_id.':'.$assignment->subject_id) ?? collect())
                 ->filter(fn ($a) => $a->submitted_at->gte($assignment->created_at))
                 ->sortByDesc('submitted_at')
                 ->values();
 
-            $latest = $rows->first();
+            $latestBy[$assignment->id] = ['rows' => $rows, 'latest' => $rows->first()];
+        }
+
+        /*
+         * SỬA 12/10 (khách: "học sinh làm đề rồi, trong nhật ký đề có điểm mà trong 'Đề đã giao' không có điểm") — điểm lưu
+         * ở attempts.total_score là điểm SAU KHI TRỪ theo nhật ký (chụp màn hình / xem Hướng dẫn, Bài mẫu), nên bài bị trừ nhiều
+         * hiện 0 ở đây trong khi Nhật ký làm đề hiện "Tổng điểm" là điểm CHƯA trừ. Giờ dùng đúng cách tính của Nhật ký làm đề
+         * (App\Support\ExamAttemptPenalty): "Điểm gần nhất" = điểm chưa trừ, kèm dòng "Sau trừ" khi có điểm bị trừ.
+         */
+        $penalties = [];
+        try {
+            foreach ($examModels as $examId => $exam) {
+                $examAttempts = collect($latestBy)
+                    ->filter(fn ($x, $aid) => $x['latest'] !== null && (int) $assignments->firstWhere('id', $aid)?->subject_id === (int) $examId)
+                    ->map(fn ($x) => $x['latest'])
+                    ->values();
+
+                $penalties += \App\Support\ExamAttemptPenalty::forAttempts($exam, $examAttempts, $exam->isPdfMode());
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $out = [];
+
+        foreach ($assignments as $assignment) {
+            $rows = $latestBy[$assignment->id]['rows'];
+            $latest = $latestBy[$assignment->id]['latest'];
             $max = (float) ($totals[$assignment->subject_id] ?? 0);
 
             if ($latest === null) {
@@ -570,15 +599,22 @@ class PracticeAssignmentService
                 || $latest->status === AttemptStatus::Grading;
 
             $score = $latest->total_score !== null ? (float) $latest->total_score : null;
-            $ratio = ! $pending && $score !== null && $max > 0 ? $score / $max : null;
+            $deducted = (float) ($penalties[$latest->id]['deducted'] ?? 0.0);
+            $rawScore = $score !== null
+                ? round($max > 0 ? min($max, $score + $deducted) : $score + $deducted, 2)
+                : null;
+            $ratio = ! $pending && $rawScore !== null && $max > 0 ? $rawScore / $max : null;
 
             $entry = [
                 'status' => $pending ? 'pending' : 'completed',
                 'late' => $latest->submitted_at->gt($assignment->deadline_at),
-                'score' => $score,
+                'score' => $rawScore,
                 'maxScore' => $max,
                 'scoreRatio' => $ratio,
-                'scoreLabel' => ! $pending && $score !== null ? $this->num($score).'/'.$this->num($max) : null,
+                'scoreLabel' => ! $pending && $rawScore !== null ? $this->num($rawScore).'/'.$this->num($max) : null,
+                // Chỉ có khi lượt này bị trừ điểm: điểm sau khi trừ (= điểm đề xuất ở Nhật ký làm đề).
+                'afterLabel' => ! $pending && $score !== null && $deducted > 0 ? $this->num($score).'/'.$this->num($max) : null,
+                'deducted' => $deducted,
                 'resultLabel' => $pending ? 'Chờ chấm' : $this->ratioLabel($ratio),
                 'attempts' => $rows->count(),
                 'submittedAtLabel' => $latest->submitted_at->format('d/m/Y H:i'),
