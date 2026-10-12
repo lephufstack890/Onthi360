@@ -632,4 +632,15 @@
     {{-- SỬA 11/10 — luật trừ điểm (% mỗi lần) cho nhật ký: có biến này thì work-activity-log hiện huy hiệu + hộp báo. --}}
     <script>window.oiPenaltyRules = @json(\App\Support\PracticeActivityLog::PENALTY_PERCENT);</script>
     @include('partials.work-activity-log')
+    {{-- SỬA 12/10 — cảnh báo khi thoát lúc đang làm đề luyện tập (hộp dùng chung). Đã nộp / hết giờ / đang chấm thì không hỏi
+         (đang chấm đã có hộp "Ở lại chờ kết quả" riêng). --}}
+    @php
+        $oiActive = <<<'JS'
+var el = document.querySelector('.assessment-modal');
+if (!el || !window.Alpine || !Alpine.$data) return true;
+var d = Alpine.$data(el);
+return !(d.submitting || d.submitDone || d.expired || d.leaving);
+JS;
+    @endphp
+    @include('partials.practice-leave-guard', ['kind' => 'exam', 'activeJs' => $oiActive])
 @endpush

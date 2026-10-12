@@ -281,4 +281,14 @@
 
 @push('scripts')
     @include('partials.exam-pdf-workspace-script')
+    {{-- SỬA 12/10 — cảnh báo khi thoát lúc đang làm đề (hộp dùng chung). Đang nộp / hết giờ thì không hỏi. --}}
+    @php
+        $oiActive = <<<'JS'
+var el = document.querySelector('[x-data^="pdfExamTake"]');
+if (!el || !window.Alpine || !Alpine.$data) return true;
+var d = Alpine.$data(el);
+return !(d.submitting || d.expired || d.leaving);
+JS;
+    @endphp
+    @include('partials.practice-leave-guard', ['kind' => 'exam', 'activeJs' => $oiActive])
 @endpush

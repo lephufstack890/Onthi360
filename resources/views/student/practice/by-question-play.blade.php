@@ -45,6 +45,8 @@
          icon lucide thay emoji. Mọi name=, data-*, id, route giữ NGUYÊN 100% để script AJAX
          cuối trang (submit/CodeMirror/mở test sai/tải test sai) chạy y như cũ. --}}
     <div id="practice-container">
+    {{-- SỬA 12/10 — dấu hiệu "đã xong / đã có kết quả" cho hộp cảnh báo thoát (partials.practice-leave-guard). --}}
+    @if ($finished || $feedback !== null)<i hidden data-oi-done></i>@endif
     @if ($finished)
         <div class="mx-auto mt-6 max-w-2xl rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-6 text-center shadow-[0_2px_8px_rgba(0,90,180,.04)] sm:p-8">
             <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-amber-100 bg-amber-50 text-amber-600">
@@ -103,7 +105,7 @@
                         <x-ws.badge tone="success">
                             <x-lucide name="check" class="h-3 w-3 shrink-0" />Đúng {{ $progress['correct'] }}/{{ $progress['answered'] }}
                         </x-ws.badge>
-                        <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}">
+                        <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}" data-oi-leave-form>
                             @csrf
                             <button type="submit" class="inline-flex items-center gap-1 rounded-full border border-sky-100 px-2.5 py-1 text-[11px] font-bold text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
                                 <x-lucide name="x" class="h-3 w-3 shrink-0" />Dừng luyện tập
@@ -663,6 +665,7 @@
                         // nhập đã hết hạn (bị chuyển sang trang login) hoặc lỗi lạ khác. An toàn
                         // nhất là điều hướng thật để học sinh thấy đúng trạng thái thật sự, tránh
                         // hiện trang trống/kẹt spinner mãi.
+                        if (window.oiLeaveGuard) window.oiLeaveGuard.allow();
                         window.location.reload();
                         return;
                     }
@@ -709,4 +712,7 @@
     {{-- SỬA 30/9 (6) — tải test sai về máy dưới dạng .in/.out. --}}
     @include('partials.practice-test-download')
 
+
+    {{-- SỬA 12/10 — cảnh báo khi thoát lúc đang luyện theo câu (hộp dùng chung). Liên kết trong khối câu hỏi (tải tệp) không tính. --}}
+    @include('partials.practice-leave-guard', ['kind' => 'pool', 'ignore' => '#practice-container a'])
 @endpush

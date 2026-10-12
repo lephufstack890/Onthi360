@@ -219,7 +219,7 @@
             </button>
 
             {{-- "Thoát bài tập" — form CŨ, giữ nguyên route/hành vi. --}}
-            <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}" class="shrink-0">
+            <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}" class="shrink-0" data-oi-leave-form>
                 @csrf
                 <button type="submit" class="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] transition hover:bg-[#F4F9FB] sm:flex">Thoát bài tập</button>
             </form>
@@ -321,6 +321,8 @@
                         {{-- ⚠ TỪ ĐÂY TRỞ XUỐNG LÀ KHỐI BỊ THAY MỚI SAU MỖI LẦN CHẤM (AJAX).
                              Không đặt directive Alpine nào bên trong. --}}
                         <div id="practice-container">
+                        {{-- SỬA 12/10 — dấu hiệu "đã nộp / đã xong" cho hộp cảnh báo thoát (partials.practice-leave-guard). Nằm trong khối được thay sau mỗi lần chấm nên luôn đúng trạng thái. --}}
+                        @if ($finished || $feedback !== null)<i hidden data-oi-done></i>@endif
                         @if ($finished)
                             {{-- SỬA 19/9 (7) (khách: "nộp bài phần lập trình xong nó không hiện tỉ lệ AC")
                                  — màn này trước đây chỉ có 🎉 và một câu chúc mừng, không một con số
@@ -1320,6 +1322,7 @@
                         // nhập đã hết hạn (bị chuyển sang trang login) hoặc lỗi lạ khác. An toàn
                         // nhất là điều hướng thật để học sinh thấy đúng trạng thái thật sự, tránh
                         // hiện trang trống/kẹt spinner mãi.
+                        if (window.oiLeaveGuard) window.oiLeaveGuard.allow();
                         window.location.reload();
                         return;
                     }
@@ -1549,4 +1552,8 @@
          student.practiceByQuestion.run rồi in ra ô Output). Bản mẫu mới bỏ hẳn cụm Input/Output
          khỏi khu soạn mã (xem ghi chú ở cột kết quả phía trên), nên script này không còn thẻ nào
          để bám. Route/service chạy thử vẫn còn nguyên trong mã nguồn. --}}
+
+    {{-- SỬA 12/10 (khách: "popup cảnh báo thật đẹp khi đang làm bài mà thoát ra") — chỉ CẢNH BÁO, không đổi logic nộp/chấm.
+         Liên kết trong khu nội dung (tải đề/tài liệu) không tính là rời trang. --}}
+    @include('partials.practice-leave-guard', ['kind' => 'problem', 'ignore' => 'main a, #practice-container a'])
 @endpush
