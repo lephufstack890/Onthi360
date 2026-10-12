@@ -67,6 +67,8 @@ class HomeService
     {
         return [
             'stats' => $this->buildStats(),
+            // SỬA 12/10 — khối [HOME-09A] "Thống kê hệ thống" (source mới), số liệu thật từ CSDL.
+            'systemStats' => $this->systemStats(),
             // CourseService::indexData(null) đã trả đúng hình dạng thẻ (id/title/meta/
             // average/count) mà <x-card-item> cần, sắp mới nhất trước — lấy $limit đầu làm
             // "nổi bật" (khóa học vừa phát hành gần đây nhất).
@@ -161,6 +163,88 @@ class HomeService
             ['value' => $this->countLabel($publishedCourses + $activeClassRooms), 'label' => 'Khóa học & lớp'],
             ['value' => $platformAverage !== null ? number_format($platformAverage, 1).'/5' : '—', 'label' => 'Đánh giá trung bình'],
         ];
+    }
+
+    /**
+     * SỬA 12/10 (khách: "dựa vào source mới update lại UI trang chủ, đổ dữ liệu từ database ra") — số liệu cho khối
+     * [HOME-09A] "Thống kê hệ thống". Bản mẫu education-main/HomeSystemStats.jsx dùng số minh hoạ cứng
+     * (PREVIEW_STATS), ghi chú sẵn "thay bằng số liệu tổng hợp từ máy chủ khi có" — đây là phần đó.
+     *
+     *  · students / parents / teachers : số tài khoản đang hoạt động (status = active) có vai trò tương ứng
+     *    (một người nhiều vai trò thì tính ở từng vai trò; "thành viên" là số tài khoản khác nhau, không cộng lặp).
+     *  · exams     : đề LUYỆN TẬP đã phát hành (đúng số đề ở trang Luyện tập › Đề thi).
+     *  · exercises : bài tập đã phát hành trong kho luyện tập (cùng bể câu với nút "Làm bài ngay").
+     *  · dailyAttempts : lượt làm bài 7 ngày gần nhất (cũ → mới, phần tử cuối là HÔM NAY theo giờ Việt Nam) =
+     *    bài tập tự luyện đã nộp + lượt nộp đề luyện tập, cùng cách đếm với khối "Luyện tập hôm nay".
+     *
+     * Lưu nhớ tạm 10 phút (trang chủ công khai, tránh đếm lại mỗi lượt xem). Lỗi truy vấn (vd. chưa migrate) thì trả
+     * null để trang chủ chỉ ẩn khối này, không hỏng cả trang.
+     *
+     * @return array{members: int, students: int, parents: int, teachers: int, exams: int, exercises: int, dailyAttempts: list<int>}|null
+     */
+    public function systemStats(): ?array
+    {
+        try {
+            return \Illuminate\Support\Facades\Cache::remember('home.system_stats.v1', 600, function () {
+                $accounts = fn () => \App\Models\User::query()->where('status', 'active');
+                $byRole = fn (string $role) => $accounts()->whereHas('roles', fn ($q) => $q->where('name', $role))->count();
+
+                $students = $byRole(Role::STUDENT);
+                $parents = $byRole(Role::PARENT);
+                $teachers = $byRole(Role::TEACHER);
+                $members = $accounts()->whereHas('roles', fn ($q) => $q->whereIn('name', [Role::STUDENT, Role::PARENT, Role::TEACHER]))->count();
+
+                $exams = \App\Models\Assessment::query()->where('type', 'practice')->where('status', 'published')->count();
+
+                $exercises = \App\Support\PracticeQuestionPool::excludeExamQuestions(
+                    \App\Models\Question::query()
+                        ->where('status', \App\Enums\ContentStatus::Published->value)
+                        ->whereNull('product_id')
+                        ->whereIn('type', array_keys(\App\Support\PracticeFilters::TYPE_META))
+                )->count();
+
+                $tz = \App\Services\Public\PracticeDailyStatsService::TIME_ZONE;
+                $today = \Carbon\Carbon::now($tz);
+                $daily = [];
+
+                for ($ago = 6; $ago >= 0; $ago--) {
+                    $day = $today->copy()->subDays($ago);
+                    $from = $day->copy()->startOfDay()->setTimezone(config('app.timezone'));
+                    $to = $day->copy()->endOfDay()->setTimezone(config('app.timezone'));
+
+                    $problems = \App\Models\AttemptAnswer::query()
+                        ->whereHas('attempt', fn ($a) => $a->whereNull('assessment_id'))
+                        ->whereBetween('updated_at', [$from, $to])
+                        ->where(function ($w) {
+                            $w->where('submission_count', '>', 0)->orWhereNotNull('graded_at')->orWhereNotNull('score');
+                        })
+                        ->count();
+
+                    $examAttempts = \App\Models\Attempt::query()
+                        ->whereNotNull('assessment_id')
+                        ->whereNotNull('submitted_at')
+                        ->whereBetween('submitted_at', [$from, $to])
+                        ->whereHas('assessment', fn ($q) => $q->where('type', 'practice'))
+                        ->count();
+
+                    $daily[] = $problems + $examAttempts;
+                }
+
+                return [
+                    'members' => $members,
+                    'students' => $students,
+                    'parents' => $parents,
+                    'teachers' => $teachers,
+                    'exams' => $exams,
+                    'exercises' => $exercises,
+                    'dailyAttempts' => $daily,
+                ];
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**

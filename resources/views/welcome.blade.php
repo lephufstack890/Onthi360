@@ -870,6 +870,9 @@
                     Xem lịch cuộc thi
                 </a>
             </section>
+
+            {{-- SỬA 12/10 — [HOME-09A] Thống kê hệ thống (source mới: HomeSystemStats.jsx), số liệu thật từ CSDL. --}}
+            @include('partials.home-system-stats')
         </aside>
 
         <div class="parent-lower-stack">
