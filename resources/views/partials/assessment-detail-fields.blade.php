@@ -90,8 +90,28 @@
                 @foreach (\App\Support\ExamCategory::CATEGORIES as $code => $label)
                     <option value="{{ $code }}" @selected(old('exam_category', $assessment?->exam_category) === $code)>{{ $label }}</option>
                 @endforeach
+                {{-- SỬA 12/10 — đề đang mang mã loại CŨ (HSG Quốc gia, Thi thử THPT…) vẫn hiện đúng mục đang chọn để
+                     lưu lại không làm mất phân loại; chọn mục khác thì mã cũ được thay. --}}
+                @php $adLegacyCode = old('exam_category', $assessment?->exam_category); @endphp
+                @if ($adLegacyCode && isset(\App\Support\ExamCategory::LEGACY[$adLegacyCode]))
+                    <option value="{{ $adLegacyCode }}" selected>{{ \App\Support\ExamCategory::LEGACY[$adLegacyCode][0] }} (loại cũ)</option>
+                @endif
             </x-ws.select>
-            <p class="mt-1 text-xs text-slate-400">Dùng cho dải chip lọc ngoài trang Luyện tập.</p>
+            <p class="mt-1 text-xs text-slate-400">Hiện ở ô lọc "Cuộc thi" ngoài trang Luyện tập.</p>
+        </div>
+    </div>
+
+    {{-- SỬA 12/10 (khách: "thêm lọc theo khối — THCS · THPT · Khác") — khối học của đề, dùng cho ô lọc "Khối". --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="mb-1 block text-[13px] font-medium text-slate-600" for="exam_level">Khối</label>
+            <x-ws.select id="exam_level" name="exam_level">
+                <option value="">— Chưa chọn (tính là Khác) —</option>
+                @foreach (\App\Support\ExamLevel::LEVELS as $code => $label)
+                    <option value="{{ $code }}" @selected(old('exam_level', $assessment?->exam_level) === $code)>{{ $label }}</option>
+                @endforeach
+            </x-ws.select>
+            <p class="mt-1 text-xs text-slate-400">Hiện ở ô lọc "Khối" ngoài trang Luyện tập.</p>
         </div>
     </div>
 

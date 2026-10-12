@@ -17,25 +17,59 @@ namespace App\Support;
  */
 class ExamCategory
 {
-    /** Mã => nhãn hiển thị. Mã là thứ lưu xuống assessments.exam_category. */
+    /**
+     * Mã => nhãn hiển thị. Mã là thứ lưu xuống assessments.exam_category.
+     *
+     * SỬA 12/10 (khách: "chỗ lọc cái Cuộc thi mặc định là 1. HSG lớp 9 · 2. HSG lớp 12 · 3. Tin học trẻ ·
+     * 4. Khác") — danh sách CHỌN ĐƯỢC (form đề + ô lọc ngoài trang Luyện tập) rút còn đúng 4 mục này.
+     */
     public const CATEGORIES = [
-        'hsg_quoc_gia' => 'HSG Quốc gia',
-        'hsg_tinh' => 'HSG Tỉnh/Thành',
-        'chuyen_tin' => 'Chuyên Tin 10',
-        'olympic' => 'Olympic Tin học',
-        'thpt' => 'Thi thử THPT',
+        'hsg_lop_9' => 'HSG lớp 9',
+        'hsg_lop_12' => 'HSG lớp 12',
         'tin_hoc_tre' => 'Tin học trẻ',
         'khac' => 'Khác',
     ];
 
-    /** Nhãn của 1 mã; mã lạ/rỗng -> null để nơi gọi tự hiện "Chưa phân loại". */
+    /**
+     * Mã CŨ (trước 12/10) — không còn trong danh sách chọn nhưng đề đã lưu mã này vẫn phải hiện đúng nhãn và
+     * không bị xoá phân loại khi sửa đề. Mã => [nhãn, nhóm lọc tương ứng trong CATEGORIES].
+     * "HSG Quốc gia" là kỳ thi lớp 11-12 nên gom vào HSG lớp 12; các mã còn lại không xác định được lớp nên
+     * gom vào "Khác" (người ra đề có thể phân loại lại bất cứ lúc nào).
+     */
+    public const LEGACY = [
+        'hsg_quoc_gia' => ['HSG Quốc gia', 'hsg_lop_12'],
+        'hsg_tinh' => ['HSG Tỉnh/Thành', 'khac'],
+        'chuyen_tin' => ['Chuyên Tin 10', 'khac'],
+        'olympic' => ['Olympic Tin học', 'khac'],
+        'thpt' => ['Thi thử THPT', 'khac'],
+    ];
+
+    /** Nhãn của 1 mã (kể cả mã cũ); mã lạ/rỗng -> null để nơi gọi tự hiện "Chưa phân loại". */
     public static function label(?string $code): ?string
     {
-        return $code !== null ? (self::CATEGORIES[$code] ?? null) : null;
+        if ($code === null) {
+            return null;
+        }
+
+        return self::CATEGORIES[$code] ?? (self::LEGACY[$code][0] ?? null);
     }
 
     /**
-     * Mã hợp lệ hoặc null (mã lạ -> null = chưa phân loại, KHÔNG đoán bừa).
+     * Nhóm LỌC của 1 mã — luôn là một khoá trong CATEGORIES: mã mới giữ nguyên, mã cũ đổi theo LEGACY, đề chưa
+     * phân loại (hoặc mã lạ) vào "Khác". Ô "Cuộc thi" ngoài trang Luyện tập lọc theo giá trị này.
+     */
+    public static function filterGroup(?string $code): string
+    {
+        if ($code === null || $code === '') {
+            return 'khac';
+        }
+
+        return array_key_exists($code, self::CATEGORIES) ? $code : (self::LEGACY[$code][1] ?? 'khac');
+    }
+
+    /**
+     * Mã hợp lệ hoặc null (mã lạ -> null = chưa phân loại, KHÔNG đoán bừa). Nhận cả mã cũ để sửa đề không làm
+     * mất phân loại đã lưu.
      *
      * Cắt khoảng trắng và hạ chữ thường trước khi đối chiếu: ô chọn ở form luôn gửi đúng mã,
      * nhưng cùng hàm này còn nhận dữ liệu nhập hàng loạt / gọi từ nơi khác, mà "HSG_TINH" bị
@@ -49,12 +83,12 @@ class ExamCategory
 
         $code = mb_strtolower(trim($raw));
 
-        return array_key_exists($code, self::CATEGORIES) ? $code : null;
+        return (array_key_exists($code, self::CATEGORIES) || array_key_exists($code, self::LEGACY)) ? $code : null;
     }
 
     /** Luật validate cho ô chọn ở form — sinh từ CATEGORIES để không bao giờ lệch danh sách. */
     public static function validationRule(): string
     {
-        return 'in:'.implode(',', array_keys(self::CATEGORIES));
+        return 'in:'.implode(',', array_merge(array_keys(self::CATEGORIES), array_keys(self::LEGACY)));
     }
 }

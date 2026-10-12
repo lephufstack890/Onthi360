@@ -259,9 +259,9 @@
 
     .assigned-work-meta > span { padding-left: 8px; border-left: 1px solid #CDDDE7; }
     .oi-exam-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: end; border: 1px solid #DDEAF0; border-radius: 1rem; background: #fff; padding: 12px; box-shadow: 0 2px 10px rgba(28, 91, 121, .04); }
+    /* SỬA 12/10 — 4 ô lọc (Tỉnh/thành · Cuộc thi · Khối · Sắp xếp): 2 cột trên màn nhỏ/vừa, 4 cột trên màn rộng. */
     .oi-exam-filter-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
-    .oi-exam-filter-selects > label:last-child { grid-column: 1 / -1; }
-    @media (min-width: 640px) { .oi-exam-filter-selects { grid-template-columns: repeat(3, minmax(0, 1fr)); } .oi-exam-filter-selects > label:last-child { grid-column: auto; } }
+    @media (min-width: 1280px) { .oi-exam-filter-selects { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     @media (min-width: 1024px) { .oi-exam-filters { grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr); } }
     /* ── Ô chọn nhiều học sinh (Select2) trong popup giao bài ── */
     .oi-pk { position: relative; }

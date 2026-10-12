@@ -34,6 +34,8 @@
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
             selectedDifficulty: 'all',
             selectedExamType: 'all',
+            // SỬA 12/10 — ô lọc "Khối": 'all' | 'thcs' | 'thpt' | 'khac'.
+            selectedExamLevel: 'all',
             // SỬA 2/10 — ô sắp xếp đề của bản mẫu mới: 'default' | 'attempts' | 'newest'.
             examSort: 'default',
             // SỬA 8/10 — sắp xếp bảng bài tập theo Chuyên đề / Độ khó / Tỷ lệ AC như PracticeSortButton
@@ -57,7 +59,7 @@
                 this.$watch('examSort', () => { this.examPageIndex = 1; });
 
                 // Mọi thay đổi trang/bộ lọc đều ghi lên URL (replaceState — không thêm mục vào lịch sử).
-                ['problemPageIndex', 'examPageIndex', 'activeTab', 'selectedTopic', 'selectedDifficulty', 'selectedExamType', 'onlyUndone', 'searchQuery']
+                ['problemPageIndex', 'examPageIndex', 'activeTab', 'selectedTopic', 'selectedDifficulty', 'selectedExamType', 'selectedExamLevel', 'onlyUndone', 'searchQuery']
                     .forEach((key) => this.$watch(key, () => this.syncUrl()));
             },
 
@@ -70,6 +72,7 @@
 
                     if (this.practiceMode === 'exams') {
                         const t = q.get('etype'); if (t) { this.selectedExamType = t; }
+                        const lv = q.get('elevel'); if (lv) { this.selectedExamLevel = lv; }
                         const p = num('pg'); if (p) { this.examPageIndex = p; }
                     } else {
                         const t = q.get('type'); if (t) { this.activeTab = t; }
@@ -105,6 +108,7 @@
                 this.searchQuery = '';
                 if (mode === 'problems') {
                     this.selectedExamType = 'all';
+                    this.selectedExamLevel = 'all';
                 } else {
                     this.activeTab = 'all';
                     this.selectedTopic = 'all';
@@ -147,6 +151,7 @@
                     put('diff', exams ? '' : this.selectedDifficulty, 'all');
                     put('undone', !exams && this.onlyUndone ? '1' : '', '');
                     put('etype', exams ? this.selectedExamType : '', 'all');
+                    put('elevel', exams ? this.selectedExamLevel : '', 'all');
                     put('q', this.searchQuery.trim(), '');
                     window.history.replaceState({}, '', url.toString());
                 } catch (e) { /* bỏ qua */ }
@@ -257,6 +262,7 @@
                 this.selectedExamProvince = 'all';
                 this.examAssignStatus = 'all';
                 this.selectedExamType = 'all';
+                this.selectedExamLevel = 'all';
                 this.searchQuery = '';
                 this.examPageIndex = 1;
             },
@@ -310,11 +316,13 @@
                 const list = this.exams.filter((e) => {
                     const matchScope = assignedView ? e.assigned : e.inCatalog;
                     const matchAssign = !assignedView || this.examAssignStatus === 'all' || e.assignStatus === this.examAssignStatus;
-                    const matchType = this.selectedExamType === 'all' || e.type === this.selectedExamType;
+                    // SỬA 12/10 — lọc theo NHÓM cố định (mã loại cũ đã gom về 4 mục) và theo khối.
+                    const matchType = this.selectedExamType === 'all' || e.catGroup === this.selectedExamType;
+                    const matchLevel = this.selectedExamLevel === 'all' || e.level === this.selectedExamLevel;
                     const matchProvince = this.selectedExamProvince === 'all'
                         || (this.selectedExamProvince === 'unknown' ? !e.province : e.province === this.selectedExamProvince);
                     const matchSearch = !q || e.search.includes(q);
-                    return matchScope && matchAssign && matchType && matchProvince && matchSearch;
+                    return matchScope && matchAssign && matchType && matchLevel && matchProvince && matchSearch;
                 });
 
                 if (assignedView) {

@@ -135,20 +135,28 @@ class PracticeService
         $catalogItems = array_values(array_filter($items, fn (array $it) => $it['inCatalog']));
 
         /*
-         * SỬA 2/10 — dải chip lọc dựng TỪ LOẠI ĐỀ CÓ THẬT trong danh sách, không phải danh sách
-         * cố định: bày chip "Olympic" mà không đề nào thuộc loại đó thì bấm vào ra bảng rỗng.
+         * SỬA 12/10 (khách: "ô lọc Cuộc thi mặc định là HSG lớp 9 · HSG lớp 12 · Tin học trẻ · Khác; thêm lọc theo
+         * Khối THCS · THPT · Khác") — dải lọc giờ là DANH SÁCH CỐ ĐỊNH (không còn dựng từ loại đề có trong dữ liệu
+         * như 2/10), luôn đủ mục và theo đúng thứ tự khách chốt; số đề đếm theo nhóm lọc (xem ExamCategory::
+         * filterGroup, ExamLevel::filterGroup) trên các đề đang hiện ở tab "Tất cả đề".
          */
-        $categoryChips = collect($catalogItems)
-            ->filter(fn (array $it) => $it['category'] !== null)
-            ->groupBy('category')
-            ->map(fn ($group, $code) => [
+        $categoryChips = [];
+        foreach (\App\Support\ExamCategory::CATEGORIES as $code => $label) {
+            $categoryChips[] = [
                 'value' => $code,
-                'label' => $group->first()['categoryLabel'],
-                'count' => $group->count(),
-            ])
-            ->sortByDesc('count')
-            ->values()
-            ->all();
+                'label' => $label,
+                'count' => count(array_filter($catalogItems, fn (array $it) => $it['categoryGroup'] === $code)),
+            ];
+        }
+
+        $levelChips = [];
+        foreach (\App\Support\ExamLevel::LEVELS as $code => $label) {
+            $levelChips[] = [
+                'value' => $code,
+                'label' => $label,
+                'count' => count(array_filter($catalogItems, fn (array $it) => $it['level'] === $code)),
+            ];
+        }
 
         // ── Bài tập: kho 60 câu + các câu được giao nằm ngoài kho ──
         $problems = $this->problemRows($viewer);
@@ -189,6 +197,7 @@ class PracticeService
         return array_merge([
             'items' => $items,
             'examCategoryChips' => $categoryChips,
+            'examLevelChips' => $levelChips,
             // 3 ô tổng quan ở đầu tab (bản mẫu: Kho đề thi / Đang luyện / Điểm cao nhất).
             'examTotal' => count($catalogItems),
             'examDoingCount' => collect($catalogItems)->where('progressStatus', 'doing')->count(),
@@ -275,6 +284,10 @@ class PracticeService
             'provinceLabel' => $a->provinceLabel(),
             'academicYear' => $a->academic_year,
             'category' => $a->exam_category,
+            // SỬA 12/10 — nhóm LỌC cho ô "Cuộc thi" (mã cũ gom về 4 mục cố định) và ô "Khối" (chưa chọn = Khác).
+            'categoryGroup' => \App\Support\ExamCategory::filterGroup($a->exam_category),
+            'level' => \App\Support\ExamLevel::filterGroup($a->exam_level),
+            'levelLabel' => $a->examLevelLabel(),
             'categoryLabel' => $a->examCategoryLabel(),
             // SỬA 7/10 (khách: "thiếu Độ khó, số sao đánh giá, tỉnh thành khu vực") — theo
             // ExamDetailPage/PracticePage của bản mẫu: độ khó 1-5 sao, khu vực suy ra từ tỉnh/thành,

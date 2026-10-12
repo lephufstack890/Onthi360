@@ -2995,6 +2995,7 @@ class ContentService
             'province' => ProvinceCatalog::normalize($data['province'] ?? null),
             'academic_year' => filled($data['academic_year'] ?? null) ? trim((string) $data['academic_year']) : null,
             'exam_category' => ExamCategory::normalize($data['exam_category'] ?? null),
+            'exam_level' => \App\Support\ExamLevel::normalize($data['exam_level'] ?? null), // SỬA 12/10
             // SỬA 7/10 — độ khó 1-5; ngoài khoảng/để trống -> null ("chưa xếp").
             'difficulty_level' => filled($data['difficulty_level'] ?? null) && (int) $data['difficulty_level'] >= 1 && (int) $data['difficulty_level'] <= 5 ? (int) $data['difficulty_level'] : null,
             // SỬA 7/10 — số sao đánh giá nhập tay; chỉ lưu khi có ĐỦ cả điểm lẫn số lượt.

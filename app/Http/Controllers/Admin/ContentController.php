@@ -774,6 +774,7 @@ class ContentController extends Controller
             'rating_score' => ['nullable', 'numeric', 'between:0,5'],
             'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
             'exam_category' => ['nullable', 'string', 'max:30'],
+            'exam_level' => ['nullable', 'string', 'max:10'], // SỬA 12/10 — khối THCS/THPT/Khác, xem App\Support\ExamLevel
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
             // trong partials/assessment-detail-fields.
@@ -933,6 +934,7 @@ class ContentController extends Controller
             'rating_score' => ['nullable', 'numeric', 'between:0,5'],
             'rating_count' => ['nullable', 'integer', 'min:1', 'max:1000000', 'required_with:rating_score'],
             'exam_category' => ['nullable', 'string', 'max:30'],
+            'exam_level' => ['nullable', 'string', 'max:10'], // SỬA 12/10 — khối THCS/THPT/Khác, xem App\Support\ExamLevel
             // SỬA 2/10 lần 3 — BẢN XEM TRƯỚC: một tệp PDF do người ra đề tải lên. Không nhận
             // preview_page_from/to ở form này (đó là của màn "Quản lý đề PDF") — xem ghi chú
             // trong partials/assessment-detail-fields.

@@ -202,6 +202,9 @@
         $examRows[] = [
             'id' => $it['id'],
             'type' => $it['category'] ?? 'none',
+            // SỬA 12/10 — nhóm lọc của ô "Cuộc thi" (4 mục cố định) và ô "Khối" (THCS/THPT/Khác).
+            'catGroup' => $it['categoryGroup'] ?? 'khac',
+            'level' => $it['level'] ?? 'khac',
             'attempts' => (int) $it['attemptCount'],
             'order' => $loopOrder++,
             'title' => mb_strtolower(trim($it['title'])),
@@ -873,6 +876,15 @@
                     </select>
                 </label>
                 <label class="block min-w-0">
+                    <span class="oi-field-label">Khối</span>
+                    <select aria-label="Khối" x-model="selectedExamLevel" @change="examPageIndex = 1" class="oi-select">
+                        <option value="all">Tất cả khối</option>
+                        @foreach ($examLevelChips ?? [] as $chip)
+                            <option value="{{ $chip['value'] }}">{{ $chip['label'] }} ({{ $chip['count'] }})</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label class="block min-w-0">
                     <span class="oi-field-label">Sắp xếp</span>
                     <select aria-label="Sắp xếp đề thi" x-model="examSort" class="oi-select">
                         <option value="default">Mới nhất trước</option>
@@ -889,7 +901,7 @@
                 <x-lucide name="file-text" class="h-3.5 w-3.5 text-[#2D7FA3]" />
                 <span><b class="text-[#45657D]" x-text="filteredExams.length"></b> / {{ collect($items)->where('inCatalog', true)->count() }} đề phù hợp</span>
             </p>
-            <button type="button" x-show="searchQuery || selectedExamProvince !== 'all' || selectedExamType !== 'all'" x-cloak @click="resetExamFilters()"
+            <button type="button" x-show="searchQuery || selectedExamProvince !== 'all' || selectedExamType !== 'all' || selectedExamLevel !== 'all'" x-cloak @click="resetExamFilters()"
                     class="min-h-9 rounded-lg px-2.5 text-[11px] font-semibold text-[#126F91] hover:bg-[#EAF5F8]">Xóa bộ lọc</button>
         </div>
 

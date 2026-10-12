@@ -35,7 +35,7 @@ class Assessment extends Model
         'guide_pdf_path', 'guide_pdf_original_name', 'sample_pdf_path', 'sample_pdf_original_name',
         // SỬA 2/10 — 6 trường mô tả đề cho màn chi tiết + thẻ đề ngoài trang công khai, xem
         // migration add_detail_fields_to_assessments_table.
-        'subtitle', 'author', 'province', 'academic_year', 'exam_category', 'cover_image_path',
+        'subtitle', 'author', 'province', 'academic_year', 'exam_category', 'exam_level', 'cover_image_path',
         // SỬA 7/10 — độ khó 1-5 của đề (cùng thang với câu hỏi), xem migration
         // add_difficulty_and_ratings_to_assessments.
         'difficulty_level',
@@ -119,6 +119,12 @@ class Assessment extends Model
     public function examCategoryLabel(): ?string
     {
         return \App\Support\ExamCategory::label($this->exam_category);
+    }
+
+    /** SỬA 12/10 — nhãn khối (THCS/THPT/Khác); chưa chọn khối thì null. */
+    public function examLevelLabel(): ?string
+    {
+        return \App\Support\ExamLevel::label($this->exam_level);
     }
 
     /**
