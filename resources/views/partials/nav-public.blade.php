@@ -49,13 +49,37 @@
      * cả giáo viên lẫn quản trị thì sai nghĩa. Chỉ đổi nhãn/icon/đích đến, không đụng quyền:
      * ai vào được khu nào vẫn do middleware role quyết định như cũ.
      */
+    /*
+     * SỬA 12/10 — icon theo vai trò, lấy từ source mới (education-main: Học sinh = GraduationCap,
+     * Phụ huynh = Heart, Giáo viên = bảng trình chiếu, Quản trị = shield-user, Khách = user-round)
+     * + màu vòng tròn như hình mẫu. Chỉ dùng khi tài khoản chưa tự tải ảnh đại diện; có ảnh rồi
+     * thì vẫn hiện ảnh của người đó như cũ.
+     */
+    $roleKey = match (true) {
+        ! $headerUser => 'guest',
+        (bool) $headerUser->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) => 'admin',
+        (bool) $headerUser->hasRole(\App\Models\Role::TEACHER) => 'teacher',
+        (bool) $headerUser->hasRole(\App\Models\Role::PARENT) => 'parent',
+        default => 'student',
+    };
+    $roleVisual = [
+        'student' => ['icon' => 'graduation-cap', 'bg' => 'linear-gradient(135deg,#DCEEFF,#BFE0FF)', 'fg' => '#1D6FD1', 'ring' => '#9CCBF5'],
+        'teacher' => ['icon' => 'presentation', 'bg' => 'linear-gradient(135deg,#FFEBD0,#FFD7A3)', 'fg' => '#B85C0B', 'ring' => '#F6C27E'],
+        'parent' => ['icon' => 'heart', 'bg' => 'linear-gradient(135deg,#FFE6EC,#FFD0DB)', 'fg' => '#D6406A', 'ring' => '#F6B4C5'],
+        'admin' => ['icon' => 'shield-user', 'bg' => 'linear-gradient(135deg,#E5EEFF,#D2E1FF)', 'fg' => '#3558D6', 'ring' => '#B5C8F5'],
+        'guest' => ['icon' => 'user-round', 'bg' => 'linear-gradient(135deg,#EEF4FF,#E1ECFF)', 'fg' => '#3B7BEA', 'ring' => '#C3D8F8'],
+    ][$roleKey];
+    $useRoleBadge = ! $headerUser?->avatarUrl();
+    $profileRoute = ['student' => 'student.profile', 'teacher' => 'teacher.profile.show', 'parent' => 'parent.profile', 'admin' => 'admin.profile.show'][$roleKey] ?? null;
+    if ($profileRoute && ! \Illuminate\Support\Facades\Route::has($profileRoute)) { $profileRoute = null; }
+
     $headerEntry = match (true) {
         (bool) $headerUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)
             => ['label' => 'Vào trang quản trị', 'icon' => 'layout-dashboard', 'route' => 'admin.dashboard'],
         (bool) $headerUser?->hasRole(\App\Models\Role::TEACHER)
-            => ['label' => 'Vào khu dạy học', 'icon' => 'notebook-pen', 'route' => 'dashboard'],
+            => ['label' => 'Vào khu dạy học', 'icon' => 'presentation', 'route' => 'dashboard'],
         (bool) $headerUser?->hasRole(\App\Models\Role::PARENT)
-            => ['label' => 'Tình hình học tập của con', 'icon' => 'trending-up', 'route' => 'dashboard'],
+            => ['label' => 'Tình hình học tập của con', 'icon' => 'heart', 'route' => 'dashboard'],
         default
             => ['label' => 'Vào khu học tập', 'icon' => 'graduation-cap', 'route' => 'dashboard'],
     };
@@ -153,8 +177,15 @@
                 <button type="button" @click="roleDropdownOpen = !roleDropdownOpen"
                         class="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-slate-200 cursor-pointer shrink-0 select-none rounded-r-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         aria-label="Mở menu người dùng" :aria-expanded="roleDropdownOpen">
-                    <img src="{{ $headerAvatar }}" alt="Avatar"
-                         class="w-8 h-8 rounded-full border-2 border-sky-300 object-cover shadow-2xs shrink-0">
+                    @if ($useRoleBadge)
+                        <span class="w-8 h-8 rounded-full grid place-items-center shrink-0 shadow-2xs" aria-hidden="true"
+                              style="background:{{ $roleVisual['bg'] }};color:{{ $roleVisual['fg'] }};border:2px solid {{ $roleVisual['ring'] }}">
+                            <x-lucide :name="$roleVisual['icon']" class="w-4 h-4" />
+                        </span>
+                    @else
+                        <img src="{{ $headerAvatar }}" alt="Avatar"
+                             class="w-8 h-8 rounded-full border-2 border-sky-300 object-cover shadow-2xs shrink-0">
+                    @endif
                     <span class="text-left hidden min-[1800px]:block leading-tight">
                         <span class="block text-[13px] font-bold text-slate-800 leading-snug truncate max-w-[140px]">{{ $headerUser?->name ?? 'Khách khám phá' }}</span>
                         <span class="flex items-center gap-1">
@@ -172,8 +203,15 @@
                     </div>
 
                     <div class="flex items-center gap-3 p-2.5 rounded-xl bg-blue-50/90 border border-blue-200">
-                        <img src="{{ $headerAvatar }}" alt="{{ $headerUser?->name ?? 'Khách' }}"
-                             class="w-8 h-8 rounded-full object-cover border border-sky-200">
+                        @if ($useRoleBadge)
+                            <span class="w-10 h-10 rounded-full grid place-items-center shrink-0" aria-hidden="true"
+                                  style="background:{{ $roleVisual['bg'] }};color:{{ $roleVisual['fg'] }};border:2px solid {{ $roleVisual['ring'] }}">
+                                <x-lucide :name="$roleVisual['icon']" class="w-5 h-5" />
+                            </span>
+                        @else
+                            <img src="{{ $headerAvatar }}" alt="{{ $headerUser?->name ?? 'Khách' }}"
+                                 class="w-10 h-10 rounded-full object-cover border border-sky-200">
+                        @endif
                         <span class="overflow-hidden">
                             <span class="type-card-title block truncate">{{ $headerUser?->name ?? 'Khách khám phá' }}</span>
                             <span class="type-body mt-0.5 block truncate text-slate-500">{{ $headerSub }}</span>
@@ -187,6 +225,13 @@
                                 <x-lucide :name="$headerEntry['icon']" class="w-4 h-4 shrink-0 text-blue-600" />
                                 <span class="min-w-0 leading-snug">{{ $headerEntry['label'] }}</span>
                             </a>
+                            @if ($profileRoute)
+                                <a href="{{ route($profileRoute) }}"
+                                   class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                    <x-lucide name="users" class="w-4 h-4 shrink-0 text-blue-600" />
+                                    <span>Thông tin cá nhân</span>
+                                </a>
+                            @endif
                             {{-- SỬA 14/9 (khách yêu cầu) — quản trị viên đã full quyền, không cần
                                  "Quyền của tôi" và "Nhập mã kích hoạt". ẨN CHỨ KHÔNG XOÁ: bỏ
                                  điều kiện là hiện lại y như cũ. --}}
