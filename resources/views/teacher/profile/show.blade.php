@@ -1,7 +1,7 @@
 @extends('layouts.teacher')
 
-@section('title', 'Hồ sơ của tôi')
-@section('page-title', 'Hồ sơ của tôi')
+@section('title', 'Thông tin cá nhân')
+@section('page-title', 'Thông tin cá nhân')
 
 @section('content')
     @php

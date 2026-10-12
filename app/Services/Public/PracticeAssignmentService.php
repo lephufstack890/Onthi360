@@ -364,6 +364,8 @@ class PracticeAssignmentService
                 'maxScore' => $p['maxScore'] ?? null,
                 'resultLabel' => $p['resultLabel'] ?? null,
                 'submittedAt' => $p['submittedAtLabel'] ?? null,
+                // SỬA 12/10 — nhận xét của giáo viên hiện ở chi tiết lượt giao phía học sinh.
+                'feedback' => $assignment->feedback ?? null,
             ];
         }
 
@@ -423,6 +425,10 @@ class PracticeAssignmentService
 
             $rows[] = [
                 'id' => $a->id,
+                'studentId' => $a->student_id,
+                // SỬA 12/10 — nhận xét của giáo viên cho bài nộp (cột có sau migration 001180; chưa chạy thì null).
+                'feedback' => $a->feedback ?? null,
+                'feedbackAt' => $a->feedback_at?->format('d/m/Y H:i'),
                 'subjectId' => $a->subject_id,
                 'title' => $meta['title'],
                 'code' => $meta['code'],

@@ -103,6 +103,7 @@ class StudentWorkspaceService
                         : null,
                     'verdict' => $state === 'completed' ? ($a['resultLabel'] ?? null) : null,
                     'submittedAt' => $a['submittedAt'] ?? null,
+                    'feedback' => $a['feedback'] ?? null,
                     'description' => $exam
                         ? 'Đề luyện tập do giáo viên giao riêng cho bạn. Mở đề để làm bài và nộp trước hạn.'
                         : 'Bài lập trình do giáo viên giao riêng cho bạn. Mở bài để viết lời giải và nộp trước hạn.',

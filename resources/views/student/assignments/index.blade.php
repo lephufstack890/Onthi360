@@ -18,7 +18,7 @@
             'className' => $a['className'], 'teacher' => $a['teacher'], 'meta' => $a['meta'],
             'assignedAt' => $a['assignedAt'], 'deadline' => $a['deadline'], 'overdue' => (bool) $a['overdue'],
             'late' => (bool) $a['late'], 'result' => $a['result'], 'verdict' => $a['verdict'],
-            'submittedAt' => $a['submittedAt'], 'description' => $a['description'], 'url' => $a['url'],
+            'submittedAt' => $a['submittedAt'], 'description' => $a['description'], 'url' => $a['url'], 'feedback' => $a['feedback'] ?? null,
         ], $assignments);
         $total = $counts['total'] ?? 0;
     @endphp
@@ -104,6 +104,7 @@
                             <p x-text="item.description"></p>
                             <p class="s">Giao lúc <span x-text="item.assignedAt || 'không rõ'"></span></p>
                             <p class="s" x-show="item.submittedAt" x-text="item.state === 'completed' ? 'Đã hoàn thành và công bố kết quả.' : 'Đã nộp; đang chờ giáo viên công bố kết quả.'"></p>
+                            <p x-show="item.feedback"><b>Nhận xét của giáo viên:</b> <span x-text="item.feedback" style="white-space:pre-wrap"></span></p>
                         </div>
                     </article>
                 </template>

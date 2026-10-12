@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Services\Teacher\ClassRoomService;
+use App\Services\Teacher\TeacherWorkspaceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,13 +13,21 @@ use Illuminate\View\View;
 
 class ClassRoomController extends Controller
 {
-    public function __construct(private readonly ClassRoomService $classRoomService) {}
+    public function __construct(
+        private readonly ClassRoomService $classRoomService,
+        private readonly TeacherWorkspaceService $workspace,
+    ) {}
 
     public function index(Request $request): View
     {
         $user = Auth::user();
+        $data = $this->classRoomService->listForTeacher($user);
 
-        return view('teacher.classes.index', $this->classRoomService->listForTeacher($user));
+        // SỬA 12/10 — danh sách học sinh từng lớp (kèm số lượt giao / đã nộp) cho giao diện Lớp học theo source mới.
+        $data['covers'] = $this->workspace->covers($user);
+        $data['roster'] = $this->workspace->roster(array_column($data['classes'], 'id'), $this->workspace->workRows($user));
+
+        return view('teacher.classes.index', $data);
     }
 
     public function show(Request $request, int $class): View

@@ -46,6 +46,8 @@ use App\Http\Controllers\Teacher\QuestionController as TeacherQuestionController
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
 use App\Http\Controllers\Teacher\ScheduleController as TeacherScheduleController;
 use App\Http\Controllers\Teacher\NotificationController as TeacherNotificationController;
+use App\Http\Controllers\Teacher\NoticeController as TeacherNoticeController;
+use App\Http\Controllers\Teacher\WorkController as TeacherWorkController;
 use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Parent\AssignmentController as ParentAssignmentController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
@@ -461,6 +463,10 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsDestroy'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.destroy');
         Route::post('papers/coding-items/{codingItem}/test-cases/import', [TeacherAssessmentController::class, 'papersCodingItemsTestCasesImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.test-cases.import');
 
+        // SỬA 12/10 — mục "Bài & đề" (danh sách lượt giao từng học sinh + giao bài/đề + nhận xét bài nộp).
+        Route::get('bai-va-de', [TeacherWorkController::class, 'index'])->name('work.index');
+        Route::post('bai-va-de/{assignment}/nhan-xet', [TeacherWorkController::class, 'feedback'])->whereNumber('assignment')->name('work.feedback');
+
         Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
         Route::get('results/export', [TeacherResultController::class, 'export'])->name('results.export');
         Route::get('results/attempts/{attempt}', [TeacherResultController::class, 'attempt'])->name('results.attempt');
@@ -479,6 +485,9 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('schedule/{session}/resources/{resource}', [TeacherScheduleController::class, 'removeResource'])->name('schedule.resources.delete');
 
         Route::get('notifications', [TeacherNotificationController::class, 'index'])->name('notifications.index');
+        // SỬA 12/10 — soạn / đăng thông báo lớp (nháp → đăng → gửi thông báo tới học sinh, phụ huynh).
+        Route::post('notices', [TeacherNoticeController::class, 'store'])->name('notices.store');
+        Route::delete('notices/{notice}', [TeacherNoticeController::class, 'destroy'])->whereNumber('notice')->name('notices.destroy');
 
         Route::get('profile', [TeacherProfileController::class, 'show'])->name('profile.show');
         Route::put('profile', [TeacherProfileController::class, 'update'])->name('profile.update');

@@ -15,10 +15,11 @@ class PracticeAssignment extends Model
 
     public const TYPE_EXAM = 'exam';
 
-    protected $fillable = ['assigned_by', 'student_id', 'type', 'subject_id', 'deadline_at'];
+    protected $fillable = ['assigned_by', 'student_id', 'type', 'subject_id', 'deadline_at', 'feedback', 'feedback_at'];
 
     protected $casts = [
         'deadline_at' => 'datetime',
+        'feedback_at' => 'datetime',
         'subject_id' => 'integer',
     ];
 
