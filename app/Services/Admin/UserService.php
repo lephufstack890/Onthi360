@@ -35,6 +35,7 @@ class UserService
         private UserRepositoryInterface $users,
         private AuditLogRepositoryInterface $auditLogs,
         private ParentLinkRepositoryInterface $parentLinks,
+        private UserPermissionService $permissionService,
     ) {}
 
     private function logChange(User $admin, User $target, string $action, array $changes, ?string $reason = null): void
@@ -110,6 +111,7 @@ class UserService
             'teacher' => $this->users->countByRoleName(Role::TEACHER),
             'parent' => $this->users->countByRoleName(Role::PARENT),
             'staff' => $this->users->countByRoleNames([Role::EDITOR, Role::ADMIN, Role::SUPER_ADMIN]),
+            'deleted' => User::onlyTrashed()->count(),
         ];
 
         $tabs = [
@@ -118,10 +120,13 @@ class UserService
             ['label' => 'Giáo viên', 'href' => route('admin.users.index', ['tab' => 'teacher']), 'active' => $tab === 'teacher', 'count' => $counts['teacher']],
             ['label' => 'Phụ huynh', 'href' => route('admin.users.index', ['tab' => 'parent']), 'active' => $tab === 'parent', 'count' => $counts['parent']],
             ['label' => 'Admin/Editor', 'href' => route('admin.users.index', ['tab' => 'staff']), 'active' => $tab === 'staff', 'count' => $counts['staff']],
+            ['label' => 'Đã xóa', 'href' => route('admin.users.index', ['tab' => 'deleted']), 'active' => $tab === 'deleted', 'count' => $counts['deleted']],
         ];
 
         $query = $this->users->withRolesAndTeacherProfile();
-        if ($tab === 'staff') {
+        if ($tab === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($tab === 'staff') {
             $query->whereHas('roles', fn ($q) => $q->whereIn('name', [Role::EDITOR, Role::ADMIN, Role::SUPER_ADMIN]));
         } elseif (isset($roleMap[$tab])) {
             $query->whereHas('roles', fn ($q) => $q->where('name', $roleMap[$tab]));
@@ -187,7 +192,8 @@ class UserService
      */
     public function update(User $admin, User $user, array $data, ?string $reason = null): User
     {
-        $before = ['name' => $user->name, 'email' => $user->email, 'phone' => $user->phone, 'status' => $user->status];
+        $fields = ['name', 'email', 'phone', 'province', 'region', 'status'];
+        $before = $user->only($fields);
 
         $this->users->update($user, [
             'name' => $data['name'],
@@ -198,13 +204,58 @@ class UserService
             'status' => $data['status'],
         ]);
 
-        $after = ['name' => $user->name, 'email' => $user->email, 'phone' => $user->phone, 'status' => $user->status];
+        $after = $user->only($fields);
         $changed = array_diff_assoc($after, $before);
         if (! empty($changed)) {
-            $this->logChange($admin, $user, 'updated', ['before' => array_intersect_key($before, $changed), 'after' => $changed], $reason);
+            // Đổi trạng thái -> action riêng để tab Lịch sử hiện "Khóa/Mở khóa tài khoản" cho dễ đọc.
+            $action = 'updated';
+            if (array_key_exists('status', $changed)) {
+                $action = $changed['status'] === 'suspended' ? 'locked' : 'unlocked';
+            }
+            $this->logChange($admin, $user, $action, ['before' => array_intersect_key($before, $changed), 'after' => $changed], $reason);
         }
 
         return $user;
+    }
+
+    /**
+     * admin.users.destroy — XÓA MỀM (users.deleted_at): tài khoản không đăng nhập được nữa nhưng dữ liệu học tập,
+     * đơn hàng, đánh giá... vẫn giữ nguyên và khôi phục được ở tab "Đã xóa". Bắt buộc có lý do (ghi audit).
+     * Chặn: tự xóa mình; xóa Super Admin trừ khi người thao tác cũng là Super Admin; xóa quản trị viên cuối cùng.
+     */
+    public function delete(User $admin, User $target, string $reason): void
+    {
+        if ($admin->id === $target->id) {
+            throw ValidationException::withMessages(['delete' => 'Không thể tự xóa tài khoản của chính mình.']);
+        }
+
+        $targetRoles = $target->roles->pluck('name')->all();
+        if (in_array(Role::SUPER_ADMIN, $targetRoles, true) && ! $admin->hasRole(Role::SUPER_ADMIN)) {
+            throw ValidationException::withMessages(['delete' => 'Chỉ Super Admin mới được xóa tài khoản Super Admin.']);
+        }
+
+        if (count(array_intersect($targetRoles, [Role::ADMIN, Role::SUPER_ADMIN])) > 0) {
+            $remaining = $this->users->query()
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', [Role::ADMIN, Role::SUPER_ADMIN]))
+                ->where('id', '!=', $target->id)
+                ->count();
+            if ($remaining === 0) {
+                throw ValidationException::withMessages(['delete' => 'Không thể xóa quản trị viên cuối cùng của hệ thống.']);
+            }
+        }
+
+        $status = $target->status;
+        $target->delete();
+        $this->logChange($admin, $target, 'deleted', ['before' => ['status' => $status], 'after' => ['status' => 'deleted']], $reason);
+    }
+
+    /** admin.users.restore — khôi phục người dùng đã xóa mềm, về đúng trạng thái trước khi xóa (active/suspended). */
+    public function restore(User $admin, User $target): User
+    {
+        $target->restore();
+        $this->logChange($admin, $target, 'restored', ['before' => ['status' => 'deleted'], 'after' => ['status' => $target->status]]);
+
+        return $target;
     }
 
     /**
@@ -293,6 +344,15 @@ class UserService
             : 'Hoạt động';
         $tone = $isTeacher && $u->teacherProfile?->approval_status?->value === 'pending' ? 'warning' : 'success';
 
+        // Tài khoản bị khóa / đã xóa phải hiện rõ ở danh sách (trước đây cột này chỉ phản ánh duyệt giáo viên).
+        if ($u->trashed()) {
+            $status = 'Đã xóa';
+            $tone = 'danger';
+        } elseif ($u->status === 'suspended') {
+            $status = 'Tạm khóa';
+            $tone = 'danger';
+        }
+
         return [
             'id' => $u->id,
             'name' => $u->name,
@@ -301,6 +361,118 @@ class UserService
             'status' => $status,
             'tone' => $tone,
             'created' => $u->created_at?->format('d/m/Y'),
+            'trashed' => $u->trashed(),
+            'is_self' => $u->id === auth()->id(),
+        ];
+    }
+
+    private const FIELD_LABELS = [
+        'name' => 'Họ tên', 'email' => 'Email', 'phone' => 'Số điện thoại', 'province' => 'Tỉnh/Thành',
+        'region' => 'Khu vực', 'status' => 'Trạng thái', 'roles' => 'Vai trò',
+    ];
+
+    private const ACTION_TITLES = [
+        'created' => 'Tạo tài khoản', 'updated' => 'Cập nhật thông tin', 'locked' => 'Khóa tài khoản',
+        'unlocked' => 'Mở khóa tài khoản', 'deleted' => 'Xóa người dùng', 'restored' => 'Khôi phục người dùng',
+        'password_reset' => 'Đặt lại mật khẩu', 'permissions_updated' => 'Cập nhật phân quyền',
+    ];
+
+    private const REGION_LABELS = ['mien_bac' => 'Miền Bắc', 'mien_trung' => 'Miền Trung', 'mien_nam' => 'Miền Nam'];
+
+    private const STATUS_LABELS = ['active' => 'Hoạt động', 'suspended' => 'Tạm khóa', 'deleted' => 'Đã xóa'];
+
+    /** Giá trị một trường audit -> chữ dễ đọc. */
+    private function humanValue(string $field, mixed $v): string
+    {
+        if (is_array($v)) {
+            $v = collect($v)->map(fn ($x) => $field === 'roles' ? (self::ROLE_LABELS[$x] ?? $x) : (string) $x)->implode(', ');
+        }
+        if ($v === null || $v === '') {
+            return 'Chưa cập nhật';
+        }
+        if ($field === 'status') {
+            return self::STATUS_LABELS[$v] ?? (string) $v;
+        }
+        if ($field === 'region') {
+            return self::REGION_LABELS[$v] ?? (string) $v;
+        }
+
+        return (string) $v;
+    }
+
+    /**
+     * Tab "Lịch sử": audit log của người dùng -> danh sách dễ đọc. Hỗ trợ cả 2 dạng cột changes đang tồn tại:
+     * {before:{...}, after:{...}} (UserService::logChange) và {field:{old,new}} (trait Auditable).
+     *
+     * @return array<int, array{title: string, when: string, actor: string, lines: array<int, string>, reason: ?string, tone: string}>
+     */
+    public function historyFor(User $user, int $limit = 200): array
+    {
+        $logs = $this->auditLogs->forAuditable(User::class, $user->id, $limit);
+
+        return $logs->map(function ($log) {
+            $ch = is_array($log->changes) ? $log->changes : [];
+            $lines = [];
+
+            if (isset($ch['before']) || isset($ch['after'])) {
+                $b = (array) ($ch['before'] ?? []);
+                $a = (array) ($ch['after'] ?? []);
+                foreach (array_unique(array_merge(array_keys($b), array_keys($a))) as $f) {
+                    $label = self::FIELD_LABELS[$f] ?? $f;
+                    $isPerm = $log->action === 'permissions_updated';
+                    $old = $isPerm ? (string) ($b[$f] ?? '—') : $this->humanValue($f, $b[$f] ?? null);
+                    $new = $isPerm ? (string) ($a[$f] ?? '—') : $this->humanValue($f, $a[$f] ?? null);
+                    $lines[] = $label.': '.$old.' → '.$new;
+                }
+            } elseif ($log->action === 'created' && isset($ch['roles'])) {
+                $lines[] = 'Vai trò: '.$this->humanValue('roles', $ch['roles']);
+            } else {
+                foreach ($ch as $f => $v) {
+                    if (is_array($v) && (array_key_exists('old', $v) || array_key_exists('new', $v))) {
+                        $lines[] = (self::FIELD_LABELS[$f] ?? $f).': '.$this->humanValue($f, $v['old'] ?? null).' → '.$this->humanValue($f, $v['new'] ?? null);
+                    }
+                }
+            }
+
+            return [
+                'title' => self::ACTION_TITLES[$log->action] ?? ucfirst($log->action),
+                'when' => $log->created_at?->timezone(config('app.timezone'))->format('H:i d/m/Y') ?? '',
+                'actor' => $log->actor?->name ?: ($log->actor?->email ?: 'Hệ thống'),
+                'lines' => $lines,
+                'reason' => $log->reason,
+                'tone' => match ($log->action) {
+                    'deleted', 'locked' => 'danger',
+                    'restored', 'unlocked', 'created' => 'ok',
+                    default => 'info',
+                },
+            ];
+        })->all();
+    }
+
+    /** Dữ liệu cho popup chi tiết (partial admin.users._panel): 3 tab Thông tin / Phân quyền / Lịch sử. */
+    public function panelData(int $userId, User $actor): array
+    {
+        $userModel = User::withTrashed()->with(['roles', 'teacherProfile'])->findOrFail($userId);
+        $roleNames = $userModel->roles->pluck('name')->all();
+        $history = $this->historyFor($userModel);
+
+        $profile = null;
+        if (in_array(Role::TEACHER, $roleNames, true)) {
+            $profile = 'Giáo viên · '.($userModel->teacherProfile?->approval_status?->label() ?? 'Chưa đăng ký hồ sơ');
+        }
+
+        return [
+            'u' => $userModel,
+            'roleNames' => $roleNames,
+            'availableRoles' => self::ROLE_LABELS,
+            'roleLabels' => collect($roleNames)->map(fn ($r) => self::ROLE_LABELS[$r] ?? $r)->all(),
+            'isSelf' => $userModel->id === $actor->id,
+            'trashed' => $userModel->trashed(),
+            'matrix' => $this->permissionService->matrix($userModel, $actor),
+            'scopes' => UserPermissionService::SCOPES,
+            'history' => $history,
+            'profileLine' => $profile,
+            'regions' => self::REGION_LABELS,
         ];
     }
 }

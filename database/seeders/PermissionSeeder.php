@@ -33,6 +33,19 @@ class PermissionSeeder extends Seeder
             ['ranking.view', 'Xem bảng xếp hạng quản trị', 'competitions'],
             ['reports.view', 'Xem báo cáo', 'reports'],
             ['settings.manage', 'Cấu hình hệ thống', 'settings'],
+            // 11 quyền chức năng của giáo viên (tab "Phân quyền" ở Admin > Người dùng). Mặc định theo vai trò tính trong
+            // code (App\Models\User::hasPermission: có vai trò teacher => có), nên KHÔNG gán vào permission_role.
+            ['teacher.assign-practice', 'Giao bài', 'teacher_general'],
+            ['teacher.assign-assessment', 'Giao đề', 'teacher_general'],
+            ['teacher.assign-material', 'Giao tài liệu', 'teacher_general'],
+            ['teacher.view-submissions', 'Xem lịch sử nộp bài', 'teacher_general'],
+            ['teacher.sample-practice', 'Chỉ định bài mẫu', 'teacher_general'],
+            ['teacher.organize-competition', 'Tổ chức cuộc thi', 'teacher_general'],
+            ['teacher.question-create', 'Tạo câu hỏi', 'teacher_content'],
+            ['teacher.question-edit', 'Sửa câu hỏi', 'teacher_content'],
+            ['teacher.assessment-create', 'Tạo đề thi', 'teacher_content'],
+            ['teacher.material-upload', 'Tải học liệu lên', 'teacher_content'],
+            ['teacher.content-publish', 'Phát hành nội dung', 'teacher_content'],
         ];
 
         $models = [];
@@ -48,7 +61,7 @@ class PermissionSeeder extends Seeder
         $superAdminRole = Role::where('name', Role::SUPER_ADMIN)->first();
         $editorRole = Role::where('name', Role::EDITOR)->first();
 
-        $allIds = collect($models)->pluck('id');
+        $allIds = collect($models)->reject(fn (Permission $p) => str_starts_with($p->slug, 'teacher.'))->pluck('id');
 
         if ($adminRole) {
             $adminRole->permissions()->syncWithoutDetaching($allIds);

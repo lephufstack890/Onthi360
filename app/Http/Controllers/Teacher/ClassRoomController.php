@@ -93,6 +93,8 @@ class ClassRoomController extends Controller
      */
     public function attachMaterial(Request $request, int $class)
     {
+        abort_if(Auth::user()->isPermissionRevoked('teacher.assign-material'), 403, 'Quyền "Giao tài liệu" của bạn đã bị quản trị viên thu hồi.');
+
         $data = $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
 
         $this->classRoomService->attachProduct(Auth::user(), $class, (int) $data['product_id']);
@@ -116,6 +118,8 @@ class ClassRoomController extends Controller
      */
     public function assignAssessment(Request $request, int $class): RedirectResponse
     {
+        abort_if(Auth::user()->isPermissionRevoked('teacher.assign-assessment'), 403, 'Quyền "Giao đề" của bạn đã bị quản trị viên thu hồi.');
+
         $data = $request->validate($this->assignRules());
 
         try {

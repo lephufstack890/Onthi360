@@ -152,6 +152,18 @@ class User extends Authenticatable // implements MustVerifyEmail
             return true;
         }
 
+        // Phân quyền riêng của từng người (Admin > Người dùng > tab "Phân quyền") đè lên mặc định theo vai trò:
+        // revoke = thu hồi, grant = cấp thêm. Không có dòng nào thì dùng mặc định như cũ.
+        $override = $this->permissionOverrideFor($slug);
+        if ($override !== null) {
+            return $override['effect'] === 'grant';
+        }
+
+        // 11 quyền chức năng giáo viên (slug "teacher."): mặc định có nếu người đó có vai trò giáo viên.
+        if (str_starts_with($slug, 'teacher.') && $this->hasRole(Role::TEACHER)) {
+            return true;
+        }
+
         $roles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->with('permissions')->get();
 
         foreach ($roles as $role) {
@@ -174,5 +186,60 @@ class User extends Authenticatable // implements MustVerifyEmail
         }
 
         return false;
+    }
+
+    // -- Phân quyền theo từng người (permission_user) -------------------------------
+
+    /** Cache theo từng đối tượng: [slug => ['effect' => grant|revoke, 'scope' => own|class|all]]. */
+    private ?array $permissionOverrideMap = null;
+
+    /** Đã chạy migration permission_user chưa — tránh lỗi 500 toàn site nếu quên migrate. */
+    private static ?bool $overrideTableExists = null;
+
+    public function permissionOverrides(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'permission_user')->withPivot(['effect', 'scope', 'granted_by'])->withTimestamps();
+    }
+
+    /** @return array<string, array{effect: string, scope: string}> */
+    public function permissionOverrideMap(): array
+    {
+        if ($this->permissionOverrideMap !== null) {
+            return $this->permissionOverrideMap;
+        }
+
+        self::$overrideTableExists ??= \Illuminate\Support\Facades\Schema::hasTable('permission_user');
+        if (! self::$overrideTableExists || ! $this->exists) {
+            return $this->permissionOverrideMap = [];
+        }
+
+        $map = [];
+        foreach ($this->permissionOverrides()->get(['permissions.id', 'permissions.slug']) as $p) {
+            $map[$p->slug] = ['effect' => $p->pivot->effect, 'scope' => $p->pivot->scope];
+        }
+
+        return $this->permissionOverrideMap = $map;
+    }
+
+    /** @return array{effect: string, scope: string}|null */
+    public function permissionOverrideFor(string $slug): ?array
+    {
+        return $this->permissionOverrideMap()[$slug] ?? null;
+    }
+
+    /** Admin đã thu hồi riêng quyền này của người dùng (dùng để chặn thao tác, vd. Teacher\ClassRoomController). */
+    public function isPermissionRevoked(string $slug): bool
+    {
+        if ($this->hasRole(Role::SUPER_ADMIN)) {
+            return false;
+        }
+
+        return ($this->permissionOverrideFor($slug)['effect'] ?? null) === 'revoke';
+    }
+
+    /** Phạm vi áp dụng của quyền: own (thuộc sở hữu) | class (lớp phụ trách) | all. Mặc định own. */
+    public function permissionScope(string $slug): string
+    {
+        return $this->permissionOverrideFor($slug)['scope'] ?? 'own';
     }
 }

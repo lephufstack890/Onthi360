@@ -549,6 +549,10 @@ Route::middleware(['auth'])->group(function () {
         Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::put('users/{user}/roles', [AdminUserController::class, 'updateRoles'])->name('users.roles.update');
         Route::put('users/{user}/password', [AdminUserController::class, 'resetPassword'])->name('users.password.update');
+        Route::put('users/{user}/permissions', [AdminUserController::class, 'updatePermissions'])->name('users.permissions.update');
+        Route::get('users/{user}/panel', [AdminUserController::class, 'panel'])->name('users.panel');
+        Route::post('users/{user}/restore', [AdminUserController::class, 'restore'])->name('users.restore');
+        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('parent-links/{parentLink}/approve', [AdminUserController::class, 'approveParentLink'])->name('parent-links.approve');
         Route::post('parent-links/{parentLink}/reject', [AdminUserController::class, 'rejectParentLink'])->name('parent-links.reject');

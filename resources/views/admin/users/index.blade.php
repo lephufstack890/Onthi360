@@ -25,6 +25,10 @@
 
     @if (session('status') === 'user-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo tài khoản mới.'])
+    @elseif (session('status') === 'user-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xóa người dùng. Có thể khôi phục ở tab "Đã xóa".'])
+    @elseif (session('status') === 'user-restored')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã khôi phục người dùng.'])
     @endif
 
     {{--
@@ -88,7 +92,7 @@
                                 <div class="aux-who">
                                     <x-ws.avatar :name="$u['name']" size="md" />
                                     <div>
-                                        <a href="{{ route('admin.users.show', $u['id']) }}" class="akx-title">{{ $u['name'] }}</a>
+                                        <a href="{{ route('admin.users.show', $u['id']) }}" class="akx-title" data-user-open="{{ $u['id'] }}">{{ $u['name'] }}</a>
                                         <span class="aux-email">{{ $u['email'] }}</span>
                                     </div>
                                 </div>
@@ -103,7 +107,14 @@
                             <td><span class="aux-status {{ ($u['tone'] ?? '') === 'warning' ? 'aux-status--warn' : (in_array($u['tone'] ?? '', ['danger', 'error'], true) ? 'aux-status--off' : '') }}">{{ $u['status'] }}</span></td>
                             <td><span class="aux-date">{{ $u['created'] }}</span></td>
                             <td>
-                                <div class="akx-act"><div class="akx-act__links"><a href="{{ route('admin.users.show', $u['id']) }}" class="akx-lnk">Chi tiết</a></div></div>
+                                <div class="aux-actions">
+                                    <a href="{{ route('admin.users.show', $u['id']) }}" class="akx-lnk" data-user-open="{{ $u['id'] }}">Chi tiết</a>
+                                    @if ($u['trashed'] ?? false)
+                                        <button type="button" class="aux-rowbtn aux-rowbtn--restore" data-user-restore="{{ $u['id'] }}" aria-label="Khôi phục {{ $u['name'] }}"><x-lucide name="rotate-ccw" /> Khôi phục</button>
+                                    @else
+                                        <button type="button" class="aux-rowbtn aux-rowbtn--del" data-user-del="{{ $u['id'] }}" data-name="{{ $u['name'] }}" aria-label="Xóa {{ $u['name'] }}" @disabled($u['is_self'] ?? false) @if ($u['is_self'] ?? false) title="Không thể tự xóa chính mình" @endif><x-lucide name="trash-2" /> Xóa</button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -116,8 +127,10 @@
         </div>
 
         <div class="akx-pg" data-pg-nav="users" hidden></div>
-        <p class="acx-foot" style="padding-top:12px">Bấm "Chi tiết" để xem hồ sơ, đổi vai trò, đặt lại mật khẩu và xem lịch sử thay đổi.</p>
+        <p class="acx-foot" style="padding-top:12px">Bấm "Chi tiết" để cập nhật thông tin và mật khẩu, phân quyền chức năng và xem lịch sử thay đổi. Người dùng bị xóa được giữ ở tab "Đã xóa" và có thể khôi phục.</p>
     </section>
+
+    @include('partials.admin-users-modal')
 @endsection
 
 @push('scripts')

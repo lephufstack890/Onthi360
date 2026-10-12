@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\ParentLink;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Admin\UserPermissionService;
 use App\Services\Admin\UserService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function __construct(private UserService $userService) {}
+    public function __construct(private UserService $userService, private UserPermissionService $permissionService) {}
 
     public function index(Request $request): View
     {
@@ -26,6 +29,12 @@ class UserController extends Controller
     public function show(Request $request, int $user): View
     {
         return view('admin.users.show', $this->userService->showData($user));
+    }
+
+    /** Popup "Chi tiết" ở danh sách: trả HTML (3 tab Thông tin / Phân quyền / Lịch sử) để nạp bằng fetch. */
+    public function panel(Request $request, int $user): View
+    {
+        return view('admin.users._panel', $this->userService->panelData($user, Auth::user()));
     }
 
     public function create(): View
@@ -56,7 +65,7 @@ class UserController extends Controller
         return view('admin.users.edit', $this->userService->editFormData($user));
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(Request $request, User $user): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -65,17 +74,29 @@ class UserController extends Controller
             'province' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
             'status' => ['required', 'string', 'in:active,suspended'],
-            'reason' => [$request->input('status') === 'suspended' ? 'required' : 'nullable', 'string', 'max:1000'],
+            'reason' => [$request->input('status') === 'suspended' && $user->status !== 'suspended' ? 'required' : 'nullable', 'string', 'max:1000'],
         ]);
 
+        if ($user->id === Auth::id() && $data['status'] === 'suspended') {
+            throw ValidationException::withMessages(['status' => 'Không thể tự khóa tài khoản của chính mình.']);
+        }
+
         $this->userService->update(Auth::user(), $user, $data, $data['reason'] ?? null);
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Đã lưu thông tin người dùng.']);
+        }
 
         return redirect()->route('admin.users.show', $user->id)->with('status', 'user-updated');
     }
 
-    public function updateRoles(Request $request, User $user): RedirectResponse
+    public function updateRoles(Request $request, User $user): RedirectResponse|JsonResponse
     {
         if ($user->id === Auth::id()) {
+            if ($request->expectsJson()) {
+                throw ValidationException::withMessages(['roles' => 'Không thể tự sửa vai trò của chính mình ở đây.']);
+            }
+
             return redirect()->route('admin.users.show', $user->id)->withErrors(['roles' => 'Không thể tự sửa vai trò của chính mình ở đây.']);
         }
 
@@ -86,10 +107,31 @@ class UserController extends Controller
 
         $this->userService->updateRoles(Auth::user(), $user, $data['roles'] ?? []);
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Đã cập nhật vai trò, đã ghi lịch sử.']);
+        }
+
         return redirect()->route('admin.users.show', $user->id)->with('status', 'roles-updated');
     }
 
-    public function resetPassword(Request $request, User $user): RedirectResponse
+    /** Tab "Phân quyền" của popup: lưu bảng chức năng + phạm vi của một người dùng. */
+    public function updatePermissions(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'perms' => ['nullable', 'array'],
+            'perms.*.on' => ['nullable', 'boolean'],
+            'perms.*.scope' => ['nullable', 'string', 'in:own,class,all'],
+        ]);
+
+        $changed = $this->permissionService->save(Auth::user(), $user, $data['perms'] ?? []);
+
+        return response()->json([
+            'message' => $changed > 0 ? "Đã lưu phân quyền ($changed thay đổi)." : 'Không có thay đổi nào để lưu.',
+            'changed' => $changed,
+        ]);
+    }
+
+    public function resetPassword(Request $request, User $user): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'password' => ['required', 'confirmed', 'min:8'],
@@ -97,7 +139,39 @@ class UserController extends Controller
 
         $this->userService->resetPassword(Auth::user(), $user, $data['password']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Đã đổi mật khẩu cho người dùng này.']);
+        }
+
         return redirect()->route('admin.users.show', $user->id)->with('status', 'password-updated');
+    }
+
+    /** Xóa mềm người dùng (có lý do, có chặn tự xóa / quản trị viên cuối cùng). */
+    public function destroy(Request $request, User $user): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+
+        $this->userService->delete(Auth::user(), $user, $data['reason']);
+        session()->flash('status', 'user-deleted');
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Đã xóa người dùng. Có thể khôi phục ở tab "Đã xóa".']);
+        }
+
+        return redirect()->route('admin.users.index')->with('status', 'user-deleted');
+    }
+
+    public function restore(Request $request, int $user): RedirectResponse|JsonResponse
+    {
+        $target = User::onlyTrashed()->findOrFail($user);
+        $this->userService->restore(Auth::user(), $target);
+        session()->flash('status', 'user-restored');
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Đã khôi phục người dùng.']);
+        }
+
+        return redirect()->route('admin.users.index')->with('status', 'user-restored');
     }
 
     public function approveParentLink(Request $request, ParentLink $parentLink): RedirectResponse
