@@ -725,7 +725,7 @@ class PracticeService
             // Chấm sao cần đã nộp đề: $attemptCount lấy từ phần "Kết quả của bạn" ở trên.
             'canRate' => $viewer !== null && $attemptCount > 0,
             'rateUrl' => route('practice.exam.rate', $exam->id),
-            'canAssign' => (bool) $assignScope['canAssign'],
+            'canAssign' => (bool) ($assignScope['canAssignExam'] ?? $assignScope['canAssign']),
             'assignment' => $assignment,
             'historyHref' => $viewer !== null ? route('practice.history.exam', $exam->id) : null,
             'examCategoryLabel' => $exam->examCategoryLabel(),

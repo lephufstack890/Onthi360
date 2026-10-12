@@ -67,7 +67,7 @@ class PracticeHistoryService
 
         $ids = [$viewer->id];
 
-        if ($this->assignments->isTeacher($viewer) && $this->assignments->isReady()) {
+        if ($this->assignments->isTeacher($viewer) && ! $viewer->isPermissionRevoked('teacher.view-submissions') && $this->assignments->isReady()) {
             $ids = array_merge(
                 $ids,
                 PracticeAssignment::query()

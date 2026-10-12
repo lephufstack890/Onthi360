@@ -633,7 +633,7 @@
                              dòng "QuickAssignButton · Nhật ký nộp bài · Nguồn · thông tin lượt giao" nằm CHUNG
                              MỘT HÀNG dưới tên bài, không đặt cạnh tên bài. --}}
                         <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
-                            @if ($assignScope['canAssign'])
+                            @if ($assignScope['canAssignProblem'] ?? $assignScope['canAssign'])
                                 <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $prob['title'] }}"
                                         @click.stop="openAssign('problem', {{ $prob['id'] }}, @js($prob['title']), @js($prob['code']))">
                                     <x-lucide name="send" />Giao bài
@@ -1023,7 +1023,7 @@
                          object-cover KHÔNG cắt gì cả, mà mấy ảnh bìa này chữ kín mặt, cắt hụt
                          một dòng là mất tên đề. --}}
                     {{-- SỬA 7/10 — nút "Giao đề" cho giáo viên/admin (bản mẫu: QuickAssignButton trên đầu thẻ). --}}
-                    @if ($assignScope['canAssign'])
+                    @if ($assignScope['canAssignExam'] ?? $assignScope['canAssign'])
                         <div style="display:flex;justify-content:flex-end;background:#F8FBFC;padding:8px 12px 0">
                             <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao đề: {{ $exam['title'] }}"
                                     @click.stop="openAssign('exam', {{ $exam['id'] }}, @js($exam['title']), @js($exam['examCode'] ?: '#'.$exam['id']))">

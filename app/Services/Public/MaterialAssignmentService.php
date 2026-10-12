@@ -66,7 +66,12 @@ class MaterialAssignmentService
     /** Giáo viên và admin được giao tài liệu / xem lượt đã giao. */
     public function canAssign(?User $user): bool
     {
-        return $this->isAdmin($user) || $this->isTeacher($user);
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        // Admin có thể thu hồi riêng quyền "Giao tài liệu" của một giáo viên (Người dùng > Chi tiết > Phân quyền).
+        return $this->isTeacher($user) && ! $user->isPermissionRevoked('teacher.assign-material');
     }
 
     /** Bảng đã được tạo trên máy chủ chưa (deploy mã trước khi chạy migrate vẫn không vỡ trang). */
@@ -99,7 +104,7 @@ class MaterialAssignmentService
             // "Tài liệu của tôi": khu đọc chỉ có cho học sinh và giáo viên (admin/vai trò khác không có).
             'hasLibrary' => in_array($role, ['student', 'teacher'], true),
             'canViewAssigned' => $ready && $role === 'student',
-            'canManage' => $ready && in_array($role, ['admin', 'teacher'], true),
+            'canManage' => $ready && $this->canAssign($viewer),
         ];
     }
 

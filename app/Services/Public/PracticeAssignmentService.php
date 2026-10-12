@@ -56,9 +56,26 @@ class PracticeAssignmentService
     }
 
     /** Giáo viên và admin được giao bài / xem lượt đã giao. */
-    public function canAssign(?User $user): bool
+    public function canAssign(?User $user, ?string $type = null): bool
     {
-        return $this->isAdmin($user) || $this->isTeacher($user);
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        if (! $this->isTeacher($user)) {
+            return false;
+        }
+
+        // Admin có thể thu hồi riêng từng quyền của một giáo viên (Người dùng > Chi tiết > Phân quyền):
+        // "Giao bài" cho bài tập, "Giao đề" cho đề thi. $type = null: còn ít nhất một trong hai là được.
+        $noProblem = $user->isPermissionRevoked('teacher.assign-practice');
+        $noExam = $user->isPermissionRevoked('teacher.assign-assessment');
+
+        return match ($type) {
+            PracticeAssignment::TYPE_PROBLEM => ! $noProblem,
+            PracticeAssignment::TYPE_EXAM => ! $noExam,
+            default => ! ($noProblem && $noExam),
+        };
     }
 
     /** Bảng đã được tạo trên máy chủ chưa (deploy mã trước khi chạy migrate vẫn không vỡ trang). */
@@ -72,7 +89,7 @@ class PracticeAssignmentService
     /**
      * Khối mô tả quyền đưa sang view Luyện tập.
      *
-     * @return array{role: string, canViewAssigned: bool, canManage: bool, canAssign: bool}
+     * @return array{role: string, canViewAssigned: bool, canManage: bool, canAssign: bool, canAssignProblem: bool, canAssignExam: bool}
      */
     public function scopeFor(?User $viewer): array
     {
@@ -89,8 +106,10 @@ class PracticeAssignmentService
         return [
             'role' => $role,
             'canViewAssigned' => $ready && $role === 'student',
-            'canManage' => $ready && in_array($role, ['admin', 'teacher'], true),
-            'canAssign' => $ready && in_array($role, ['admin', 'teacher'], true),
+            'canManage' => $ready && $this->canAssign($viewer),
+            'canAssign' => $ready && $this->canAssign($viewer),
+            'canAssignProblem' => $ready && $this->canAssign($viewer, PracticeAssignment::TYPE_PROBLEM),
+            'canAssignExam' => $ready && $this->canAssign($viewer, PracticeAssignment::TYPE_EXAM),
         ];
     }
 
@@ -103,7 +122,7 @@ class PracticeAssignmentService
      */
     public function assign(User $by, string $type, int $subjectId, string $account, Carbon $deadline): PracticeAssignment
     {
-        if (! $this->canAssign($by)) {
+        if (! $this->canAssign($by, $type)) {
             throw ValidationException::withMessages(['account' => 'Bạn không có quyền giao nội dung này.']);
         }
 
@@ -156,7 +175,7 @@ class PracticeAssignmentService
      */
     public function assignMany(User $by, string $type, int $subjectId, array $studentIds, Carbon $deadline): Collection
     {
-        if (! $this->canAssign($by)) {
+        if (! $this->canAssign($by, $type)) {
             throw ValidationException::withMessages(['students' => 'Bạn không có quyền giao nội dung này.']);
         }
 

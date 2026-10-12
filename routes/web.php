@@ -393,18 +393,18 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber(['class', 'student'])->name('classes.members.remove');
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
-        Route::get('questions/create', [TeacherQuestionController::class, 'create'])->name('questions.create');
-        Route::post('questions', [TeacherQuestionController::class, 'store'])->name('questions.store');
-        Route::get('questions/{question}/edit', [TeacherQuestionController::class, 'edit'])->name('questions.edit');
-        Route::put('questions/{question}', [TeacherQuestionController::class, 'update'])->name('questions.update');
-        Route::post('questions/{question}/publish', [TeacherQuestionController::class, 'publish'])->name('questions.publish');
-        Route::post('questions/{question}/archive', [TeacherQuestionController::class, 'archive'])->name('questions.archive');
+        Route::get('questions/create', [TeacherQuestionController::class, 'create'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.create');
+        Route::post('questions', [TeacherQuestionController::class, 'store'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.store');
+        Route::get('questions/{question}/edit', [TeacherQuestionController::class, 'edit'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-edit'))->name('questions.edit');
+        Route::put('questions/{question}', [TeacherQuestionController::class, 'update'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-edit'))->name('questions.update');
+        Route::post('questions/{question}/publish', [TeacherQuestionController::class, 'publish'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.content-publish'))->name('questions.publish');
+        Route::post('questions/{question}/archive', [TeacherQuestionController::class, 'archive'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-edit'))->name('questions.archive');
         // SỬA 10/10 — đổi chỗ câu của mình với câu liền trên/dưới trong danh sách (JSON).
-        Route::patch('questions/{question}/move', [TeacherQuestionController::class, 'move'])->name('questions.move');
+        Route::patch('questions/{question}/move', [TeacherQuestionController::class, 'move'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-edit'))->name('questions.move');
 
         // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
         // Teacher\QuestionService::storeFromZipPackage() + attachmentInfo().
-        Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->name('questions.zipImport');
+        Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.zipImport');
         Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
 
         // SỬA 24/8 — khách yêu cầu: giáo viên (cố vấn/đồng hành) chỉ được THÊM/SỬA kỳ thi
@@ -412,40 +412,40 @@ Route::middleware(['auth'])->group(function () {
         // admin.competitions.* làm được) — xem Teacher\CompetitionController.
         Route::get('competitions', [TeacherCompetitionController::class, 'index'])->name('competitions.index');
         Route::get('competitions/{competition}', [TeacherCompetitionController::class, 'show'])->name('competitions.show');
-        Route::post('competitions/{competition}/exams', [TeacherCompetitionController::class, 'examStore'])->name('competitions.exams.store');
-        Route::put('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');
-        Route::delete('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examDestroy'])->name('competitions.exams.destroy');
+        Route::post('competitions/{competition}/exams', [TeacherCompetitionController::class, 'examStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.organize-competition'))->name('competitions.exams.store');
+        Route::put('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examUpdate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.organize-competition'))->name('competitions.exams.update');
+        Route::delete('competitions/exams/{competitionExam}', [TeacherCompetitionController::class, 'examDestroy'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.organize-competition'))->name('competitions.exams.destroy');
 
         Route::get('assessments', [TeacherAssessmentController::class, 'index'])->name('assessments.index');
-        Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->name('assessments.create');
-        Route::post('assessments', [TeacherAssessmentController::class, 'store'])->name('assessments.store');
-        Route::get('assessments/import', [TeacherAssessmentController::class, 'import'])->name('assessments.import');
-        Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->name('assessments.reviewDraft');
-        Route::post('assessments/import', [TeacherAssessmentController::class, 'importStore'])->name('assessments.import.store');
+        Route::get('assessments/create', [TeacherAssessmentController::class, 'create'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.create');
+        Route::post('assessments', [TeacherAssessmentController::class, 'store'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.store');
+        Route::get('assessments/import', [TeacherAssessmentController::class, 'import'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.import');
+        Route::get('assessments/review-draft', [TeacherAssessmentController::class, 'reviewDraft'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.reviewDraft');
+        Route::post('assessments/import', [TeacherAssessmentController::class, 'importStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.import.store');
         Route::get('assessments/documents/{document}/file', [TeacherAssessmentController::class, 'downloadDocument'])->name('assessments.documents.download');
-        Route::post('assessments/documents/{document}/drafts', [TeacherAssessmentController::class, 'draftStore'])->name('assessments.drafts.store');
-        Route::post('assessments/drafts/{draft}', [TeacherAssessmentController::class, 'draftUpdate'])->name('assessments.drafts.update');
-        Route::post('assessments/drafts/{draft}/merge', [TeacherAssessmentController::class, 'draftMerge'])->name('assessments.drafts.merge');
-        Route::post('assessments/drafts/{draft}/discard', [TeacherAssessmentController::class, 'draftDiscard'])->name('assessments.drafts.discard');
-        Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->name('assessments.publish');
+        Route::post('assessments/documents/{document}/drafts', [TeacherAssessmentController::class, 'draftStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.drafts.store');
+        Route::post('assessments/drafts/{draft}', [TeacherAssessmentController::class, 'draftUpdate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.drafts.update');
+        Route::post('assessments/drafts/{draft}/merge', [TeacherAssessmentController::class, 'draftMerge'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.drafts.merge');
+        Route::post('assessments/drafts/{draft}/discard', [TeacherAssessmentController::class, 'draftDiscard'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('assessments.drafts.discard');
+        Route::post('assessments/{assessment}/publish', [TeacherAssessmentController::class, 'publish'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.content-publish'))->name('assessments.publish');
 
         Route::get('papers', [TeacherAssessmentController::class, 'papersIndex'])->name('papers.index');
-        Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->name('papers.create');
-        Route::post('papers', [TeacherAssessmentController::class, 'papersStore'])->name('papers.store');
-        Route::get('papers/bulk', [TeacherAssessmentController::class, 'papersBulkCreate'])->name('papers.bulk.create');
-        Route::post('papers/bulk/split', [TeacherAssessmentController::class, 'papersBulkSplit'])->name('papers.bulk.split');
-        Route::post('papers/bulk/multi', [TeacherAssessmentController::class, 'papersBulkMulti'])->name('papers.bulk.multi');
-        Route::get('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfEdit'])->name('papers.pdf.edit');
-        Route::put('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfUpdate'])->name('papers.pdf.update');
+        Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.create');
+        Route::post('papers', [TeacherAssessmentController::class, 'papersStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.store');
+        Route::get('papers/bulk', [TeacherAssessmentController::class, 'papersBulkCreate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.bulk.create');
+        Route::post('papers/bulk/split', [TeacherAssessmentController::class, 'papersBulkSplit'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.bulk.split');
+        Route::post('papers/bulk/multi', [TeacherAssessmentController::class, 'papersBulkMulti'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.bulk.multi');
+        Route::get('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfEdit'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.pdf.edit');
+        Route::put('papers/{assessment}/pdf', [TeacherAssessmentController::class, 'papersPdfUpdate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.pdf.update');
         // SỬA 9/9 (khách: "thêm nút tải file Excel mẫu về để điền" + "nút upload file Excel đáp
         // án") — 2 route phụ trợ cho khối "Đáp án đúng từng câu" ở màn Quản lý đề PDF. Nhập tệp
         // CHỈ đổ dữ liệu ra form, việc ghi vẫn qua papers.pdf.update ở trên.
         Route::get('papers/{assessment}/answer-keys/template', [TeacherAssessmentController::class, 'papersAnswerKeysTemplate'])->name('papers.answer-keys.template');
-        Route::post('papers/{assessment}/answer-keys/import', [TeacherAssessmentController::class, 'papersAnswerKeysImport'])->name('papers.answer-keys.import');
-        Route::post('papers/{assessment}/coding-items', [TeacherAssessmentController::class, 'papersCodingItemsStore'])->name('papers.coding-items.store');
-        Route::put('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsUpdate'])->name('papers.coding-items.update');
-        Route::delete('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsDestroy'])->name('papers.coding-items.destroy');
-        Route::post('papers/coding-items/{codingItem}/test-cases/import', [TeacherAssessmentController::class, 'papersCodingItemsTestCasesImport'])->name('papers.coding-items.test-cases.import');
+        Route::post('papers/{assessment}/answer-keys/import', [TeacherAssessmentController::class, 'papersAnswerKeysImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.answer-keys.import');
+        Route::post('papers/{assessment}/coding-items', [TeacherAssessmentController::class, 'papersCodingItemsStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.store');
+        Route::put('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsUpdate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.update');
+        Route::delete('papers/coding-items/{codingItem}', [TeacherAssessmentController::class, 'papersCodingItemsDestroy'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.destroy');
+        Route::post('papers/coding-items/{codingItem}/test-cases/import', [TeacherAssessmentController::class, 'papersCodingItemsTestCasesImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.coding-items.test-cases.import');
 
         Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
         Route::get('results/export', [TeacherResultController::class, 'export'])->name('results.export');
