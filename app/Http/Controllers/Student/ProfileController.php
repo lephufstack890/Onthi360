@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Services\Account\AvatarService;
 use App\Services\Student\ProfileService;
+use App\Services\Student\StudentWorkspaceService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,6 +13,7 @@ class ProfileController extends Controller
 {
     public function __construct(
         private ProfileService $profileService,
+        private StudentWorkspaceService $workspace,
     ) {}
 
     /** student.profile (STU-11 — hồ sơ + liên kết phụ huynh). */
@@ -20,7 +22,8 @@ class ProfileController extends Controller
         $user = $request->user();
         $parentLinks = $this->profileService->parentLinksForUser($user);
 
-        return view('student.profile', ['user' => $user, 'parentLinks' => $parentLinks]);
+        // SỬA 12/10 — thêm thẻ "Hồ sơ học tập" + "Quyền & liên kết" (Student\StudentWorkspaceService::profileSummary).
+        return view('student.profile', ['user' => $user, 'parentLinks' => $parentLinks, 'summary' => $this->workspace->profileSummary($user)]);
     }
 
     public function update(Request $request)

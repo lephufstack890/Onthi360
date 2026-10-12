@@ -31,6 +31,9 @@ use App\Http\Controllers\Student\PracticeByQuestionController as StudentPractice
 use App\Http\Controllers\Student\PracticeController as StudentPracticeController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
+use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
+use App\Http\Controllers\Student\ResultController as StudentResultController;
+use App\Http\Controllers\Student\ReviewController as StudentReviewController;
 use App\Http\Controllers\Teacher\AssessmentController as TeacherAssessmentController;
 use App\Http\Controllers\Teacher\ClassRoomController as TeacherClassRoomController;
 use App\Http\Controllers\Teacher\CompetitionController as TeacherCompetitionController;
@@ -255,6 +258,10 @@ Route::middleware(['auth'])->group(function () {
         // materials.read/file phía trên) VÀ 3 tài nguyên đính kèm (content/exercise/media —
         // guide bị chặn hẳn cho học sinh, xem AccessService::downloadResource()).
         Route::get('tai-lieu-cua-toi', [StudentLibraryController::class, 'index'])->name('library.index');
+        // SỬA 12/10 — 3 mục mới của khu Học sinh theo source RoleWorkspace.jsx (xem Student\StudentWorkspaceService).
+        Route::get('bai-duoc-giao', [StudentAssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('ket-qua', [StudentResultController::class, 'index'])->name('results.index');
+        Route::get('danh-gia-cua-toi', [StudentReviewController::class, 'index'])->name('reviews.index');
         Route::get('notifications', [StudentNotificationController::class, 'index'])->name('notifications');
         Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [StudentProfileController::class, 'update'])->name('profile.update');
