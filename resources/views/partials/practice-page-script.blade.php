@@ -393,10 +393,20 @@
      * duyệt vì dữ liệu máy chủ đã trả tối đa 300 lượt giao mới nhất.
      */
     function onthiAssignmentManager(config) {
+        // Bộ nhớ đệm cho bản xem trước in: getter của Alpine không tự nhớ kết quả, mỗi x-text gọi
+        // lại một lần. Để ngoài đối tượng trả về (không phản ứng) nên ghi vào không gây vẽ lại.
+        let reportCache = { key: null, rows: null, data: null };
+        let reportOpener = null;
         return {
             rows: config.rows || [],
             type: config.type,
             isAdmin: !!config.isAdmin,
+            title: config.title || 'Bài đã giao',
+            actor: config.actor || 'Người dùng',
+            // Popup "Xem trước & in kết quả" — bộ lọc riêng, chép từ danh sách lúc mở.
+            report: { open: false, query: '', status: 'all', sort: 'assigned:desc', dateField: 'assigned', from: '', to: '', busy: false, message: '', createdAt: 0 },
+            reportSortLabels: { title: 'Tên bài / đề', student: 'Học sinh', status: 'Trạng thái', score: 'Điểm gần nhất', submitted: 'Thời gian nộp', deadline: 'Hạn nộp', assigned: 'Thời gian giao' },
+            reportDateFields: { assigned: 'Ngày giao', submitted: 'Ngày nộp gần nhất', deadline: 'Hạn nộp' },
             query: '',
             status: 'all',
             sort: 'assigned',
@@ -445,15 +455,25 @@
             get studentCount() { return new Set(this.rows.map((r) => r.account)).size; },
             get subjectCount() { return new Set(this.rows.map((r) => r.subjectId)).size; },
 
-            get filtered() {
-                const q = this.query.trim().toLocaleLowerCase('vi');
-                const list = this.rows.filter((r) => {
+            /* Lọc dùng chung cho danh sách và bản in. Lọc theo ngày: so theo NGÀY giờ Việt Nam, tính cả
+               hai đầu; ô trống ngày thì bỏ qua; lượt chưa có mốc đó (vd chưa nộp) thì loại khi có lọc ngày. */
+            filterRows(list, o) {
+                if (o.from && o.to && o.from > o.to) { return []; }
+                const q = (o.query || '').trim().toLocaleLowerCase('vi');
+                const field = { assigned: 'assignedTs', submitted: 'submittedTs', deadline: 'deadlineTs' }[o.dateField || 'assigned'] || 'assignedTs';
+                const status = o.status || 'all';
+                return list.filter((r) => {
                     const hay = (r.title + ' ' + r.code + ' ' + r.account + ' ' + r.studentName + ' ' + r.teacher).toLocaleLowerCase('vi');
-                    const okStatus = this.status === 'all' || (this.status === 'late' ? r.late : r.status === this.status);
-                    return okStatus && (!q || hay.includes(q));
+                    const okStatus = status === 'all' || (status === 'late' ? r.late : r.status === status);
+                    if (!okStatus || (q && !hay.includes(q))) { return false; }
+                    if (!o.from && !o.to) { return true; }
+                    const day = onthiVnDay(r[field]);
+                    return day !== '' && (!o.from || day >= o.from) && (!o.to || day <= o.to);
                 });
+            },
 
-                const dir = this.sortDir === 'asc' ? 1 : -1;
+            sortRows(list, key, direction) {
+                const dir = direction === 'asc' ? 1 : -1;
                 const statusOrder = { overdue: 0, unsubmitted: 1, pending: 2, completed: 3 };
                 /* Ô trống (chưa có điểm / chưa nộp) luôn nằm cuối, dù sắp tăng hay giảm. */
                 const num = (x, y, zeroEmpty) => {
@@ -463,16 +483,21 @@
                 };
                 return [...list].sort((a, b) => {
                     let r = 0;
-                    switch (this.sortKey) {
+                    switch (key) {
                         case 'title': r = (a.title + ' ' + a.studentName).localeCompare(b.title + ' ' + b.studentName, 'vi') * dir; break;
+                        case 'student': r = (a.studentName + ' ' + a.account).localeCompare(b.studentName + ' ' + b.account, 'vi') * dir; break;
                         case 'status': r = ((statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)) * dir; break;
                         case 'score': r = num(a.scoreRatio, b.scoreRatio); break;
                         case 'submitted': r = num(a.submittedTs, b.submittedTs, true); break;
-                        case 'deadline': r = (a.deadlineTs - b.deadlineTs) * dir; break;
+                        case 'deadline': r = num(a.deadlineTs, b.deadlineTs, true); break;
                         default: r = (a.assignedTs - b.assignedTs) * dir;
                     }
                     return r || (b.assignedTs - a.assignedTs);
                 });
+            },
+
+            get filtered() {
+                return this.sortRows(this.filterRows(this.rows, { query: this.query, status: this.status }), this.sortKey, this.sortDir);
             },
 
             get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / this.pageSize)); },
@@ -485,6 +510,270 @@
             toggle(id) { this.expandedId = this.expandedId === id ? null : id; },
             goTo(n) { this.page = Math.min(Math.max(1, n), this.totalPages); this.expandedId = null; },
             clearFilters() { this.query = ''; this.status = 'all'; },
+
+            // ───── Popup "Xem trước & in kết quả" (AssignmentReportDialog.jsx) ─────
+            openReport() {
+                reportOpener = document.activeElement;
+                Object.assign(this.report, {
+                    query: this.query, status: this.status, sort: this.sortKey + ':' + this.sortDir,
+                    dateField: 'assigned', from: '', to: '', busy: false, message: '', createdAt: Date.now(), open: true,
+                });
+                this.$nextTick(() => { const d = this.$refs.reportDialog; if (d && !d.open) { d.showModal(); } });
+            },
+            closeReport() {
+                if (this.report.busy) { return; }
+                const d = this.$refs.reportDialog;
+                if (d && d.open) { d.close(); }
+                this.report.open = false;
+                if (reportOpener && typeof reportOpener.focus === 'function') { reportOpener.focus(); }
+            },
+            resetReportFilters() {
+                Object.assign(this.report, { query: '', status: 'all', dateField: 'assigned', from: '', to: '', message: '' });
+            },
+            get reportInvalidDates() { return !!(this.report.from && this.report.to && this.report.from > this.report.to); },
+            get reportMatching() {
+                const r = this.report;
+                const key = [this.rows.length, r.query, r.status, r.sort, r.dateField, r.from, r.to].join('\u0001');
+                if (reportCache.key !== key) {
+                    const [sortKey, sortDir] = r.sort.split(':');
+                    reportCache = { key, rows: this.sortRows(this.filterRows(this.rows, r), sortKey, sortDir), data: null };
+                }
+                return reportCache.rows;
+            },
+            get reportStudentCount() { return new Set(this.reportMatching.map((row) => row.account)).size; },
+            get reportCannotExport() { return this.report.busy || this.reportInvalidDates || this.reportMatching.length === 0; },
+            reportFilterLabel() {
+                const r = this.report;
+                const day = (v) => v.split('-').reverse().join('/');
+                const [sortKey, sortDir] = r.sort.split(':');
+                return [
+                    r.query.trim() && ('Tìm kiếm: ' + r.query.trim()),
+                    r.status !== 'all' && ('Trạng thái: ' + (r.status === 'late' ? 'Nộp muộn' : this.states[r.status].label)),
+                    (r.from || r.to) && (this.reportDateFields[r.dateField] + ': ' + (r.from ? day(r.from) : 'Không giới hạn') + ' – ' + (r.to ? day(r.to) : 'Không giới hạn') + ' (giờ Việt Nam)'),
+                    'Sắp xếp: ' + (this.reportSortLabels[sortKey] || '') + ' ' + (sortDir === 'asc' ? 'tăng dần' : 'giảm dần') + (sortKey === 'score' ? ' (theo tỷ lệ điểm)' : ''),
+                ].filter(Boolean).join(' · ');
+            },
+            get reportData() {
+                const rows = this.reportMatching;
+                const createdAt = this.report.createdAt;
+                if (reportCache.data && reportCache.data.createdAt === createdAt) { return reportCache.data; }
+                const clean = (v) => (v && v !== '—') ? v : '';
+                reportCache.data = {
+                    createdAt,
+                    title: 'Kết quả học sinh · ' + this.title,
+                    created: 'Người xuất: ' + this.actor + ' · ' + onthiVnStamp(createdAt),
+                    filters: this.reportFilterLabel(),
+                    summary: rows.length + ' lượt giao · ' + new Set(rows.map((r) => r.account)).size + ' học sinh · ' + rows.filter((r) => r.submittedAt).length + ' đã nộp',
+                    note: 'Mỗi dòng là một lượt giao. Điểm và thời gian nộp lấy từ lần nộp gần nhất sau lúc giao. Tối đa 300 lượt giao mới nhất.',
+                    headers: ['STT', 'Học sinh / Tài khoản', this.type === 'exam' ? 'Đề' : 'Bài', 'Trạng thái', 'Điểm', 'Nộp gần nhất', 'Giao / Hạn nộp'],
+                    rows: rows.map((r, i) => [
+                        String(i + 1),
+                        [clean(r.studentName), clean(r.account)].filter(Boolean).join('\n') || '—',
+                        r.title + '\n' + r.code,
+                        (this.states[r.status] ? this.states[r.status].label : r.status) + (r.late ? '\nNộp muộn' : ''),
+                        r.scoreLabel ? (r.scoreLabel + (r.scoreAfterLabel ? '\nSau trừ: ' + r.scoreAfterLabel : '')) : (r.status === 'pending' ? 'Chờ chấm' : '—'),
+                        r.submittedAt || 'Chưa nộp',
+                        'Giao: ' + (r.assignedAt || '—') + '\nHạn: ' + (r.deadline || '—'),
+                    ]),
+                };
+                return reportCache.data;
+            },
+            async runReport(kind) {
+                if (this.reportCannotExport) { return; }
+                const data = this.reportData;
+                this.report.busy = true; this.report.message = '';
+                try {
+                    if (kind === 'print') {
+                        await onthiPrintReport(data);
+                        this.report.message = 'Trong hộp thoại in, chọn Lưu dưới dạng PDF để lưu tệp.';
+                    } else {
+                        const pages = await onthiExportReportImages(data);
+                        this.report.message = pages > 1 ? 'Đã tạo ảnh. Báo cáo ' + pages + ' trang được tải trong một tệp ZIP chứa các ảnh PNG.' : 'Đã tạo ảnh PNG.';
+                    }
+                } catch (error) {
+                    this.report.message = (error && error.message) || 'Không xuất được kết quả. Vui lòng thử lại.';
+                } finally {
+                    this.report.busy = false;
+                    // Khung in gọi focus() vào iframe; trả tiêu điểm về popup để phím Esc vẫn đóng được.
+                    this.$nextTick(() => { const d = this.$refs.reportDialog; if (d && d.open) { d.focus(); } });
+                }
+            },
         };
+    }
+
+    /* ───── Xuất bản in / ảnh cho popup "Xem trước & in kết quả" ─────
+       Chép từ education-main/src/utils/assignmentReportExport.js. Khác bản mẫu: tự ghép tệp ZIP
+       (kiểu "store", không nén) thay cho thư viện fflate vì máy chủ không chạy được vite. */
+    function onthiVnDay(ts) {
+        if (!ts) { return ''; }
+        return new Date(ts * 1000 + 7 * 3600000).toISOString().slice(0, 10);
+    }
+    function onthiVnStamp(ms) {
+        const d = new Date((ms || Date.now()) + 7 * 3600000);
+        const p = (n) => String(n).padStart(2, '0');
+        return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+    }
+    function onthiEscapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function onthiReportHtml(report) {
+        const e = onthiEscapeHtml;
+        return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + e(report.title) + '</title><style>'
+            + '@page{size:A4 landscape;margin:12mm}body{font:11px/1.5 Arial,sans-serif;color:#183d5e;margin:0}h1{font-size:22px;margin:0 0 8px}p{margin:6px 0;overflow-wrap:anywhere}'
+            + 'table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:16px}th,td{border:1px solid #cedce5;padding:7px;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top}'
+            + 'th{background:#edf4f8}th:first-child{width:30px}th:nth-child(3){width:22%}th:nth-child(5){width:7%}thead{display:table-header-group}tr{break-inside:avoid}footer{margin-top:12px;color:#52687b}'
+            + '</style></head><body><h1>' + e(report.title) + '</h1><p>' + e(report.created) + '</p><p>' + e(report.filters) + '</p><p><strong>' + e(report.summary) + '</strong></p>'
+            + '<table><thead><tr>' + report.headers.map((c) => '<th>' + e(c) + '</th>').join('') + '</tr></thead><tbody>'
+            + report.rows.map((row) => '<tr>' + row.map((c) => '<td>' + e(c) + '</td>').join('') + '</tr>').join('')
+            + '</tbody></table><footer>' + e(report.note) + '</footer></body></html>';
+    }
+    async function onthiPrintReport(report) {
+        const frame = document.createElement('iframe');
+        frame.title = 'Bản in kết quả học sinh';
+        frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1120px;height:800px;border:0';
+        try {
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Không tải được bản in. Vui lòng thử lại.')), 15000);
+                frame.onload = () => { clearTimeout(timeout); resolve(); };
+                frame.srcdoc = onthiReportHtml(report);
+                document.body.appendChild(frame);
+            });
+            if (frame.contentDocument && frame.contentDocument.fonts) { await frame.contentDocument.fonts.ready; }
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+            // Giữ khung in lại trong lúc trình duyệt còn hiện hộp thoại xem trước bản in.
+            setTimeout(() => frame.remove(), 120000);
+        } catch (error) { frame.remove(); throw error; }
+    }
+    function onthiDownloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    function onthiWrapText(ctx, text, width) {
+        return String(text).split('\n').flatMap((paragraph) => {
+            const lines = [];
+            let line = '';
+            for (const word of paragraph.split(/\s+/)) {
+                if (line && ctx.measureText(line + ' ' + word).width > width) { lines.push(line); line = ''; }
+                for (const ch of (line ? ' ' : '') + word) {
+                    if (ctx.measureText(line + ch).width > width) { lines.push(line); line = ''; }
+                    line += ch;
+                }
+            }
+            lines.push(line);
+            return lines;
+        });
+    }
+    function onthiCrc32(bytes) {
+        let table = onthiCrc32.table;
+        if (!table) {
+            table = onthiCrc32.table = new Uint32Array(256);
+            for (let n = 0; n < 256; n++) {
+                let c = n;
+                for (let k = 0; k < 8; k++) { c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); }
+                table[n] = c >>> 0;
+            }
+        }
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i++) { crc = table[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8); }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+    /* ZIP tối giản, không nén (ảnh PNG vốn đã nén). files: { 'ten.png': Uint8Array }. */
+    function onthiZipStore(files) {
+        const enc = new TextEncoder();
+        const parts = [], central = [];
+        let offset = 0, count = 0;
+        for (const [name, data] of Object.entries(files)) {
+            const nameBytes = enc.encode(name);
+            const crc = onthiCrc32(data);
+            const local = new DataView(new ArrayBuffer(30));
+            local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0x0800, true);
+            local.setUint16(8, 0, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
+            local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+            local.setUint16(26, nameBytes.length, true); local.setUint16(28, 0, true);
+            parts.push(new Uint8Array(local.buffer), nameBytes, data);
+            const cen = new DataView(new ArrayBuffer(46));
+            cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+            cen.setUint16(10, 0, true); cen.setUint16(12, 0, true); cen.setUint16(14, 0x21, true);
+            cen.setUint32(16, crc, true); cen.setUint32(20, data.length, true); cen.setUint32(24, data.length, true);
+            cen.setUint16(28, nameBytes.length, true); cen.setUint32(42, offset, true);
+            central.push(new Uint8Array(cen.buffer), nameBytes);
+            offset += 30 + nameBytes.length + data.length;
+            count++;
+        }
+        const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+        const end = new DataView(new ArrayBuffer(22));
+        end.setUint32(0, 0x06054b50, true); end.setUint16(8, count, true); end.setUint16(10, count, true);
+        end.setUint32(12, centralSize, true); end.setUint32(16, offset, true);
+        return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+    }
+    /* Vẽ bảng kết quả lên canvas, tối đa 15 dòng / trang; 1 trang tải PNG, nhiều trang gói ZIP.
+       Trả về số trang đã tạo. */
+    async function onthiExportReportImages(report) {
+        if (document.fonts) { await document.fonts.ready; }
+        const width = 1600, margin = 48, lineHeight = 26;
+        const columns = [64, 240, 344, 208, 128, 232, 288];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { throw new Error('Trình duyệt không hỗ trợ tạo ảnh. Hãy dùng In / Lưu PDF.'); }
+        ctx.font = '18px Arial';
+        const metadata = [report.created, report.filters, report.summary].flatMap((t) => onthiWrapText(ctx, t, width - margin * 2));
+        const footer = onthiWrapText(ctx, report.note, width - margin * 2);
+        const prepared = report.rows.map((row) => {
+            const cells = row.map((cell, i) => onthiWrapText(ctx, cell, columns[i] - 24));
+            return { cells, height: Math.max(...cells.map((l) => l.length)) * lineHeight + 28 };
+        });
+        const pages = [];
+        let rows = [], height = 0;
+        for (const row of prepared) {
+            if (rows.length && (height + row.height > 1800 || rows.length === 15)) { pages.push(rows); rows = []; height = 0; }
+            rows.push(row); height += row.height;
+        }
+        if (rows.length) { pages.push(rows); }
+        const files = {};
+        for (const [index, page] of pages.entries()) {
+            canvas.width = width;
+            canvas.height = 210 + metadata.length * lineHeight + footer.length * lineHeight + page.reduce((s, r) => s + r.height, 0);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#123b68'; ctx.font = 'bold 30px Arial';
+            ctx.fillText(report.title, margin, 54);
+            ctx.font = '18px Arial';
+            let y = 92;
+            for (const line of metadata) { ctx.fillText(line, margin, y); y += lineHeight; }
+            y += 18;
+            ctx.fillStyle = '#edf4f8'; ctx.fillRect(margin, y, width - margin * 2, 52);
+            ctx.fillStyle = '#183d5e'; ctx.font = 'bold 18px Arial';
+            let x = margin;
+            report.headers.forEach((label, col) => { ctx.fillText(label, x + 12, y + 32); x += columns[col]; });
+            y += 52;
+            ctx.font = '18px Arial';
+            page.forEach((row, rowIndex) => {
+                ctx.fillStyle = rowIndex % 2 ? '#f6f9fb' : '#ffffff';
+                ctx.fillRect(margin, y, width - margin * 2, row.height);
+                x = margin;
+                row.cells.forEach((lines, col) => {
+                    ctx.strokeStyle = '#cedce5'; ctx.strokeRect(x, y, columns[col], row.height);
+                    ctx.fillStyle = '#183d5e';
+                    lines.forEach((line, i) => ctx.fillText(line, x + 12, y + 28 + i * lineHeight));
+                    x += columns[col];
+                });
+                y += row.height;
+            });
+            y += 30; ctx.fillStyle = '#52687b';
+            for (const line of footer) { ctx.fillText(line, margin, y); y += lineHeight; }
+            ctx.fillText('Trang ' + (index + 1) + '/' + pages.length, margin, y + 8);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) { throw new Error('Không tạo được ảnh. Hãy dùng In / Lưu PDF.'); }
+            files['ket-qua-' + String(index + 1).padStart(2, '0') + '.png'] = new Uint8Array(await blob.arrayBuffer());
+        }
+        if (pages.length === 1) {
+            onthiDownloadBlob(new Blob([Object.values(files)[0]], { type: 'image/png' }), 'ket-qua-hoc-sinh.png');
+        } else {
+            onthiDownloadBlob(onthiZipStore(files), 'ket-qua-hoc-sinh-anh.zip');
+        }
+        return pages.length;
     }
 </script>

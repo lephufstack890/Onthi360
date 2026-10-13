@@ -178,7 +178,61 @@
     .managed-heading h2 { display: flex; align-items: center; gap: 8px; margin: 4px 0; color: #123b68; font-size: 21px; font-weight: 750; }
     .managed-heading h2 svg { width: 21px; height: 21px; }
     .managed-heading span { font-size: 12px; }
-    .managed-library { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; border: 1px solid #cde2e9; border-radius: 10px; padding: 7px 11px; background: #fff; font-size: 12px; font-weight: 650; color: #126f91; cursor: pointer; }
+    /* SỬA 13/10 — nút "In / Xuất kết quả" thay "Mở kho đề" + popup "Xem trước & in kết quả"
+       (assignmentManagement.css của education-main, phần .managed-export / .managed-report-*). */
+    .managed-export { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 10px 16px; border: 1px solid #123b68; border-radius: 10px; background: #123b68; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 8px #123b681a; }
+    .managed-export:hover:not(:disabled) { background: #0c2d51; }
+    .managed-export:disabled { opacity: .45; cursor: not-allowed; }
+    .managed-export svg, .managed-report-secondary svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .managed-report-dialog { width: min(1200px, calc(100vw - 24px)); max-width: none; height: min(900px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid #dce7ec; border-radius: 16px; color: #183d5e; background: #f3f7fa; overflow: hidden; }
+    .managed-report-dialog[open] { display: flex; flex-direction: column; }
+    .managed-report-dialog:focus { outline: none; }
+    .managed-report-dialog::backdrop { background: #102b46a6; }
+    .managed-report-dialog .managed-report-filters { flex-shrink: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; margin: 0; padding: 12px 18px; border: 0; border-radius: 0; min-width: 0; max-height: 36dvh; overflow: auto; }
+    .managed-report-filters .managed-search { grid-column: auto; }
+    .managed-report-filters .managed-search input { padding-left: 10px; }
+    .managed-report-filters:disabled { opacity: .7; }
+    .managed-report-reset { align-self: end; min-height: 40px; text-align: left; font-size: 12px; color: #126f91; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; justify-self: start; }
+    .managed-report-help { flex-shrink: 0; margin: 0; padding: 8px 18px; font-size: 11px; color: #607a90; }
+    .managed-report-help.is-error { color: #b02e43; }
+    .managed-report-secondary { min-height: 42px; padding: 9px 13px; border: 1px solid #c5d7e2; border-radius: 10px; background: #fff; color: #123b68; font-size: 12px; font-weight: 650; cursor: pointer; }
+    .managed-report-secondary:disabled { opacity: .45; cursor: not-allowed; }
+    .managed-report-toolbar { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; background: #fff; border-bottom: 1px solid #e2ebf1; }
+    .managed-report-toolbar h2 { margin: 0; font-size: 18px; font-weight: 700; color: #123b68; }
+    .managed-report-toolbar p { margin: 5px 0 0; font-size: 12px; }
+    .managed-report-close { display: grid; place-items: center; min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #dce7ec; background: #fff; color: #123b68; cursor: pointer; }
+    .managed-report-close svg { width: 20px; height: 20px; }
+    .managed-report-close:focus-visible { outline: 3px solid #9dc8d7; outline-offset: 2px; }
+    .managed-report-message { flex-shrink: 0; margin: 0; padding: 0 18px 12px; font-size: 12px; color: #126f91; }
+    .managed-report-scroll { flex: 1; overflow: auto; min-height: 0; padding: 8px 18px 18px; }
+    .managed-report-empty { display: flex; min-height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; background: #fff; border: 1px dashed #c5d7e2; border-radius: 10px; font-size: 12px; }
+    .managed-report-empty svg { width: 28px; height: 28px; color: #123b68; }
+    .managed-report-empty strong { color: #123b68; font-size: 13px; }
+    .managed-report-footer { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 18px; background: #fff; border-top: 1px solid #dce7ec; }
+    .managed-report-footer > span { font-size: 12px; }
+    .managed-report-footer > div { display: flex; gap: 8px; }
+    .managed-report-footer .managed-report-secondary { display: inline-flex; gap: 7px; align-items: center; justify-content: center; }
+    .managed-report-paper { min-width: 900px; background: #fff; border: 1px solid #dce7ec; padding: 24px; font-size: 12px; line-height: 1.6; }
+    .managed-report-paper h3 { margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #123b68; }
+    .managed-report-paper p { margin: 6px 0; overflow-wrap: anywhere; }
+    .managed-report-paper table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 18px 0; }
+    .managed-report-paper th, .managed-report-paper td { border: 1px solid #cedce5; padding: 8px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top; }
+    .managed-report-paper th { background: #edf4f8; font-weight: 700; }
+    .managed-report-paper th:first-child { width: 48px; }
+    .managed-report-paper th:nth-child(3) { width: 22%; }
+    .managed-report-paper th:nth-child(5) { width: 8%; }
+    @media (max-width: 639px) {
+        .managed-report-dialog .managed-report-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 12px; gap: 8px; }
+        .managed-report-filters label { gap: 3px; }
+        .managed-report-filters input, .managed-report-filters select { min-height: 36px; padding: 6px; }
+        .managed-report-toolbar { padding: 12px; }
+        .managed-report-toolbar h2 { font-size: 16px; }
+        .managed-report-help { padding: 6px 12px; }
+        .managed-report-scroll { padding: 6px 12px 12px; }
+        .managed-report-footer { padding: 10px 12px; gap: 6px; }
+        .managed-report-footer > div { width: 100%; }
+        .managed-report-footer button { flex: 1; padding: 9px; }
+    }
     .managed-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
     .managed-stats > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 8px; padding: 15px; border: 1px solid #dce7ec; border-radius: 14px; background: #fff; }
     .managed-stats svg { grid-column: 2; grid-row: 1 / 3; width: 18px; height: 18px; color: #126f91; }
