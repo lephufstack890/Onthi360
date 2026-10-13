@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "postbuild": "node scripts/legacy-css.mjs",
         "dev": "vite"
     },
     "devDependencies": {

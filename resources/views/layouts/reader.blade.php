@@ -23,6 +23,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('partials.seo', ['seoPrivate' => true])
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.legacy-compat-css')
     <style>[x-cloak] { display: none !important; }</style>
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>

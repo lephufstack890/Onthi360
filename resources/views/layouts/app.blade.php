@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('partials.seo', ['seoPrivate' => true])
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.legacy-compat-css')
     {{-- SỬA 9/9 (7) — layouts/guest.blade.php đã có luật này, layouts/app thì chưa: thiếu nó
          thì x-cloak vô tác dụng, các khối chỉ hiện khi có điều kiện (x-show) bị NHÁY hiện ra
          một nhịp trước khi Alpine kịp khởi động. --}}

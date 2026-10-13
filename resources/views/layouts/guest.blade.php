@@ -22,6 +22,7 @@
         html, body { overflow-x: hidden; width: 100%; }
     </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.legacy-compat-css')
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
     {{-- SỬA 30/9 (3) — chỗ để từng trang tự khai ảnh to nhất của mình cho trình duyệt
