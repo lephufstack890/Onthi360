@@ -60,7 +60,7 @@
 @if ($tags->isNotEmpty())
     <div class="tp-box" data-tp id="{{ $tpId }}">
         <div class="tp-bar">
-            @if ($tags->count() > 8)
+            @if ($tags->count() > 5)
                 <input type="search" class="tp-search" data-tp-search placeholder="Tìm chuyên đề…" aria-label="Tìm chuyên đề" autocomplete="off">
             @endif
             <span class="tp-count" data-tp-count aria-live="polite" style="margin-left:auto"></span>
