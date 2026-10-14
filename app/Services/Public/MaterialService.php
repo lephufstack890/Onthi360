@@ -71,6 +71,9 @@ class MaterialService
             // Không có chương nào nhưng sản phẩm vẫn có nội dung đọc được (một tệp PDF gắn
             // thẳng) -> mở màn đọc liền mạch.
             filled($product->content_pdf_path) => route($readRoutePrefix.'.products.read', $product->id),
+            // SỬA 14/10 (khách: "admin chưa mua cũng full quyền đọc toàn bộ") — admin LUÔN có nút Đọc tài liệu,
+            // kể cả tài liệu chưa có chương/PDF (màn đọc liền mạch tự báo "chưa có nội dung" + link quản lý).
+            $readRoutePrefix === 'admin' => route('admin.products.read', $product->id),
             default => null,
         };
     }

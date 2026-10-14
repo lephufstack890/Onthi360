@@ -337,14 +337,13 @@ class ProductService
     }
 
     /** SỬA 14/10 — link màn đọc cho admin: chương/phần đầu tiên có PDF, hoặc màn đọc liền mạch (tài liệu cũ 1 tệp). */
-    private function adminReadHref(\App\Models\Product $product, Collection $allMaterials): ?string
+    private function adminReadHref(\App\Models\Product $product, Collection $allMaterials): string
     {
         $first = $allMaterials->first(fn ($m) => filled($m->pdf_path) && ($m->status?->value ?? $m->status) === 'published');
 
         return match (true) {
             $first !== null => route('admin.materials.read', $first->id),
-            filled($product->content_pdf_path) => route('admin.products.read', $product->id),
-            default => null,
+            default => route('admin.products.read', $product->id),
         };
     }
 

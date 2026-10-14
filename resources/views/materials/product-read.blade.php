@@ -248,6 +248,11 @@
                     <h1 class="mt-1 truncate text-[14px] font-semibold text-[#123B68] sm:text-base">{{ $product->title }}</h1>
                 </div>
 
+                @if ($access['admin'] ?? false)
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[#BED9EB] bg-[#E3F1FA] px-2.5 py-1.5 text-[11px] font-semibold text-[#356580]" title="Quản trị viên được đọc mọi tài liệu">
+                        <x-lucide name="shield-check" class="h-3 w-3" /><span>Quyền quản trị</span>
+                    </span>
+                @endif
                 @if ($access['owned'])
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-[#B7DDCD] bg-[#DFF2E9] px-2.5 py-1.5 text-[11px] font-semibold text-[#287B5F]" title="Đã sở hữu">
                         <x-lucide name="check-circle-2" class="h-3 w-3" /><span>Đã sở hữu</span>
@@ -274,8 +279,18 @@
         <main class="mx-auto w-full max-w-[1780px] px-3 py-4 sm:px-5 lg:px-6 lg:py-6 2xl:px-10">
             @if (empty($parts))
                 <div class="rounded-[28px] border border-[#D5E8ED] bg-white p-8 text-center">
-                    <x-ws.empty-state title="Tài liệu này chưa có nội dung đọc"
-                                      description="Các chương/phần chưa được tải file PDF lên. Vui lòng liên hệ bộ phận hỗ trợ." />
+                    @if (($access['admin'] ?? false))
+                        {{-- SỬA 14/10 — admin mở được mọi tài liệu; tài liệu chưa có PDF thì chỉ đường đi thêm nội dung. --}}
+                        <x-ws.empty-state title="Tài liệu này chưa có nội dung đọc"
+                                          description="Chưa có chương/phần nào có file PDF ở trạng thái đã xuất bản. Vào trang quản lý tài liệu để thêm chương và tải PDF lên." />
+                        <a href="{{ route('admin.products.show', $product->id) }}"
+                           class="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#0F5F7A]">
+                            <x-lucide name="pen-line" class="h-4 w-4" />Quản lý tài liệu
+                        </a>
+                    @else
+                        <x-ws.empty-state title="Tài liệu này chưa có nội dung đọc"
+                                          description="Các chương/phần chưa được tải file PDF lên. Vui lòng liên hệ bộ phận hỗ trợ." />
+                    @endif
                 </div>
             @else
                 <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
