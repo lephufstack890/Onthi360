@@ -112,9 +112,13 @@ class MaterialReadService
             'currentChapterId' => $this->chapterIdOf($material),
             // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — vai trò đang đọc.
             'readerRole' => $routePrefix,
-            'backUrl' => $routePrefix === 'admin' && $material->product_id !== null
-                ? route('admin.products.show', $material->product_id)
-                : route($routePrefix.'.library.index'),
+            // SỬA 14/10 — Quay lại = đúng trang đã bấm vào đọc (App\Support\ReaderBackUrl); chưa biết thì về kho theo vai trò.
+            'backUrl' => \App\Support\ReaderBackUrl::resolve(
+                $material->product_id !== null ? (int) $material->product_id : null,
+                $routePrefix === 'admin' && $material->product_id !== null
+                    ? route('admin.products.show', $material->product_id)
+                    : route($routePrefix.'.library.index'),
+            ),
             'access' => $routePrefix === 'admin'
                 ? ['owned' => false, 'remainingLabel' => null, 'admin' => true]
                 : $this->accessChip($user, $material),

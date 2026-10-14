@@ -202,7 +202,11 @@ class ProductReadService
             // bên, mà để thanh bên vào thì trang có hai bộ điều hướng chồng nhau.
             'layoutView' => 'layouts.reader',
             'libraryRoute' => $routePrefix === 'admin' ? 'admin.products.index' : $routePrefix.'.library.index',
-            'backUrl' => $routePrefix === 'admin' ? route('admin.products.show', $product->id) : route($routePrefix.'.library.index'),
+            // SỬA 14/10 — Quay lại = đúng trang đã bấm vào đọc (App\Support\ReaderBackUrl).
+            'backUrl' => \App\Support\ReaderBackUrl::resolve(
+                (int) $product->id,
+                $routePrefix === 'admin' ? route('admin.products.show', $product->id) : route($routePrefix.'.library.index'),
+            ),
             'isTeacherView' => $isTeacherView,
         ];
     }
