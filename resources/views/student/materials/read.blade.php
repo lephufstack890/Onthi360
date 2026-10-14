@@ -517,19 +517,51 @@
 
             // Nhảy tới một trang: cuộn khung chứa trang đó vào tầm nhìn. pageWrappers do
             // renderAllPages() dựng, nên trang chưa vẽ xong thì bỏ qua lặng lẽ.
+            /*
+             * SỬA 14/10 (khách: "click mũi tên không được") — 3 lỗi của bản cũ:
+             *  · ô số trang còn nguyên số trang đang xem mà bấm mũi tên thì "nhảy" tới chính trang đó -> không
+             *    thấy gì xảy ra. Giờ: số KHÔNG đổi thì mũi tên = sang TRANG KẾ TIẾP;
+             *  · trang đích chưa vẽ xong (pdf.js vẽ lần lượt) thì bị bỏ qua lặng lẽ -> giờ nhớ lại, vẽ tới là cuộn;
+             *  · scrollIntoView cuộn cả cửa sổ lẫn khung đọc, có trình duyệt không cuộn khung -> cuộn THẲNG khung đọc.
+             */
+            var pendingPage = null;
+
+            function scrollToWrapper(wrapper, smooth) {
+                var box = document.getElementById('reader-scroll-box');
+                if (box) {
+                    var top = box.scrollTop + wrapper.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+                    box.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+                } else {
+                    wrapper.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
+                }
+            }
+
             function goToPage(requested) {
                 var target = Math.min(totalPages || 1, Math.max(1, Math.trunc(Number(requested) || 1)));
                 var wrapper = pageWrappers[target - 1];
                 if (wrapper) {
-                    wrapper.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    pendingPage = null;
+                    scrollToWrapper(wrapper, true);
+                } else {
+                    pendingPage = target;
+                }
+                currentPage = target;
+                if (pageInputEl) {
+                    pageInputEl.value = String(target);
                 }
                 setPageIndicator(target);
             }
 
             if (pageFormEl) {
+                pageFormEl.setAttribute('novalidate', 'novalidate');
                 pageFormEl.addEventListener('submit', function (event) {
                     event.preventDefault();
-                    goToPage(pageInputEl ? pageInputEl.value : 1);
+                    var typed = Math.trunc(Number(pageInputEl ? pageInputEl.value : 1) || 1);
+                    var target = typed === currentPage ? currentPage + 1 : typed;
+                    if (totalPages && target > totalPages) {
+                        target = typed === currentPage ? 1 : totalPages; // đang ở trang cuối -> quay lại trang đầu
+                    }
+                    goToPage(target);
                 });
             }
 
@@ -640,6 +672,10 @@
                         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
                             if (scrollToPage && pageNum === scrollToPage) {
                                 wrapper.scrollIntoView({ block: 'start' });
+                            }
+                            if (pendingPage === pageNum) {
+                                pendingPage = null;
+                                scrollToWrapper(wrapper, true);
                             }
                             renderNext(pageNum + 1);
                         }, renderPageError);

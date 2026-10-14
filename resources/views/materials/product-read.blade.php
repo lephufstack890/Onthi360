@@ -538,7 +538,9 @@
                 }
             }
 
+            var shownPage = 1; // SỬA 14/10 — trang đang hiện, để mũi tên biết "số chưa đổi" -> sang trang kế.
             function setIndicator(current, partIndex) {
+                shownPage = current;
                 if (pageIndicatorEl) {
                     var suffix = nextToLoad < parts.length ? '+' : '';
                     pageIndicatorEl.textContent = 'Trang ' + current + ' / ' + entries.length + suffix;
@@ -835,12 +837,29 @@
             }
 
             if (pageFormEl) {
+                // SỬA 14/10 (khách: "click mũi tên không được") — số trang chưa đổi thì mũi tên = sang trang kế
+                // tiếp; cuộn THẲNG khung đọc (scrollIntoView có lúc không cuộn khung con).
+                pageFormEl.setAttribute('novalidate', 'novalidate');
                 pageFormEl.addEventListener('submit', function (event) {
                     event.preventDefault();
-                    var target = Math.min(entries.length, Math.max(1, Math.trunc(Number(pageInputEl ? pageInputEl.value : 1) || 1)));
+                    var typed = Math.trunc(Number(pageInputEl ? pageInputEl.value : 1) || 1);
+                    var wanted = typed === shownPage ? shownPage + 1 : typed;
+                    if (wanted > entries.length) {
+                        wanted = typed === shownPage ? 1 : entries.length;
+                    }
+                    var target = Math.min(entries.length, Math.max(1, wanted));
                     var entry = entries[target - 1];
                     if (entry && entry.wrapper) {
-                        entry.wrapper.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                        var box = document.getElementById('reader-scroll-box');
+                        if (box) {
+                            var top = box.scrollTop + entry.wrapper.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+                            box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                        } else {
+                            entry.wrapper.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                        }
+                        if (pageInputEl) {
+                            pageInputEl.value = String(target);
+                        }
                     }
                 });
             }
