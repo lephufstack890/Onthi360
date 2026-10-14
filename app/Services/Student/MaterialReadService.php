@@ -105,8 +105,19 @@ class MaterialReadService
             ])->all(),
             // SỬA 18/9 — cột "Bài tập" bên phải màn đọc (bản mẫu education-main/src/components/
             // MaterialReaderPage.jsx) và 2 viên quyền ở thanh đầu trang.
-            'exercises' => $this->exercisesFor($user, $material),
-            'access' => $this->accessChip($user, $material),
+            'exercises' => $this->exercisesFor($user, $material, $routePrefix),
+            // SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — danh sách chương của
+            // tài liệu + chương ĐANG ĐỌC, để cột bên phải lọc/gom bài tập & học liệu theo chương.
+            'chapters' => $this->chaptersFor($material),
+            'currentChapterId' => $this->chapterIdOf($material),
+            // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — vai trò đang đọc.
+            'readerRole' => $routePrefix,
+            'backUrl' => $routePrefix === 'admin' && $material->product_id !== null
+                ? route('admin.products.show', $material->product_id)
+                : route($routePrefix.'.library.index'),
+            'access' => $routePrefix === 'admin'
+                ? ['owned' => false, 'remainingLabel' => null, 'admin' => true]
+                : $this->accessChip($user, $material),
             'pdfUrl' => route($routePrefix.'.materials.file', $material->id),
             // Đóng dấu mờ lên từng trang khi hiển thị (giảm thiểu chia sẻ ảnh chụp màn hình ra
             // ngoài) — không chặn được tuyệt đối (không phần mềm nào chặn được chụp màn hình),
@@ -127,7 +138,7 @@ class MaterialReadService
              * mà KHÔNG ai mất thứ đang dùng.
              */
             'attachments' => $material->product !== null
-                ? $this->productRead->attachmentsFor($material->product, $routePrefix, $routePrefix === 'teacher')
+                ? $this->productRead->attachmentsFor($material->product, $routePrefix, $routePrefix !== 'student')
                 : [],
         ];
     }
@@ -143,18 +154,19 @@ class MaterialReadService
      * Public\PracticeService::problemRows() đang tính): có câu đúng -> "Đã hoàn thành", có nộp
      * mà chưa đúng -> "Đang làm", chưa nộp -> "Sẵn sàng".
      */
-    private function exercisesFor(User $user, Material $material): array
+    private function exercisesFor(User $user, Material $material, string $routePrefix = 'student'): array
     {
         if ($material->product_id === null) {
             return [];
         }
 
-        $questions = Question::query()
-            ->where('product_id', $material->product_id)
-            ->where('status', ContentStatus::Published->value)
-            ->with(['tags:id,name'])
-            ->orderBy('id')
-            ->get();
+        // SỬA 14/10 — xếp theo đúng thứ tự hiển thị chuẩn (QuestionOrder), giống màn đọc sản phẩm.
+        $questions = \App\Support\QuestionOrder::apply(
+            Question::query()
+                ->where('product_id', $material->product_id)
+                ->where('status', ContentStatus::Published->value)
+                ->with(['tags:id,name'])
+        )->get();
 
         if ($questions->isEmpty()) {
             return [];
@@ -168,7 +180,7 @@ class MaterialReadService
             ->get()
             ->keyBy('question_id');
 
-        return $questions->map(function (Question $question) use ($mine) {
+        return $questions->map(function (Question $question) use ($mine, $material, $routePrefix) {
             $row = $mine->get($question->id);
             $count = (int) ($row->mine ?? 0);
             $accepted = (int) ($row->mine_accepted ?? 0);
@@ -182,6 +194,13 @@ class MaterialReadService
 
             return [
                 'id' => $question->id,
+                // SỬA 14/10 — mã bài (ô vuông ở lưới bài tập), chương chứa bài, link theo vai trò.
+                'code' => (string) ($question->code ?: '#'.$question->id),
+                'chapterId' => $question->material_id !== null ? (int) $question->material_id : null,
+                'productId' => (int) $material->product_id,
+                'editHref' => $routePrefix === 'admin'
+                    ? route('admin.products.exercises.edit', [$material->product_id, $question->id])
+                    : null,
                 'title' => $question->title,
                 'tags' => $question->tags->pluck('name')->take(3)->values()->all(),
                 'points' => (int) $question->points,
@@ -201,6 +220,47 @@ class MaterialReadService
                 ),
             ];
         })->values()->all();
+    }
+
+    /**
+     * SỬA 14/10 — các chương/phần/đề GỐC của tài liệu (Material type=chapter, không có cha), đúng thứ
+     * tự ở trang quản trị. Cột bên phải dùng để gom bài tập & học liệu theo chương.
+     *
+     * @return array<int, array{id:int, no:int, title:string}>
+     */
+    private function chaptersFor(Material $material): array
+    {
+        if ($material->product_id === null) {
+            return [];
+        }
+
+        return Material::query()
+            ->where('product_id', $material->product_id)
+            ->where('type', 'chapter')
+            ->whereNull('parent_id')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->get(['id', 'title'])
+            ->values()
+            ->map(fn (Material $m, int $i) => ['id' => (int) $m->id, 'no' => $i + 1, 'title' => (string) $m->title])
+            ->all();
+    }
+
+    /** SỬA 14/10 — chương chứa bài đang đọc: chính nó nếu là chương, không thì leo lên cha (tối đa 5 cấp). */
+    private function chapterIdOf(Material $material): ?int
+    {
+        $node = $material;
+        for ($i = 0; $i < 5 && $node !== null; $i++) {
+            if ($node->type === 'chapter' && $node->parent_id === null) {
+                return (int) $node->id;
+            }
+            if ($node->parent_id === null) {
+                return null;
+            }
+            $node = Material::query()->find($node->parent_id, ['id', 'type', 'parent_id']);
+        }
+
+        return null;
     }
 
     /**

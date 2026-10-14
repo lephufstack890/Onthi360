@@ -71,6 +71,8 @@ class ProductExerciseController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            // SỬA 14/10 (khách: "thiếu mã bài, cập nhật được mã bài") — trùng mã kiểm ở ContentService::productExerciseSave().
+            'code' => ['nullable', 'string', 'max:40'],
             'points' => ['nullable', 'integer', 'min:0'],
             // SỬA 4/9 — không ràng buộc 'exists:materials,id' ở đây vì còn phải kiểm tra ĐÚNG
             // sản phẩm nữa (2 điều kiện gộp), xem ContentService::resolveChapterId() — giá trị
@@ -102,7 +104,7 @@ class ProductExerciseController extends Controller
             'accepted_answers' => ['nullable', 'string', 'max:2000'],
             'case_sensitive' => ['nullable', 'boolean'],
         ], [], [
-            'statement_file' => 'Đề bài (PDF)', 'solution_file' => 'Lời giải (PDF)', 'reference_file' => 'Code mẫu',
+            'code' => 'Mã bài', 'statement_file' => 'Đề bài (PDF)', 'solution_file' => 'Lời giải (PDF)', 'reference_file' => 'Code mẫu',
             'time_limit_ms' => 'Giới hạn thời gian', 'memory_limit_mb' => 'Giới hạn bộ nhớ',
             'body' => 'Câu hỏi', 'options.*' => 'Đáp án', 'correct_option' => 'Đáp án đúng', 'accepted_answers' => 'Đáp án được chấp nhận',
         ]);

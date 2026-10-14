@@ -168,6 +168,11 @@
         // MaterialReadService::buildReadData()). Nút Quay lại/Đóng phải về đúng kho tài liệu của
         // vai trò đang xem, nếu không giáo viên bấm là văng sang route của học sinh -> 403.
         $libraryRoute = str_starts_with($readRoute, 'teacher.') ? 'teacher.library.index' : 'student.library.index';
+        // SỬA 14/10 — admin cũng dùng màn này (đọc mọi tài liệu không cần mua): nút Quay lại/Đóng lấy
+        // $backUrl do MaterialReadService truyền (admin về trang quản lý tài liệu).
+        $backUrl = $backUrl ?? route($libraryRoute);
+        $readerRole = $readerRole ?? (str_starts_with($readRoute, 'teacher.') ? 'teacher' : 'student');
+        $chapterWord = $material->product?->chapterLabel() ?: 'Chương';
 
         $sections = $sections ?? [];
     $attachments = $attachments ?? [];
@@ -222,7 +227,7 @@
             </div>
             <div class="relative z-10 h-[3px] bg-gradient-to-r from-[#123B68] via-[#2D7FA3] to-[#E6B44A]" aria-hidden="true"></div>
             <div class="relative z-10 mx-auto flex w-full max-w-[1780px] flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6 2xl:px-10">
-                <a href="{{ route($libraryRoute) }}" aria-label="Quay lại kho tài liệu"
+                <a href="{{ $backUrl }}" aria-label="Quay lại kho tài liệu"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#DDEAF0] bg-white text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#123B68]">
                     <x-lucide name="arrow-left" class="h-4 w-4" />
                 </a>
@@ -243,6 +248,12 @@
                     <h1 class="mt-1 truncate text-[14px] font-semibold text-[#123B68] sm:text-base">{{ $material->title }}</h1>
                 </div>
 
+                @if ($access['admin'] ?? false)
+                    {{-- SỬA 14/10 — admin đọc mọi tài liệu không cần mua. --}}
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[#BED9EB] bg-[#E3F1FA] px-2.5 py-1.5 text-[11px] font-semibold text-[#356580]" title="Quản trị viên được đọc mọi tài liệu">
+                        <x-lucide name="shield-check" class="h-3 w-3" /><span>Quyền quản trị</span>
+                    </span>
+                @endif
                 @if ($access['owned'])
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-[#B7DDCD] bg-[#DFF2E9] px-2.5 py-1.5 text-[11px] font-semibold text-[#287B5F]" title="Đã sở hữu">
                         <x-lucide name="check-circle-2" class="h-3 w-3" /><span>Đã sở hữu</span>
@@ -254,7 +265,7 @@
                     @endif
                 @endif
 
-                <a href="{{ route($libraryRoute) }}" aria-label="Đóng trình đọc"
+                <a href="{{ $backUrl }}" aria-label="Đóng trình đọc"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-[#FFF1F1] hover:text-[#B42318]">
                     <x-lucide name="x" class="h-4 w-4" />
                 </a>
@@ -270,7 +281,7 @@
             <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
 
                 {{-- ══════ CỘT TRÁI: PDF ══════ --}}
-                <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
+                <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
                     {{-- ══ THANH CÔNG CỤ ══
                          SỬA 2/10 — dựng theo thanh công cụ của bản mẫu mới: ô nhảy tới trang
                          ("Trang [n] / N" + nút mũi tên) và ô chọn Chương/phần, thay cho dòng chữ
@@ -363,10 +374,10 @@
                 </section>
 
                 {{-- ══════ CỘT PHẢI: BÀI TẬP ══════ --}}
-                <aside class="flex h-full flex-col lg:sticky" :class="focus ? 'lg:top-4' : 'lg:top-[76px]'">
-                    @include('partials.reader-exercise-panel')
-                    @include('partials.reader-attachments')
-
+                {{-- SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — lưới mã bài theo
+                     chương + học liệu theo chương, dựng theo MaterialChapterGrid.jsx của source mới. --}}
+                <aside class="min-w-0">
+                    @include('partials.reader-chapter-panel')
                 </aside>
             </div>
         </main>

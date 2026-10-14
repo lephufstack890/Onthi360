@@ -225,7 +225,7 @@
             </div>
             <div class="relative z-10 h-[3px] bg-gradient-to-r from-[#123B68] via-[#2D7FA3] to-[#E6B44A]" aria-hidden="true"></div>
             <div class="relative z-10 mx-auto flex w-full max-w-[1780px] flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6 2xl:px-10">
-                <a href="{{ route($libraryRoute) }}" aria-label="Quay lại kho tài liệu"
+                <a href="{{ $backUrl ?? route($libraryRoute) }}" aria-label="Quay lại kho tài liệu"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#DDEAF0] bg-white text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#123B68]">
                     <x-lucide name="arrow-left" class="h-4 w-4" />
                 </a>
@@ -259,7 +259,7 @@
                     @endif
                 @endif
 
-                <a href="{{ route($libraryRoute) }}" aria-label="Đóng trình đọc"
+                <a href="{{ $backUrl ?? route($libraryRoute) }}" aria-label="Đóng trình đọc"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-[#FFF1F1] hover:text-[#B42318]">
                     <x-lucide name="x" class="h-4 w-4" />
                 </a>

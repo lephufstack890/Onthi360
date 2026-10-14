@@ -467,6 +467,8 @@ class MaterialService
         return match (true) {
             $viewer->hasRole(Role::STUDENT) => 'student',
             $viewer->hasRole(Role::TEACHER) => 'teacher',
+            // SỬA 14/10 — admin đọc được mọi tài liệu (khách yêu cầu), xem Admin\MaterialReadController.
+            $viewer->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) => 'admin',
             default => null,
         };
     }

@@ -116,7 +116,8 @@
             @endif
 
             <div class="mt-4">
-                @if ($owned)
+                {{-- SỬA 14/10 — admin đọc được mọi tài liệu không cần mua (khách yêu cầu). --}}
+                @if ($owned || (($readHref ?? null) && auth()->user()?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)))
                     {{-- SỬA 14/9 — đã sở hữu thì cho bấm vào đọc luôn, thay vì chỉ báo một dòng
                          chữ rồi để người dùng tự đi tìm. Đích theo vai trò, xem ghi chú ở
                          public/materials/index.blade.php. --}}

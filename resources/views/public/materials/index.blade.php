@@ -288,7 +288,11 @@
                             </div>
                             <p class="mp-print-note">{{ $item['pricePrint'] ? 'Kèm sách in: '.$item['pricePrint'] : 'Đọc và luyện tập trực tuyến' }}</p>
 
-                            @if ($isAdmin)
+                            @if ($isAdmin && $item['readHref'])
+                                {{-- SỬA 14/10 — admin đọc được mọi tài liệu không cần mua (khách yêu cầu). --}}
+                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu<x-lucide name="chevron-right" /></a>
+                                <a href="{{ route('admin.products.show', $item['id']) }}" class="mp-text-btn">Quản lý tài liệu</a>
+                            @elseif ($isAdmin)
                                 <a href="{{ route('admin.products.show', $item['id']) }}" class="mp-primary">Quản lý tài liệu<x-lucide name="chevron-right" /></a>
                             @elseif ($item['owned'] && $item['readHref'])
                                 <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu<x-lucide name="chevron-right" /></a>
@@ -443,6 +447,7 @@
                                 <button type="button" class="oi-assign-chip" style="min-height:40px;padding:0 14px" x-show="selected.inCatalog" @click="openAssign(selected.id)"><x-lucide name="send" />Giao tài liệu</button>
                             @endif
                             @if ($isAdmin)
+                                <a :href="selected.readHref" x-show="selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu</a>
                                 <a :href="selected.adminHref" class="mp-primary">Quản lý tài liệu</a>
                             @endif
                         </div>

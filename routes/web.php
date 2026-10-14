@@ -79,6 +79,7 @@ use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExerciseController;
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\MaterialReadController as AdminMaterialReadController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\TeacherApprovalController as AdminTeacherApprovalController;
@@ -629,6 +630,20 @@ Route::middleware(['auth'])->group(function () {
         Route::put('products/{product}', [AdminProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+
+        // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — màn đọc tài liệu cho
+        // admin, dùng chung bộ đọc với học sinh/giáo viên. Xem Admin\MaterialReadController.
+        Route::get('doc-tai-lieu/{material}', [AdminMaterialReadController::class, 'read'])
+            ->whereNumber('material')->name('materials.read');
+        Route::get('doc-tai-lieu/{material}/file', [AdminMaterialReadController::class, 'pdfFile'])
+            ->whereNumber('material')->name('materials.file');
+        Route::get('doc-tai-lieu/san-pham/{product}', [AdminMaterialReadController::class, 'product'])
+            ->whereNumber('product')->name('products.read');
+        Route::get('doc-tai-lieu/san-pham/{product}/{material}/file', [AdminMaterialReadController::class, 'productFile'])
+            ->whereNumber(['product', 'material'])->name('products.read.file');
+        Route::get('doc-tai-lieu/san-pham/{product}/{material}/asset/{kind}', [AdminMaterialReadController::class, 'productAsset'])
+            ->whereNumber(['product', 'material'])->whereIn('kind', ['audio', 'image'])
+            ->name('products.read.asset');
 
         // SỬA 31/8 ("ZIP bài tập" gắn vào sản phẩm) — CHỈ Admin/Super Admin quản lý (cùng
         // middleware role:admin,super_admin với các route products.* ở trên) — không mở cho

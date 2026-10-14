@@ -2571,6 +2571,16 @@ class ContentService
             'status' => ContentStatus::Published->value,
         ];
 
+        // SỬA 14/10 (khách: "thiếu mã bài, cập nhật được mã bài") — mã bài là DUY NHẤT toàn hệ thống (cột unique),
+        // để trống thì giữ mã cũ.
+        $code = trim((string) ($data['code'] ?? ''));
+        if ($code !== '' && $code !== (string) $exercise->code) {
+            if ($this->questions->query()->where('code', $code)->whereKeyNot($exercise->id)->exists()) {
+                throw ValidationException::withMessages(['code' => "Mã bài \"{$code}\" đã được dùng cho bài khác, chọn mã khác."]);
+            }
+            $attributes['code'] = $code;
+        }
+
         /*
          * SỬA 14/10 (khách: "dạng lập trình thì sửa được code mẫu, lời giải, đề bài và bộ test — giống sửa câu hỏi ở Kho
          * bài tập") — CHỈ câu Lập trình. Cùng luật với ContentService::questionUpdate():

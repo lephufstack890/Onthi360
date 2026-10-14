@@ -97,6 +97,12 @@
                 </div>
             </div>
             <div class="acx-head__actions">
+                @if ($readHref ?? null)
+                    {{-- SỬA 14/10 — admin đọc được mọi tài liệu không cần mua (khách yêu cầu). --}}
+                    <a href="{{ $readHref }}" class="acx-btn">
+                        <x-lucide name="book-open" /> Đọc tài liệu
+                    </a>
+                @endif
                 <a href="{{ route('admin.products.edit', $product->id) }}" class="acx-btn">
                     <x-lucide name="pen-line" /> Sửa
                 </a>

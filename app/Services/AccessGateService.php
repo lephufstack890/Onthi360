@@ -31,6 +31,11 @@ class AccessGateService
 {
     public function canAccessMaterial(User $user, Material $material, ?ClassRoom $classRoom = null): AccessDecision
     {
+        // SỬA 14/10 (khách: "quyền admin thì đọc được tất cả tài liệu, không cần mua").
+        if ($this->isAdmin($user)) {
+            return AccessDecision::allow();
+        }
+
         $product = $material->product;
 
         if ($product->visibility === Visibility::Public) {
@@ -57,7 +62,7 @@ class AccessGateService
      */
     public function canAccessProduct(User $user, Product $product): AccessDecision
     {
-        if ($product->visibility === Visibility::Public) {
+        if ($this->isAdmin($user) || $product->visibility === Visibility::Public) {
             return AccessDecision::allow();
         }
 
@@ -258,5 +263,11 @@ class AccessGateService
             ->whereIn('unit_id', $unitIds)
             ->whereNull('closed_at')
             ->exists();
+    }
+
+    /** SỬA 14/10 — Admin/Super Admin đọc mọi tài liệu không cần quyền mua (khách yêu cầu). */
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN);
     }
 }

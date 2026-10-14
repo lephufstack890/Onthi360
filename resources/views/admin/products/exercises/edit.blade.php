@@ -119,10 +119,20 @@
                            class="admin-input">
                 </div>
 
-                <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="points">Điểm</label>
-                    <input id="points" name="points" type="number" min="0" value="{{ old('points', $exercise->points) }}"
-                           class="w-40 rounded-xl border border-sky-100 text-[13px] p-2.5 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition">
+                {{-- SỬA 14/10 (khách: "thiếu mã bài, cập nhật được mã bài") — Mã bài + Điểm chung một hàng. --}}
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+                    <div>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="code">Mã bài</label>
+                        <input id="code" name="code" type="text" value="{{ old('code', $exercise->code) }}" maxlength="40" required
+                               placeholder="VD: PY-01" autocomplete="off" spellcheck="false"
+                               class="admin-input" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600;letter-spacing:.02em">
+                        <p class="mt-1 text-[11.5px] text-slate-400">Hiện ở ô bài tập màn đọc tài liệu. Không trùng với bài khác.</p>
+                    </div>
+                    <div>
+                        <label class="block text-[13px] font-medium text-slate-600 mb-1" for="points">Điểm</label>
+                        <input id="points" name="points" type="number" min="0" value="{{ old('points', $exercise->points) }}"
+                               class="admin-input">
+                    </div>
                 </div>
 
                 @if ($chapterLabel && ! empty($chapters))

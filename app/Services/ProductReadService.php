@@ -183,14 +183,17 @@ class ProductReadService
      */
     public function buildReadData(User $user, Product $product, string $routePrefix = 'student'): array
     {
-        $isTeacherView = $routePrefix === 'teacher';
+        // SỬA 14/10 — admin đọc như giáo viên (xem đề chứ không "Làm bài"), không có viên quyền sở hữu.
+        $isTeacherView = in_array($routePrefix, ['teacher', 'admin'], true);
 
         return [
             'product' => $product,
             'parts' => $this->partsFor($product, $routePrefix),
             'exercises' => $this->exercisesFor($user, $product),
             'attachments' => $this->attachmentsFor($product, $routePrefix, $isTeacherView),
-            'access' => $this->accessChip($user, $product),
+            'access' => $routePrefix === 'admin'
+                ? ['owned' => false, 'remainingLabel' => null, 'admin' => true]
+                : $this->accessChip($user, $product),
             'chapterWord' => $product->chapterLabel() ?: 'Phần',
             // Đóng dấu mờ tên + email người đang đọc lên từng trang — y như trang đọc 1 bài
             // (MaterialReadService): không chặn được chụp màn hình, chỉ để TRUY VẾT nguồn rò rỉ.
@@ -198,7 +201,8 @@ class ProductReadService
             // SỬA 3/10 — khung riêng toàn màn hình, y màn đọc một bài: bản mẫu không có thanh
             // bên, mà để thanh bên vào thì trang có hai bộ điều hướng chồng nhau.
             'layoutView' => 'layouts.reader',
-            'libraryRoute' => $routePrefix.'.library.index',
+            'libraryRoute' => $routePrefix === 'admin' ? 'admin.products.index' : $routePrefix.'.library.index',
+            'backUrl' => $routePrefix === 'admin' ? route('admin.products.show', $product->id) : route($routePrefix.'.library.index'),
             'isTeacherView' => $isTeacherView,
         ];
     }
@@ -314,6 +318,8 @@ class ProductReadService
                     'kind' => $kind,
                     'title' => $media->title,
                     'chapterTitle' => $media->parent?->title,
+                    // SỬA 14/10 — chương chứa học liệu, để cột bên phải màn đọc lọc theo chương.
+                    'chapterId' => $media->type === 'chapter' ? (int) $media->id : ($media->parent_id !== null ? (int) $media->parent_id : null),
                     'url' => route($routePrefix.'.products.read.asset', [
                         'product' => $product->id,
                         'material' => $media->id,
@@ -339,6 +345,7 @@ class ProductReadService
                 'kind' => 'file',
                 'title' => $label,
                 'chapterTitle' => null,
+                'chapterId' => null,
                 'url' => route('access.resource', ['product' => $product->id, 'kind' => $kind]),
             ];
         }
