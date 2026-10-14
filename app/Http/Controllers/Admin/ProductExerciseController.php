@@ -79,9 +79,55 @@ class ProductExerciseController extends Controller
             'tag_ids' => ['array'],
             'tag_ids.*' => ['integer'],
             'new_tags' => ['nullable', 'string', 'max:500'],
+            // SỬA 14/10 — chỉ câu Lập trình dùng: bộ test, giới hạn chạy, đọc/ghi tệp, 3 tệp đính kèm (cùng luật Kho câu hỏi).
+            'test_cases_json' => ['nullable', 'string', 'max:8000000'],
+            'time_limit_ms' => ['nullable', 'integer', 'min:1', 'max:60000'],
+            'memory_limit_mb' => ['nullable', 'integer', 'min:1', 'max:4096'],
+            'io_mode' => ['nullable', 'in:std,file'],
+            'file_io_input' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'file_io_output' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'statement_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'solution_file' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'reference_file' => ['nullable', 'file', 'max:2048', 'extensions:cpp,cc,c,py,pas,java,js,ts,txt,md'],
+            'remove_attachments' => ['nullable', 'array'],
+            'remove_attachments.*' => ['string', 'in:statement,solution,reference'],
+            // SỬA 14/10 (khách: "trắc nghiệm, điền từ vẫn cho sửa thoải mái, lỡ nhập lộn") — dạng nhập tay: đổi dạng
+            // (Trắc nghiệm / Đúng-Sai / Điền từ), sửa câu hỏi, đáp án, đáp án đúng.
+            'kind' => ['nullable', 'string', 'in:mcq,true_false,fill_blank'],
+            'body' => ['nullable', 'string', 'max:100000'],
+            'options' => ['nullable', 'array', 'max:8'],
+            'options.*' => ['nullable', 'string', 'max:255'],
+            'correct_option' => ['nullable', 'integer', 'min:0', 'max:7'],
+            'tf_answer' => ['nullable', 'string', 'in:true,false'],
+            'accepted_answers' => ['nullable', 'string', 'max:2000'],
+            'case_sensitive' => ['nullable', 'boolean'],
+        ], [], [
+            'statement_file' => 'Đề bài (PDF)', 'solution_file' => 'Lời giải (PDF)', 'reference_file' => 'Code mẫu',
+            'time_limit_ms' => 'Giới hạn thời gian', 'memory_limit_mb' => 'Giới hạn bộ nhớ',
+            'body' => 'Câu hỏi', 'options.*' => 'Đáp án', 'correct_option' => 'Đáp án đúng', 'accepted_answers' => 'Đáp án được chấp nhận',
         ]);
 
-        $this->contentService->productExerciseSave($exercise, $data);
+        $codingKeys = ['test_cases_json', 'time_limit_ms', 'memory_limit_mb', 'io_mode', 'file_io_input', 'file_io_output',
+            'statement_file', 'solution_file', 'reference_file', 'remove_attachments'];
+        $manualKeys = ['kind', 'body', 'options', 'correct_option', 'tf_answer', 'accepted_answers', 'case_sensitive'];
+
+        if ($exercise->type === \App\Enums\QuestionType::Coding) {
+            $data = array_diff_key($data, array_flip($manualKeys));
+        } else {
+            // Dạng khác không có các ô của câu Lập trình — bỏ hẳn để chắc chắn không đụng cấu hình chấm của chúng.
+            $data = array_diff_key($data, array_flip($codingKeys));
+            if (! in_array($exercise->type->value, ['mcq', 'fill_blank'], true)) {
+                // Câu Nhiều phần (chỉ nhập từ ZIP) vẫn chỉ đọc phần đáp án.
+                $data = array_diff_key($data, array_flip($manualKeys));
+            }
+        }
+
+        try {
+            $data = ContentService::testCasesFromJsonInput($data);
+            $this->contentService->productExerciseSave($exercise, $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         return redirect()->route('admin.products.show', $product->id)->with('status', 'exercise-saved');
     }

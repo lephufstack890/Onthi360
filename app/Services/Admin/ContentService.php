@@ -2563,17 +2563,164 @@ class ContentService
      */
     public function productExerciseSave(Question $exercise, array $data): Question
     {
-        $updated = $this->questions->update($exercise, [
+        $attributes = [
             'title' => $data['title'],
             'points' => $data['points'] ?? 0,
             // SỬA 4/9 — gắn/gỡ chương-phần-đề ngay ở màn Sửa, xem resolveChapterId().
             'material_id' => $this->resolveChapterId($exercise->product, $data['material_id'] ?? null),
             'status' => ContentStatus::Published->value,
-        ]);
+        ];
+
+        /*
+         * SỬA 14/10 (khách: "dạng lập trình thì sửa được code mẫu, lời giải, đề bài và bộ test — giống sửa câu hỏi ở Kho
+         * bài tập") — CHỈ câu Lập trình. Cùng luật với ContentService::questionUpdate():
+         *  · Bộ test: chỉ thay khi form gửi bộ test mới ('test_cases_parsed' từ khối "Bộ test"); không đổi thì giữ nguyên.
+         *  · Giới hạn thời gian / bộ nhớ / đọc-ghi tệp: lấy từ form.
+         *  · GỘP vào cấu hình cũ, không dựng lại từ đầu: các khoá chỉ gói ZIP có (ngôn ngữ cho phép, subtasks…) được giữ.
+         *  · Tệp đề bài / lời giải / code mẫu: applyManualUploads() (thay, bỏ tệp — như Kho câu hỏi).
+         */
+        $isCoding = $exercise->type === \App\Enums\QuestionType::Coding;
+        if ($isCoding) {
+            $old = $exercise->grading_config ?? [];
+            $fresh = $this->buildGradingConfig('coding', $data + ['_existing_test_cases' => $old['test_cases'] ?? []]);
+            $merged = array_merge($old, $fresh);
+            // Người dùng chọn "Bàn phím / màn hình" -> bỏ hẳn quy ước tên tệp cũ (buildGradingConfig lọc bỏ khoá null).
+            if (! array_key_exists('file_io', $fresh) && array_key_exists('io_mode', $data)) {
+                unset($merged['file_io']);
+            }
+            $attributes['grading_config'] = $merged;
+        }
+
+        /*
+         * SỬA 14/10 (khách: "trắc nghiệm, điền từ vẫn cho sửa thoải mái, lỡ nhập lộn") — câu Trắc nghiệm / Đúng-Sai / Điền
+         * từ: sửa câu hỏi, đáp án, đáp án đúng, và ĐỔI ĐƯỢC DẠNG giữa 3 dạng này. Chỉ khi form gửi ô 'kind'.
+         * Bài tập tài liệu không lưu lượt làm trong CSDL (xem productExerciseDestroy()), nên đổi dạng không làm lệch bài đã nộp.
+         */
+        if (! $isCoding && isset($data['kind']) && in_array($exercise->type->value, ['mcq', 'fill_blank'], true)) {
+            $attributes = array_merge($attributes, $this->manualExerciseEditAttributes($exercise, $data));
+        }
+
+        $updated = $this->questions->update($exercise, $attributes);
 
         $updated->tags()->sync($this->resolveTagIds($data));
 
+        if ($isCoding) {
+            $this->applyManualUploads($updated, $data);
+        }
+
         return $updated;
+    }
+
+    /**
+     * SỬA 14/10 — thuộc tính mới của câu nhập tay khi sửa (xem productExerciseSave()). Khác lúc tạo: trắc nghiệm nhận 2–8
+     * đáp án (câu nhập từ ZIP có thể không đủ 4), và GỘP vào cấu hình cũ để giữ các khoá khác (vd bỏ dấu khi chấm).
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private function manualExerciseEditAttributes(Question $exercise, array $data): array
+    {
+        $kind = $data['kind'];
+        $old = $exercise->grading_config ?? [];
+        $errors = [];
+
+        if ($kind === 'mcq') {
+            $options = array_values(array_map(fn ($o) => trim((string) $o), (array) ($data['options'] ?? [])));
+            $correct = isset($data['correct_option']) && $data['correct_option'] !== '' ? (int) $data['correct_option'] : null;
+            if (count($options) < 2) {
+                $errors['options'] = 'Cần ít nhất 2 đáp án.';
+            } elseif (in_array('', $options, true)) {
+                $errors['options'] = 'Còn đáp án để trống — nhập nội dung hoặc bấm × để bỏ đáp án đó.';
+            }
+            if ($correct === null || $correct < 0 || $correct >= count($options)) {
+                $errors['correct_option'] = 'Chọn 1 đáp án đúng.';
+            }
+            $config = array_merge(array_diff_key($old, array_flip(['accepted_answers', 'case_sensitive'])), [
+                'options' => $options,
+                'correct_options' => $correct === null ? [] : [$correct],
+            ]);
+            $type = 'mcq';
+        } elseif ($kind === 'true_false') {
+            if (! in_array($data['tf_answer'] ?? null, ['true', 'false'], true)) {
+                $errors['tf_answer'] = 'Chọn nhận định này Đúng hay Sai.';
+            }
+            $config = array_merge(array_diff_key($old, array_flip(['accepted_answers', 'case_sensitive'])), [
+                'options' => ['Đúng', 'Sai'],
+                'correct_options' => [($data['tf_answer'] ?? 'true') === 'true' ? 0 : 1],
+            ]);
+            $type = 'mcq';
+        } else {
+            $accepted = $this->buildGradingConfig('fill_blank', $data);
+            if ($accepted['accepted_answers'] === []) {
+                $errors['accepted_answers'] = 'Nhập ít nhất 1 đáp án được chấp nhận.';
+            }
+            $config = array_merge(array_diff_key($old, array_flip(['options', 'correct_options'])), $accepted);
+            $type = 'fill_blank';
+        }
+
+        if (array_key_exists('body', $data) && trim(strip_tags((string) ($data['body'] ?? ''), '<img>')) === '') {
+            $errors['body'] = 'Nhập nội dung câu hỏi.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $attributes = [
+            'type' => $type,
+            'grading_config' => $config,
+            'metadata' => array_merge($exercise->metadata ?? [], ['manual_variant' => $kind]),
+        ];
+
+        if (array_key_exists('body', $data)) {
+            $body = trim((string) ($data['body'] ?? ''));
+            if ($body !== '' && $body === strip_tags($body)) {
+                $body = nl2br(e($body), false);
+            }
+            $attributes['body'] = $body === '' ? null : $body;
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * SỬA 14/10 — ô ẩn `test_cases_json` của khối "Bộ test" (partial admin.content.questions._test-set) -> 'test_cases_parsed'.
+     * Cùng luật với ContentController::testCasesFromJson() (Kho câu hỏi); để ở đây cho màn Sửa bài tập của tài liệu dùng.
+     * Không gửi ô đó (không đổi bộ test) -> trả nguyên $data, bộ test cũ được giữ.
+     *
+     * @throws ValidationException
+     */
+    public static function testCasesFromJsonInput(array $data): array
+    {
+        $json = $data['test_cases_json'] ?? null;
+        unset($data['test_cases_json']);
+
+        if ($json === null || $json === '') {
+            return $data;
+        }
+
+        $fail = fn (string $message) => ValidationException::withMessages(['test_cases_json' => $message]);
+
+        $decoded = json_decode((string) $json, true);
+        if (! is_array($decoded) || ! array_is_list($decoded)) {
+            throw $fail('Bộ test gửi lên không đọc được — chưa lưu gì. Hãy nhập lại cặp tệp .in/.out rồi lưu lại.');
+        }
+        if (count($decoded) > 500) {
+            throw $fail('Bộ test có quá 500 test — chưa lưu gì. Hãy chia nhỏ bài hoặc giảm số test.');
+        }
+
+        $cases = [];
+        foreach ($decoded as $index => $case) {
+            if (! is_array($case) || ! is_string($case['input'] ?? null) || ! is_string($case['output'] ?? null)) {
+                throw $fail('Test thứ '.($index + 1).' không đúng định dạng (cần có dữ liệu vào và kết quả) — chưa lưu gì.');
+            }
+            $cases[] = ['input' => $case['input'], 'output' => $case['output']];
+        }
+
+        $data['test_cases_parsed'] = $cases;
+
+        return $data;
     }
 
     /**

@@ -125,45 +125,8 @@
                     @endif
                 </section>
 
-                <section class="acx-card acx-card--white">
-                    <h2><x-lucide name="file-text" /> Tài nguyên đính kèm</h2>
-                    @php
-                        // SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, chỗ chương mỗi chương là thêm
-                        // từng file pdf") — bỏ dòng "File PDF" (tệp tổng của cả sản phẩm) khỏi đây.
-                        // Nội dung đọc giờ nằm ở PDF của TỪNG chương/phần/đề, xem khối bên dưới.
-                        // Cột content_pdf_path trong DB CỐ Ý giữ lại, không xoá: sản phẩm cũ đã tải
-                        // tệp tổng vẫn đọc được (ProductReadService::partsFor() dùng làm tệp dự phòng
-                        // khi chưa chương nào có PDF), khỏi phải chuyển dữ liệu trước khi lên bản mới.
-                        // SỬA 29/9 (2) — khách: "bỏ File PDF tổng (kiểu cũ) đi, không cần hiển thị".
-                        // Chỉ ẩn khỏi màn hình; dữ liệu vẫn nguyên trong DB và trang đọc vẫn dùng tệp
-                        // này làm nội dung dự phòng khi sản phẩm chưa chương nào có PDF.
-                        // SỬA 14/10 (khách: "ẩn field file hướng dẫn") — không hiện "PDF hướng dẫn" nữa.
-                        $extraResources = [];
-                        if ($product->exercise_zip_path) {
-                            $extraResources[] = [
-                                'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
-                            ];
-                        }
-                        if ($product->media_path) {
-                            $extraResources[] = [
-                                'label' => 'Học liệu (ảnh động/audio, cũ)', 'path' => $product->media_path, 'name' => $product->media_original_name,
-                            ];
-                        }
-                    @endphp
-                    <div>
-                        @foreach ($extraResources as $res)
-                            <div class="apx-res">
-                                <span>{{ $res['label'] }}</span>
-                                @if ($res['path'])
-                                    <span class="apx-ok">✓ {{ $res['name'] }}</span>
-                                @else
-                                    <span class="apx-muted">Chưa có</span>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                    <a href="{{ route('admin.products.edit', $product->id) }}" class="apx-more">Thêm/thay file ›</a>
-                </section>
+                {{-- SỬA 14/10 (khách: "bỏ khối Tài nguyên đính kèm đi, không cần") — đã bỏ cả khối. Tệp cũ (ZIP bài tập/học liệu
+                     kiểu cũ) vẫn nằm nguyên trong CSDL và người học vẫn mở được như trước, chỉ không hiện ở đây nữa. --}}
 
                 @if ($chapterLabel)
                     <section class="acx-card acx-card--white" x-data="{ editing: null }">
