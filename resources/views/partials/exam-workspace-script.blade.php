@@ -119,6 +119,20 @@
                 statusUrl: config.statusUrl || null,
                 submitUrl: config.submitUrl || null,
                 statusTimer: null,
+                /*
+                 * SỬA 14/10 (khách: nút "Chấm câu" cạnh "Đã lưu đề" như source mới — AssessmentModal.handleGradeQuestion) —
+                 * chấm riêng câu đang làm. Chỉ màn có gradeUrl (đề LUYỆN TẬP, xem AssessmentService::canGradeQuestions());
+                 * phòng thi Cuộc thi / đề chính thức không truyền nên mọi thứ dưới đây nằm im.
+                 *   grades[qid]  : kết quả máy chủ trả về + key = câu trả lời lúc bấm chấm. Sửa câu trả lời -> key lệch ->
+                 *                  câu đó hết "Đã chấm", phải chấm lại (đúng luật bản mẫu).
+                 *   gradingId    : câu đang chấm (mỗi lúc một câu, như bản mẫu).
+                 */
+                gradeUrl: config.gradeUrl || null,
+                gradeStoreKey: 'onthi360-exam-grades-' + (config.attemptKey || ''),
+                grades: {},
+                gradingId: null,
+                gradeError: {},
+                gradeTimer: null,
                 saving: false,
                 timerId: null,
                 inFlight: 0,
@@ -147,6 +161,8 @@
                             self.codes[q.id] = starterCodeFor(self.languages[q.id], q.fileIo);
                         }
                     });
+
+                    if (this.gradeUrl) this.restoreGrades(config.initialGrades || {});
 
                     try {
                         if (window.localStorage.getItem('onthi360-exam-theme') === 'dark') this.setTheme('dark');
@@ -204,6 +220,189 @@
 
                 // ── SỬA 11/10 — TRẠNG THÁI "ĐANG CHẤM" (thanh n/N trên header, cảnh báo khi thoát) ──
                 grading() { return this.submitting && !this.resultReady; },
+
+                // ───────── SỬA 14/10 — CHẤM TỪNG CÂU ─────────
+                /** Dấu vân tay câu trả lời hiện tại: đổi mã/ngôn ngữ/đáp án là đổi key. */
+                answerKey(id) {
+                    var q = this.questions.find(function (x) { return x.id === id; });
+                    if (q && q.kind === 'code') return JSON.stringify([String(this.codes[id] || ''), String(this.languages[id] || '')]);
+                    var v = this.answers[id];
+                    return JSON.stringify([v === undefined || v === null ? '' : String(v)]);
+                },
+                /** Kết quả còn hiệu lực (khớp câu trả lời hiện tại) và đã có điểm. */
+                doneGradeOf(id) {
+                    var g = this.grades[id];
+                    return g && g.state === 'done' && g.key === this.answerKey(id) ? g : null;
+                },
+                /** Đã chấm nhưng sau đó sửa câu trả lời -> cần chấm lại. */
+                staleGrade(id) {
+                    var g = this.grades[id];
+                    return !!(g && g.state === 'done' && g.key !== this.answerKey(id));
+                },
+                gradedQuestionCount() {
+                    var self = this;
+                    return this.questions.filter(function (q) { return self.doneGradeOf(q.id); }).length;
+                },
+                canGradeCurrent() {
+                    return !!this.gradeUrl && !this.expired && !this.submitting && this.gradingId === null
+                        && this.isAnswered(this.activeId) && !this.doneGradeOf(this.activeId);
+                },
+                gradeButtonLabel() {
+                    if (this.gradingId !== null && this.gradingId === this.activeId) return 'Đang chấm...';
+                    return this.doneGradeOf(this.activeId) ? 'Đã chấm' : 'Chấm câu';
+                },
+                gradeButtonTitle() {
+                    var g = this.doneGradeOf(this.activeId);
+                    var no = this.questionNo(this.activeId);
+                    if (g) return 'Câu ' + no + ': ' + this.fmtScore(g.score) + '/' + this.fmtScore(g.maxScore) + ' điểm';
+                    if (this.gradingId !== null && this.gradingId !== this.activeId) return 'Đang chấm câu ' + this.questionNo(this.gradingId) + '…';
+                    if (!this.isAnswered(this.activeId)) return 'Trả lời câu này trước rồi mới chấm';
+                    return 'Chấm riêng câu đang chọn';
+                },
+                questionNo(id) {
+                    var q = this.questions.find(function (x) { return x.id === id; });
+                    return q ? q.no : '';
+                },
+                gradeEndpoint(id) {
+                    return String(this.gradeUrl).replace(/\/questions\/0\/grade$/, '/questions/' + id + '/grade');
+                },
+                setGrade(id, key, data) {
+                    var next = Object.assign({}, this.grades);
+                    next[id] = Object.assign({ key: key }, data);
+                    this.grades = next;
+                    this.persistGrades();
+                },
+                /** Nhớ trên trình duyệt câu trắc nghiệm/điền đáp án nào đã bấm Chấm câu (máy chủ chấm ngầm mọi lần tự lưu nên không phân biệt được). */
+                persistGrades() {
+                    var self = this;
+                    var keep = {};
+                    Object.keys(this.grades).forEach(function (id) {
+                        var g = self.grades[id];
+                        var q = self.questions.find(function (x) { return String(x.id) === String(id); });
+                        if (q && q.kind !== 'code' && g && g.state === 'done') keep[id] = g;
+                    });
+                    try { window.localStorage.setItem(this.gradeStoreKey, JSON.stringify(keep)); } catch (e) { /* bỏ qua */ }
+                },
+                restoreGrades(initial) {
+                    var self = this;
+                    var next = {};
+                    // Câu lập trình: máy chủ biết chắc (chỉ có điểm khi đã bấm Chấm câu) — gắn key = mã đang hiện.
+                    Object.keys(initial).forEach(function (id) {
+                        var qid = Number(id);
+                        next[qid] = Object.assign({ key: self.answerKey(qid) }, initial[id]);
+                    });
+                    try {
+                        var saved = JSON.parse(window.localStorage.getItem(this.gradeStoreKey) || '{}') || {};
+                        Object.keys(saved).forEach(function (id) {
+                            var qid = Number(id);
+                            if (saved[id] && saved[id].key === self.answerKey(qid)) next[qid] = saved[id];
+                        });
+                    } catch (e) { /* bỏ qua */ }
+                    this.grades = next;
+                    Object.keys(next).forEach(function (id) {
+                        if (next[id].state === 'judging' && self.gradingId === null) {
+                            self.gradingId = Number(id);
+                            self.pollGrade(Number(id), next[id].key);
+                        }
+                    });
+                },
+                async gradeCurrent() {
+                    if (!this.canGradeCurrent()) return;
+                    var id = this.activeId;
+                    var q = this.questions.find(function (x) { return x.id === id; });
+                    if (!q) return;
+
+                    var key = this.answerKey(id);
+                    var payload = q.kind === 'code'
+                        ? { code_source: this.codes[id], language: this.languages[id] }
+                        : (q.kind === 'fill' ? { text: this.answers[id] } : { selected_option: this.answers[id] });
+
+                    this.gradingId = id;
+                    this.gradeError = Object.assign({}, this.gradeError, { [id]: '' });
+                    if (this.activeTab !== 'work') this.activeTab = 'work';
+
+                    var data = null;
+                    try {
+                        var res = await fetch(this.gradeEndpoint(id), {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                            },
+                            body: JSON.stringify(payload),
+                        });
+                        if (res.status === 429) throw new Error('Bạn bấm chấm hơi nhanh — đợi một phút rồi thử lại.');
+                        if (res.status === 419) throw new Error('Phiên làm việc đã hết hạn — tải lại trang rồi thử lại.');
+                        if (! res.ok) throw new Error('Máy chủ báo lỗi (HTTP ' + res.status + ') — thử lại sau.');
+                        data = await res.json();
+                    } catch (e) {
+                        // Lỗi tự ném ở trên là câu thông báo sẵn; lỗi mạng (TypeError) / JSON hỏng thì báo chung.
+                        var msg = (e && !(e instanceof TypeError) && !(e instanceof SyntaxError) && e.message) ? e.message : 'Không gửi được yêu cầu chấm — kiểm tra mạng rồi thử lại.';
+                        this.gradeError = Object.assign({}, this.gradeError, { [id]: msg });
+                        this.gradingId = null;
+                        return;
+                    }
+
+                    if (data && data.expired) { this.gradingId = null; this.handleTimeUp(data.resultUrl); return; }
+                    if (! data || data.ok !== true) {
+                        this.gradeError = Object.assign({}, this.gradeError, { [id]: (data && data.message) || 'Chưa chấm được câu này — thử lại sau.' });
+                        this.gradingId = null;
+                        return;
+                    }
+
+                    if (data.state === 'judging') {
+                        this.setGrade(id, key, data);
+                        this.pollGrade(id, key);
+                        return;
+                    }
+                    this.finishGrade(id, key, data);
+                },
+                finishGrade(id, key, data) {
+                    if (data.state === 'error') {
+                        this.gradeError = Object.assign({}, this.gradeError, { [id]: data.message || 'Máy chấm đang gặp sự cố — thử lại sau.' });
+                        var next = Object.assign({}, this.grades); delete next[id]; this.grades = next;
+                    } else if (data.state === 'done') {
+                        this.setGrade(id, key, data);
+                    }
+                    if (this.gradingId === id) this.gradingId = null;
+                },
+                /** Câu lập trình chấm nền: hỏi lại 1,5 giây một lần, tối đa ~2,5 phút. */
+                pollGrade(id, key) {
+                    var self = this;
+                    var tries = 0;
+                    clearInterval(this.gradeTimer);
+                    this.gradeTimer = setInterval(async function () {
+                        tries++;
+                        if (self.submitting) { clearInterval(self.gradeTimer); self.gradingId = null; return; }
+                        if (tries > 100) {
+                            clearInterval(self.gradeTimer);
+                            self.gradeError = Object.assign({}, self.gradeError, { [id]: 'Máy chấm đang bận, chưa có kết quả — bạn cứ làm tiếp, bấm Chấm câu lại sau hoặc Nộp & tổng kết.' });
+                            var next = Object.assign({}, self.grades); delete next[id]; self.grades = next;
+                            if (self.gradingId === id) self.gradingId = null;
+                            return;
+                        }
+                        try {
+                            var res = await fetch(self.gradeEndpoint(id), {
+                                credentials: 'same-origin',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                            });
+                            if (! res.ok) return;
+                            var data = await res.json();
+                            if (! data || data.ok !== true || data.state === 'judging') return;
+                            clearInterval(self.gradeTimer);
+                            if (data.state === 'none') {
+                                // Mã đã đổi trong lúc chấm (máy chủ bỏ kết quả cũ) -> coi như chưa chấm.
+                                var n2 = Object.assign({}, self.grades); delete n2[id]; self.grades = n2;
+                                if (self.gradingId === id) self.gradingId = null;
+                                return;
+                            }
+                            self.finishGrade(id, key, data);
+                        } catch (e) { /* mất mạng nhất thời — lần sau hỏi lại */ }
+                    }, 1500);
+                },
 
                 gradeTotal() {
                     return this.submitResult.total > 0 ? this.submitResult.total : this.questions.length;
@@ -626,6 +825,7 @@
                 },
 
                 doSubmit() {
+                    clearInterval(this.gradeTimer);
                     this.submitting = true;
                     this.syncForm();
 

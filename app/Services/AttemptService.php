@@ -626,15 +626,65 @@ class AttemptService
             ->where('question_id', $question->id)
             ->first();
 
+        /*
+         * SỬA 14/10 (khách: "Chấm câu" từng câu trong đề luyện tập, nộp & tổng kết thì câu đã chấm KHÔNG chấm lại) —
+         * câu Lập trình mà mã nguồn + ngôn ngữ GIỐNG HỆT lần lưu trước thì GIỮ NGUYÊN kết quả đã chấm (hoặc đang chấm).
+         * Trước đây mỗi lần tự lưu đều đặt lại "queued", tức là bấm Chấm câu xong chỉ cần ô soạn mã tự lưu một nhịp là
+         * mất điểm, và lúc nộp lại phải chạy máy chấm lần nữa. Lỗi hệ thống chấm thì KHÔNG giữ — để lần nộp chấm lại.
+         */
+        $gradedAt = $verdict->isFinal() ? now() : null;
+        $testCounts = [];
+
+        if ($question->type === QuestionType::Coding && $existing !== null) {
+            $sameCode = (string) $existing->code_source === (string) $codeSource
+                && (string) $existing->language === (string) $language;
+            $keep = $sameCode
+                && $existing->verdict !== VerdictStatus::SystemError
+                && ($existing->verdict->isFinal() || $existing->verdict === VerdictStatus::Judging);
+
+            if ($keep) {
+                $verdict = $existing->verdict;
+                $score = $existing->score;
+                $gradedAt = $existing->graded_at;
+            } elseif (AttemptAnswer::supportsTestCounts()) {
+                // Mã đã đổi: số test qua của lần chấm cũ không còn đúng nữa.
+                $testCounts = ['passed_tests' => null, 'total_tests' => null];
+            }
+        }
+
         return $this->attemptAnswers->upsertAnswer($attempt->id, $question->id, [
             'answer' => $answer,
             'code_source' => $codeSource,
             'language' => $language,
             'verdict' => $verdict->value,
             'score' => $score,
-            'graded_at' => $verdict->isFinal() ? now() : null,
+            'graded_at' => $gradedAt,
             'submission_count' => ($existing?->submission_count ?? 0) + 1,
-        ]);
+        ] + $testCounts);
+    }
+
+    /**
+     * SỬA 14/10 — nút "Chấm câu" của đề luyện tập: lưu câu trả lời rồi CHẤM NGAY riêng câu đó (lượt làm vẫn đang mở).
+     *
+     *  · Trắc nghiệm / điền đáp án: saveAnswer() đã chấm xong tại chỗ.
+     *  · Lập trình: đánh dấu 'judging' rồi đẩy 1 việc chạy nền (GradeCodingAnswerJob) — cùng đường chấm với lúc nộp đề,
+     *    nên điểm "Chấm câu" và điểm lúc tổng kết là một. Mã không đổi mà đã có kết quả thì không chấm lại.
+     *  · Lúc nộp đề, dispatchCodingGrading() bỏ qua câu đã có verdict cuối -> câu đã chấm KHÔNG chạy máy chấm lần nữa.
+     */
+    public function gradeQuestionNow(Attempt $attempt, Question $question, array $rawInput): AttemptAnswer
+    {
+        $answer = $this->saveAnswer($attempt, $question, $rawInput);
+
+        if ($question->type === QuestionType::Coding && ! $answer->verdict->isFinal() && filled($answer->code_source)) {
+            if ($answer->verdict !== VerdictStatus::Judging) {
+                $answer->verdict = VerdictStatus::Judging->value;
+                $answer->save();
+            }
+
+            GradeCodingAnswerJob::dispatch($answer->id);
+        }
+
+        return $answer->refresh();
     }
 
     /**
@@ -842,6 +892,9 @@ class AttemptService
             ->all();
         $timeLimitMs = (int) ($config['time_limit_ms'] ?? 5000);
         $memoryLimitKb = (int) ($config['memory_limit_mb'] ?? 256) * 1024;
+        // SỬA 14/10 — nhớ mã đem đi chấm: học sinh có thể sửa mã trong lúc máy chấm đang chạy (nút "Chấm câu").
+        $judgedCode = (string) $answer->code_source;
+        $judgedLanguage = (string) $answer->language;
 
         try {
             $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
@@ -880,13 +933,25 @@ class AttemptService
         );
 
         /*
+         * SỬA 14/10 — trong lúc chấm, học sinh đã sửa mã (tự lưu đặt lại 'queued' với mã mới) thì kết quả này là của mã
+         * CŨ: bỏ, không ghi đè lên bài làm mới. Lần "Chấm câu" sau hoặc lúc nộp đề sẽ chấm đúng mã mới.
+         */
+        $fresh = $answer->newQuery()->whereKey($answer->id)->first();
+        if ($fresh !== null && ((string) $fresh->code_source !== $judgedCode || (string) $fresh->language !== $judgedLanguage)) {
+            return;
+        }
+
+
+        /*
          * SỬA 11/10 — LÀM ĐỀ: trừ điểm theo nhật ký của CÂU NÀY (chụp màn hình 30%, xem Hướng dẫn/Bài mẫu 20% mỗi lần).
          * Nhật ký được ghi vào answer->activity_log lúc nộp đề (Student\AssessmentService::applyActivityPenalty()), trước
          * khi việc chấm nền được đẩy đi nên ở đây luôn đọc được. Chỉ đề thi (assessment_id có giá trị); câu nào không có
          * nhật ký (cuộc thi, nộp không kèm nhật ký) thì giữ nguyên điểm. Hàm thoát sớm khi câu đã chấm xong nên chỉ trừ một lần.
          */
-        if ($attempt->assessment_id !== null && AttemptAnswer::supportsActivityLog() && is_array($answer->activity_log)) {
-            $penaltyPercent = \App\Support\PracticeActivityLog::penalty($answer->activity_log)['percent'];
+        if ($attempt->assessment_id !== null && AttemptAnswer::supportsActivityLog() && is_array($fresh?->activity_log ?? $answer->activity_log)) {
+            // SỬA 14/10 — đọc nhật ký từ bản MỚI NHẤT: câu bấm "Chấm câu" rồi nộp đề ngay khi máy chấm còn chạy thì
+            // nhật ký được ghi vào lúc nộp, sau khi việc chấm này đã bắt đầu.
+            $penaltyPercent = \App\Support\PracticeActivityLog::penalty($fresh?->activity_log ?? $answer->activity_log)['percent'];
 
             if ($penaltyPercent > 0) {
                 $score = \App\Support\PracticeActivityLog::applyPercent((float) $score, $penaltyPercent);

@@ -355,6 +355,12 @@ Route::middleware(['auth'])->group(function () {
         // mã của 1 câu trong đề với dữ liệu vào tự gõ. Không chấm điểm, xem
         // Student\AssessmentService::runCodeOnce().
         Route::post('attempts/{attempt}/run', [StudentAssessmentController::class, 'runCode'])->name('assessment.take.run');
+        // SỬA 14/10 (khách: nút "Chấm câu" trong đề luyện tập) — chấm riêng 1 câu lúc đang làm + hỏi lại kết quả.
+        // Giới hạn 20 lần/phút/người: mỗi lần chấm câu lập trình chạy cả bộ test trên máy chấm.
+        Route::post('attempts/{attempt}/questions/{question}/grade', [StudentAssessmentController::class, 'gradeQuestion'])
+            ->whereNumber('attempt')->whereNumber('question')->middleware('throttle:20,1')->name('assessment.take.grade');
+        Route::get('attempts/{attempt}/questions/{question}/grade', [StudentAssessmentController::class, 'gradeStatus'])
+            ->whereNumber('attempt')->whereNumber('question')->name('assessment.take.gradeStatus');
         /*
          * SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang result") —
          * điểm hiện tại của lượt làm bài, dạng JSON. Câu lập trình chấm chạy nền nên lúc vừa

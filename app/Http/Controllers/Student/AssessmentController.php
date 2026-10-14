@@ -80,6 +80,37 @@ class AssessmentController extends Controller
         return response()->json($this->assessmentService->runCodeOnce($request->user(), $attempt, $data));
     }
 
+    /**
+     * SỬA 14/10 — student.assessment.take.grade: nút "Chấm câu" (đề luyện tập). Lưu câu trả lời gửi kèm rồi chấm riêng
+     * câu đó; câu lập trình chấm nền, trình duyệt hỏi lại gradeStatus(). Luôn trả 200 + ok=false khi lỗi nghiệp vụ.
+     */
+    public function gradeQuestion(Request $request, int $attempt, int $question): JsonResponse
+    {
+        $data = $request->validate([
+            'code_source' => ['nullable', 'string', 'max:65000'],
+            'language' => ['nullable', 'string', 'max:30'],
+            'selected_option' => ['nullable'],
+            'text' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            return response()->json($this->assessmentService->gradeQuestion($request->user(), $attempt, $question, $data));
+        } catch (ValidationException $e) {
+            // Hết giờ (vừa được tự nộp) hoặc đã nộp — cùng cách xử lý với ô tự lưu.
+            return response()->json([
+                'ok' => false,
+                'expired' => true,
+                'resultUrl' => route('student.assessment.result', $attempt),
+            ]);
+        }
+    }
+
+    /** SỬA 14/10 — student.assessment.take.gradeStatus: kết quả hiện tại của 1 câu (đang chấm / đã chấm). */
+    public function gradeStatus(Request $request, int $attempt, int $question): JsonResponse
+    {
+        return response()->json($this->assessmentService->questionGradeState($request->user(), $attempt, $question));
+    }
+
     public function saveAnswers(Request $request, int $attempt): RedirectResponse|JsonResponse
     {
         $user = $request->user();

@@ -1,5 +1,5 @@
 /**
- * Sinh public/css/legacy-compat.css — "lớp vá" cho trình duyệt cũ (Chrome ≤ 110, Win7/8.1 kẹt ở
+ * Sinh public/build/legacy-compat.css — "lớp vá" cho trình duyệt cũ (Chrome ≤ 110, Win7/8.1 kẹt ở
  * Chrome 109, Cốc Cốc/Edge bản cũ, Safari < 15.4…).
  *
  * VÌ SAO CẦN: Tailwind v4 xuất CSS dùng tính năng mới:
@@ -158,6 +158,7 @@ const out = [
     '',
 ].join('\n');
 
-fs.mkdirSync(path.join(root, 'public/css'), { recursive: true });
-fs.writeFileSync(path.join(root, 'public/css/legacy-compat.css'), out);
-console.log(`legacy-compat.css: ${fixes.oklch.length} rule màu, ${fixes.gradient.length} rule gradient, ${fixes.vh.length} rule dvh → public/css/legacy-compat.css (${out.length} byte)`);
+// SỬA 14/10 — ghi vào public/build (đã nằm trong .gitignore, build ở đâu sinh ở đó) thay vì public/css: tệp sinh tự động
+// mà để trong git thì máy chủ chạy build xong là git báo "đã sửa", lần git pull sau bị chặn.
+fs.writeFileSync(path.join(root, 'public/build/legacy-compat.css'), out);
+console.log(`legacy-compat.css: ${fixes.oklch.length} rule màu, ${fixes.gradient.length} rule gradient, ${fixes.vh.length} rule dvh → public/build/legacy-compat.css (${out.length} byte)`);

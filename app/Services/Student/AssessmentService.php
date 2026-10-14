@@ -156,6 +156,9 @@ class AssessmentService
                 ? route('student.assessment.pdf.file', ['assessment' => $assessmentModel->id, 'which' => 'sample']) : null,
             'attempt' => $attempt,
             'questions' => $questions,
+            // SỬA 14/10 — nút "Chấm câu" (chỉ đề luyện tập) + kết quả câu lập trình đã chấm trước đó trong lượt này.
+            'canGradeQuestions' => $this->canGradeQuestions($assessmentModel),
+            'initialGrades' => $this->initialQuestionGrades($attempt),
             // SỬA 18/9 — dòng nhãn nhỏ trên đầu phòng thi của bản mẫu ("EXAM_HSG_01 · 100 ĐIỂM").
             // Lấy đúng 2 cột đã có của đề; đề chưa đặt mã thì Blade tự ẩn phần mã.
             'examCode' => $assessmentModel->exam_code,
@@ -607,6 +610,167 @@ class AssessmentService
             'correct' => count(array_filter($rows, fn ($r) => $r['status'] === 'Đúng')),
             'total' => count($rows),
             'maxScore' => (float) array_sum(array_column($rows, 'maxScore')),
+        ];
+    }
+
+    /**
+     * SỬA 14/10 (khách: nút "Chấm câu" cạnh "Đã lưu đề" như source mới) — chỉ ĐỀ LUYỆN TẬP (type = practice, đề câu hỏi
+     * rời) mới được chấm từng câu trong lúc làm. Đề thi chính thức / bài giao / đề Cuộc thi KHÔNG: chấm từng câu là lộ
+     * ngay đúng/sai — học sinh đổi đáp án tới khi đúng.
+     */
+    public function canGradeQuestions(Assessment $assessment): bool
+    {
+        return $assessment->type === \App\Enums\AssessmentType::Practice && ! $assessment->isPdfMode();
+    }
+
+    /**
+     * SỬA 14/10 — "Chấm câu": lưu câu trả lời gửi kèm rồi chấm riêng câu đó. Lập trình thì chấm nền, trình duyệt hỏi lại
+     * questionGradeState() tới khi có kết quả. Các chốt kiểm ở ĐÂY, không tin giao diện: lượt làm của chính người
+     * đăng nhập, còn đang làm, đề luyện tập, câu thuộc đúng đề.
+     *
+     * @return array<string, mixed>
+     */
+    public function gradeQuestion(User $user, int $attemptId, int $questionId, array $rawInput): array
+    {
+        [$attempt, $item] = $this->gradableQuestionOrFail($user, $attemptId, $questionId);
+
+        if ($attempt->submitted_at !== null || $attempt->status !== \App\Enums\AttemptStatus::InProgress) {
+            return ['ok' => false, 'message' => 'Đề đã nộp — không chấm từng câu được nữa.'];
+        }
+
+        if ($item->question->type === QuestionType::Coding && trim((string) ($rawInput['code_source'] ?? '')) === '') {
+            return ['ok' => false, 'message' => 'Chưa có mã nguồn để chấm — viết code rồi bấm lại.'];
+        }
+
+        if ($item->question->type === QuestionType::Coding && CodeJudgingService::languageId($rawInput['language'] ?? null) === null) {
+            return ['ok' => false, 'message' => 'Ngôn ngữ này chưa chấm được trên máy chấm.'];
+        }
+
+        // saveAnswer() ném ValidationException khi hết giờ (đã tự nộp) — để controller trả về "expired".
+        $answer = $this->attemptService->gradeQuestionNow($attempt, $item->question, $rawInput);
+
+        return ['ok' => true] + $this->questionGradePayload($answer, (float) $item->effectivePoints());
+    }
+
+    /** @return array<string, mixed> */
+    public function questionGradeState(User $user, int $attemptId, int $questionId): array
+    {
+        [$attempt, $item] = $this->gradableQuestionOrFail($user, $attemptId, $questionId);
+
+        $answer = \App\Models\AttemptAnswer::query()
+            ->where('attempt_id', $attempt->id)
+            ->where('question_id', $questionId)
+            ->first();
+
+        if ($answer === null) {
+            return ['ok' => true, 'questionId' => $questionId, 'state' => 'none'];
+        }
+
+        return ['ok' => true] + $this->questionGradePayload($answer, (float) $item->effectivePoints());
+    }
+
+    /**
+     * Kết quả câu Lập trình đã chấm trước khi nộp (nút Chấm câu) — đổ sẵn vào màn làm bài khi mở lại trang, để câu đã
+     * chấm vẫn hiện "Đã chấm" + điểm. Trắc nghiệm/điền đáp án luôn được chấm ngầm lúc tự lưu nên KHÔNG tính ở đây
+     * (trình duyệt tự nhớ câu nào học sinh đã bấm Chấm câu).
+     *
+     * @return array<int, array<string, mixed>>  khoá = question_id
+     */
+    public function initialQuestionGrades(Attempt $attempt): array
+    {
+        $assessment = $attempt->assessment ?? $attempt->load('assessment')->assessment;
+
+        if ($assessment === null || ! $this->canGradeQuestions($assessment)) {
+            return [];
+        }
+
+        $points = $assessment->items()->get()->mapWithKeys(fn ($item) => [$item->question_id => (float) $item->effectivePoints()]);
+        $grades = [];
+
+        $answers = \App\Models\AttemptAnswer::query()->with('question:id,type')->where('attempt_id', $attempt->id)->get();
+        foreach ($answers as $answer) {
+            if ($answer->question?->type !== QuestionType::Coding || blank($answer->code_source)) {
+                continue;
+            }
+            if ($answer->verdict === null || (! $answer->verdict->isFinal() && $answer->verdict !== \App\Enums\VerdictStatus::Judging)) {
+                continue;
+            }
+            $grades[$answer->question_id] = $this->questionGradePayload($answer, (float) ($points[$answer->question_id] ?? 0));
+        }
+
+        return $grades;
+    }
+
+    /** @return array{0: Attempt, 1: \App\Models\AssessmentItem} */
+    private function gradableQuestionOrFail(User $user, int $attemptId, int $questionId): array
+    {
+        $attempt = $this->ownedAttemptOrFail($user, $attemptId);
+        abort_if($attempt->assessment_id === null, 404);
+
+        $assessmentModel = $this->assessments->withItemsAndQuestions($attempt->assessment_id);
+        abort_if($assessmentModel === null || ! $this->canGradeQuestions($assessmentModel), 403);
+
+        $item = $assessmentModel->items->firstWhere('question_id', $questionId);
+        abort_if($item === null || $item->question === null, 404);
+
+        return [$attempt, $item];
+    }
+
+    /**
+     * Một câu đã chấm ở dạng gọn cho giao diện "Kết quả chấm": trạng thái chữ, điểm, số test qua + từng test (chỉ
+     * Đúng/Sai + lý do — KHÔNG gửi dữ liệu vào/ra của test, test ẩn phải giữ kín).
+     *
+     * state: 'judging' (đang chấm) · 'done' (có điểm) · 'error' (máy chấm lỗi) · 'none' (chưa có gì để chấm)
+     *
+     * @return array<string, mixed>
+     */
+    private function questionGradePayload(\App\Models\AttemptAnswer $answer, float $maxScore): array
+    {
+        $answer->loadMissing('question:id,type');
+        $isCode = $answer->question?->type === QuestionType::Coding;
+        $verdict = $answer->verdict;
+        $base = ['questionId' => (int) $answer->question_id, 'maxScore' => $maxScore];
+
+        if ($verdict === \App\Enums\VerdictStatus::SystemError) {
+            return $base + ['state' => 'error', 'message' => 'Máy chấm đang gặp sự cố — thử chấm lại sau hoặc cứ Nộp & tổng kết.'];
+        }
+
+        if ($verdict === null || ! $verdict->isFinal()) {
+            return $base + ['state' => $verdict === \App\Enums\VerdictStatus::Judging ? 'judging' : 'none'];
+        }
+
+        $score = round((float) ($answer->score ?? 0), 2);
+        $status = $score >= $maxScore - 0.005 && $maxScore > 0 ? 'Đúng' : ($score > 0 ? 'Đúng một phần' : 'Sai');
+        $tests = [];
+
+        if ($isCode) {
+            $raw = $answer->judgeSubmissions()->where('status', 'completed')->latest('id')->value('raw_result');
+            $raw = is_string($raw) ? json_decode($raw, true) : $raw;
+            foreach (is_array($raw) ? array_values($raw) : [] as $i => $detail) {
+                $okTest = ($detail['isAccepted'] ?? false) === true;
+                $tests[] = [
+                    'name' => 'Test '.($i + 1),
+                    'ok' => $okTest,
+                    'label' => $okTest ? 'Đúng' : 'Sai'.(filled($detail['statusLabel'] ?? null) && ($detail['statusLabel'] ?? '') !== 'Sai kết quả (Wrong Answer)' ? ' · '.$detail['statusLabel'] : ''),
+                ];
+            }
+            if ($verdict === \App\Enums\VerdictStatus::CompileError) {
+                $status = 'Lỗi biên dịch';
+            }
+        }
+
+        $hasCounts = \App\Models\AttemptAnswer::supportsTestCounts() && (int) ($answer->total_tests ?? 0) > 0;
+        $passed = $hasCounts ? (int) $answer->passed_tests : count(array_filter($tests, fn ($t) => $t['ok']));
+        $total = $hasCounts ? (int) $answer->total_tests : count($tests);
+
+        return $base + [
+            'state' => 'done',
+            'isCode' => $isCode,
+            'status' => $status,
+            'score' => $score,
+            'passed' => $passed,
+            'total' => $total,
+            'tests' => $tests,
         ];
     }
 

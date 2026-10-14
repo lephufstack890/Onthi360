@@ -20,6 +20,9 @@
 
         $firstId = $vm->first()['id'] ?? null;
         $lastId = $vm->last()['id'] ?? null;
+
+        // SỬA 14/10 — nút "Chấm câu" (chỉ đề luyện tập, xem Student\AssessmentService::canGradeQuestions()).
+        $canGrade = (bool) ($canGradeQuestions ?? false);
     @endphp
 
     {{-- Giữ lại đường báo lỗi của bản cũ (vd nộp bài bị server từ chối rồi quay lại). --}}
@@ -43,6 +46,10 @@
                   chạy đường cũ: gửi form thật, chuyển sang trang kết quả. --}}
              submitUrl: @js(route('student.assessment.take.submit', $attempt->id)),
              statusUrl: @js(route('student.assessment.status', $attempt->id)),
+             {{-- SỬA 14/10 — "Chấm câu": địa chỉ mẫu (câu 0, JS thay bằng id câu), kết quả câu lập trình đã chấm trước đó. --}}
+             gradeUrl: @js($canGrade ? route('student.assessment.take.grade', [$attempt->id, 0]) : null),
+             initialGrades: @js((object) ($initialGrades ?? [])),
+             attemptKey: @js($attempt->id),
              questions: @js($vm),
              answers: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['kind'] === 'fill' ? (string) ($q['textAnswer'] ?? '') : (($q['selectedOption'] === null) ? '' : (string) $q['selectedOption'])])),
              codes: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => (string) ($q['codeSource'] ?? '')])),
@@ -77,15 +84,18 @@
         <div x-cloak x-show="confirmOpen" x-transition.opacity @keydown.escape.window="confirmOpen = false"
              class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4">
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-                <h2 class="text-base font-extrabold text-[#123B68]">Nộp đề ngay?</h2>
+                <h2 class="text-base font-extrabold text-[#123B68]">{{ $canGrade ? 'Nộp & tổng kết?' : 'Nộp đề ngay?' }}</h2>
                 <p class="mt-2 text-[12px] leading-5 text-[#607A90]">
-                    Bạn đã trả lời <span class="font-bold text-[#126F91]" x-text="answeredCount()"></span>/{{ count($questions) }} câu.
+                    Bạn đã trả lời <span class="font-bold text-[#126F91]" x-text="answeredCount()"></span>/{{ count($questions) }} câu@if ($canGrade), đã chấm <span class="font-bold text-[#2F8A6B]" x-text="gradedQuestionCount()"></span> câu@endif.
                     <span x-show="answeredCount() < {{ count($questions) }}" class="font-bold text-[#A4621B]">Vẫn còn câu chưa trả lời.</span>
+                    @if ($canGrade)
+                        Câu đã chấm giữ nguyên điểm, các câu còn lại được chấm khi nộp.
+                    @endif
                     Sau khi nộp sẽ không sửa lại được.
                 </p>
                 <div class="mt-5 flex gap-2">
                     <button type="button" @click="confirmOpen = false" class="flex-1 rounded-xl border border-[#DDEAF0] bg-white px-4 py-2.5 text-[12px] font-bold text-[#45657D] transition hover:bg-[#F4F9FB]">Làm tiếp</button>
-                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">Nộp đề</button>
+                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}</button>
                 </div>
             </div>
         </div>
@@ -136,12 +146,14 @@
                                     @click="setActive({{ $q['questionId'] }})" :disabled="expired || submitting"
                                     :aria-pressed="activeId === {{ $q['questionId'] }} ? 'true' : 'false'"
                                     title="{{ $q['title'] }}"
-                                    class="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[10px] font-extrabold transition"
+                                    class="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-0.5 rounded-full border px-1.5 text-[10px] font-extrabold transition"
                                     :class="activeId === {{ $q['questionId'] }}
                                         ? 'border-[#123B68] bg-[#123B68] text-white ring-2 ring-[#CBEAF1]'
-                                        : (isAnswered({{ $q['questionId'] }})
-                                            ? 'border-[#2F8A6B] bg-[#2F8A6B] text-white hover:bg-[#28795E]'
-                                            : 'border-[#C9DCE4] bg-white text-[#607A90] hover:border-[#126F91] hover:text-[#126F91]')">{{ $q['no'] }}</button>
+                                        : (doneGradeOf({{ $q['questionId'] }})
+                                            ? 'oi-pill-graded'
+                                            : (isAnswered({{ $q['questionId'] }})
+                                                ? 'border-[#2F8A6B] bg-[#2F8A6B] text-white hover:bg-[#28795E]'
+                                                : 'border-[#C9DCE4] bg-white text-[#607A90] hover:border-[#126F91] hover:text-[#126F91]'))">{{ $q['no'] }}<span x-show="doneGradeOf({{ $q['questionId'] }})" x-cloak class="oi-pill-check"><x-lucide name="check-circle" /></span></button>
                         @endforeach
                     </div>
                     <button type="button" @click="goNext()" :disabled="activeId === lastId || expired || submitting"
@@ -169,9 +181,24 @@
                 </div>
             </template>
 
+            @if ($canGrade)
+                {{-- SỬA 14/10 (khách: "thêm nút Chấm câu bên cạnh Đã lưu đề giống in đúc source mới") — nhóm 2 nút của
+                     AssessmentModal: "Chấm câu" (đổi thành "Đang chấm..." lúc chấm, "Đã chấm" khi xong; sửa câu trả lời là
+                     chấm lại được) + "Đã lưu đề" (bài vẫn tự lưu mỗi lần gõ như cũ). --}}
+                <div role="group" aria-label="Chấm câu hoặc lưu bài" class="oi-grade-group">
+                    <button type="button" @click="gradeCurrent()" :disabled="!canGradeCurrent()" :title="gradeButtonTitle()"
+                            class="oi-grade-btn" :class="gradingId !== null && gradingId === activeId ? 'is-busy' : ''">
+                        <x-lucide name="check-circle" /><span x-text="gradeButtonLabel()">Chấm câu</span>
+                    </button>
+                    <span class="oi-save-btn" role="status" title="Bài làm tự lưu mỗi lần bạn gõ">
+                        <x-lucide name="save" /><span class="oi-save-label" x-text="saving ? 'Đang lưu...' : 'Đã lưu đề'">Đã lưu đề</span>
+                    </span>
+                </div>
+            @else
             <span class="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] sm:flex">
                 <x-lucide name="save" class="h-4 w-4" /><span x-text="saving ? 'Đang lưu…' : 'Đã lưu đề'"></span>
             </span>
+            @endif
 
             {{-- SỬA 30/9 (10) (khách: "chuyển chỗ nộp bài xuống dưới") — nút "Nộp đề" ĐÃ CHUYỂN
                  xuống thanh dưới cùng, đúng như modal làm bài tập chuyên đề. --}}
@@ -369,6 +396,9 @@
                                              khi bấm "Nộp đề" rồi chuyển sang trang kết quả, nên ở đây
                                              chỉ nói trước điều đó chứ không có kết quả tại chỗ. --}}
                                         <div class="flex min-h-[420px] min-w-0 flex-col gap-2 overflow-hidden">
+                                            @if ($canGrade)
+                                                @include('partials.exam-question-grade-card', ['qid' => $qid, 'isCode' => true])
+                                            @else
                                             <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-white px-3 py-3">
                                                 <p class="text-[11px] font-bold text-[#45657D]">Kết quả chấm hiện sau khi nộp đề.</p>
                                                 <p class="mt-2 text-[11px] leading-5 text-[#7A92A3]">
@@ -382,6 +412,7 @@
                                                     trang kết quả.
                                                 </p>
                                             </div>
+                                            @endif
                                         </div>
                                     </div>
                                 @else
@@ -426,10 +457,20 @@
                                             </div>
                                         </section>
 
-                                        <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#FFF8E8] p-3">
+                                        @if ($canGrade)
+                                            {{-- SỬA 14/10 — có kết quả chấm (đang chấm / đã chấm / cần chấm lại) thì hiện thẻ kết quả như source mới. --}}
+                                            <div class="flex min-h-0 flex-col gap-2" x-show="gradingId === {{ $qid }} || doneGradeOf({{ $qid }}) || staleGrade({{ $qid }}) || gradeError[{{ $qid }}]" x-cloak>
+                                                @include('partials.exam-question-grade-card', ['qid' => $qid, 'isCode' => false])
+                                            </div>
+                                        @endif
+                                        <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-[#FFF8E8] p-3"
+                                                 @if ($canGrade) x-show="!(gradingId === {{ $qid }} || doneGradeOf({{ $qid }}) || staleGrade({{ $qid }}) || gradeError[{{ $qid }}])" @endif>
                                             <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#A4621B]">Trạng thái</span>
                                             <p class="mt-3 text-sm font-bold text-[#7C541C]" x-text="isAnswered({{ $qid }}) ? 'Đã nhập câu trả lời' : 'Chưa trả lời'"></p>
                                             <p class="mt-2 text-[11px] leading-5 text-[#967342]">{{ $q['kind'] === 'choice' ? 'Chọn một phương án phù hợp nhất.' : 'Kiểm tra lại đáp án trước khi nộp bài.' }}</p>
+                                            @if ($canGrade)
+                                                <p class="mt-2 text-[11px] leading-5 text-[#967342]">Bấm <span class="font-bold">Chấm câu</span> ở thanh trên để xem điểm câu này ngay.</p>
+                                            @endif
                                         </section>
                                     </div>
                                 @endif
@@ -457,7 +498,12 @@
                             @if ($deadlineAt ?? null)
                                 <li>· Hết giờ hệ thống sẽ <span class="font-bold">tự nộp</span> bài; đồng hồ tính theo giờ máy chủ.</li>
                             @endif
+                            @if ($canGrade)
+                                <li>· Bấm <span class="font-bold">Chấm câu</span> để chấm riêng câu đang làm; sửa câu trả lời thì chấm lại được.</li>
+                                <li>· Bấm <span class="font-bold">Nộp &amp; tổng kết</span> khi làm xong: câu đã chấm giữ nguyên điểm, câu chưa chấm được chấm lúc nộp. Sau khi nộp sẽ không sửa lại được.</li>
+                            @else
                             <li>· Bấm <span class="font-bold">Nộp đề</span> khi làm xong; sau khi nộp sẽ không sửa lại được.</li>
+                            @endif
                         </ul>
                         <p class="mt-4 text-[11px] leading-6 text-[#607A90]">Gợi ý riêng cho từng câu chưa được nhập vào hệ thống — khi kho câu hỏi có trường hướng dẫn, phần này sẽ hiện đúng nội dung của câu đang làm.</p>
                     </article>
@@ -516,7 +562,12 @@
         </style>
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
-                <p class="truncate text-[13px] font-bold text-[#123B68]">{{ $assessmentTitle }}</p>
+                <p class="truncate text-[13px] font-bold text-[#123B68]" @if ($canGrade) :title="answeredCount() + '/{{ count($questions) }} câu đã trả lời · ' + gradedQuestionCount() + ' câu đã chấm'" @endif>{{ $assessmentTitle }}</p>
+                @if ($canGrade)
+                    {{-- SỬA 14/10 — dòng trạng thái của câu đang chọn, như source mới. --}}
+                    <p class="oi-grade-line" role="status" x-show="doneGradeOf(activeId) || staleGrade(activeId)" x-cloak
+                       x-text="doneGradeOf(activeId) ? ('Câu ' + questionNo(activeId) + ': ' + fmtScore(doneGradeOf(activeId).score) + '/' + fmtScore(doneGradeOf(activeId).maxScore) + ' điểm') : 'Đã sửa câu trả lời · cần chấm lại.'"></p>
+                @endif
                 {{-- SỬA 10/10 — câu lập trình đang mở: hiện Input/Output (tên tệp INP/OUT nếu câu đọc/ghi qua tệp, không thì stdin/stdout). --}}
                 <p class="oi-io-line" x-show="currentKind() === 'code'" x-cloak data-io-line>
                     <span>Input <template x-if="activeFileIo() && activeFileIo().input"><code x-text="activeFileIo().input"></code></template><template x-if="!(activeFileIo() && activeFileIo().input)"><span>chuẩn <code>(stdin)</code></span></template></span>
@@ -524,7 +575,12 @@
                 </p>
                                 <p class="hidden text-[12px] text-[#607A90] sm:block" x-show="currentKind() !== 'code'"
                    {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, câu nhắc phải nói rõ lý do. --}}
-                   x-text="activeTab === 'work' ? 'Bài làm tự lưu — bấm Nộp đề khi xong.' : 'Chuyển sang tab Làm bài để nộp đề.'">Bài làm tự lưu — bấm Nộp đề khi xong.</p>
+                   @if ($canGrade)
+                   x-text="activeTab === 'work' ? (answeredCount() + '/{{ count($questions) }} câu đã trả lời · ' + gradedQuestionCount() + ' câu đã chấm') : 'Chuyển sang tab Làm bài để nộp đề.'"
+                   @else
+                   x-text="activeTab === 'work' ? 'Bài làm tự lưu — bấm Nộp đề khi xong.' : 'Chuyển sang tab Làm bài để nộp đề.'"
+                   @endif
+                   >Bài làm tự lưu — bấm Nộp đề khi xong.</p>
             </div>
 
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -553,11 +609,13 @@
                 {{-- SỬA 1/10 (khách: "button nộp bài và chấm lại khi ở tab bài làm thì mới click
                      được thôi, sang tab khác thì disabled đi") — ở đây đơn giản hơn màn Luyện tập
                      vì nút này do Alpine quản hoàn toàn, thêm 1 điều kiện là xong. --}}
+                {{-- SỬA 14/10 — đề luyện tập: "Nộp & tổng kết" (câu đã Chấm câu giữ điểm, chỉ chấm câu còn lại); đang chấm một
+                     câu thì khoá nút như bản mẫu, chấm xong mở lại. --}}
                 <button type="button" @click="confirmOpen = true"
-                        :disabled="expired || submitting || activeTab !== 'work'"
-                        :title="activeTab === 'work' ? null : 'Chuyển sang tab Làm bài để nộp đề'"
+                        :disabled="expired || submitting || activeTab !== 'work'{{ $canGrade ? ' || gradingId !== null' : '' }}"
+                        :title="activeTab !== 'work' ? 'Chuyển sang tab Làm bài để nộp đề' : {{ $canGrade ? "(gradingId !== null ? 'Đợi chấm xong câu đang chấm' : 'Chấm các câu chưa có điểm và tổng hợp kết quả cả đề')" : 'null' }}"
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60 sm:px-4">
-                    <x-lucide name="send" class="h-4 w-4" /><span x-text="grading() ? 'Đang chấm…' : 'Nộp đề'">Nộp đề</span>
+                    <x-lucide name="send" class="h-4 w-4" /><span x-text="grading() ? 'Đang chấm…' : '{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}'">{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}</span>
                 </button>
             </div>
         </footer>
@@ -612,6 +670,28 @@
          quyết định chứ không do nội dung — để 'auto' thì đề dài sẽ đẩy hai cột tràn xuống dưới
          cả thanh Nộp đề. Chỉ ép ở màn rộng; màn hẹp vẫn xếp dọc và cuộn tự nhiên như cũ. --}}
     <style>
+        /* SỬA 14/10 — nhóm "Chấm câu | Đã lưu đề" + viên số câu đã chấm (có dấu tích), theo AssessmentModal của source mới.
+           Viết CSS thường vì máy chủ không build lại Tailwind (lớp tuỳ ý mới không có sẵn trong bản build). */
+        .oi-grade-group { display: inline-flex; flex-shrink: 0; align-items: stretch; border: 1px solid #DDEAF0; border-radius: 10px; color: #45657D; background: #fff; }
+        .oi-grade-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 9px 0 0 9px; font-size: 11.5px; font-weight: 700; color: #126F91; background: transparent; cursor: pointer; transition: background-color .15s; }
+        .oi-grade-btn:hover:not(:disabled) { background: #EAF5F8; }
+        .oi-grade-btn:disabled { cursor: not-allowed; opacity: .5; }
+        .oi-grade-btn.is-busy:disabled { opacity: .85; cursor: wait; }
+        .oi-grade-btn svg, .oi-save-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+        .oi-save-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-left: 1px solid #DDEAF0; font-size: 11.5px; font-weight: 700; }
+        .oi-save-label { display: none; }
+        @media (min-width: 640px) { .oi-save-label { display: inline; } }
+        .oi-pill-graded { border-color: #2F8A6B; background: #E5F7EE; color: #207153; }
+        .oi-pill-check { display: inline-flex; }
+        .oi-pill-check svg { width: 12px; height: 12px; }
+        .oi-grade-line { margin: 1px 0 0; font-size: 11px; color: #607A90; }
+        html.theme-dark .assessment-modal .oi-grade-group { background: transparent; border-color: #3B566B; color: #C9D8E1; }
+        html.theme-dark .assessment-modal .oi-grade-btn { color: #9FD6E6; }
+        html.theme-dark .assessment-modal .oi-grade-btn:hover:not(:disabled) { background: #22384D; }
+        html.theme-dark .assessment-modal .oi-save-btn { border-color: #3B566B; }
+        html.theme-dark .assessment-modal .oi-pill-graded { border-color: #4FB58C; background: #1E4A3C; color: #BFF0D9; }
+        html.theme-dark .assessment-modal .oi-grade-line { color: #9FB4C3; }
+
         .oi-exam-body { display: flex; flex-direction: column; }
         /* Màn hẹp: KHÔNG cho co (flex-shrink 0). Khung ngoài mới là chỗ cuộn, để nó co được
            thì đề dài sẽ bị cắt cụt đúng phần nằm ngoài khung. */
