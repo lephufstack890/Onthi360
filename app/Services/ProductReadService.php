@@ -326,7 +326,8 @@ class ProductReadService
         $productFiles = [
             ['exercise', 'ZIP bài tập', filled($product->exercise_zip_path)],
             ['media', 'Học liệu (ảnh động/audio)', filled($product->media_path)],
-            ['guide', 'PDF hướng dẫn (giáo viên)', $isTeacherView && filled($product->guide_pdf_path)],
+            // SỬA 14/10 (khách: "ẩn field file hướng dẫn, chỗ nào liên quan thì ẩn hết") — không đưa PDF hướng dẫn ra nữa.
+            ['guide', 'PDF hướng dẫn (giáo viên)', false],
         ];
 
         foreach ($productFiles as [$kind, $label, $present]) {

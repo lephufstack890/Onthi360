@@ -86,8 +86,11 @@
                         <span class="acx-badge {{ $badgeOf($meta['tone']) }}">{{ $meta['label'] }}</span>
                         <span>
                             {{ $typeLabels[$product->type->value] ?? $product->type->value }}
-                            · Giá học: {{ number_format($product->price) }}đ
-                            · Giá dạy: {{ number_format($product->price_teaching) }}đ
+                            {{-- SỬA 14/10 — gộp còn MỘT giá; có bản in thì ghi thêm giá bản in. --}}
+                            · Giá: {{ number_format($product->price) }}đ
+                            @if ($product->has_print_option)
+                                · Bản in: +{{ number_format($product->printPrice()) }}đ
+                            @endif
                             · Hiển thị: {{ $product->visibility->value === 'public' ? 'Công khai' : 'Riêng tư' }}
                         </span>
                     </div>
@@ -134,9 +137,8 @@
                         // SỬA 29/9 (2) — khách: "bỏ File PDF tổng (kiểu cũ) đi, không cần hiển thị".
                         // Chỉ ẩn khỏi màn hình; dữ liệu vẫn nguyên trong DB và trang đọc vẫn dùng tệp
                         // này làm nội dung dự phòng khi sản phẩm chưa chương nào có PDF.
-                        $extraResources = [
-                            ['label' => 'PDF hướng dẫn', 'path' => $product->guide_pdf_path, 'name' => $product->guide_pdf_original_name],
-                        ];
+                        // SỬA 14/10 (khách: "ẩn field file hướng dẫn") — không hiện "PDF hướng dẫn" nữa.
+                        $extraResources = [];
                         if ($product->exercise_zip_path) {
                             $extraResources[] = [
                                 'label' => 'ZIP bài tập (cũ)', 'path' => $product->exercise_zip_path, 'name' => $product->exercise_zip_original_name,
@@ -398,9 +400,10 @@
                 @endif
                 <h3><x-lucide name="info" /> Thông tin tài liệu</h3>
                 <dl class="acx-dl">
-                    <div><dt>Môn học / Khối / Chuyên đề</dt><dd>{{ collect([$product->subject, $product->grade, $product->topic])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</dd></div>
+                    {{-- SỬA 14/10 — bỏ "Chuyên đề"; bản in kèm giá bản in và giá chính. --}}
+                    <div><dt>Môn học / Khối</dt><dd>{{ collect([$product->subject, $product->grade])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</dd></div>
                     <div><dt>Thời hạn quyền mặc định</dt><dd>{{ $product->duration_months ? $product->duration_months.' tháng' : 'Không giới hạn' }}</dd></div>
-                    <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có' : 'Không' }}</dd></div>
+                    <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có · +'.number_format($product->printPrice()).'đ (giá chính '.number_format($product->price + $product->printPrice()).'đ)' : 'Không' }}</dd></div>
                     <div><dt>Độ khó</dt><dd>{{ $product->difficulty_level ? $product->difficulty_level.' sao · '.(['Cơ bản', 'Dễ', 'Trung bình', 'Khó', 'Nâng cao'][$product->difficulty_level - 1] ?? '') : '— Chưa xếp —' }}</dd></div>
                     <div><dt>Tác giả</dt><dd>{{ $product->author_name ?: '— Chưa nhập —' }}</dd></div>
                     <div><dt>Đánh giá nhập tay</dt><dd>{{ $product->rating_score !== null && $product->rating_count > 0 ? number_format((float) $product->rating_score, 1, ',', '').'/5 · '.$product->rating_count.' lượt' : '— Chưa nhập —' }}</dd></div>

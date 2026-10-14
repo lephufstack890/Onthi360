@@ -96,10 +96,7 @@ class ProductService
             'subject' => $data['subject'] ?? null,
             'grade' => $data['grade'] ?? null,
             'topic' => $data['topic'] ?? null,
-            'price' => $data['price'] ?? 0,
-            'price_teaching' => $data['price_teaching'] ?? 0,
-            'has_print_option' => (bool) ($data['has_print_option'] ?? false),
-            'duration_months' => $data['duration_months'] ?: null,
+            ...$this->priceFields($data),
             ...$this->displayFields($data),
             'status' => $data['status'],
             'visibility' => $data['visibility'],
@@ -157,6 +154,36 @@ class ProductService
         return array_merge($options, ['product' => $product]);
     }
 
+    /**
+     * SỬA 14/10 (khách) — phần giá dùng chung cho tạo/sửa:
+     *  · MỘT giá duy nhất. Cột price_teaching (giá "để dạy" cũ) vẫn giữ trong CSDL nhưng luôn bằng price, để mọi chỗ cũ
+     *    còn đọc nó vẫn ra cùng một số.
+     *  · Thời hạn quyền để trống / 0 -> mặc định 1 tháng.
+     *  · Giá bản in: chỉ có nghĩa khi bật "Có bản in"; tắt thì về 0.
+     *
+     * @return array<string, mixed>
+     */
+    private function priceFields(array $data): array
+    {
+        $price = max(0, (int) ($data['price'] ?? 0));
+        $hasPrint = (bool) ($data['has_print_option'] ?? false);
+        $fields = [
+            'price' => $price,
+            'price_teaching' => $price,
+            'has_print_option' => $hasPrint,
+            // Sản phẩm loại Khoá học giữ luật cũ (để trống = không giới hạn) — chỉ tài liệu mới mặc định 1 tháng.
+            'duration_months' => ($data['type'] ?? null) === 'course'
+                ? ((int) ($data['duration_months'] ?? 0) ?: null)
+                : max(1, (int) ($data['duration_months'] ?? 0)),
+        ];
+
+        if (Product::supportsPrintPrice()) {
+            $fields['print_price'] = $hasPrint ? max(0, (int) ($data['print_price'] ?? 0)) : 0;
+        }
+
+        return $fields;
+    }
+
     public function update(Product $product, array $data): Product
     {
         $attributes = [
@@ -165,15 +192,16 @@ class ProductService
             'description' => $data['description'] ?? null,
             'subject' => $data['subject'] ?? null,
             'grade' => $data['grade'] ?? null,
-            'topic' => $data['topic'] ?? null,
-            'price' => $data['price'] ?? 0,
-            'price_teaching' => $data['price_teaching'] ?? 0,
-            'has_print_option' => (bool) ($data['has_print_option'] ?? false),
-            'duration_months' => $data['duration_months'] ?: null,
+            ...$this->priceFields($data),
             ...$this->displayFields($data),
             'status' => $data['status'],
             'visibility' => $data['visibility'],
         ];
+
+        // SỬA 14/10 — form không còn ô "Chuyên đề": không gửi thì GIỮ giá trị cũ, không xoá trắng.
+        if (array_key_exists('topic', $data)) {
+            $attributes['topic'] = $data['topic'];
+        }
 
         // Chỉ ghi đè cover_image_path khi controller thực sự có ảnh mới upload (xem
         // ProductController::update) — không có key này trong $data nghĩa là admin không

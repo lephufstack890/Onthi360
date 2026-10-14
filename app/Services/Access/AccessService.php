@@ -70,7 +70,8 @@ class AccessService
             'product' => $product,
             // Chỉ giáo viên đã được duyệt mới thấy scope "Dùng để dạy" (7.2, 7.5).
             'canTeach' => $user->isTeacherApproved(),
-            'printPrice' => self::PRINT_PRICE,
+            // SỬA 14/10 — giá bản in riêng của từng tài liệu (Product::printPrice()).
+            'printPrice' => $product->printPrice(),
             // SỬA 25/8 (2): hiện số dư token ngay ở trang đặt đơn để học sinh biết đủ trả ngay
             // hay chưa TRƯỚC khi bấm "Đặt đơn" — tránh phải bấm thử rồi mới biết thiếu.
             'tokenBalance' => $user->token_balance,
@@ -225,10 +226,11 @@ class AccessService
         // SỬA 26/8 ("giá để học"/"giá để dạy" tách riêng): giá tính vào đơn PHẢI theo đúng
         // scope người mua chọn — Product::$price_teaching mới thêm cho scope TeacherTeaching,
         // scope PersonalLearning vẫn dùng Product::$price như cũ.
-        $unitPrice = $scope === AccessScope::TeacherTeaching ? $product->price_teaching : $product->price;
+        // SỬA 14/10 (khách: "gộp 2 giá thành 1") — mọi scope cùng MỘT giá; bản in cộng giá bản in riêng của tài liệu.
+        $unitPrice = (int) $product->price;
 
-        $includePrint = (bool) ($data['include_print'] ?? false);
-        $totalAmount = $unitPrice + ($includePrint ? self::PRINT_PRICE : 0);
+        $includePrint = (bool) ($data['include_print'] ?? false) && $product->has_print_option;
+        $totalAmount = $unitPrice + ($includePrint ? $product->printPrice() : 0);
 
         if ($paymentMethod === PaymentMethod::Token && $user->token_balance < $totalAmount) {
             throw ValidationException::withMessages([

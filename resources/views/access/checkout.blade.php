@@ -59,7 +59,8 @@
               scope: 'personal_learning',
               paymentMethod: 'offline',
               priceLearning: {{ (int) $product->price }},
-              priceTeaching: {{ (int) $product->price_teaching }},
+              {{-- SỬA 14/10 — gộp còn MỘT giá: dạy hay học cùng một số. --}}
+              priceTeaching: {{ (int) $product->price }},
               printPrice: {{ $isCourse ? 0 : (int) $printPrice }},
               balance: {{ $tokenBalance }},
               get unitPrice() { return this.scope === 'teacher_teaching' ? this.priceTeaching : this.priceLearning; },
@@ -148,8 +149,9 @@
                 </p>
             </x-ws.card>
 
-            @unless ($isCourse)
-                {{-- Bản in chỉ có nghĩa với sách/chuyên đề in được. Khoá học không có bản in. --}}
+            @unless ($isCourse || ! $product->has_print_option)
+                {{-- Bản in chỉ có nghĩa với sách/chuyên đề in được. Khoá học không có bản in.
+                     SỬA 14/10 — tài liệu không bật "Có bản in" thì không hiện ô mua kèm bản in. --}}
                 <x-ws.card title="Bản in" icon="package">
                     <label class="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-white p-3 transition-colors hover:bg-sky-50">
                         <span class="flex items-center gap-2.5 text-[12.5px] text-slate-700">
@@ -174,7 +176,7 @@
 
                 <dl class="mt-3 space-y-2 text-[12px]">
                     <div class="flex items-center justify-between">
-                        <dt class="text-slate-500" x-text="scope === 'teacher_teaching' ? 'Giá dùng để dạy' : 'Giá học cá nhân'"></dt>
+                        <dt class="text-slate-500">Giá tài liệu</dt>
                         <dd class="font-bold text-slate-700" x-text="money(unitPrice)"></dd>
                     </div>
                     <div class="flex items-center justify-between" x-show="includePrint" x-cloak>

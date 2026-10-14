@@ -53,7 +53,8 @@
 
                         @include('admin.products._cover-catalog')
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {{-- SỬA 14/10 (khách) — bỏ ô "Chuyên đề" (giá trị cũ trong CSDL vẫn giữ, không bị xoá). --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="apx-lbl" for="subject">Môn học</label>
                                 <input id="subject" name="subject" type="text" value="{{ old('subject', $product->subject) }}" maxlength="60"
@@ -68,11 +69,6 @@
                                     @endforeach
                                 </x-ws.select>
                             </div>
-                            <div>
-                                <label class="apx-lbl" for="topic">Chuyên đề</label>
-                                <input id="topic" name="topic" type="text" value="{{ old('topic', $product->topic) }}" maxlength="120"
-                                       class="admin-input">
-                            </div>
                         </div>
 
                         <div>
@@ -81,30 +77,36 @@
                                       class="admin-input">{{ old('description', $product->description) }}</textarea>
                         </div>
 
-                        <div class="apx-section grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {{-- SỬA 14/10 (khách: "gộp giá để học và giá để dạy thành 1 giá; thời hạn quyền mặc định 1 tháng; kick Có bản
+                             in thì thêm tiền bản in, giá + giá bản in ra giá chính") — một ô Giá; Thời hạn quyền điền sẵn 1 (để trống
+                             cũng lưu 1); bật "Có bản in" thì hiện ô Giá bản in và dòng Giá chính = Giá + Giá bản in (người mua chọn
+                             kèm bản in ở trang đặt đơn thì trả đúng số này). --}}
+                        <div class="apx-section grid grid-cols-1 sm:grid-cols-2 gap-4"
+                             x-data="{ price: {{ (int) old('price', $product->price) }}, printOn: {{ (old('_token') !== null ? (bool) old('has_print_option') : (bool) $product->has_print_option) ? 'true' : 'false' }}, printPrice: {{ (int) old('print_price', $product->print_price ?? 0) }},
+                                       money(n) { return new Intl.NumberFormat('vi-VN').format(Number(n) || 0) + 'đ'; } }">
                             <div>
-                                <label class="apx-lbl" for="price">Giá để học (đ)</label>
-                                <input id="price" name="price" type="number" min="0" value="{{ old('price', $product->price) }}" required
-                                       class="admin-input">
+                                <label class="apx-lbl" for="price">Giá (đ)</label>
+                                <input id="price" name="price" type="number" min="0" value="{{ (int) old('price', $product->price) }}" required
+                                       x-model.number="price" class="admin-input">
                             </div>
-                            <div>
-                                <label class="apx-lbl" for="price_teaching">Giá để dạy (đ)</label>
-                                <input id="price_teaching" name="price_teaching" type="number" min="0" value="{{ old('price_teaching', $product->price_teaching) }}" required
-                                       class="admin-input">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="apx-lbl" for="duration_months">Thời hạn quyền (tháng)</label>
-                                <input id="duration_months" name="duration_months" type="number" min="1" value="{{ old('duration_months', $product->duration_months) }}"
-                                   placeholder="Để trống = không giới hạn"
-                                       class="admin-input">
+                                <input id="duration_months" name="duration_months" type="number" min="1" value="{{ old('duration_months', $product->duration_months ?: ($product->type?->value === 'course' ? '' : 1)) }}"
+                                       placeholder="{{ $product->type?->value === 'course' ? 'Để trống = không giới hạn' : 'Mặc định 1 tháng' }}" class="admin-input">
                             </div>
-                            <div class="flex items-end pb-2.5">
+                            <div class="sm:col-span-2">
                                 <label class="flex items-center gap-2 text-[13px] text-slate-600">
-                                    <input type="checkbox" name="has_print_option" value="1" @checked(old('has_print_option', $product->has_print_option))> Có bản in
+                                    <input type="checkbox" name="has_print_option" value="1" x-model="printOn" @checked(old('_token') !== null ? (bool) old('has_print_option') : (bool) $product->has_print_option)> Có bản in
                                 </label>
+                            </div>
+                            <div x-show="printOn" x-cloak>
+                                <label class="apx-lbl" for="print_price">Giá bản in (đ)</label>
+                                <input id="print_price" name="print_price" type="number" min="0" value="{{ (int) old('print_price', $product->print_price ?? 0) }}"
+                                       x-model.number="printPrice" :disabled="!printOn" class="admin-input">
+                            </div>
+                            <div x-show="printOn" x-cloak class="flex flex-col justify-end">
+                                <p class="apx-lbl">Giá chính (giá + bản in)</p>
+                                <p class="admin-input" style="display:flex;align-items:center;font-weight:800;color:#123B68;background:#F4F9FB" x-text="money(price + printPrice)">{{ number_format((int) old('price', $product->price) + (int) old('print_price', $product->print_price ?? 0)) }}đ</p>
                             </div>
                         </div>
 
@@ -144,13 +146,7 @@
                              tải theo TỪNG chương/phần/đề ở trang chi tiết sản phẩm, người học đọc liền mạch
                              các tệp đó (xem App\Services\ProductReadService). Ô "PDF hướng dẫn" giữ nguyên
                              — đó là giáo án cho giáo viên, không phải nội dung để học sinh đọc. --}}
-                        <div class="apx-section">
-                            <label class="apx-lbl" for="guide_pdf">File PDF hướng dẫn</label>
-                            <input id="guide_pdf" name="guide_pdf" type="file" accept="application/pdf" class="admin-input apx-file">
-                            <p class="apx-note {{ $product->guide_pdf_path ? 'apx-ok' : '' }}">
-                                {{ $product->guide_pdf_path ? '✓ Đã có: '.$product->guide_pdf_original_name : 'Chưa có — PDF tối đa 50MB' }}
-                            </p>
-                        </div>
+                        {{-- SỬA 14/10 (khách: "ẩn field file hướng dẫn") — đã bỏ ô "File PDF hướng dẫn"; tệp cũ (nếu có) vẫn giữ nguyên. --}}
                     </div>
                 </section>
 

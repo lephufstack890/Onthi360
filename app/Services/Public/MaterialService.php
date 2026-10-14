@@ -356,8 +356,8 @@ class MaterialService
         // làm với đề thi (PracticeService::combinedRating).
         $rating = $this->combinedRating($product, $summary);
 
-        // Bản in: giá bản mềm + phụ phí in cố định của hệ thống (AccessService::PRINT_PRICE).
-        $pricePrint = $product->has_print_option && $price > 0 ? $price + AccessService::PRINT_PRICE : null;
+        // Bản in: giá bản mềm + giá bản in riêng của tài liệu (SỬA 14/10 — trước là phụ phí cố định).
+        $pricePrint = $product->has_print_option && $price > 0 ? $price + $product->printPrice() : null;
 
         $title = (string) $product->title;
         $description = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $product->description)) ?? '');

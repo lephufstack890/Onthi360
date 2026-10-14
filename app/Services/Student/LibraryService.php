@@ -266,7 +266,8 @@ class LibraryService
             ['kind' => 'media', 'icon' => '🎬', 'label' => 'Học liệu (ảnh động/audio)', 'present' => filled($product->media_path)],
         ]);
 
-        if ($includeGuide) {
+        // SỬA 14/10 (khách: "ẩn field file hướng dẫn") — không còn mục "PDF hướng dẫn" ở ngăn tài nguyên.
+        if (false && $includeGuide) {
             $items->push(['kind' => 'guide', 'icon' => '📘', 'label' => 'PDF hướng dẫn', 'present' => filled($product->guide_pdf_path)]);
         }
 

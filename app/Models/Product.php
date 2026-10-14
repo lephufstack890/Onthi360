@@ -25,6 +25,8 @@ class Product extends Model
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',
         'price', 'price_teaching', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
         'created_by', 'duration_months',
+        // SỬA 14/10 — giá bản in riêng của tài liệu (migration 001190).
+        'print_price',
         // SỬA 9/10 — trường hiển thị của trang Tài liệu theo bản mẫu mới (độ khó, tác giả, đánh giá nhập tay).
         'difficulty_level', 'author_name', 'rating_score', 'rating_count',
         // SỬA 27/8 ("4 file đính kèm sản phẩm", đủ 4 ô sau khi bỏ khối "Học liệu thuộc sản
@@ -44,9 +46,36 @@ class Product extends Model
         'has_print_option' => 'boolean',
         'price' => 'integer',
         'price_teaching' => 'integer',
+        'print_price' => 'integer',
         'difficulty_level' => 'integer',
         'rating_count' => 'integer',
     ];
+
+    /** SỬA 14/10 — cột print_price đã có chưa (deploy mã trước khi chạy migrate thì chưa). */
+    public static function supportsPrintPrice(): bool
+    {
+        static $supported = null;
+
+        if ($supported === null) {
+            $supported = \Illuminate\Support\Facades\Schema::hasColumn('products', 'print_price');
+        }
+
+        return $supported;
+    }
+
+    /**
+     * SỬA 14/10 — tiền bản in của tài liệu này (0 khi không bán bản in). Chưa chạy migration thì dùng phụ phí cố định cũ.
+     */
+    public function printPrice(): int
+    {
+        if (! $this->has_print_option) {
+            return 0;
+        }
+
+        return self::supportsPrintPrice()
+            ? max(0, (int) $this->print_price)
+            : \App\Services\Access\AccessService::PRINT_PRICE;
+    }
 
     public function owner(): BelongsTo
     {

@@ -54,9 +54,10 @@ class ProductController extends Controller
             'subject' => ['nullable', 'string', 'max:60'],
             'grade' => ['nullable', 'string', 'max:20'],
             'topic' => ['nullable', 'string', 'max:120'],
+            // SỬA 14/10 (khách: "gộp giá để học và giá để dạy thành 1 giá") — chỉ còn MỘT ô giá; giá bản in nhập riêng.
             'price' => ['required', 'integer', 'min:0'],
-            'price_teaching' => ['required', 'integer', 'min:0'],
             'has_print_option' => ['nullable', 'boolean'],
+            'print_price' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'duration_months' => ['nullable', 'integer', 'min:1'],
             // SỬA 9/10 — trường hiển thị trang Tài liệu (bản mẫu mới).
             'difficulty_level' => ['nullable', 'integer', 'between:1,5'],

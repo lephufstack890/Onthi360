@@ -234,15 +234,17 @@
                     <div class="flex items-center gap-2.5 text-left">
                         <div class="relative shrink-0">
                             <span class="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 to-blue-500 blur-[2px] opacity-70"></span>
-                            <img src="{{ asset('assets/testi-av-3.png') }}" alt="Giáo viên tiêu biểu"
+                            <img src="{{ asset('assets/testi-av-3.png') }}" alt="Thầy Nguyễn Tiến Thành" loading="lazy" decoding="async"
                                  class="relative w-11 h-11 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 group-hover:scale-105">
                             <span class="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white">
                                 <x-lucide name="award" class="h-2.5 w-2.5" />
                             </span>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <h5 class="type-card-title text-[#073B78] group-hover:text-blue-600 transition-colors">Giáo viên tiêu biểu</h5>
-                            <p class="type-meta mt-0.5 text-slate-500">Đội ngũ đã được<br>thẩm định và duyệt</p>
+                            {{-- SỬA 14/10 (khách: "sửa giống in đúc UI tôi gửi — Thầy Nguyễn Tiến Thành") — đúng chữ của
+                                 education-main/src/components/HomePage.jsx (thẻ giáo viên cột trái). --}}
+                            <h5 class="type-card-title text-[#073B78] group-hover:text-blue-600 transition-colors">Thầy Nguyễn Tiến Thành</h5>
+                            <p class="type-meta mt-0.5 text-slate-500">Giáo viên trường THPT<br>Chuyên Thái Bình</p>
                         </div>
                     </div>
 
