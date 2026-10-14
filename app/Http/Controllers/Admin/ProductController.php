@@ -52,7 +52,10 @@ class ProductController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'subject' => ['nullable', 'string', 'max:60'],
-            'grade' => ['nullable', 'string', 'max:20'],
+            'grade' => ['nullable', 'string', 'max:120'],
+            // SỬA 14/10 — khối lớp chọn nhiều (ô tick grades[]), gộp lại ở ProductService.
+            'grades' => ['nullable', 'array', 'max:12'],
+            'grades.*' => ['string', 'max:20'],
             'topic' => ['nullable', 'string', 'max:120'],
             // SỬA 14/10 (khách: "gộp giá để học và giá để dạy thành 1 giá") — chỉ còn MỘT ô giá; giá bản in nhập riêng.
             'price' => ['required', 'integer', 'min:0'],

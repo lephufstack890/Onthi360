@@ -51,6 +51,16 @@ class Product extends Model
         'rating_count' => 'integer',
     ];
 
+    /**
+     * SỬA 14/10 — cột grade chứa được NHIỀU khối ngăn bằng dấu phẩy ("Lớp 6, Lớp 7"); tách ra mảng cho form tick sẵn.
+     *
+     * @return array<int, string>
+     */
+    public function gradeList(): array
+    {
+        return Course::splitGrades($this->grade);
+    }
+
     /** SỬA 14/10 — cột print_price đã có chưa (deploy mã trước khi chạy migrate thì chưa). */
     public static function supportsPrintPrice(): bool
     {

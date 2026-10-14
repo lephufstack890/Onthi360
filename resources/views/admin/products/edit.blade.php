@@ -60,15 +60,7 @@
                                 <input id="subject" name="subject" type="text" value="{{ old('subject', $product->subject) }}" maxlength="60"
                                        class="admin-input">
                             </div>
-                            <div>
-                                <label class="apx-lbl" for="grade">Khối lớp</label>
-                                <x-ws.select id="grade" name="grade" icon="🎓">
-                                    <option value="">— Không chỉ định —</option>
-                                    @foreach ($grades ?? [] as $g)
-                                        <option value="{{ $g }}" @selected(old('grade', $product->grade) === $g)>{{ $g }}</option>
-                                    @endforeach
-                                </x-ws.select>
-                            </div>
+                            @include('partials.product-grade-field', ['product' => $product])
                         </div>
 
                         <div>

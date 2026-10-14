@@ -94,7 +94,8 @@ class ProductService
             'description' => $data['description'] ?? null,
             'cover_image_path' => $data['cover_image_path'] ?? null,
             'subject' => $data['subject'] ?? null,
-            'grade' => $data['grade'] ?? null,
+            // SỬA 14/10 — nhiều khối: gộp các ô tick thành "Lớp 6, Lớp 7" (cùng hàm của khoá học).
+            'grade' => CourseService::gradeValue($data),
             'topic' => $data['topic'] ?? null,
             ...$this->priceFields($data),
             ...$this->displayFields($data),
@@ -191,7 +192,8 @@ class ProductService
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'subject' => $data['subject'] ?? null,
-            'grade' => $data['grade'] ?? null,
+            // SỬA 14/10 — nhiều khối: gộp các ô tick thành "Lớp 6, Lớp 7" (cùng hàm của khoá học).
+            'grade' => CourseService::gradeValue($data),
             ...$this->priceFields($data),
             ...$this->displayFields($data),
             'status' => $data['status'],
