@@ -248,24 +248,14 @@
                         <span class="apx-count">{{ count($exercises) }} bài</span>
                     </div>
                     <p class="apx-hint">
-                        Chọn 1 gói ZIP (định dạng OT360-QPACK) — hệ thống tự đọc đề bài + test case, bạn
-                        chỉ cần kiểm tra lại rồi bấm "Lưu bài tập". Không giới hạn số lượng bài — thêm
-                        xong 1 bài mới được thêm bài tiếp theo. Hoặc bấm "Thêm thủ công" để tự soạn.
+                        Chọn {{ $chapterLabel ? mb_strtolower($chapterLabel).' và ' : '' }}dạng bài rồi nhập nội dung. Bài <b>Lập trình</b> nhập từ
+                        gói ZIP (OT360-QPACK) — hệ thống tự đọc đề + test case; Trắc nghiệm, Đúng / Sai và Điền từ nhập trực tiếp ngay bên dưới.
                     </p>
 
-                    <div class="apx-add">
-                        <form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <input type="file" name="zip_package" accept=".zip" required class="apx-file">
-                            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm"><x-lucide name="upload" /> Thêm từ ZIP</button>
-                        </form>
-                        <a href="{{ route('admin.products.exercises.createManual', $product->id) }}" class="acx-btn acx-btn--sm">
-                            <x-lucide name="pen-line" /> Thêm thủ công
-                        </a>
-                    </div>
+                    @include('admin.products.partials.exercise-adder')
 
                     @if (empty($exercises))
-                        <x-ws.empty-state title="Chưa có bài tập nào" description="Thêm gói ZIP hoặc soạn thủ công ở ô trên để bắt đầu." />
+                        <x-ws.empty-state title="Chưa có bài tập nào" description="Chọn dạng bài ở khung trên để thêm bài đầu tiên." />
                     @else
                         <div class="apx-list">
                             @foreach ($exercises as $ex)
@@ -310,14 +300,10 @@
                             cùng lúc, gắn vào đúng {{ mb_strtolower($chapterLabel) }} để học sinh dễ tìm.
                         </p>
 
-                        <div class="apx-add">
-                            <a href="{{ route('admin.content.materials.create', ['product_id' => $product->id]) }}" class="acx-btn acx-btn--primary acx-btn--sm">
-                                <x-lucide name="upload" /> Thêm học liệu
-                            </a>
-                        </div>
+                        @include('admin.products.partials.material-adder')
 
                         @if (empty($materialsList))
-                            <x-ws.empty-state title="Chưa có học liệu nào" description="Thêm học liệu đầu tiên ở nút trên." />
+                            <x-ws.empty-state title="Chưa có học liệu nào" description="Chọn chương, đặt tên và tệp ở khung trên để thêm học liệu đầu tiên." />
                         @else
                             <div class="apx-list">
                                 @foreach ($materialsList as $m)

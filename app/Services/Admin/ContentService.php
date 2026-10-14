@@ -2154,7 +2154,15 @@ class ContentService
             // Lập trình) — bài tập giờ có thể là bất kỳ dạng nào trong 4 dạng ZIP hỗ trợ, dùng
             // Question::exerciseSummaryLabel() để mô tả đúng theo TỪNG dạng.
             'summary' => $q->exerciseSummaryLabel(),
-            'typeLabel' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
+            // SỬA 14/10 — tên dạng theo 4 dạng khách dùng (Đúng / Sai là trắc nghiệm 2 phương án nhập tay).
+            'typeLabel' => match (true) {
+                ($q->metadata['manual_variant'] ?? null) === 'true_false' => 'Đúng / Sai',
+                $q->type->value === 'mcq' => 'Trắc nghiệm',
+                $q->type->value === 'fill_blank' => 'Điền từ',
+                $q->type->value === 'coding' => 'Lập trình',
+                default => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
+            },
+            'typeKey' => ($q->metadata['manual_variant'] ?? null) === 'true_false' ? 'true_false' : $q->type->value,
             'tags' => $q->tags->pluck('name')->all(),
             // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — tên chương/phần/đề bài tập này thuộc
             // về (null nếu chưa gắn) — xem Question::chapter().
@@ -2346,7 +2354,7 @@ class ContentService
      * @throws ValidationException nếu gói ZIP không mở được/sai định dạng/thiếu test case hợp
      *                              lệ — xem parseZipQuestionPackage().
      */
-    public function productExerciseStoreFromZipPackage(Product $product, User $admin, UploadedFile $zip): Question
+    public function productExerciseStoreFromZipPackage(Product $product, User $admin, UploadedFile $zip, ?int $chapterId = null): Question
     {
         $this->discardAbandonedDraftsFor($product);
 
@@ -2374,6 +2382,8 @@ class ContentService
             // product_id để câu hỏi này là "riêng của sản phẩm", loại khỏi mọi nơi lấy câu hỏi
             // dùng chung (xem whereNull('product_id') ở QuestionRepository).
             'product_id' => $product->id,
+            // SỬA 14/10 — gắn chương chọn sẵn ở ô "Thuộc chương" (màn Sửa vẫn đổi lại được).
+            'material_id' => $this->resolveChapterId($product, $chapterId),
             'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
             'type' => $type,
             'title' => $content['title'] ?? 'Bài tập (nhập từ ZIP)',
@@ -2440,6 +2450,9 @@ class ContentService
      */
     public function productExerciseStoreManual(Product $product, User $admin, array $data): Question
     {
+        $variant = $data['type'];
+        $data = $this->normalizeManualExerciseInput($data);
+
         if ($this->questions->query()->where('code', $data['code'])->exists()) {
             throw ValidationException::withMessages(['code' => 'Mã bài tập này đã tồn tại, chọn mã khác.']);
         }
@@ -2454,6 +2467,8 @@ class ContentService
             'body' => $data['body'] ?? null,
             'points' => $data['points'] ?? 0,
             'grading_config' => $this->buildGradingConfig($data['type'], $data),
+            // SỬA 14/10 — nhớ dạng hiển thị ("Đúng / Sai" là trắc nghiệm 2 phương án) để danh sách ghi đúng tên dạng.
+            'metadata' => ['manual_variant' => $variant],
             'owner_type' => OwnerType::Shared->value,
             'owner_id' => null,
             'visibility' => Visibility::Public->value,
@@ -2465,6 +2480,62 @@ class ContentService
         $question->tags()->sync($this->resolveTagIds($data));
 
         return $question;
+    }
+
+    /**
+     * SỬA 14/10 — chuẩn hoá form nhập tay ngay trên trang tài liệu (3 dạng) về đúng dữ liệu buildGradingConfig() hiểu:
+     *  · Trắc nghiệm: bắt buộc đủ 4 đáp án + chọn 1 đáp án đúng.
+     *  · Đúng / Sai: lưu là trắc nghiệm 2 phương án "Đúng", "Sai" -> mọi màn làm bài/chấm hiện có dùng được ngay.
+     *  · Điền từ: ít nhất 1 đáp án được chấp nhận (mỗi dòng một đáp án).
+     *  · Mã bài để trống -> tự sinh; đề bài gõ chữ thường (không có thẻ HTML) -> giữ xuống dòng.
+     *
+     * @throws ValidationException
+     */
+    private function normalizeManualExerciseInput(array $data): array
+    {
+        $errors = [];
+
+        if ($data['type'] === 'mcq') {
+            $options = array_map(fn ($o) => trim((string) $o), array_slice(array_pad((array) ($data['options'] ?? []), 4, ''), 0, 4));
+            if (in_array('', $options, true)) {
+                $errors['options'] = 'Nhập đủ 4 đáp án A, B, C, D.';
+            }
+            if (! isset($data['correct_option']) || $data['correct_option'] === '' || (int) $data['correct_option'] > 3) {
+                $errors['correct_option'] = 'Chọn 1 đáp án đúng.';
+            }
+            $data['options'] = $options;
+        } elseif ($data['type'] === 'true_false') {
+            if (! in_array($data['tf_answer'] ?? null, ['true', 'false'], true)) {
+                $errors['tf_answer'] = 'Chọn nhận định này Đúng hay Sai.';
+            }
+            $data['type'] = 'mcq';
+            $data['options'] = ['Đúng', 'Sai'];
+            $data['correct_option'] = ($data['tf_answer'] ?? 'true') === 'true' ? 0 : 1;
+        } elseif ($data['type'] === 'fill_blank') {
+            if (trim((string) ($data['accepted_answers'] ?? '')) === '') {
+                $errors['accepted_answers'] = 'Nhập ít nhất 1 đáp án được chấp nhận.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $body = trim((string) ($data['body'] ?? ''));
+        if ($body !== '' && $body === strip_tags($body)) {
+            $body = nl2br(e($body), false);
+        }
+        $data['body'] = $body === '' ? null : $body;
+
+        $code = trim((string) ($data['code'] ?? ''));
+        if ($code === '') {
+            do {
+                $code = 'BT-'.strtoupper(\Illuminate\Support\Str::random(6));
+            } while ($this->questions->query()->where('code', $code)->exists());
+        }
+        $data['code'] = $code;
+
+        return $data;
     }
 
     /** admin.products.exercises.edit — form riêng, đơn giản hơn nhiều so với Kho câu hỏi: chỉ

@@ -39,12 +39,15 @@ class ProductExerciseController extends Controller
     {
         $request->validate([
             'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxQuestionZipKb()],
-        ]);
+            // SỬA 14/10 (khách: "cho chọn chương để biết bài tập thuộc chương nào") — kiểm đúng sản phẩm ở resolveChapterId().
+            'material_id' => ['nullable', 'integer'],
+        ], [], ['zip_package' => 'Gói ZIP bài lập trình']);
 
         $exercise = $this->contentService->productExerciseStoreFromZipPackage(
             $product,
             $request->user(),
             $request->file('zip_package'),
+            $request->filled('material_id') ? (int) $request->input('material_id') : null,
         );
 
         return redirect()
@@ -95,11 +98,18 @@ class ProductExerciseController extends Controller
     /** admin.products.exercises.storeManual — lưu thẳng Published, xem ContentService::productExerciseStoreManual(). */
     public function storeManual(Request $request, Product $product): RedirectResponse
     {
+        /*
+         * SỬA 14/10 (khách: "bỏ nút Thêm thủ công; chọn dạng: Trắc nghiệm 4 đáp án, Trắc nghiệm đúng sai, Lập trình, Điền
+         * từ — Lập trình thì nhập ZIP, các dạng còn lại nhập tay") — form nhập tay giờ nằm NGAY trên trang chi tiết tài
+         * liệu và chỉ còn 3 dạng: mcq (4 đáp án, chọn 1) · true_false (1 nhận định Đúng/Sai) · fill_blank (điền từ).
+         * Lập trình chỉ đi đường ZIP (store()). Mã bài để trống thì tự sinh.
+         */
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:40'],
-            'type' => ['required', 'string', 'in:coding,mcq,fill_blank'],
+            'code' => ['nullable', 'string', 'max:40'],
+            'type' => ['required', 'string', 'in:mcq,true_false,fill_blank'],
             'title' => ['required', 'string', 'max:255'],
-            'body' => ['nullable', 'string'],
+            'body' => ['nullable', 'string', 'max:20000'],
+            'tf_answer' => ['nullable', 'string', 'in:true,false'],
             'points' => ['nullable', 'integer', 'min:0'],
             'material_id' => ['nullable', 'integer'],
             'options' => ['nullable', 'array'],
@@ -113,6 +123,9 @@ class ProductExerciseController extends Controller
             'tag_ids' => ['array'],
             'tag_ids.*' => ['integer'],
             'new_tags' => ['nullable', 'string', 'max:500'],
+        ], [], [
+            'title' => 'Tên bài tập', 'body' => 'Đề bài', 'options.*' => 'Đáp án', 'correct_option' => 'Đáp án đúng',
+            'tf_answer' => 'Đáp án Đúng/Sai', 'accepted_answers' => 'Đáp án được chấp nhận', 'points' => 'Điểm',
         ]);
 
         try {
