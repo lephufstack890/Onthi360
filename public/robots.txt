@@ -1,8 +1,8 @@
 # Ôn Thi 360 — robots.txt
 # SỬA 12/9: đồng bộ với source khách gửi (education-main/public/robots.txt + src/seo.js).
 #
-# TÊN MIỀN: source khai SITE_URL = https://tinhoc.onthi360.edu.vn nên dòng "Sitemap:" ở cuối
-# file ghi theo đúng tên miền đó. Nếu chạy trên tên miền khác thì sửa lại DUY NHẤT dòng đó —
+# TÊN MIỀN: SỬA 14/10 — website đang chạy ở https://tinhoc.onthi360.vn (bản cũ ghi nhầm .edu.vn của
+# source mẫu nên Google không tìm thấy sitemap qua robots.txt). Nếu chạy trên tên miền khác thì sửa lại DUY NHẤT dòng đó —
 # địa chỉ sitemap bắt buộc phải là địa chỉ tuyệt đối, đầy đủ https://
 #
 # Nhớ đặt APP_URL trong .env trên máy chủ thật khớp với tên miền này, vì các địa chỉ bên trong
@@ -24,6 +24,8 @@ Disallow: /parent/
 Disallow: /danh-gia/
 Disallow: /quyen/
 Disallow: /vi/
+# Nhật ký nộp bài — phải đăng nhập (SỬA 14/10)
+Disallow: /luyen-tap/nhat-ky/
 
 # Chặn địa chỉ có tham số lọc/tìm kiếm: cùng một nội dung nhưng vô số biến thể địa chỉ, để bot
 # quét hết thì tốn lượt quét mà Google lại chấm là nội dung trùng lặp.
@@ -33,4 +35,4 @@ Disallow: /*?subject=
 Disallow: /*?competition=
 Disallow: /*?exam=
 
-Sitemap: https://tinhoc.onthi360.edu.vn/sitemap.xml
+Sitemap: https://tinhoc.onthi360.vn/sitemap.xml

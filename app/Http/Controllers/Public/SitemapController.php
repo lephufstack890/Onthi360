@@ -88,7 +88,8 @@ class SitemapController extends Controller
      * phải chờ hết hạn đệm hay xoá cache thủ công.
      */
     // 5 (15/9) — rút trang Lộ trình ra khỏi sitemap khi công tắc PUBLIC_ENABLED tắt.
-    private const STRUCTURE_VERSION = 5;
+    // 6 (14/10) — thêm trang chi tiết đề luyện tập (/luyen-tap/de-thi/{id}).
+    private const STRUCTURE_VERSION = 6;
 
     public function index(): Response
     {
@@ -183,6 +184,21 @@ class SitemapController extends Controller
             ->limit(self::DETAIL_LIMIT)
             ->each(function (Product $p) use (&$urls) {
                 $urls[] = ['loc' => route('materials.show', $p->id), 'lastmod' => $p->updated_at, 'priority' => 0.7, 'changefreq' => 'weekly'];
+            });
+
+        /*
+         * SỬA 14/10 (khách: "sitemap chưa đủ, đổ hết dữ liệu ra") — trang chi tiết ĐỀ LUYỆN TẬP. Đây là nhóm
+         * trang công khai nhiều nhất mà trước đây thiếu hẳn. Cùng bộ lọc với PracticeService::examDetailData()
+         * (type=practice, đã phát hành) — đề nào mở được ngoài web mới khai, không khai trang 404.
+         */
+        Assessment::query()
+            ->where('type', 'practice')
+            ->where('status', 'published')
+            ->select('id', 'updated_at')
+            ->orderByDesc('updated_at')
+            ->limit(self::DETAIL_LIMIT)
+            ->each(function (Assessment $a) use (&$urls) {
+                $urls[] = ['loc' => route('practice.exam.show', $a->id), 'lastmod' => $a->updated_at, 'priority' => 0.7, 'changefreq' => 'weekly'];
             });
 
         Competition::query()
