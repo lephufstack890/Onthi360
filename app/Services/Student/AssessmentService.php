@@ -73,14 +73,10 @@ class AssessmentService
         // SỬA 11/10 — tổng điểm hiển thị = cộng điểm từng câu người ra đề đã nhập.
         $assessmentModel->syncTotalPointsFromItems();
 
-        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
-
         // Hết giờ trong lúc học sinh không mở trang (đóng tab, mất mạng, rớt wifi giữa
         // chừng...) — tự nộp NGAY khi họ quay lại thay vì hiện lại y hệt trang làm bài như
-        // chưa có gì xảy ra (App\Http\Controllers\Student\AssessmentController::take() kiểm
-        // tra lại $attempt->status sau lời gọi này để điều hướng sang trang kết quả nếu vừa
-        // được tự nộp ở đây).
-        $attempt = $this->attemptService->finalizeIfExpired($attempt);
+        // chưa có gì xảy ra. SỬA 14/10 — rồi mở luôn lượt MỚI nếu đề còn cho làm lại, xem openAttempt().
+        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment);
 
         $existingAnswers = $this->attemptAnswers->forAttempt($attempt->id);
 
@@ -155,6 +151,8 @@ class AssessmentService
             'samplePdfUrl' => $assessmentModel->sample_pdf_path !== null
                 ? route('student.assessment.pdf.file', ['assessment' => $assessmentModel->id, 'which' => 'sample']) : null,
             'attempt' => $attempt,
+            // SỬA 14/10 — lượt cũ vừa bị tự nộp vì hết giờ (đã mở lượt mới thay thế) -> màn làm bài báo một dòng.
+            'previousExpiredAttemptId' => $previousExpired?->id,
             'questions' => $questions,
             // SỬA 14/10 — nút "Chấm câu" (chỉ đề luyện tập) + kết quả câu lập trình đã chấm trước đó trong lượt này.
             'canGradeQuestions' => $this->canGradeQuestions($assessmentModel),
@@ -192,6 +190,41 @@ class AssessmentService
      *
      * @return array{scoreLabel:string, maxLabel:string}|null
      */
+    /**
+     * SỬA 14/10 (khách: "lâu lâu bấm làm đề nó nhảy ra trang kết quả /student/attempts/{id}/result") — NGUYÊN NHÂN:
+     * học sinh mở đề rồi bỏ dở (đóng tab, để qua ngày). Lượt đó vẫn "đang làm" nhưng đã quá thời lượng đề. Lần sau bấm
+     * "Làm đề", startOrResume() trả lại ĐÚNG lượt cũ, finalizeIfExpired() tự nộp nó, và controller thấy lượt không còn
+     * "đang làm" nên chuyển sang trang kết quả — học sinh muốn làm bài lại bị đưa đi xem điểm một lượt cũ.
+     *
+     * GIỜ: lượt cũ vẫn được tự nộp (giữ đúng luật hết giờ), rồi MỞ NGAY lượt mới để vào làm bài. Chỉ khi đề KHÔNG cho làm
+     * lại (hết số lượt, đề Cuộc thi chỉ 1 lượt, bài giao đã đóng…) — startOrResume() ném lỗi — thì mới giữ lượt vừa nộp và
+     * để controller chuyển sang trang kết quả như trước.
+     *
+     * @return array{0: Attempt, 1: ?Attempt}  [lượt dùng để làm bài, lượt cũ vừa bị tự nộp vì hết giờ (nếu có)]
+     */
+    private function openAttempt(User $user, Assessment $assessmentModel, ?Assignment $assignment): array
+    {
+        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
+        $attempt = $this->attemptService->finalizeIfExpired($attempt);
+
+        if ($attempt->status === \App\Enums\AttemptStatus::InProgress) {
+            return [$attempt, null];
+        }
+
+        $expired = $attempt;
+
+        try {
+            $fresh = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return [$expired, null];
+        }
+
+        // Lượt mới mà vừa mở đã quá hạn (vd bài giao đã tới giờ đóng) thì không vào làm được: nộp luôn, xem kết quả.
+        $fresh = $this->attemptService->finalizeIfExpired($fresh);
+
+        return $fresh->status === \App\Enums\AttemptStatus::InProgress ? [$fresh, $expired] : [$fresh, null];
+    }
+
     private function lastAttemptResult(User $user, Assessment $assessment, Attempt $current, float $maxPoints): ?array
     {
         $previous = Attempt::query()
@@ -230,8 +263,7 @@ class AssessmentService
      */
     private function buildPdfTakeData(User $user, Assessment $assessmentModel, ?Assignment $assignment): array
     {
-        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
-        $attempt = $this->attemptService->finalizeIfExpired($attempt);
+        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment);
 
         $assessmentModel->load(['answerKeys', 'codingItems.testCases']);
         $attempt->load(['answerKeys', 'codingItems']);
@@ -284,6 +316,8 @@ class AssessmentService
             'isPdfMode' => true,
             'assessmentModel' => $assessmentModel,
             'attempt' => $attempt,
+            // SỬA 14/10 — lượt cũ vừa bị tự nộp vì hết giờ (đã mở lượt mới thay thế) -> màn làm bài báo một dòng.
+            'previousExpiredAttemptId' => $previousExpired?->id,
             'answerRows' => $answerRows,
             'codingRows' => $codingRows,
             // Xem PDF đề qua route riêng (streamPdfFile()) — KHÔNG lộ đường lưu file thật trên

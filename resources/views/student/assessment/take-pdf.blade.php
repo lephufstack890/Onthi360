@@ -20,6 +20,10 @@
 
     <style>[x-cloak] { display: none !important; }</style>
 
+    {{-- SỬA 14/10 — lượt làm trước bị bỏ dở quá giờ đã được tự nộp; đây là lượt mới. --}}
+    @if ($previousExpiredAttemptId ?? null)
+        @include('partials.toast-flash', ['type' => 'info', 'message' => 'Lượt làm trước của đề này đã hết giờ nên được tự động nộp. Bạn đang làm lượt mới.'])
+    @endif
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif

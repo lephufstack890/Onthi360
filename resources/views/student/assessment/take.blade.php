@@ -26,6 +26,10 @@
     @endphp
 
     {{-- Giữ lại đường báo lỗi của bản cũ (vd nộp bài bị server từ chối rồi quay lại). --}}
+    {{-- SỬA 14/10 — lượt làm trước bị bỏ dở quá giờ đã được tự nộp; đây là lượt mới. --}}
+    @if ($previousExpiredAttemptId ?? null)
+        @include('partials.toast-flash', ['type' => 'info', 'message' => 'Lượt làm trước của đề này đã hết giờ nên được tự động nộp. Bạn đang làm lượt mới.'])
+    @endif
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
@@ -86,11 +90,11 @@
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
                 <h2 class="text-base font-extrabold text-[#123B68]">{{ $canGrade ? 'Nộp & tổng kết?' : 'Nộp đề ngay?' }}</h2>
                 <p class="mt-2 text-[12px] leading-5 text-[#607A90]">
-                    Bạn đã trả lời <span class="font-bold text-[#126F91]" x-text="answeredCount()"></span>/{{ count($questions) }} câu@if ($canGrade), đã chấm <span class="font-bold text-[#2F8A6B]" x-text="gradedQuestionCount()"></span> câu@endif.
+                    Bạn đã trả lời <span class="font-bold text-[#126F91]" x-text="answeredCount()"></span>/{{ count($questions) }} câu{!! $canGrade ? ', đã chấm <span class="font-bold text-[#2F8A6B]" x-text="gradedQuestionCount()"></span> câu' : '' !!}.
                     <span x-show="answeredCount() < {{ count($questions) }}" class="font-bold text-[#A4621B]">Vẫn còn câu chưa trả lời.</span>
-                    @if ($canGrade)
-                        Câu đã chấm giữ nguyên điểm, các câu còn lại được chấm khi nộp.
-                    @endif
+                    {{-- SỬA 14/10 — KHÔNG dùng lệnh if của Blade trong đoạn chữ này: hai lệnh if giống hệt nhau đứng gần nhau giữa
+                         chữ tiếng Việt có dấu thì bộ dịch Blade bỏ sót lệnh thứ hai, in nguyên chữ ra màn hình (lỗi khách thấy). --}}
+                    {{ $canGrade ? 'Câu đã chấm giữ nguyên điểm, các câu còn lại được chấm khi nộp.' : '' }}
                     Sau khi nộp sẽ không sửa lại được.
                 </p>
                 <div class="mt-5 flex gap-2">
