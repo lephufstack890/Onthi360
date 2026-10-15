@@ -54,6 +54,28 @@
                 <x-lucide name="home" class="h-3.5 w-3.5" />Về trang công khai
             </a>
 
+            {{-- SỬA 15/10 (khách: "thêm nút chuyển đổi Quản trị ⇄ Giáo viên vào menu này") — CHỈ admin thật (User::isRealAdmin)
+                 hoặc admin đang xem như Giáo viên mới thấy; route + controller tự kiểm tra lại (ActingRoleController). --}}
+            @if ($authUser->actingRole() !== null)
+                <form method="POST" action="{{ route('acting.stop') }}" class="border-t border-slate-100">
+                    @csrf
+                    <button type="submit"
+                            class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50">
+                        <x-lucide name="arrow-left-right" class="h-3.5 w-3.5" />
+                        <span class="min-w-0 flex-1">Chuyển về Quản trị</span>
+                    </button>
+                </form>
+            @elseif ($authUser->isRealAdmin())
+                <form method="POST" action="{{ route('acting.teacher.start') }}" class="border-t border-slate-100">
+                    @csrf
+                    <button type="submit"
+                            class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-bold text-slate-600 transition-colors hover:bg-sky-50 hover:text-blue-700">
+                        <x-lucide name="arrow-left-right" class="h-3.5 w-3.5" />
+                        <span class="min-w-0 flex-1">Chuyển sang Giáo viên</span>
+                    </button>
+                </form>
+            @endif
+
             <form method="POST" action="{{ route('logout') }}" class="border-t border-slate-100">
                 @csrf
                 <button type="submit"

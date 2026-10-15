@@ -102,7 +102,65 @@ class User extends Authenticatable // implements MustVerifyEmail
 
     public function isTeacherApproved(): bool
     {
+        // SỬA 15/10 — admin đang "xem như Giáo viên" dùng được đủ chức năng giáo viên (tạo lớp…) dù không có hồ sơ GV.
+        if ($this->actingRole() === Role::TEACHER) {
+            return true;
+        }
+
         return $this->teacherProfile?->isApproved() ?? false;
+    }
+
+    // -- SỬA 15/10 (khách: "admin có nút chuyển qua giáo viên, giao diện thành giáo viên, chuyển qua lại được; CHỈ admin")
+
+    /** Khoá session lưu chế độ đang xem. Chỉ ActingRoleController ghi khoá này, và chỉ sau khi kiểm tra là admin thật. */
+    public const ACTING_ROLE_SESSION_KEY = 'acting_role';
+
+    /** Các vai trò admin được phép "xem như". Hiện chỉ Giáo viên. */
+    public const ACTING_ROLES = [Role::TEACHER];
+
+    private ?bool $realAdminCache = null;
+
+    /**
+     * Có PHẢI admin thật trong CSDL không — đọc thẳng bảng vai trò, KHÔNG qua hasRole() (hasRole() bị chế độ "xem như"
+     * che vai trò admin đi). Đây là chốt chặn duy nhất quyết định ai được bật/tắt chế độ xem như.
+     */
+    public function isRealAdmin(): bool
+    {
+        if ($this->realAdminCache !== null) {
+            return $this->realAdminCache;
+        }
+
+        $names = [Role::ADMIN, Role::SUPER_ADMIN];
+
+        return $this->realAdminCache = $this->relationLoaded('roles')
+            ? $this->roles->whereIn('name', $names)->isNotEmpty()
+            : $this->roles()->whereIn('name', $names)->exists();
+    }
+
+    /**
+     * Vai trò admin đang "xem như" (null = bình thường). Chỉ có hiệu lực khi đồng thời:
+     *   · đây là CHÍNH người đang đăng nhập của request hiện tại (đối tượng User khác — ví dụ danh sách người dùng —
+     *     không bao giờ bị ảnh hưởng);
+     *   · session của request có khoá ACTING_ROLE_SESSION_KEY với giá trị hợp lệ;
+     *   · người đó là admin thật trong CSDL (isRealAdmin) — người thường có tự đặt khoá cũng vô hiệu.
+     * Chạy trong lệnh console / hàng đợi (không có request/session) thì luôn null.
+     */
+    public function actingRole(): ?string
+    {
+        try {
+            if (! $this->exists || (app()->runningInConsole() && ! app()->runningUnitTests())) {
+                return null;
+            }
+            $request = request();
+            if (! $request->hasSession() || ! auth()->hasUser() || (int) auth()->id() !== (int) $this->getKey()) {
+                return null;
+            }
+            $role = $request->session()->get(self::ACTING_ROLE_SESSION_KEY);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return is_string($role) && in_array($role, self::ACTING_ROLES, true) && $this->isRealAdmin() ? $role : null;
     }
 
     // -- Vai trò (RBAC tối giản, tự viết — xem docs/ARCHITECTURE.md) -----------
@@ -118,6 +176,18 @@ class User extends Authenticatable // implements MustVerifyEmail
 
     public function hasRole(string $roleName): bool
     {
+        // SỬA 15/10 — admin đang "xem như Giáo viên": coi như CÓ vai trò giáo viên và KHÔNG có vai trò quản trị/biên tập,
+        // để mọi chỗ (menu, trang chủ khu làm việc, chặn route, quyền đọc tài liệu…) chạy đúng như một giáo viên.
+        $acting = $this->actingRole();
+        if ($acting !== null) {
+            if ($roleName === $acting) {
+                return true;
+            }
+            if (in_array($roleName, [Role::ADMIN, Role::SUPER_ADMIN, Role::EDITOR], true)) {
+                return false;
+            }
+        }
+
         return $this->relationLoaded('roles')
             ? $this->roles->contains('name', $roleName)
             : $this->roles()->where('name', $roleName)->exists();
@@ -166,7 +236,12 @@ class User extends Authenticatable // implements MustVerifyEmail
 
         $roles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->with('permissions')->get();
 
+        $acting = $this->actingRole();
         foreach ($roles as $role) {
+            // SỬA 15/10 — đang "xem như Giáo viên" thì không mang theo quyền của vai trò quản trị/biên tập.
+            if ($acting !== null && in_array($role->name, [Role::ADMIN, Role::SUPER_ADMIN, Role::EDITOR], true)) {
+                continue;
+            }
             if ($role->relationLoaded('permissions')
                 ? $role->permissions->contains('slug', $slug)
                 : $role->permissions()->where('slug', $slug)->exists()) {

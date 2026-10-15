@@ -197,6 +197,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // SỬA 15/10 — admin chuyển qua lại giao diện Giáo viên (xem ActingRoleController). Không đặt trong nhóm role:admin
+    // vì lúc đang xem như Giáo viên thì vai trò admin bị che — controller tự kiểm tra admin thật trong CSDL.
+    Route::post('/che-do-xem/giao-vien', [\App\Http\Controllers\ActingRoleController::class, 'startTeacher'])
+        ->middleware('throttle:20,1')->name('acting.teacher.start');
+    Route::post('/che-do-xem/thoat', [\App\Http\Controllers\ActingRoleController::class, 'stop'])
+        ->middleware('throttle:20,1')->name('acting.stop');
+
     Route::get('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 

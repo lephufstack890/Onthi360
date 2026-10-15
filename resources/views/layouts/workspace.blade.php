@@ -148,6 +148,19 @@
         </aside>
 
         <main class="min-w-0 space-y-4">
+            {{-- SỬA 15/10 — nhắc rõ đang dùng giao diện Giáo viên bằng tài khoản quản trị, kèm nút quay về. --}}
+            @if (auth()->user()?->actingRole() !== null)
+                <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
+                    <x-lucide name="eye" class="h-4 w-4 shrink-0" />
+                    <span class="min-w-0 flex-1">Bạn đang xem <b>giao diện Giáo viên</b> bằng tài khoản quản trị. Mọi thao tác ở đây được thực hiện như một giáo viên.</span>
+                    <form method="POST" action="{{ route('acting.stop') }}">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-[12px] font-bold text-white hover:bg-amber-700">
+                            <x-lucide name="shield-check" class="h-3.5 w-3.5" />Về Quản trị
+                        </button>
+                    </form>
+                </div>
+            @endif
             @yield('content')
         </main>
     </div>
