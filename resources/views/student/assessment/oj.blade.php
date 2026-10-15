@@ -1,4 +1,6 @@
 @extends('layouts.workspace-auto')
+{{-- SỬA 15/10 — trang có ô soạn code: không phóng to cả khu (xem layouts/workspace), tránh lệch con trỏ. --}}
+@section('ws-no-zoom', '1')
 
 @section('title', 'Làm bài lập trình')
 @section('page-title', '')

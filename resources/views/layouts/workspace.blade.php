@@ -61,10 +61,19 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.legacy-compat-css')
     <style>[x-cloak] { display: none !important; }</style>
+    {{-- SỬA 15/10 (khách: "UI vai trò giáo viên, phụ huynh, học sinh chữ nhỏ quá, tăng size cho dễ nhìn") — phóng
+         đều cả khu làm việc lên 110% (màn ≥1536px: 115%), giống người dùng tự bấm Ctrl + trên trình duyệt: chữ, nút,
+         khoảng cách to đều nhau nên bố cục không vỡ. Chỉ áp từ màn 1024px trở lên (điện thoại đã tự phóng theo máy).
+         KHÔNG áp cho khu Quản trị, và tắt ở trang có ô soạn code (@section('ws-no-zoom')) để con trỏ soạn code
+         không bị lệch trên trình duyệt cũ. Muốn chỉnh mức to: sửa 2 con số zoom dưới đây. --}}
+    <style>
+        @media (min-width: 1024px) { body.ws-roomy { zoom: 1.1; } }
+        @media (min-width: 1536px) { body.ws-roomy { zoom: 1.15; } }
+    </style>
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
-<body class="admin-typography bg-[#F4F8FC] text-slate-800 antialiased min-h-screen">
+<body class="admin-typography bg-[#F4F8FC] text-slate-800 antialiased min-h-screen {{ $wsRole !== 'admin' && ! $__env->hasSection('ws-no-zoom') ? 'ws-roomy' : '' }}">
 
     {{-- ══════ THANH TRÊN CÙNG ══════ --}}
     <header class="sticky top-0 z-50 w-full border-b border-sky-100 bg-white/95 shadow-[0_1px_3px_rgba(0,0,0,0.02)] backdrop-blur-md"
