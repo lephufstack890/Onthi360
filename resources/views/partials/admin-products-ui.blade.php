@@ -46,6 +46,13 @@
     .apx-item__sub{margin:3px 0 0;font-size:12px;line-height:1.6;color:#637b92}
     .apx-item__side{display:flex;flex-shrink:0;flex-wrap:wrap;align-items:center;gap:8px}
     .apx-item__side form{margin:0}
+    /* SỬA 15/10 — nút ↑ / ↓ đổi thứ tự chương, đặt cạnh Sửa / Xoá */
+    .apx-move{display:inline-flex;align-items:center;overflow:hidden;border:1px solid #cbdcec;border-radius:8px;background:#fff}
+    .apx-move form{margin:0}
+    .apx-move form + form{border-left:1px solid #cbdcec}
+    .apx-move__btn{display:grid;width:32px;height:32px;place-items:center;border:0;background:transparent;color:#2563eb;cursor:pointer;padding:0}
+    .apx-move__btn:hover:not(:disabled){background:#eff6ff}
+    .apx-move__btn:disabled{color:#cbd5e1;cursor:default}
     .apx-tag{display:inline-flex;align-items:center;margin-left:6px;padding:2px 8px;border-radius:999px;background:#eef3f9;color:#587089;font-size:11px;font-weight:600;vertical-align:middle}
     .apx-ok{color:#059669;font-weight:600}
     .apx-warn{color:#d97706;font-weight:600}
@@ -80,7 +87,7 @@
     .apx-cc__item:hover{border-color:#bfdbfe}
     .apx-cc__item.is-on{border-color:#2563eb;box-shadow:0 0 0 2px #dbeafe}
     .apx-cc__item input{position:absolute;right:10px;top:10px;width:16px;height:16px;accent-color:#2563eb;margin:0}
-    .apx-cc__item img{display:block;width:100%;height:110px;border-radius:8px;object-fit:cover;background:#eaf2fb}
+    .apx-cc__item img{display:block;width:100%;height:110px;border-radius:8px;object-fit:contain;background:#fff}
     .apx-cc__item span{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:11px;line-height:1.35;font-weight:600;color:#475569}
     .apx-cover{display:flex;align-items:center;gap:12px;margin-bottom:8px}
     .apx-cover img{width:80px;height:80px;border-radius:12px;object-fit:cover;border:1px solid #d7e3f0;background:#fff}

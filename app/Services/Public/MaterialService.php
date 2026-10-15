@@ -455,7 +455,10 @@ class MaterialService
             ->where('status', 'published')
             ->whereNotNull('pdf_path')
             ->orderBy('product_id')
+            // SỬA 15/10 — mở chương ĐẦU TIÊN theo thứ tự chương (chương trước học liệu con).
+            ->orderByRaw("CASE WHEN type = 'chapter' THEN 0 ELSE 1 END")
             ->orderBy('order')
+            ->orderBy('id')
             ->get(['id', 'product_id'])
             ->groupBy('product_id')
             ->map(fn ($group) => (int) $group->first()->id);

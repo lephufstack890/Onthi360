@@ -35,6 +35,23 @@ final class ProductCover
             ['book-4', 'Bộ đề ôn thi vào lớp 10 chuyên Tin học', 'book-img-4.jpg', 'exams'],
             ['exam-1', 'Bộ 50 đề thi thử HSG Tin học cấp Tỉnh (Kèm Test & Lời giải)', 'contest-img-1.jpg', 'exams'],
             ['exam-2', 'Bộ đề thi thử Tốt nghiệp THPT môn Tin học 2026', 'contest-img-2.jpg', 'exams'],
+
+            // SỬA 15/10 (khách gửi thêm bộ ảnh bìa) — ảnh mới, đã thu về 640px cho nhẹ trang.
+            ['book-cpp-1', 'Lập trình C++ cơ bản', 'cover-cpp-co-ban.jpg', 'books'],
+            ['book-cpp-2', 'Lập trình C++ nâng cao', 'cover-cpp-nang-cao.jpg', 'books'],
+            ['book-py-2', 'Lập trình Python (bìa tím)', 'cover-python-tim.jpg', 'books'],
+            ['book-py-3', 'Lập trình Python (bìa xanh)', 'cover-python-xanh.jpg', 'books'],
+            ['book-dsa', 'Cấu trúc dữ liệu và giải thuật', 'cover-ctdl-giai-thuat.jpg', 'books'],
+            ['topic-dp', 'Chuyên đề Quy hoạch động', 'cover-quy-hoach-dong.jpg', 'topics'],
+            ['topic-dsa', 'Chuyên đề Cấu trúc dữ liệu và giải thuật', 'cover-ctdl-giai-thuat.jpg', 'topics'],
+            ['topic-th-1', 'Chuyên đề Tin học (bóng đèn)', 'cover-chuyen-de-1.jpg', 'topics'],
+            ['topic-th-2', 'Chuyên đề Tin học (máy tính)', 'cover-chuyen-de-2.jpg', 'topics'],
+            ['topic-th-3', 'Chuyên đề Tin học (sách mở)', 'cover-chuyen-de-3.jpg', 'topics'],
+            ['exam-set-1', 'Bộ đề Tin học (hộp hồ sơ)', 'cover-bo-de-1.jpg', 'exams'],
+            ['exam-set-2', 'Bộ đề Tin học (bìa còng)', 'cover-bo-de-2.jpg', 'exams'],
+            ['exam-set-3', 'Bộ đề Tin học (bút chì)', 'cover-bo-de-3.jpg', 'exams'],
+            ['exam-hsg', 'Đề thi HSG Tin học', 'cover-de-hsg.jpg', 'exams'],
+            ['exam-vao10', 'Đề ôn vào 10 chuyên Tin', 'cover-de-vao-10.jpg', 'exams'],
         ];
 
         $out = [];

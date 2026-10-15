@@ -76,7 +76,26 @@ class MaterialReadService
             ->where('status', ContentStatus::Published->value)
             ->whereNotNull('pdf_path')
             ->orderBy('order')
-            ->get(['id', 'title', 'order']);
+            ->get(['id', 'title', 'order', 'type', 'parent_id']);
+
+        // SỬA 15/10 (khách đổi thứ tự chương bằng nút ↑/↓) — xếp theo THỨ TỰ CHƯƠNG trước: chương rồi tới học
+        // liệu PDF của chính chương đó, giống màn đọc liền mạch (ProductReadService::partsFor()). Trước đây chỉ
+        // xếp theo cột order nên học liệu con có thể chen giữa các chương.
+        $chapterRank = $this->materials->query()
+            ->where('product_id', $material->product_id)
+            ->where('type', 'chapter')
+            ->whereNull('parent_id')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->pluck('id')
+            ->flip();
+        $siblings = $siblings->sortBy(function (Material $m) use ($chapterRank) {
+            $isChapter = $m->type === 'chapter' && $m->parent_id === null;
+            $owner = $isChapter ? $m->id : $m->parent_id;
+            $rank = $owner !== null && $chapterRank->has($owner) ? $chapterRank->get($owner) : 100000;
+
+            return sprintf('%06d-%d-%08d-%010d', $rank, $isChapter ? 0 : 1, max(0, (int) $m->order), $m->id);
+        })->values();
 
         $index = $siblings->search(fn (Material $m) => $m->id === $material->id);
         $prev = $index !== false && $index > 0 ? $siblings->get($index - 1) : null;
@@ -126,7 +145,9 @@ class MaterialReadService
             // Đóng dấu mờ lên từng trang khi hiển thị (giảm thiểu chia sẻ ảnh chụp màn hình ra
             // ngoài) — không chặn được tuyệt đối (không phần mềm nào chặn được chụp màn hình),
             // chỉ để TRUY VẾT được nguồn nếu có rò rỉ, khách đã được báo trước điều này.
-            'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
+            // SỬA 15/10 (khách: "bỏ dòng chữ mờ tên + email trên trang PDF, không cần") — tắt dấu mờ. Muốn bật lại
+            // thì trả lại chuỗi tên · email như cũ; phần vẽ ở trang đọc vẫn giữ nguyên.
+            'watermarkText' => '',
             'readRoute' => $routePrefix.'.materials.read',
             /*
              * SỬA 3/10 — trình đọc dùng KHUNG RIÊNG toàn màn hình (layouts/reader), không còn

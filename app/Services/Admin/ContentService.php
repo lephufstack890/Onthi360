@@ -2303,6 +2303,45 @@ class ContentService
      *
      * @throws ValidationException nếu vẫn còn học liệu con (parent_id) hoặc bài tập (material_id) gắn vào.
      */
+    /**
+     * SỬA 15/10 (khách: "thêm nút mũi tên lên xuống để đảo thứ tự chương tuỳ ý") — đổi chỗ chương với chương
+     * liền trên/dưới. Đánh lại số thứ tự 10, 20, 30… cho cả danh sách (dữ liệu cũ có thể trùng số/để 0), nên
+     * bấm bao nhiêu lần cũng ra đúng thứ tự đang thấy. Ở đầu/cuối danh sách thì bỏ qua.
+     */
+    public function productChapterMove(Material $chapter, string $direction): void
+    {
+        $chapters = $this->materials->query()
+            ->where('product_id', $chapter->product_id)
+            ->where('type', 'chapter')
+            ->whereNull('parent_id')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->get(['id', 'order'])
+            ->values();
+
+        $index = $chapters->search(fn (Material $m) => $m->id === $chapter->id);
+        if ($index === false) {
+            return;
+        }
+
+        $target = $direction === 'up' ? $index - 1 : $index + 1;
+        if ($target < 0 || $target >= $chapters->count()) {
+            return;
+        }
+
+        $list = $chapters->all();
+        [$list[$index], $list[$target]] = [$list[$target], $list[$index]];
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($list) {
+            foreach ($list as $i => $m) {
+                $newOrder = ($i + 1) * 10;
+                if ((int) $m->order !== $newOrder) {
+                    $this->materials->query()->whereKey($m->id)->update(['order' => $newOrder]);
+                }
+            }
+        });
+    }
+
     public function productChapterDestroy(Material $chapter): void
     {
         if ($chapter->children()->exists() || $chapter->questions()->exists()) {

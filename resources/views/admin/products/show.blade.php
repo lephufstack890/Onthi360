@@ -135,7 +135,7 @@
                      kiểu cũ) vẫn nằm nguyên trong CSDL và người học vẫn mở được như trước, chỉ không hiện ở đây nữa. --}}
 
                 @if ($chapterLabel)
-                    <section class="acx-card acx-card--white" x-data="{ editing: null }">
+                    <section class="acx-card acx-card--white" id="chapters" x-data="{ editing: null }" style="scroll-margin-top:80px">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="book-open" /> {{ $chapterLabel }}</h2>
                             <span class="apx-count">{{ count($chapters) }} mục</span>
@@ -180,6 +180,24 @@
                                             </p>
                                         </div>
                                         <div class="apx-item__side">
+                                            {{-- SỬA 15/10 (khách: "nút mũi tên lên xuống để đảo thứ tự chương", "để gần nút Sửa/Xoá cho đẹp") —
+                                                 đổi chỗ với mục liền trên/dưới; đây là thứ tự đọc của học sinh. --}}
+                                            <div class="apx-move" role="group" aria-label="Đổi thứ tự">
+                                                <form action="{{ route('admin.products.chapters.move', [$product->id, $c['id']]) }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="direction" value="up">
+                                                    <button type="submit" class="apx-move__btn" title="Đưa lên trên" aria-label="Đưa {{ $c['title'] }} lên trên" {{ $loop->first ? 'disabled' : '' }}>
+                                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                                                    </button>
+                                                </form>
+                                                <form action="{{ route('admin.products.chapters.move', [$product->id, $c['id']]) }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="direction" value="down">
+                                                    <button type="submit" class="apx-move__btn" title="Đưa xuống dưới" aria-label="Đưa {{ $c['title'] }} xuống dưới" {{ $loop->last ? 'disabled' : '' }}>
+                                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                             <button type="button" @click="editing = {{ $c['id'] }}" class="acx-link">Sửa</button>
                                             <form action="{{ route('admin.products.chapters.destroy', [$product->id, $c['id']]) }}" method="POST" onsubmit="return confirm('Xoá mục này? Không thể hoàn tác.');">
                                                 @csrf

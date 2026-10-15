@@ -76,6 +76,16 @@
 
         .reader-scroll-area { flex: 1; padding: 28px 16px 120px 16px; }
 
+        /* SỬA 15/10 — nút phóng to/thu nhỏ trên thanh công cụ (CSS thường, máy chủ không build lại Tailwind). */
+        .rz { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; margin-right: 8px; padding: 3px; border: 1px solid #DDEAF0; border-radius: 12px; background: #F8FBFE; }
+        .rz-btn { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 9px; background: transparent; font-size: 18px; font-weight: 700; line-height: 1; color: #2D7FA3; cursor: pointer; }
+        .rz-btn:hover { background: #EAF5F8; color: #126F91; }
+        .rz-btn:disabled { opacity: .35; cursor: default; background: transparent; }
+        .rz-label { min-width: 46px; text-align: center; font-size: 12px; font-weight: 700; color: #123B68; font-variant-numeric: tabular-nums; }
+        #reader-scroll-box { overflow-x: auto; }
+        .rd-solo { grid-template-columns: minmax(0, 1fr) !important; }
+        .reader-page-wrap canvas { display: block; }
+
         .reader-page-wrap {
             position: relative;
             background: #fff;
@@ -278,7 +288,8 @@
         </button>
 
         <main class="mx-auto w-full max-w-[1780px] px-3 py-4 sm:px-5 lg:px-6 lg:py-6 2xl:px-10">
-            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+            {{-- SỬA 15/10 — chế độ Tập trung: ẩn cột Bài tập, trang PDF chiếm trọn bề ngang -> chữ to hẳn ra. --}}
+            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]" :class="focus ? 'rd-solo' : ''">
 
                 {{-- ══════ CỘT TRÁI: PDF ══════ --}}
                 <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
@@ -325,6 +336,17 @@
                         {{-- SỬA 3/10 — bên phải CHỈ còn nút Tập trung, đúng ảnh khách gửi. Đã BỎ
                              3 thẻ thu/phóng và dải tiến độ đọc: ảnh không có chúng. Mã JS vẫn an
                              toàn vì các chỗ bám vào đều kiểm tra null trước (xem cuối tệp). --}}
+                        {{-- SỬA 15/10 (khách: "chữ còn nhỏ quá, tăng size cho nhìn rõ") — trang PDF giờ tự VỪA KHUNG
+                             (100% = rộng đúng khung đọc), thêm nút − / + để phóng to/thu nhỏ, nút ↔ về vừa khung.
+                             Mức phóng được nhớ trên máy người đọc cho lần sau. --}}
+                        <div class="rz" role="group" aria-label="Cỡ chữ / phóng to">
+                            <button type="button" id="reader-zoom-out" class="rz-btn" title="Thu nhỏ" aria-label="Thu nhỏ">−</button>
+                            <span id="reader-zoom-label" class="rz-label" aria-live="polite">100%</span>
+                            <button type="button" id="reader-zoom-in" class="rz-btn" title="Phóng to" aria-label="Phóng to">+</button>
+                            <button type="button" id="reader-zoom-fit" class="rz-btn rz-fit" title="Vừa khung" aria-label="Vừa khung">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                            </button>
+                        </div>
                         <button type="button" @click="focus = true" x-show="! focus"
                                 class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
                             <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
@@ -334,7 +356,7 @@
                     {{-- SỬA 3/10 — nền vùng đọc màu #EAF4F8 và bỏ dòng nhắc "chỉ xem trên web" ở
                          ĐẦU (bản mẫu không có, nó đẩy tờ đề tụt xuống). Dòng đó chuyển xuống
                          chân khung — vẫn nói, nhưng không chắn chỗ đọc. --}}
-                    <div class="bg-[#EAF4F8] p-3 sm:p-5">
+                    <div class="bg-[#EAF4F8] p-2 sm:p-3">
                         {{-- SỬA 18/9 (khách: "chỗ hiển thị pdf dài quá thì cho scroll") — vùng đọc có
                              THANH CUỘN RIÊNG, chép đúng lớp của bản mẫu (MaterialReaderPage.jsx:
                              material-pdf-scroll + h-[min(760px,calc(100dvh-185px))]). Trước đây cả
@@ -376,7 +398,7 @@
                 {{-- ══════ CỘT PHẢI: BÀI TẬP ══════ --}}
                 {{-- SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — lưới mã bài theo
                      chương + học liệu theo chương, dựng theo MaterialChapterGrid.jsx của source mới. --}}
-                <aside class="min-w-0">
+                <aside class="min-w-0" x-show="! focus">
                     @include('partials.reader-chapter-panel')
                 </aside>
             </div>
@@ -433,12 +455,43 @@
             var zoomOutBtn = document.getElementById('reader-zoom-out');
             var zoomLabelEl = document.getElementById('reader-zoom-label');
 
-            var SCALE_DEFAULT = 1.4, SCALE_MIN = 0.8, SCALE_MAX = 2.4, SCALE_STEP = 0.2;
-            var scale = SCALE_DEFAULT;
+            /*
+             * SỬA 15/10 (khách: "chữ còn nhỏ quá") — trước đây vẽ CỐ ĐỊNH tỉ lệ 1.4 nên trang hẹp hơn khung và chữ nhỏ.
+             * Giờ: 100% = trang rộng ĐÚNG bằng khung đọc (tự tính theo bề rộng thật), người đọc phóng thêm bằng nút +
+             * (rộng hơn khung thì cuộn ngang trong khung). Vẽ thêm theo mật độ điểm ảnh màn hình (tối đa 1.5x, có trần số
+             * điểm ảnh mỗi trang để không ngốn bộ nhớ với tài liệu dài) cho chữ nét hơn.
+             */
+            // Mặc định 115%: PDF có lề trắng 2 bên khá rộng, phóng 115% rồi canh GIỮA thì chữ to hơn mà phần chữ vẫn
+            // nằm trọn trong khung (chỉ lề trắng bị khuất). Nút ↔ đưa về đúng 100% vừa khung.
+            var ZOOM_MIN = 0.6, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15, ZOOM_DEFAULT = 1.15;
+            var zoom = ZOOM_DEFAULT;
+            try {
+                var savedZoom = parseFloat(window.localStorage.getItem('onthi.reader.zoom'));
+                if (savedZoom >= ZOOM_MIN && savedZoom <= ZOOM_MAX) {
+                    zoom = savedZoom;
+                }
+            } catch (e) {}
+            var zoomFitBtn = document.getElementById('reader-zoom-fit');
+            var renderedBoxWidth = 0;
+
+            // Trang rộng hơn khung (đang phóng to) -> canh giữa theo chiều ngang để 2 lề trắng khuất đều nhau.
+            function centerHorizontally() {
+                var box = document.getElementById('reader-scroll-box');
+                if (box && box.scrollWidth > box.clientWidth) {
+                    box.scrollLeft = Math.round((box.scrollWidth - box.clientWidth) / 2);
+                }
+            }
+
+            function availableWidth() {
+                var box = document.getElementById('reader-scroll-box');
+                var w = box ? box.clientWidth : container.clientWidth;
+                return Math.max(280, w - 20);
+            }
             var pdfDoc = null;
             var totalPages = 0;
             var currentPage = 1;
             var pageWrappers = [];
+            var renderToken = 0, resizeTimer = null, wheelTimer = null, wheelZoom = 0;
 
             // Chặn menu chuột phải (Lưu ảnh/Save as...) và các phím tắt tải/in phổ biến. Đây
             // là hàng rào cho người dùng thông thường — KHÔNG chặn được người biết dùng công cụ
@@ -485,9 +538,16 @@
 
             function setZoomLabel() {
                 if (zoomLabelEl) {
-                    zoomLabelEl.textContent = Math.round((scale / SCALE_DEFAULT) * 100) + '%';
+                    zoomLabelEl.textContent = Math.round(zoom * 100) + '%';
+                }
+                if (zoomInBtn) {
+                    zoomInBtn.disabled = zoom >= ZOOM_MAX - 0.001;
+                }
+                if (zoomOutBtn) {
+                    zoomOutBtn.disabled = zoom <= ZOOM_MIN + 0.001;
                 }
             }
+            setZoomLabel();
 
             /*
              * SỬA 2/10 — thanh công cụ mới có Ô NHẬP số trang (bản mẫu MaterialReaderPage.jsx)
@@ -625,13 +685,17 @@
             // báo gì. Fix: bắt lỗi ở TỪNG trang, hiện placeholder cho đúng trang đó rồi VẪN
             // tiếp tục renderNext() sang trang kế.
             function renderAllPages(pdf, scrollToPage) {
+                renderToken++;
+                var myToken = renderToken;
+                renderedBoxWidth = availableWidth();
                 container.innerHTML = '';
                 pageWrappers = [];
                 totalPages = pdf.numPages;
                 setPageIndicator(scrollToPage || currentPage);
 
                 var renderNext = function (pageNum) {
-                    if (pageNum > pdf.numPages) {
+                    // Đổi cỡ giữa chừng thì lượt vẽ cũ dừng lại, chỉ lượt mới chạy tiếp.
+                    if (pageNum > pdf.numPages || myToken !== renderToken) {
                         return;
                     }
 
@@ -648,7 +712,16 @@
                     };
 
                     pdf.getPage(pageNum).then(function (page) {
-                        var viewport = page.getViewport({ scale: scale });
+                        // Vừa khung × mức phóng người đọc chọn (xem ghi chú SỬA 15/10 ở trên).
+                        var natural = page.getViewport({ scale: 1 });
+                        var cssScale = (availableWidth() / natural.width) * zoom;
+                        var viewport = page.getViewport({ scale: cssScale });
+                        var ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+                        var maxPixels = 2600000;
+                        if (viewport.width * viewport.height * ratio * ratio > maxPixels) {
+                            ratio = Math.max(1, Math.sqrt(maxPixels / (viewport.width * viewport.height)));
+                        }
+                        var drawViewport = page.getViewport({ scale: cssScale * ratio });
 
                         var wrapper = document.createElement('div');
                         wrapper.className = 'reader-page-wrap';
@@ -656,8 +729,10 @@
                         wrapper.style.animationDelay = (Math.min(pageNum, 6) * 0.03) + 's';
 
                         var canvas = document.createElement('canvas');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
+                        canvas.width = Math.floor(drawViewport.width);
+                        canvas.height = Math.floor(drawViewport.height);
+                        canvas.style.width = viewport.width + 'px';
+                        canvas.style.height = viewport.height + 'px';
                         wrapper.appendChild(canvas);
                         wrapper.appendChild(buildWatermarkOverlay(viewport.width, viewport.height));
                         container.appendChild(wrapper);
@@ -669,7 +744,10 @@
                         container.appendChild(pageLabel);
 
                         var ctx = canvas.getContext('2d');
-                        page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                        if (pageNum === 1) {
+                            centerHorizontally();
+                        }
+                        page.render({ canvasContext: ctx, viewport: drawViewport }).promise.then(function () {
                             if (scrollToPage && pageNum === scrollToPage) {
                                 wrapper.scrollIntoView({ block: 'start' });
                             }
@@ -685,25 +763,53 @@
                 renderNext(1);
             }
 
-            if (zoomInBtn) {
-                zoomInBtn.addEventListener('click', function () {
-                    if (!pdfDoc || scale >= SCALE_MAX) {
-                        return;
-                    }
-                    scale = Math.min(SCALE_MAX, Math.round((scale + SCALE_STEP) * 100) / 100);
-                    setZoomLabel();
+            function applyZoom(next) {
+                var z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(next * 100) / 100));
+                if (Math.abs(z - zoom) < 0.001 && pdfDoc) {
+                    return;
+                }
+                zoom = z;
+                try { window.localStorage.setItem('onthi.reader.zoom', String(zoom)); } catch (e) {}
+                setZoomLabel();
+                if (pdfDoc) {
                     renderAllPages(pdfDoc, currentPage);
-                });
+                }
+            }
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', function () { applyZoom(zoom + ZOOM_STEP); });
             }
             if (zoomOutBtn) {
-                zoomOutBtn.addEventListener('click', function () {
-                    if (!pdfDoc || scale <= SCALE_MIN) {
+                zoomOutBtn.addEventListener('click', function () { applyZoom(zoom - ZOOM_STEP); });
+            }
+            if (zoomFitBtn) {
+                zoomFitBtn.addEventListener('click', function () { applyZoom(1); });
+            }
+            // Ctrl + lăn chuột trong khung đọc = phóng to/thu nhỏ trang PDF (không phóng cả trang web).
+            if (scrollBox) {
+                scrollBox.addEventListener('wheel', function (e) {
+                    if (!e.ctrlKey) {
                         return;
                     }
-                    scale = Math.max(SCALE_MIN, Math.round((scale - SCALE_STEP) * 100) / 100);
-                    setZoomLabel();
-                    renderAllPages(pdfDoc, currentPage);
-                });
+                    e.preventDefault();
+                    clearTimeout(wheelTimer);
+                    wheelZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (wheelZoom || zoom) + (e.deltaY < 0 ? 0.1 : -0.1)));
+                    if (zoomLabelEl) { zoomLabelEl.textContent = Math.round(wheelZoom * 100) + '%'; }
+                    wheelTimer = setTimeout(function () { var z = wheelZoom; wheelZoom = 0; applyZoom(z); }, 220);
+                }, { passive: false });
+            }
+            // Khung đọc đổi bề rộng (xoay máy, kéo cửa sổ, bật/tắt Tập trung) -> vẽ lại cho vừa khung.
+            function onBoxResize() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function () {
+                    if (pdfDoc && Math.abs(availableWidth() - renderedBoxWidth) > 30) {
+                        renderAllPages(pdfDoc, currentPage);
+                    }
+                }, 250);
+            }
+            if (scrollBox && typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(onBoxResize).observe(scrollBox);
+            } else {
+                window.addEventListener('resize', onBoxResize);
             }
 
             fetch(pdfUrl, { credentials: 'same-origin' })

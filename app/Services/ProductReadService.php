@@ -166,7 +166,10 @@ class ProductReadService
             ->where('product_id', $product->id)
             ->where('status', ContentStatus::Published->value)
             ->whereNotNull('pdf_path')
+            // SỬA 15/10 — chương đầu tiên theo thứ tự chương (chương trước học liệu con).
+            ->orderByRaw("CASE WHEN type = 'chapter' THEN 0 ELSE 1 END")
             ->orderBy('order')
+            ->orderBy('id')
             ->value('id');
     }
 
@@ -197,7 +200,9 @@ class ProductReadService
             'chapterWord' => $product->chapterLabel() ?: 'Phần',
             // Đóng dấu mờ tên + email người đang đọc lên từng trang — y như trang đọc 1 bài
             // (MaterialReadService): không chặn được chụp màn hình, chỉ để TRUY VẾT nguồn rò rỉ.
-            'watermarkText' => trim(($user->name ?? '').' · '.($user->email ?? '')),
+            // SỬA 15/10 (khách: "bỏ dòng chữ mờ tên + email trên trang PDF, không cần") — tắt dấu mờ. Muốn bật lại
+            // thì trả lại chuỗi tên · email như cũ; phần vẽ ở trang đọc vẫn giữ nguyên.
+            'watermarkText' => '',
             // SỬA 3/10 — khung riêng toàn màn hình, y màn đọc một bài: bản mẫu không có thanh
             // bên, mà để thanh bên vào thì trang có hai bộ điều hướng chồng nhau.
             'layoutView' => 'layouts.reader',

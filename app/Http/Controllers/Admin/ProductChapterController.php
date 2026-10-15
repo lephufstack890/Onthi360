@@ -70,6 +70,17 @@ class ProductChapterController extends Controller
         return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-updated');
     }
 
+    /** SỬA 15/10 — nút ↑ / ↓ ở danh sách chương: đổi chỗ với chương liền trên/dưới. */
+    public function move(Request $request, Product $product, Material $chapter): RedirectResponse
+    {
+        $this->assertBelongsToProduct($product, $chapter);
+        $data = $request->validate(['direction' => ['required', 'in:up,down']]);
+
+        $this->contentService->productChapterMove($chapter, $data['direction']);
+
+        return redirect()->to(route('admin.products.show', $product->id).'#chapters')->with('status', 'chapter-moved');
+    }
+
     public function destroy(Product $product, Material $chapter): RedirectResponse
     {
         $this->assertBelongsToProduct($product, $chapter);

@@ -667,6 +667,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('products/{product}/chapters', [AdminProductChapterController::class, 'store'])->name('products.chapters.store');
         Route::put('products/{product}/chapters/{chapter}', [AdminProductChapterController::class, 'update'])->name('products.chapters.update');
         Route::delete('products/{product}/chapters/{chapter}', [AdminProductChapterController::class, 'destroy'])->name('products.chapters.destroy');
+        // SỬA 15/10 — đảo thứ tự chương bằng nút ↑ / ↓.
+        Route::post('products/{product}/chapters/{chapter}/move', [AdminProductChapterController::class, 'move'])->name('products.chapters.move');
 
         Route::get('access-rights', [AdminAccessRightController::class, 'index'])->name('access-rights.index');
         Route::get('access-rights/create', [AdminAccessRightController::class, 'create'])->name('access-rights.create');
