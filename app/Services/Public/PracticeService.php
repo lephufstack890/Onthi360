@@ -48,7 +48,7 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v6';
+    private const CACHE_VERSION = 'v7'; // SỬA 16/10 — hàng bài tập có thêm topicLabels (mọi chuyên đề của câu)
 
     /**
      * SỬA 10/10 (khách: "đăng 62 bài mà trang Luyện tập chỉ hiện 60") — trần cứng cũ là 60 câu / 30 đề nên
@@ -557,6 +557,8 @@ class PracticeService
                 'typeLabel' => PracticeFilters::TYPE_META[$q->type instanceof QuestionType ? $q->type->value : (string) $q->type]['label'] ?? 'Câu hỏi',
                 'tagIds' => $q->tags->pluck('id')->all(),
                 'topicLabel' => $q->tags->first()?->name ?? 'Chưa gắn chuyên đề',
+                // SỬA 16/10 (khách: "cột Chuyên đề mới hiện 1 chuyên đề chính, hiện thêm các chuyên đề còn lại") — đủ tên tag.
+                'topicLabels' => $q->tags->pluck('name')->values()->all(),
                 'difficulty' => $difficultyKey,
                 'difficultyLevel' => QuestionDifficulty::stars($difficultyKey),
                 'difficultyLabel' => QuestionDifficulty::label($difficultyKey),

@@ -82,6 +82,13 @@
 
     /* SỬA 10/10 — chip Chuyên đề dài quá thì cắt "…" trong đúng cột của nó (không đè sang cột Năm). Rê chuột vẫn đọc đủ nhờ title. */
     .oi-topic-chip { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* SỬA 16/10 (khách: "hiện thêm các chuyên đề còn lại, bố cục cho đẹp") — chuyên đề chính giữ chip đậm như cũ, các chuyên
+       đề phụ là chip nhỏ, nhạt xếp ngay dưới (tối đa 2), còn nữa thì gom "+N" (rê chuột xem đủ tên). */
+    .oi-topics { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+    .oi-topic-subs { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
+    .oi-topic-sub, .oi-topic-more { display: inline-block; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        padding: 1px 7px; border: 1px solid #E3ECF4; border-radius: 7px; background: #fff; font-size: 11px; font-weight: 600; line-height: 1.5; color: #5C7A93; }
+    .oi-topic-more { border-color: #E2E8F0; background: #F1F5F9; color: #64748B; cursor: help; }
 
     /* SỬA 8/10 — nút sắp xếp ở đầu cột (PracticeSortButton của source mới). */
     .oi-sort-btn { display: inline-flex; align-items: center; gap: .375rem; padding: 0; margin: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; transition: color .15s; }
@@ -671,7 +678,24 @@
                     <div class="col-span-1 grid grid-cols-2 gap-2 lg:contents">
                         <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
-                            <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]" title="{{ $prob['topicLabel'] }}">{{ $prob['topicLabel'] }}</span>
+                            @php
+                                $probTopics = array_values(array_filter($prob['topicLabels'] ?? []));
+                                $probTopicSubs = array_slice($probTopics, 1, 2);
+                                $probTopicMore = array_slice($probTopics, 3);
+                            @endphp
+                            <div class="oi-topics" title="{{ $probTopics ? implode(', ', $probTopics) : $prob['topicLabel'] }}">
+                                <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $prob['topicLabel'] }}</span>
+                                @if ($probTopicSubs)
+                                    <span class="oi-topic-subs">
+                                        @foreach ($probTopicSubs as $probTopic)
+                                            <span class="oi-topic-sub">{{ $probTopic }}</span>
+                                        @endforeach
+                                        @if ($probTopicMore)
+                                            <span class="oi-topic-more">+{{ count($probTopicMore) }}</span>
+                                        @endif
+                                    </span>
+                                @endif
+                            </div>
                         </div>
 
                         {{-- SỬA 1/10 — 2 ô mới. Trên mobile là ô có nhãn như các ô khác, lên lg
