@@ -460,6 +460,24 @@ class PracticeService
     }
 
     /**
+     * SỬA 16/10 (khách: "số Bài tập ở Thống kê hệ thống trang chủ phải khớp với Bài tập chuyên đề của Luyện tập") — đếm
+     * ĐÚNG danh sách mà tab "Bài tập chuyên đề" bày ra (cùng bản nhớ tạm, cùng điều kiện, cùng giới hạn), để 2 nơi không
+     * bao giờ lệch nhau. HomeService::systemStats() gọi hàm này.
+     */
+    public function catalogProblemCount(): int
+    {
+        return count(Cache::remember('practice:problems:'.self::CACHE_VERSION, self::CACHE_TTL, fn () => $this->problemBaseRows()));
+    }
+
+    /** SỬA 16/10 — như catalogProblemCount(), cho số đề ở tab "Đề thi luyện tập". */
+    public function catalogExamCount(): int
+    {
+        $base = Cache::remember('practice:exams:'.self::CACHE_VERSION, self::CACHE_TTL, fn () => $this->examBaseRows());
+
+        return count($base['rows'] ?? []);
+    }
+
+    /**
      * SỬA 3/10 — hàng bài tập KHÔNG phụ thuộc người xem (để nhớ tạm).
      *
      * Các ô "của tôi" để sẵn giá trị của người CHƯA làm gì; overlayViewerProgress() đắp lại khi

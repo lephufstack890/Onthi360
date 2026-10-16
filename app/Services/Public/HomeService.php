@@ -185,7 +185,7 @@ class HomeService
     public function systemStats(): ?array
     {
         try {
-            return \Illuminate\Support\Facades\Cache::remember('home.system_stats.v1', 600, function () {
+            $stats = \Illuminate\Support\Facades\Cache::remember('home.system_stats.v2', 600, function () {
                 $accounts = fn () => \App\Models\User::query()->where('status', 'active');
                 $byRole = fn (string $role) => $accounts()->whereHas('roles', fn ($q) => $q->where('name', $role))->count();
 
@@ -193,15 +193,6 @@ class HomeService
                 $parents = $byRole(Role::PARENT);
                 $teachers = $byRole(Role::TEACHER);
                 $members = $accounts()->whereHas('roles', fn ($q) => $q->whereIn('name', [Role::STUDENT, Role::PARENT, Role::TEACHER]))->count();
-
-                $exams = \App\Models\Assessment::query()->where('type', 'practice')->where('status', 'published')->count();
-
-                $exercises = \App\Support\PracticeQuestionPool::excludeExamQuestions(
-                    \App\Models\Question::query()
-                        ->where('status', \App\Enums\ContentStatus::Published->value)
-                        ->whereNull('product_id')
-                        ->whereIn('type', array_keys(\App\Support\PracticeFilters::TYPE_META))
-                )->count();
 
                 $tz = \App\Services\Public\PracticeDailyStatsService::TIME_ZONE;
                 $today = \Carbon\Carbon::now($tz);
@@ -235,11 +226,18 @@ class HomeService
                     'students' => $students,
                     'parents' => $parents,
                     'teachers' => $teachers,
-                    'exams' => $exams,
-                    'exercises' => $exercises,
                     'dailyAttempts' => $daily,
                 ];
             });
+
+            // SỬA 16/10 (khách: "số Bài tập phải khớp với Bài tập chuyên đề của Luyện tập") — Đề thi / Bài tập lấy ĐÚNG số
+            // của trang Luyện tập (cùng bản nhớ tạm 60 giây của PracticeService), không nhớ tạm 10 phút như phần còn lại
+            // nên thêm / xoá / phát hành câu là trang chủ cập nhật theo ngay.
+            $catalog = app(PracticeService::class);
+            $stats['exams'] = $catalog->catalogExamCount();
+            $stats['exercises'] = $catalog->catalogProblemCount();
+
+            return $stats;
         } catch (\Throwable $e) {
             report($e);
 
