@@ -459,10 +459,9 @@ class AssessmentService
             // Public\PracticeService::indexData() lọc đúng type=practice + status=published.
             // Đề vẫn là dạng PDF + phiếu đáp án như mọi đề PDF khác (paperStore() ép
             // content_mode=pdf_answer_sheet), chỉ khác chỗ nó được liệt kê ở khu Luyện tập.
+            // SỬA 16/10 (khách: "bỏ 2 dạng Bài giao và Đề thi đấu, cả admin lẫn giáo viên") — chỉ ẨN khỏi các ô chọn khi tạo đề; enum AssessmentType và mọi đề cũ mang 2 loại này giữ nguyên (mở form sửa đề cũ vẫn thấy đúng loại của nó).
             AssessmentType::Practice->value => 'Luyện tập',
-            AssessmentType::Assignment->value => 'Bài giao',
             AssessmentType::Exam->value => 'Đề thi',
-            AssessmentType::CompetitionPaper->value => 'Đề thi đấu',
         ];
     }
 

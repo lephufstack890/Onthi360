@@ -97,7 +97,7 @@ class ExamZipPackage
         $exam = [
             'title' => Str::limit($title, 255, ''),
             'subtitle' => self::str($examIn['subtitle'] ?? null, 255),
-            'type' => (string) ($examIn['type'] ?? 'exam'),
+            'type' => (string) ($examIn['type'] ?? 'practice'), // SỬA 16/10 — mặc định đề Luyện tập
             'duration_minutes' => is_numeric($examIn['duration_minutes'] ?? null) ? max(0, (int) $examIn['duration_minutes']) : null,
             'publish_answer_rule' => in_array($examIn['publish_answer_rule'] ?? null, ['never', 'after_deadline', 'immediately'], true)
                 ? $examIn['publish_answer_rule'] : 'after_deadline',

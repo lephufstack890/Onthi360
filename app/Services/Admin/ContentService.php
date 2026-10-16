@@ -2998,7 +2998,8 @@ class ContentService
         // đề cũ đang mang loại này đều giữ nguyên. Bật lại: config/features.php ->
         // 'assessment_type_practice' => true (rồi config:cache).
         $types = [
-            'practice' => 'Luyện tập', 'assignment' => 'Bài giao', 'exam' => 'Đề thi', 'competition_paper' => 'Đề thi đấu',
+            // SỬA 16/10 (khách: "bỏ 2 dạng Bài giao và Đề thi đấu, cả admin lẫn giáo viên") — chỉ ẨN khỏi các ô chọn khi tạo đề; enum AssessmentType và mọi đề cũ mang 2 loại này giữ nguyên (mở form sửa đề cũ vẫn thấy đúng loại của nó).
+            'practice' => 'Luyện tập', 'exam' => 'Đề thi',
         ];
 
         if (! config('features.assessment_type_practice', false)) {
@@ -3053,9 +3054,18 @@ class ContentService
 
     public function assessmentEditFormData(int $id): array
     {
-        return array_merge($this->assessmentCreateFormData(), [
-            'assessment' => $this->assessments->query()->findOrFail($id),
-        ]);
+        $assessment = $this->assessments->query()->findOrFail($id);
+        $form = $this->assessmentCreateFormData();
+
+        // SỬA 16/10 — loại ĐANG CÓ của đề phải luôn nằm trong ô "Loại" (Luyện tập đang bị cờ ẩn, hoặc Bài giao / Đề thi đấu
+        // vừa bị ẩn khỏi form tạo mới) — thiếu thì bấm Lưu là đề bị đổi sang loại khác một cách lặng lẽ.
+        $typeValue = $assessment->type instanceof \BackedEnum ? $assessment->type->value : (string) $assessment->type;
+        $allLabels = ['practice' => 'Luyện tập', 'assignment' => 'Bài giao', 'exam' => 'Đề thi', 'competition_paper' => 'Đề thi đấu'];
+        if (isset($allLabels[$typeValue]) && ! isset($form['types'][$typeValue])) {
+            $form['types'] = [$typeValue => $allLabels[$typeValue]] + $form['types'];
+        }
+
+        return array_merge($form, ['assessment' => $assessment]);
     }
 
     /**
@@ -3233,7 +3243,11 @@ class ContentService
         return $this->assessments->update($assessment, [
             'title' => $data['title'],
             'type' => $data['type'],
-            'content_mode' => $this->contentModeForType($data['type']),
+            // SỬA 16/10 — đề Luyện tập tạo từ gói ZIP là đề PDF + phiếu đáp án: sửa thông tin chung KHÔNG được ép nó về
+            // chế độ câu hỏi rời (mất hết PDF/đáp án trên màn). Luyện tập đang là đề PDF thì giữ đề PDF.
+            'content_mode' => $data['type'] === AssessmentType::Practice->value && $assessment->isPdfMode()
+                ? AssessmentContentMode::PdfAnswerSheet->value
+                : $this->contentModeForType($data['type']),
             // Đề có câu -> cộng lại từ các câu. Đề chưa có câu (hoặc đề PDF, điểm do
             // PdfAssessmentEditingService tính riêng) -> GIỮ NGUYÊN số đang có, không đạp về 0.
             'total_points' => $derived ?? $assessment->total_points,
@@ -3423,9 +3437,10 @@ class ContentService
     private function bulkTypeOptions(): array
     {
         return [
-            AssessmentType::Assignment->value => 'Bài giao',
+            // SỬA 16/10 (khách: "bỏ 2 dạng Bài giao và Đề thi đấu, cả admin lẫn giáo viên") — chỉ ẨN khỏi các ô chọn khi tạo đề; enum AssessmentType và mọi đề cũ mang 2 loại này giữ nguyên (mở form sửa đề cũ vẫn thấy đúng loại của nó).
+            // Thêm Luyện tập (đề PDF + phiếu đáp án, PdfBulkImportService luôn tạo đề PDF).
+            AssessmentType::Practice->value => 'Luyện tập',
             AssessmentType::Exam->value => 'Đề thi',
-            AssessmentType::CompetitionPaper->value => 'Đề thi đấu',
         ];
     }
 

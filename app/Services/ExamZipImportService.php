@@ -37,8 +37,7 @@ class ExamZipImportService
 
         try {
             $this->assertExamCodeFree($p['exam']['exam_code']);
-            $allowed = array_keys($this->content->assessmentCreateFormData()['types']);
-            $type = in_array($p['exam']['type'], $allowed, true) ? $p['exam']['type'] : 'exam';
+            $type = $this->resolveType($p['exam']['type']);
 
             $assessment = DB::transaction(function () use ($admin, $p, $type) {
                 $files = $p['files'];
@@ -70,8 +69,7 @@ class ExamZipImportService
 
         try {
             $this->assertExamCodeFree($p['exam']['exam_code']);
-            $allowed = array_keys($this->teacherAssessments->paperTypeOptions());
-            $type = in_array($p['exam']['type'], $allowed, true) ? $p['exam']['type'] : 'exam';
+            $type = $this->resolveType($p['exam']['type']);
 
             $assessment = DB::transaction(function () use ($teacher, $p, $type) {
                 $files = $p['files'];
@@ -119,6 +117,18 @@ class ExamZipImportService
         }
 
         return $assessment->fresh();
+    }
+
+    /**
+     * SỬA 16/10 (khách: "để tạo cho phần LUYỆN TẬP trước") — gói ZIP đề mặc định tạo đề LUYỆN TẬP (type = practice, vẫn là đề
+     * PDF + phiếu đáp án): đề loại này tự hiện ở trang Luyện tập công khai + Luyện tập của học sinh khi phát hành
+     * (Public\PracticeService lọc type=practice + status=published). Cố ý KHÔNG theo cờ features.assessment_type_practice của
+     * form tạo tay bên admin (cờ đó chỉ ẩn lựa chọn ở dropdown). exam.json ghi rõ loại khác hợp lệ thì theo loại đó.
+     */
+    private function resolveType(?string $raw): string
+    {
+        // SỬA 16/10 — Bài giao / Đề thi đấu đã ẩn khỏi tạo đề mới: chỉ còn Luyện tập (mặc định) và Đề thi.
+        return in_array($raw, ['practice', 'exam'], true) ? $raw : 'practice';
     }
 
     /** Mã đề là duy nhất trên toàn hệ thống (kể cả đề đã xoá mềm — ràng buộc unique của cột exam_code). */

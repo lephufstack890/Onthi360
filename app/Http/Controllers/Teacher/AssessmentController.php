@@ -364,7 +364,7 @@ class AssessmentController extends Controller
             'rows' => ['required', 'array', 'min:1'],
             'rows.*.exam_code' => ['nullable', 'string', 'max:60'],
             'rows.*.title' => ['required', 'string', 'max:255'],
-            'rows.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
+            'rows.*.type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'], // SỬA 16/10 — thêm Luyện tập
             'rows.*.from_page' => ['required', 'integer', 'min:1'],
             'rows.*.to_page' => ['required', 'integer', 'min:1', 'gte:rows.*.from_page'],
         ], [], ['source_pdf' => 'File PDF gốc']);
@@ -384,7 +384,7 @@ class AssessmentController extends Controller
             'meta' => ['required', 'array', 'min:1'],
             'meta.*.exam_code' => ['nullable', 'string', 'max:60'],
             'meta.*.title' => ['required', 'string', 'max:255'],
-            'meta.*.type' => ['required', 'string', 'in:assignment,exam,competition_paper'],
+            'meta.*.type' => ['required', 'string', 'in:practice,assignment,exam,competition_paper'], // SỬA 16/10 — thêm Luyện tập
         ]);
 
         $created = $this->assessmentService->paperBulkMulti(Auth::user(), $data['files'], $data['meta']);

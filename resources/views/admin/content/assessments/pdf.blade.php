@@ -13,7 +13,7 @@
         $pdfStatusMessage = match (session('status')) {
             'assessment-pdf-updated' => 'Đã lưu file PDF/đáp án của đề.',
             // SỬA 16/10 — vừa tạo đề từ gói ZIP.
-            'assessment-zip-imported' => 'Đã tạo đề từ gói ZIP: '.session('zipImportSummary').'. Kiểm tra lại đáp án, điểm và bài lập trình bên dưới rồi phát hành.',
+            'assessment-zip-imported' => 'Đã tạo đề Luyện tập từ gói ZIP: '.session('zipImportSummary').'. Kiểm tra lại đáp án, điểm và bài lập trình bên dưới rồi phát hành.',
             'coding-item-created' => 'Đã thêm bài lập trình.',
             'coding-item-updated' => 'Đã lưu bài lập trình.',
             'coding-item-deleted' => 'Đã xoá bài lập trình.',

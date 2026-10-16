@@ -66,8 +66,8 @@
     <div class="ezi-head">
         <span class="ezi-head__ic"><x-lucide name="package" /></span>
         <div>
-            <h2>Nhập cả đề từ gói ZIP</h2>
-            <p>1 gói gồm đề PDF + đáp án + bài lập trình. Mỗi câu trong <code>exam.json</code> tự khai <code>type</code> — hệ thống
+            <h2>Nhập đề Luyện tập từ gói ZIP</h2>
+            <p>1 gói gồm đề PDF + đáp án + bài lập trình — tạo thành <b>đề Luyện tập</b>, phát hành xong tự hiện ở trang Luyện tập. Mỗi câu trong <code>exam.json</code> tự khai <code>type</code> — hệ thống
                 <b>tự phân biệt</b> dạng câu và tạo sẵn phiếu đáp án, bài lập trình, bộ test.</p>
         </div>
     </div>
