@@ -39,4 +39,11 @@
         background: #1d3b30;
         color: #8ed6b4;
     }
+    /* SỬA 16/10 (khách: "in đúc như source") — viên ở thanh dưới theo đúng AssessmentModal.jsx: bo 8px, không chấm tròn,
+       "Chưa làm" màu vàng (#E9D7B5 / #FFF6E5 / #91601B), "Đã làm" màu xanh (#A9DCC5 / #E5F7EE / #207153); bấm được. */
+    .oi-done-chip { min-height: 36px; padding: 4px 9px; border-radius: 8px; border-color: #A9DCC5; background: #E5F7EE; color: #207153; cursor: pointer; }
+    .oi-done-chip__dot { display: none; }
+    .oi-foot-title, .oi-foot-hint { margin: 0; font-size: 12px; line-height: 1.45; }
+    .oi-done-chip.is-todo { border-color: #E9D7B5; background: #FFF6E5; color: #91601B; }
+    html.theme-dark .assessment-modal .oi-done-chip.is-todo { border-color: #8A6A33; background: transparent; color: #E2B266; }
 </style>

@@ -199,16 +199,13 @@
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
             <div class="min-w-0 flex-1">
+                {{-- SỬA 16/10 (khách: "UI phải in đúc như source") — đúng AssessmentModal.jsx: dòng nhỏ CHỈ ghi "<điểm> ĐIỂM",
+                     dưới là tên bài; bỏ mã bài + chip dạng bài (bản mẫu không có). --}}
                 <p class="text-[10px] font-bold uppercase tracking-wider text-[#126F91]">
-                    @if ($headCode){{ $headCode }} · @endif
-                    @if ($headPoints !== null){{ $headPoints }} điểm
-                    @endif
+                    @if ($headPoints !== null){{ rtrim(rtrim(number_format((float) $headPoints, 2, '.', ''), '0'), '.') }} điểm @endif
                 </p>
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h2 class="min-w-0 truncate text-sm font-extrabold text-[#123B68] sm:text-base">{{ $headTitle }}</h2>
-                    @if ($typeBadge)
-                        <span class="shrink-0 rounded-lg bg-[#EAF5F8] px-2 py-1 text-[10px] font-bold text-[#126F91]">{{ $typeBadge }}</span>
-                    @endif
+                    <h2 class="min-w-0 truncate text-sm font-extrabold text-[#123B68] sm:text-base" title="{{ $headCode ? $headCode.' · ' : '' }}{{ $headTitle }}">{{ $headTitle }}</h2>
                 </div>
             </div>
 
@@ -218,28 +215,9 @@
                 <span x-show="theme !== 'dark'"><x-lucide name="moon" class="h-4 w-4" /></span>
             </button>
 
-            {{-- "Thoát bài tập" — form CŨ, giữ nguyên route/hành vi. --}}
-            <form method="POST" action="{{ route('student.practiceByQuestion.stop') }}" class="shrink-0" data-oi-leave-form>
-                @csrf
-                <button type="submit" class="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] transition hover:bg-[#F4F9FB] sm:flex">Thoát bài tập</button>
-            </form>
-
-            {{-- SỬA 30/9 — đúng bản mẫu mới: thanh trên KHÔNG còn nút "Nộp bài" (đã chuyển
-                 xuống thanh dưới cùng), thay vào đó là ĐỒNG HỒ + chip trạng thái lưu bài. --}}
-            <div class="hidden shrink-0 items-center gap-2 rounded-xl bg-[#FFF5DE] px-3 py-2 text-[#A4621B] sm:flex"
-                 title="Thời gian bạn đã mở bài này (tính từ lúc mở trang)">
-                <x-lucide name="clock-3" class="h-4 w-4" />
-                <span class="text-xs font-black" data-work-timer>00:00:00</span>
-            </div>
-
-            {{-- Bản mẫu để cứng chữ "Đã lưu bài". Ở đây CHỈ hiện sau khi đã nộp — lúc đó bài mới
-                 thật sự được ghi vào lịch sử làm bài. Nói "đã lưu" khi chưa nộp là sai sự thật,
-                 học sinh tin thế rồi đóng tab là mất mã đang gõ. --}}
-            @if ($feedback !== null)
-                <span class="hidden shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#607A90] sm:flex">
-                    <x-lucide name="save" class="h-4 w-4" />Đã lưu bài
-                </span>
-            @endif
+            {{-- SỬA 16/10 (khách: "in đúc như source") — bản mẫu (bài lẻ) bên phải CHỈ có nút đổi nền sáng/tối: đã BỎ nút
+                 "Thoát bài tập", đồng hồ và chip "Đã lưu bài". Thoát = nút X bên trái (vẫn có hộp hỏi khi đang làm dở, xem
+                 partials/practice-leave-guard). Script đồng hồ trong work-activity-log tự bỏ qua khi không có [data-work-timer]. --}}
         </header>
 
         {{-- ═══════════════════ RAIL 4 TAB + NỘI DUNG ═══════════════════ --}}
@@ -247,8 +225,8 @@
             <aside class="assessment-modal-tabs shrink-0 border-b border-[#DDEAF0] bg-white md:w-12 md:border-b-0 md:border-r">
                 {{-- SỬA 30/9 — bản mẫu mới có 5 tab: thêm "Nhật ký" (tín hiệu trong lúc làm bài). --}}
                 <div class="oi-tab-rail grid h-full gap-1 p-1.5 md:flex md:flex-col md:gap-1 md:p-2">
-                    @foreach ([['pdf', 'Đề bài PDF'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
-                        <button type="button" @click="askTab('{{ $tabId }}')" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
+                    @foreach ([['pdf', 'Đề bài'], ['work', 'Làm bài'], ['guide', 'Hướng dẫn'], ['sample', 'Bài mẫu'], ['activity', 'Nhật ký']] as [$tabId, $tabLabel])
+                        <button type="button" @click="askTab('{{ $tabId }}')" data-oi-tab="{{ $tabId }}" title="{{ $tabLabel }}" aria-label="{{ $tabLabel }}"
                                 class="flex min-h-9 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center transition md:min-h-[56px] md:w-full md:flex-col md:justify-center"
                                 :class="tab === '{{ $tabId }}' ? 'bg-[#126F91] text-white shadow-sm' : 'text-[#45657D] hover:bg-[#F4F9FB]'">
                             <span class="min-w-0"><span class="block text-[10px] font-extrabold leading-tight md:rotate-180 md:[writing-mode:vertical-rl]">{{ $tabLabel }}</span></span>
@@ -829,14 +807,15 @@
         @endphp
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-[#DDEAF0] bg-white px-3 py-2.5 sm:px-4">
             <div class="min-w-0">
-                <p class="truncate text-[13px] font-bold text-[#123B68]">{{ $headTitle }}@if (($nav['total'] ?? 0) > 1) <span class="font-semibold text-[#607A90]">· bài {{ $nav['position'] }}/{{ $nav['total'] }}</span>@endif</p>
+                {{-- SỬA 16/10 — đúng footer bản mẫu: chỉ tên bài (bỏ "· bài n/N"), cùng cỡ với dòng Input/Output bên dưới. --}}
+                <p class="oi-foot-title truncate font-bold text-[#123B68]" title="{{ $headTitle }}">{{ $headTitle }}</p>
                 {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, nên câu nhắc phải nói rõ lý do
                      thay vì để người học bấm mãi không được. --}}
                 @if ($isCode)
                     {{-- SỬA 10/10 — câu lập trình: hiện Input/Output (tên tệp INP/OUT nếu đọc/ghi qua tệp, không thì stdin/stdout). --}}
                     @include('partials.io-footer-line', ['fileIo' => $fileIo ?? null])
                 @else
-                <p class="hidden text-[12px] text-[#607A90] sm:block" x-text="tab === 'work' ? 'Nộp bài để xem kết quả chấm.' : 'Chuyển sang tab Làm bài để nộp bài.'">Nộp bài để xem kết quả chấm.</p>
+                <p class="oi-foot-hint hidden text-[#607A90] sm:block" x-text="tab === 'pdf' ? 'Đọc đề rồi chuyển sang Làm bài để trả lời.' : (tab === 'work' ? 'Nộp bài để xem kết quả chấm.' : 'Chuyển sang tab Làm bài để nộp bài.')">Nộp bài để xem kết quả chấm.</p>
                 @endif
             </div>
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -875,9 +854,15 @@
                      script AJAX ở cuối trang thay nó bằng viên mới lấy từ HTML máy chủ vừa trả
                      về — có sẵn chỗ để thay thì lần nộp ĐẦU TIÊN cũng hiện ngay, không phải
                      tải lại trang. --}}
-                <span data-done-chip @class(['oi-done-chip', 'hidden' => $last === null])>
+                {{-- SỬA 16/10 — đúng bản mẫu: chưa làm thì hiện viên "Chưa làm" (vàng); bấm viên nào cũng chuyển sang tab Làm bài. --}}
+                <span data-done-chip role="button" tabindex="0" title="Mở tab Làm bài"
+                      onclick="var t = document.querySelector('[data-oi-tab=work]'); if (t) t.click();"
+                      onkeydown="if (event.key === 'Enter') this.click();"
+                      @class(['oi-done-chip', 'is-todo' => $last === null])>
+                    @if ($last === null)
+                        <span>Chưa làm</span>
+                    @endif
                     @if ($last)
-                        <span class="oi-done-chip__dot"></span>
                         <span>Đã làm · Điểm gần nhất: <span class="font-black">{{ $last['scoreLabel'] }}</span>/{{ $last['maxLabel'] }}@if ($last['total']) · <span class="font-black">{{ $last['passed'] }}/{{ $last['total'] }}</span> test đúng
                             {{-- @endif PHẢI đứng sau khoảng trắng: Blade dùng \B trước @ nên
                                  directive dính ngay sau một CHỮ CÁI ("đúng@endif") thì nó không
