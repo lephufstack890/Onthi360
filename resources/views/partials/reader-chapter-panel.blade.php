@@ -172,14 +172,8 @@
                 <span x-text="scopeRows.length + ' bài / đề'">{{ count($rcpRows) }} bài / đề</span>
             </div>
 
-            @if ($currentChapter && count($chapters) > 0)
-                {{-- Nút trái = chương ĐANG ĐỌC (đổi chương ở ô "Chương/phần" bên trái), nút phải = cả tài liệu. --}}
-                <div class="rcp-scope" role="group" aria-label="Phạm vi hiển thị">
-                    <button type="button" class="is-chapter" :class="scope === 'chapter' ? 'is-on' : ''" :aria-pressed="scope === 'chapter'" @click="scope = 'chapter'"
-                            title="{{ $chapterWord }} đang đọc: {{ $currentChapter['title'] }}"><b>{{ $chapterWord }} {{ $currentChapter['no'] }}</b> · {{ $currentChapter['title'] }}</button>
-                    <button type="button" :class="scope === 'all' ? 'is-on' : ''" :aria-pressed="scope === 'all'" @click="scope = 'all'">Tất cả {{ mb_strtolower($chapterWord) }}</button>
-                </div>
-            @endif
+            {{-- SỬA 16/10 (khách: "bỏ cái này đi, không cần") — BỎ cặp nút "Chương đang đọc | Tất cả chương". Cột Bài tập giờ
+                 luôn hiện TẤT CẢ bài, gom theo từng chương (dòng tiêu đề chương, chương đang đọc được tô đậm). --}}
 
             <div class="rcp-search">
                 <x-lucide name="search" />
@@ -329,7 +323,7 @@
             groups: config.groups || [],
             current: config.current,
             attachments: config.attachments || [],
-            scope: config.current !== null && config.current !== undefined ? 'chapter' : 'all',
+            scope: 'all', // SỬA 16/10 — đã bỏ nút chọn phạm vi, luôn hiện tất cả chương.
             q: '',
             filter: 'all',
             selectedId: null,

@@ -238,7 +238,24 @@
             </div>
             <div class="relative z-10 h-[3px] bg-gradient-to-r from-[#123B68] via-[#2D7FA3] to-[#E6B44A]" aria-hidden="true"></div>
             <div class="relative z-10 mx-auto flex w-full max-w-[1780px] flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6 2xl:px-10">
-                <a href="{{ $backUrl }}" aria-label="Quay lại kho tài liệu"
+                <script>
+                    window.onthiReaderBack = function (e) {
+                        try {
+                            var r = new URL(document.referrer, location.href);
+                            var re = /\/(student|teacher)\/materials\/\d+\/?$|\/admin\/doc-tai-lieu\/\d+\/?$/;
+                            if (r.origin === location.origin && r.pathname !== location.pathname && re.test(r.pathname) && window.history.length > 1) {
+                                e.preventDefault();
+                                window.history.back();
+                            }
+                        } catch (err) {}
+                    };
+                </script>
+                {{-- SỬA 16/10 (khách: "nút back phải quay lại chương trước mới đúng") — nếu vừa từ 1 chương khác của tài liệu
+                     chuyển sang (ô Chương/phần, Bài trước/Bài sau) thì nút này lùi về ĐÚNG chương đó (history.back, giữ cả vị
+                     trí đang đọc); mở thẳng từ danh sách thì vẫn về trang đã mở sách ($backUrl, xem App\Support\ReaderBackUrl).
+                     Nút X bên phải vẫn luôn về danh sách. --}}
+                <a href="{{ $backUrl }}" aria-label="Quay lại" title="Quay lại"
+                   onclick="onthiReaderBack(event)"
                    class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#DDEAF0] bg-white text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#123B68]">
                     <x-lucide name="arrow-left" class="h-4 w-4" />
                 </a>
@@ -328,7 +345,7 @@
                                      và người đọc cũng cần biết mình đang ở chương nào. --}}
                                 <label for="material-section-select" class="shrink-0 text-[12px] font-semibold text-[#466278]">Chương/phần</label>
                                 <select id="material-section-select" aria-label="Chọn chương hoặc phần để đọc"
-                                        onchange="if (this.value) window.location.replace(this.value);"
+                                        onchange="if (this.value) window.location.href = this.value;"
                                         class="h-9 w-[260px] max-w-full rounded-lg border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[13px] font-semibold text-[#123B68] outline-none transition focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
                                     @foreach ($sections as $sec)
                                         <option value="{{ $sec['href'] }}" @selected($sec['current'])>{{ $sec['no'] }}. {{ $sec['title'] }}</option>
@@ -388,14 +405,14 @@
                     @if ($prev || $next)
                         <div class="flex items-center justify-between gap-2 border-t border-[#E5EEF3] bg-white px-3 py-2.5 sm:px-4">
                             @if ($prev)
-                                <a href="{{ route($readRoute, $prev->id) }}" onclick="event.preventDefault(); window.location.replace(this.href);" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                <a href="{{ route($readRoute, $prev->id) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
                                     <x-lucide name="chevron-left" class="h-3.5 w-3.5" />Bài trước
                                 </a>
                             @else
                                 <span></span>
                             @endif
                             @if ($next)
-                                <a href="{{ route($readRoute, $next->id) }}" onclick="event.preventDefault(); window.location.replace(this.href);" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                <a href="{{ route($readRoute, $next->id) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
                                     Bài sau<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                                 </a>
                             @endif

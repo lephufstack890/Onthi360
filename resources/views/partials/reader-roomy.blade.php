@@ -12,7 +12,8 @@
     .rd-ui #reader-page-input { height: 32px; width: 60px; font-size: 13px; }
     .rd-ui #reader-page-form button { width: 32px; height: 32px; }
     .rd-ui .rz-label { font-size: 13.5px; }
-    .rd-ui #material-section-select { width: 230px; }
+    /* SỬA 16/10 (khách: "co giãn phù hợp để thấy toàn bộ tên chương") — ô chọn chương tự rộng theo tên chương dài nhất. */
+    .rd-ui #material-section-select { width: auto; min-width: 220px; max-width: 100%; padding-right: 34px; }
     .rd-ui #reader-scroll-box .text-\[13px\] { font-size: 13px; }
 
     .rd-ui .rcp-title h2, .rd-ui .rcp-mtoggle h2 { font-size: 16px; }
