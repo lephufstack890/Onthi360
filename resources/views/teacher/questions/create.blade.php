@@ -46,12 +46,12 @@
 
     <a href="{{ route('teacher.questions.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Kho câu hỏi</a>
 
-    <x-ws.page-header :title="$question ? 'Sửa câu hỏi' : 'Tạo câu hỏi'" :subtitle="$question ? 'Chọn loại câu hỏi phù hợp — mỗi loại có cấu hình phát hành riêng (6.2).' : 'Tải 1 gói ZIP theo mẫu — hệ thống tự nhận Trắc nghiệm, Đúng / Sai, Điền từ hay Lập trình.'" />
+    <x-ws.page-header :title="$question ? 'Sửa câu hỏi' : 'Tạo câu hỏi'" subtitle="Chọn loại câu hỏi phù hợp — mỗi loại có cấu hình phát hành riêng (6.2)." />
 
     @if (session('status') === 'question-created-draft-only' || session('status') === 'question-updated-draft-only')
         @include('partials.toast-flash', ['type' => 'warning', 'message' => 'Đã lưu nháp — chưa đủ điều kiện phát hành, xem lỗi bên dưới.'])
     @endif
-    @if ($question && $errors->any())
+    @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
@@ -61,19 +61,54 @@
         </div>
     @endif
 
-    {{-- SỬA 16/10 (khách: "chỗ thêm câu hỏi của Kho bài tập / câu hỏi … admin và giáo viên cũng vậy" — giống trang tài liệu)
-         — màn TẠO MỚI bỏ 3 nút chọn loại + form nhập tay, chỉ còn khối tải gói ZIP dùng chung với admin
-         (partials/question-zip-upload): dạng câu tự nhận theo content.type trong question.json. Nhập xong
-         QuestionController::zipImportStore() chuyển sang teacher.questions.edit — màn SỬA (nhánh @else bên dưới)
-         vẫn giữ nguyên toàn bộ form nhập tay như cũ. --}}
+    {{-- SỬA 18/9 (khách: "tạo câu hỏi chỗ giáo viên cũng cho nhập file zip như admin luôn nha")
+         — trước đây khối này CHỈ hiện khi $type === 'coding' nên giáo viên chọn Trắc nghiệm/Điền
+         đáp án là không thấy ô tải ZIP, dù backend (giờ dùng chung App\Support\QuestionZipPackage
+         với admin) đọc được cả 5 loại content.type. Bỏ điều kiện loại đi, hiện với MỌI loại đang
+         chọn — loại câu thật lấy theo content.type trong question.json chứ không theo nút đang
+         chọn ở trên (giống hệt bản admin). --}}
+    {{-- SỬA 16/10 (khách: "giao diện giữ nguyên, chỗ up file ZIP là up được full dạng") — thêm dải "Tự nhận dạng" 4 dạng
+         + nút Tải file mẫu (public/templates/mau-cau-hoi.zip); phần còn lại của màn giữ nguyên. --}}
     @if (! $question)
-        @include('partials.question-zip-upload', [
-            'action' => route('teacher.questions.zipImport'),
-            'maxKb' => \App\Services\Teacher\QuestionService::maxZipPackageKb(),
-            'hidden' => ['return_type' => $type],
-            'reviewLabel' => 'trang Sửa câu hỏi',
-        ])
-    @else
+    <style>
+        .qz-types { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
+        .qz-types__lbl { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:#64748b; }
+        .qz-types__lbl svg { width:13px; height:13px; color:#d97706; }
+        .qz-type { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border:1px solid #dbe7f3; border-radius:999px; background:#fff; font-size:12px; font-weight:600; color:#35617a; }
+        .qz-type svg { width:13px; height:13px; color:#126f91; }
+        .qz-tpl { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border:1px dashed #93c5fd; border-radius:999px; font-size:12px; font-weight:700; color:#1d4ed8; text-decoration:none; }
+        .qz-tpl:hover { background:#eff6ff; }
+        .qz-tpl svg { width:13px; height:13px; }
+    </style>
+        <form method="POST" action="{{ route('teacher.questions.zipImport') }}" enctype="multipart/form-data"
+              x-data="{ submitting: false }"
+              class="mb-6 bg-indigo-50 border border-indigo-100 rounded-3xl p-4 flex flex-wrap items-end gap-3">
+            @csrf
+            {{-- Giữ lại loại đang chọn để khi gói ZIP lỗi, quay về đúng tab đang đứng thay vì
+                 rơi về "Lập trình" như trước. --}}
+            <input type="hidden" name="return_type" value="{{ $type }}">
+            <div class="flex-1 min-w-[240px]">
+                <label class="block text-[13px] font-medium text-indigo-700 mb-1" for="zip_package"><x-lucide name="package" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Nhập câu hỏi từ gói ZIP — 1 mẫu dùng cho cả 4 dạng</label>
+                <input id="zip_package" name="zip_package" type="file" accept=".zip,application/zip" required
+                       @change="submitting = true; $el.form.requestSubmit()" :disabled="submitting"
+                       class="w-full text-[13px] text-indigo-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:text-[13px] disabled:opacity-60">
+                <p class="text-xs text-indigo-500 mt-1"><strong>Chọn tệp là hệ thống tự nhận dạng và nhập ngay</strong> — không cần chọn loại câu ở dưới (dạng lấy theo <code>content.type</code> trong question.json). Xong sẽ chuyển sang trang Sửa để kiểm tra và Lưu.</p>
+                <div class="qz-types">
+                    <span class="qz-types__lbl"><x-lucide name="sparkles" /> Tự nhận dạng:</span>
+                    <span class="qz-type" title='content.type = "single_choice"'><x-lucide name="list-checks" /> Trắc nghiệm</span>
+                    <span class="qz-type" title='content.type = "true_false"'><x-lucide name="check-circle-2" /> Đúng / Sai</span>
+                    <span class="qz-type" title='content.type = "short_answer"'><x-lucide name="text-cursor-input" /> Điền từ</span>
+                    <span class="qz-type" title='content.type = "programming"'><x-lucide name="code-2" /> Lập trình</span>
+                    <a href="{{ asset('templates/mau-cau-hoi.zip') }}" download="MAU-CAU-HOI.zip" class="qz-tpl"><x-lucide name="download" /> Tải file mẫu</a>
+                </div>
+            </div>
+            <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
+                    class="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
+        </form>
+    @endif
+    {{-- SỬA 1/10 — dải "Tệp đính kèm (nhập từ gói ZIP)" chỉ-để-tải ở đây đã chuyển XUỐNG TRONG
+         form (mục "Tệp đính kèm"), nhờ vậy thay/bỏ được tệp chứ không chỉ tải về. --}}
+
     <div class="flex gap-3 mb-6">
         @foreach ($types as $t)
             <a href="{{ $question ? '#' : route('teacher.questions.create', ['type' => $t['key']]) }}"
@@ -373,7 +408,6 @@
             </div>
         </div>
     </form>
-    @endif
 
     @push('scripts')
         @include('partials.rich-editor-assets')
