@@ -636,6 +636,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('products/{product}/edit', [AdminProductController::class, 'edit'])->name('products.edit');
         Route::put('products/{product}', [AdminProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
+        // SỬA 16/10 — đổi thứ tự tài liệu bằng nút ↑ / ↓ ở danh sách (thứ tự này dùng luôn cho trang Tài liệu public).
+        Route::post('products/{product}/move', [AdminProductController::class, 'move'])->name('products.move');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
 
         // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — màn đọc tài liệu cho

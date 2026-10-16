@@ -15,11 +15,19 @@
         foreach ($groupLabels as $g) { $groupCounts[$g] = collect($products)->where('type', $g)->count(); }
         // Mở sẵn nhóm đầu tiên có dữ liệu (không có thì Sách).
         $firstGroup = collect($groupLabels)->first(fn ($g) => $groupCounts[$g] > 0) ?? $groupLabels[0];
+        // SỬA 16/10 — sau khi bấm ↑/↓ quay về đúng tab đang đứng (?tab=Sách|Chuyên đề|Bộ đề).
+        if (in_array(request('tab'), $groupLabels, true)) { $firstGroup = request('tab'); }
+        // Vị trí đầu/cuối của từng tài liệu TRONG LOẠI của nó -> khoá nút ↑ ở dòng đầu, ↓ ở dòng cuối.
+        $typeFirstId = []; $typeLastId = [];
+        foreach ($products as $pp) { $typeFirstId[$pp['type']] ??= $pp['id']; $typeLastId[$pp['type']] = $pp['id']; }
         $visOptions = collect($products)->pluck('visibility')->unique()->values();
         // Liên kết sang tab "Quyền đã cấp" (route cũ) — giữ lối vào sau khi bỏ dải tab 2 mục.
         $accessTab = collect($tabs)->first(fn ($t) => ! ($t['active'] ?? false));
     @endphp
 
+    @if (session('status') === 'product-moved')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã đổi thứ tự tài liệu — trang Tài liệu public hiển thị theo đúng thứ tự này.'])
+    @endif
     @if (in_array(session('status'), ['product-created', 'product-deleted'], true))
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('status') === 'product-created' ? 'Đã tạo tài liệu mới.' : 'Đã xóa tài liệu (xóa mềm, đã ghi lý do).'])
     @endif
@@ -33,6 +41,11 @@
       "Quyền đã cấp" (route cũ của tab thứ hai).
     --}}
     @include('partials.admin-products-ui')
+    <style>
+        /* SỬA 16/10 — dòng vừa đổi chỗ được tô sáng thoáng qua. */
+        #apxBody tr.apx-row-flash > * { background: #fff7d6 !important; transition: background .3s; }
+        #apxBody .acx-actions { align-items: center; }
+    </style>
 
     <x-ws.page-header title="Quản lý tài liệu" icon="book-open" eyebrow="Quản trị & biên soạn" subtitle="Sách, Chuyên đề và Bộ đề · nội dung được tổ chức theo chương hoặc phần.">
         <x-slot:actions>
@@ -86,7 +99,7 @@
                 </thead>
                 <tbody id="apxBody">
                     @foreach ($products as $p)
-                        <tr data-row data-search="{{ $p['title'] }} {{ $p['type'] }}" data-type="{{ $p['type'] }}" data-vis="{{ $p['visibility'] }}">
+                        <tr data-row data-id="{{ $p['id'] }}" data-search="{{ $p['title'] }} {{ $p['type'] }}" data-type="{{ $p['type'] }}" data-vis="{{ $p['visibility'] }}">
                             <th scope="row">
                                 <div class="acx-ident">
                                     <span class="apx-tile"><x-lucide :name="$typeIcons[$p['type']] ?? 'file-text'" /></span>
@@ -101,6 +114,24 @@
                             <td><span class="acx-badge {{ ($p['tone'] ?? '') === 'info' ? 'acx-badge--info' : '' }}">{{ $p['visibility'] }}</span></td>
                             <td>
                                 <div class="acx-actions">
+                                    {{-- SỬA 16/10 (khách: "2 nút mũi tên lên xuống gần nút Xem/Sửa — đẩy lên trước / đẩy xuống dưới, cả 3 tab") —
+                                         đổi chỗ với tài liệu liền trên/dưới CÙNG LOẠI; trang Tài liệu public hiện đúng thứ tự này. --}}
+                                    <div class="apx-move" role="group" aria-label="Đổi thứ tự">
+                                        <form action="{{ route('admin.products.move', $p['id']) }}" method="POST">
+                                            @csrf
+                                            <input type="hidden" name="direction" value="up">
+                                            <button type="submit" class="apx-move__btn" title="Đẩy lên trước" aria-label="Đẩy {{ $p['title'] }} lên trước" {{ ($typeFirstId[$p['type']] ?? null) === $p['id'] ? 'disabled' : '' }}>
+                                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('admin.products.move', $p['id']) }}" method="POST">
+                                            @csrf
+                                            <input type="hidden" name="direction" value="down">
+                                            <button type="submit" class="apx-move__btn" title="Đẩy xuống dưới" aria-label="Đẩy {{ $p['title'] }} xuống dưới" {{ ($typeLastId[$p['type']] ?? null) === $p['id'] ? 'disabled' : '' }}>
+                                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                     <a href="{{ route('admin.products.show', $p['id']) }}" class="acx-link">Xem</a>
                                     <a href="{{ route('admin.products.edit', $p['id']) }}" class="acx-link">Sửa</a>
                                 </div>
@@ -195,7 +226,24 @@
             visSel.addEventListener('change', function () { page = 1; render(); });
             prev.addEventListener('click', function () { page--; render(); });
             next.addEventListener('click', function () { page++; render(); });
+
+            // SỬA 16/10 — vừa bấm ↑/↓ (?focus=id): mở đúng trang phân trang chứa tài liệu đó và tô sáng dòng.
+            var focusId = new URLSearchParams(location.search).get('focus');
+            if (focusId) {
+                var g0 = group();
+                var inGroup = rows.filter(function (tr) { return !g0 || tr.dataset.type === g0; });
+                var at = inGroup.findIndex(function (tr) { return tr.dataset.id === focusId; });
+                if (at >= 0) { page = Math.floor(at / SIZE) + 1; }
+            }
             render();
+            if (focusId) {
+                var fr = body.querySelector('tr[data-id="' + focusId.replace(/[^0-9]/g, '') + '"]');
+                if (fr) {
+                    fr.classList.add('apx-row-flash');
+                    setTimeout(function () { fr.classList.remove('apx-row-flash'); }, 1600);
+                }
+                if (history.replaceState) { history.replaceState(null, '', location.pathname + (location.hash || '')); }
+            }
         })();
     </script>
 @endpush

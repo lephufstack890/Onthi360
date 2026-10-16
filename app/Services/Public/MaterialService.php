@@ -96,7 +96,8 @@ class MaterialService
         $allProducts = $this->baseQuery()
             ->whereIn('type', array_map(fn ($t) => $t->value, array_values(self::TABS)))
             ->with('owner:id,name')
-            ->latest()
+            // SỬA 16/10 — cùng thứ tự với danh sách Tài liệu admin (nút ↑/↓), thay cho "mới nhất trước".
+            ->ordered()
             ->limit(120)
             ->get();
 
@@ -312,7 +313,7 @@ class MaterialService
             $query->where('type', $type->value);
         }
 
-        $products = $query->latest()->limit($limit)->get();
+        $products = $query->ordered()->limit($limit)->get(); // SỬA 16/10 — thứ tự chỉnh tay như admin.
 
         $representativeIdByProductId = $this->representativeMaterialIds($products->pluck('id')->all());
         $ratingsByMaterialId = $this->ratingSummariesByMaterialId($representativeIdByProductId->values()->all());

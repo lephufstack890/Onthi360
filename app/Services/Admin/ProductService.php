@@ -232,6 +232,43 @@ class ProductService
         Product::$auditReason = null;
     }
 
+    /**
+     * SỬA 16/10 (khách: "nút mũi tên lên/xuống cạnh Xem/Sửa để đẩy lên trước / đẩy xuống dưới, cho cả 3 tab") — đổi chỗ
+     * tài liệu với tài liệu liền trên/dưới TRONG CÙNG LOẠI (Sách / Chuyên đề / Bộ đề), rồi đánh lại sort_order 10, 20, 30…
+     * cho cả loại đó. Ghi thẳng bằng query (không qua model) để không đụng updated_at / nhật ký sửa tài liệu.
+     * Trả về nhãn loại để quay về đúng tab.
+     */
+    public function move(Product $product, string $direction): string
+    {
+        $list = $this->products->query()
+            ->where('type', $product->type->value)
+            ->ordered()
+            ->get(['id', 'sort_order'])
+            ->values()
+            ->all();
+
+        $index = null;
+        foreach ($list as $i => $row) {
+            if ((int) $row->id === (int) $product->id) { $index = $i; break; }
+        }
+        $target = $index === null ? null : ($direction === 'up' ? $index - 1 : $index + 1);
+
+        if ($index !== null && $target >= 0 && $target < count($list)) {
+            [$list[$index], $list[$target]] = [$list[$target], $list[$index]];
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($list) {
+                foreach ($list as $i => $row) {
+                    $newOrder = ($i + 1) * 10;
+                    if ((int) $row->sort_order !== $newOrder) {
+                        $this->products->query()->whereKey($row->id)->update(['sort_order' => $newOrder]);
+                    }
+                }
+            });
+        }
+
+        return $this->typeLabels()[$product->type->value] ?? $product->type->value;
+    }
+
     /** @return array{tabs: array, products: array} */
     public function indexData(): array
     {
@@ -250,8 +287,11 @@ class ProductService
         // hiện thẳng $p->type->value (chuỗi thô "book"/"topic"/"exam"/"course").
         $typeLabels = $this->typeLabels();
 
-        $products = $this->products->latest(50)->map(fn ($p) => [
+        // SỬA 16/10 — xếp theo thứ tự chỉnh tay (Product::scopeOrdered), nâng giới hạn để đủ hết tài liệu khi đổi chỗ.
+        $ordered = $this->products->query()->ordered()->limit(500)->get();
+        $products = $ordered->map(fn ($p) => [
             'id' => $p->id,
+            'typeKey' => $p->type->value,
             'title' => $p->title,
             'type' => $typeLabels[$p->type->value] ?? $p->type->value,
             'price' => number_format($p->price).'đ',

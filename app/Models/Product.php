@@ -25,6 +25,8 @@ class Product extends Model
         'type', 'title', 'slug', 'description', 'cover_image_path', 'subject', 'grade', 'topic',
         'price', 'price_teaching', 'has_print_option', 'status', 'visibility', 'owner_type', 'owner_id',
         'created_by', 'duration_months',
+        // SỬA 16/10 — thứ tự hiển thị chỉnh tay (nút ↑/↓ ở danh sách Tài liệu admin), migration 001210.
+        'sort_order',
         // SỬA 14/10 — giá bản in riêng của tài liệu (migration 001190).
         'print_price',
         // SỬA 9/10 — trường hiển thị của trang Tài liệu theo bản mẫu mới (độ khó, tác giả, đánh giá nhập tay).
@@ -137,5 +139,14 @@ class Product extends Model
     public function isPublished(): bool
     {
         return $this->status === ContentStatus::Published;
+    }
+
+    /**
+     * SỬA 16/10 — thứ tự hiển thị DÙNG CHUNG cho danh sách Tài liệu admin và trang Tài liệu public: sort_order nhỏ trước
+     * (chỉnh bằng nút ↑/↓), bằng nhau thì mới nhất trước (đúng thứ tự cũ khi chưa ai chỉnh).
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order')->orderByDesc('created_at')->orderByDesc('id');
     }
 }

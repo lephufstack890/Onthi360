@@ -187,6 +187,15 @@ class ProductController extends Controller
         return redirect()->route('admin.products.show', $product->id)->with('status', 'product-updated');
     }
 
+    /** SỬA 16/10 — admin.products.move: nút ↑ / ↓ ở danh sách Tài liệu (xem ProductService::move()). */
+    public function move(Request $request, Product $product): RedirectResponse
+    {
+        $data = $request->validate(['direction' => ['required', 'in:up,down']]);
+        $tab = $this->productService->move($product, $data['direction']);
+
+        return redirect()->route('admin.products.index', ['tab' => $tab, 'focus' => $product->id])->with('status', 'product-moved');
+    }
+
     public function destroy(Request $request, Product $product): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
