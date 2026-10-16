@@ -60,12 +60,51 @@ class AssessmentAnswerKey extends Model
             && strtoupper(trim((string) $submitted)) === strtoupper(trim((string) $expected));
     }
 
-    /** So khớp 1 ý/1 câu trả lời ngắn — so bằng GIÁ TRỊ SỐ nên "12" và "12.0" cùng đúng. */
+    /**
+     * So khớp 1 ý/1 câu trả lời ngắn — so bằng GIÁ TRỊ SỐ nên "12" và "12.0" cùng đúng.
+     *
+     * SỬA 16/10 (nhập đề bằng gói ZIP: "accepted_answers": ["8", "8.0"], ["def"]) — đáp án đúng có thể là NHIỀU giá trị (mảng,
+     * hoặc chuỗi ngăn bằng " | ") và có thể là CHỮ: cả hai bên là số thì so theo giá trị số (nhận cả dấu phẩy "12,5"), còn lại
+     * so chuỗi sau khi bỏ khoảng trắng thừa, không phân biệt hoa/thường. Đáp án cũ (1 số) chấm y như trước.
+     */
     private static function shortAnswerMatches(mixed $submitted, mixed $expected): bool
     {
-        return is_numeric($submitted)
-            && is_numeric($expected)
-            && (float) $submitted === (float) $expected;
+        if (! is_string($submitted) && ! is_numeric($submitted)) {
+            return false;
+        }
+
+        $given = trim((string) $submitted);
+        if ($given === '') {
+            return false;
+        }
+
+        $options = is_array($expected) ? $expected : preg_split('/\s*\|\s*/u', (string) $expected);
+        $givenNumber = str_replace([' ', ','], ['', '.'], $given);
+
+        foreach ((array) $options as $option) {
+            if (! is_scalar($option)) {
+                continue;
+            }
+            $option = trim((string) $option);
+            if ($option === '') {
+                continue;
+            }
+
+            $optionNumber = str_replace([' ', ','], ['', '.'], $option);
+            if (is_numeric($givenNumber) && is_numeric($optionNumber)) {
+                if ((float) $givenNumber === (float) $optionNumber) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (mb_strtolower(preg_replace('/\s+/u', ' ', $given)) === mb_strtolower(preg_replace('/\s+/u', ' ', $option))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

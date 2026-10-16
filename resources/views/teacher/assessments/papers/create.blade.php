@@ -10,9 +10,12 @@
 
     <x-ws.page-header title="Tạo đề PDF" subtitle="Tải đề dạng PDF + đáp án trên phiếu trả lời — riêng tư cho tới khi Admin duyệt" />
 
-    @if ($errors->any())
+    @if ($errors->any() && ! $errors->has('exam_zip'))
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
+
+    {{-- SỬA 16/10 — nhập cả đề từ gói ZIP (OT360-EPACK), mỗi câu tự khai dạng. Lỗi của gói hiện ngay trong khối này. --}}
+    @include('partials.exam-zip-import', ['action' => route('teacher.papers.zipImport')])
 
     <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
         <form method="POST" action="{{ route('teacher.papers.store') }}" class="space-y-4">

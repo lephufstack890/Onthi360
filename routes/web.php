@@ -461,6 +461,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('papers', [TeacherAssessmentController::class, 'papersIndex'])->name('papers.index');
         Route::get('papers/create', [TeacherAssessmentController::class, 'papersCreate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.create');
+        // SỬA 16/10 — nhập cả đề (PDF + đáp án + bài lập trình) từ 1 gói ZIP OT360-EPACK, xem ExamZipImportService.
+        Route::post('papers/zip-import', [TeacherAssessmentController::class, 'papersZipImportStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.zipImport');
         Route::post('papers', [TeacherAssessmentController::class, 'papersStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.store');
         Route::get('papers/bulk', [TeacherAssessmentController::class, 'papersBulkCreate'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.bulk.create');
         Route::post('papers/bulk/split', [TeacherAssessmentController::class, 'papersBulkSplit'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.assessment-create'))->name('papers.bulk.split');
@@ -830,6 +832,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('content/assessments/create', [AdminContentController::class, 'assessmentsCreate'])->name('content.assessments.create');
         Route::post('content/assessments', [AdminContentController::class, 'assessmentsStore'])->name('content.assessments.store');
+        // SỬA 16/10 — nhập cả đề (PDF + đáp án + bài lập trình) từ 1 gói ZIP OT360-EPACK, xem ExamZipImportService.
+        Route::post('content/assessments/zip-import', [AdminContentController::class, 'assessmentsZipImportStore'])->name('content.assessments.zipImport');
         Route::get('content/assessments/bulk', [AdminContentController::class, 'assessmentsBulkCreate'])->name('content.assessments.bulk.create');
         Route::post('content/assessments/bulk/split', [AdminContentController::class, 'assessmentsBulkSplit'])->name('content.assessments.bulk.split');
         Route::post('content/assessments/bulk/multi', [AdminContentController::class, 'assessmentsBulkMulti'])->name('content.assessments.bulk.multi');

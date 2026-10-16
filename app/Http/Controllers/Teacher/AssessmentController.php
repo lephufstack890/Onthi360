@@ -309,6 +309,27 @@ class AssessmentController extends Controller
         return view('teacher.assessments.papers.create', $this->assessmentService->paperCreateFormData());
     }
 
+    /**
+     * SỬA 16/10 (khách: "thêm phần nhập file ZIP chỗ tạo đề / bộ bài, admin và giáo viên") — teacher.papers.zipImport: tạo
+     * hẳn 1 đề PDF riêng tư (Nháp) từ gói OT360-EPACK, mỗi câu tự khai dạng. Xem App\Services\ExamZipImportService.
+     */
+    public function papersZipImportStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'exam_zip' => ['required', 'file', 'mimes:zip', 'max:'.\App\Support\UploadLimit::maxKilobytes()],
+        ], [], ['exam_zip' => 'Gói ZIP đề']);
+
+        try {
+            $result = app(\App\Services\ExamZipImportService::class)->importForTeacher(Auth::user(), $request->file('exam_zip'));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('teacher.papers.create')->withErrors($e->errors());
+        }
+
+        return redirect()->route('teacher.papers.pdf.edit', $result['assessment']->id)
+            ->with('status', 'paper-zip-imported')
+            ->with('zipImportSummary', $result['summary']);
+    }
+
     public function papersStore(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -456,7 +477,7 @@ class AssessmentController extends Controller
             'answer_keys.*.question_no' => ['required_with:answer_keys', 'integer', 'min:1'],
             'answer_keys.*.question_type' => ['required_with:answer_keys', 'string', 'in:single_choice,true_false,true_false_group,short_answer,multi_part'],
             'answer_keys.*.correct_answer' => ['required_with:answer_keys'],
-            'answer_keys.*.points' => ['nullable', 'integer', 'min:0'],
+            'answer_keys.*.points' => ['nullable', 'numeric', 'min:0', 'max:1000'], // SỬA 16/10 — điểm lẻ 0,25
         ], [], [
             'exam_code' => 'Mã đề',
             'pdf' => 'Tệp PDF đề',
@@ -542,7 +563,7 @@ class AssessmentController extends Controller
             'allowed_languages.*' => ['string', 'in:cpp,python'],
             'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
             'memory_limit_kb' => ['nullable', 'integer', 'min:16384', 'max:1048576'],
-            'points' => ['nullable', 'integer', 'min:0'],
+            'points' => ['nullable', 'numeric', 'min:0', 'max:1000'], // SỬA 16/10 — điểm lẻ
         ];
     }
 

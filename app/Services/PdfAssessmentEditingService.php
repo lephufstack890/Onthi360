@@ -141,7 +141,8 @@ class PdfAssessmentEditingService
         $assessment->answerKeys()->delete();
         $answerPoints = 0;
         foreach ($answerKeyRows as $row) {
-            $points = (int) ($row['points'] ?? 0);
+            // SỬA 16/10 — điểm lẻ (0,25…), cột points đã là decimal (migration 001220).
+            $points = round(max(0, (float) ($row['points'] ?? 0)), 2);
             $assessment->answerKeys()->create([
                 'question_no' => (int) $row['question_no'],
                 'question_type' => $row['question_type'],
@@ -151,8 +152,8 @@ class PdfAssessmentEditingService
             $answerPoints += $points;
         }
 
-        $codingPoints = (int) $assessment->codingItems()->sum('points');
-        $update['total_points'] = $answerPoints + $codingPoints;
+        $codingPoints = (float) $assessment->codingItems()->sum('points');
+        $update['total_points'] = round($answerPoints + $codingPoints, 2);
 
         return $this->assessments->update($assessment, $update);
     }
@@ -173,12 +174,44 @@ class PdfAssessmentEditingService
             'allowed_languages' => $data['allowed_languages'] ?? ['cpp', 'python'],
             'time_limit_ms' => $data['time_limit_ms'] ?? 1000,
             'memory_limit_kb' => $data['memory_limit_kb'] ?? 262144,
-            'points' => $data['points'] ?? 0,
+            'points' => round(max(0, (float) ($data['points'] ?? 0)), 2),
         ]);
 
         $this->recomputeCodingTotalPoints($assessment);
 
         return $item;
+    }
+
+    /**
+     * SỬA 16/10 (nhập đề bằng gói ZIP — App\Support\ExamZipPackage) — thêm test case cho 1 bài lập trình từ nội dung đã đọc
+     * sẵn (mỗi phần tử ['input' => chuỗi, 'output' => chuỗi]). Lưu đúng quy ước đường dẫn của codingItemImportTestCasesZip();
+     * cặp đầu tiên làm test mẫu nếu bài chưa có test nào.
+     *
+     * @param  array<int, array{input: string, output: string}>  $pairs
+     */
+    public function codingItemAddTestCases(AssessmentCodingItem $item, array $pairs): int
+    {
+        $order = (int) $item->testCases()->max('order');
+        $hadAny = $order > 0;
+        $created = 0;
+
+        foreach ($pairs as $pair) {
+            $order++;
+            $storedDir = "assessments/coding-items/{$item->id}/test-case-{$order}";
+            Storage::disk(self::PDF_DISK)->put("{$storedDir}/input.txt", (string) $pair['input']);
+            Storage::disk(self::PDF_DISK)->put("{$storedDir}/output.txt", (string) $pair['output']);
+
+            AssessmentCodingTestCase::create([
+                'coding_item_id' => $item->id,
+                'order' => $order,
+                'input_path' => "{$storedDir}/input.txt",
+                'expected_output_path' => "{$storedDir}/output.txt",
+                'is_sample' => ! $hadAny && $created === 0,
+            ]);
+            $created++;
+        }
+
+        return $created;
     }
 
     public function codingItemUpdate(AssessmentCodingItem $item, array $data): AssessmentCodingItem
@@ -190,7 +223,7 @@ class PdfAssessmentEditingService
             'allowed_languages' => $data['allowed_languages'] ?? ['cpp', 'python'],
             'time_limit_ms' => $data['time_limit_ms'] ?? 1000,
             'memory_limit_kb' => $data['memory_limit_kb'] ?? 262144,
-            'points' => $data['points'] ?? 0,
+            'points' => round(max(0, (float) ($data['points'] ?? 0)), 2),
         ]);
 
         $this->recomputeCodingTotalPoints($item->assessment);
@@ -212,9 +245,9 @@ class PdfAssessmentEditingService
 
     private function recomputeCodingTotalPoints(Assessment $assessment): void
     {
-        $answerPoints = (int) $assessment->answerKeys()->sum('points');
-        $codingPoints = (int) $assessment->codingItems()->sum('points');
-        $this->assessments->update($assessment, ['total_points' => $answerPoints + $codingPoints]);
+        $answerPoints = (float) $assessment->answerKeys()->sum('points');
+        $codingPoints = (float) $assessment->codingItems()->sum('points');
+        $this->assessments->update($assessment, ['total_points' => round($answerPoints + $codingPoints, 2)]);
     }
 
     /**

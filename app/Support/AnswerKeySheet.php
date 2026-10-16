@@ -189,9 +189,10 @@ class AnswerKeySheet
                 continue;
             }
 
-            $points = $pointsRaw === '' ? 1 : filter_var($pointsRaw, FILTER_VALIDATE_INT);
+            // SỬA 16/10 — nhận điểm lẻ (0.25 / 0,25), cột points đã là decimal.
+            $points = $pointsRaw === '' ? 1 : filter_var(str_replace(',', '.', $pointsRaw), FILTER_VALIDATE_FLOAT);
             if ($points === false || $points < 0) {
-                $errors[] = "Dòng {$excelRowNo}: cột \"Điểm\" phải là số nguyên từ 0 trở lên, đang là \"{$pointsRaw}\".";
+                $errors[] = "Dòng {$excelRowNo}: cột \"Điểm\" phải là số từ 0 trở lên (vd 1 hoặc 0,25), đang là \"{$pointsRaw}\".";
 
                 continue;
             }

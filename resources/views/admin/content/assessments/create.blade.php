@@ -10,9 +10,12 @@
 
     <x-ws.page-header title="Tạo đề/bộ bài" icon="scroll-text" subtitle="Chỉ tạo thông tin chung của đề — nội dung (câu hỏi rời hoặc PDF + đáp án) hoàn thiện ở màn sau khi lưu." />
 
-    @if ($errors->any())
+    @if ($errors->any() && ! $errors->has('exam_zip'))
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
+
+    {{-- SỬA 16/10 — nhập cả đề từ gói ZIP (OT360-EPACK), mỗi câu tự khai dạng. Lỗi của gói hiện ngay trong khối này. --}}
+    @include('partials.exam-zip-import', ['action' => route('admin.content.assessments.zipImport')])
 
     <div class="rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 mb-4">
         <strong>Lưu ý chọn đúng "Loại":</strong> chỉ <strong>Luyện tập</strong> dùng câu hỏi rời từ Kho câu hỏi (màn "Quản lý câu hỏi" sau khi tạo).

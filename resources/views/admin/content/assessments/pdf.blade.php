@@ -12,6 +12,8 @@
 
         $pdfStatusMessage = match (session('status')) {
             'assessment-pdf-updated' => 'Đã lưu file PDF/đáp án của đề.',
+            // SỬA 16/10 — vừa tạo đề từ gói ZIP.
+            'assessment-zip-imported' => 'Đã tạo đề từ gói ZIP: '.session('zipImportSummary').'. Kiểm tra lại đáp án, điểm và bài lập trình bên dưới rồi phát hành.',
             'coding-item-created' => 'Đã thêm bài lập trình.',
             'coding-item-updated' => 'Đã lưu bài lập trình.',
             'coding-item-deleted' => 'Đã xoá bài lập trình.',
@@ -250,7 +252,7 @@
 
                                 {{-- Điểm --}}
                                 <div class="flex items-center gap-1.5 shrink-0">
-                                    <input type="number" min="0" :name="`answer_keys[${index}][points]`" x-model="row.points"
+                                    <input type="number" min="0" step="0.01" :name="`answer_keys[${index}][points]`" x-model="row.points"
                                            class="w-16 rounded-xl border border-sky-100 text-[13px] text-center p-2">
                                     <span class="text-xs text-slate-400">điểm</span>
                                 </div>
@@ -319,7 +321,7 @@
                                 </div>
                                 <div class="sm:col-span-1">
                                     <label class="block text-xs text-slate-500 mb-1">Điểm</label>
-                                    <input type="number" min="0" name="points" value="{{ $item->points }}" class="admin-input">
+                                    <input type="number" min="0" step="0.01" name="points" value="{{ $item->points }}" class="admin-input">
                                 </div>
                                 <div class="sm:col-span-1 flex items-end">
                                     <label class="flex items-center gap-1 text-xs text-slate-600 mr-2">
@@ -374,7 +376,7 @@
                     <input type="number" min="1" name="pdf_page" placeholder="Trang PDF" class="admin-input">
                 </div>
                 <div class="sm:col-span-1">
-                    <input type="number" min="0" name="points" placeholder="Điểm" class="admin-input">
+                    <input type="number" min="0" step="0.01" name="points" placeholder="Điểm" class="admin-input">
                 </div>
                 <div class="sm:col-span-1 flex items-center gap-2">
                     <label class="flex items-center gap-1 text-xs text-slate-600">
