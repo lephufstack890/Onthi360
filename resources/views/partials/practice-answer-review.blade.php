@@ -99,12 +99,8 @@
         </div>
     @endif
 
-    {{-- Nút này trỏ tới form đặt NGOÀI form chấm (HTML không cho lồng form) — xem
-         exercise-play.blade.php, khối #practice-finish-form. --}}
-    <button type="submit" form="practice-finish-form"
-            class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-3 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">
-        Hoàn tất bài tập
-        <x-lucide name="arrow-right" class="h-3.5 w-3.5" />
-    </button>
+    {{-- SỬA 16/10 (khách: "bỏ luôn nút Hoàn tất bài tập") — đã bỏ nút to "Hoàn tất bài tập" ở cuối khối kết quả (bài Lập
+         trình đã bỏ từ 24/9). Làm xong thì chuyển bài bằng "Bài tiếp theo" hoặc thoát bằng nút X. Form ẩn
+         #practice-finish-form ở exercise-play vẫn để nguyên, không còn nút nào gọi tới, vô hại. --}}
     @include('partials.practice-penalty-note')
 </div>
