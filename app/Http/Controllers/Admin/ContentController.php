@@ -894,10 +894,15 @@ class ContentController extends Controller
     private function rememberAdminBackUrl(Request $request, string $fallback): string
     {
         $previous = url()->previous();
+        $path = (string) parse_url($previous, PHP_URL_PATH);
 
-        return parse_url($previous, PHP_URL_PATH) !== $request->getPathInfo()
-            ? $this->safeAdminBackUrl($previous, $fallback)
-            : $fallback;
+        // SỬA 16/10 (khách: "nhập file ZIP, lưu câu hỏi xong phải chuyển qua trang DANH SÁCH") — đến từ màn TẠO / NHẬP ZIP
+        // (…/create, …/zip-import) thì không quay lại form đó nữa mà về danh sách ($fallback).
+        if ($path === $request->getPathInfo() || preg_match('#/(create|zip-import)/?$#', $path)) {
+            return $fallback;
+        }
+
+        return $this->safeAdminBackUrl($previous, $fallback);
     }
 
     /** Địa chỉ quay về an toàn: cùng tên miền + nằm trong /admin (chặn chuyển hướng ra trang ngoài qua ô ẩn return_to). */
