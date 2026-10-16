@@ -2155,14 +2155,17 @@ class ContentService
             // Question::exerciseSummaryLabel() để mô tả đúng theo TỪNG dạng.
             'summary' => $q->exerciseSummaryLabel(),
             // SỬA 14/10 — tên dạng theo 4 dạng khách dùng (Đúng / Sai là trắc nghiệm 2 phương án nhập tay).
+            // SỬA 16/10 — bài nhập từ ZIP: Đúng/Sai lưu là trắc nghiệm 2 phương án, nhận theo content_type của gói.
             'typeLabel' => match (true) {
-                ($q->metadata['manual_variant'] ?? null) === 'true_false' => 'Đúng / Sai',
+                ($q->metadata['manual_variant'] ?? null) === 'true_false',
+                ($q->metadata['source_package']['content_type'] ?? null) === 'true_false' => 'Đúng / Sai',
                 $q->type->value === 'mcq' => 'Trắc nghiệm',
                 $q->type->value === 'fill_blank' => 'Điền từ',
                 $q->type->value === 'coding' => 'Lập trình',
                 default => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
             },
-            'typeKey' => ($q->metadata['manual_variant'] ?? null) === 'true_false' ? 'true_false' : $q->type->value,
+            'typeKey' => (($q->metadata['manual_variant'] ?? null) === 'true_false'
+                || ($q->metadata['source_package']['content_type'] ?? null) === 'true_false') ? 'true_false' : $q->type->value,
             'tags' => $q->tags->pluck('name')->all(),
             // SỬA 4/9 (khách yêu cầu "Chương/Phần/Đề") — tên chương/phần/đề bài tập này thuộc
             // về (null nếu chưa gắn) — xem Question::chapter().

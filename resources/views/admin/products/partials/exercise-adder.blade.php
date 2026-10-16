@@ -1,35 +1,36 @@
-{{-- SỬA 14/10 (khách: "bỏ nút Thêm thủ công; cho chọn dạng: Trắc nghiệm 4 đáp án chọn 1, Trắc nghiệm đúng sai, Lập trình,
-     Điền từ — Lập trình thì chọn file ZIP, các dạng còn lại nhập thủ công; cho chọn chương") — khối thêm bài tập ngay trên
-     trang chi tiết tài liệu, không phải sang trang khác.
+{{-- SỬA 16/10 (khách: "bỏ phần chọn dạng + nhập tay, chỉ cần upload file ZIP — file theo mẫu, hệ thống tự biết dạng nào; làm cho
+     đẹp dễ dùng") — khối thêm bài tập trên trang chi tiết tài liệu giờ CHỈ còn: (1) chọn chương → (2) thả 1 gói ZIP.
 
-     Bước: (1) chọn chương → (2) chọn dạng → (3) Lập trình: chọn gói ZIP · dạng khác: nhập nội dung rồi Lưu.
-     ZIP -> admin.products.exercises.store (mở màn kiểm tra lại như cũ); nhập tay -> admin.products.exercises.storeManual.
-     Hai form cùng một trang nên có ô ẩn _form để old() chỉ đổ lại dữ liệu vào đúng form vừa gửi lỗi.
+     Gói ZIP theo mẫu OT360-QPACK dùng chung cho 4 dạng (public/templates/mau-cau-hoi.zip): hệ thống đọc "content.type" trong
+     question.json để biết dạng — single_choice (Trắc nghiệm) · true_false (Đúng/Sai) · short_answer (Điền từ) · programming
+     (Lập trình). Việc đọc/nhận dạng nằm sẵn ở App\Support\QuestionZipPackage + ContentService::productExerciseStoreFromZipPackage()
+     (route admin.products.exercises.store, không đổi). Đọc xong mở màn "Sửa bài tập" để rà lại rồi bấm Lưu như trước.
 
      Tham số: $product, $chapters, $chapterLabel. --}}
 @include('admin.products.partials.adder-style')
 @php
-    $exIsMine = old('_form') === 'exercise';
-    $exOld = fn (string $key, $default = null) => $exIsMine ? old($key, $default) : $default;
-    $exKind = $exIsMine && in_array(old('type'), ['mcq', 'true_false', 'fill_blank'], true)
-        ? old('type')
-        : ($errors->has('zip_package') ? 'coding' : 'mcq');
-    $exKinds = [
-        'mcq' => ['Trắc nghiệm', '4 đáp án · chọn 1 đáp án đúng', 'list-checks'],
-        'true_false' => ['Trắc nghiệm Đúng / Sai', '1 nhận định · chọn Đúng hoặc Sai', 'check-circle-2'],
-        'coding' => ['Lập trình', 'Nhập gói ZIP có đề + test case', 'code-2'],
-        'fill_blank' => ['Điền từ', 'Học sinh gõ đáp án vào ô trống', 'text-cursor-input'],
-    ];
     $exChapterLower = $chapterLabel ? mb_strtolower($chapterLabel) : null;
-    $exOptions = array_pad((array) $exOld('options', []), 4, '');
+    $exZipError = $errors->first('zip_package');
+    $exTypes = [
+        ['Trắc nghiệm', 'single_choice', 'list-checks'],
+        ['Đúng / Sai', 'true_false', 'check-circle-2'],
+        ['Điền từ', 'short_answer', 'text-cursor-input'],
+        ['Lập trình', 'programming', 'code-2'],
+    ];
 @endphp
 
-<div class="oi-add"
-     x-data="{ kind: @js($exKind), chapter: @js((string) ($exIsMine ? old('material_id', '') : ($errors->has('zip_package') ? old('material_id', '') : ''))),
-               zipName: '', correct: @js((string) $exOld('correct_option', '')), tf: @js((string) $exOld('tf_answer', '')) }">
+<form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data"
+      class="oi-add oi-zip"
+      x-data="{ chapter: @js((string) old('material_id', '')), zipName: '', zipSize: '', drag: false, busy: false,
+                pick(e) { const f = e.target.files && e.target.files[0]; this.zipName = f ? f.name : ''; this.zipSize = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; },
+                clear() { this.$refs.zip.value = ''; this.zipName = ''; this.zipSize = ''; } }"
+      @submit="busy = true">
+    @csrf
+    <input type="hidden" name="_form" value="exercise-zip">
+    <input type="hidden" name="material_id" :value="chapter">
 
-    @if ($exIsMine && $errors->any())
-        <p class="oi-add__err" role="alert">{{ implode(' ', $errors->all()) }}</p>
+    @if ($exZipError)
+        <p class="oi-add__err" role="alert">{{ $exZipError }}</p>
     @endif
 
     @if ($chapterLabel)
@@ -48,106 +49,31 @@
     @endif
 
     <div>
-        <span class="oi-add__lbl">{{ $chapterLabel ? '2.' : '1.' }} Dạng bài</span>
-        <div class="oi-kinds" role="radiogroup" aria-label="Dạng bài tập">
-            @foreach ($exKinds as $k => [$kLabel, $kDesc, $kIcon])
-                <button type="button" role="radio" class="oi-kind" :class="kind === '{{ $k }}' ? 'is-on' : ''"
-                        :aria-checked="kind === '{{ $k }}' ? 'true' : 'false'" @click="kind = '{{ $k }}'">
-                    <span class="oi-kind__ic"><x-lucide name="{{ $kIcon }}" /></span>
-                    <span><b>{{ $kLabel }}</b><small>{{ $kDesc }}</small></span>
-                </button>
+        <span class="oi-add__lbl">{{ $chapterLabel ? '2.' : '1.' }} Gói ZIP bài tập</span>
+        <label class="oi-drop oi-drop--big oi-zip__drop" :class="{ 'has-file': zipName, 'is-drag': drag }"
+               @dragover="drag = true" @dragleave="drag = false" @drop="drag = false">
+            <span class="oi-zip__ic"><x-lucide name="upload" /></span>
+            <span class="oi-zip__txt">
+                <b x-text="zipName || 'Kéo thả file ZIP vào đây, hoặc bấm để chọn'">Kéo thả file ZIP vào đây, hoặc bấm để chọn</b>
+                <small x-show="! zipName">Một mẫu dùng chung cho cả 4 dạng — hệ thống tự nhận dạng theo <code>content.type</code> trong question.json.</small>
+                <small x-show="zipName" x-cloak x-text="zipSize + ' · bấm Nhập bài tập để đọc gói'"></small>
+            </span>
+            <input type="file" name="zip_package" accept=".zip,application/zip" required x-ref="zip" @change="pick($event)">
+        </label>
+        <div class="oi-types" aria-label="Các dạng hệ thống tự nhận">
+            <span class="oi-types__lbl"><x-lucide name="sparkles" /> Tự nhận dạng:</span>
+            @foreach ($exTypes as [$tLabel, $tCode, $tIcon])
+                <span class="oi-type" title='content.type = "{{ $tCode }}"'><x-lucide name="{{ $tIcon }}" />{{ $tLabel }}</span>
             @endforeach
         </div>
     </div>
 
-    {{-- ── Lập trình: nhập gói ZIP ── --}}
-    <form x-show="kind === 'coding'" x-cloak action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST"
-          enctype="multipart/form-data" class="oi-panel">
-        @csrf
-        <input type="hidden" name="_form" value="exercise-zip">
-        <input type="hidden" name="material_id" :value="chapter">
-        <label class="oi-drop" :class="zipName ? 'has-file' : ''">
-            <x-lucide name="upload" />
-            <span>
-                <b x-text="zipName ? 'Đã chọn gói ZIP' : 'Bấm để chọn gói ZIP bài lập trình'">Bấm để chọn gói ZIP bài lập trình</b>
-                <small x-text="zipName || 'Định dạng OT360-QPACK — hệ thống tự đọc đề bài + test case.'">Định dạng OT360-QPACK — hệ thống tự đọc đề bài + test case.</small>
-            </span>
-            <input type="file" name="zip_package" accept=".zip" class="oi-sr" :required="kind === 'coding'"
-                   @change="zipName = ($event.target.files[0] && $event.target.files[0].name) || ''">
-        </label>
-        <div class="oi-add__actions">
-            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm" :disabled="!zipName"><x-lucide name="upload" /> Nhập từ ZIP</button>
-            <span class="oi-add__note" style="margin:0">Đọc xong sẽ mở màn kiểm tra lại — bấm "Lưu bài tập" ở đó để hoàn tất.</span>
-        </div>
-    </form>
-
-    {{-- ── Trắc nghiệm / Đúng-Sai / Điền từ: nhập tay ── --}}
-    <form x-show="kind !== 'coding'" action="{{ route('admin.products.exercises.storeManual', $product->id) }}" method="POST" class="oi-panel">
-        @csrf
-        <input type="hidden" name="_form" value="exercise">
-        <input type="hidden" name="type" :value="kind">
-        <input type="hidden" name="material_id" :value="chapter">
-
-        <div class="oi-add__row oi-add__row--pts">
-            <div>
-                <label class="oi-add__lbl" for="ex-title">Tên bài tập</label>
-                <input id="ex-title" name="title" type="text" maxlength="255" required value="{{ $exOld('title') }}"
-                       class="oi-add__input" placeholder="VD: Câu 1 — Kiểu dữ liệu số nguyên">
-            </div>
-            <div>
-                <label class="oi-add__lbl" for="ex-points">Điểm</label>
-                <input id="ex-points" name="points" type="number" min="0" value="{{ $exOld('points', 1) }}" class="oi-add__input">
-            </div>
-        </div>
-
-        <div>
-            <label class="oi-add__lbl" for="ex-body">
-                <span x-text="kind === 'true_false' ? 'Nhận định cần đánh giá Đúng / Sai' : (kind === 'fill_blank' ? 'Đề bài (ghi rõ chỗ cần điền, VD: ___ )' : 'Câu hỏi')">Câu hỏi</span>
-            </label>
-            <textarea id="ex-body" name="body" rows="3" maxlength="20000" class="oi-add__input"
-                      :placeholder="kind === 'true_false' ? 'VD: Trong Python, kiểu int có giới hạn giá trị tối đa.' : (kind === 'fill_blank' ? 'VD: Từ khoá dùng để định nghĩa hàm trong Python là ___.' : 'VD: Kết quả của biểu thức 7 // 2 trong Python là?')">{{ $exOld('body') }}</textarea>
-        </div>
-
-        {{-- Trắc nghiệm 4 đáp án --}}
-        <div x-show="kind === 'mcq'">
-            <span class="oi-add__lbl">Đáp án <small>— bấm "Đúng" ở đáp án đúng</small></span>
-            <div class="oi-opts">
-                @foreach (['A', 'B', 'C', 'D'] as $i => $letter)
-                    <div class="oi-opt" :class="correct === '{{ $i }}' ? 'is-correct' : ''">
-                        <label class="oi-opt__pick">
-                            <input type="radio" name="correct_option" value="{{ $i }}" x-model="correct" :disabled="kind !== 'mcq'">
-                            <span x-text="correct === '{{ $i }}' ? '✓ Đúng' : 'Đúng'">Đúng</span>
-                        </label>
-                        <b style="width:18px;color:#123B68">{{ $letter }}.</b>
-                        <input name="options[{{ $i }}]" type="text" maxlength="255" value="{{ $exOptions[$i] ?? '' }}"
-                               class="oi-add__input" placeholder="Nội dung đáp án {{ $letter }}" :required="kind === 'mcq'" :disabled="kind !== 'mcq'">
-                    </div>
-                @endforeach
-            </div>
-        </div>
-
-        {{-- Đúng / Sai --}}
-        <div x-show="kind === 'true_false'" x-cloak>
-            <span class="oi-add__lbl">Đáp án đúng của nhận định</span>
-            <div class="oi-tf" role="radiogroup">
-                <label :class="tf === 'true' ? 'is-on-true' : ''"><input type="radio" name="tf_answer" value="true" x-model="tf" :disabled="kind !== 'true_false'"> ✓ Đúng</label>
-                <label :class="tf === 'false' ? 'is-on-false' : ''"><input type="radio" name="tf_answer" value="false" x-model="tf" :disabled="kind !== 'true_false'"> ✕ Sai</label>
-            </div>
-        </div>
-
-        {{-- Điền từ --}}
-        <div x-show="kind === 'fill_blank'" x-cloak>
-            <label class="oi-add__lbl" for="ex-accepted">Đáp án được chấp nhận <small>— mỗi dòng một cách viết đúng</small></label>
-            <textarea id="ex-accepted" name="accepted_answers" rows="3" maxlength="2000" class="oi-add__input"
-                      placeholder="def&#10;DEF" :required="kind === 'fill_blank'" :disabled="kind !== 'fill_blank'">{{ $exOld('accepted_answers') }}</textarea>
-            <label class="oi-check" style="margin-top:8px">
-                <input type="checkbox" name="case_sensitive" value="1" @checked($exOld('case_sensitive')) :disabled="kind !== 'fill_blank'"> Phân biệt chữ hoa / chữ thường
-            </label>
-        </div>
-
-        <div class="oi-add__actions">
-            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm"><x-lucide name="save" /> Lưu bài tập</button>
-            <span class="oi-add__note" style="margin:0">Lưu xong bài hiện ngay trong danh sách bên dưới; khung này để trống cho bài tiếp theo.</span>
-        </div>
-    </form>
-</div>
+    <div class="oi-add__actions">
+        <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm" :disabled="! zipName || busy">
+            <x-lucide name="upload" /> <span x-text="busy ? 'Đang đọc gói…' : 'Nhập bài tập'">Nhập bài tập</span>
+        </button>
+        <button type="button" class="acx-btn acx-btn--sm" x-show="zipName && ! busy" x-cloak @click="clear()">Chọn file khác</button>
+        <a href="{{ asset('templates/mau-cau-hoi.zip') }}" download="MAU-CAU-HOI.zip" class="oi-zip__tpl"><x-lucide name="download" /> Tải file mẫu</a>
+        <span class="oi-add__note" style="margin:0">Đọc xong sẽ mở màn kiểm tra lại — xem đề, đáp án rồi bấm "Lưu bài tập" để hoàn tất.</span>
+    </div>
+</form>

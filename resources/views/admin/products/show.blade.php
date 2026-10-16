@@ -235,14 +235,14 @@
                         <span class="apx-count">{{ count($exercises) }} bài</span>
                     </div>
                     <p class="apx-hint">
-                        Chọn {{ $chapterLabel ? mb_strtolower($chapterLabel).' và ' : '' }}dạng bài rồi nhập nội dung. Bài <b>Lập trình</b> nhập từ
-                        gói ZIP (OT360-QPACK) — hệ thống tự đọc đề + test case; Trắc nghiệm, Đúng / Sai và Điền từ nhập trực tiếp ngay bên dưới.
+                        {{ $chapterLabel ? 'Chọn '.mb_strtolower($chapterLabel).' rồi tải' : 'Tải' }} gói ZIP bài tập (mẫu OT360-QPACK) — hệ thống <b>tự nhận dạng</b>
+                        Trắc nghiệm, Đúng / Sai, Điền từ hay Lập trình theo file trong gói. Đọc xong vẫn sửa lại được từng bài.
                     </p>
 
                     @include('admin.products.partials.exercise-adder')
 
                     @if (empty($exercises))
-                        <x-ws.empty-state title="Chưa có bài tập nào" description="Chọn dạng bài ở khung trên để thêm bài đầu tiên." />
+                        <x-ws.empty-state title="Chưa có bài tập nào" description="Tải gói ZIP ở khung trên để thêm bài đầu tiên." />
                     @else
                         <div class="apx-list">
                             @foreach ($exercises as $ex)

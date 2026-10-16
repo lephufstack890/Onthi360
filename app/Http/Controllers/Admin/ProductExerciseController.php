@@ -41,7 +41,7 @@ class ProductExerciseController extends Controller
             'zip_package' => ['required', 'file', 'mimes:zip', 'max:'.ContentService::maxQuestionZipKb()],
             // SỬA 14/10 (khách: "cho chọn chương để biết bài tập thuộc chương nào") — kiểm đúng sản phẩm ở resolveChapterId().
             'material_id' => ['nullable', 'integer'],
-        ], [], ['zip_package' => 'Gói ZIP bài lập trình']);
+        ], [], ['zip_package' => 'Gói ZIP bài tập']);
 
         $exercise = $this->contentService->productExerciseStoreFromZipPackage(
             $product,

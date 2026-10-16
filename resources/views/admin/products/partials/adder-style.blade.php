@@ -49,6 +49,25 @@
     .oi-drop.has-file small { color: #207153; font-weight: 600; }
     .oi-files { display: grid; gap: 10px; }
     @media (min-width: 768px) { .oi-files { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    /* SỬA 16/10 — khối nhập bài tập chỉ còn gói ZIP (tự nhận dạng) */
+    .oi-drop--big { position: relative; padding: 22px 16px; }
+    .oi-drop--big input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .oi-drop--big.is-drag { border-color: #2563EB; background: #EEF4FF; }
+    .oi-zip__drop { min-height: 118px; justify-content: center; gap: 14px; border-width: 2px; }
+    .oi-zip__ic { display: grid; flex-shrink: 0; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #EAF2FF; color: #2563EB; }
+    .oi-zip__ic svg { width: 24px; height: 24px; }
+    .oi-drop.has-file .oi-zip__ic { background: #D1FAE5; color: #047857; }
+    .oi-zip__txt { min-width: 0; text-align: left; }
+    .oi-zip__txt b { font-size: 14.5px; word-break: break-all; }
+    .oi-zip__txt code { padding: 1px 5px; border-radius: 5px; background: #EEF2FF; font-size: 11px; color: #3730A3; }
+    .oi-types { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+    .oi-types__lbl { display: inline-flex; align-items: center; gap: 5px; margin-right: 2px; font-size: 12px; font-weight: 700; color: #64748B; }
+    .oi-types__lbl svg { width: 14px; height: 14px; color: #D97706; }
+    .oi-type { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid #DDEAF0; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 600; color: #35617A; }
+    .oi-type svg { width: 13px; height: 13px; color: #126F91; }
+    .oi-zip__tpl { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px dashed #93C5FD; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #1D4ED8; text-decoration: none; }
+    .oi-zip__tpl:hover { background: #EFF6FF; }
+    .oi-zip__tpl svg { width: 14px; height: 14px; }
     .oi-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 </style>
 @endonce
