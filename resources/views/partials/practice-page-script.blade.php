@@ -1,8 +1,20 @@
 <script>
     function onthiPracticePage(config) {
+        /*
+         * SỬA 16/10 (khách: "trang luyện tập chậm, sắp tới hơn 1000 đề + 1000 câu") — 3 chỗ tối ưu:
+         *  1. Danh sách bài/đề được ĐÓNG BĂNG (Object.freeze): trang chỉ đọc, không sửa phần tử nào, nên Alpine khỏi
+         *     bọc Proxy theo dõi từng ô của hàng nghìn dòng.
+         *  2. Kết quả lọc + sắp xếp được NHỚ LẠI (memo) theo đúng bộ lọc đang chọn: trước đây MỖI dòng tự gọi lại
+         *     filteredProblems (lọc + sắp xếp cả danh sách) 3 lần để biết mình có hiện không — 1000 dòng là 3000 lần lọc
+         *     mỗi lần bấm. Giờ lọc đúng 1 lần cho mỗi lần đổi bộ lọc / trang.
+         *  3. problemPos / examPos: bảng {id: vị trí trong trang} — mỗi dòng tra 1 phát (O(1)) thay vì includes()/indexOf().
+         */
+        const freezeAll = (list) => Object.freeze((list || []).map((row) => Object.freeze(row)));
+        const memo = {};
+
         return {
-            problems: config.problems,
-            exams: config.exams,
+            problems: freezeAll(config.problems),
+            exams: freezeAll(config.exams),
             problemPageSize: config.problemPageSize,
             examPageSize: config.examPageSize,
 
@@ -270,6 +282,15 @@
             get filteredProblems() {
                 const q = this.searchQuery.trim().toLowerCase();
                 const assignedView = this.problemScope === 'assigned';
+                const memoKey = [this.problemScope, this.problemAssignStatus, this.activeTab, this.selectedTopic, this.selectedDifficulty,
+                    q, this.onlyUndone, this.problemSort.key, this.problemSort.direction].join('\u0001');
+                if (memo.problemKey === memoKey) { return memo.problemList; }
+                memo.problemKey = memoKey;
+                memo.problemList = this.computeFilteredProblems(q, assignedView);
+                return memo.problemList;
+            },
+
+            computeFilteredProblems(q, assignedView) {
 
                 const list = this.problems.filter((p) => {
                     // "Tất cả bài tập" chỉ gồm bài thuộc kho; bài chỉ có mặt vì được giao thì chỉ
@@ -312,6 +333,15 @@
             get filteredExams() {
                 const q = this.searchQuery.trim().toLowerCase();
                 const assignedView = this.examScope === 'assigned';
+                const memoKey = [this.examScope, this.examAssignStatus, this.selectedExamType, this.selectedExamLevel,
+                    this.selectedExamProvince, q, this.examSort].join('\u0001');
+                if (memo.examKey === memoKey) { return memo.examList; }
+                memo.examKey = memoKey;
+                memo.examList = this.computeFilteredExams(q, assignedView);
+                return memo.examList;
+            },
+
+            computeFilteredExams(q, assignedView) {
 
                 const list = this.exams.filter((e) => {
                     const matchScope = assignedView ? e.assigned : e.inCatalog;
@@ -383,6 +413,33 @@
             get visibleExamIds() {
                 const start = (this.examPage - 1) * this.examPageSizeNow;
                 return this.filteredExams.slice(start, start + this.examPageSizeNow).map((e) => e.id);
+            },
+            // SỬA 16/10 — {id: vị trí trong trang đang xem}; dòng không có trong bảng = không hiện.
+            get problemPos() {
+                const list = this.filteredProblems;
+                const page = this.problemPage;
+                const size = this.problemPageSize;
+                const key = memo.problemKey + '|' + page + '|' + size;
+                if (memo.problemPosKey !== key) {
+                    const pos = {};
+                    list.slice((page - 1) * size, page * size).forEach((row, i) => { pos[row.id] = i; });
+                    memo.problemPosKey = key;
+                    memo.problemPos = pos;
+                }
+                return memo.problemPos;
+            },
+            get examPos() {
+                const list = this.filteredExams;
+                const page = this.examPage;
+                const size = this.examPageSizeNow;
+                const key = memo.examKey + '|' + page + '|' + size;
+                if (memo.examPosKey !== key) {
+                    const pos = {};
+                    list.slice((page - 1) * size, page * size).forEach((row, i) => { pos[row.id] = i; });
+                    memo.examPosKey = key;
+                    memo.examPos = pos;
+                }
+                return memo.examPos;
             },
         };
     }

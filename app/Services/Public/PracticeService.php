@@ -56,9 +56,9 @@ class PracticeService
      * trang ở trình duyệt nên số lượng lớn không làm trang nặng thêm đáng kể. Chỉ là chốt an toàn, KHÔNG phải
      * hạn mức nghiệp vụ.
      */
-    private const PROBLEM_LIMIT = 2000;
+    private const PROBLEM_LIMIT = 5000; // SỬA 16/10 — chuẩn bị cho kho hơn 1000 câu
 
-    private const EXAM_LIMIT = 500;
+    private const EXAM_LIMIT = 3000; // SỬA 16/10 — chuẩn bị cho hơn 1000 đề
     /* v5 (8/10) — hàng bài tập nay có Time/Memory limit thật (trước đó luôn "—"). */
     /*
      * v3 (7/10) — hàng thẻ đề thêm độ khó, khu vực, điểm sao đánh giá và số lượt đánh giá.

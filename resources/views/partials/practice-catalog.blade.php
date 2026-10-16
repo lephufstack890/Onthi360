@@ -258,6 +258,20 @@
 @endphp
 
 
+@php
+    /*
+     * SỬA 16/10 (khách: "trang luyện tập public chậm, sắp tới hơn 1000 đề + 1000 câu") — mỗi <x-lucide> là 1 lần dựng
+     * Blade component (~0,1 ms); danh sách bài tập + thẻ đề có ~10 icon mỗi dòng nên 2000 dòng = ~20.000 lần dựng, chiếm
+     * phần lớn thời gian máy chủ vẽ trang. Trong các vòng lặp dưới đây icon đi qua $oiIcon(): dựng 1 lần cho mỗi cặp
+     * (tên, class) rồi dùng lại — HTML ra y hệt <x-lucide name=".." class=".." />.
+     */
+    $oiIconCache = [];
+    $oiIcon = function (string $name, string $class = '') use (&$oiIconCache) {
+        return $oiIconCache[$name.'|'.$class] ??= new \Illuminate\Support\HtmlString(
+            \Illuminate\Support\Facades\Blade::render($class === '' ? '<x-lucide :name="$n" />' : '<x-lucide :name="$n" :class="$c" />', ['n' => $name, 'c' => $class])
+        );
+    };
+@endphp
 <div x-data="onthiPracticePage({{ Js::from([
         'problems' => $problemRows,
         'exams' => $examRows,
@@ -602,11 +616,13 @@
                     // SỬA 7/10 — lượt giao dành cho người đang xem (null nếu bài không được giao).
                     $asg = $prob['assignment'] ?? null;
                 @endphp
-                <div x-show="visibleProblemIds.includes({{ $prob['id'] }})" x-cloak
-                     :style="{ order: visibleProblemIds.indexOf({{ $prob['id'] }}) }"
+                {{-- SỬA 16/10 (tối ưu tốc độ) — dòng nằm trong <template x-if>: trình duyệt KHÔNG dựng / gắn Alpine cho dòng
+                     ẩn, chỉ dựng đúng các dòng của trang đang xem (problemPos = vị trí trong trang, xem practice-page-script). --}}
+                <template x-if="problemPos[{{ $prob['id'] }}] !== undefined">
+                <div :style="{ order: problemPos[{{ $prob['id'] }}] }"
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
-                     :class="[visibleProblemIds.indexOf({{ $prob['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '']"
+                     :class="[problemPos[{{ $prob['id'] }}] % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '']"
                      class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }} lg:items-center lg:gap-2.5">
 
                     {{-- Tên bài --}}
@@ -614,7 +630,7 @@
                         <div class="flex min-w-0 items-center gap-2">
                             @if ($prob['status'] === 'ac')
                                 <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#237052] text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)]" title="Đã AC" aria-label="Đã AC">
-                                    <x-lucide name="check-circle-2" class="h-4 w-4" />
+                                    {{ $oiIcon('check-circle-2', 'h-4 w-4') }}
                                 </span>
                             @endif
                             <a href="{{ $openHref }}" title="{{ $prob['title'] }}" @click="withReturn($event)"
@@ -625,7 +641,7 @@
                             @if ($asg)
                                 {{-- SỬA 7/10 — trạng thái của lượt giao (thay cho "Đã làm N lần" ở tab Bài được giao). --}}
                                 <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-badge is-{{ $asg['status'] }}">
-                                    @if ($asg['status'] === 'completed')<x-lucide name="check-circle-2" class="h-3 w-3" />@endif
+                                    @if ($asg['status'] === 'completed'){{ $oiIcon('check-circle-2', 'h-3 w-3') }}@endif
                                     {{ $assignStatusLabels[$asg['status']] ?? 'Chưa hoàn thành' }}
                                 </span>
                             @endif
@@ -643,24 +659,24 @@
                             @if ($assignScope['canAssignProblem'] ?? $assignScope['canAssign'])
                                 <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $prob['title'] }}"
                                         @click.stop="openAssign('problem', {{ $prob['id'] }}, @js($prob['title']), @js($prob['code']))">
-                                    <x-lucide name="send" />Giao bài
+                                    {{ $oiIcon('send') }}Giao bài
                                 </button>
                             @endif
                             @auth
                                 <a href="{{ route('practice.history.problem', $prob['id']) }}" title="Nhật ký nộp bài"
                                    class="oi-log-link inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-1 text-[10px] font-bold text-[#365B7A] shadow-[0_2px_6px_rgba(18,59,104,0.08)]">
-                                    <x-lucide name="clipboard-list" class="h-3 w-3" />Nhật ký nộp bài
+                                    {{ $oiIcon('clipboard-list', 'h-3 w-3') }}Nhật ký nộp bài
                                 </a>
                             @endauth
                             <span class="flex min-w-0 items-center gap-1 truncate">
-                                <x-lucide name="sparkles" class="h-3 w-3 shrink-0 text-[#3B9374]" />
+                                {{ $oiIcon('sparkles', 'h-3 w-3 shrink-0 text-[#3B9374]') }}
                                 {{-- SỬA 10/10 — hiện ô Nguồn nhập tay; chưa nhập thì mặc định "Kho luyện tập Ôn Thi 360". --}}
                                 <span class="truncate" title="{{ ($prob['sourceName'] ?? '') !== '' ? $prob['sourceName'] : '' }}">Nguồn: {{ ($prob['sourceName'] ?? '') !== '' ? $prob['sourceName'] : 'Kho luyện tập Ôn Thi 360' }}</span>
                             </span>
                             @if ($asg)
                                 <span x-show="problemScope === 'assigned'" x-cloak class="oi-asg-meta" style="margin-top:0" title="Giao bởi {{ $asg['teacher'] }}">
-                                    <span><x-lucide name="users" /><span>{{ $asg['teacher'] }}</span></span>
-                                    <span class="{{ $asg['overdue'] ? 'is-overdue' : '' }}"><x-lucide name="calendar-days" />Hạn {{ $asg['deadline'] }}{{ $asg['overdue'] ? ' · Quá hạn' : '' }}</span>
+                                    <span>{{ $oiIcon('users') }}<span>{{ $asg['teacher'] }}</span></span>
+                                    <span class="{{ $asg['overdue'] ? 'is-overdue' : '' }}">{{ $oiIcon('calendar-days') }}Hạn {{ $asg['deadline'] }}{{ $asg['overdue'] ? ' · Quá hạn' : '' }}</span>
                                 </span>
                             @endif
                         </p>
@@ -728,7 +744,7 @@
                             <div class="flex flex-col items-start gap-0.5">
                                 <div class="inline-flex items-center gap-0.5" role="img" aria-label="Độ khó {{ $prob['difficultyLevel'] }} trên 5 sao">
                                     @for ($star = 0; $star < 5; $star++)
-                                        <x-lucide name="star" class="h-3.5 w-3.5 {{ $star < $prob['difficultyLevel'] ? 'fill-amber-400 text-amber-500' : 'text-slate-200' }}" />
+                                        {{ $oiIcon('star', 'h-3.5 w-3.5 '.($star < $prob['difficultyLevel'] ? 'fill-amber-400 text-amber-500' : 'text-slate-200')) }}
                                     @endfor
                                 </div>
                                 <span class="text-[11px] font-semibold text-[#607A90]">{{ $prob['difficultyLabel'] ?? 'Khá' }}</span>
@@ -759,7 +775,7 @@
                             --}}
                             @if (($prob['mineTestPercent'] ?? null) !== null)
                                 <p class="mt-1 flex items-center gap-1 text-[9px] font-bold {{ $prob['mineTestPercent'] === 100 ? 'text-[#2F8A6B]' : 'text-[#2C6BB0]' }}">
-                                    <x-lucide name="user-check" class="h-3 w-3 shrink-0" />
+                                    {{ $oiIcon('user-check', 'h-3 w-3 shrink-0') }}
                                     Bạn: {{ $prob['minePassedTests'] }}/{{ $prob['mineTotalTests'] }} test · {{ $prob['mineTestPercent'] }}%
                                 </p>
                             @endif
@@ -795,11 +811,12 @@
                     <div class="col-span-1 flex items-center justify-end gap-2 border-t border-[#E7EFF3] pt-2 lg:col-auto lg:flex-col lg:items-stretch lg:gap-1 lg:border-t-0 lg:pt-0">
                         <a href="{{ $openHref }}" @click="withReturn($event)"
                            class="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-bold text-white shadow-none transition-colors active:scale-[.98] lg:w-full {{ $ctaClass }}">
-                            <x-lucide name="code" class="h-3.5 w-3.5" />
+                            {{ $oiIcon('code', 'h-3.5 w-3.5') }}
                             <span>{{ $ctaLabel }}</span>
                         </a>
                     </div>
                 </div>
+                </template>
             @endforeach
 
             {{-- Phân trang nằm NGAY TRONG khung danh sách, trên dải nền nhạt — đúng bản mẫu mới. --}}
@@ -1034,8 +1051,10 @@
                             ? ['border' => 'border-[#E7D6AB]', 'badge' => 'border-[#F2E1B6] bg-[#FFF7E3] text-[#8E6B2E]', 'text' => 'text-[#126F91]', 'bar' => '#B68032', 'label' => 'Đang làm dở']
                             : ['border' => 'border-[#BFDCE5]', 'badge' => 'border-[#D4EDE2] bg-[#EFF9F5] text-[#397C68]', 'text' => 'text-[#126F91]', 'bar' => '#126F91', 'label' => 'Đang mở']);
                 @endphp
-                <article x-show="visibleExamIds.includes({{ $exam['id'] }})" x-cloak
-                         :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
+                {{-- SỬA 16/10 (tối ưu tốc độ) — như dòng bài tập: chỉ dựng thẻ của trang đang xem; ảnh bìa của thẻ ẩn cũng
+                     không bị tải về nữa. --}}
+                <template x-if="examPos[{{ $exam['id'] }}] !== undefined">
+                <article :style="{ order: examPos[{{ $exam['id'] }}] }"
                          class="group flex h-full min-h-[430px] flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_2px_12px_rgba(28,91,121,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(28,91,121,0.09)] {{ $tone['border'] }}">
                     {{-- SỬA 2/10 lần 6 (khách: "ảnh bìa nó không full ra nhỉ, cho full ra cho đẹp")
                          — trước đây khung cao cố định 128px, có đệm 2px và ảnh để object-contain
@@ -1051,7 +1070,7 @@
                         <div style="display:flex;justify-content:flex-end;background:#F8FBFC;padding:8px 12px 0">
                             <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao đề: {{ $exam['title'] }}"
                                     @click.stop="openAssign('exam', {{ $exam['id'] }}, @js($exam['title']), @js($exam['examCode'] ?: '#'.$exam['id']))">
-                                <x-lucide name="send" />Giao đề
+                                {{ $oiIcon('send') }}Giao đề
                             </button>
                         </div>
                     @endif
@@ -1061,7 +1080,7 @@
                                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
                         @else
                             <div class="flex h-full w-full flex-col items-center justify-center gap-1 text-[#9DC8D7]">
-                                <x-lucide name="file-text" class="h-8 w-8" />
+                                {{ $oiIcon('file-text', 'h-8 w-8') }}
                                 <span class="text-[10px] font-bold">Chưa có ảnh bìa</span>
                             </div>
                         @endif
@@ -1072,7 +1091,7 @@
                     <div class="flex min-h-0 flex-1 flex-col p-3">
                         <div class="flex min-h-5 items-center justify-between gap-2">
                             <div class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[#2D7FA3]">
-                                <x-lucide name="file-text" class="h-3.5 w-3.5 shrink-0" /><span class="truncate">{{ $exam['categoryLabel'] ?: 'Đề luyện tập' }}</span>
+                                {{ $oiIcon('file-text', 'h-3.5 w-3.5 shrink-0') }}<span class="truncate">{{ $exam['categoryLabel'] ?: 'Đề luyện tập' }}</span>
                             </div>
                             <span class="shrink-0 text-[10px] font-bold text-[#6B8295]">Thi mô phỏng</span>
                         </div>
@@ -1094,22 +1113,22 @@
                         </div>
                         @include('partials.practice-content-location', ['province' => $exam['provinceLabel'], 'region' => $exam['regionLabel']])
                         @if ($exam['academicYear'])
-                            <p class="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[#6B8295]"><x-lucide name="calendar-days" class="h-3 w-3" />{{ $exam['academicYear'] }}</p>
+                            <p class="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[#6B8295]">{{ $oiIcon('calendar-days', 'h-3 w-3') }}{{ $exam['academicYear'] }}</p>
                         @endif
 
                         <div class="mt-2.5 grid min-h-[72px] grid-cols-3 gap-1 rounded-xl border border-[#E7EFF3] bg-[#F8FBFC] p-1.5 text-center">
                             <div>
-                                <x-lucide name="timer" class="mx-auto h-3.5 w-3.5 text-[#2D7FA3]" />
+                                {{ $oiIcon('timer', 'mx-auto h-3.5 w-3.5 text-[#2D7FA3]') }}
                                 <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ $exam['durationMinutes'] ? $exam['durationMinutes'].' phút' : 'Không giới hạn' }}</p>
                                 <p class="text-[9px] text-[#6B8295]">Thời lượng</p>
                             </div>
                             <div>
-                                <x-lucide name="code-2" class="mx-auto h-3.5 w-3.5 text-[#427EA1]" />
+                                {{ $oiIcon('code-2', 'mx-auto h-3.5 w-3.5 text-[#427EA1]') }}
                                 <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ $exam['itemsCount'] }} bài</p>
                                 <p class="text-[9px] text-[#6B8295]">Cấu trúc đề</p>
                             </div>
                             <div>
-                                <x-lucide name="trending-up" class="mx-auto h-3.5 w-3.5 text-[#3B9374]" />
+                                {{ $oiIcon('trending-up', 'mx-auto h-3.5 w-3.5 text-[#3B9374]') }}
                                 <p class="mt-0.5 text-[11px] font-bold text-[#45657D]">{{ number_format($exam['attemptCount']) }}</p>
                                 <p class="text-[9px] text-[#6B8295]">Lượt làm</p>
                             </div>
@@ -1136,19 +1155,20 @@
                             <div style="display:flex;align-items:center;gap:8px">
                             <a href="{{ $exam['detailHref'] }}"
                                class="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2F8A6B] px-3 py-2 text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)] transition hover:-translate-y-0.5 hover:bg-[#28795E] active:scale-[.98]">
-                                Xem chi tiết đề<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
+                                Xem chi tiết đề{{ $oiIcon('chevron-right', 'h-3.5 w-3.5') }}
                             </a>
                             {{-- SỬA 9/10 (khách: "thêm nút Nhật ký làm đề, UI lấy từ source mới") — nút CÓ CHỮ cạnh
                                  "Xem chi tiết đề", đúng PracticePage.jsx (historyPath("exam", id)). Thay nút vuông chỉ có
                                  icon trước đây. Hiện với mọi người; khách chưa đăng nhập bấm vào sẽ được chuyển sang trang
                                  đăng nhập (route nhật ký nằm trong nhóm auth) rồi quay lại đúng trang này. --}}
                             <a href="{{ route('practice.history.exam', $exam['id']) }}" aria-label="Nhật ký làm đề: {{ $exam['title'] }}" class="oi-log-btn">
-                                <x-lucide name="clipboard-list" class="h-3.5 w-3.5" />Nhật ký làm đề
+                                {{ $oiIcon('clipboard-list', 'h-3.5 w-3.5') }}Nhật ký làm đề
                             </a>
                             </div>
                         </div>
                     </div>
                 </article>
+                </template>
             @endforeach
         </div>
 
@@ -1171,9 +1191,9 @@
                             default => ['neutral', 'Chưa hoàn thành'],
                         };
                     @endphp
-                    <div x-show="visibleExamIds.includes({{ $exam['id'] }})" x-cloak
-                         :style="{ order: visibleExamIds.indexOf({{ $exam['id'] }}) }"
-                         :class="visibleExamIds.indexOf({{ $exam['id'] }}) % 2 ? 'is-alternate' : ''"
+                    <template x-if="examPos[{{ $exam['id'] }}] !== undefined">
+                    <div :style="{ order: examPos[{{ $exam['id'] }}] }"
+                         :class="examPos[{{ $exam['id'] }}] % 2 ? 'is-alternate' : ''"
                          class="assigned-work-grid assigned-work-row">
                         <div class="assigned-work-identity">
                             <a href="{{ $exam['detailHref'] }}" class="assigned-work-title">{{ $exam['title'] }}</a>
@@ -1186,12 +1206,12 @@
                         <div class="assigned-work-owner">
                             <span class="assigned-work-mobile-label">Người giao</span>
                             <strong>{{ $asg['teacher'] }}</strong>
-                            <span class="assigned-work-group"><x-lucide name="users" />{{ $asg['group'] }}</span>
+                            <span class="assigned-work-group">{{ $oiIcon('users') }}{{ $asg['group'] }}</span>
                             @if ($asg['assignedAt'])<small>Giao ngày {{ $asg['assignedAt'] }}</small>@endif
                         </div>
                         <div class="assigned-work-due">
                             <span class="assigned-work-mobile-label">Hạn nộp</span>
-                            <strong class="{{ $asg['overdue'] ? 'is-overdue' : '' }}"><x-lucide name="calendar-days" />{{ $dDate }}</strong>
+                            <strong class="{{ $asg['overdue'] ? 'is-overdue' : '' }}">{{ $oiIcon('calendar-days') }}{{ $dDate }}</strong>
                             @if ($dTime)<small>{{ $dTime }}</small>@endif
                             <span class="managed-status {{ $stTone }}" style="margin-top:5px">{{ $stLabel }}</span>
                         </div>
@@ -1215,14 +1235,15 @@
                         </div>
                         <div class="assigned-work-actions">
                             <a href="{{ route('student.assessment.take', $exam['id']) }}" class="assigned-work-primary {{ $asg['status'] === 'completed' ? 'is-complete' : '' }}">
-                                <x-lucide name="file-text" />{{ $asg['status'] === 'completed' ? 'Làm lại' : 'Làm đề' }}
+                                {{ $oiIcon('file-text') }}{{ $asg['status'] === 'completed' ? 'Làm lại' : 'Làm đề' }}
                             </a>
-                            <a href="{{ $exam['detailHref'] }}" class="is-secondary"><x-lucide name="file-text" />Xem đề</a>
+                            <a href="{{ $exam['detailHref'] }}" class="is-secondary">{{ $oiIcon('file-text') }}Xem đề</a>
                             @auth
-                                <a href="{{ route('practice.history.exam', $exam['id']) }}" class="is-secondary"><x-lucide name="clipboard-list" />Nhật ký</a>
+                                <a href="{{ route('practice.history.exam', $exam['id']) }}" class="is-secondary">{{ $oiIcon('clipboard-list') }}Nhật ký</a>
                             @endauth
                         </div>
                     </div>
+                    </template>
                 @endif
             @endforeach
         </div>
