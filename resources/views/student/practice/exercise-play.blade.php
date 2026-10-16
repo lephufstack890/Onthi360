@@ -463,7 +463,7 @@
                                                  Bài KHÔNG có PDF thì vẫn phải in đề ở đây — bỏ luôn là học sinh không
                                                  còn chỗ nào đọc được đề mà làm. --}}
                                             @if ($statementUrl)
-                                                <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                                <p class="shrink-0 px-4 pb-2 pt-2 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài</span>.</p>
                                             @elseif ($question->body)
                                                 <div class="max-h-[30%] shrink-0 overflow-y-auto px-4 pb-3 pt-3 text-xs leading-5 text-[#45657D]">
                                                     <div class="rich-content">{!! $question->body !!}</div>
@@ -547,7 +547,7 @@
                                             <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
                                                 {{-- Cùng luật với ô soạn mã: có PDF thì đề đọc ở tab riêng, không in lại. --}}
                                                 @if ($statementUrl)
-                                                    <p class="mb-3 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài PDF</span>.</p>
+                                                    <p class="mb-3 text-[11px] text-[#7A92A3]">Đề bài ở tab <span class="font-bold text-[#126F91]">Đề bài</span>.</p>
                                                 @elseif ($question->body)
                                                     <div class="mb-3 rounded-lg bg-white px-3 py-3">
                                                         <div class="rich-content text-xs leading-6 text-[#45657D]">{!! $question->body !!}</div>
@@ -636,13 +636,12 @@
                                         {{-- Chấm xong thì giấu nút: trắc nghiệm/điền đáp án/nhiều phần đã
                                              thấy đáp án đúng rồi, bấm lại không còn ý nghĩa gì (khác bài
                                              Lập trình — ở đó nút đổi thành "Chấm lại" để sửa code). --}}
+                                        {{-- SỬA 16/10 (khách: "bỏ thanh có nút Kiểm tra đáp án, nút dưới đổi thành Nộp bài") — bỏ thanh nút trong
+                                             khung trả lời; nút nộp THẬT của form vẫn còn nhưng ẨN (nút "Nộp bài" ở thanh dưới cùng bấm hộ nó và lấy
+                                             chữ của nó làm nhãn — xem script data-header-submit cuối trang), y như bài Lập trình. --}}
                                         @if ($feedback === null)
-                                            <div class="flex shrink-0 flex-col items-end gap-2 rounded-xl border border-[#DDEAF0] bg-white p-2.5">
-                                                <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#126F91] px-4 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
-                                                    <x-lucide name="send" class="h-3.5 w-3.5" />Kiểm tra đáp án
-                                                </button>
-                                                <p data-ajax-error class="hidden text-[11px] text-[#B42318]"></p>
-                                            </div>
+                                            <button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Nộp bài</button>
+                                            <p data-ajax-error class="hidden text-[11px] text-[#B42318]"></p>
                                         @endif
                                     </div>
                                 @endif
@@ -705,7 +704,7 @@
                             </p>
                         @else
                             <ul class="mt-4 space-y-2 text-[13px] leading-7 text-[#45657D]">
-                                <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài PDF</span> cho dễ nhìn), trả lời ở cột phải.</li>
+                                <li>· Đọc đề ở cột trái (hoặc tab <span class="font-bold">Đề bài</span> cho dễ nhìn), trả lời ở cột phải.</li>
                                 <li>· Bấm <span class="font-bold">Nộp bài</span> để chấm — trang không tải lại, kết quả hiện ngay tại chỗ.</li>
                                 <li>· Câu lập trình được chấm bằng máy chấm thật; mỗi test đúng/sai đều hiện ra, test sai bấm vào xem chi tiết và tải về được.</li>
                                 <li>· Kết quả chấm hiện ở <span class="font-bold">cột bên phải</span> khu soạn mã, ngay sau khi bấm Nộp bài.</li>
