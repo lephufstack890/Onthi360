@@ -61,6 +61,18 @@
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
+        {{-- SỬA 16/10 (khách: "nhập file ZIP mà bấm Lưu thay đổi là nó tự phát hành luôn") — câu VỪA nhập từ gói ZIP (hoặc lần
+             gửi trước bị lỗi kiểm tra) và đang Nháp: nút Lưu thành "Lưu & phát hành", gửi kèm publish_after_save=1
+             (ContentController::questionsUpdate()). Mở lại câu nháp từ danh sách thì vẫn chỉ Lưu như cũ. --}}
+        @php
+            $publishAfterSave = ! $hasBeenAttempted
+                && $question->status === \App\Enums\ContentStatus::Draft
+                && (session('status') === 'question-zip-imported' || old('publish_after_save'));
+        @endphp
+        @if (session('status') === 'question-zip-imported')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã nhập câu hỏi từ gói ZIP. Kiểm tra lại rồi bấm "Lưu & phát hành".'])
+        @endif
+
         <div x-data="{ type: '{{ $question->type->value }}' }">
             <form method="POST" action="{{ $actionRoute }}" enctype="multipart/form-data" id="qe-form"
                   class="qe-layout">
@@ -69,6 +81,9 @@
                      old() để lần gửi hỏng không làm mất địa chỉ đã ghi nhớ: lúc đó trang Sửa được vẽ
                      lại và url()->previous() đã trỏ vào chính nó. --}}
                 <input type="hidden" name="return_to" value="{{ old('return_to', $returnTo ?? '') }}">
+                @if ($publishAfterSave)
+                    <input type="hidden" name="publish_after_save" value="1">
+                @endif
                 @unless ($hasBeenAttempted)
                     @method('PUT')
                 @endunless
@@ -355,7 +370,7 @@
                     </div>
                     <div class="qe-aside-actions">
                         <button type="submit" class="qe-btn qe-btn--primary" style="width:100%;min-height:42px;">
-                            <x-lucide name="save" class="h-4 w-4" /> {{ $hasBeenAttempted ? 'Tạo phiên bản mới' : 'Lưu thay đổi' }}
+                            <x-lucide name="save" class="h-4 w-4" /> {{ $hasBeenAttempted ? 'Tạo phiên bản mới' : ($publishAfterSave ? 'Lưu & phát hành' : 'Lưu thay đổi') }}
                         </button>
                         <small>Ctrl/⌘ + S để lưu nhanh</small>
                     </div>

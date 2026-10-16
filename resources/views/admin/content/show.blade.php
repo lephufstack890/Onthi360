@@ -79,10 +79,13 @@
             'question-deleted' => session('statusMessage') ?: 'Đã xoá câu hỏi.',
             'assessment-item-question-published' => 'Đã phát hành câu hỏi.',
             'assessment-items-published' => 'Đã phát hành '.(int) session('publishedCount').' câu hỏi.',
+            'question-saved-published' => session('statusMessage') ?: 'Đã lưu và phát hành câu hỏi.',
             default => session('status') ? 'Đã cập nhật.' : null,
         };
     @endphp
-    @if ($contentStatusMessage)
+    @if (session('status') === 'question-saved-not-published')
+        @include('partials.toast-flash', ['type' => 'error', 'message' => session('statusMessage')])
+    @elseif ($contentStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $contentStatusMessage])
     @endif
 

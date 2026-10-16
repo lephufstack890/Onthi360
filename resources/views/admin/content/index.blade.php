@@ -109,6 +109,11 @@
          dưới, nếu không chúng rơi vào đó và hiện câu "Đã cập nhật nội dung" chẳng ăn nhập gì.
          Lý do bị TỪ CHỐI (đã có người làm bài / đang nằm trong đề) đi theo đường $errors và đã
          được khối báo lỗi ngay bên dưới hiện ra. --}}
+    {{-- SỬA 16/10 (khách: "lưu xong phải có thông báo thành công") — lưu câu hỏi / lưu & phát hành câu nhập từ ZIP. --}}
+    @elseif (in_array(session('status'), ['question-updated', 'question-saved-published'], true))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã lưu câu hỏi.')])
+    @elseif (session('status') === 'question-saved-not-published')
+        @include('partials.toast-flash', ['type' => 'error', 'message' => session('statusMessage')])
     @elseif (session('status') === 'question-deleted' || session('status') === 'assessment-deleted')
         @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã xoá.')])
     @elseif (session('status'))

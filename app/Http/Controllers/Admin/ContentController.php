@@ -479,9 +479,24 @@ class ContentController extends Controller
 
         $this->contentService->questionUpdate($question, $data);
 
+        // SỬA 16/10 (khách: "nhập file ZIP mà bấm Lưu thay đổi là nó tự phát hành luôn") — câu vừa nhập từ gói ZIP (màn Sửa
+        // gửi kèm publish_after_save=1, xem questions/edit.blade.php) và đang Nháp: lưu xong phát hành luôn, vẫn qua
+        // QuestionPublishGuard như nút Phát hành. Chưa đủ điều kiện thì vẫn lưu, báo lý do để admin bổ sung.
+        $status = 'question-updated';
+        $statusMessage = 'Đã lưu câu hỏi '.$question->code.'.';
+        $question->refresh();
+        if ($request->boolean('publish_after_save') && $question->status === \App\Enums\ContentStatus::Draft) {
+            $result = $this->contentService->questionPublish($question);
+            $status = $result['ok'] ? 'question-saved-published' : 'question-saved-not-published';
+            $statusMessage = $result['ok']
+                ? 'Đã lưu và phát hành câu hỏi '.$question->code.'.'
+                : 'Đã lưu câu hỏi '.$question->code.' nhưng CHƯA phát hành được: '.($result['message'] ?? 'chưa đủ điều kiện.');
+        }
+
         // SỬA 4/10 — về thẳng danh sách (giữ nguyên tab + bộ lọc) thay vì màn chi tiết.
         // SỬA 16/10 — về đúng trang đã bấm "Sửa" (vd trang chi tiết đề Luyện tập), kiểm tra an toàn ở safeAdminBackUrl().
-        return redirect()->to($this->safeAdminBackUrl((string) $request->input('return_to', ''), route('admin.content.index', ['tab' => 'questions'])))->with('status', 'question-updated');
+        return redirect()->to($this->safeAdminBackUrl((string) $request->input('return_to', ''), route('admin.content.index', ['tab' => 'questions'])))
+            ->with('status', $status)->with('statusMessage', $statusMessage);
     }
 
     /** admin.content.questions.newVersion — 6.2: câu đã có người làm phải tạo version mới. */
