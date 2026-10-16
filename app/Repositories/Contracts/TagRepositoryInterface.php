@@ -38,4 +38,13 @@ interface TagRepositoryInterface extends BaseRepositoryInterface
 
     /** Trả về Tag có sẵn (khớp tên, không phân biệt hoa/thường) hoặc tạo mới nếu chưa có. */
     public function findOrCreateByName(string $name): Tag;
+
+    /**
+     * SỬA 16/10 — id tag cho các tên đọc từ gói ZIP (taxonomy.tags/keywords): tên được chuẩn hoá CÓ DẤU
+     * (App\Support\TagName) và khớp tag sẵn có không phân biệt dấu / hoa thường / gạch nối.
+     *
+     * @param  array<int, string>  $names
+     * @return array<int, int>
+     */
+    public function idsFromPackageNames(array $names): array;
 }

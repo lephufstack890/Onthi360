@@ -1949,7 +1949,7 @@ class ContentService
         ]);
 
         if ($tagNames !== []) {
-            $question->tags()->sync(array_map(fn ($name) => $this->tags->findOrCreateByName($name)->id, $tagNames));
+            $question->tags()->sync($this->tags->idsFromPackageNames($tagNames)); // SỬA 16/10 — tag có dấu (TagName)
         }
 
         return $question;
@@ -2460,7 +2460,7 @@ class ContentService
         ]);
 
         if ($tagNames !== []) {
-            $question->tags()->sync(array_map(fn ($name) => $this->tags->findOrCreateByName($name)->id, $tagNames));
+            $question->tags()->sync($this->tags->idsFromPackageNames($tagNames)); // SỬA 16/10 — tag có dấu (TagName)
         }
 
         return $question;

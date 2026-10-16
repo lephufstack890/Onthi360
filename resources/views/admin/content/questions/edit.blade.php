@@ -42,7 +42,9 @@
     @include('admin.content.questions._editor-style')
 
     <div class="qe">
-        <a href="{{ route('admin.content.show', ['content' => $question->id, 'kind' => 'question']) }}" class="qe-back">‹ Quay lại chi tiết</a>
+        {{-- SỬA 16/10 (khách: "nút quay lại là quay lại trang trước đó người dùng ở") — về đúng trang đã bấm "Sửa"
+             ($returnTo do ContentController::questionsEdit() nhớ: danh sách Kho, trang chi tiết đề, màn Chọn câu hỏi…). --}}
+        <a href="{{ old('return_to', $returnTo ?? '') ?: route('admin.content.show', ['content' => $question->id, 'kind' => 'question']) }}" class="qe-back">‹ Quay lại</a>
 
         <div class="qe-hero-gap">
             <x-ws.page-header title="Sửa câu hỏi" icon="pencil" eyebrow="Kho chung · Câu hỏi" :subtitle="$question->code.' · '.$question->title" />

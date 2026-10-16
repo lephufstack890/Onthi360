@@ -440,9 +440,11 @@ class ContentController extends Controller
 
     public function questionsEdit(Request $request, int $question): View
     {
+        // SỬA 16/10 (khách: "nút Quay lại là quay lại trang trước đó người dùng đứng") — nhớ ĐÚNG trang đã bấm "Sửa"
+        // (danh sách Kho, trang chi tiết đề, màn Chọn câu hỏi…), không chỉ trang danh sách như trước.
         return view('admin.content.questions.edit',
             $this->contentService->questionEditFormData($question)
-            + ['returnTo' => $this->rememberContentListUrl($request, 'questions')]);
+            + ['returnTo' => $this->rememberAdminBackUrl($request, route('admin.content.index', ['tab' => 'questions']))]);
     }
 
     public function questionsUpdate(Request $request, Question $question): RedirectResponse
@@ -478,7 +480,8 @@ class ContentController extends Controller
         $this->contentService->questionUpdate($question, $data);
 
         // SỬA 4/10 — về thẳng danh sách (giữ nguyên tab + bộ lọc) thay vì màn chi tiết.
-        return redirect()->to($this->contentListRedirect($request, 'questions'))->with('status', 'question-updated');
+        // SỬA 16/10 — về đúng trang đã bấm "Sửa" (vd trang chi tiết đề Luyện tập), kiểm tra an toàn ở safeAdminBackUrl().
+        return redirect()->to($this->safeAdminBackUrl((string) $request->input('return_to', ''), route('admin.content.index', ['tab' => 'questions'])))->with('status', 'question-updated');
     }
 
     /** admin.content.questions.newVersion — 6.2: câu đã có người làm phải tạo version mới. */
@@ -884,6 +887,40 @@ class ContentController extends Controller
      *
      * Vào thẳng màn Sửa bằng link (không qua danh sách) thì rơi về danh sách đúng tab.
      */
+    /**
+     * SỬA 16/10 — trang người dùng vừa đứng TRƯỚC khi mở form (nút Quay lại / sau khi Lưu quay về đó). Chỉ nhận trang trong khu
+     * admin của CHÍNH hệ thống và không phải chính form đang mở; không có thì dùng $fallback.
+     */
+    private function rememberAdminBackUrl(Request $request, string $fallback): string
+    {
+        $previous = url()->previous();
+
+        return parse_url($previous, PHP_URL_PATH) !== $request->getPathInfo()
+            ? $this->safeAdminBackUrl($previous, $fallback)
+            : $fallback;
+    }
+
+    /** Địa chỉ quay về an toàn: cùng tên miền + nằm trong /admin (chặn chuyển hướng ra trang ngoài qua ô ẩn return_to). */
+    private function safeAdminBackUrl(string $url, string $fallback): string
+    {
+        if ($url === '') {
+            return $fallback;
+        }
+
+        $parts = parse_url($url);
+        if (! is_array($parts) || str_starts_with($url, '//')) {
+            return $fallback;
+        }
+
+        $host = $parts['host'] ?? null;
+        $ownHost = parse_url(route('admin.content.index'), PHP_URL_HOST);
+        if ($host !== null && strcasecmp((string) $host, (string) $ownHost) !== 0) {
+            return $fallback;
+        }
+
+        return str_starts_with((string) ($parts['path'] ?? ''), '/admin/') ? $url : $fallback;
+    }
+
     private function rememberContentListUrl(Request $request, string $tab): string
     {
         $previous = url()->previous();

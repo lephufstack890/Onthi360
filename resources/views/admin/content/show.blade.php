@@ -76,6 +76,7 @@
             // SỬA 16/10 — nhập đề Luyện tập từ gói ZIP + sửa/xoá/phát hành ngay trong danh sách câu của đề.
             'assessment-zip-imported' => 'Đã tạo đề Luyện tập từ gói ZIP: '.session('zipImportSummary').'. Các câu đã vào Kho câu hỏi (Nháp) — kiểm tra rồi phát hành câu và đề.',
             'assessment-item-removed' => 'Đã bỏ câu khỏi đề (câu vẫn còn trong Kho câu hỏi).',
+            'question-deleted' => session('statusMessage') ?: 'Đã xoá câu hỏi.',
             'assessment-item-question-published' => 'Đã phát hành câu hỏi.',
             'assessment-items-published' => 'Đã phát hành '.(int) session('publishedCount').' câu hỏi.',
             default => session('status') ? 'Đã cập nhật.' : null,
@@ -267,12 +268,23 @@
                                                     </form>
                                                 @endif
                                             @endif
-                                            <form method="POST" action="{{ route('admin.content.assessments.items.destroy', [$model->id, $it->id]) }}"
-                                                  onsubmit="return confirm('Bỏ câu này khỏi đề? Câu vẫn còn trong Kho câu hỏi.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="is-del" title="Bỏ câu khỏi đề">Xoá</button>
-                                            </form>
+                                            {{-- SỬA 16/10 (khách: "nút xoá là xoá luôn câu đó") — XOÁ HẲN câu hỏi (khỏi Kho và khỏi mọi đề đang
+                                                 dùng nó, tổng điểm đề tự trừ) qua đúng nút Xoá câu hỏi sẵn có (ContentService::questionDestroy).
+                                                 Câu đã bị xoá trước đó (dòng mồ côi) thì chỉ gỡ dòng khỏi đề. --}}
+                                            @if ($it->question)
+                                                <form method="POST" action="{{ route('admin.content.questions.destroy', $it->question->id) }}"
+                                                      onsubmit="return confirm('Xoá hẳn câu hỏi này? Câu sẽ bị xoá khỏi Kho câu hỏi và khỏi mọi đề đang dùng, không hoàn tác được.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="is-del" title="Xoá hẳn câu hỏi">Xoá</button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('admin.content.assessments.items.destroy', [$model->id, $it->id]) }}">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="is-del" title="Gỡ dòng khỏi đề">Xoá</button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 @endforeach
