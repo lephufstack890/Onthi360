@@ -8,8 +8,7 @@
        · mặc định "Chương đang đọc": chỉ bài tập + học liệu của chương đang mở ở bên trái (chương
          chọn ở ô "Chương/phần" trên thanh công cụ — ô đó GIỮ NGUYÊN);
        · bấm "Tất cả chương": gom theo từng chương có tiêu đề + số bài đã làm, bài chưa gắn chương ở cuối.
-     Bấm 1 ô thì hiện thẻ chi tiết (tên bài, độ khó, điểm) + nút theo vai trò: học sinh "Làm bài",
-     giáo viên "Xem đề", admin "Xem / sửa bài" — tránh bấm nhầm là nhảy trang ngay.
+     SỬA 16/10: bấm 1 ô là VÀO LÀM BÀI ngay (màn làm bài 1 câu của Luyện tập), mọi vai trò — giống source mới.
 
      Bên gọi cần: $exercises, $attachments, $chapters, $currentChapterId, $readerRole, $chapterWord.
      CSS viết thường (không dùng lớp Tailwind tuỳ biến) vì máy chủ không build lại CSS. --}}
@@ -38,7 +37,11 @@
             'difficulty' => $ex['difficultyLabel'] ?? '',
             'points' => (int) ($ex['points'] ?? 0),
             'tags' => array_values($ex['tags'] ?? []),
-            'startUrl' => $readerRole === 'student' ? route('student.practiceByQuestion.startExercise', $ex['id']) : null,
+            // SỬA 16/10 (khách: "bấm vào ô bài tập là nhảy vào làm bài như trang luyện tập", theo MaterialChapterGrid.jsx:
+            // onOpen -> mở màn làm bài ngay) — MỌI vai trò (học sinh, giáo viên, admin) bấm ô là vào màn làm bài 1 câu của
+            // Luyện tập (student.practiceByQuestion.startExercise, nhóm route mở cho mọi tài khoản đã đăng nhập; quyền vào
+            // sản phẩm vẫn do AccessGate kiểm như cũ — admin đọc/làm được mọi tài liệu).
+            'startUrl' => route('student.practiceByQuestion.startExercise', $ex['id']),
             'viewUrl' => match ($readerRole) {
                 'admin' => $ex['editHref'] ?? null,
                 'teacher' => route('access.resource.exerciseAttachment', [$ex['productId'] ?? 0, $ex['id'], 'statement']),
@@ -201,9 +204,9 @@
                                     x-show="matches({{ $r['id'] }})"
                                     :class="selectedId === {{ $r['id'] }} ? 'is-selected' : ''"
                                     :aria-current="selectedId === {{ $r['id'] }} ? 'true' : null"
-                                    @click="selectedId = {{ $r['id'] }}"
-                                    title="{{ $r['code'] }} · {{ $r['title'] }} · {{ $r['statusLabel'] }}"
-                                    aria-label="Bài {{ $r['code'] }} · {{ $r['statusLabel'] }}">
+                                    @click="start({{ $r['id'] }})" :disabled="busy"
+                                    title="Làm bài {{ $r['code'] }} · {{ $r['title'] }} · {{ $r['statusLabel'] }}"
+                                    aria-label="Làm bài {{ $r['code'] }} · {{ $r['statusLabel'] }}">
                                 <code>{{ $r['code'] }}</code>
                                 @if ($r['status'] === 'done')
                                     <x-lucide name="check-circle-2" />
@@ -222,38 +225,16 @@
             </div>
         </div>
 
-        {{-- Thẻ chi tiết bài đang chọn + nút theo vai trò. --}}
+        {{-- SỬA 16/10 — bỏ thẻ chi tiết + nút "Làm bài / Xem đề / Xem sửa bài": bấm ô mã bài là vào làm bài luôn (form ẩn dưới
+             đây, POST kèm return_url để làm xong bấm Quay lại về đúng trang đọc này). Admin sửa bài ở trang quản lý tài liệu. --}}
+        <form method="POST" x-ref="startForm" action="" style="display:none">
+            @csrf
+            <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
+            <input type="hidden" name="back_label" value="Quay lại đọc tài liệu">
+        </form>
         <div class="rcp-detail">
-            <p class="rcp-hint" x-show="! selected">Chọn một ô mã bài để xem đề và {{ $readerRole === 'student' ? 'bắt đầu làm' : 'mở bài' }}.</p>
-            <template x-if="selected">
-                <div>
-                    <div class="rcp-detail-top">
-                        <code x-text="selected.code"></code>
-                        <span class="rcp-pill" :class="'is-' + selected.status" x-text="selected.statusLabel"></span>
-                    </div>
-                    <h3 x-text="selected.title" :title="selected.title"></h3>
-                    <div class="rcp-meta">
-                        <span class="rcp-stars" role="img" :aria-label="'Độ khó ' + selected.stars + ' trên 5 sao'" :title="selected.difficulty">
-                            <template x-for="n in [1, 2, 3, 4, 5]" :key="n">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="n <= selected.stars ? 'is-on' : ''"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            </template>
-                        </span>
-                        <span x-text="selected.points + ' điểm'"></span>
-                    </div>
-                    @if ($readerRole === 'student')
-                        {{-- Giữ NGUYÊN đường đi cũ của nút Làm bài: POST kèm return_url để làm xong quay lại đúng trang này. --}}
-                        <form method="POST" :action="selected.startUrl">
-                            @csrf
-                            <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
-                            <button type="submit" class="rcp-act"><x-lucide name="play-circle" />Làm bài</button>
-                        </form>
-                    @elseif ($readerRole === 'admin')
-                        <a class="rcp-act is-light" :href="selected.viewUrl" target="_blank" rel="noopener"><x-lucide name="pen-line" />Xem / sửa bài</a>
-                    @else
-                        <a class="rcp-act is-light" :href="selected.viewUrl" target="_blank" rel="noopener"><x-lucide name="file-text" />Xem đề</a>
-                    @endif
-                </div>
-            </template>
+            <p class="rcp-hint" x-show="! busy">Bấm vào ô mã bài để vào làm bài.</p>
+            <p class="rcp-hint" x-show="busy" x-cloak><span x-text="'Đang mở bài ' + (selected ? selected.code : '') + '…'"></span></p>
         </div>
 
         <div class="rcp-legend" aria-label="Chú thích màu">
@@ -327,8 +308,10 @@
             q: '',
             filter: 'all',
             selectedId: null,
+            busy: false,
 
             init() {
+                window.addEventListener('pageshow', () => { this.busy = false; this.selectedId = null; });
                 // Tài liệu cũ chưa gắn bài/học liệu vào chương nào -> mở sẵn "Tất cả" cho khỏi trống trơn.
                 if (this.scope === 'chapter'
                     && ! this.rows.some((r) => r.chapter === this.current)
@@ -367,6 +350,16 @@
                 return 'Không tìm thấy bài phù hợp.';
             },
             get selected() { return this.rows.find((r) => r.id === this.selectedId) || null; },
+            // SỬA 16/10 — bấm ô mã bài: vào màn làm bài ngay (giống onOpen của MaterialChapterGrid.jsx trong source mới).
+            start(id) {
+                const row = this.rows.find((r) => r.id === id);
+                if (! row || ! row.startUrl || this.busy) return;
+                this.selectedId = id;
+                this.busy = true;
+                const form = this.$refs.startForm;
+                form.action = row.startUrl;
+                form.submit();
+            },
             get mediaCount() { return this.attachments.filter((a) => this.scope === 'all' || this.current === null || a.chapter === this.current).length; },
         };
     }

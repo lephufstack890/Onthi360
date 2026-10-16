@@ -219,7 +219,11 @@ class PracticeByQuestionController extends Controller
         $product = $exercise->product;
         abort_unless($this->accessGate->canAccessProduct(Auth::user(), $product)->allowed, 403);
 
-        $data = $request->validate(['return_url' => ['nullable', 'string', 'max:2000']]);
+        $data = $request->validate([
+            'return_url' => ['nullable', 'string', 'max:2000'],
+            // SỬA 16/10 — chữ nút Quay lại ở màn làm bài (vd mở từ màn đọc tài liệu: "Quay lại đọc tài liệu").
+            'back_label' => ['nullable', 'string', 'max:60'],
+        ]);
 
         // Chặn open-redirect: chỉ nhận đường dẫn NỘI BỘ bắt đầu bằng đúng 1 dấu '/' (không phải
         // '//host/...' — dạng protocol-relative có thể trỏ ra domain khác) — 'return_url' tuy
@@ -230,7 +234,7 @@ class PracticeByQuestionController extends Controller
             $returnUrl = null;
         }
 
-        $this->service->startForQuestion($exercise->id, $returnUrl);
+        $this->service->startForQuestion($exercise->id, $returnUrl, $returnUrl !== null ? ($data['back_label'] ?? null) : null);
 
         return redirect()->route('student.practiceByQuestion.play');
     }
