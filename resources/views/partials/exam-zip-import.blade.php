@@ -4,8 +4,12 @@
        - teacher/assessments/papers/create.blade.php  (route teacher.papers.zipImport)
      Mỗi câu trong exam.json tự khai "type" nên hệ thống tự phân biệt Trắc nghiệm / Đúng-Sai / Đúng-Sai 4 ý / Điền từ / Câu nhiều ý /
      Lập trình (App\Support\ExamZipPackage). Mẫu: public/templates/mau-de-thi.zip.
-     Tham số: $action. CSS tự chứa (tiền tố ezi-) vì máy chủ không build lại Tailwind. --}}
+     SỬA 16/10 — 2 loại gói: Luyện tập (mặc định, admin) = mỗi câu 1 thư mục theo mẫu câu hỏi MAU-CAU-HOI, câu vào Kho câu hỏi,
+     đề hiện dạng câu hỏi rời (mẫu: templates/mau-de-luyen-tap.zip); Đề thi PDF ("exam.type": "exam") = de.pdf + đáp án trong
+     exam.json (mẫu: templates/mau-de-thi-pdf.zip). Giáo viên hiện chỉ nhập gói Đề thi PDF.
+     Tham số: $action, $mode ('admin' | 'teacher'). CSS tự chứa (tiền tố ezi-) vì máy chủ không build lại Tailwind. --}}
 @php
+    $eziMode = $mode ?? 'admin';
     $eziErrors = $errors->get('exam_zip');
     $eziTypes = [
         ['Trắc nghiệm', 'single_choice', 'list-checks'],
@@ -66,9 +70,16 @@
     <div class="ezi-head">
         <span class="ezi-head__ic"><x-lucide name="package" /></span>
         <div>
-            <h2>Nhập đề Luyện tập từ gói ZIP</h2>
-            <p>1 gói gồm đề PDF + đáp án + bài lập trình — tạo thành <b>đề Luyện tập</b>, phát hành xong tự hiện ở trang Luyện tập. Mỗi câu trong <code>exam.json</code> tự khai <code>type</code> — hệ thống
-                <b>tự phân biệt</b> dạng câu và tạo sẵn phiếu đáp án, bài lập trình, bộ test.</p>
+            @if ($eziMode === 'admin')
+                <h2>Nhập đề từ gói ZIP</h2>
+                <p><b>Đề Luyện tập</b> (mặc định): mỗi câu là 1 thư mục theo <b>đúng mẫu câu hỏi MAU-CAU-HOI</b> — hệ thống
+                    <b>tự nhận dạng</b> từng câu theo <code>content.type</code>, thêm cả câu vào Kho câu hỏi (đủ đề, đáp án, lời giải, bộ test)
+                    và gắn vào đề dạng câu hỏi rời. Muốn nhập <b>Đề thi PDF</b> thì ghi <code>"type": "exam"</code> trong exam.json.</p>
+            @else
+                <h2>Nhập đề PDF từ gói ZIP</h2>
+                <p>1 gói gồm đề PDF + đáp án + bài lập trình. Mỗi câu trong <code>exam.json</code> tự khai <code>type</code> — hệ thống
+                    <b>tự phân biệt</b> dạng câu và tạo sẵn phiếu đáp án, bài lập trình, bộ test.</p>
+            @endif
         </div>
     </div>
 
@@ -87,7 +98,7 @@
         <span class="ezi-drop__ic"><x-lucide name="upload" /></span>
         <span class="ezi-drop__txt">
             <b x-text="name || 'Kéo thả gói ZIP đề vào đây, hoặc bấm để chọn'">Kéo thả gói ZIP đề vào đây, hoặc bấm để chọn</b>
-            <small x-show="! name">Gói OT360-EPACK 2.0: <code>exam.json</code> + <code>de.pdf</code> (+ lời giải, bản xem trước, ảnh bìa, thư mục bài lập trình)</small>
+            <small x-show="! name">Gói OT360-EPACK 2.0: <code>exam.json</code> + {{ $eziMode === 'admin' ? 'thư mục từng câu (cau/01-…)' : 'de.pdf (+ lời giải, bản xem trước, ảnh bìa, thư mục bài lập trình)' }}</small>
             <small x-show="name" x-cloak x-text="size + ' · bấm Nhập đề để đọc gói'"></small>
         </span>
         <input type="file" name="exam_zip" accept=".zip,application/zip" required x-ref="zip" @change="pick($event)">
@@ -105,8 +116,13 @@
             <x-lucide name="upload" /> <span x-text="busy ? 'Đang đọc gói đề…' : 'Nhập đề'">Nhập đề</span>
         </button>
         <button type="button" class="ezi-btn" x-show="name && ! busy" x-cloak @click="clear()">Chọn file khác</button>
-        <a href="{{ asset('templates/mau-de-thi.zip') }}" download="MAU-DE-THI.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Tải file mẫu</a>
-        <p class="ezi-note">Nhập xong mở màn "Quản lý đề PDF" để rà lại rồi phát hành.</p>
+        @if ($eziMode === 'admin')
+            <a href="{{ asset('templates/mau-de-luyen-tap.zip') }}" download="MAU-DE-LUYEN-TAP.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Mẫu đề Luyện tập</a>
+            <a href="{{ asset('templates/mau-de-thi-pdf.zip') }}" download="MAU-DE-THI-PDF.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Mẫu đề thi PDF</a>
+        @else
+            <a href="{{ asset('templates/mau-de-thi-pdf.zip') }}" download="MAU-DE-THI-PDF.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Tải file mẫu</a>
+        @endif
+        <p class="ezi-note">Nhập xong mở trang đề để rà lại, sửa / phát hành từng câu rồi phát hành đề.</p>
     </div>
 </form>
 

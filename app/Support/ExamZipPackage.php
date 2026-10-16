@@ -22,7 +22,10 @@ use ZipArchive;
  *                    composite      -> câu nhiều ý: toàn ý đúng/sai -> "Đúng/Sai 4 ý", trộn dạng -> "Câu nhiều ý"
  *                    programming    -> BÀI LẬP TRÌNH của đề, đọc từ thư mục "folder" đúng khuôn QPACK (question.json + tests/)
  *                  Câu nào có "folder" thì dạng/đáp án lấy theo question.json trong thư mục đó (nếu exam.json không ghi).
- *   de.pdf         đề (bắt buộc) · loi-giai.pdf · xem-truoc.pdf · bia.jpg · huong-dan.pdf · bai-mau.pdf (tuỳ chọn, tên đổi
+ * SỬA 16/10 — 2 cách nhập theo "exam.type": "exam" -> đề PDF + phiếu đáp án (parse(), cần de.pdf); "practice" (mặc định) ->
+ * đề Luyện tập câu hỏi rời (parsePractice(): mỗi câu 1 thư mục gói câu hỏi QPACK, câu được thêm vào Kho câu hỏi).
+ *
+ *   de.pdf         đề (bắt buộc với đề PDF) · loi-giai.pdf · xem-truoc.pdf · bia.jpg · huong-dan.pdf · bai-mau.pdf (tuỳ chọn, tên đổi
  *                  được ở mục "files").
  *
  * Chỉ ĐỌC + KIỂM TRA, không ghi gì vào CSDL — việc tạo đề do App\Services\ExamZipImportService làm. Tệp PDF/ảnh được giải
@@ -50,96 +53,7 @@ class ExamZipPackage
      */
     public static function parse(UploadedFile $zip): array
     {
-        $za = new ZipArchive();
-        if ($za->open($zip->getRealPath()) !== true) {
-            self::fail(['Không mở được gói ZIP, kiểm tra lại tệp.']);
-        }
-
-        // exam.json ở gốc gói, hoặc nằm trong ĐÚNG 1 thư mục bọc ngoài (nén cả thư mục) — chấp nhận cả hai.
-        $prefix = null;
-        for ($i = 0; $i < $za->numFiles; $i++) {
-            $name = (string) $za->getNameIndex($i);
-            if ($name === 'exam.json') {
-                $prefix = '';
-                break;
-            }
-            if ($prefix === null && preg_match('#^([^/]+/)exam\.json$#', $name, $m) && ! str_starts_with($name, '__MACOSX/')) {
-                $prefix = $m[1];
-            }
-        }
-        if ($prefix === null) {
-            $za->close();
-            self::fail(['Gói ZIP thiếu tệp exam.json ở gốc gói — đây có phải gói câu hỏi lẻ (question.json) không? Gói đề cần exam.json.']);
-        }
-
-        $json = json_decode((string) $za->getFromName($prefix.'exam.json'), true);
-        if (! is_array($json)) {
-            $za->close();
-            self::fail(['exam.json không đúng định dạng JSON (thiếu dấu phẩy, ngoặc, hoặc dùng dấu nháy cong “ ”?).']);
-        }
-        if (! str_starts_with((string) ($json['schema'] ?? ''), self::SCHEMA_PREFIX)) {
-            $za->close();
-            self::fail(['exam.json phải có "schema": "OT360-EPACK/2.0".']);
-        }
-        if (! is_array($json['questions'] ?? null)) {
-            $za->close();
-            self::fail(['exam.json chưa có mục "questions" (danh sách câu). Gói dạng cũ 1.0 (answer_keys + coding) — vui lòng dùng file mẫu 2.0.']);
-        }
-
-        $errors = [];
-        $examIn = is_array($json['exam'] ?? null) ? $json['exam'] : [];
-        $title = trim((string) ($examIn['title'] ?? ''));
-        if ($title === '') {
-            $errors[] = 'exam.json: thiếu "exam.title" (tên đề).';
-        }
-
-        [$previewFrom, $previewTo] = self::pageRange($examIn['preview_pages'] ?? null);
-        $exam = [
-            'title' => Str::limit($title, 255, ''),
-            'subtitle' => self::str($examIn['subtitle'] ?? null, 255),
-            'type' => (string) ($examIn['type'] ?? 'practice'), // SỬA 16/10 — mặc định đề Luyện tập
-            'duration_minutes' => is_numeric($examIn['duration_minutes'] ?? null) ? max(0, (int) $examIn['duration_minutes']) : null,
-            'publish_answer_rule' => in_array($examIn['publish_answer_rule'] ?? null, ['never', 'after_deadline', 'immediately'], true)
-                ? $examIn['publish_answer_rule'] : 'after_deadline',
-            'exam_code' => self::str($examIn['code'] ?? null, 60),
-            'exam_category' => self::str($examIn['exam_category'] ?? null, 30),
-            'exam_level' => self::str($examIn['exam_level'] ?? null, 10),
-            'province' => self::str($examIn['province'] ?? null, 60),
-            'academic_year' => self::str($examIn['academic_year'] ?? ($examIn['year'] ?? null), 20),
-            'author' => self::str($examIn['author'] ?? null, 120),
-            'difficulty_level' => is_numeric($examIn['difficulty'] ?? null) ? (int) $examIn['difficulty'] : null,
-            'preview_page_from' => $previewFrom,
-            'preview_page_to' => $previewTo,
-        ];
-
-        // ---- Tệp PDF / ảnh
-        $tmpDir = rtrim(sys_get_temp_dir(), '/').'/ot360-exam-zip-'.Str::uuid();
-        File::ensureDirectoryExists($tmpDir);
-        $files = [];
-        $names = is_array($json['files'] ?? null) ? $json['files'] : [];
-        foreach (self::DEFAULT_FILES as $key => $default) {
-            $entry = isset($names[$key]) && is_string($names[$key]) && $names[$key] !== '' ? $names[$key] : $default;
-            $raw = $za->getFromName($prefix.ltrim($entry, '/'));
-            if ($raw === false) {
-                if (isset($names[$key]) && $names[$key] !== '') {
-                    $errors[] = "exam.json khai tệp \"{$entry}\" (files.{$key}) nhưng trong gói không có tệp này.";
-                }
-                continue;
-            }
-            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-            $isImage = $key === 'cover';
-            if ($isImage ? ! in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true) : $ext !== 'pdf') {
-                $errors[] = "Tệp \"{$entry}\" phải là ".($isImage ? 'ảnh .jpg/.png/.webp' : 'tệp .pdf').'.';
-                continue;
-            }
-            $path = $tmpDir.'/'.$key.'.'.$ext;
-            file_put_contents($path, $raw);
-            $mime = match ($ext) { 'pdf' => 'application/pdf', 'png' => 'image/png', 'webp' => 'image/webp', default => 'image/jpeg' };
-            $files[$key] = new UploadedFile($path, basename($entry), $mime, null, true);
-        }
-        if (! isset($files['pdf'])) {
-            $errors[] = 'Gói thiếu tệp đề "'.($names['pdf'] ?? self::DEFAULT_FILES['pdf']).'" (bắt buộc).';
-        }
+        [$za, $prefix, $json, $exam, $files, $tmpDir, $errors] = self::readHeader($zip, true);
 
         // ---- Câu hỏi
         $answerKeys = [];
@@ -253,6 +167,273 @@ class ExamZipPackage
             'summary' => array_filter($summary),
             'tmpDir' => $tmpDir,
         ];
+    }
+
+    /**
+     * SỬA 16/10 — phần ĐẦU dùng chung cho parse() (đề PDF) và parsePractice() (đề Luyện tập câu hỏi rời): mở gói, tìm
+     * exam.json, đọc thông tin đề và giải nén các tệp PDF/ảnh ra thư mục tạm.
+     *
+     * @return array{0: ZipArchive, 1: string, 2: array, 3: array, 4: array<string, UploadedFile>, 5: string, 6: array<int, string>}
+     */
+    private static function readHeader(UploadedFile $zip, bool $requirePdf): array
+    {
+        $za = new ZipArchive();
+        if ($za->open($zip->getRealPath()) !== true) {
+            self::fail(['Không mở được gói ZIP, kiểm tra lại tệp.']);
+        }
+
+        // exam.json ở gốc gói, hoặc nằm trong ĐÚNG 1 thư mục bọc ngoài (nén cả thư mục) — chấp nhận cả hai.
+        $prefix = null;
+        for ($i = 0; $i < $za->numFiles; $i++) {
+            $name = (string) $za->getNameIndex($i);
+            if ($name === 'exam.json') {
+                $prefix = '';
+                break;
+            }
+            if ($prefix === null && preg_match('#^([^/]+/)exam\.json$#', $name, $m) && ! str_starts_with($name, '__MACOSX/')) {
+                $prefix = $m[1];
+            }
+        }
+        if ($prefix === null) {
+            $za->close();
+            self::fail(['Gói ZIP thiếu tệp exam.json ở gốc gói — đây có phải gói câu hỏi lẻ (question.json) không? Gói đề cần exam.json.']);
+        }
+
+        $json = json_decode((string) $za->getFromName($prefix.'exam.json'), true);
+        if (! is_array($json)) {
+            $za->close();
+            self::fail(['exam.json không đúng định dạng JSON (thiếu dấu phẩy, ngoặc, hoặc dùng dấu nháy cong “ ”?).']);
+        }
+        if (! str_starts_with((string) ($json['schema'] ?? ''), self::SCHEMA_PREFIX)) {
+            $za->close();
+            self::fail(['exam.json phải có "schema": "OT360-EPACK/2.0".']);
+        }
+        if (! is_array($json['questions'] ?? null)) {
+            $za->close();
+            self::fail(['exam.json chưa có mục "questions" (danh sách câu). Gói dạng cũ 1.0 (answer_keys + coding) — vui lòng dùng file mẫu 2.0.']);
+        }
+
+        $errors = [];
+        $examIn = is_array($json['exam'] ?? null) ? $json['exam'] : [];
+        $title = trim((string) ($examIn['title'] ?? ''));
+        if ($title === '') {
+            $errors[] = 'exam.json: thiếu "exam.title" (tên đề).';
+        }
+
+        [$previewFrom, $previewTo] = self::pageRange($examIn['preview_pages'] ?? null);
+        $exam = [
+            'title' => Str::limit($title, 255, ''),
+            'subtitle' => self::str($examIn['subtitle'] ?? null, 255),
+            'type' => (string) ($examIn['type'] ?? 'practice'), // SỬA 16/10 — mặc định đề Luyện tập
+            'duration_minutes' => is_numeric($examIn['duration_minutes'] ?? null) ? max(0, (int) $examIn['duration_minutes']) : null,
+            'publish_answer_rule' => in_array($examIn['publish_answer_rule'] ?? null, ['never', 'after_deadline', 'immediately'], true)
+                ? $examIn['publish_answer_rule'] : 'after_deadline',
+            'exam_code' => self::str($examIn['code'] ?? null, 60),
+            'exam_category' => self::str($examIn['exam_category'] ?? null, 30),
+            'exam_level' => self::str($examIn['exam_level'] ?? null, 10),
+            'province' => self::str($examIn['province'] ?? null, 60),
+            'academic_year' => self::str($examIn['academic_year'] ?? ($examIn['year'] ?? null), 20),
+            'author' => self::str($examIn['author'] ?? null, 120),
+            'difficulty_level' => is_numeric($examIn['difficulty'] ?? null) ? (int) $examIn['difficulty'] : null,
+            'preview_page_from' => $previewFrom,
+            'preview_page_to' => $previewTo,
+        ];
+
+        // ---- Tệp PDF / ảnh
+        $tmpDir = rtrim(sys_get_temp_dir(), '/').'/ot360-exam-zip-'.Str::uuid();
+        File::ensureDirectoryExists($tmpDir);
+        $files = [];
+        $names = is_array($json['files'] ?? null) ? $json['files'] : [];
+        foreach (self::DEFAULT_FILES as $key => $default) {
+            $entry = isset($names[$key]) && is_string($names[$key]) && $names[$key] !== '' ? $names[$key] : $default;
+            $raw = $za->getFromName($prefix.ltrim($entry, '/'));
+            if ($raw === false) {
+                if (isset($names[$key]) && $names[$key] !== '') {
+                    $errors[] = "exam.json khai tệp \"{$entry}\" (files.{$key}) nhưng trong gói không có tệp này.";
+                }
+                continue;
+            }
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            $isImage = $key === 'cover';
+            if ($isImage ? ! in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true) : $ext !== 'pdf') {
+                $errors[] = "Tệp \"{$entry}\" phải là ".($isImage ? 'ảnh .jpg/.png/.webp' : 'tệp .pdf').'.';
+                continue;
+            }
+            $path = $tmpDir.'/'.$key.'.'.$ext;
+            file_put_contents($path, $raw);
+            $mime = match ($ext) { 'pdf' => 'application/pdf', 'png' => 'image/png', 'webp' => 'image/webp', default => 'image/jpeg' };
+            $files[$key] = new UploadedFile($path, basename($entry), $mime, null, true);
+        }
+        if ($requirePdf && ! isset($files['pdf'])) {
+            $errors[] = 'Gói thiếu tệp đề "'.($names['pdf'] ?? self::DEFAULT_FILES['pdf']).'" (bắt buộc).';
+        }
+
+        return [$za, $prefix, $json, $exam, $files, $tmpDir, $errors];
+    }
+
+    /** Nhãn dạng câu (content.type của gói câu hỏi QPACK) cho dòng tóm tắt sau khi nhập đề Luyện tập. */
+    public const CONTENT_TYPE_LABELS = [
+        'single_choice' => 'Trắc nghiệm', 'true_false' => 'Đúng/Sai', 'short_answer' => 'Điền từ',
+        'composite' => 'Câu nhiều ý', 'programming' => 'Lập trình',
+    ];
+
+    /**
+     * SỬA 16/10 — loại đề khai trong exam.json ("practice" mặc định / "exam"), để ExamZipImportService chọn cách nhập:
+     * Luyện tập -> câu hỏi rời (parsePractice), Đề thi -> đề PDF + phiếu đáp án (parse). Gói hỏng thì trả 'practice' — lỗi
+     * cụ thể sẽ do bước parse báo.
+     */
+    public static function examType(UploadedFile $zip): string
+    {
+        $za = new ZipArchive();
+        if ($za->open($zip->getRealPath()) !== true) {
+            return 'practice';
+        }
+        $raw = $za->getFromName('exam.json');
+        if ($raw === false) {
+            for ($i = 0; $i < $za->numFiles; $i++) {
+                $name = (string) $za->getNameIndex($i);
+                if (preg_match('#^[^/]+/exam\.json$#', $name) && ! str_starts_with($name, '__MACOSX/')) {
+                    $raw = $za->getFromName($name);
+                    break;
+                }
+            }
+        }
+        $za->close();
+        $json = is_string($raw) ? json_decode($raw, true) : null;
+        $type = is_array($json) ? (string) ($json['exam']['type'] ?? 'practice') : 'practice';
+
+        return $type === 'exam' ? 'exam' : 'practice';
+    }
+
+    /**
+     * SỬA 16/10 (khách: "đề Luyện tập hiển thị như đề câu hỏi rời — các câu add vô luôn full dạng, có cả test") — đọc gói đề
+     * LUYỆN TẬP: exam.json + MỖI CÂU MỘT THƯ MỤC đúng khuôn gói câu hỏi OT360-QPACK (MAU-CAU-HOI.zip: question.json +
+     * statement.pdf + solution.pdf + assets/ + tests/…). Dạng câu tự nhận theo content.type trong question.json của thư mục.
+     * Mỗi thư mục được nén lại thành 1 gói câu hỏi riêng (tên <MÃ CÂU>.zip) và kiểm tra NGAY bằng QuestionZipPackage::parse()
+     * — đúng bộ đọc của "Nhập câu hỏi từ ZIP" — nên lỗi của từng câu được báo hết trước khi tạo bất cứ thứ gì.
+     *
+     * @return array{exam: array, files: array<string, UploadedFile>, questions: array<int, array{no:int, points:float, zip:UploadedFile, contentType:string}>, summary: array, tmpDir: string}
+     *
+     * @throws ValidationException
+     */
+    public static function parsePractice(UploadedFile $zip): array
+    {
+        [$za, $prefix, $json, $exam, $files, $tmpDir, $errors] = self::readHeader($zip, false);
+
+        $questions = [];
+        $seenNo = [];
+        $seenCode = [];
+        $summary = [];
+
+        foreach (array_values($json['questions']) as $idx => $item) {
+            if (! is_array($item)) {
+                $errors[] = 'Phần tử thứ '.($idx + 1).' trong "questions" không hợp lệ.';
+                continue;
+            }
+
+            $no = is_numeric($item['no'] ?? null) ? (int) $item['no'] : $idx + 1;
+            $where = "Câu {$no}";
+            if ($no < 1 || isset($seenNo[$no])) {
+                $errors[] = "{$where}: số câu ".($no < 1 ? 'phải từ 1 trở lên.' : 'bị trùng.');
+                continue;
+            }
+            $seenNo[$no] = true;
+
+            $folder = isset($item['folder']) && is_string($item['folder']) ? trim($item['folder'], '/ ') : '';
+            if ($folder === '') {
+                $errors[] = "{$where}: đề Luyện tập cần \"folder\" — thư mục câu hỏi đúng mẫu MAU-CAU-HOI (question.json + statement.pdf…). "
+                    .'Gói khai đáp án thẳng trong exam.json + de.pdf là dạng Đề thi PDF: đổi "exam.type" thành "exam".';
+                continue;
+            }
+
+            // Nén lại riêng thư mục của câu thành 1 gói câu hỏi (đường dẫn trong gói tính từ thư mục câu).
+            $base = $prefix.$folder.'/';
+            $code = self::str($item['code'] ?? null, 40)
+                ?? Str::limit(preg_replace('/^\d+[-_.\s]*/', '', basename($folder)) ?: basename($folder), 40, '');
+            $code = preg_replace('/[^A-Za-z0-9._-]+/', '_', Str::ascii($code)) ?: 'CAU-'.$no;
+            $codeKey = mb_strtolower($code);
+            if (isset($seenCode[$codeKey])) {
+                $code .= '-'.$no;
+                $codeKey = mb_strtolower($code);
+            }
+            $seenCode[$codeKey] = true;
+
+            $qZipPath = $tmpDir.'/q-'.$no.'-'.$code.'.zip';
+            $qz = new ZipArchive();
+            $qz->open($qZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+            $count = 0;
+            for ($i = 0; $i < $za->numFiles; $i++) {
+                $name = (string) $za->getNameIndex($i);
+                if (! str_starts_with($name, $base) || str_ends_with($name, '/')) {
+                    continue;
+                }
+                $data = $za->getFromIndex($i);
+                if ($data !== false) {
+                    $qz->addFromString(substr($name, strlen($base)), $data);
+                    $count++;
+                }
+            }
+            $qz->close();
+
+            if ($count === 0) {
+                $errors[] = "{$where}: không tìm thấy thư mục \"{$folder}\" trong gói.";
+                continue;
+            }
+
+            $qUpload = new UploadedFile($qZipPath, $code.'.zip', 'application/zip', null, true);
+            try {
+                $package = QuestionZipPackage::parse($qUpload);
+            } catch (ValidationException $e) {
+                foreach ($e->errors() as $messages) {
+                    foreach ((array) $messages as $message) {
+                        $errors[] = "{$where} ({$folder}): {$message}";
+                    }
+                }
+                continue;
+            }
+
+            $contentType = (string) ($package['json']['content']['type'] ?? '');
+            $pointsRaw = $item['points'] ?? ($package['json']['content']['points'] ?? null);
+            if (! is_numeric($pointsRaw) || (float) $pointsRaw < 0) {
+                $errors[] = "{$where}: thiếu \"points\" (điểm của câu trong đề) hoặc không phải số.";
+                continue;
+            }
+
+            $questions[] = ['no' => $no, 'points' => round((float) $pointsRaw, 2), 'zip' => $qUpload, 'contentType' => $contentType];
+            $summary[$contentType] = ($summary[$contentType] ?? 0) + 1;
+        }
+
+        $za->close();
+
+        if ($questions === [] && $errors === []) {
+            $errors[] = 'Mục "questions" trong exam.json chưa có câu nào.';
+        }
+
+        if ($errors !== []) {
+            File::deleteDirectory($tmpDir);
+            self::fail($errors);
+        }
+
+        usort($questions, fn ($a, $b) => $a['no'] <=> $b['no']);
+        $ordered = [];
+        foreach (array_keys(self::CONTENT_TYPE_LABELS) as $t) {
+            if (isset($summary[$t])) {
+                $ordered[$t] = $summary[$t];
+            }
+        }
+
+        return ['exam' => $exam, 'files' => $files, 'questions' => $questions, 'summary' => $ordered, 'tmpDir' => $tmpDir];
+    }
+
+    /** Dòng tóm tắt cho đề Luyện tập: "12 Trắc nghiệm · 2 Đúng/Sai · … · 2 Lập trình". */
+    public static function practiceSummaryText(array $summary): string
+    {
+        $parts = [];
+        foreach ($summary as $type => $count) {
+            $parts[] = $count.' '.(self::CONTENT_TYPE_LABELS[$type] ?? $type);
+        }
+
+        return implode(' · ', $parts);
     }
 
     /** Xoá thư mục tạm chứa các tệp đã giải nén (gọi sau khi đã lưu xong). */

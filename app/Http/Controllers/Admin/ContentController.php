@@ -770,9 +770,57 @@ class ContentController extends Controller
             return redirect()->route('admin.content.assessments.create')->withErrors($e->errors());
         }
 
+        // SỬA 16/10 — đề Luyện tập (câu hỏi rời) mở trang chi tiết đề, đúng chỗ "Câu hỏi trong đề"; đề thi PDF mở "Quản lý đề PDF".
+        if (($result['mode'] ?? 'pdf') === 'practice') {
+            return redirect()
+                ->to(route('admin.content.show', ['content' => $result['assessment']->id, 'kind' => 'assessment']).'#assessment-items')
+                ->with('status', 'assessment-zip-imported')
+                ->with('zipImportSummary', $result['summary']);
+        }
+
         return redirect()->route('admin.content.assessments.pdf.edit', $result['assessment']->id)
             ->with('status', 'assessment-zip-imported')
             ->with('zipImportSummary', $result['summary']);
+    }
+
+    /**
+     * SỬA 16/10 (khách: "có nút sửa, xoá, phát hành ngay trong danh sách câu của đề") — BỎ 1 câu khỏi đề (câu vẫn còn
+     * trong Kho câu hỏi), đánh lại thứ tự và cộng lại tổng điểm.
+     */
+    public function assessmentsItemsDestroy(Assessment $assessment, \App\Models\AssessmentItem $item): RedirectResponse
+    {
+        abort_unless((int) $item->assessment_id === (int) $assessment->id, 404);
+
+        $this->contentService->assessmentItemRemove($assessment, $item);
+
+        return redirect()
+            ->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
+            ->with('status', 'assessment-item-removed');
+    }
+
+    /** SỬA 16/10 — phát hành 1 câu hỏi ngay trong danh sách câu của đề (cùng điều kiện như nút Phát hành ở trang câu hỏi). */
+    public function assessmentsItemsPublishQuestion(Assessment $assessment, \App\Models\AssessmentItem $item): RedirectResponse
+    {
+        abort_unless((int) $item->assessment_id === (int) $assessment->id, 404);
+        abort_if($item->question === null, 404);
+
+        $result = $this->contentService->questionPublish($item->question);
+        $back = redirect()->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items');
+
+        return $result['ok']
+            ? $back->with('status', 'assessment-item-question-published')
+            : $back->withErrors(['publish' => 'Câu "'.$item->question->title.'": '.$result['message']]);
+    }
+
+    /** SỬA 16/10 — phát hành MỘT LẦN mọi câu còn Nháp trong đề (câu chưa đủ điều kiện thì báo lại, không chặn các câu khác). */
+    public function assessmentsItemsPublishAll(Assessment $assessment): RedirectResponse
+    {
+        $result = $this->contentService->assessmentPublishAllQuestions($assessment);
+        $back = redirect()->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
+            ->with('status', 'assessment-items-published')
+            ->with('publishedCount', $result['published']);
+
+        return $result['failed'] === [] ? $back : $back->withErrors(['publish' => $result['failed']]);
     }
 
     public function assessmentsStore(Request $request): RedirectResponse

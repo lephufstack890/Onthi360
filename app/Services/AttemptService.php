@@ -602,17 +602,21 @@ class AttemptService
             $score = null;
             $verdict = VerdictStatus::Queued;
         } elseif ($question->type === QuestionType::Composite) {
-            // SỬA 31/8 (2, "mở rộng ZIP bài tập" nhiều dạng câu) — câu Composite chưa có gắn
-            // vào 1 Assessment thật nào (chỉ tạo qua nhập ZIP vào Kho chung/bài tập sản phẩm,
-            // dùng ở "Luyện tập theo câu" — xem Student\PracticeByQuestionService::answer(), nơi
-            // DUY NHẤT hiện chấm từng phần) — nhưng NẾU sau này có ai gắn 1 câu Composite vào
-            // đề thi chính thức, saveAnswer() vẫn phải xử lý được thay vì rơi vào nhánh 'else'
-            // bên dưới (dành cho FillBlank) và hiểu sai cấu trúc dữ liệu. Chưa có pipeline
-            // chấm/tổng hợp điểm từng phần cho luồng thi chính thức — ghi nhận "Queued" giống
-            // hệt Lập trình (không tự chấm), an toàn hơn là chấm sai.
-            $answer = ['parts' => $rawInput['parts'] ?? []];
-            $score = null;
-            $verdict = VerdictStatus::Queued;
+            // SỬA 16/10 (khách: đề Luyện tập nhập từ gói ZIP có câu Đúng/Sai 4 ý, câu nhiều ý) — câu nhiều ý trong ĐỀ giờ được
+            // CHẤM NGAY như trắc nghiệm/điền đáp án (trước đây chỉ ghi nhận "queued" vì chưa có câu nhiều ý nào trong đề).
+            // Bài nộp từ ô tự lưu/Chấm câu là mảng {"a": "B", "b": "true", "c": "14"}; từ form nộp là chuỗi JSON parts_json.
+            $parts = $rawInput['parts'] ?? null;
+            if (! is_array($parts) && is_string($rawInput['parts_json'] ?? null)) {
+                $parts = json_decode($rawInput['parts_json'], true);
+            }
+            $clean = [];
+            foreach (is_array($parts) ? $parts : [] as $code => $value) {
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    $clean[(string) $code] = (string) $value;
+                }
+            }
+            $answer = ['parts' => $clean];
+            [$score, $verdict] = $this->gradeComposite($attempt, $question, $clean);
         } elseif ($question->type === QuestionType::Mcq) {
             $answer = ['selected_option' => $rawInput['selected_option'] ?? null];
             [$score, $verdict] = $this->gradeMcq($attempt, $question, $answer);
@@ -1074,6 +1078,45 @@ class AttemptService
 
         // SỬA 23/9 — điểm lấy theo ĐỀ (points_override), xem maxPointsFor().
         return [$isCorrect ? $this->maxPointsFor($attempt, $question) : 0.0, $isCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
+    }
+
+    /**
+     * SỬA 16/10 — chấm câu nhiều ý: mỗi ý đúng được điểm của ý đó (grading_config.parts[].points), quy đổi theo điểm của câu
+     * TRONG ĐỀ (points_override). Đúng hết = Accepted, còn lại = WrongAnswer (vẫn có điểm từng phần).
+     *
+     * @param  array<string, string>  $parts
+     * @return array{0: float, 1: VerdictStatus}
+     */
+    private function gradeComposite(Attempt $attempt, Question $question, array $parts): array
+    {
+        $config = $question->grading_config['parts'] ?? [];
+        $total = 0.0;
+        $earned = 0.0;
+        $allCorrect = $config !== [];
+
+        foreach ($config as $part) {
+            $partPoints = max(0.0, (float) ($part['points'] ?? 0));
+            $total += $partPoints;
+            $given = $parts[(string) ($part['code'] ?? '')] ?? null;
+
+            $ok = match ($part['response_type'] ?? '') {
+                'single_choice' => QuestionGrader::isChoiceCorrect($given, $part['correct_answer'] ?? null),
+                'true_false' => QuestionGrader::isTrueFalseCorrect($given, (bool) ($part['correct_answer'] ?? false)),
+                'short_answer' => QuestionGrader::matchesAcceptedAnswers((string) ($given ?? ''), (array) ($part['accepted_answers'] ?? []), (array) ($part['normalization'] ?? [])),
+                default => false,
+            };
+
+            if ($ok) {
+                $earned += $partPoints;
+            } else {
+                $allCorrect = false;
+            }
+        }
+
+        $max = $this->maxPointsFor($attempt, $question);
+        $score = $allCorrect ? $max : ($total > 0 ? round($max * $earned / $total, 2) : 0.0);
+
+        return [$score, $allCorrect ? VerdictStatus::Accepted : VerdictStatus::WrongAnswer];
     }
 
     /** @return array{0: ?float, 1: VerdictStatus} */

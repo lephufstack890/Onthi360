@@ -14,6 +14,7 @@
             'title' => $q['title'],
             'points' => (int) $q['points'],
             'search' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(($q['code'] ?? '').' '.$q['title'])),
+            'editUrl' => route('admin.content.questions.edit', $q['id']), // SỬA 16/10 — nút Sửa ở danh sách thứ tự câu
         ]])->all();
     @endphp
 
@@ -77,6 +78,8 @@
                                  danh sách "Thứ tự câu trong đề" phía trên. --}}
                             <div class="flex shrink-0 items-center gap-2" @click.stop>
                                 <span class="rounded-full border border-sky-100 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-slate-500" title="Độ khó (tham khảo)">{{ $q['difficultyLabel'] }}</span>
+                                {{-- SỬA 16/10 (khách: "thiếu nút sửa") — mở tab mới để không mất danh sách đang chọn. --}}
+                                <a href="{{ route('admin.content.questions.edit', $q['id']) }}" target="_blank" rel="noopener" class="qo-btn qo-edit" title="Sửa câu hỏi (mở tab mới)">Sửa</a>
                                 <span class="qo-pin">
                                     <input type="number" class="qo-in" :class="has({{ $q['id'] }}) ? '' : 'is-off'" inputmode="decimal" min="0" max="1000" step="any"
                                            x-model="pts[{{ $q['id'] }}]" aria-label="Điểm câu {{ $q['id'] }}" title="Nhập điểm của câu này">

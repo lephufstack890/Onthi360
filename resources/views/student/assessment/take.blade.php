@@ -55,7 +55,12 @@
              initialGrades: @js((object) ($initialGrades ?? [])),
              attemptKey: @js($attempt->id),
              questions: @js($vm),
-             answers: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['kind'] === 'fill' ? (string) ($q['textAnswer'] ?? '') : (($q['selectedOption'] === null) ? '' : (string) $q['selectedOption'])])),
+             answers: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => match (true) {
+                 $q['kind'] === 'fill' => (string) ($q['textAnswer'] ?? ''),
+                 // SỬA 16/10 — câu nhiều ý: câu trả lời giữ dạng chuỗi JSON {"a":"B",…} ('' = chưa trả lời ý nào).
+                 $q['kind'] === 'parts' => empty($q['partAnswers']) ? '' : json_encode((object) $q['partAnswers'], JSON_UNESCAPED_UNICODE),
+                 default => ($q['selectedOption'] === null) ? '' : (string) $q['selectedOption'],
+             }])),
              codes: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => (string) ($q['codeSource'] ?? '')])),
              languages: @js(collect($questions)->mapWithKeys(fn ($q) => [$q['questionId'] => $q['language'] ?: 'cpp'])),
              firstId: @js($firstId),
@@ -449,6 +454,43 @@
                                                             </label>
                                                         @endforeach
                                                     </div>
+                                                @elseif ($q['kind'] === 'parts')
+                                                    {{-- SỬA 16/10 — câu nhiều ý: mỗi ý một ô trả lời theo đúng kiểu của ý (trắc nghiệm / đúng-sai / điền). --}}
+                                                    <div class="space-y-2">
+                                                        @foreach ($q['parts'] as $part)
+                                                            @php $pc = $part['code']; @endphp
+                                                            <div class="rounded-lg bg-white px-3 py-2.5">
+                                                                <p class="mb-2 text-xs font-bold text-[#123B68]">Ý {{ $pc }})</p>
+                                                                @if ($part['type'] === 'single_choice')
+                                                                    <div class="flex flex-wrap gap-2">
+                                                                        @foreach ($part['choices'] as $ch)
+                                                                            <label class="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[#45657D] ring-1 ring-inset ring-[#DDEAF0]"
+                                                                                   :class="partVal({{ $qid }}, '{{ $pc }}') === '{{ $ch }}' ? 'bg-[#EAF5F8] text-[#126F91]' : ''">
+                                                                                <input type="radio" name="part-{{ $qid }}-{{ $pc }}" value="{{ $ch }}" :checked="partVal({{ $qid }}, '{{ $pc }}') === '{{ $ch }}'" :disabled="expired"
+                                                                                       @change="setPart({{ $qid }}, '{{ $pc }}', '{{ $ch }}')" class="h-4 w-4 accent-[#126F91]">
+                                                                                <span>{{ $ch }}</span>
+                                                                            </label>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @elseif ($part['type'] === 'true_false')
+                                                                    <div class="flex flex-wrap gap-2">
+                                                                        @foreach ([['true', 'Đúng'], ['false', 'Sai']] as [$tfVal, $tfLabel])
+                                                                            <label class="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[#45657D] ring-1 ring-inset ring-[#DDEAF0]"
+                                                                                   :class="partVal({{ $qid }}, '{{ $pc }}') === '{{ $tfVal }}' ? 'bg-[#EAF5F8] text-[#126F91]' : ''">
+                                                                                <input type="radio" name="part-{{ $qid }}-{{ $pc }}" value="{{ $tfVal }}" :checked="partVal({{ $qid }}, '{{ $pc }}') === '{{ $tfVal }}'" :disabled="expired"
+                                                                                       @change="setPart({{ $qid }}, '{{ $pc }}', '{{ $tfVal }}')" class="h-4 w-4 accent-[#126F91]">
+                                                                                <span>{{ $tfLabel }}</span>
+                                                                            </label>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <input type="text" :value="partVal({{ $qid }}, '{{ $pc }}')" :disabled="expired" placeholder="Nhập đáp án"
+                                                                           @input.debounce.700ms="setPart({{ $qid }}, '{{ $pc }}', $event.target.value)"
+                                                                           class="w-full rounded-lg bg-white px-3 py-2.5 text-sm text-[#123B68] outline-none ring-1 ring-inset ring-[#DDEAF0] focus:ring-2 focus:ring-[#126F91]">
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
                                                 @else
                                                     <div class="space-y-2">
                                                         <label class="block text-xs font-bold text-[#123B68]" for="fill-{{ $qid }}">Đáp án của bạn <span class="text-rose-500">*</span></label>
@@ -471,7 +513,7 @@
                                                  @if ($canGrade) x-show="!(gradingId === {{ $qid }} || doneGradeOf({{ $qid }}) || staleGrade({{ $qid }}) || gradeError[{{ $qid }}])" @endif>
                                             <span class="text-[10px] font-black uppercase tracking-[.12em] text-[#A4621B]">Trạng thái</span>
                                             <p class="mt-3 text-sm font-bold text-[#7C541C]" x-text="isAnswered({{ $qid }}) ? 'Đã nhập câu trả lời' : 'Chưa trả lời'"></p>
-                                            <p class="mt-2 text-[11px] leading-5 text-[#967342]">{{ $q['kind'] === 'choice' ? 'Chọn một phương án phù hợp nhất.' : 'Kiểm tra lại đáp án trước khi nộp bài.' }}</p>
+                                            <p class="mt-2 text-[11px] leading-5 text-[#967342]">{{ $q['kind'] === 'choice' ? 'Chọn một phương án phù hợp nhất.' : ($q['kind'] === 'parts' ? 'Trả lời đủ từng ý — mỗi ý đúng được điểm của ý đó.' : 'Kiểm tra lại đáp án trước khi nộp bài.') }}</p>
                                             @if ($canGrade)
                                                 <p class="mt-2 text-[11px] leading-5 text-[#967342]">Bấm <span class="font-bold">Chấm câu</span> ở thanh trên để xem điểm câu này ngay.</p>
                                             @endif
@@ -636,6 +678,8 @@
                     <input type="hidden" name="answers[{{ $qid }}][language]">
                 @elseif ($q['kind'] === 'fill')
                     <input type="hidden" name="answers[{{ $qid }}][text]">
+                @elseif ($q['kind'] === 'parts')
+                    <input type="hidden" name="answers[{{ $qid }}][parts_json]">
                 @else
                     <input type="hidden" name="answers[{{ $qid }}][selected_option]">
                 @endif

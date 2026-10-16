@@ -13,6 +13,7 @@
             'title' => $q['title'],
             'points' => (int) $q['points'],
             'search' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(($q['code'] ?? '').' '.$q['title'])),
+            'editUrl' => route('teacher.questions.edit', $q['id']), // SỬA 16/10 — nút Sửa ở danh sách thứ tự câu
         ]])->all();
     @endphp
 

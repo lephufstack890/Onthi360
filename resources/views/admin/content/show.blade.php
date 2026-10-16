@@ -73,6 +73,11 @@
             'material-published', 'question-published', 'assessment-published' => 'Đã phát hành.',
             'material-rejected', 'question-rejected', 'assessment-rejected' => 'Đã trả về nháp, đã ghi lý do.',
             'material-archived', 'question-archived', 'assessment-archived' => 'Đã lưu trữ, đã ghi lý do.',
+            // SỬA 16/10 — nhập đề Luyện tập từ gói ZIP + sửa/xoá/phát hành ngay trong danh sách câu của đề.
+            'assessment-zip-imported' => 'Đã tạo đề Luyện tập từ gói ZIP: '.session('zipImportSummary').'. Các câu đã vào Kho câu hỏi (Nháp) — kiểm tra rồi phát hành câu và đề.',
+            'assessment-item-removed' => 'Đã bỏ câu khỏi đề (câu vẫn còn trong Kho câu hỏi).',
+            'assessment-item-question-published' => 'Đã phát hành câu hỏi.',
+            'assessment-items-published' => 'Đã phát hành '.(int) session('publishedCount').' câu hỏi.',
             default => session('status') ? 'Đã cập nhật.' : null,
         };
     @endphp
@@ -161,7 +166,7 @@
                         @endif
                     </section>
                 @elseif ($type === 'assessment' && $model)
-                    @php $assessmentTypeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻']; @endphp
+                    @php $assessmentTypeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻', 'composite' => '🧩']; @endphp
                     <section class="acx-card acx-card--white">
                         <div class="akx-src" style="margin:0;line-height:1.7">
                             <p>Loại: {{ $model->type->value }} · Tổng điểm: {{ $model->total_points }}</p>
@@ -175,7 +180,17 @@
                     <section class="acx-card acx-card--white" id="assessment-items">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="clipboard-list" /> Câu hỏi trong đề ({{ $model->items->count() }})</h2>
-                            <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="akx-lnk">Quản lý câu hỏi ›</a>
+                            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                                {{-- SỬA 16/10 — phát hành một lần mọi câu còn Nháp (vd vừa nhập cả đề từ gói ZIP). --}}
+                                @php $draftItemCount = $model->items->filter(fn ($i) => $i->question && $i->question->status?->value !== 'published')->count(); @endphp
+                                @if ($draftItemCount > 0)
+                                    <form method="POST" action="{{ route('admin.content.assessments.items.publishAll', $model->id) }}" style="margin:0">
+                                        @csrf
+                                        <button type="submit" class="ai-pub-all">Phát hành {{ $draftItemCount }} câu nháp</button>
+                                    </form>
+                                @endif
+                                <a href="{{ route('admin.content.assessments.items.edit', $model->id) }}" class="akx-lnk">Quản lý câu hỏi ›</a>
+                            </div>
                         </div>
 
                         @if ($model->items->isEmpty())
@@ -195,6 +210,19 @@
                                     .ai-pt input { width:76px; height:32px; box-sizing:border-box; border:1px solid #BFD9E4; border-radius:9px; background:#fff; padding:0 8px; text-align:center; font-size:13px; font-weight:700; color:#123B68; }
                                     .ai-pt input:focus { outline:none; border-color:#126F91; box-shadow:0 0 0 3px rgba(18,111,145,.15); }
                                     .ai-save { width:32px; height:32px; color:#126F91; border-color:#BFD9E4; }
+                                    /* SỬA 16/10 — trạng thái câu + Sửa / Phát hành / Xoá ngay trên từng dòng. */
+                                    .ai-st { flex:none; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#F1F5F9; color:#64748B; }
+                                    .ai-st.is-pub { background:#E5F7EE; color:#207153; }
+                                    .ai-act { display:flex; align-items:center; justify-content:flex-end; gap:4px; flex:none; min-width:182px; margin-left:10px; }
+                                    .ai-act form { margin:0; }
+                                    .ai-act a, .ai-act button { display:inline-flex; align-items:center; min-height:30px; padding:0 9px; border:1px solid #DDEAF0; border-radius:8px; background:#fff; font-size:12px; font-weight:700; color:#2563EB; text-decoration:none; cursor:pointer; }
+                                    .ai-act a:hover, .ai-act button:hover { background:#EFF6FF; }
+                                    .ai-act .is-ok { color:#207153; border-color:#BFE6D2; }
+                                    .ai-act .is-ok:hover { background:#E5F7EE; }
+                                    .ai-act .is-del { color:#B42318; border-color:#F3D0CD; }
+                                    .ai-act .is-del:hover { background:#FFF1F0; }
+                                    .ai-pub-all { min-height:32px; padding:0 12px; border:0; border-radius:9px; background:#207153; font-size:12px; font-weight:700; color:#fff; cursor:pointer; }
+                                    .ai-pub-all:hover { background:#185c43; }
                                 </style>
                                 @php $itemCount = $model->items->count(); @endphp
                                 @foreach ($model->items as $it)
@@ -203,6 +231,10 @@
                                             <span class="ai-no">{{ $loop->iteration }}</span>
                                             <span class="shrink-0">{{ $assessmentTypeIcons[$it->question?->type?->value] ?? '❓' }}</span>
                                             <p class="apx-item__title" style="font-weight:500">{{ $it->question->title ?? '(Câu hỏi đã bị xoá)' }}</p>
+                                            @if ($it->question)
+                                                @php $itPublished = $it->question->status?->value === 'published'; @endphp
+                                                <span @class(['ai-st', 'is-pub' => $itPublished])>{{ $itPublished ? 'Đã phát hành' : 'Nháp' }}</span>
+                                            @endif
                                         </div>
                                         {{-- SỬA 11/10 (khách: "điểm từng câu hỏi trong đề cho nhập chứ k lấy từ độ khó") —
                                              ô NHẬP điểm của câu (số nguyên hoặc thập phân), bấm ✓ để lưu; tổng điểm
@@ -222,6 +254,25 @@
                                                     <button type="submit" class="ai-btn" title="{{ $label }}" aria-label="{{ $label }}" @disabled($off)>{{ $icon }}</button>
                                                 </form>
                                             @endforeach
+                                        </div>
+                                        {{-- SỬA 16/10 (khách: "có thêm nút sửa xoá phát hành để sửa xoá phát luôn trong này") — Sửa = mở form sửa
+                                             câu hỏi; Phát hành = phát hành câu (chỉ hiện khi câu còn Nháp); Xoá = bỏ câu khỏi đề (câu vẫn còn ở Kho). --}}
+                                        <div class="ai-act">
+                                            @if ($it->question)
+                                                <a href="{{ route('admin.content.questions.edit', $it->question->id) }}" title="Sửa câu hỏi">Sửa</a>
+                                                @if (! $itPublished)
+                                                    <form method="POST" action="{{ route('admin.content.assessments.items.publish', [$model->id, $it->id]) }}">
+                                                        @csrf
+                                                        <button type="submit" class="is-ok" title="Phát hành câu hỏi">Phát hành</button>
+                                                    </form>
+                                                @endif
+                                            @endif
+                                            <form method="POST" action="{{ route('admin.content.assessments.items.destroy', [$model->id, $it->id]) }}"
+                                                  onsubmit="return confirm('Bỏ câu này khỏi đề? Câu vẫn còn trong Kho câu hỏi.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="is-del" title="Bỏ câu khỏi đề">Xoá</button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach

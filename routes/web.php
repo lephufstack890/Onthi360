@@ -843,6 +843,10 @@ Route::middleware(['auth'])->group(function () {
         Route::put('content/assessments/{assessment}/items', [AdminContentController::class, 'assessmentsItemsUpdate'])->name('content.assessments.items.update');
         // SỬA 9/10 — dời một câu lên/xuống ngay ở trang chi tiết đề (khỏi mở form Chọn câu hỏi).
         Route::post('content/assessments/{assessment}/items/{item}/move', [AdminContentController::class, 'assessmentsItemsMove'])->name('content.assessments.items.move');
+        // SỬA 16/10 — sửa/xoá/phát hành ngay trong danh sách "Câu hỏi trong đề".
+        Route::delete('content/assessments/{assessment}/items/{item}', [AdminContentController::class, 'assessmentsItemsDestroy'])->name('content.assessments.items.destroy');
+        Route::post('content/assessments/{assessment}/items/{item}/publish', [AdminContentController::class, 'assessmentsItemsPublishQuestion'])->name('content.assessments.items.publish');
+        Route::post('content/assessments/{assessment}/items-publish-all', [AdminContentController::class, 'assessmentsItemsPublishAll'])->name('content.assessments.items.publishAll');
         Route::patch('content/assessments/{assessment}/items/{item}/points', [AdminContentController::class, 'assessmentsItemsPoints'])->name('content.assessments.items.points');
         Route::post('content/assessments/{assessment}/publish', [AdminContentController::class, 'assessmentsPublish'])->name('content.assessments.publish');
         Route::post('content/assessments/{assessment}/reject', [AdminContentController::class, 'assessmentsReject'])->name('content.assessments.reject');

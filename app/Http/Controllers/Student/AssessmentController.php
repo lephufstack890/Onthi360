@@ -91,6 +91,9 @@ class AssessmentController extends Controller
             'language' => ['nullable', 'string', 'max:30'],
             'selected_option' => ['nullable'],
             'text' => ['nullable', 'string', 'max:2000'],
+            // SỬA 16/10 — câu nhiều ý: {"a": "B", "b": "true", "c": "14"}.
+            'parts' => ['nullable', 'array'],
+            'parts.*' => ['nullable', 'string', 'max:2000'],
         ]);
 
         try {

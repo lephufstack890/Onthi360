@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AssessmentContentMode;
 use App\Models\Assessment;
+use App\Models\AssessmentItem;
 use App\Models\User;
 use App\Services\Admin\ContentService;
 use App\Services\Teacher\AssessmentService as TeacherAssessmentService;
@@ -30,9 +31,18 @@ class ExamZipImportService
         private readonly TeacherAssessmentService $teacherAssessments,
     ) {}
 
-    /** @return array{assessment: Assessment, summary: string} */
+    /**
+     * SỬA 16/10 (khách: "đề Luyện tập phải hiển thị như đề câu hỏi rời, các câu add vô luôn full dạng có cả test") —
+     * exam.type = "practice" (mặc định) -> đề Luyện tập CÂU HỎI RỜI (importPracticeForAdmin); "exam" -> đề PDF như cũ.
+     *
+     * @return array{assessment: Assessment, summary: string, mode: string}
+     */
     public function importForAdmin(User $admin, UploadedFile $zip): array
     {
+        if (ExamZipPackage::examType($zip) === 'practice') {
+            return $this->importPracticeForAdmin($admin, $zip);
+        }
+
         $p = ExamZipPackage::parse($zip);
 
         try {
@@ -59,12 +69,71 @@ class ExamZipImportService
             ExamZipPackage::cleanup($p);
         }
 
-        return ['assessment' => $assessment, 'summary' => ExamZipPackage::summaryText($p['summary'])];
+        return ['assessment' => $assessment, 'summary' => ExamZipPackage::summaryText($p['summary']), 'mode' => 'pdf'];
     }
 
-    /** @return array{assessment: Assessment, summary: string} */
+    /**
+     * Đề Luyện tập câu hỏi rời (content_mode = structured — hiện ở trang chi tiết đề dạng "Câu hỏi trong đề" có ô điểm, nút
+     * đổi thứ tự): MỖI CÂU trong gói được nhập vào Kho câu hỏi (Kho chung, Nháp) bằng ĐÚNG hàm "Nhập câu hỏi từ ZIP"
+     * (ContentService::questionStoreFromZipPackage — đủ dạng, đề PDF, lời giải, ảnh/âm thanh, bộ test) rồi gắn vào đề theo
+     * đúng thứ tự và điểm khai trong exam.json.
+     *
+     * @return array{assessment: Assessment, summary: string, mode: string}
+     */
+    private function importPracticeForAdmin(User $admin, UploadedFile $zip): array
+    {
+        $p = ExamZipPackage::parsePractice($zip);
+
+        try {
+            $this->assertExamCodeFree($p['exam']['exam_code']);
+
+            $assessment = DB::transaction(function () use ($admin, $p) {
+                $files = $p['files'];
+                // type = practice -> ContentService::contentModeForType() cho chế độ câu hỏi rời (structured).
+                $assessment = $this->content->assessmentStore($admin, array_replace($p['exam'], [
+                    'type' => 'practice',
+                    'preview_pdf' => $files['preview'] ?? null,
+                    'guide_pdf' => $files['guide'] ?? null,
+                    'sample_pdf' => $files['sample'] ?? null,
+                ]), $files['cover'] ?? null);
+
+                $total = 0.0;
+                foreach ($p['questions'] as $order => $q) {
+                    $question = $this->content->questionStoreFromZipPackage($admin, $q['zip']);
+                    AssessmentItem::create([
+                        'assessment_id' => $assessment->id,
+                        'question_id' => $question->id,
+                        'order' => $order,
+                        'points_override' => $q['points'],
+                    ]);
+                    $total += $q['points'];
+                }
+
+                $assessment->forceFill([
+                    'total_points' => round($total, 2),
+                    'exam_code' => $p['exam']['exam_code'],
+                ])->save();
+
+                return $assessment->fresh();
+            });
+        } finally {
+            ExamZipPackage::cleanup($p);
+        }
+
+        return ['assessment' => $assessment, 'summary' => ExamZipPackage::practiceSummaryText($p['summary']), 'mode' => 'practice'];
+    }
+
+    /** @return array{assessment: Assessment, summary: string, mode: string} */
     public function importForTeacher(User $teacher, UploadedFile $zip): array
     {
+        // SỬA 16/10 — đề Luyện tập câu hỏi rời của giáo viên chưa có màn quản lý (màn "đề chọn câu rời" của giáo viên đang ẩn
+        // theo cờ features.teacher_practice_screen) nên chưa nhận gói Luyện tập ở đây; giáo viên nhập gói Đề thi PDF.
+        if (ExamZipPackage::examType($zip) === 'practice') {
+            throw ValidationException::withMessages([
+                'exam_zip' => 'Gói này là đề Luyện tập (câu hỏi rời) — hiện chỉ tài khoản Admin nhập được. Giáo viên nhập gói đề PDF: ghi "exam.type": "exam" trong exam.json (mẫu đề PDF: de.pdf + đáp án ghi trong exam.json).',
+            ]);
+        }
+
         $p = ExamZipPackage::parse($zip);
 
         try {
@@ -93,7 +162,7 @@ class ExamZipImportService
             ExamZipPackage::cleanup($p);
         }
 
-        return ['assessment' => $assessment, 'summary' => ExamZipPackage::summaryText($p['summary'])];
+        return ['assessment' => $assessment, 'summary' => ExamZipPackage::summaryText($p['summary']), 'mode' => 'pdf'];
     }
 
     /** Bước 2 + 3: tệp đề, lời giải, phiếu đáp án, bài lập trình + test. */
@@ -127,8 +196,8 @@ class ExamZipImportService
      */
     private function resolveType(?string $raw): string
     {
-        // SỬA 16/10 — Bài giao / Đề thi đấu đã ẩn khỏi tạo đề mới: chỉ còn Luyện tập (mặc định) và Đề thi.
-        return in_array($raw, ['practice', 'exam'], true) ? $raw : 'practice';
+        // SỬA 16/10 — Luyện tập giờ nhập theo dạng câu hỏi rời (importPracticeForAdmin); nhánh đề PDF chỉ còn Đề thi.
+        return 'exam';
     }
 
     /** Mã đề là duy nhất trên toàn hệ thống (kể cả đề đã xoá mềm — ràng buộc unique của cột exam_code). */

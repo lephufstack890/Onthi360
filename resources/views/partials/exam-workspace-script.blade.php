@@ -223,6 +223,29 @@
 
                 // ───────── SỬA 14/10 — CHẤM TỪNG CÂU ─────────
                 /** Dấu vân tay câu trả lời hiện tại: đổi mã/ngôn ngữ/đáp án là đổi key. */
+                // SỬA 16/10 — câu nhiều ý: answers[id] là chuỗi JSON {"a":"B",…}. 3 hàm dưới đọc/ghi từng ý và dựng gói gửi lên.
+                partVal(id, code) {
+                    try { var o = JSON.parse(this.answers[id] || '{}'); return o && o[code] !== undefined ? String(o[code]) : ''; } catch (e) { return ''; }
+                },
+                setPart(id, code, value) {
+                    var o = {};
+                    try { o = JSON.parse(this.answers[id] || '{}') || {}; } catch (e) { o = {}; }
+                    var v = String(value === undefined || value === null ? '' : value).trim();
+                    if (v === '') delete o[code]; else o[code] = v;
+                    this.answers[id] = Object.keys(o).length ? JSON.stringify(o) : '';
+                    this.onAnswer(id);
+                },
+                payloadOf(q) {
+                    var id = q.id;
+                    if (q.kind === 'code') return { code_source: this.codes[id], language: this.languages[id] };
+                    if (q.kind === 'fill') return { text: this.answers[id] };
+                    if (q.kind === 'parts') {
+                        var parts = {};
+                        try { parts = JSON.parse(this.answers[id] || '{}') || {}; } catch (e) { parts = {}; }
+                        return { parts: parts };
+                    }
+                    return { selected_option: this.answers[id] };
+                },
                 answerKey(id) {
                     var q = this.questions.find(function (x) { return x.id === id; });
                     if (q && q.kind === 'code') return JSON.stringify([String(this.codes[id] || ''), String(this.languages[id] || '')]);
@@ -313,9 +336,7 @@
                     if (!q) return;
 
                     var key = this.answerKey(id);
-                    var payload = q.kind === 'code'
-                        ? { code_source: this.codes[id], language: this.languages[id] }
-                        : (q.kind === 'fill' ? { text: this.answers[id] } : { selected_option: this.answers[id] });
+                    var payload = this.payloadOf(q);
 
                     this.gradingId = id;
                     this.gradeError = Object.assign({}, this.gradeError, { [id]: '' });
@@ -662,8 +683,8 @@
                 // ── Trắc nghiệm / điền đáp án ──
                 onAnswer(id) {
                     var q = this.questions.find((item) => item.id === id);
-                    var value = this.answers[id];
-                    this.save(id, q && q.kind === 'fill' ? { text: value } : { selected_option: value });
+                    if (!q) return;
+                    this.save(id, this.payloadOf(q));
                 },
 
                 // ── Tự lưu (GIỮ NGUYÊN giao thức cũ với student.assessment.take.save) ──
@@ -718,10 +739,7 @@
                     var q = this.questions.find(function (item) { return item.id === id; });
                     if (!q) return;
 
-                    var payload;
-                    if (q.kind === 'code') payload = { code_source: this.codes[id], language: this.languages[id] };
-                    else if (q.kind === 'fill') payload = { text: this.answers[id] };
-                    else payload = { selected_option: this.answers[id] };
+                    var payload = this.payloadOf(q);
 
                     this.recording[id] = true;
                     this.recordStatus[id] = 'Đang ghi nhận…';
@@ -798,6 +816,8 @@
                             put('answers[' + q.id + '][language]', String(code || '').trim() === '' ? '' : self.languages[q.id]);
                         } else if (q.kind === 'fill') {
                             put('answers[' + q.id + '][text]', self.answers[q.id]);
+                        } else if (q.kind === 'parts') {
+                            put('answers[' + q.id + '][parts_json]', self.answers[q.id]);
                         } else {
                             put('answers[' + q.id + '][selected_option]', self.answers[q.id]);
                         }

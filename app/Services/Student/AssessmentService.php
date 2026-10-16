@@ -105,8 +105,18 @@ class AssessmentService
                 'kind' => match ($question->type) {
                     QuestionType::Coding => 'code',
                     QuestionType::FillBlank => 'fill',
+                    QuestionType::Composite => 'parts', // SỬA 16/10 — câu nhiều ý (Đúng/Sai 4 ý, trộn dạng)
                     default => 'choice',
                 },
+                // SỬA 16/10 — các ý của câu nhiều ý: CHỈ tên ý + kiểu trả lời + phương án (chữ cái), KHÔNG đưa đáp án đúng ra.
+                'parts' => $question->type === QuestionType::Composite
+                    ? array_values(array_map(fn ($part) => [
+                        'code' => (string) ($part['code'] ?? ''),
+                        'type' => (string) ($part['response_type'] ?? 'short_answer'),
+                        'choices' => array_values(array_map('strval', (array) ($part['choices'] ?? ['A', 'B', 'C', 'D']))),
+                    ], (array) ($question->grading_config['parts'] ?? [])))
+                    : [],
+                'partAnswers' => (array) ($existing?->answer['parts'] ?? []),
                 'typeLabel' => match ($question->type) {
                     QuestionType::Coding => 'Lập trình',
                     QuestionType::FillBlank => 'Điền đáp án',

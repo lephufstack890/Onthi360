@@ -3222,6 +3222,55 @@ class ContentService
      * số gõ tay bị bỏ qua. Đề CHƯA CÓ CÂU nào mới dùng số gõ tay (đề PDF tự chấm điểm riêng
      * qua PdfAssessmentEditingService, cũng không có item nên không bị đụng).
      */
+    /** SỬA 16/10 — bỏ 1 câu khỏi đề: xoá dòng gắn (câu vẫn ở Kho), đánh lại thứ tự 0..n-1, cộng lại tổng điểm. */
+    public function assessmentItemRemove(Assessment $assessment, \App\Models\AssessmentItem $item): void
+    {
+        DB::transaction(function () use ($assessment, $item) {
+            $item->delete();
+
+            $ids = \App\Models\AssessmentItem::query()
+                ->where('assessment_id', $assessment->id)
+                ->orderBy('order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->all();
+            foreach ($ids as $i => $id) {
+                \App\Models\AssessmentItem::query()->whereKey($id)->update(['order' => $i]);
+            }
+
+            $assessment->unsetRelation('items');
+            $this->assessments->update($assessment, ['total_points' => $this->derivedTotalPoints($assessment) ?? 0]);
+        });
+    }
+
+    /**
+     * SỬA 16/10 — phát hành mọi câu còn Nháp trong đề (vd vừa nhập cả đề từ gói ZIP). Câu chưa đủ điều kiện (thiếu đáp án,
+     * thiếu test…) bị bỏ qua và báo lại tên + lý do, không chặn các câu khác.
+     *
+     * @return array{published: int, failed: array<int, string>}
+     */
+    public function assessmentPublishAllQuestions(Assessment $assessment): array
+    {
+        $assessment->loadMissing('items.question');
+        $published = 0;
+        $failed = [];
+
+        foreach ($assessment->items as $item) {
+            $question = $item->question;
+            if ($question === null || $question->status === ContentStatus::Published) {
+                continue;
+            }
+            $result = $this->questionPublish($question);
+            if ($result['ok']) {
+                $published++;
+            } else {
+                $failed[] = 'Câu "'.$question->title.'": '.$result['message'];
+            }
+        }
+
+        return ['published' => $published, 'failed' => $failed];
+    }
+
     private function derivedTotalPoints(Assessment $assessment): ?float
     {
         $assessment->loadMissing('items.question');

@@ -33,6 +33,9 @@
     .qo-btn { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border: 1px solid #DDEAF0; border-radius: 8px; background: #fff; color: #45657D; font-size: 12px; line-height: 1; cursor: pointer; }
     .qo-btn:hover:not(:disabled) { border-color: #126F91; color: #126F91; background: #EAF5F8; }
     .qo-btn:disabled { opacity: .35; cursor: not-allowed; }
+    /* SỬA 16/10 (khách: "thiếu nút sửa") — nút Sửa câu hỏi, mở tab mới để không mất danh sách đang chọn. */
+    .qo-edit { width: auto; padding: 0 10px; font-weight: 700; color: #2563EB; text-decoration: none; }
+    .qo-edit:hover { color: #1D4ED8 !important; border-color: #93C5FD !important; background: #EFF6FF !important; }
 </style>
 
 <template x-for="id in order" :key="'h' + id">
@@ -52,6 +55,9 @@
                            :name="'points[' + id + ']'" x-model="pts[id]" aria-label="Điểm của câu này">
                     đ
                 </label>
+                {{-- SỬA 16/10 — Sửa câu hỏi: mở TAB MỚI (sửa xong đóng tab là quay lại, danh sách đang chọn ở đây chưa lưu không bị mất). --}}
+                <a class="qo-btn qo-edit" x-show="meta[id] && meta[id].editUrl" :href="meta[id] ? meta[id].editUrl : '#'" target="_blank" rel="noopener"
+                   title="Sửa câu hỏi (mở tab mới)">Sửa</a>
                 <button type="button" class="qo-btn" title="Dời lên" aria-label="Dời lên" :disabled="i === 0" @click="move(i, -1)">▲</button>
                 <button type="button" class="qo-btn" title="Dời xuống" aria-label="Dời xuống" :disabled="i === order.length - 1" @click="move(i, 1)">▼</button>
                 <button type="button" class="qo-btn" title="Bỏ khỏi đề" aria-label="Bỏ khỏi đề" @click="toggle(id, false)">✕</button>
