@@ -52,6 +52,18 @@
     @media (min-width: 1024px) { .mp-grid-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     .mp-span-2 { grid-column: span 2 / span 2; min-width: 0; }
     .mp-span-all { grid-column: 1 / -1; min-width: 0; }
+    /* SỬA 16/10 — thanh tìm kiếm + nút "Bộ lọc" gập/mở các ô lọc phụ. */
+    .mp-search-row { display: flex; align-items: flex-end; gap: 10px; }
+    .mp-search-row > label { flex: 1; min-width: 0; }
+    .mp-more-btn { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid #d6e3ef; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 700; color: #126f91; cursor: pointer; transition: background .15s, border-color .15s; }
+    .mp-more-btn:hover { background: #eaf5f8; border-color: #bddbe6; }
+    .mp-more-btn.is-open { background: #eaf5f8; border-color: #9dc8d7; }
+    .mp-more-btn svg { width: 15px; height: 15px; }
+    .mp-more-btn .mp-more-chev { transition: transform .2s; }
+    .mp-more-btn.is-open .mp-more-chev { transform: rotate(180deg); }
+    .mp-more-count { display: inline-grid; min-width: 19px; height: 19px; padding: 0 5px; place-items: center; border-radius: 999px; background: #126f91; font-size: 10.5px; font-weight: 800; color: #fff; }
+    .mp-adv { margin-top: 12px; }
+    @media (max-width: 520px) { .mp-more-btn .mp-more-txt { display: none; } .mp-more-btn { padding: 0 11px; } }
     @media (min-width: 1024px) { .mp-span-3 { grid-column: span 3 / span 3; } }
     .mp-input { display: block; width: 100%; min-width: 0; min-height: 40px; border: 1px solid #d6e3ef; border-radius: 10px; background: #f8fafb; padding: 9px 12px; color: #365b7a; font-size: 12px; }
     .mp-input:focus { outline: 2px solid #9dc8d7; outline-offset: 1px; background-color: #fff; }

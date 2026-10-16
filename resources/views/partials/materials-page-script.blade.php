@@ -38,6 +38,8 @@
             access: 'all',
             status: 'all',
             sort: 'default',
+            // SỬA 16/10 (khách: "ẩn bộ lọc dưới thanh tìm kiếm, bấm mới hiện cho gọn") — mặc định GẬP các ô lọc phụ.
+            moreFilters: false,
             pageIndex: 1,
             selected: null,
 
@@ -110,6 +112,13 @@
                     || (this.canFilterAccess && this.access !== 'all') || (this.isAssignmentView && this.status !== 'all');
             },
             get canReset() { return this.hasFilters || this.sort !== 'default'; },
+            // Số ô lọc phụ (đang gập) đang được chọn khác mặc định -> hiện số trên nút "Bộ lọc" để người dùng biết vẫn đang lọc.
+            get advancedCount() {
+                return (this.difficulty !== 'all' ? 1 : 0) + (this.price !== 'all' ? 1 : 0)
+                    + (this.canFilterAccess && this.access !== 'all' ? 1 : 0)
+                    + (this.isAssignmentView && this.status !== 'all' ? 1 : 0)
+                    + (this.sort !== 'default' ? 1 : 0);
+            },
 
             resetFilters() {
                 this.query = ''; this.category = 'all'; this.difficulty = 'all'; this.price = 'all';

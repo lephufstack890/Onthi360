@@ -153,8 +153,11 @@
             </div>
         </div>
 
-        <div class="mp-grid-filters">
-            <label class="mp-span-2" :class="isAssignmentView ? 'mp-span-3' : 'mp-span-all'" style="min-width:0">
+        {{-- SỬA 16/10 (khách: "bộ lọc dưới thanh tìm kiếm nhìn chối mắt — ẩn đi, bấm nút mới hiện cho gọn") — các ô lọc phụ
+             (trạng thái đọc, độ khó, giá, quyền sử dụng, sắp xếp) GẬP mặc định; nút "Bộ lọc" cạnh ô tìm kiếm để mở/gập, có số
+             đếm ô đang lọc khi đang gập. Logic lọc không đổi. --}}
+        <div class="mp-search-row">
+            <label style="min-width:0">
                 <span class="mp-label" x-text="isAssignmentView ? (activeScope === 'managed' ? 'Tìm tài liệu, học sinh hoặc người giao' : 'Tìm tài liệu, người giao hoặc lời nhắn') : 'Tìm tài liệu, tác giả'"></span>
                 <span class="mp-search">
                     <x-lucide name="search" />
@@ -162,6 +165,16 @@
                            :placeholder="isAssignmentView ? (activeScope === 'managed' ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, người giao, lời nhắn...') : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)'">
                 </span>
             </label>
+            <button type="button" class="mp-more-btn" :class="moreFilters ? 'is-open' : ''" @click="moreFilters = ! moreFilters"
+                    :aria-expanded="moreFilters ? 'true' : 'false'" aria-controls="mp-adv-filters">
+                <x-lucide name="filter" />
+                <span class="mp-more-txt" x-text="moreFilters ? 'Ẩn bộ lọc' : 'Hiện thêm bộ lọc'">Hiện thêm bộ lọc</span>
+                <span class="mp-more-count" x-show="! moreFilters && advancedCount > 0" x-cloak x-text="advancedCount"></span>
+                <x-lucide name="chevron-down" class="mp-more-chev" />
+            </button>
+        </div>
+
+        <div id="mp-adv-filters" class="mp-grid-filters mp-adv" x-show="moreFilters" x-cloak x-transition.opacity>
 
             <label x-show="isAssignmentView" x-cloak style="min-width:0">
                 <span class="mp-label">Trạng thái đọc</span>
