@@ -742,6 +742,11 @@ class QuestionService
             'title' => $content['title'] ?? 'Câu hỏi (nhập từ ZIP)',
             'subject' => $classification['subject'],
             'grade' => $classification['grade'],
+            // SỬA 16/10 (khách: "nhập file ZIP thì Tỉnh thành mặc định Toàn quốc, Năm mặc định năm nay — thích thì chọn khác")
+            // — gói có ghi taxonomy.province / taxonomy.exam_year hợp lệ thì theo gói, không thì mặc định.
+            'province' => ProvinceCatalog::normalizeForQuestion(isset($json['taxonomy']['province']) ? (string) $json['taxonomy']['province'] : null)
+                ?? ProvinceCatalog::DEFAULT_QUESTION_SCOPE,
+            'exam_year' => ProvinceCatalog::normalizeYear($json['taxonomy']['exam_year'] ?? null) ?? (int) date('Y'),
             'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'grading_config' => QuestionZipPackage::gradingConfig($contentType, $json, $package['testCases']),
