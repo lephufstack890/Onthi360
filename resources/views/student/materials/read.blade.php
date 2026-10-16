@@ -366,14 +366,8 @@
                         {{-- SỬA 15/10 (khách: "chữ còn nhỏ quá, tăng size cho nhìn rõ") — trang PDF giờ tự VỪA KHUNG
                              (100% = rộng đúng khung đọc), thêm nút − / + để phóng to/thu nhỏ, nút ↔ về vừa khung.
                              Mức phóng được nhớ trên máy người đọc cho lần sau. --}}
-                        <div class="rz" role="group" aria-label="Cỡ chữ / phóng to">
-                            <button type="button" id="reader-zoom-out" class="rz-btn" title="Thu nhỏ" aria-label="Thu nhỏ">−</button>
-                            <span id="reader-zoom-label" class="rz-label" aria-live="polite">100%</span>
-                            <button type="button" id="reader-zoom-in" class="rz-btn" title="Phóng to" aria-label="Phóng to">+</button>
-                            <button type="button" id="reader-zoom-fit" class="rz-btn rz-fit" title="Vừa khung" aria-label="Vừa khung">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-                            </button>
-                        </div>
+                        {{-- SỬA 16/10 (khách: "bỏ khối đó đi") — bỏ cụm − / % / + / vừa khung; trang luôn hiện ở mức mặc định
+                             (ZOOM_DEFAULT trong script cuối tệp), không đọc mức phóng đã lưu nữa. JS tự bỏ qua vì kiểm tra null. --}}
                         <button type="button" @click="focus = true" x-show="! focus"
                                 class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
                             <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
@@ -496,12 +490,7 @@
             // nằm trọn trong khung (chỉ lề trắng bị khuất). Nút ↔ đưa về đúng 100% vừa khung.
             var ZOOM_MIN = 0.6, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15, ZOOM_DEFAULT = 1.15;
             var zoom = ZOOM_DEFAULT;
-            try {
-                var savedZoom = parseFloat(window.localStorage.getItem('onthi.reader.zoom'));
-                if (savedZoom >= ZOOM_MIN && savedZoom <= ZOOM_MAX) {
-                    zoom = savedZoom;
-                }
-            } catch (e) {}
+            // SỬA 16/10 — đã bỏ nút phóng/thu nên KHÔNG dùng lại mức phóng cũ đã lưu (người đọc không còn nút để chỉnh về).
             var zoomFitBtn = document.getElementById('reader-zoom-fit');
             var renderedBoxWidth = 0;
 
