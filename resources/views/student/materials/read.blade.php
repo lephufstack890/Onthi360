@@ -219,8 +219,9 @@
         }
     @endphp
 
+    @include('partials.reader-roomy')
     <div x-data="onthiMaterialReader({{ Js::from(['exercises' => $exerciseRows, 'perPage' => 3]) }})"
-         class="bg-[#F7F9FB] text-[#466278]">
+         class="rd-ui bg-[#F7F9FB] text-[#466278]">
 
         {{-- ══════ THANH ĐẦU TRANG ══════ --}}
         {{-- SỬA 3/10 (khách: "UI chỗ đọc tài liệu nó không giống, check source mới kỹ") — thanh
@@ -282,14 +283,17 @@
             </div>
         </header>
 
+        {{-- SỬA 16/10 — nút Khôi phục nổi góc phải che mất đầu cột Bài tập khi Tập trung, nên ẩn trên máy tính; nút
+             Tập trung ngay trên thanh công cụ giờ tự đổi thành "Khôi phục". Màn hình nhỏ vẫn còn nút nổi này. --}}
         <button type="button" @click="focus = false" x-show="focus" x-cloak
-                class="fixed right-4 top-4 z-40 inline-flex items-center gap-1.5 rounded-xl border border-[#B7DDCD] bg-white/95 px-3 py-2 text-[12px] font-semibold text-[#287B5F] shadow-[0_6px_18px_rgba(45,96,145,0.12)] backdrop-blur transition hover:bg-[#DFF2E9]">
+                class="lg:hidden fixed right-4 top-4 z-40 inline-flex items-center gap-1.5 rounded-xl border border-[#B7DDCD] bg-white/95 px-3 py-2 text-[12px] font-semibold text-[#287B5F] shadow-[0_6px_18px_rgba(45,96,145,0.12)] backdrop-blur transition hover:bg-[#DFF2E9]">
             <x-lucide name="minimize-2" class="h-3.5 w-3.5" /><span>Khôi phục</span>
         </button>
 
         <main class="mx-auto w-full max-w-[1780px] px-3 py-4 sm:px-5 lg:px-6 lg:py-6 2xl:px-10">
-            {{-- SỬA 15/10 — chế độ Tập trung: ẩn cột Bài tập, trang PDF chiếm trọn bề ngang -> chữ to hẳn ra. --}}
-            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]" :class="focus ? 'rd-solo' : ''">
+            {{-- SỬA 16/10 (khách: "bấm Tập trung bị mất khung làm bài tập, lẽ ra là ẩn phần header") — đúng như
+                 MaterialReaderPage.jsx của source mới: Tập trung CHỈ ẩn thanh đầu trang, cột Bài tập vẫn giữ; vùng PDF cao thêm. --}}
+            <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_340px]" :class="focus ? 'rd-focus' : ''">
 
                 {{-- ══════ CỘT TRÁI: PDF ══════ --}}
                 <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#D5E8ED] bg-[#F2F8FA] shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
@@ -324,7 +328,7 @@
                                      và người đọc cũng cần biết mình đang ở chương nào. --}}
                                 <label for="material-section-select" class="shrink-0 text-[12px] font-semibold text-[#466278]">Chương/phần</label>
                                 <select id="material-section-select" aria-label="Chọn chương hoặc phần để đọc"
-                                        onchange="if (this.value) window.location.href = this.value;"
+                                        onchange="if (this.value) window.location.replace(this.value);"
                                         class="h-9 w-[260px] max-w-full rounded-lg border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[13px] font-semibold text-[#123B68] outline-none transition focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
                                     @foreach ($sections as $sec)
                                         <option value="{{ $sec['href'] }}" @selected($sec['current'])>{{ $sec['no'] }}. {{ $sec['title'] }}</option>
@@ -350,6 +354,10 @@
                         <button type="button" @click="focus = true" x-show="! focus"
                                 class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
                             <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
+                        </button>
+                        <button type="button" @click="focus = false" x-show="focus" x-cloak
+                                class="hidden h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#B7DDCD] bg-[#DFF2E9] px-3 text-[11px] font-semibold text-[#287B5F] transition hover:bg-[#CDEBDD] lg:inline-flex">
+                            <x-lucide name="minimize-2" class="h-3.5 w-3.5" /><span>Khôi phục</span>
                         </button>
                     </div>
 
@@ -380,14 +388,14 @@
                     @if ($prev || $next)
                         <div class="flex items-center justify-between gap-2 border-t border-[#E5EEF3] bg-white px-3 py-2.5 sm:px-4">
                             @if ($prev)
-                                <a href="{{ route($readRoute, $prev->id) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                <a href="{{ route($readRoute, $prev->id) }}" onclick="event.preventDefault(); window.location.replace(this.href);" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
                                     <x-lucide name="chevron-left" class="h-3.5 w-3.5" />Bài trước
                                 </a>
                             @else
                                 <span></span>
                             @endif
                             @if ($next)
-                                <a href="{{ route($readRoute, $next->id) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
+                                <a href="{{ route($readRoute, $next->id) }}" onclick="event.preventDefault(); window.location.replace(this.href);" class="inline-flex items-center gap-1.5 rounded-lg border border-[#DDEAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#466278] transition hover:border-[#9DC8D7] hover:bg-[#F0F8FB] hover:text-[#126F91]">
                                     Bài sau<x-lucide name="chevron-right" class="h-3.5 w-3.5" />
                                 </a>
                             @endif
@@ -398,7 +406,7 @@
                 {{-- ══════ CỘT PHẢI: BÀI TẬP ══════ --}}
                 {{-- SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — lưới mã bài theo
                      chương + học liệu theo chương, dựng theo MaterialChapterGrid.jsx của source mới. --}}
-                <aside class="min-w-0" x-show="! focus">
+                <aside class="min-w-0">
                     @include('partials.reader-chapter-panel')
                 </aside>
             </div>

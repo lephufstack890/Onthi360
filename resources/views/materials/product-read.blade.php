@@ -208,8 +208,9 @@
 @include('partials.reader-ui-fallback-style')
     </style>
 
+    @include('partials.reader-roomy')
     <div x-data="onthiMaterialReader({{ Js::from(['exercises' => $exerciseRows, 'perPage' => 3]) }})"
-         class="bg-[#F7F9FB] text-[#466278]">
+         class="rd-ui bg-[#F7F9FB] text-[#466278]">
 
         {{-- ══════ THANH ĐẦU TRANG ══════
              SỬA 3/10 — dựng y thanh đầu của màn đọc một bài: nền trang trí (ảnh hero mờ + 2

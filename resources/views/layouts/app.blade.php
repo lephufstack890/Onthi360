@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('partials.seo', ['seoPrivate' => true])
+    @include('partials.brand-font')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.legacy-compat-css')
     {{-- SỬA 9/9 (7) — layouts/guest.blade.php đã có luật này, layouts/app thì chưa: thiếu nó
