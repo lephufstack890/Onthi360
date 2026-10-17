@@ -794,6 +794,7 @@ class AssessmentService
                 $okTest = ($detail['isAccepted'] ?? false) === true;
                 $tests[] = [
                     'name' => 'Test '.($i + 1),
+                    'index' => $i + 1, // SỬA 17/10 — để nút Tải input / Tải output của test sai biết test số mấy
                     'ok' => $okTest,
                     'label' => $okTest ? 'Đúng' : 'Sai'.(filled($detail['statusLabel'] ?? null) && ($detail['statusLabel'] ?? '') !== 'Sai kết quả (Wrong Answer)' ? ' · '.$detail['statusLabel'] : ''),
                 ];
@@ -816,6 +817,36 @@ class AssessmentService
             'total' => $total,
             'tests' => $tests,
         ];
+    }
+
+    /**
+     * SỬA 17/10 (khách: "chỗ làm đề, chấm xong cho tải test sai về: Tải input / Tải output như bài tập chuyên đề") — nội
+     * dung 1 tệp test của lần chấm gần nhất. Chỉ tải được: lượt làm của CHÍNH người đăng nhập, đề LUYỆN TẬP có nút Chấm câu
+     * (gradableQuestionOrFail), và chỉ test bị SAI (test đúng không cần, và không lộ cả bộ test).
+     *
+     * @return array{name: string, content: string}
+     */
+    public function failedTestFile(User $user, int $attemptId, int $questionId, int $index, string $part): array
+    {
+        [$attempt] = $this->gradableQuestionOrFail($user, $attemptId, $questionId);
+
+        $answer = \App\Models\AttemptAnswer::query()
+            ->where('attempt_id', $attempt->id)
+            ->where('question_id', $questionId)
+            ->first();
+        abort_if($answer === null, 404);
+
+        $raw = $answer->judgeSubmissions()->where('status', 'completed')->latest('id')->value('raw_result');
+        $raw = is_string($raw) ? json_decode($raw, true) : $raw;
+        $detail = is_array($raw) ? (array_values($raw)[$index - 1] ?? null) : null;
+        abort_if(! is_array($detail) || ($detail['isAccepted'] ?? false) === true, 404);
+
+        $content = (string) ($part === 'in' ? ($detail['input'] ?? '') : ($detail['expectedOutput'] ?? ''));
+        if ($content !== '' && ! str_ends_with($content, "\n")) {
+            $content .= "\n"; // như bài tập chuyên đề: tệp test luôn kết thúc bằng xuống dòng
+        }
+
+        return ['name' => 'test'.str_pad((string) $index, 2, '0', STR_PAD_LEFT).'.'.$part, 'content' => $content];
     }
 
     public function attemptForUser(User $user, int $attemptId): Attempt

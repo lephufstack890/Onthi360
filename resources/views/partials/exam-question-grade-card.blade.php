@@ -1,7 +1,8 @@
 {{-- SỬA 14/10 (khách: "chấm xong thì hiển thị thêm điểm như hình") — thẻ "Kết quả chấm" của nút Chấm câu, chép bố cục
      RunResultPanel trong education-main/src/components/AssessmentModal.jsx:
        "Kết quả chấm: Đúng. 3/3 test đúng."  ·  "12.5/12.5 điểm"  ·  danh sách Test 1..n Đúng/Sai.
-     Chỉ hiện Đúng/Sai + lý do của từng test, KHÔNG có dữ liệu vào/ra (test ẩn phải giữ kín).
+     Chỉ hiện Đúng/Sai + lý do của từng test. SỬA 17/10 — test SAI có thêm 2 link Tải input / Tải output (tải từ máy chủ,
+     route student.assessment.take.testDownload — không nhúng dữ liệu test vào trang).
      Tham số: $qid (id câu), $isCode (câu lập trình). Biến Alpine nằm ở partials/exam-workspace-script. --}}
 @once
     <style>
@@ -18,6 +19,12 @@
         .oi-grade-tests b.is-ok { color: #047857; }
         .oi-grade-tests b.is-bad { color: #BE123C; }
         .oi-grade-note { margin: 8px 0 0; font-size: 10.5px; color: #7A92A3; }
+        /* SỬA 17/10 — nút Tải input / Tải output của test sai (giống bài tập chuyên đề). */
+        .oi-grade-tests .oi-grade-right { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 10px; }
+        .oi-grade-dl { font-weight: 700; color: #126F91; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+        .oi-grade-dl:hover { color: #0F607E; }
+        html.theme-dark .assessment-modal .oi-grade-dl { color: #8FD3E8; }
+        html.theme-dark .assessment-modal .oi-grade-dl:hover { color: #B9E6F3; }
         .oi-grade-wait { display: flex; align-items: center; gap: 8px; margin: 0; color: #B45309; font-weight: 700; }
         .oi-grade-spin { width: 14px; height: 14px; border-radius: 999px; border: 2px solid #FDE7C2; border-top-color: #B45309; animation: oi-grade-spin .8s linear infinite; }
         @keyframes oi-grade-spin { to { transform: rotate(360deg); } }
@@ -59,7 +66,19 @@
                 <p class="oi-grade-score" x-text="fmtScore(doneGradeOf({{ $qid }}).score) + '/' + fmtScore(doneGradeOf({{ $qid }}).maxScore) + ' điểm'"></p>
                 <ul class="oi-grade-tests" x-show="(doneGradeOf({{ $qid }}).tests || []).length">
                     <template x-for="(t, ti) in (doneGradeOf({{ $qid }}).tests || [])" :key="ti">
-                        <li><span x-text="t.name"></span><b :class="t.ok ? 'is-ok' : 'is-bad'" x-text="t.label"></b></li>
+                        <li>
+                            <span x-text="t.name"></span>
+                            <span class="oi-grade-right">
+                                <b :class="t.ok ? 'is-ok' : 'is-bad'" x-text="t.label"></b>
+                                {{-- SỬA 17/10 (khách: "chấm xong cho tải test sai về, Tải input và Tải output như bài tập chuyên đề"). --}}
+                                <template x-if="!t.ok">
+                                    <span class="oi-grade-right">
+                                        <a class="oi-grade-dl" :href="testFileUrl({{ $qid }}, t.index || (ti + 1), 'in')" download :title="'Tải dữ liệu vào của ' + t.name + ' (.in)'">Tải input</a>
+                                        <a class="oi-grade-dl" :href="testFileUrl({{ $qid }}, t.index || (ti + 1), 'out')" download :title="'Tải kết quả mong đợi của ' + t.name + ' (.out)'">Tải output</a>
+                                    </span>
+                                </template>
+                            </span>
+                        </li>
                     </template>
                 </ul>
             @endif

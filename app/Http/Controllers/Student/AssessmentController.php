@@ -108,6 +108,19 @@ class AssessmentController extends Controller
         }
     }
 
+    /**
+     * SỬA 17/10 — student.assessment.take.testDownload: tải dữ liệu vào (.in) / kết quả mong đợi (.out) của 1 test SAI ở lần
+     * chấm gần nhất (đề luyện tập, lượt làm của chính mình). Xem AssessmentService::failedTestFile().
+     */
+    public function downloadFailedTest(Request $request, int $attempt, int $question, int $index, string $part): \Symfony\Component\HttpFoundation\Response
+    {
+        $file = $this->assessmentService->failedTestFile($request->user(), $attempt, $question, $index, $part);
+
+        return response()->streamDownload(function () use ($file) {
+            echo $file['content'];
+        }, $file['name'], ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
+
     /** SỬA 14/10 — student.assessment.take.gradeStatus: kết quả hiện tại của 1 câu (đang chấm / đã chấm). */
     public function gradeStatus(Request $request, int $attempt, int $question): JsonResponse
     {

@@ -369,6 +369,10 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('attempt')->whereNumber('question')->middleware('throttle:20,1')->name('assessment.take.grade');
         Route::get('attempts/{attempt}/questions/{question}/grade', [StudentAssessmentController::class, 'gradeStatus'])
             ->whereNumber('attempt')->whereNumber('question')->name('assessment.take.gradeStatus');
+        // SỬA 17/10 (khách: "chỗ làm đề, chấm xong cho tải test sai về: Tải input / Tải output như bài tập chuyên đề").
+        Route::get('attempts/{attempt}/questions/{question}/tests/{index}/{part}', [StudentAssessmentController::class, 'downloadFailedTest'])
+            ->whereNumber('attempt')->whereNumber('question')->whereNumber('index')->whereIn('part', ['in', 'out'])
+            ->middleware('throttle:60,1')->name('assessment.take.testDownload');
         /*
          * SỬA 24/9 (khách: "hiển thị modal vậy được rồi, không cần chuyển qua trang result") —
          * điểm hiện tại của lượt làm bài, dạng JSON. Câu lập trình chấm chạy nền nên lúc vừa

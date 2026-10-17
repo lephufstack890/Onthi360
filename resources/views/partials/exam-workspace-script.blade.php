@@ -289,6 +289,10 @@
                 gradeEndpoint(id) {
                     return String(this.gradeUrl).replace(/\/questions\/0\/grade$/, '/questions/' + id + '/grade');
                 },
+                // SỬA 17/10 — link tải .in / .out của test sai (route student.assessment.take.testDownload).
+                testFileUrl(id, index, part) {
+                    return String(this.gradeUrl).replace(/\/questions\/0\/grade$/, '/questions/' + id + '/tests/' + index + '/' + part);
+                },
                 setGrade(id, key, data) {
                     var next = Object.assign({}, this.grades);
                     next[id] = Object.assign({ key: key }, data);
