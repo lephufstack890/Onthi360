@@ -72,6 +72,13 @@ return [
      */
     'bundled_run' => (bool) env('JUDGE0_BUNDLED_RUN', false),
 
+    /*
+     | SỬA 17/10 (khách: "vài bài bị Sai · Lỗi runtime, tạm thời đừng check vậy nữa") — TẠM bỏ qua lỗi runtime khi chấm:
+     | chương trình thoát với mã lỗi (NZEC…) nhưng in ra ĐÚNG đáp án thì vẫn tính Đúng; in sai thì báo "Sai kết quả".
+     | Quá thời gian / quá bộ nhớ / lỗi biên dịch vẫn chấm như cũ. Muốn bật lại kiểm tra: JUDGE0_IGNORE_RUNTIME_ERROR=false.
+     */
+    'ignore_runtime_error' => (bool) env('JUDGE0_IGNORE_RUNTIME_ERROR', true),
+
     // 89 = "Multi-file program" của Judge0 CE 1.13.x. Kiểm lại bằng GET {base_url}/languages/all.
     'multifile_language_id' => (int) env('JUDGE0_LANGUAGE_ID_MULTIFILE', 89),
 

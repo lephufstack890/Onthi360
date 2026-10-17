@@ -109,6 +109,12 @@ class CodeJudgingService
 
         foreach ($results as $i => $r) {
             $caseVerdict = $this->mapStatus((int) ($r['status']['id'] ?? 13), $r['memory'] ?? null, $memoryLimit);
+            // SỬA 17/10 — tạm bỏ qua lỗi runtime: chỉ xét chương trình in ra có đúng đáp án không (config judge0.ignore_runtime_error).
+            if ($caseVerdict === VerdictStatus::RuntimeError && (bool) config('judge0.ignore_runtime_error', true)) {
+                $caseVerdict = self::outputsMatch((string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''))
+                    ? VerdictStatus::Accepted
+                    : VerdictStatus::WrongAnswer;
+            }
             $verdict = $this->worseOf($verdict, $caseVerdict);
 
             $details[] = [
@@ -547,7 +553,9 @@ PY;
 
             $caseVerdict = match (true) {
                 in_array($row['exitCode'], [124, 137], true) => VerdictStatus::TimeLimitExceeded,
-                $row['exitCode'] !== 0 => VerdictStatus::RuntimeError,
+                // SỬA 17/10 — tạm bỏ qua lỗi runtime (config judge0.ignore_runtime_error): mã thoát khác 0 thì vẫn so đáp án
+                // ở 3 nhánh dưới; tắt cờ thì báo Runtime Error như cũ.
+                $row['exitCode'] !== 0 && ! (bool) config('judge0.ignore_runtime_error', true) => VerdictStatus::RuntimeError,
                 $truncated => VerdictStatus::WrongAnswer,
                 self::outputsMatch($actual, $expected) => VerdictStatus::Accepted,
                 default => VerdictStatus::WrongAnswer,
