@@ -142,6 +142,8 @@ Route::post('/tai-lieu/giao-tai-lieu', [PublicMaterialAssignmentController::clas
 Route::get('/tai-lieu/giao-tai-lieu/hoc-sinh', [PublicMaterialAssignmentController::class, 'students'])
     ->middleware('auth')->name('materials.assign.students');
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
+// SỬA 18/10 — MODULE BỘ ĐỀ: trang danh sách đề của 1 bộ đề (xem App\Services\ExamBundle\ExamBundleService).
+Route::get('/bo-de/{product}', [\App\Http\Controllers\Public\ExamBundleController::class, 'show'])->whereNumber('product')->name('bundles.show');
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
 Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');
 Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');
@@ -645,6 +647,19 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 16/10 — đổi thứ tự tài liệu bằng nút ↑ / ↓ ở danh sách (thứ tự này dùng luôn cho trang Tài liệu public).
         Route::post('products/{product}/move', [AdminProductController::class, 'move'])->name('products.move');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+        // SỬA 18/10 — MODULE BỘ ĐỀ (Admin\ExamBundleController -> App\Services\ExamBundle\ExamBundleService).
+        Route::prefix('products/{product}/bundle')->name('products.bundle.')->group(function () {
+            $c = \App\Http\Controllers\Admin\ExamBundleController::class;
+            Route::post('filters', [$c, 'saveFilters'])->name('filters');
+            Route::post('lock', [$c, 'lock'])->name('lock');
+            Route::post('items', [$c, 'add'])->name('add');
+            Route::delete('items/{assessment}', [$c, 'remove'])->whereNumber('assessment')->name('remove');
+            Route::post('items/{assessment}/restore', [$c, 'restore'])->whereNumber('assessment')->name('restore');
+            Route::post('items/{assessment}/move', [$c, 'move'])->whereNumber('assessment')->name('move');
+            Route::post('reset-order', [$c, 'resetOrder'])->name('resetOrder');
+        });
+        Route::post('content/assessments/{assessment}/bundle-only', [\App\Http\Controllers\Admin\ExamBundleController::class, 'assessmentVisibility'])->name('content.assessments.bundle.visibility');
+        Route::post('content/assessments/{assessment}/bundles', [\App\Http\Controllers\Admin\ExamBundleController::class, 'assessmentAttach'])->name('content.assessments.bundle.attach');
 
         // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — màn đọc tài liệu cho
         // admin, dùng chung bộ đọc với học sinh/giáo viên. Xem Admin\MaterialReadController.

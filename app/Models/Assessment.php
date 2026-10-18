@@ -55,6 +55,8 @@ class Assessment extends Model
         'publish_answer_rule' => PublishAnswerRule::class,
         'resubmission_policy' => 'array',
         'content_mode' => AssessmentContentMode::class,
+        // SỬA 18/10 — MODULE BỘ ĐỀ: "Chỉ trong bộ đề" (ẩn khỏi Luyện tập, chỉ người mua bộ đề làm được).
+        'bundle_only' => 'boolean',
     ];
 
     public function items(): HasMany

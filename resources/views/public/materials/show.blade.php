@@ -156,6 +156,9 @@
                 @endif
             </div>
 
+            {{-- SỬA 18/10 — MODULE BỘ ĐỀ: tài liệu loại Bộ đề có nút sang trang danh sách đề. --}}
+            @include('partials.bundle-cta', ['product' => $material])
+
             <div class="mt-5 space-y-2.5 border-t border-sky-100 pt-4">
                 <p class="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500">
                     <x-lucide name="shield-check" class="mt-px h-3.5 w-3.5 shrink-0 text-[#3B9374]" />

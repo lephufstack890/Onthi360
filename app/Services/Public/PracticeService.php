@@ -235,6 +235,8 @@ class PracticeService
         $assessments = $this->assessments->query()
             ->where('type', 'practice')
             ->where('status', 'published')
+            // SỬA 18/10 — MODULE BỘ ĐỀ: đề "Chỉ trong bộ đề" không hiện ở trang Luyện tập (chỉ người mua bộ đề làm được).
+            ->when(\App\Services\ExamBundle\ExamBundleService::ready(), fn ($q) => $q->where('bundle_only', false))
             ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
             ->limit(self::EXAM_LIMIT)

@@ -116,11 +116,16 @@ class ExamZipImportService
 
                 return $assessment->fresh();
             });
+
+            // SỬA 18/10 — MODULE BỘ ĐỀ: exam.json "visibility": "bundle_only" / "bundles": [...] (ExamBundleService::applyZipOptions).
+            $bundleNote = app(\App\Services\ExamBundle\ExamBundleService::class)->applyZipOptions($assessment, (string) $zip->getRealPath());
         } finally {
             ExamZipPackage::cleanup($p);
         }
 
-        return ['assessment' => $assessment, 'summary' => ExamZipPackage::practiceSummaryText($p['summary']), 'mode' => 'practice'];
+        $summary = ExamZipPackage::practiceSummaryText($p['summary']);
+
+        return ['assessment' => $assessment, 'summary' => $bundleNote !== '' ? $summary.'. '.$bundleNote : $summary, 'mode' => 'practice'];
     }
 
     /** @return array{assessment: Assessment, summary: string, mode: string} */

@@ -51,6 +51,9 @@ class Product extends Model
         'print_price' => 'integer',
         'difficulty_level' => 'integer',
         'rating_count' => 'integer',
+        // SỬA 18/10 — MODULE BỘ ĐỀ (ExamBundleService): bộ lọc tự gom đề + "Khoá danh sách".
+        'bundle_filters' => 'array',
+        'bundle_locked' => 'boolean',
     ];
 
     /**

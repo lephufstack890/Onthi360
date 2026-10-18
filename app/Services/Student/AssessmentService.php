@@ -66,6 +66,10 @@ class AssessmentService
             abort_unless((int) $assignment->assessment_id === $assessmentModel->id, 404);
         }
 
+        // SỬA 18/10 — MODULE BỘ ĐỀ: đề "Chỉ trong bộ đề" chỉ người mua bộ đề (hoặc được giao) mới làm được.
+        // Ném ValidationException('attempt') -> StudentAssessmentController::take() hiện màn "không mở được lượt làm".
+        app(\App\Services\ExamBundle\ExamBundleService::class)->assertCanTake($user, $assessmentModel, $assignment);
+
         if ($assessmentModel->isPdfMode()) {
             return $this->buildPdfTakeData($user, $assessmentModel, $assignment);
         }

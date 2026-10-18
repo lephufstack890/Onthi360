@@ -131,6 +131,11 @@
                     @endif
                 </section>
 
+                {{-- SỬA 18/10 — MODULE BỘ ĐỀ: tài liệu loại Bộ đề có khối "Đề trong bộ đề" (lấy đề luyện tập có sẵn, không nhập lại). --}}
+                @if ($product->type === \App\Enums\ProductType::Exam)
+                    @include('admin.products.partials.exam-bundle', ['product' => $product])
+                @endif
+
                 {{-- SỬA 14/10 (khách: "bỏ khối Tài nguyên đính kèm đi, không cần") — đã bỏ cả khối. Tệp cũ (ZIP bài tập/học liệu
                      kiểu cũ) vẫn nằm nguyên trong CSDL và người học vẫn mở được như trước, chỉ không hiện ở đây nữa. --}}
 
