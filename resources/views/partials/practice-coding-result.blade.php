@@ -141,6 +141,14 @@
                             @endunless
                         </div>
 
+                        {{-- SỬA 18/10 (khách: "chấm sai thì báo mã lỗi từng test sai như nào để người ta biết còn check") — mã lỗi
+                             (WA/TLE/RTE/MLE/CE) + lý do cụ thể, luôn hiện ngay dưới dòng test sai (CodeJudgingService::failInfo()). --}}
+                        @if (! $tc['isAccepted'] && filled($tc['reason'] ?? null))
+                            <p class="mb-1 pl-0.5 text-[11.5px] leading-snug text-[#9F1239] [overflow-wrap:anywhere]">
+                                @if (filled($tc['errorCode'] ?? null))<span class="mr-1 inline-block rounded bg-[#FFE4E6] px-1.5 text-[10px] font-extrabold text-[#BE123C]">{{ $tc['errorCode'] }}</span>@endif{{ $tc['reason'] }}
+                            </p>
+                        @endif
+
                         @unless ($tc['isAccepted'])
                             <div class="hidden space-y-2 bg-[#F9FBFC] px-1 py-2" data-test-case-detail>
                                 <div class="grid gap-2 sm:grid-cols-3">

@@ -795,6 +795,9 @@ class AssessmentService
                 $tests[] = [
                     'name' => 'Test '.($i + 1),
                     'index' => $i + 1, // SỬA 17/10 — để nút Tải input / Tải output của test sai biết test số mấy
+                    // SỬA 18/10 — mã lỗi (WA/TLE/RTE/MLE/CE) + lý do cụ thể của test sai (CodeJudgingService::failInfo()).
+                    'code' => $okTest ? null : ($detail['errorCode'] ?? null),
+                    'reason' => $okTest ? null : ($detail['reason'] ?? null),
                     'ok' => $okTest,
                     'label' => $okTest ? 'Đúng' : 'Sai'.(filled($detail['statusLabel'] ?? null) && ($detail['statusLabel'] ?? '') !== 'Sai kết quả (Wrong Answer)' ? ' · '.$detail['statusLabel'] : ''),
                 ];

@@ -21,6 +21,11 @@
         .oi-grade-note { margin: 8px 0 0; font-size: 10.5px; color: #7A92A3; }
         /* SỬA 17/10 — nút Tải input / Tải output của test sai (giống bài tập chuyên đề). */
         .oi-grade-tests .oi-grade-right { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 10px; }
+        .oi-grade-tests li.has-reason { flex-wrap: wrap; }
+        .oi-grade-reason { flex-basis: 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.5; color: #9F1239; word-break: break-word; }
+        .oi-grade-code { display: inline-block; margin-right: 6px; padding: 0 5px; border-radius: 4px; background: #FFE4E6; font-size: 10px; font-weight: 800; color: #BE123C; }
+        html.theme-dark .assessment-modal .oi-grade-reason { color: #FBCFE8; }
+        html.theme-dark .assessment-modal .oi-grade-code { background: #4C1D2B; color: #FDA4AF; }
         .oi-grade-dl { font-weight: 700; color: #126F91; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
         .oi-grade-dl:hover { color: #0F607E; }
         html.theme-dark .assessment-modal .oi-grade-dl { color: #8FD3E8; }
@@ -66,7 +71,7 @@
                 <p class="oi-grade-score" x-text="fmtScore(doneGradeOf({{ $qid }}).score) + '/' + fmtScore(doneGradeOf({{ $qid }}).maxScore) + ' điểm'"></p>
                 <ul class="oi-grade-tests" x-show="(doneGradeOf({{ $qid }}).tests || []).length">
                     <template x-for="(t, ti) in (doneGradeOf({{ $qid }}).tests || [])" :key="ti">
-                        <li>
+                        <li :class="t.reason ? 'has-reason' : ''">
                             <span x-text="t.name"></span>
                             <span class="oi-grade-right">
                                 <b :class="t.ok ? 'is-ok' : 'is-bad'" x-text="t.label"></b>
@@ -78,6 +83,8 @@
                                     </span>
                                 </template>
                             </span>
+                            {{-- SỬA 18/10 (khách: "báo mã lỗi từng test sai để người ta biết đường check"). --}}
+                            <p class="oi-grade-reason" x-show="!t.ok && t.reason"><span class="oi-grade-code" x-show="t.code" x-text="t.code"></span><span x-text="t.reason"></span></p>
                         </li>
                     </template>
                 </ul>

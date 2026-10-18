@@ -109,6 +109,7 @@ class CodeJudgingService
 
         foreach ($results as $i => $r) {
             $caseVerdict = $this->mapStatus((int) ($r['status']['id'] ?? 13), $r['memory'] ?? null, $memoryLimit);
+            $crashStatusId = $caseVerdict === VerdictStatus::RuntimeError ? (int) ($r['status']['id'] ?? 12) : null;
             // SỬA 17/10 — tạm bỏ qua lỗi runtime: chỉ xét chương trình in ra có đúng đáp án không (config judge0.ignore_runtime_error).
             if ($caseVerdict === VerdictStatus::RuntimeError && (bool) config('judge0.ignore_runtime_error', true)) {
                 $caseVerdict = self::outputsMatch((string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''))
@@ -129,7 +130,8 @@ class CodeJudgingService
                 'actualOutput' => $r['stdout'] ?? null,
                 'stderr' => $r['stderr'] !== null && $r['stderr'] !== '' ? $r['stderr'] : null,
                 'compileOutput' => $r['compile_output'] !== null && $r['compile_output'] !== '' ? $r['compile_output'] : null,
-            ];
+            ] + self::failInfo($caseVerdict, (string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''),
+                null, (string) ($r['stderr'] ?? ''), $crashStatusId);
         }
 
         return $this->withFileIoNotes([
@@ -585,7 +587,8 @@ PY;
                 'actualOutput' => $actual,
                 'stderr' => $note,
                 'compileOutput' => null,
-            ];
+            ] + self::failInfo($caseVerdict, $actual, $expected,
+                in_array($row['exitCode'], [0, 124, 137], true) ? null : (int) $row['exitCode'], null, null, $truncated);
         }
 
         return [
@@ -617,6 +620,109 @@ PY;
         };
 
         return $normalize($actual) === $normalize($expected);
+    }
+
+    /**
+     * SỬA 18/10 (khách: "chấm sai thì báo mã lỗi từng test sai như nào để người ta biết còn check, báo sai chung chung không
+     * biết đường nào mà check" — cả bài tập chuyên đề lẫn làm đề) — mã lỗi ngắn + lý do cụ thể cho MỖI test sai:
+     *   WA  : dòng đầu tiên khác đáp án ("Dòng 3: cần «5», bạn in «4»"), thiếu dòng, in thừa, không in gì;
+     *   TLE : quá thời gian; MLE : quá bộ nhớ; CE : lỗi biên dịch;
+     *   RTE : chương trình chết giữa chừng — dòng lỗi cuối của stderr (vd "ZeroDivisionError: division by zero") hoặc tên tín
+     *         hiệu (SIGSEGV tràn mảng, SIGFPE chia 0…). Khi đang TẠM bỏ qua lỗi runtime (judge0.ignore_runtime_error) mà kết
+     *         quả sai thì vẫn ghi kèm lý do chương trình bị dừng để học sinh biết.
+     *
+     * @return array{errorCode: ?string, reason: ?string}
+     */
+    private static function failInfo(VerdictStatus $verdict, string $actual, string $expected, ?int $exitCode = null, ?string $stderr = null, ?int $crashStatusId = null, bool $truncated = false): array
+    {
+        if ($verdict === VerdictStatus::Accepted) {
+            return ['errorCode' => null, 'reason' => null];
+        }
+
+        $crash = self::crashText($exitCode, $stderr, $crashStatusId);
+
+        return match ($verdict) {
+            VerdictStatus::TimeLimitExceeded => ['errorCode' => 'TLE', 'reason' => 'Chạy quá thời gian cho phép — thuật toán chưa đủ nhanh hoặc bị lặp vô hạn.'],
+            VerdictStatus::MemoryLimitExceeded => ['errorCode' => 'MLE', 'reason' => 'Dùng quá bộ nhớ cho phép — mảng/danh sách hoặc đệ quy quá lớn.'],
+            VerdictStatus::CompileError => ['errorCode' => 'CE', 'reason' => 'Lỗi biên dịch / cú pháp — chương trình không chạy được.'],
+            VerdictStatus::RuntimeError => ['errorCode' => 'RTE', 'reason' => $crash ?? 'Chương trình bị dừng giữa chừng do lỗi khi chạy.'],
+            VerdictStatus::WrongAnswer => ['errorCode' => 'WA', 'reason' => implode(' · ', array_filter([
+                $truncated ? 'In ra quá dài so với đáp án.' : self::diffText($actual, $expected),
+                $crash !== null ? 'Chương trình bị dừng giữa chừng: '.$crash : null,
+            ]))],
+            default => ['errorCode' => null, 'reason' => null],
+        };
+    }
+
+    /** Dòng đầu tiên khác nhau giữa bài in ra và đáp án (cùng luật so khớp với outputsMatch()). */
+    private static function diffText(string $actual, string $expected): string
+    {
+        $lines = static function (string $text): array {
+            $rows = array_map(static fn ($l) => rtrim($l, " \t"), explode("\n", str_replace(["\r\n", "\r"], "\n", $text)));
+            while ($rows !== [] && end($rows) === '') {
+                array_pop($rows);
+            }
+
+            return $rows;
+        };
+        $short = static fn (string $s): string => '«'.mb_strimwidth($s, 0, 40, '…').'»';
+
+        $a = $lines($actual);
+        $e = $lines($expected);
+
+        if ($a === []) {
+            return 'Không in ra gì'.($e !== [] ? ' (dòng 1 cần: '.$short($e[0]).')' : '').'.';
+        }
+
+        $n = max(count($a), count($e));
+        for ($i = 0; $i < $n; $i++) {
+            if (! array_key_exists($i, $a)) {
+                return 'Thiếu từ dòng '.($i + 1).' (cần: '.$short($e[$i]).').';
+            }
+            if (! array_key_exists($i, $e)) {
+                return 'In thừa từ dòng '.($i + 1).' ('.$short($a[$i]).').';
+            }
+            if ($a[$i] !== $e[$i]) {
+                return 'Dòng '.($i + 1).': cần '.$short($e[$i]).', bạn in '.$short($a[$i]).'.';
+            }
+        }
+
+        return 'Kết quả khác đáp án.';
+    }
+
+    /** Lý do chương trình bị dừng: dòng lỗi cuối của stderr, hoặc tên tín hiệu / mã thoát. null = không bị dừng. */
+    private static function crashText(?int $exitCode, ?string $stderr, ?int $crashStatusId): ?string
+    {
+        if ($exitCode === null && $crashStatusId === null) {
+            return null;
+        }
+
+        $lastLine = '';
+        foreach (array_reverse(preg_split('/\R/', trim((string) $stderr)) ?: []) as $line) {
+            if (trim($line) !== '') {
+                $lastLine = trim($line);
+                break;
+            }
+        }
+        if ($lastLine !== '') {
+            return mb_strimwidth($lastLine, 0, 140, '…');
+        }
+
+        $byStatus = [7 => 'SIGSEGV — truy cập bộ nhớ sai (tràn mảng, đệ quy quá sâu)', 8 => 'SIGXFSZ — in ra quá nhiều dữ liệu',
+            9 => 'SIGFPE — lỗi số học (chia cho 0)', 10 => 'SIGABRT — chương trình tự huỷ (lỗi cấp phát / assert)',
+            11 => 'NZEC — chương trình thoát với mã lỗi khác 0 (Python: có ngoại lệ chưa bắt)', 12 => 'lỗi khi chạy'];
+        if ($crashStatusId !== null) {
+            return $byStatus[$crashStatusId] ?? 'lỗi khi chạy';
+        }
+
+        return match ($exitCode) {
+            139 => $byStatus[7],
+            136 => $byStatus[9],
+            134 => $byStatus[10],
+            153 => 'in ra quá nhiều dữ liệu (thường do lặp vô hạn mà vẫn in)',
+            1 => 'mã thoát 1 — có ngoại lệ/lỗi chưa bắt (vd chia 0, sai chỉ số danh sách, đọc dữ liệu sai kiểu)',
+            default => 'mã thoát '.$exitCode,
+        };
     }
 
     private function compileErrorResult(?array $result, int $testCount, ?string $languageKey, ?array $fileIo): array
