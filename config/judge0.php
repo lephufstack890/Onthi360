@@ -40,6 +40,14 @@ return [
     'max_wall_time_limit' => (int) env('JUDGE0_MAX_WALL_TIME_LIMIT', 90),
     'max_memory_limit_kb' => (int) env('JUDGE0_MAX_MEMORY_LIMIT_KB', 1048576),
 
+    /*
+     | SỬA 18/10 (khách: "vài câu khó, mấy test lớn báo File size limit exceeded") — dung lượng TỆP tối đa chương trình được
+     | ghi (KB). Bài đọc/ghi tệp (.INP/.OUT) được hệ thống chép dữ liệu vào ra tệp INP trước khi chạy; test lớn hơn mặc định
+     | 1024 KB của Judge0 thì bị giết bằng SIGXFSZ dù code đúng. Gửi kèm mỗi bài nộp. PHẢI <= MAX_MAX_FILE_SIZE trong
+     | judge0.conf (mặc định 4096) — vượt là Judge0 từ chối cả bài nộp.
+     */
+    'max_file_size_kb' => (int) env('JUDGE0_MAX_FILE_SIZE_KB', 4096),
+
     // Ánh xạ ngôn ngữ hệ thống ('cpp'/'python' — 2 giá trị DUY NHẤT toàn hệ thống đang cho
     // chọn, xem AssessmentCodingItem::allowed_languages) sang language_id thật của Judge0
     // 1.13.1. Đây là ID CHUẨN của bản Judge0 CE 1.13.x (C++ GCC 9.2.0 / Python 3.8.1) — nếu

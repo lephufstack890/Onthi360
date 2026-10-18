@@ -65,6 +65,8 @@ class CodeJudgingService
             'cpu_time_limit' => $cpuTimeLimit,
             'wall_time_limit' => $wallTimeLimit,
             'memory_limit' => $memoryLimit,
+            // SỬA 18/10 — test lớn của bài đọc/ghi tệp vượt 1024 KB mặc định của Judge0 -> SIGXFSZ dù code đúng.
+            'max_file_size' => (int) config('judge0.max_file_size_kb', 4096),
         ], $testCases);
 
         /*
@@ -181,6 +183,7 @@ class CodeJudgingService
             'cpu_time_limit' => $cpuTimeLimit,
             'wall_time_limit' => min((float) config('judge0.max_wall_time_limit'), $cpuTimeLimit + 10),
             'memory_limit' => $memoryLimit,
+            'max_file_size' => (int) config('judge0.max_file_size_kb', 4096), // SỬA 18/10
         ]]);
 
         $r = $results[0] ?? null;
@@ -705,6 +708,23 @@ PY;
                 $lastLine = trim($line);
                 break;
             }
+        }
+        // SỬA 18/10 — dòng do trình chạy của Judge0 tự ghi ("run: line 1: 3 File size limit exceeded (core dumped) LD_LIBRARY_PATH=…
+        // ./a.out") khó hiểu: dịch sang lời dễ hiểu theo tên tín hiệu.
+        $signalText = [
+            'File size limit exceeded' => 'vượt giới hạn dung lượng tệp của máy chấm (SIGXFSZ) — ghi/in ra quá nhiều dữ liệu',
+            'Segmentation fault' => 'SIGSEGV — truy cập bộ nhớ sai (tràn mảng, đệ quy quá sâu)',
+            'Floating point exception' => 'SIGFPE — lỗi số học (chia cho 0)',
+            'Aborted' => 'SIGABRT — chương trình tự huỷ (lỗi cấp phát / assert)',
+            'Killed' => 'chương trình bị máy chấm dừng (thường do quá bộ nhớ hoặc quá thời gian)',
+        ];
+        foreach ($signalText as $needle => $text) {
+            if ($lastLine !== '' && stripos($lastLine, $needle) !== false) {
+                return $text;
+            }
+        }
+        if ($lastLine !== '' && preg_match('/^run: line \d+:/', $lastLine)) {
+            $lastLine = '';
         }
         if ($lastLine !== '') {
             return mb_strimwidth($lastLine, 0, 140, '…');

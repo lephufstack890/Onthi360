@@ -61,6 +61,7 @@ class Judge0Client
                 'cpu_time_limit' => $cpuTimeLimit,
                 'wall_time_limit' => $wallTimeLimit,
                 'memory_limit' => $memoryLimit,
+                'max_file_size' => (int) config('judge0.max_file_size_kb', 4096), // SỬA 18/10
             ]);
         } catch (Throwable $e) {
             throw new RuntimeException('Không kết nối được máy chấm Judge0 (chấm gộp): '.$e->getMessage(), previous: $e);
@@ -139,6 +140,10 @@ class Judge0Client
             }
             if (isset($s['memory_limit'])) {
                 $payload['memory_limit'] = $s['memory_limit'];
+            }
+            // SỬA 18/10 — giới hạn dung lượng tệp chương trình được ghi (KB), xem config judge0.max_file_size_kb.
+            if (isset($s['max_file_size'])) {
+                $payload['max_file_size'] = $s['max_file_size'];
             }
             // SỬA 9/10 — cờ biên dịch (vd "-std=c++14") cho lựa chọn C++14. Không có thì không gửi,
             // Judge0 dùng cách biên dịch mặc định như trước.
