@@ -6,6 +6,10 @@
 @section('content')
     @php
         $typeLabels = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề', 'course' => 'Khóa học'];
+        // SỬA 18/10 (khách: "bộ đề lấy đề luyện tập có sẵn, trong đề có câu hỏi rồi — ẩn khối Đề và Bài tập đính kèm") —
+        // tài liệu loại Bộ đề chỉ còn khối "Đề trong bộ đề" (admin/products/partials/exam-bundle); khối Đề (chương PDF),
+        // Bài tập đính kèm, Học liệu ẩn đi. Dữ liệu cũ (nếu có) không bị xoá.
+        $isExamBundle = $product->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready();
         $statusMeta = [
             'draft' => ['label' => 'Bản nháp', 'tone' => 'neutral'],
             'pending_review' => ['label' => 'Chờ duyệt', 'tone' => 'warning'],
@@ -110,12 +114,16 @@
         </div>
 
         <div class="acx-stats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+            @if ($isExamBundle)
+                <div class="acx-stat"><p>Đề trong bộ đề</p><strong>{{ app(\App\Services\ExamBundle\ExamBundleService::class)->items($product)->count() }}</strong></div>
+            @else
             @if ($chapterLabel)
                 <div class="acx-stat"><p>{{ $chapterLabel }}</p><strong>{{ count($chapters) }}</strong></div>
             @endif
             <div class="acx-stat"><p>Bài tập đính kèm</p><strong>{{ count($exercises) }}</strong></div>
             @if ($chapterLabel)
                 <div class="acx-stat"><p>Học liệu</p><strong>{{ count($materialsList) }}</strong></div>
+            @endif
             @endif
             <div class="acx-stat"><p>Quyền đã cấp</p><strong>{{ $accessRightCount }}</strong></div>
         </div>
@@ -139,7 +147,7 @@
                 {{-- SỬA 14/10 (khách: "bỏ khối Tài nguyên đính kèm đi, không cần") — đã bỏ cả khối. Tệp cũ (ZIP bài tập/học liệu
                      kiểu cũ) vẫn nằm nguyên trong CSDL và người học vẫn mở được như trước, chỉ không hiện ở đây nữa. --}}
 
-                @if ($chapterLabel)
+                @if ($chapterLabel && ! $isExamBundle)
                     <section class="acx-card acx-card--white" id="chapters" x-data="{ editing: null }" style="scroll-margin-top:80px">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="book-open" /> {{ $chapterLabel }}</h2>
@@ -234,6 +242,7 @@
                     </section>
                 @endif
 
+                @unless ($isExamBundle)
                 <section class="acx-card acx-card--white">
                     <div class="apx-cardtop">
                         <h2><x-lucide name="layers" /> Bài tập đính kèm</h2>
@@ -280,8 +289,9 @@
                         </div>
                     @endif
                 </section>
+                @endunless
 
-                @if ($chapterLabel)
+                @if ($chapterLabel && ! $isExamBundle)
                     <section class="acx-card acx-card--white">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="library" /> Học liệu theo {{ mb_strtolower($chapterLabel) }}</h2>

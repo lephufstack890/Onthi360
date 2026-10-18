@@ -155,6 +155,8 @@ class LibraryService
                  * vẫn dùng màn đọc sản phẩm như cũ.
                  */
                 'readHref' => match (true) {
+                    // SỬA 18/10 — MODULE BỘ ĐỀ: tài liệu loại Bộ đề mở trang danh sách đề (/bo-de/{id}), không phải màn đọc PDF.
+                    $p->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready() => route('bundles.show', $p->id),
                     // $readable lấy từ $materialsByProduct — đã nạp gộp sẵn ở trên, nên KHÔNG
                     // hỏi cơ sở dữ liệu lần nữa trong vòng lặp này (N+1).
                     $readable->first() !== null => route($readPrefix.'.materials.read', $readable->first()->id),
@@ -216,6 +218,8 @@ class LibraryService
              * chương đầu, không có thì xét cột content_pdf_path đang cầm sẵn trên tay.
              */
             'readHref' => match (true) {
+                // SỬA 18/10 — MODULE BỘ ĐỀ: Bộ đề mở trang danh sách đề.
+                $product->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready() => route('bundles.show', $product->id),
                 ($firstPartId = $this->productRead->firstReadableMaterialId($product)) !== null
                     => route($readPrefix.'.materials.read', $firstPartId),
                 filled($product->content_pdf_path) => route($readPrefix.'.products.read', $product->id),
