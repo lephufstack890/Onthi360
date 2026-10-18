@@ -597,7 +597,10 @@ class AttemptService
         $answer = [];
 
         if ($question->type === QuestionType::Coding) {
-            $codeSource = $rawInput['code_source'] ?? null;
+            // SỬA 18/10 (khách: "nộp & tổng kết phải bỏ qua câu đã Chấm câu, chỉ chấm câu đã làm mà chưa chấm") — chuẩn hoá
+            // xuống dòng về "\n". Lý do: nút Chấm câu gửi mã bằng JSON (xuống dòng "\n") còn nút Nộp gửi bằng form — trình duyệt
+            // tự đổi xuống dòng thành "\r\n" — nên mã GIỐNG HỆT vẫn bị coi là "đã sửa" và câu đã chấm bị chạy máy chấm lại.
+            $codeSource = isset($rawInput['code_source']) ? self::normalizeCode((string) $rawInput['code_source']) : null;
             $language = $rawInput['language'] ?? null;
             $score = null;
             $verdict = VerdictStatus::Queued;
@@ -640,7 +643,7 @@ class AttemptService
         $testCounts = [];
 
         if ($question->type === QuestionType::Coding && $existing !== null) {
-            $sameCode = (string) $existing->code_source === (string) $codeSource
+            $sameCode = self::normalizeCode((string) $existing->code_source) === self::normalizeCode((string) $codeSource)
                 && (string) $existing->language === (string) $language;
             $keep = $sameCode
                 && $existing->verdict !== VerdictStatus::SystemError
@@ -794,6 +797,12 @@ class AttemptService
      * Đánh dấu 'judging' ngay để trang kết quả biết mà hiện "Đang chấm" và để lần nộp/refresh
      * sau không đẩy trùng việc.
      */
+    /** SỬA 18/10 — mã nguồn so / lưu theo một kiểu xuống dòng ("\n"), bỏ khoảng trắng thừa ở cuối. */
+    private static function normalizeCode(string $code): string
+    {
+        return rtrim(str_replace(["\r\n", "\r"], "\n", $code));
+    }
+
     private function dispatchCodingGrading(Attempt $attempt): void
     {
         $attempt->load(['answers.question']);
@@ -806,6 +815,12 @@ class AttemptService
             }
 
             if ($answer->verdict->isFinal() || blank($answer->code_source)) {
+                continue;
+            }
+
+            // SỬA 18/10 — câu ĐANG được chấm (vừa bấm Chấm câu, việc chấm nền còn chạy) thì KHÔNG đẩy thêm một lượt chấm nữa:
+            // kết quả lượt đang chạy tự cộng vào tổng khi xong. Chỉ đẩy lại nếu "đang chấm" đã quá 10 phút (việc cũ có thể đã hỏng).
+            if ($answer->verdict === VerdictStatus::Judging && $answer->updated_at !== null && $answer->updated_at->gt(now()->subMinutes(10))) {
                 continue;
             }
 
