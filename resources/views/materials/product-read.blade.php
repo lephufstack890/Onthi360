@@ -328,7 +328,9 @@
                                     <select id="material-section-select" aria-label="Chọn chương hoặc phần để đọc"
                                             class="h-9 w-[260px] max-w-full rounded-lg border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[13px] font-semibold text-[#123B68] outline-none transition focus:border-[#2D7FA3] focus:ring-2 focus:ring-[#DDF1F6]">
                                         @foreach ($parts as $i => $part)
-                                            <option value="{{ $i }}">{{ $part['label'] ? $part['label'].' · ' : '' }}{{ $part['title'] }}</option>
+                                            {{-- SỬA 18/10 — bộ đề: ô chọn chỉ liệt kê ĐỀ (câu lẻ của đề vẫn nằm trong dải đọc + mục lục). --}}
+                                            @continue(($bundleMode ?? false) && $part['sub'])
+                                            <option value="{{ $i }}">{{ $part['label'] ? $part['label'].' · ' : '' }}{{ $part['selectTitle'] ?? $part['title'] }}</option>
                                         @endforeach
                                     </select>
                                 @endif
@@ -373,7 +375,13 @@
                          Mục lục để MỞ SẴN: ở màn đọc liền mạch nó là thứ người đọc dùng nhiều
                          nhất để nhảy chương. --}}
                     <aside class="flex h-full flex-col lg:sticky" :class="focus ? 'lg:top-4' : 'lg:top-[76px]'">
-                        @include('partials.reader-exercise-panel')
+                        @if ($bundleMode ?? false)
+                            {{-- SỬA 18/10 — MODULE BỘ ĐỀ: cột Bài tập = câu hỏi của từng đề, cùng khung ô mã bài với trang đọc sách
+                                 (partials/reader-chapter-panel); bấm ô là vào làm câu đó. --}}
+                            @include('partials.reader-chapter-panel', ['chapters' => $chapters ?? [], 'currentChapterId' => null, 'readerRole' => $readerRole ?? 'student', 'chapterWord' => 'Đề', 'attachments' => []])
+                        @else
+                            @include('partials.reader-exercise-panel')
+                        @endif
 
                         <section x-data="{ open: true }"
                                  class="mt-3 overflow-hidden rounded-[28px] border border-[#DDEAF0] bg-white shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
@@ -403,7 +411,9 @@
                             </div>
                         </section>
 
-                        @include('partials.reader-attachments')
+                        @unless ($bundleMode ?? false)
+                            @include('partials.reader-attachments')
+                        @endunless
                     </aside>
                 </div>
             @endif

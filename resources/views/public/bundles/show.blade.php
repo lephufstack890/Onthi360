@@ -109,6 +109,14 @@
         <div class="ebp-cta">
             @if ($hasAccess)
                 <p class="ebp-owned"><x-lucide name="check-circle-2" /> Bạn đã sở hữu bộ đề này</p>
+                @php
+                    $readRoute = match (true) {
+                        (bool) $user?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) => 'admin.products.read',
+                        (bool) $user?->hasRole(\App\Models\Role::TEACHER) => 'teacher.products.read',
+                        default => 'student.products.read',
+                    };
+                @endphp
+                <a href="{{ route($readRoute, $product->id) }}" class="ebp-btn ebp-btn--buy"><x-lucide name="book-open" /> Đọc &amp; làm theo đề</a>
                 <p class="ebp-note">Làm được mọi đề trong bộ, kể cả đề chỉ có trong bộ đề.</p>
             @else
                 <p class="ebp-price">{{ $product->price > 0 ? number_format($product->price).'đ' : 'Miễn phí' }}</p>

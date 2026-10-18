@@ -189,6 +189,33 @@ class ProductReadService
         // SỬA 14/10 — admin đọc như giáo viên (xem đề chứ không "Làm bài"), không có viên quyền sở hữu.
         $isTeacherView = in_array($routePrefix, ['teacher', 'admin'], true);
 
+        // SỬA 18/10 — MODULE BỘ ĐỀ: tài liệu loại Bộ đề đọc theo ĐỀ (thứ tự bộ đề) + cột Bài tập là câu hỏi của từng đề.
+        // null = không phải bộ đề / bộ đề chưa có đề -> đọc như cũ.
+        $bundle = app(\App\Services\ExamBundle\ExamBundleService::class)->readerData($product, $user, $routePrefix);
+        if ($bundle !== null) {
+            return [
+                'product' => $product,
+                'parts' => $bundle['parts'],
+                'exercises' => $bundle['exercises'],
+                'chapters' => $bundle['chapters'],
+                'bundleMode' => true,
+                'readerRole' => $routePrefix,
+                'attachments' => [],
+                'access' => $routePrefix === 'admin'
+                    ? ['owned' => false, 'remainingLabel' => null, 'admin' => true]
+                    : $this->accessChip($user, $product),
+                'chapterWord' => 'Đề',
+                'watermarkText' => '',
+                'layoutView' => 'layouts.reader',
+                'libraryRoute' => $routePrefix === 'admin' ? 'admin.products.index' : $routePrefix.'.library.index',
+                'backUrl' => \App\Support\ReaderBackUrl::resolve(
+                    (int) $product->id,
+                    $routePrefix === 'admin' ? route('admin.products.show', $product->id) : route('bundles.show', $product->id),
+                ),
+                'isTeacherView' => $isTeacherView,
+            ];
+        }
+
         return [
             'product' => $product,
             'parts' => $this->partsFor($product, $routePrefix),

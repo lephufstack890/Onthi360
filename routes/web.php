@@ -144,6 +144,13 @@ Route::get('/tai-lieu/giao-tai-lieu/hoc-sinh', [PublicMaterialAssignmentControll
 Route::get('/tai-lieu/{material}', [PublicMaterialController::class, 'show'])->name('materials.show');
 // SỬA 18/10 — MODULE BỘ ĐỀ: trang danh sách đề của 1 bộ đề (xem App\Services\ExamBundle\ExamBundleService).
 Route::get('/bo-de/{product}', [\App\Http\Controllers\Public\ExamBundleController::class, 'show'])->whereNumber('product')->name('bundles.show');
+Route::middleware('auth')->group(function () {
+    // SỬA 18/10 — màn đọc bộ đề: PDF từng đề / từng câu, và bấm ô câu hỏi để vào làm (ExamBundleController).
+    Route::get('/bo-de/{product}/tep/{kind}/{id}', [\App\Http\Controllers\Public\ExamBundleController::class, 'file'])
+        ->whereNumber(['product', 'id'])->whereIn('kind', ['exam', 'question'])->name('bundles.read.file');
+    Route::post('/bo-de/{product}/cau/{question}', [\App\Http\Controllers\Public\ExamBundleController::class, 'startQuestion'])
+        ->whereNumber(['product', 'question'])->name('bundles.startQuestion');
+});
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
 Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');
 Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');

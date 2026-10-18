@@ -92,7 +92,7 @@ class PracticeByQuestionService
      * nơi quay về hai chỗ khác nhau nên nút quay lại không thể ghi cứng một nhãn như trước.
      * Bỏ trống -> giữ nguyên nhãn cũ ("Quay lại Tài liệu của tôi"), không đổi hành vi hiện có.
      */
-    public function startForQuestion(int $questionId, ?string $returnUrl = null, ?string $backLabel = null): void
+    public function startForQuestion(int $questionId, ?string $returnUrl = null, ?string $backLabel = null, ?array $siblings = null): void
     {
         Session::put(self::SESSION_KEY, [
             'question_ids' => [$questionId],
@@ -110,7 +110,8 @@ class PracticeByQuestionService
             // SỬA 30/9 (6) (khách: "thiếu nút bài tiếp theo và bài trước") — danh sách các bài
             // ĐỨNG CÙNG CHỖ với bài đang mở, xếp theo đúng thứ tự hiển thị (xem siblingIdsFor).
             // Chỉ để dựng hai nút chuyển bài; phiên luyện vẫn chỉ gồm 1 câu như trước.
-            'siblings' => $this->siblingIdsFor($questionId),
+            // SỬA 18/10 — MODULE BỘ ĐỀ: mở từ màn đọc bộ đề thì truyền sẵn các câu CỦA ĐỀ ĐÓ (ExamBundleController).
+            'siblings' => $siblings !== null && in_array($questionId, $siblings, true) ? array_values($siblings) : $this->siblingIdsFor($questionId),
         ]);
     }
 

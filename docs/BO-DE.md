@@ -61,3 +61,13 @@ Có quyền dùng bộ đề khi người dùng có quyền cá nhân còn hạn
 
 1. Xoá các dòng `@include` / route / hook ở trên.
 2. Chạy `php artisan migrate:rollback --step=1` (nếu đây là migration cuối).
+
+## Màn đọc bộ đề (cập nhật 18/10)
+
+Bấm **Đọc** một tài liệu loại Bộ đề (admin, giáo viên, học sinh đã mua; hoặc nút "Đọc & làm theo đề" ở `/bo-de/{id}`) sẽ mở màn đọc tài liệu dùng chung (`materials/product-read`), nhưng dữ liệu lấy từ `ExamBundleService::readerData()`:
+
+- **Dải PDF:** các đề nối nhau theo đúng thứ tự bộ đề. Mỗi đề lấy PDF đề hoặc PDF xem trước; đề câu hỏi rời thì nối PDF đề bài của từng câu. Tệp được phục vụ qua route `bundles.read.file`.
+- **Ô "Đề"** trên thanh công cụ liệt kê các đề.
+- **Cột Bài tập** dùng `partials/reader-chapter-panel` (cùng khung với trang đọc sách): câu hỏi được nhóm theo từng đề.
+- **Bấm 1 ô** đi qua route `bundles.startQuestion` → mở màn làm 1 câu. Nút "Bài trước / Bài tiếp theo" đi trong các câu của đề đó.
+- Bộ đề chưa có đề nào thì màn đọc chạy như cũ (PDF "Toàn bộ nội dung").

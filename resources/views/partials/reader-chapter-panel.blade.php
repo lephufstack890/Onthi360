@@ -41,8 +41,9 @@
             // onOpen -> mở màn làm bài ngay) — MỌI vai trò (học sinh, giáo viên, admin) bấm ô là vào màn làm bài 1 câu của
             // Luyện tập (student.practiceByQuestion.startExercise, nhóm route mở cho mọi tài khoản đã đăng nhập; quyền vào
             // sản phẩm vẫn do AccessGate kiểm như cũ — admin đọc/làm được mọi tài liệu).
-            'startUrl' => route('student.practiceByQuestion.startExercise', $ex['id']),
-            'viewUrl' => match ($readerRole) {
+            // SỬA 18/10 — bên gọi được truyền sẵn đường vào làm bài (vd màn đọc Bộ đề: route bundles.startQuestion).
+            'startUrl' => $ex['startUrl'] ?? route('student.practiceByQuestion.startExercise', $ex['id']),
+            'viewUrl' => array_key_exists('viewUrl', $ex) && $readerRole !== 'admin' ? $ex['viewUrl'] : match ($readerRole) {
                 'admin' => $ex['editHref'] ?? null,
                 'teacher' => route('access.resource.exerciseAttachment', [$ex['productId'] ?? 0, $ex['id'], 'statement']),
                 default => null,

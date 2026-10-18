@@ -44,6 +44,8 @@ use ZipArchive;
  *   - Public\PracticeService::examBaseRows()       : ẩn đề bundle_only khỏi trang Luyện tập (scopeHiddenBundleOnly)
  *   - Student\AssessmentService::buildTakeData()   : chặn làm đề bundle_only khi chưa mua
  *   - ExamZipImportService::importPracticeForAdmin : exam.json "visibility": "bundle_only", "bundles": [...]
+ *   - ProductReadService::buildReadData()          : màn đọc bộ đề = đề nối đề + cột Bài tập theo đề (readerData)
+ *   - Student\PracticeByQuestionService::startForQuestion(): tham số $siblings (Bài trước/tiếp trong 1 đề)
  * Chưa chạy migration (thiếu bảng/cột) thì ready() = false và mọi hàm trả "không có gì" — trang cũ chạy y như trước.
  */
 class ExamBundleService
@@ -433,6 +435,117 @@ class ExamBundleService
         throw ValidationException::withMessages([
             'attempt' => 'Đề này chỉ dành cho người đã mua bộ đề'.($names !== '' ? ' "'.$names.'"' : '').'. Mua bộ đề ở trang Tài liệu để làm đề.',
         ]);
+    }
+
+    // ───────────────────────────── Màn đọc bộ đề (materials/product-read) ─────────────────────────────
+
+    /**
+     * SỬA 18/10 (khách: "trang đọc bộ đề đổ thứ tự các đề ra; cột Bài tập hiện câu hỏi của đề có sẵn; giao diện giống trang
+     * đọc sách") — dữ liệu cho màn đọc tài liệu khi tài liệu là Bộ đề (ProductReadService::buildReadData() gọi vào):
+     *   parts     : dải PDF đọc liền mạch, ĐỀ NỐI ĐỀ theo đúng thứ tự bộ đề. Mỗi đề: PDF đề (đề PDF) / PDF xem trước; đề câu
+     *               hỏi rời không có PDF chung thì nối PDF đề bài của từng câu. Ô "Đề" trên thanh công cụ = danh sách này.
+     *   chapters  : mỗi đề là 1 "chương" của cột Bài tập (partials/reader-chapter-panel — cùng khung với trang đọc sách).
+     *   exercises : câu hỏi của từng đề + trạng thái làm của người đang đọc; bấm ô là vào làm câu (route bundles.startQuestion).
+     * Đề "Chỉ trong bộ đề" bị bỏ qua khi người đọc chưa có quyền bộ đề. Trả null nếu không phải bộ đề / chưa có đề nào
+     * -> màn đọc chạy như cũ (PDF "Toàn bộ nội dung").
+     *
+     * @return array{parts: array, chapters: array, exercises: array}|null
+     */
+    public function readerData(Product $product, User $user, string $routePrefix): ?array
+    {
+        if (! self::ready() || ! $this->isBundle($product)) {
+            return null;
+        }
+
+        $hasAccess = $this->canUseBundle($user, $product);
+        $exams = $this->items($product)->filter(fn (Assessment $a) => ! $a->bundle_only || $hasAccess)->values();
+        if ($exams->isEmpty()) {
+            return null;
+        }
+        (new \Illuminate\Database\Eloquent\Collection($exams->all()))->load(['items' => fn ($q) => $q->orderBy('order'), 'items.question.tags:id,name']);
+
+        $questionIds = $exams->flatMap(fn (Assessment $a) => $a->items->pluck('question_id'))->filter()->unique()->values()->all();
+        $mine = $questionIds === [] ? collect() : \App\Models\AttemptAnswer::query()
+            ->selectRaw('question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted', ['accepted'])
+            ->whereIn('question_id', $questionIds)
+            ->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id))
+            ->groupBy('question_id')
+            ->get()
+            ->keyBy('question_id');
+
+        $parts = [];
+        $chapters = [];
+        $exercises = [];
+
+        foreach ($exams as $n => $exam) {
+            $no = $n + 1;
+            $label = 'Đề '.$no;
+            $chapters[] = ['id' => $exam->id, 'no' => $no, 'title' => $exam->title];
+
+            if (filled($exam->pdf_path) || filled($exam->preview_pdf_path)) {
+                $parts[] = ['key' => 'e'.$exam->id, 'title' => $exam->title, 'label' => $label, 'sub' => false,
+                    'url' => route('bundles.read.file', [$product->id, 'exam', $exam->id])];
+                $examHasPart = true;
+            } else {
+                $examHasPart = false;
+            }
+
+            foreach ($exam->items as $k => $item) {
+                $question = $item->question;
+                if ($question === null) {
+                    continue;
+                }
+
+                if (! $examHasPart && $question->attachmentInfo('statement') !== null) {
+                    $first = ! collect($parts)->contains(fn ($p) => ($p['exam'] ?? null) === $exam->id);
+                    $parts[] = ['key' => 'q'.$question->id, 'title' => ($first ? $exam->title.' — ' : '').'Câu '.($k + 1).': '.$question->title,
+                        'label' => $label, 'sub' => ! $first, 'exam' => $exam->id, 'selectTitle' => $exam->title,
+                        'url' => route('bundles.read.file', [$product->id, 'question', $question->id])];
+                }
+
+                $row = $mine->get($question->id);
+                [$status, $statusLabel] = match (true) {
+                    (int) ($row->mine_accepted ?? 0) > 0 => ['done', 'Đã hoàn thành'],
+                    (int) ($row->mine ?? 0) > 0 => ['progress', 'Đang làm'],
+                    default => ['open', 'Sẵn sàng'],
+                };
+                $difficulty = \App\Support\QuestionDifficulty::resolve($question->metadata, (int) $question->points);
+
+                $exercises[] = [
+                    'id' => $question->id,
+                    'productId' => $product->id,
+                    'code' => 'Câu '.($k + 1),
+                    'title' => $question->title,
+                    'chapterId' => $exam->id,
+                    'tags' => $question->tags->pluck('name')->take(3)->values()->all(),
+                    'points' => (int) round((float) $item->effectivePoints()),
+                    'difficultyLabel' => \App\Support\QuestionDifficulty::label($difficulty),
+                    'difficultyStars' => \App\Support\QuestionDifficulty::stars($difficulty),
+                    'status' => $status,
+                    'statusLabel' => $statusLabel,
+                    'startUrl' => route('bundles.startQuestion', [$product->id, $question->id]),
+                    'editHref' => $routePrefix === 'admin' ? route('admin.content.questions.edit', $question->id) : null,
+                    'viewUrl' => $routePrefix === 'teacher' && $question->attachmentInfo('statement') !== null
+                        ? route('bundles.read.file', [$product->id, 'question', $question->id]) : null,
+                ];
+            }
+        }
+
+        return ['parts' => array_map(fn ($p) => array_diff_key($p, ['exam' => 1]), $parts), 'chapters' => $chapters, 'exercises' => $exercises];
+    }
+
+    /**
+     * Đề chứa câu hỏi này trong bộ đề (null = câu không thuộc đề nào của bộ).
+     */
+    public function examOfQuestion(Product $product, int $questionId): ?Assessment
+    {
+        return $this->items($product)->first(fn (Assessment $a) => $a->items()->where('question_id', $questionId)->exists());
+    }
+
+    /** Người đọc xem được PDF / làm được câu của đề này trong bộ đề không. */
+    public function canReadExam(?User $user, Product $product, Assessment $exam): bool
+    {
+        return $user !== null && (! $exam->bundle_only || $this->canUseBundle($user, $product));
     }
 
     // ───────────────────────────── Gói ZIP đề ─────────────────────────────
