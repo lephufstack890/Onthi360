@@ -1,7 +1,12 @@
 @extends('layouts.admin')
 
-@section('title', 'Tạo tài liệu')
-@section('page-title', 'Tạo tài liệu')
+@php
+    // SỬA 18/10 — mở từ nút "Thêm sách / Thêm chuyên đề / Thêm bộ đề" (?type=) thì tiêu đề theo đúng loại.
+    $createType = old('type', request('type'));
+    $createHeading = ['book' => 'Thêm sách', 'topic' => 'Thêm chuyên đề', 'exam' => 'Thêm bộ đề'][is_string($createType) ? $createType : ''] ?? 'Tạo tài liệu';
+@endphp
+@section('title', $createHeading)
+@section('page-title', $createHeading)
 
 @section('content')
     @php $types = $types ?? []; $visibilities = $visibilities ?? []; $statuses = $statuses ?? []; $grades = $grades ?? []; @endphp
@@ -18,7 +23,7 @@
             <div class="acx-head__id">
                 <span class="acx-avatar"><x-lucide name="wallet-cards" /></span>
                 <div>
-                    <h1>Tạo tài liệu</h1>
+                    <h1>{{ $createHeading }}</h1>
                     <div class="acx-head__meta"><span>Tài liệu là thứ được bán/cấp quyền: sách, chuyên đề, bộ đề (5.1).</span></div>
                 </div>
             </div>
@@ -45,7 +50,7 @@
                                 <label class="apx-lbl" for="type">Loại tài liệu</label>
                                 <x-ws.select id="type" name="type" required>
                                     @foreach ($types as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('type', 'book') === $value)>{{ $label }}</option>
+                                        <option value="{{ $value }}" @selected(old('type', in_array(request('type'), ['book', 'topic', 'exam'], true) ? request('type') : 'book') === $value)>{{ $label }}</option>
                                     @endforeach
                                 </x-ws.select>
                             </div>

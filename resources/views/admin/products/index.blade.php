@@ -17,6 +17,13 @@
         $firstGroup = collect($groupLabels)->first(fn ($g) => $groupCounts[$g] > 0) ?? $groupLabels[0];
         // SỬA 16/10 — sau khi bấm ↑/↓ quay về đúng tab đang đứng (?tab=Sách|Chuyên đề|Bộ đề).
         if (in_array(request('tab'), $groupLabels, true)) { $firstGroup = request('tab'); }
+        // SỬA 18/10 (khách: "tab Sách thì nút là Thêm sách, tab Chuyên đề là Thêm chuyên đề, tab Bộ đề là Thêm bộ đề") — nút
+        // thêm đổi chữ + mở form với Loại tài liệu chọn sẵn đúng tab (?type=book|topic|exam), JS đổi theo khi bấm tab.
+        $groupAdd = [
+            'Sách' => ['label' => 'Thêm sách', 'href' => route('admin.products.create', ['type' => 'book'])],
+            'Chuyên đề' => ['label' => 'Thêm chuyên đề', 'href' => route('admin.products.create', ['type' => 'topic'])],
+            'Bộ đề' => ['label' => 'Thêm bộ đề', 'href' => route('admin.products.create', ['type' => 'exam'])],
+        ];
         // Vị trí đầu/cuối của từng tài liệu TRONG LOẠI của nó -> khoá nút ↑ ở dòng đầu, ↓ ở dòng cuối.
         $typeFirstId = []; $typeLastId = [];
         foreach ($products as $pp) { $typeFirstId[$pp['type']] ??= $pp['id']; $typeLastId[$pp['type']] = $pp['id']; }
@@ -49,7 +56,7 @@
 
     <x-ws.page-header title="Quản lý tài liệu" icon="book-open" eyebrow="Quản trị & biên soạn" subtitle="Sách, Chuyên đề và Bộ đề · nội dung được tổ chức theo chương hoặc phần.">
         <x-slot:actions>
-            <a href="{{ route('admin.products.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Thêm tài liệu</a>
+            <a href="{{ $groupAdd[$firstGroup]['href'] }}" id="apxAddBtn" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ <span data-add-label>{{ $groupAdd[$firstGroup]['label'] }}</span></a>
         </x-slot:actions>
     </x-ws.page-header>
 
@@ -144,7 +151,7 @@
                 <x-lucide name="search" />
                 <strong id="apxEmptyTitle">Chưa có nội dung trong nhóm này</strong>
                 <p id="apxEmptyHint">Thêm nội dung đầu tiên để bắt đầu.</p>
-                <a href="{{ route('admin.products.create') }}" class="acx-btn acx-btn--primary" id="apxEmptyBtn"><x-lucide name="plus" /> Thêm tài liệu</a>
+                <a href="{{ $groupAdd[$firstGroup]['href'] }}" class="acx-btn acx-btn--primary" id="apxEmptyBtn"><x-lucide name="plus" /> <span data-add-label>{{ $groupAdd[$firstGroup]['label'] }}</span></a>
             </div>
         </div>
 
@@ -215,10 +222,23 @@
                 clear.classList.toggle('is-on', q.value !== '');
             }
 
+            // SỬA 18/10 — nút thêm đổi theo tab: Thêm sách / Thêm chuyên đề / Thêm bộ đề.
+            var ADD = @json($groupAdd);
+            function syncAddButtons() {
+                var a = ADD[group()];
+                if (!a) return;
+                [document.getElementById('apxAddBtn'), emptyBtn].forEach(function (btn) {
+                    if (!btn) return;
+                    btn.href = a.href;
+                    var lbl = btn.querySelector('[data-add-label]');
+                    if (lbl) lbl.textContent = a.label;
+                });
+            }
+
             tabs.forEach(function (t) {
                 t.addEventListener('click', function () {
                     tabs.forEach(function (x) { x.classList.toggle('is-on', x === t); });
-                    page = 1; render();
+                    page = 1; render(); syncAddButtons();
                 });
             });
             q.addEventListener('input', function () { page = 1; render(); });

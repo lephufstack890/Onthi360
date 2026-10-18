@@ -626,7 +626,7 @@ PY;
      * SỬA 18/10 (khách: "chấm sai thì báo mã lỗi từng test sai như nào để người ta biết còn check, báo sai chung chung không
      * biết đường nào mà check" — cả bài tập chuyên đề lẫn làm đề) — mã lỗi ngắn + lý do cụ thể cho MỖI test sai:
      *   WA  : dòng đầu tiên khác đáp án ("Dòng 3: cần «5», bạn in «4»"), thiếu dòng, in thừa, không in gì;
-     *   TLE : quá thời gian; MLE : quá bộ nhớ; CE : lỗi biên dịch;
+     *   TLE : KHÔNG thêm chi tiết (chỉ nhãn "Quá thời gian" như cũ); MLE : quá bộ nhớ; CE : lỗi biên dịch;
      *   RTE : chương trình chết giữa chừng — dòng lỗi cuối của stderr (vd "ZeroDivisionError: division by zero") hoặc tên tín
      *         hiệu (SIGSEGV tràn mảng, SIGFPE chia 0…). Khi đang TẠM bỏ qua lỗi runtime (judge0.ignore_runtime_error) mà kết
      *         quả sai thì vẫn ghi kèm lý do chương trình bị dừng để học sinh biết.
@@ -642,7 +642,9 @@ PY;
         $crash = self::crashText($exitCode, $stderr, $crashStatusId);
 
         return match ($verdict) {
-            VerdictStatus::TimeLimitExceeded => ['errorCode' => 'TLE', 'reason' => 'Chạy quá thời gian cho phép — thuật toán chưa đủ nhanh hoặc bị lặp vô hạn.'],
+            // SỬA 18/10 (khách: "quá thời gian thì in ra quá thời gian như bữa, lỗi khác mới in lỗi chi tiết") — TLE chỉ hiện
+            // nhãn "Quá thời gian" sẵn có, không thêm dòng chi tiết.
+            VerdictStatus::TimeLimitExceeded => ['errorCode' => null, 'reason' => null],
             VerdictStatus::MemoryLimitExceeded => ['errorCode' => 'MLE', 'reason' => 'Dùng quá bộ nhớ cho phép — mảng/danh sách hoặc đệ quy quá lớn.'],
             VerdictStatus::CompileError => ['errorCode' => 'CE', 'reason' => 'Lỗi biên dịch / cú pháp — chương trình không chạy được.'],
             VerdictStatus::RuntimeError => ['errorCode' => 'RTE', 'reason' => $crash ?? 'Chương trình bị dừng giữa chừng do lỗi khi chạy.'],
