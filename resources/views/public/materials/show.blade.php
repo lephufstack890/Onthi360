@@ -105,7 +105,7 @@
         <aside class="h-fit rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:p-5 lg:sticky lg:top-20">
             <p class="type-meta text-slate-400">Bản mềm</p>
             <p class="mt-0.5 text-[28px] font-black leading-none text-[#0B3C78]">
-                {{ $material->price > 0 ? number_format($material->price).'đ' : 'Miễn phí' }}
+                {{ \App\Support\TokenPrice::priceLabel($material->price) }}
             </p>
             <p class="type-meta mt-1.5 text-slate-400">Dùng ngay sau khi kích hoạt</p>
 

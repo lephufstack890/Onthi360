@@ -119,7 +119,7 @@
                 <a href="{{ route($readRoute, $product->id) }}" class="ebp-btn ebp-btn--buy"><x-lucide name="book-open" /> Đọc &amp; làm theo đề</a>
                 <p class="ebp-note">Làm được mọi đề trong bộ, kể cả đề chỉ có trong bộ đề.</p>
             @else
-                <p class="ebp-price">{{ $product->price > 0 ? number_format($product->price).'đ' : 'Miễn phí' }}</p>
+                <p class="ebp-price">{{ \App\Support\TokenPrice::priceLabel($product->price) }}</p>
                 @if ($user)
                     <a href="{{ route('access.checkout', $product->id) }}" class="ebp-btn ebp-btn--buy"><x-lucide name="wallet-cards" /> Mua bộ đề</a>
                 @else

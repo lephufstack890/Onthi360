@@ -60,7 +60,7 @@
         <x-ws.stat label="Đã duyệt / hoàn tất" :value="$doneCount" tone="emerald" icon="check-circle-2" hint="Đơn đã được xử lý xong" />
         <x-ws.stat label="Đang chờ" :value="$waitingCount" :tone="$waitingCount > 0 ? 'amber' : 'neutral'" icon="clock-3"
                    :hint="$waitingCount > 0 ? 'Chờ duyệt hoặc chờ thanh toán' : 'Không có đơn nào đang chờ'" />
-        <x-ws.stat label="Đã chi" :value="number_format($totalSpent).'đ'" tone="violet" icon="banknote" hint="Cộng từ các đơn đã duyệt" />
+        <x-ws.stat label="Đã chi" :value="\App\Support\TokenPrice::label($totalSpent)" tone="violet" icon="banknote" hint="Cộng từ các đơn đã duyệt" />
     </div>
 
     @if ($orderCount === 0)
@@ -103,7 +103,7 @@
 
                     <div class="flex items-center justify-between gap-3 border-t border-slate-100 bg-[#F8FBFE] px-4 py-2.5 sm:px-5">
                         <span class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Tổng đơn</span>
-                        <span class="text-[15px] font-black text-slate-800">{{ number_format($o['totalAmount']) }}đ</span>
+                        <span class="text-[15px] font-black text-slate-800">{{ \App\Support\TokenPrice::label($o['totalAmount']) }}</span>
                     </div>
                 </x-ws.card>
             @endforeach

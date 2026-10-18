@@ -92,7 +92,7 @@ class OrderService
                 'id' => $o->id,
                 'buyer' => $o->buyer->name ?? '',
                 'items' => $itemsLabel,
-                'total' => number_format($o->total_amount).'đ',
+                'total' => \App\Support\TokenPrice::label($o->total_amount), // SỬA 18/10 — token
                 'status' => $label,
                 'tone' => $tone,
             ];

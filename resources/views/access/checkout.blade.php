@@ -65,7 +65,10 @@
               balance: {{ $tokenBalance }},
               get unitPrice() { return this.scope === 'teacher_teaching' ? this.priceTeaching : this.priceLearning; },
               get total() { return this.unitPrice + (this.includePrint ? this.printPrice : 0); },
-              money(n) { return new Intl.NumberFormat('vi-VN').format(n) + 'đ'; },
+              {{-- SỬA 18/10 (khách: "giá hiển thị bằng token, 200.000đ = 200 token") — số tiền lưu bằng đồng, hiện chia tỉ giá. --}}
+              rate: {{ \App\Support\TokenPrice::rate() }},
+              money(n) { return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format((Number(n) || 0) / this.rate) + ' token'; },
+              vnd(n) { return new Intl.NumberFormat('vi-VN').format(Number(n) || 0) + 'đ'; },
               get enoughToken() { return this.balance >= this.total; },
           }">
         @csrf
@@ -158,7 +161,7 @@
                             <input type="checkbox" name="include_print" value="1" x-model="includePrint" class="h-4 w-4 rounded border-slate-300 text-blue-600">
                             Mua kèm bản in — giao hàng riêng, không đổi quyền số
                         </span>
-                        <span class="shrink-0 text-[12px] font-bold text-slate-500">+{{ number_format($printPrice) }}đ</span>
+                        <span class="shrink-0 text-[12px] font-bold text-slate-500">+{{ \App\Support\TokenPrice::label($printPrice) }}</span>
                     </label>
                 </x-ws.card>
             @endunless
@@ -186,9 +189,10 @@
                 </dl>
 
                 <div class="mt-3 flex items-center justify-between border-t border-sky-100 pt-3">
-                    <span class="text-[12px] font-bold text-slate-500">Tổng tiền</span>
+                    <span class="text-[12px] font-bold text-slate-500">Tổng cộng</span>
                     <span class="text-xl font-black text-slate-800" x-text="money(total)"></span>
                 </div>
+                <p class="mt-1 text-right text-[11px] text-slate-400" x-show="paymentMethod === 'offline'" x-cloak x-text="'Chuyển khoản tương đương ' + vnd(total)"></p>
 
                 <div class="mt-3">
                     <x-ws.btn type="submit" variant="primary" icon="banknote" class="w-full justify-center">Đặt đơn</x-ws.btn>

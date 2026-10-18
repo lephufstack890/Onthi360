@@ -294,7 +294,7 @@ class ProductService
             'typeKey' => $p->type->value,
             'title' => $p->title,
             'type' => $typeLabels[$p->type->value] ?? $p->type->value,
-            'price' => number_format($p->price).'đ',
+            'price' => \App\Support\TokenPrice::label($p->price), // SỬA 18/10 — token
             'visibility' => $p->visibility === Visibility::Public ? 'Công khai' : 'Riêng tư',
             'tone' => $p->visibility === Visibility::Public ? 'info' : 'neutral',
         ])->all();

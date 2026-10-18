@@ -289,7 +289,7 @@ class CourseService
             ->orderBy('title')
             ->get(['id', 'title', 'price'])
             ->mapWithKeys(fn (Product $p) => [
-                $p->id => $p->title.' — '.number_format((int) $p->price).'đ',
+                $p->id => $p->title.' — '.\App\Support\TokenPrice::label((int) $p->price), // SỬA 18/10 — token
             ])
             ->all();
     }

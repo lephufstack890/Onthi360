@@ -132,7 +132,7 @@ class LearningPathService
                 'price' => $course->learningPrice(),
                 'priceLabel' => $course->learningPrice() === null
                     ? 'Chưa gắn sản phẩm'
-                    : number_format((int) $course->learningPrice()).'đ',
+                    : \App\Support\TokenPrice::label((int) $course->learningPrice()), // SỬA 18/10 — token
                 'productHref' => $course->product_id ? route('admin.products.show', $course->product_id) : null,
                 'color' => $tone,
             ];

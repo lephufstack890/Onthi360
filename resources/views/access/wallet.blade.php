@@ -60,9 +60,10 @@
 
     {{-- ══════ Số liệu nhanh ══════ --}}
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <x-ws.stat label="Số dư hiện có" :value="number_format($balance).' token'" tone="emerald" icon="wallet-cards"
-                   hint="1 token = 1đ" />
-        <x-ws.stat label="Đang chờ duyệt" :value="$pendingTopup ? number_format($pendingTopup->amount).'đ' : '—'"
+        {{-- SỬA 18/10 (khách: "nạp 100.000đ được 100 token") — số dư / số nạp hiện bằng token (App\Support\TokenPrice). --}}
+        <x-ws.stat label="Số dư hiện có" :value="\App\Support\TokenPrice::label($balance)" tone="emerald" icon="wallet-cards"
+                   :hint="'1 token = '.\App\Support\TokenPrice::vnd(\App\Support\TokenPrice::rate())" />
+        <x-ws.stat label="Đang chờ duyệt" :value="$pendingTopup ? \App\Support\TokenPrice::label($pendingTopup->amount) : '—'"
                    :tone="$pendingTopup ? 'amber' : 'neutral'" icon="clock-3"
                    :hint="$pendingTopup ? 'Chuyển khoản xong chờ Admin đối soát' : 'Không có yêu cầu nào đang chờ'" />
         <x-ws.stat label="Số lần đã nạp" :value="count($history)" tone="blue" icon="history"
@@ -78,7 +79,7 @@
                     <div class="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-3">
                         <x-ws.icon-tile icon="clock-3" tone="amber" />
                         <p class="flex-1 text-[13px] leading-relaxed text-amber-800">
-                            Yêu cầu nạp <strong>{{ number_format($pendingTopup->amount) }}đ</strong> đang chờ duyệt.
+                            Yêu cầu nạp <strong>{{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</strong> ({{ \App\Support\TokenPrice::vnd($pendingTopup->amount) }}) đang chờ duyệt.
                             Chuyển khoản đúng nội dung bên dưới để Admin đối soát chính xác —
                             <strong>sai nội dung có thể khiến yêu cầu bị từ chối</strong>.
                         </p>
@@ -113,7 +114,7 @@
                             </div>
                             <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
                                 <span class="text-[11px] font-bold text-slate-500">Số tiền</span>
-                                <span class="text-[13px] font-black text-slate-800">{{ number_format($pendingTopup->amount) }}đ</span>
+                                <span class="text-[13px] font-black text-slate-800">{{ \App\Support\TokenPrice::vnd($pendingTopup->amount) }} <span class="font-semibold text-emerald-700">→ {{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</span></span>
                             </div>
                             {{-- Nội dung chuyển khoản — nổi bật nhất vì sai một ký tự là Admin không đối soát được. --}}
                             <div x-data="{ copied: false }" class="flex items-center justify-between gap-3 bg-rose-50/70 px-3.5 py-2.5">
@@ -136,7 +137,7 @@
                     <form method="POST" action="{{ route('wallet.request') }}" class="space-y-3">
                         @csrf
                         <x-ws.field label="Số tiền muốn nạp (VNĐ)" name="amount" required
-                                    hint="Tối thiểu 10.000đ. Sau khi tạo yêu cầu, bạn sẽ thấy mã QR và nội dung chuyển khoản riêng để Admin đối soát.">
+                                    :hint="'Cứ '.\App\Support\TokenPrice::vnd(\App\Support\TokenPrice::rate()).' được 1 token (vd 100.000đ = 100 token). Tối thiểu 10.000đ. Sau khi tạo yêu cầu, bạn sẽ thấy mã QR và nội dung chuyển khoản riêng để Admin đối soát.'">
                             <input id="amount" name="amount" type="number" min="10000" step="1000" required
                                    value="{{ old('amount', 100000) }}" placeholder="100000"
                                    class="admin-input {{ $errors->has('amount') ? 'is-invalid' : '' }}">
@@ -148,7 +149,7 @@
                             @foreach ([50000, 100000, 200000, 500000] as $quick)
                                 <button type="button" onclick="document.getElementById('amount').value = {{ $quick }}"
                                         class="rounded-xl border border-sky-100 bg-[#F8FBFE] px-2.5 py-1 text-[11px] font-bold text-slate-600 transition-colors hover:border-sky-200 hover:bg-sky-50 hover:text-blue-700">
-                                    {{ number_format($quick) }}đ
+                                    {{ \App\Support\TokenPrice::vnd($quick) }} = {{ \App\Support\TokenPrice::label($quick) }}
                                 </button>
                             @endforeach
                         </div>
@@ -217,7 +218,7 @@
                     <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-sky-50/60 [&>tr]:transition-colors">
                         @foreach ($history as $h)
                             <tr>
-                                <td class="px-4 py-3 text-[13px] font-bold text-slate-700">{{ number_format($h['amount']) }}đ</td>
+                                <td class="px-4 py-3 text-[13px] font-bold text-slate-700">{{ \App\Support\TokenPrice::label($h['amount']) }} <span class="block text-[11px] font-medium text-slate-400">{{ \App\Support\TokenPrice::vnd($h['amount']) }}</span></td>
                                 <td class="px-4 py-3">
                                     <span class="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold tracking-wide text-slate-600">{{ $h['transferCode'] }}</span>
                                 </td>

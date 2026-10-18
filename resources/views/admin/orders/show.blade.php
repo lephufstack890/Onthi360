@@ -36,7 +36,7 @@
                             <tr>
                                 <td class="py-2 text-slate-700">{{ $it->product->title ?? '' }}{{ $it->include_print ? ' (kèm bản in)' : '' }}</td>
                                 <td class="py-2 text-slate-400 text-right">x{{ $it->quantity }}</td>
-                                <td class="py-2 text-slate-500 text-right">{{ number_format($it->unit_price) }}đ</td>
+                                <td class="py-2 text-slate-500 text-right">{{ \App\Support\TokenPrice::label($it->unit_price) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

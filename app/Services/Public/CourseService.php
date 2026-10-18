@@ -291,7 +291,7 @@ class CourseService
             'subtitle' => \Illuminate\Support\Str::limit(trim(strip_tags((string) ($course?->description ?? ''))), 120),
             // Học phí: chỉ có khi khoá đã gắn sản phẩm VÀ sản phẩm đã điền giá.
             'priceLabel' => $course !== null && $course->isPurchasable()
-                ? number_format((int) $course->learningPrice()).'đ'
+                ? \App\Support\TokenPrice::label((int) $course->learningPrice()) // SỬA 18/10 — hiển thị bằng token
                 : null,
             'subject' => (string) ($course->subject ?? ''),
             'grade' => (string) ($course->grade ?? ''),
@@ -418,7 +418,7 @@ class CourseService
              * mua nào — xem public/courses/show.blade.php.
              */
             'buyHref' => $course->isPurchasable() ? route('access.checkout', $course->product_id) : null,
-            'priceLabel' => $course->isPurchasable() ? number_format((int) $course->learningPrice()).'đ' : null,
+            'priceLabel' => $course->isPurchasable() ? \App\Support\TokenPrice::label((int) $course->learningPrice()) : null, // SỬA 18/10 — token
             'chooseClassHref' => route('access.chooseClass', $course->id),
         ];
     }

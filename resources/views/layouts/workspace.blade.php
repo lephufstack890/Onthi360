@@ -117,13 +117,13 @@
                 @endphp
                 @if ($wsShowWallet)
                 <a href="{{ route('wallet.index') }}"
-                   title="Ví token — số dư {{ number_format($wsTokenBalance) }} token"
-                   aria-label="Ví token, số dư {{ number_format($wsTokenBalance) }} token"
+                   title="Ví token — số dư {{ \App\Support\TokenPrice::label($wsTokenBalance) }}"
+                   aria-label="Ví token, số dư {{ \App\Support\TokenPrice::label($wsTokenBalance) }}"
                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 py-1 pl-1.5 pr-2.5 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100">
                     <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
                         <x-lucide name="wallet-cards" class="h-3 w-3" />
                     </span>
-                    <span class="text-[12px] font-black leading-none tabular-nums">{{ number_format($wsTokenBalance) }}</span>
+                    <span class="text-[12px] font-black leading-none tabular-nums">{{ \App\Support\TokenPrice::number($wsTokenBalance) }}</span>
                     <span class="hidden text-[10px] font-bold uppercase tracking-wide text-emerald-600 sm:inline">token</span>
                 </a>
                 @endif

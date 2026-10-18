@@ -412,10 +412,10 @@ class MaterialService
         ];
     }
 
-    /** Tiền kiểu Việt Nam: 180.000đ (bản mẫu dùng toLocaleString vi-VN, dấu chấm ngăn cách hàng nghìn). */
+    /** SỬA 18/10 — giá hiển thị bằng TOKEN (200.000đ -> "200 token"), xem App\Support\TokenPrice. */
     private function money(int $amount): string
     {
-        return number_format($amount, 0, ',', '.').'đ';
+        return \App\Support\TokenPrice::label($amount);
     }
 
     /**

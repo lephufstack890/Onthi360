@@ -185,7 +185,7 @@ class WalletService
         return $this->topups->pendingAndRecent($limit)->map(fn (TokenTopup $t) => [
             'id' => $t->id,
             'user' => $t->user->name ?? '',
-            'amount' => number_format($t->amount).'đ',
+            'amount' => \App\Support\TokenPrice::vnd($t->amount).' → '.\App\Support\TokenPrice::label($t->amount), // SỬA 18/10
             'transferCode' => $t->transfer_code,
             'status' => $this->statusLabel($t->status),
             'tone' => $this->statusTone($t->status),

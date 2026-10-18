@@ -80,9 +80,10 @@
                              kèm bản in ở trang đặt đơn thì trả đúng số này). --}}
                         <div class="apx-section grid grid-cols-1 sm:grid-cols-2 gap-4"
                              x-data="{ price: {{ (int) old('price', 0) }}, printOn: {{ ((bool) old('has_print_option')) ? 'true' : 'false' }}, printPrice: {{ (int) old('print_price', 0) }},
-                                       money(n) { return new Intl.NumberFormat('vi-VN').format(Number(n) || 0) + 'đ'; } }">
+                                       money(n) { return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format((Number(n) || 0) / {{ \App\Support\TokenPrice::rate() }}) + ' token'; } }">
                             <div>
-                                <label class="apx-lbl" for="price">Giá (đ)</label>
+                                {{-- SỬA 18/10 — nhập giá bằng đồng như cũ; ngoài web hiển thị bằng token (1.000đ = 1 token). --}}
+                                <label class="apx-lbl" for="price">Giá (đ) <span style="font-weight:600;color:#2f8a6b" x-text="'= ' + money(price)"></span></label>
                                 <input id="price" name="price" type="number" min="0" value="{{ (int) old('price', 0) }}" required
                                        x-model.number="price" class="admin-input">
                             </div>
@@ -97,7 +98,7 @@
                                 </label>
                             </div>
                             <div x-show="printOn" x-cloak>
-                                <label class="apx-lbl" for="print_price">Giá bản in (đ)</label>
+                                <label class="apx-lbl" for="print_price">Giá bản in (đ) <span style="font-weight:600;color:#2f8a6b" x-text="'= ' + money(printPrice)"></span></label>
                                 <input id="print_price" name="print_price" type="number" min="0" value="{{ (int) old('print_price', 0) }}"
                                        x-model.number="printPrice" :disabled="!printOn" class="admin-input">
                             </div>

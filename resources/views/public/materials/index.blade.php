@@ -200,9 +200,10 @@
                 <span class="mp-label">Giá bản mềm</span>
                 <select class="mp-input" aria-label="Giá bản mềm" x-model="price">
                     <option value="all">Tất cả mức giá</option>
-                    <option value="under100">Dưới 100.000đ</option>
-                    <option value="100to200">100.000đ – 200.000đ</option>
-                    <option value="over200">Trên 200.000đ</option>
+                    {{-- SỬA 18/10 — mốc lọc ghi bằng token (giá trị lọc vẫn so theo giá gốc, 1 token = 1.000đ). --}}
+                    <option value="under100">Dưới {{ \App\Support\TokenPrice::label(100000) }}</option>
+                    <option value="100to200">{{ \App\Support\TokenPrice::number(100000) }} – {{ \App\Support\TokenPrice::label(200000) }}</option>
+                    <option value="over200">Trên {{ \App\Support\TokenPrice::label(200000) }}</option>
                 </select>
             </label>
 

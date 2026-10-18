@@ -104,7 +104,7 @@ class LearningPathService
                 'color' => LearningPathPalette::step($index),
                 'href' => route('courses.show', $course->id),
                 'price' => $course->learningPrice(),
-                'priceLabel' => $course->learningPrice() !== null ? number_format((int) $course->learningPrice()).'đ' : null,
+                'priceLabel' => $course->learningPrice() !== null ? \App\Support\TokenPrice::label((int) $course->learningPrice()) : null, // SỬA 18/10 — token
                 'buyHref' => $course->isPurchasable() ? route('access.checkout', $course->product_id) : null,
                 'myClassHref' => $joinedClass !== null ? route('student.classes.show', $joinedClass->id) : null,
             ];

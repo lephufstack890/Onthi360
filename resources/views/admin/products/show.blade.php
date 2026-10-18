@@ -91,9 +91,9 @@
                         <span>
                             {{ $typeLabels[$product->type->value] ?? $product->type->value }}
                             {{-- SỬA 14/10 — gộp còn MỘT giá; có bản in thì ghi thêm giá bản in. --}}
-                            · Giá: {{ number_format($product->price) }}đ
+                            · Giá: {{ \App\Support\TokenPrice::label($product->price) }}
                             @if ($product->has_print_option)
-                                · Bản in: +{{ number_format($product->printPrice()) }}đ
+                                · Bản in: +{{ \App\Support\TokenPrice::label($product->printPrice()) }}
                             @endif
                             · Hiển thị: {{ $product->visibility->value === 'public' ? 'Công khai' : 'Riêng tư' }}
                         </span>
@@ -391,7 +391,7 @@
                     {{-- SỬA 14/10 — bỏ "Chuyên đề"; bản in kèm giá bản in và giá chính. --}}
                     <div><dt>Môn học / Khối</dt><dd>{{ collect([$product->subject, $product->grade])->filter()->implode(' · ') ?: '— Không chỉ định —' }}</dd></div>
                     <div><dt>Thời hạn quyền mặc định</dt><dd>{{ $product->duration_months ? $product->duration_months.' tháng' : 'Không giới hạn' }}</dd></div>
-                    <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có · +'.number_format($product->printPrice()).'đ (giá chính '.number_format($product->price + $product->printPrice()).'đ)' : 'Không' }}</dd></div>
+                    <div><dt>Bản in</dt><dd>{{ $product->has_print_option ? 'Có · +'.\App\Support\TokenPrice::label($product->printPrice()).' (giá chính '.\App\Support\TokenPrice::label($product->price + $product->printPrice()).')' : 'Không' }}</dd></div>
                     <div><dt>Độ khó</dt><dd>{{ $product->difficulty_level ? $product->difficulty_level.' sao · '.(['Cơ bản', 'Dễ', 'Trung bình', 'Khó', 'Nâng cao'][$product->difficulty_level - 1] ?? '') : '— Chưa xếp —' }}</dd></div>
                     <div><dt>Tác giả</dt><dd>{{ $product->author_name ?: '— Chưa nhập —' }}</dd></div>
                     <div><dt>Đánh giá nhập tay</dt><dd>{{ $product->rating_score !== null && $product->rating_count > 0 ? number_format((float) $product->rating_score, 1, ',', '').'/5 · '.$product->rating_count.' lượt' : '— Chưa nhập —' }}</dd></div>
