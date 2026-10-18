@@ -378,12 +378,14 @@
                         @if ($bundleMode ?? false)
                             {{-- SỬA 18/10 — MODULE BỘ ĐỀ: cột Bài tập = câu hỏi của từng đề, cùng khung ô mã bài với trang đọc sách
                                  (partials/reader-chapter-panel); bấm ô là vào làm câu đó. --}}
-                            @include('partials.reader-chapter-panel', ['chapters' => $chapters ?? [], 'currentChapterId' => null, 'readerRole' => $readerRole ?? 'student', 'chapterWord' => 'Đề', 'attachments' => []])
+                            @include('partials.reader-chapter-panel', ['chapters' => $chapters ?? [], 'currentChapterId' => $chapters[0]['id'] ?? null, 'readerRole' => $readerRole ?? 'student', 'chapterWord' => 'Đề', 'attachments' => [], 'panelScope' => 'chapter', 'panelLockScope' => true])
                         @else
                             @include('partials.reader-exercise-panel')
                         @endif
 
-                        <section x-data="{ open: true }"
+                        {{-- SỬA 18/10 (khách: "bỏ khối Mục lục ở màn đọc bộ đề") — ẩn bằng display:none chứ KHÔNG bỏ khỏi trang: ô chọn
+                             "Đề" trên thanh công cụ nhảy tới đề bằng cách bấm hộ nút trong mục lục này. --}}
+                        <section x-data="{ open: true }" @if ($bundleMode ?? false) style="display:none" aria-hidden="true" @endif
                                  class="mt-3 overflow-hidden rounded-[28px] border border-[#DDEAF0] bg-white shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
                             <button type="button" @click="open = ! open" :aria-expanded="open"
                                     class="flex w-full items-center justify-between gap-3 px-3 py-3 text-left sm:px-4">
@@ -594,6 +596,11 @@
                 if (partLabelEl && parts[partIndex]) {
                     var p = parts[partIndex];
                     partLabelEl.textContent = '· ' + (p.label ? p.label + ' — ' : '') + p.title;
+                }
+                // SỬA 18/10 — màn đọc Bộ đề: báo đề đang đọc cho cột Bài tập (partials/reader-chapter-panel) để chỉ hiện câu của đề đó.
+                if (parts[partIndex] && parts[partIndex].chapterId !== undefined && window.__oiReaderChapter !== parts[partIndex].chapterId) {
+                    window.__oiReaderChapter = parts[partIndex].chapterId;
+                    window.dispatchEvent(new CustomEvent('oi-reader-chapter', { detail: { chapterId: parts[partIndex].chapterId } }));
                 }
             }
 

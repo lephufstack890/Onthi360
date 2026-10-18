@@ -483,7 +483,7 @@ class ExamBundleService
             $chapters[] = ['id' => $exam->id, 'no' => $no, 'title' => $exam->title];
 
             if (filled($exam->pdf_path) || filled($exam->preview_pdf_path)) {
-                $parts[] = ['key' => 'e'.$exam->id, 'title' => $exam->title, 'label' => $label, 'sub' => false,
+                $parts[] = ['key' => 'e'.$exam->id, 'title' => $exam->title, 'label' => $label, 'sub' => false, 'chapterId' => $exam->id,
                     'url' => route('bundles.read.file', [$product->id, 'exam', $exam->id])];
                 $examHasPart = true;
             } else {
@@ -499,7 +499,7 @@ class ExamBundleService
                 if (! $examHasPart && $question->attachmentInfo('statement') !== null) {
                     $first = ! collect($parts)->contains(fn ($p) => ($p['exam'] ?? null) === $exam->id);
                     $parts[] = ['key' => 'q'.$question->id, 'title' => ($first ? $exam->title.' — ' : '').'Câu '.($k + 1).': '.$question->title,
-                        'label' => $label, 'sub' => ! $first, 'exam' => $exam->id, 'selectTitle' => $exam->title,
+                        'label' => $label, 'sub' => ! $first, 'exam' => $exam->id, 'chapterId' => $exam->id, 'selectTitle' => $exam->title,
                         'url' => route('bundles.read.file', [$product->id, 'question', $question->id])];
                 }
 

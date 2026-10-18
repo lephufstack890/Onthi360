@@ -67,6 +67,11 @@
         'rows' => $rcpRows,
         'groups' => collect($groups)->pluck('id')->all(),
         'current' => $currentChapter ? $currentChapterId : null,
+        // SỬA 18/10 — màn đọc Bộ đề: chỉ hiện câu của ĐỀ ĐANG ĐỌC (scope 'chapter', khoá không cho bung "tất cả"), đề đang đọc
+        // đổi theo vị trí cuộn PDF (sự kiện 'oi-reader-chapter' do materials/product-read phát). Mặc định như cũ: 'all'.
+        'scope' => $panelScope ?? 'all',
+        'lockScope' => (bool) ($panelLockScope ?? false),
+        'chapterWord' => $chapterWord,
         'attachments' => collect($chapterAttachments)->map(fn ($a, $i) => ['i' => $i, 'chapter' => $chapterOf($a['chapterId'] ?? null)])->all(),
     ];
 @endphp
@@ -195,7 +200,7 @@
         <div class="rcp-body">
             @foreach ($groups as $g)
                 <div class="rcp-group" x-show="groupVisible({{ $g['id'] }})" x-cloak>
-                    <p class="rcp-ghead {{ $g['id'] === $currentChapterId ? 'is-current' : '' }}" x-show="scope === 'all'">
+                    <p class="rcp-ghead {{ $g['id'] === $currentChapterId ? 'is-current' : '' }}" x-show="scope === 'all' || lockScope">
                         <b>{{ $g['label'] }}</b><span title="{{ $g['title'] }}">{{ $g['title'] }}</span><i x-text="groupDone({{ $g['id'] }})"></i>
                     </p>
                     <div class="rcp-grid">
@@ -222,7 +227,7 @@
 
             <div class="rcp-empty" x-show="visibleCount === 0" x-cloak>
                 <p style="margin:0" x-text="emptyText"></p>
-                <button type="button" x-show="q || filter !== 'all' || scope === 'chapter'" @click="q = ''; filter = 'all'; scope = 'all'">Xem tất cả bài</button>
+                <button type="button" x-show="q || filter !== 'all' || (scope === 'chapter' && ! lockScope)" @click="q = ''; filter = 'all'; if (! lockScope) scope = 'all'">Xem tất cả bài</button>
             </div>
         </div>
 
@@ -305,7 +310,9 @@
             groups: config.groups || [],
             current: config.current,
             attachments: config.attachments || [],
-            scope: 'all', // SỬA 16/10 — đã bỏ nút chọn phạm vi, luôn hiện tất cả chương.
+            scope: config.scope || 'all', // SỬA 16/10 — đã bỏ nút chọn phạm vi, luôn hiện tất cả chương (Bộ đề: theo đề đang đọc).
+            lockScope: !! config.lockScope,
+            chapterWord: config.chapterWord || 'Chương',
             q: '',
             filter: 'all',
             selectedId: null,
@@ -313,8 +320,13 @@
 
             init() {
                 window.addEventListener('pageshow', () => { this.busy = false; this.selectedId = null; });
+                // SỬA 18/10 — màn đọc Bộ đề: cuộn tới đề nào thì cột Bài tập chuyển sang câu của đề đó.
+                window.addEventListener('oi-reader-chapter', (e) => {
+                    const id = e.detail ? e.detail.chapterId : null;
+                    if (id !== null && id !== undefined && this.groups.includes(id)) this.current = id;
+                });
                 // Tài liệu cũ chưa gắn bài/học liệu vào chương nào -> mở sẵn "Tất cả" cho khỏi trống trơn.
-                if (this.scope === 'chapter'
+                if (this.scope === 'chapter' && ! this.lockScope
                     && ! this.rows.some((r) => r.chapter === this.current)
                     && ! this.attachments.some((a) => a.chapter === this.current)) {
                     this.scope = 'all';
@@ -347,7 +359,7 @@
             },
             get emptyText() {
                 if (! this.rows.length) return 'Tài liệu chưa có bài tập.';
-                if (! this.scopeRows.length) return 'Chương này chưa có bài tập.';
+                if (! this.scopeRows.length) return this.chapterWord + ' này chưa có bài tập.';
                 return 'Không tìm thấy bài phù hợp.';
             },
             get selected() { return this.rows.find((r) => r.id === this.selectedId) || null; },
