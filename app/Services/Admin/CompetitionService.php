@@ -598,9 +598,20 @@ class CompetitionService
             'entriesCount' => $e->leaderboardEntries()->count(),
         ])->all();
 
+        // SỬA 20/10 (khách: "Đề tham chiếu trong kỳ thi chỉ lấy loại Đề thi") — chỉ đề Loại "Đề thi"; đề đang gắn sẵn ở các
+        // kỳ thi của cuộc thi này (kể cả loại khác, gắn từ trước) vẫn có trong danh sách để form sửa không bị đổi đề ngầm.
+        $keepIds = array_values(array_filter(array_map(fn ($e) => $e['assessmentId'], $exams)));
+
         return [
             'exams' => $exams,
-            'assessmentOptions' => $this->assessments->query()->orderBy('title')->get(['id', 'title'])->all(),
+            'assessmentOptions' => $this->assessments->query()
+                ->where(function ($q) use ($keepIds) {
+                    $q->where('type', \App\Enums\AssessmentType::Exam->value);
+                    if ($keepIds !== []) {
+                        $q->orWhereIn('id', $keepIds);
+                    }
+                })
+                ->orderBy('title')->get(['id', 'title'])->all(),
         ];
     }
 
@@ -637,6 +648,7 @@ class CompetitionService
     public function storeExam(Competition $competition, array $data): CompetitionExam
     {
         $this->assertExamDatesValid($data);
+        $this->assertExamAssessment($data['assessment_id'] ?? null); // SỬA 20/10 — chỉ đề Loại "Đề thi"
 
         $nextOrder = ((int) $this->competitionExams->query()->where('competition_id', $competition->id)->max('order')) + 1;
 
@@ -658,6 +670,7 @@ class CompetitionService
     public function updateExam(CompetitionExam $exam, array $data): CompetitionExam
     {
         $this->assertExamDatesValid($data);
+        $this->assertExamAssessment($data['assessment_id'] ?? null, $exam->assessment_id); // SỬA 20/10 — giữ đề cũ thì cho qua
 
         if ((int) $data['assessment_id'] !== $exam->assessment_id && $exam->leaderboardEntries()->exists()) {
             throw ValidationException::withMessages([

@@ -200,14 +200,7 @@
                 @endif
             </div>
 
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-2">Quy tắc bảng xếp hạng (11.2)</h2>
-                <div class="space-y-1 text-[13px] text-slate-600">
-                    <p><span class="text-slate-400">Công thức điểm / kỳ tính:</span> {{ $rankingRule['scoring_note'] ?? '— Chưa nêu —' }}</p>
-                    <p><span class="text-slate-400">Penalty:</span> {{ $rankingRule['penalty_note'] ?? '— Chưa nêu —' }}</p>
-                    <p><span class="text-slate-400">Đồng điểm:</span> {{ $rankingRule['tie_break_note'] ?? '— Chưa nêu —' }}</p>
-                </div>
-            </div>
+            {{-- SỬA 20/10 (khách: "bỏ khối Quy tắc bảng xếp hạng") — form thêm/sửa cuộc thi cũng đã bỏ các ô này. --}}
         </div>
 
         <div class="space-y-6">

@@ -86,22 +86,7 @@
                     <p class="text-xs text-slate-400 mt-3">Đề thi thuộc kho Tài liệu chung — cuộc thi chỉ tham chiếu để tổ chức thành sự kiện (4.3).</p>
                 </div>
 
-                @if (($rankingRule['scoring_note'] ?? '') !== '' || ($rankingRule['penalty_note'] ?? '') !== '' || ($rankingRule['tie_break_note'] ?? '') !== '')
-                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                        <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>🥇</span> Quy tắc bảng xếp hạng</h2>
-                        <ul class="space-y-2 text-sm text-slate-600">
-                            @if ($rankingRule['scoring_note'] ?? null)
-                                <li><span class="text-slate-400">Công thức điểm:</span> {{ $rankingRule['scoring_note'] }}</li>
-                            @endif
-                            @if ($rankingRule['penalty_note'] ?? null)
-                                <li><span class="text-slate-400">Penalty:</span> {{ $rankingRule['penalty_note'] }}</li>
-                            @endif
-                            @if ($rankingRule['tie_break_note'] ?? null)
-                                <li><span class="text-slate-400">Đồng điểm:</span> {{ $rankingRule['tie_break_note'] }}</li>
-                            @endif
-                        </ul>
-                    </div>
-                @endif
+                {{-- SỬA 20/10 — bỏ khối "Quy tắc bảng xếp hạng" (admin không còn nhập các ô này nên không hiện số cũ ra ngoài). --}}
 
                 @if ($competition->isExternallyOrganized() && $competition->advisors->isNotEmpty())
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">

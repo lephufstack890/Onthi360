@@ -69,7 +69,7 @@
             </div>
 
             {{-- SỬA 20/10 (khách: "thêm/sửa cuộc thi bỏ ô Đề/bộ bài tham chiếu và khối Quy tắc bảng xếp hạng") — bỏ khỏi form;
-                 đề của cuộc thi gắn theo từng kỳ thi ở trang chi tiết. Bản cũ: _to_delete_claude/competitions-create.before-hide. --}}
+                 đề của cuộc thi gắn theo từng kỳ thi ở trang chi tiết. --}}
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="rules">Thể lệ</label>
                 <textarea id="rules" name="rules" rows="4" maxlength="5000"
