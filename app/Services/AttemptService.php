@@ -682,6 +682,14 @@ class AttemptService
     {
         $answer = $this->saveAnswer($attempt, $question, $rawInput);
 
+        // SỬA 20/10 — câu đã có điểm nhưng KHÔNG có lượt chấm 'completed' (lưu chi tiết bị lỗi, xem slimJudgeDetails) thì
+        // bấm Chấm câu lần nữa sẽ chấm lại để có danh sách từng test — thay vì mãi chỉ hiện "15/16 test đúng".
+        if ($question->type === QuestionType::Coding && $answer->verdict->isFinal() && filled($answer->code_source)
+            && ! $answer->judgeSubmissions()->where('status', 'completed')->exists()) {
+            $answer->verdict = VerdictStatus::Queued->value;
+            $answer->save();
+        }
+
         if ($question->type === QuestionType::Coding && ! $answer->verdict->isFinal() && filled($answer->code_source)) {
             if ($answer->verdict !== VerdictStatus::Judging) {
                 $answer->verdict = VerdictStatus::Judging->value;
@@ -989,14 +997,56 @@ class AttemptService
 
         $answer->save();
 
-        JudgeSubmission::create([
-            'attempt_answer_id' => $answer->id,
-            'status' => 'completed',
-            'verdict' => $result['verdict']->value,
-            'raw_result' => $result['details'],
-            'dispatched_at' => now(),
-            'completed_at' => now(),
-        ]);
+        /*
+         * SỬA 20/10 (khách: "Chấm câu chỉ hiện 15/16 test đúng, không hiện chi tiết từng test") — trước đây lưu NGUYÊN
+         * $result['details'], gồm cả dữ liệu vào / đáp án / kết quả của mọi test. Đề có test lớn (vài MB/test) thì bản ghi
+         * này quá to, MySQL từ chối -> không có lượt chấm 'completed' nào -> thẻ "Kết quả chấm" không có danh sách test.
+         * Giờ chỉ lưu bản GỌN (slimJudgeDetails): Đúng/Sai, mã lỗi, lý do, kết quả in ra cắt ngắn. Dữ liệu vào / đáp án
+         * của test sai khi bấm Tải input / Tải output đọc thẳng từ đề (Student\AssessmentService::failedTestFile()).
+         * Lưu lỗi cũng không làm hỏng điểm đã ghi ở trên (chỉ mất phần chi tiết, có ghi log).
+         */
+        try {
+            JudgeSubmission::create([
+                'attempt_answer_id' => $answer->id,
+                'status' => 'completed',
+                'verdict' => $result['verdict']->value,
+                'raw_result' => self::slimJudgeDetails($result['details']),
+                'dispatched_at' => now(),
+                'completed_at' => now(),
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('Không lưu được chi tiết chấm của câu trả lời #'.$answer->id, ['exception' => $e]);
+        }
+    }
+
+    /**
+     * SỬA 20/10 — bản gọn của kết quả từng test để lưu vào judge_submissions.raw_result: bỏ dữ liệu vào / đáp án (đã có
+     * trong đề), cắt kết quả in ra và stderr còn tối đa 2KB. Giữ nguyên các khoá khác (isAccepted, statusLabel, errorCode,
+     * reason, time, memory…) nên chỗ đọc cũ không phải đổi.
+     *
+     * @param  array<int, array<string, mixed>>  $details
+     * @return array<int, array<string, mixed>>
+     */
+    public static function slimJudgeDetails(array $details): array
+    {
+        $cut = static fn ($v) => is_string($v) && strlen($v) > 2048 ? mb_strcut($v, 0, 2048).'…' : $v;
+
+        return array_map(static function ($d) use ($cut) {
+            if (! is_array($d)) {
+                return $d;
+            }
+            unset($d['input'], $d['expectedOutput']);
+            foreach (['actualOutput', 'stderr', 'compileOutput', 'message'] as $k) {
+                if (array_key_exists($k, $d)) {
+                    $d[$k] = $cut($d[$k]);
+                }
+            }
+            if (isset($d['reason'])) {
+                $d['reason'] = $cut($d['reason']);
+            }
+
+            return $d;
+        }, array_values($details));
     }
 
     /**

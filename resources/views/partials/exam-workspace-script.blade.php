@@ -266,13 +266,19 @@
                     var self = this;
                     return this.questions.filter(function (q) { return self.doneGradeOf(q.id); }).length;
                 },
+                /** SỬA 20/10 — câu lập trình có điểm mà không có danh sách từng test (lượt chấm cũ lưu lỗi): cho chấm lại. */
+                gradeMissingTests(g) {
+                    return !!(g && g.isCode && g.total > 0 && !(g.tests || []).length);
+                },
                 canGradeCurrent() {
+                    var g = this.doneGradeOf(this.activeId);
                     return !!this.gradeUrl && !this.expired && !this.submitting && this.gradingId === null
-                        && this.isAnswered(this.activeId) && !this.doneGradeOf(this.activeId);
+                        && this.isAnswered(this.activeId) && (!g || this.gradeMissingTests(g));
                 },
                 gradeButtonLabel() {
                     if (this.gradingId !== null && this.gradingId === this.activeId) return 'Đang chấm...';
-                    return this.doneGradeOf(this.activeId) ? 'Đã chấm' : 'Chấm câu';
+                    var g = this.doneGradeOf(this.activeId);
+                    return g && !this.gradeMissingTests(g) ? 'Đã chấm' : 'Chấm câu';
                 },
                 gradeButtonTitle() {
                     var g = this.doneGradeOf(this.activeId);

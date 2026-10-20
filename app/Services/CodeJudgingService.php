@@ -312,8 +312,16 @@ class CodeJudgingService
                 ."namespace onthi360_file_io { struct Guard { int saved = -1;\n"
                 ."  Guard() {\n"
                 .($in !== null
-                    // Mở tệp ghi được TRƯỚC khi đọc stdin: không ghi được thì stdin còn nguyên, chương trình vẫn đọc được.
-                    ? "    if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); }\n"
+                    // SỬA 20/10 (khách: "test lớn báo File size limit exceeded") — tệp INP giờ là LỐI TẮT (symlink) tới stdin
+                    // thay vì CHÉP stdin ra tệp: không ghi byte nào nên test vào lớn mấy cũng không chạm giới hạn ghi tệp của
+                    // Judge0 (max_file_size -> SIGXFSZ). stdin gốc giữ ở 1 fd phụ, fd 0 trỏ /dev/null nên cin không freopen vẫn
+                    // chẳng nhận được gì (như cũ). Máy chấm không cho (không có /proc, không tạo/mở được) -> chép ra tệp như cũ.
+                    ? "    { bool linked = false; int keep = dup(0);\n"
+                      ."      if (keep >= 0) { char p[64]; std::snprintf(p, sizeof p, \"/proc/self/fd/%d\", keep); unlink(\"{$in}\");\n"
+                      ."        if (symlink(p, \"{$in}\") == 0) { int t = open(\"{$in}\", O_RDONLY); if (t >= 0) { close(t); int z = open(\"/dev/null\", O_RDONLY); if (z >= 0) { dup2(z, 0); close(z); } linked = true; } else unlink(\"{$in}\"); }\n"
+                      ."        if (!linked) close(keep); }\n"
+                      // Mở tệp ghi được TRƯỚC khi đọc stdin: không ghi được thì stdin còn nguyên, chương trình vẫn đọc được.
+                      ."      if (!linked) { if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); } } }\n"
                     : '')
                 .($out !== null
                     ? "    std::remove(\"{$out}\"); saved = dup(1); int nul = open(\"/dev/null\", O_WRONLY); if (nul >= 0) { dup2(nul, 1); close(nul); }\n"
@@ -342,11 +350,27 @@ class CodeJudgingService
 import sys as _s, os as _o, io as _io, gc as _gc, atexit as _a
 _IN, _OUT, _MARK = {$inLit}, {$outLit}, {$markLit}
 if _IN:
-    _d = _s.stdin.buffer.read()
+    _k = _z = -1; _ln = False
     try:
-        with open(_IN, 'wb') as _f: _f.write(_d)
+        _k = _o.dup(0); _z = _o.open(_o.devnull, _o.O_RDONLY)
+        try: _o.unlink(_IN)
+        except OSError: pass
+        _o.symlink('/proc/self/fd/%d' % _k, _IN); _ln = True
+        _o.close(_o.open(_IN, _o.O_RDONLY))
+        _o.dup2(_z, 0); _o.close(_z)
     except OSError:
-        _s.stdin = _io.TextIOWrapper(_io.BytesIO(_d))
+        for _x in (_k, _z):
+            if _x >= 0:
+                try: _o.close(_x)
+                except OSError: pass
+        if _ln:
+            try: _o.unlink(_IN)
+            except OSError: pass
+        _d = _s.stdin.buffer.read()
+        try:
+            with open(_IN, 'wb') as _f: _f.write(_d)
+        except OSError:
+            _s.stdin = _io.TextIOWrapper(_io.BytesIO(_d))
 _saved = -1
 if _OUT:
     try: _o.remove(_OUT)

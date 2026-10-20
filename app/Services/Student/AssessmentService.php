@@ -835,7 +835,7 @@ class AssessmentService
      */
     public function failedTestFile(User $user, int $attemptId, int $questionId, int $index, string $part): array
     {
-        [$attempt] = $this->gradableQuestionOrFail($user, $attemptId, $questionId);
+        [$attempt, $item] = $this->gradableQuestionOrFail($user, $attemptId, $questionId);
 
         $answer = \App\Models\AttemptAnswer::query()
             ->where('attempt_id', $attempt->id)
@@ -848,7 +848,16 @@ class AssessmentService
         $detail = is_array($raw) ? (array_values($raw)[$index - 1] ?? null) : null;
         abort_if(! is_array($detail) || ($detail['isAccepted'] ?? false) === true, 404);
 
-        $content = (string) ($part === 'in' ? ($detail['input'] ?? '') : ($detail['expectedOutput'] ?? ''));
+        // SỬA 20/10 — lượt chấm mới chỉ lưu bản gọn (AttemptService::slimJudgeDetails), không còn dữ liệu test: đọc từ đề.
+        // Lượt chấm cũ vẫn còn input/expectedOutput trong bản lưu thì dùng luôn như trước.
+        $key = $part === 'in' ? 'input' : 'expectedOutput';
+        if (array_key_exists($key, $detail)) {
+            $content = (string) $detail[$key];
+        } else {
+            $tc = ($item->question->grading_config['test_cases'] ?? [])[$index - 1] ?? null;
+            abort_unless(is_array($tc), 404);
+            $content = (string) ($part === 'in' ? ($tc['input'] ?? '') : ($tc['output'] ?? ''));
+        }
         if ($content !== '' && ! str_ends_with($content, "\n")) {
             $content .= "\n"; // như bài tập chuyên đề: tệp test luôn kết thúc bằng xuống dòng
         }
