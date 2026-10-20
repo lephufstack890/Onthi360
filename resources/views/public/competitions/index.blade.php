@@ -8,12 +8,11 @@
     $competitions = $competitions ?? [];
     $heroPanel = $heroPanel ?? ['eyebrow' => 'Lịch thi', 'deadline' => null, 'note' => 'Chưa có sự kiện nào đang mở'];
 
+    // SỬA 20/10 (khách: "chia 2 tab như source UI mới: Cuộc thi / Khảo sát") — dải tab cùng khuôn ContestsPage.jsx,
+    // chỉ còn 2 tab theo Loại của cuộc thi (competitions.type = contest | survey).
     $contestFilters = [
-        ['id' => 'all', 'label' => 'Tất cả sự kiện'],
-        ['id' => 'ongoing', 'label' => 'Đang diễn ra 🔥'],
-        ['id' => 'upcoming', 'label' => 'Sắp diễn ra'],
-        ['id' => 'participated', 'label' => 'Đã tham gia'],
-        ['id' => 'surveys', 'label' => 'Khảo sát năng lực'],
+        ['id' => 'contests', 'label' => 'Cuộc thi', 'icon' => 'trophy', 'count' => count(array_filter($competitions, fn ($c) => $c['type'] === 'contest'))],
+        ['id' => 'surveys', 'label' => 'Khảo sát', 'icon' => 'clipboard-list', 'count' => count(array_filter($competitions, fn ($c) => $c['type'] !== 'contest'))],
     ];
 
     $contestRows = [];
@@ -73,20 +72,20 @@
         </div>
     </div>
 
-    @if (false)
-        <div class="flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
-            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                @foreach ($contestFilters as $f)
-                    <button type="button" :aria-pressed="activeTab === '{{ $f['id'] }}'" @click="setTab('{{ $f['id'] }}')"
-                            class="min-h-10 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all"
-                            :class="activeTab === '{{ $f['id'] }}' ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'">
-                        {{ $f['label'] }}
-                    </button>
-                @endforeach
-            </div>
-            <span class="hidden shrink-0 text-[10px] font-bold text-slate-400 sm:block"><span x-text="matchedIds.length">{{ count($competitions) }}</span> sự kiện</span>
+    {{-- ══════ 2. TAB Cuộc thi / Khảo sát (SỬA 20/10) ══════ --}}
+    <div class="flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
+        <div role="tablist" aria-label="Loại sự kiện" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            @foreach ($contestFilters as $f)
+                <button type="button" role="tab" :aria-selected="activeTab === '{{ $f['id'] }}'" @click="setTab('{{ $f['id'] }}')"
+                        class="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all"
+                        :class="activeTab === '{{ $f['id'] }}' ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'">
+                    <x-lucide :name="$f['icon']" class="h-3.5 w-3.5" />{{ $f['label'] }}
+                    <span class="rounded-full px-1.5 text-[10px]" :class="activeTab === '{{ $f['id'] }}' ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-700'">{{ $f['count'] }}</span>
+                </button>
+            @endforeach
         </div>
-    @endif
+        <span class="hidden shrink-0 text-[10px] font-bold text-slate-400 sm:block"><span x-text="matchedIds.length">{{ count($competitions) }}</span> sự kiện</span>
+    </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         @foreach ($competitions as $c)
@@ -174,8 +173,8 @@
     {{-- ══════ 5. TRẠNG THÁI RỖNG ══════ --}}
     <div x-show="matchedIds.length === 0" x-cloak class="rounded-3xl border border-dashed border-sky-200 bg-white p-10 text-center">
         <x-lucide name="trophy" class="mx-auto h-9 w-9 text-sky-300" />
-        <h2 class="mt-3 text-sm font-black text-slate-800">Chưa có sự kiện ở trạng thái này</h2>
-        <p class="mt-1 text-xs text-slate-500">Hãy quay lại sau hoặc xem tất cả sự kiện đang công bố.</p>
+        <h2 class="mt-3 text-sm font-black text-slate-800" x-text="activeTab === 'surveys' ? 'Chưa có khảo sát nào' : 'Chưa có cuộc thi nào'">Chưa có sự kiện nào</h2>
+        <p class="mt-1 text-xs text-slate-500">Hãy quay lại sau hoặc xem tab còn lại.</p>
         @if (false)
             <button type="button" @click="setTab('all')" class="mt-4 text-xs font-bold text-blue-600">Xem tất cả</button>
         @endif

@@ -10,7 +10,9 @@
         return {
             rows: config.rows,
             deadline: config.deadline, // timestamp (giây) hoặc null
-            activeTab: 'all',
+            // SỬA 20/10 — 2 tab Cuộc thi / Khảo sát; mở trang mặc định tab Cuộc thi (không có cuộc thi nào mà có khảo sát
+            // thì mở thẳng tab Khảo sát). Các tab cũ (all/ongoing/upcoming/participated) vẫn giữ trong matchesTab().
+            activeTab: config.rows.some((r) => r.type === 'contest') || !config.rows.length ? 'contests' : 'surveys',
             page: 1,
             pageSize: 3,
             openId: null,
@@ -38,6 +40,7 @@
             // ── Lọc ──
             matchesTab(row) {
                 if (this.activeTab === 'all') return true;
+                if (this.activeTab === 'contests') return row.type === 'contest';
                 if (this.activeTab === 'surveys') return row.type !== 'contest';
                 // "Đã tham gia" = đã nộp bài THẬT, hoặc đã có đơn đăng ký (đang chờ/đã duyệt) —
                 // để học sinh vừa bấm đăng ký xong vẫn tìm lại được cuộc thi ở tab này.
