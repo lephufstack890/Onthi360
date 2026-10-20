@@ -48,3 +48,7 @@ Artisan::command('app:fix-mcq-correct-option-letters {--dry-run}', function () {
         $this->warn("{$skippedUnrecognized} câu không nhận diện được định dạng — cần Admin xem tay.");
     }
 })->purpose('Vá dữ liệu correct_options dạng chữ cái (A/B/C/D) về đúng chỉ số (0-3) cho câu Trắc nghiệm giáo viên tự tạo tay');
+
+// SỬA 20/10 — quyền tài liệu quá hạn -> status "expired" (App\Console\Commands\AccessExpire). Chặn đọc đã có sẵn ở mọi
+// cửa mở tài liệu (so expires_at mỗi lần mở), lịch này chỉ chốt trạng thái cho đúng. Cần cron: * * * * * php artisan schedule:run
+\Illuminate\Support\Facades\Schedule::command('access:expire')->hourly()->withoutOverlapping();
