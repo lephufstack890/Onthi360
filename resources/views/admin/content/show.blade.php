@@ -15,7 +15,8 @@
         // vì Nội dung (Câu hỏi/Đề vẫn quay lại Nội dung như cũ).
         $backHref = ($type === 'material' && $model?->product_id)
             ? route('admin.products.show', $model->product_id)
-            : route('admin.content.index');
+            // SỬA 20/10 (khách: "quay lại Nội dung của đề thì giữ ở tab Đề") — Đề quay về tab Đề, Câu hỏi giữ như cũ.
+            : route('admin.content.index', $type === 'assessment' ? ['tab' => 'assessments'] : []);
         $backLabel = $type === 'material' ? '‹ Quay lại sản phẩm' : '‹ Quay lại Nội dung';
 
         $editRoute = match ($type) {

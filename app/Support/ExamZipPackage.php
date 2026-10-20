@@ -284,9 +284,38 @@ class ExamZipPackage
      */
     public static function examType(UploadedFile $zip): string
     {
+        $json = self::examJson($zip);
+        $type = is_array($json) ? (string) ($json['exam']['type'] ?? 'practice') : 'practice';
+        if ($type !== 'exam') {
+            return 'practice';
+        }
+
+        // SỬA 20/10 (khách: "Đề thi cách thêm y đúc Luyện tập") — "type": "exam" mà các câu khai "folder" (mỗi câu 1 thư mục
+        // đúng mẫu MAU-CAU-HOI) thì nhập KIỂU CÂU HỎI RỜI như Luyện tập (loại đề = Đề thi, xem declaredType()). Gói đề PDF cũ
+        // (de.pdf + đáp án ghi trong exam.json, không có "folder") vẫn nhập thành đề PDF như trước.
+        foreach ((array) ($json['questions'] ?? []) as $q) {
+            if (is_array($q) && is_string($q['folder'] ?? null) && trim($q['folder'], '/ ') !== '') {
+                return 'practice';
+            }
+        }
+
+        return 'exam';
+    }
+
+    /** SỬA 20/10 — LOẠI đề khai trong exam.json ('practice' mặc định / 'exam'), không quan tâm gói dạng câu rời hay PDF. */
+    public static function declaredType(UploadedFile $zip): string
+    {
+        $json = self::examJson($zip);
+
+        return is_array($json) && (string) ($json['exam']['type'] ?? 'practice') === 'exam' ? 'exam' : 'practice';
+    }
+
+    /** exam.json của gói (ở gốc hoặc trong 1 thư mục con); null nếu không đọc được. */
+    private static function examJson(UploadedFile $zip): ?array
+    {
         $za = new ZipArchive();
         if ($za->open($zip->getRealPath()) !== true) {
-            return 'practice';
+            return null;
         }
         $raw = $za->getFromName('exam.json');
         if ($raw === false) {
@@ -300,9 +329,8 @@ class ExamZipPackage
         }
         $za->close();
         $json = is_string($raw) ? json_decode($raw, true) : null;
-        $type = is_array($json) ? (string) ($json['exam']['type'] ?? 'practice') : 'practice';
 
-        return $type === 'exam' ? 'exam' : 'practice';
+        return is_array($json) ? $json : null;
     }
 
     /**

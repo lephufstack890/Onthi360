@@ -18,9 +18,9 @@
     @include('partials.exam-zip-import', ['action' => route('admin.content.assessments.zipImport')])
 
     <div class="rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 mb-4">
-        <strong>Lưu ý chọn đúng "Loại":</strong> chỉ <strong>Luyện tập</strong> dùng câu hỏi rời từ Kho câu hỏi (màn "Quản lý câu hỏi" sau khi tạo).
-        Còn lại — <strong>Đề thi</strong> — chuyển sang chế độ <strong>tải file PDF + nhập đáp án</strong> (màn "Quản lý đề PDF" sau khi tạo, không phải ở đây).
-        Chọn nhầm "Loại" thì phải sửa lại đúng Loại rồi lưu lại mới đổi chế độ.
+        {{-- SỬA 20/10 — Đề thi giờ thêm câu y như Luyện tập (ContentService::contentModeForType()). --}}
+        <strong>Luyện tập</strong> và <strong>Đề thi</strong> tạo giống hệt nhau — chọn câu hỏi rời từ Kho câu hỏi (mục "Câu hỏi trong đề" sau khi tạo),
+        chỉ khác <strong>Loại</strong>.
     </div>
 
     <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
@@ -46,7 +46,7 @@
                     </x-ws.select>
                     <p class="text-[11px] text-slate-400 mt-1">
                         @if (array_key_exists('practice', $types))
-                            "Luyện tập" = câu hỏi rời · "Đề thi" = PDF + đáp án. (Nhập bằng gói ZIP ở khung trên thì đề Luyện tập dùng PDF + đáp án.)
+                            "Luyện tập" và "Đề thi" tạo giống hệt nhau — chọn câu hỏi rời từ Kho câu hỏi.
                         @else
                             Đề/bộ bài tạo ở đây dùng PDF + phiếu đáp án.
                         @endif

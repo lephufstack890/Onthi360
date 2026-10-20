@@ -83,15 +83,17 @@ class ExamZipImportService
     private function importPracticeForAdmin(User $admin, UploadedFile $zip): array
     {
         $p = ExamZipPackage::parsePractice($zip);
+        // SỬA 20/10 — gói câu hỏi rời khai "type": "exam" -> đề Đề thi câu hỏi rời (cùng cách nhập với Luyện tập).
+        $type = ExamZipPackage::declaredType($zip);
 
         try {
             $this->assertExamCodeFree($p['exam']['exam_code']);
 
-            $assessment = DB::transaction(function () use ($admin, $p) {
+            $assessment = DB::transaction(function () use ($admin, $p, $type) {
                 $files = $p['files'];
-                // type = practice -> ContentService::contentModeForType() cho chế độ câu hỏi rời (structured).
+                // type = practice / exam -> ContentService::contentModeForType() cho chế độ câu hỏi rời (structured).
                 $assessment = $this->content->assessmentStore($admin, array_replace($p['exam'], [
-                    'type' => 'practice',
+                    'type' => $type,
                     'preview_pdf' => $files['preview'] ?? null,
                     'guide_pdf' => $files['guide'] ?? null,
                     'sample_pdf' => $files['sample'] ?? null,

@@ -75,15 +75,12 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu (tùy chọn)</label>
-                    <x-ws.select id="assessment_id" name="assessment_id">
-                        <option value="">— Không gắn đề —</option>
-                        @foreach ($assessmentOptions as $a)
-                            <option value="{{ $a->id }}" @selected((string) old('assessment_id', $competition->assessment_id) === (string) $a->id)>{{ $a->title }}</option>
-                        @endforeach
-                    </x-ws.select>
-                </div>
+                {{-- SỬA 20/10 (khách: "thêm/sửa cuộc thi bỏ ô Đề/bộ bài tham chiếu và khối Quy tắc bảng xếp hạng") — ẩn khỏi form,
+                     nhưng gửi lại GIÁ TRỊ ĐANG CÓ bằng ô ẩn để bấm Lưu không xoá mất dữ liệu cũ của cuộc thi. --}}
+                <input type="hidden" name="assessment_id" value="{{ old('assessment_id', $competition->assessment_id) }}">
+                <input type="hidden" name="scoring_note" value="{{ old('scoring_note', $rankingRule['scoring_note'] ?? '') }}">
+                <input type="hidden" name="penalty_note" value="{{ old('penalty_note', $rankingRule['penalty_note'] ?? '') }}">
+                <input type="hidden" name="tie_break_note" value="{{ old('tie_break_note', $rankingRule['tie_break_note'] ?? '') }}">
 
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="rules">Thể lệ</label>
@@ -126,25 +123,6 @@
                     <p class="text-xs text-slate-400 mt-1">🔄 Tự tính theo lịch Bắt đầu/Kết thúc/Công bố kết quả — không chọn tay. Muốn "Lưu trữ" thì dùng nút riêng ở trang chi tiết.</p>
                 </div>
                 --}}
-
-                <div class="rounded-xl bg-sky-50 border border-sky-100 p-4 space-y-3">
-                    <p class="text-[13px] font-medium text-sky-700">Quy tắc bảng xếp hạng (11.2)</p>
-                    <div>
-                        <label class="block text-xs text-slate-500 mb-1" for="scoring_note">Công thức điểm / kỳ tính</label>
-                        <input id="scoring_note" name="scoring_note" type="text" value="{{ old('scoring_note', $rankingRule['scoring_note'] ?? '') }}" maxlength="500"
-                               class="admin-input">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-500 mb-1" for="penalty_note">Penalty</label>
-                        <input id="penalty_note" name="penalty_note" type="text" value="{{ old('penalty_note', $rankingRule['penalty_note'] ?? '') }}" maxlength="500"
-                               class="admin-input">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-500 mb-1" for="tie_break_note">Quy tắc đồng điểm</label>
-                        <input id="tie_break_note" name="tie_break_note" type="text" value="{{ old('tie_break_note', $rankingRule['tie_break_note'] ?? '') }}" maxlength="500"
-                               class="admin-input">
-                    </div>
-                </div>
 
                 <div class="flex gap-3 pt-2">
                     <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Lưu thay đổi</button>

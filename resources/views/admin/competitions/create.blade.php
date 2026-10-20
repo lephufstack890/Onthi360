@@ -68,17 +68,8 @@
                 </div>
             </div>
 
-            <div>
-                <label class="block text-[13px] font-medium text-slate-600 mb-1" for="assessment_id">Đề/bộ bài tham chiếu (tùy chọn)</label>
-                <x-ws.select id="assessment_id" name="assessment_id">
-                    <option value="">— Không gắn đề —</option>
-                    @foreach ($assessmentOptions as $a)
-                        <option value="{{ $a->id }}" @selected((string) old('assessment_id') === (string) $a->id)>{{ $a->title }}</option>
-                    @endforeach
-                </x-ws.select>
-                <p class="text-xs text-slate-400 mt-1">Đề vẫn thuộc Tài liệu — cuộc thi chỉ tham chiếu, không tạo bản sao đề (11.1).</p>
-            </div>
-
+            {{-- SỬA 20/10 (khách: "thêm/sửa cuộc thi bỏ ô Đề/bộ bài tham chiếu và khối Quy tắc bảng xếp hạng") — bỏ khỏi form;
+                 đề của cuộc thi gắn theo từng kỳ thi ở trang chi tiết. Bản cũ: _to_delete_claude/competitions-create.before-hide. --}}
             <div>
                 <label class="block text-[13px] font-medium text-slate-600 mb-1" for="rules">Thể lệ</label>
                 <textarea id="rules" name="rules" rows="4" maxlength="5000"
@@ -107,28 +98,6 @@
                 🔄 Trạng thái (Sắp diễn ra/Đang diễn ra/Chờ công bố/Đã công bố) tự tính theo lịch Bắt đầu/Kết thúc/Công bố kết quả ở trên — không cần chọn tay. Chỉ "Lưu trữ" là admin tự bấm sau khi tạo (ở trang chi tiết cuộc thi).
             </p>
             --}}
-
-            <div class="rounded-xl bg-sky-50 border border-sky-100 p-4 space-y-3">
-                <p class="text-[13px] font-medium text-sky-700">Quy tắc bảng xếp hạng</p>
-                <div>
-                    <label class="block text-xs text-slate-500 mb-1" for="scoring_note">Công thức điểm / kỳ tính</label>
-                    <input id="scoring_note" name="scoring_note" type="text" value="{{ old('scoring_note') }}" maxlength="500"
-                           placeholder="Ví dụ: Tổng điểm các câu, cập nhật mỗi 5 phút"
-                           class="admin-input">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-500 mb-1" for="penalty_note">Penalty</label>
-                    <input id="penalty_note" name="penalty_note" type="text" value="{{ old('penalty_note') }}" maxlength="500"
-                           placeholder="Ví dụ: Trừ 5 điểm mỗi lần nộp sai"
-                           class="admin-input">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-500 mb-1" for="tie_break_note">Quy tắc đồng điểm</label>
-                    <input id="tie_break_note" name="tie_break_note" type="text" value="{{ old('tie_break_note') }}" maxlength="500"
-                           placeholder="Ví dụ: Ai nộp bài đúng sớm hơn xếp trên"
-                           class="admin-input">
-                </div>
-            </div>
 
             <div class="flex gap-3 pt-2">
                 <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shadow-sm hover:bg-blue-700 transition">Tạo cuộc thi</button>

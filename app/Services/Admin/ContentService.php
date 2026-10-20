@@ -663,6 +663,25 @@ class ContentService
     }
 
     /** @return array<string, mixed>|null */
+    /**
+     * SỬA 20/10 (khách: "chỗ đề thi cũng add từng câu hỏi vô như luyện tập") — Đề thi / Luyện tập còn ở chế độ PDF (tạo
+     * trước khi Đề thi chuyển sang câu hỏi rời) mà CHƯA có gì của đề PDF (0 câu đáp án, 0 bài lập trình) và chưa ai làm thì
+     * tự chuyển sang câu hỏi rời khi mở trang chi tiết, để thêm câu như Luyện tập. Đề PDF đã có đáp án / bài lập trình /
+     * lượt làm thì GIỮ NGUYÊN (không mất dữ liệu). Tệp PDF đã tải vẫn nằm nguyên trên đề, không bị xoá.
+     */
+    private function convertEmptyPdfToQuestions(Assessment $assessment): void
+    {
+        $type = $assessment->type?->value ?? $assessment->type;
+        if (! $assessment->isPdfMode() || ! in_array($type, [AssessmentType::Practice->value, AssessmentType::Exam->value], true)) {
+            return;
+        }
+        if ($assessment->answerKeys->isNotEmpty() || $assessment->codingItems->isNotEmpty() || $assessment->attempts()->exists()) {
+            return;
+        }
+
+        $assessment->forceFill(['content_mode' => AssessmentContentMode::Structured->value])->save();
+    }
+
     private function showAssessmentData(int $id): ?array
     {
         // SỬA 18/8: thêm eager-load items.question — trước đây chỉ load 'creator', nên màn
@@ -673,6 +692,7 @@ class ContentService
             ->with(['creator', 'items.question', 'answerKeys', 'codingItems.testCases'])
             ->find($id);
         if ($assessment !== null) {
+            $this->convertEmptyPdfToQuestions($assessment);
             [$label, $tone] = $this->statusLabel($assessment->status);
 
             $publishErrors = [];
@@ -3027,7 +3047,10 @@ class ContentService
      */
     private function contentModeForType(string $type): string
     {
-        return $type === AssessmentType::Practice->value
+        // SỬA 20/10 (khách: "Đề thi cách thêm y đúc Luyện tập") — Đề thi giờ cũng là câu hỏi rời từ Kho câu hỏi như Luyện tập.
+        // Tạo / thêm câu / Chấm câu giống hệt Luyện tập, chỉ khác Loại (Đề thi gắn được vào Cuộc thi — đề đang dùng cho Cuộc
+        // thi thì không có Chấm câu, xem Student\AssessmentService::canGradeQuestions()). Đề thi PDF cũ vẫn là PDF (assessmentUpdate giữ nguyên); Bài giao / Đề thi đấu vẫn PDF như trước.
+        return in_array($type, [AssessmentType::Practice->value, AssessmentType::Exam->value], true)
             ? AssessmentContentMode::Structured->value
             : AssessmentContentMode::PdfAnswerSheet->value;
     }
@@ -3299,7 +3322,8 @@ class ContentService
             'type' => $data['type'],
             // SỬA 16/10 — đề Luyện tập tạo từ gói ZIP là đề PDF + phiếu đáp án: sửa thông tin chung KHÔNG được ép nó về
             // chế độ câu hỏi rời (mất hết PDF/đáp án trên màn). Luyện tập đang là đề PDF thì giữ đề PDF.
-            'content_mode' => $data['type'] === AssessmentType::Practice->value && $assessment->isPdfMode()
+            // SỬA 20/10 — Đề thi PDF đã có (tạo trước khi Đề thi chuyển sang câu hỏi rời, hoặc nhập gói đề PDF) cũng giữ PDF.
+            'content_mode' => in_array($data['type'], [AssessmentType::Practice->value, AssessmentType::Exam->value], true) && $assessment->isPdfMode()
                 ? AssessmentContentMode::PdfAnswerSheet->value
                 : $this->contentModeForType($data['type']),
             // Đề có câu -> cộng lại từ các câu. Đề chưa có câu (hoặc đề PDF, điểm do

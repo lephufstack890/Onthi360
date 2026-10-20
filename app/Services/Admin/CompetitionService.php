@@ -284,7 +284,7 @@ class CompetitionService
             'type' => $data['type'],
             'organizer_type' => $data['organizer_type'] ?? CompetitionOrganizerType::Internal->value,
             'organizer_name' => $data['organizer_type'] === CompetitionOrganizerType::External->value ? trim($data['organizer_name']) : null,
-            'assessment_id' => $data['assessment_id'] ?: null,
+            'assessment_id' => ($data['assessment_id'] ?? null) ?: null, // SỬA 20/10 — form không còn ô này
             'rules' => $data['rules'] ?? null,
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,
@@ -330,7 +330,7 @@ class CompetitionService
             'type' => $data['type'],
             'organizer_type' => $data['organizer_type'] ?? CompetitionOrganizerType::Internal->value,
             'organizer_name' => $data['organizer_type'] === CompetitionOrganizerType::External->value ? trim($data['organizer_name']) : null,
-            'assessment_id' => $data['assessment_id'] ?: null,
+            'assessment_id' => ($data['assessment_id'] ?? null) ?: null, // SỬA 20/10 — form không còn ô này
             'rules' => $data['rules'] ?? null,
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,

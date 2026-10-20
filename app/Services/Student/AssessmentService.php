@@ -668,7 +668,19 @@ class AssessmentService
      */
     public function canGradeQuestions(Assessment $assessment): bool
     {
-        return $assessment->type === \App\Enums\AssessmentType::Practice && ! $assessment->isPdfMode();
+        if ($assessment->isPdfMode()) {
+            return false;
+        }
+
+        if ($assessment->type === \App\Enums\AssessmentType::Practice) {
+            return true;
+        }
+
+        // SỬA 20/10 (khách: "Đề thi và Luyện tập in đúc 100%, chỉ khác Loại") — Đề thi câu hỏi rời cũng có nút Chấm câu,
+        // TRỪ đề đang dùng cho Cuộc thi (chấm từng câu trong lúc thi là lộ đúng/sai).
+        return $assessment->type === \App\Enums\AssessmentType::Exam
+            && ! \App\Models\CompetitionExam::query()->where('assessment_id', $assessment->id)->exists()
+            && ! \App\Models\Competition::query()->where('assessment_id', $assessment->id)->exists();
     }
 
     /**
