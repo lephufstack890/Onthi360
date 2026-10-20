@@ -708,10 +708,9 @@ PY;
             VerdictStatus::MemoryLimitExceeded => ['errorCode' => 'MLE', 'reason' => 'Dùng quá bộ nhớ cho phép — mảng/danh sách hoặc đệ quy quá lớn.'],
             VerdictStatus::CompileError => ['errorCode' => 'CE', 'reason' => 'Lỗi biên dịch / cú pháp — chương trình không chạy được.'],
             VerdictStatus::RuntimeError => ['errorCode' => 'RTE', 'reason' => $crash ?? 'Chương trình bị dừng giữa chừng do lỗi khi chạy.'],
-            VerdictStatus::WrongAnswer => ['errorCode' => 'WA', 'reason' => implode(' · ', array_filter([
-                $truncated ? 'In ra quá dài so với đáp án.' : self::diffText($actual, $expected),
-                $crash !== null ? 'Chương trình bị dừng giữa chừng: '.$crash : null,
-            ]))],
+            // SỬA 20/10 (khách: "sai test thì không cần giải thích kiểu cần «…», bạn in «…», ghi Sai đáp án là được") — WA chỉ
+            // ghi gọn. Muốn hiện lại dòng khác nhau đầu tiên thì thay chuỗi dưới bằng self::diffText($actual, $expected).
+            VerdictStatus::WrongAnswer => ['errorCode' => 'WA', 'reason' => 'Sai đáp án.'],
             default => ['errorCode' => null, 'reason' => null],
         };
     }
