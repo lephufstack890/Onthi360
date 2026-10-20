@@ -57,7 +57,7 @@
           x-data="{
               includePrint: false,
               scope: 'personal_learning',
-              paymentMethod: 'offline',
+              paymentMethod: 'token',
               priceLearning: {{ (int) $product->price }},
               {{-- SỬA 14/10 — gộp còn MỘT giá: dạy hay học cùng một số. --}}
               priceTeaching: {{ (int) $product->price }},
@@ -132,14 +132,8 @@
                               x-text="'Số dư: ' + money(balance)"></span>
                     </label>
 
-                    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors"
-                           :class="paymentMethod === 'offline' ? 'border-blue-300 bg-blue-50' : 'border-sky-100 bg-white hover:bg-sky-50'">
-                        <input type="radio" name="payment_method" value="offline" x-model="paymentMethod" class="mt-0.5 h-4 w-4 text-blue-600">
-                        <span class="min-w-0">
-                            <span class="block text-[13px] font-bold text-slate-800">Chuyển khoản — quản trị duyệt</span>
-                            <span class="mt-0.5 block text-[11.5px] leading-relaxed text-slate-500">Chuyển khoản như hiện nay, duyệt xong bạn nhận mã kích hoạt.</span>
-                        </span>
-                    </label>
+                    {{-- SỬA 20/10 (khách: "mua không cần duyệt, duyệt nạp token là đủ") — bỏ "Chuyển khoản — quản trị duyệt":
+                         chỉ trả bằng token, trừ ví và có quyền ngay. Hết token thì nạp ở Ví (admin duyệt yêu cầu nạp). --}}
 
                     <div class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 opacity-60">
                         <span class="mt-0.5 grid h-4 w-4 place-items-center rounded-full border border-slate-300 bg-white"></span>
@@ -192,15 +186,11 @@
                     <span class="text-[12px] font-bold text-slate-500">Tổng cộng</span>
                     <span class="text-xl font-black text-slate-800" x-text="money(total)"></span>
                 </div>
-                <p class="mt-1 text-right text-[11px] text-slate-400" x-show="paymentMethod === 'offline'" x-cloak x-text="'Chuyển khoản tương đương ' + vnd(total)"></p>
 
                 <div class="mt-3">
                     <x-ws.btn type="submit" variant="primary" icon="banknote" class="w-full justify-center">Đặt đơn</x-ws.btn>
                 </div>
 
-                <p class="mt-2 text-[11px] leading-relaxed text-slate-400" x-show="paymentMethod === 'offline'">
-                    Quản trị duyệt xong bạn sẽ nhận mã kích hoạt qua thông báo.
-                </p>
                 <p class="mt-2 text-[11px] leading-relaxed text-slate-400" x-show="paymentMethod === 'token'" x-cloak>
                     @if ($isCourse)
                         Trả bằng token là có quyền ngay và chuyển thẳng sang màn chọn lớp.
@@ -212,9 +202,8 @@
 
             <x-ws.card title="Cần biết trước khi đặt" icon="info">
                 <ul class="space-y-1.5 text-[11.5px] leading-relaxed text-slate-500">
-                    <li class="flex gap-1.5"><span class="text-slate-300">•</span><span>Tạo đơn chưa phải là đã thanh toán và chưa phải là đã có quyền.</span></li>
-                    <li class="flex gap-1.5"><span class="text-slate-300">•</span><span>Thời hạn quyền bắt đầu tính từ lúc kích hoạt mã, không phải lúc đặt đơn.</span></li>
-                    <li class="flex gap-1.5"><span class="text-slate-300">•</span><span>Trả bằng token thì có quyền ngay, không cần kích hoạt mã.</span></li>
+                    <li class="flex gap-1.5"><span class="text-slate-300">•</span><span>Đặt đơn là trừ token trong ví và có quyền ngay — không phải chờ duyệt, không cần kích hoạt mã.</span></li>
+                    <li class="flex gap-1.5"><span class="text-slate-300">•</span><span>Ví chưa đủ token thì nạp thêm ở trang Ví token, được duyệt nạp xong là mua được.</span></li>
                 </ul>
             </x-ws.card>
         </div>

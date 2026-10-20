@@ -41,7 +41,10 @@ class AccessController extends Controller
         $data = $request->validate([
             'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching'],
             'include_print' => ['nullable', 'boolean'],
-            'payment_method' => ['required', 'string', 'in:offline,token'],
+            // SỬA 20/10 (khách: "mua không cần duyệt nữa, duyệt nạp token là đủ — có token mua là trừ luôn, tự có quyền") —
+            // chỉ còn trả bằng token (đơn hoàn tất + cấp quyền ngay, AccessService::placeOrder). Bỏ "Chuyển khoản — quản trị
+            // duyệt" khỏi màn đặt đơn; đơn chuyển khoản cũ đang chờ vẫn duyệt / từ chối được ở admin như trước.
+            'payment_method' => ['required', 'string', 'in:token'],
         ]);
 
         try {
