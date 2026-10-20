@@ -307,9 +307,22 @@ class CodeJudgingService
 
         $mark = self::FILE_IO_MISSING_MARK;
 
+        /*
+         * SỬA 20/10 (khách: "vài bài máy chấm báo bạn in @@O360_NO_OUTPUT_FILE@@") — tên tệp KHÔNG phân biệt hoa/thường như
+         * Themis / Windows: đề khai BAI.INP / BAI.OUT mà bài làm mở "bai.inp" / "bai.out" (hay "Bai.out") vẫn được. Máy chấm
+         * Linux phân biệt hoa thường nên trước đây bài đó không đọc được dữ liệu / không tìm thấy tệp kết quả.
+         *   - Tệp vào: tạo thêm lối tắt tên viết thường, VIẾT HOA, Viết hoa đầu trỏ về tệp INP.
+         *   - Tệp ra: tìm tệp trùng tên bỏ qua hoa/thường (cả lúc xoá tệp cũ lẫn lúc đọc kết quả).
+         */
+        $inAliases = $in === null ? [] : array_values(array_diff(array_unique([strtolower($in), strtoupper($in), ucfirst(strtolower($in))]), [$in]));
+
         if ($languageKey === 'cpp') {
-            $prelude = "#include <cstdio>\n#include <iostream>\n#include <unistd.h>\n#include <fcntl.h>\n"
-                ."namespace onthi360_file_io { struct Guard { int saved = -1;\n"
+            $prelude = "#include <cstdio>\n#include <iostream>\n#include <unistd.h>\n#include <fcntl.h>\n#include <dirent.h>\n"
+                ."namespace onthi360_file_io {\n"
+                ."  static bool ieq(const char* a, const char* b) { for (; *a && *b; ++a, ++b) { char x = *a, y = *b; if (x >= 'A' && x <= 'Z') x += 32; if (y >= 'A' && y <= 'Z') y += 32; if (x != y) return false; } return *a == *b; }\n"
+                ."  static void rm_ci(const char* n) { std::remove(n); if (DIR* d = opendir(\".\")) { while (dirent* e = readdir(d)) if (ieq(e->d_name, n)) std::remove(e->d_name); closedir(d); } }\n"
+                ."  static int open_ci(const char* n) { int fd = open(n, O_RDONLY); if (fd >= 0) return fd; if (DIR* d = opendir(\".\")) { while (dirent* e = readdir(d)) if (ieq(e->d_name, n)) { fd = open(e->d_name, O_RDONLY); if (fd >= 0) break; } closedir(d); } return fd; }\n"
+                ."struct Guard { int saved = -1;\n"
                 ."  Guard() {\n"
                 .($in !== null
                     // SỬA 20/10 (khách: "test lớn báo File size limit exceeded") — tệp INP giờ là LỐI TẮT (symlink) tới stdin
@@ -322,15 +335,16 @@ class CodeJudgingService
                       ."        if (!linked) close(keep); }\n"
                       // Mở tệp ghi được TRƯỚC khi đọc stdin: không ghi được thì stdin còn nguyên, chương trình vẫn đọc được.
                       ."      if (!linked) { if (FILE* f = std::fopen(\"{$in}\", \"wb\")) { char b[65536]; size_t n; while ((n = std::fread(b, 1, sizeof b, stdin)) > 0) std::fwrite(b, 1, n, f); std::fclose(f); } } }\n"
+                      .implode('', array_map(fn ($a) => "    unlink(\"{$a}\"); if (symlink(\"{$in}\", \"{$a}\") != 0) {}\n", $inAliases))
                     : '')
                 .($out !== null
-                    ? "    std::remove(\"{$out}\"); saved = dup(1); int nul = open(\"/dev/null\", O_WRONLY); if (nul >= 0) { dup2(nul, 1); close(nul); }\n"
+                    ? "    rm_ci(\"{$out}\"); saved = dup(1); int nul = open(\"/dev/null\", O_WRONLY); if (nul >= 0) { dup2(nul, 1); close(nul); }\n"
                     : '')
                 ."  }\n"
                 ."  ~Guard() {\n"
                 ."    std::cout.flush(); std::fflush(nullptr);\n"
                 .($out !== null
-                    ? "    if (saved < 0) return; int fd = open(\"{$out}\", O_RDONLY);\n"
+                    ? "    if (saved < 0) return; int fd = open_ci(\"{$out}\");\n"
                       ."    if (fd < 0) { const char m[] = \"{$mark}\"; ssize_t w = write(saved, m, sizeof m - 1); (void)w; return; }\n"
                       ."    char b[65536]; ssize_t n; while ((n = read(fd, b, sizeof b)) > 0) { ssize_t o = 0; while (o < n) { ssize_t w = write(saved, b + o, n - o); if (w <= 0) break; o += w; } }\n"
                       ."    close(fd);\n"
@@ -345,10 +359,18 @@ class CodeJudgingService
             $inLit = var_export($in, true);
             $outLit = var_export($out, true);
             $markLit = var_export($mark, true);
+            $aliasLit = '['.implode(', ', array_map(fn ($a) => var_export($a, true), $inAliases)).']';
             // Gói gọn 1 dòng để số dòng báo lỗi của học sinh chỉ lệch đúng 1.
             $code = <<<PY
 import sys as _s, os as _o, io as _io, gc as _gc, atexit as _a
-_IN, _OUT, _MARK = {$inLit}, {$outLit}, {$markLit}
+_IN, _OUT, _MARK, _AL = {$inLit}, {$outLit}, {$markLit}, {$aliasLit}
+def _ci(n):
+    if _o.path.exists(n): return n
+    try:
+        for _e in _o.listdir('.'):
+            if _e.lower() == n.lower(): return _e
+    except OSError: pass
+    return None
 if _IN:
     _k = _z = -1; _ln = False
     try:
@@ -371,9 +393,16 @@ if _IN:
             with open(_IN, 'wb') as _f: _f.write(_d)
         except OSError:
             _s.stdin = _io.TextIOWrapper(_io.BytesIO(_d))
+    for _v in _AL:
+        try: _o.unlink(_v)
+        except OSError: pass
+        try: _o.symlink(_IN, _v)
+        except OSError: pass
 _saved = -1
 if _OUT:
-    try: _o.remove(_OUT)
+    try:
+        for _e in _o.listdir('.'):
+            if _e.lower() == _OUT.lower(): _o.remove(_e)
     except OSError: pass
     _saved = _o.dup(1)
     try:
@@ -385,8 +414,9 @@ def _fin():
             if isinstance(_x, _io.IOBase) and not _x.closed and _x.writable(): _x.flush()
         except Exception: pass
     if _saved >= 0:
-        if _o.path.exists(_OUT):
-            with open(_OUT, 'rb') as _f: _o.write(_saved, _f.read())
+        _p = _ci(_OUT)
+        if _p:
+            with open(_p, 'rb') as _f: _o.write(_saved, _f.read())
         else:
             _o.write(_saved, _MARK.encode())
 _a.register(_fin)
@@ -426,6 +456,9 @@ PY;
             if ($note !== null) {
                 $result['details'][$i]['actualOutput'] = '';
                 $result['details'][$i]['stderr'] = $note;
+                // SỬA 20/10 — dòng lý do của test sai hiện lời nhắc này, không hiện mốc nội bộ "@@O360_NO_OUTPUT_FILE@@".
+                $result['details'][$i]['reason'] = $note;
+                $result['details'][$i]['errorCode'] = 'FILE';
             }
         }
 
