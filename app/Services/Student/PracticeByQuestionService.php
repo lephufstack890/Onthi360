@@ -854,7 +854,7 @@ class PracticeByQuestionService
         }
 
         try {
-            $result = $this->codeJudging->judge($codeSource, $data['language'] ?? null, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
+            $result = $this->codeJudging->judge($codeSource, $data['language'] ?? null, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null, $config['checker'] ?? null);
         } catch (Throwable $e) {
             Log::warning('Không chấm được câu luyện tập Lập trình #'.$question->id.' (Judge0 không tới được)', ['exception' => $e]);
 

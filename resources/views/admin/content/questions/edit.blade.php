@@ -197,6 +197,7 @@
                                                class="admin-input">
                                     </div>
                                 </div>
+                                @include('partials.coding-checker-fields', ['checker' => $config['checker'] ?? null])
                                 {{-- SỬA 9/10 (khách: đề kiểu HELLOWORLD bắt đọc HELLOWORLD.INP / ghi HELLOWORLD.OUT, thiếu freopen thì chấm sai) —
                                      "Tệp có tên" = học sinh BẮT BUỘC đọc/ghi qua đúng 2 tệp này (CodeJudgingService::withFileIo()), tên tệp
                                      tự lấy theo mã câu hỏi (<MÃ>.INP / <MÃ>.OUT). "Bàn phím / màn hình" = xoá trắng 2 ô, đề đọc/ghi

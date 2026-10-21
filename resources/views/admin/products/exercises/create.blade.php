@@ -95,6 +95,7 @@
                                    class="admin-input">
                         </div>
                     </div>
+                    @include('partials.coding-checker-fields', ['checker' => null])
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="test_cases_raw">Test cases</label>
                         <textarea id="test_cases_raw" name="test_cases_raw" rows="4"

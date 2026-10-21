@@ -229,6 +229,7 @@
                             <input id="memory_limit_mb" name="memory_limit_mb" type="number" value="{{ $memoryLimitMb }}" min="16" max="2048" class="admin-input">
                         </div>
                     </div>
+                    @include('partials.coding-checker-fields', ['checker' => $config['checker'] ?? null])
                     <div>
                         <label class="block text-[13px] font-medium text-slate-600 mb-1" for="test_cases">Test cases — mỗi dòng "input => output"</label>
                         <textarea id="test_cases" name="test_cases" rows="4" class="w-full rounded-xl border border-sky-100 text-[13px] p-3 font-mono" placeholder="1 2 => 3&#10;5 5 => 10">{{ $testCasesText }}</textarea>

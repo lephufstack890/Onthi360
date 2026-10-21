@@ -307,6 +307,8 @@ class ContentController extends Controller
             'test_cases_json' => ['nullable', 'string', 'max:8000000'],
             'time_limit_ms' => ['nullable', 'integer', 'min:1'],
             'memory_limit_mb' => ['nullable', 'integer', 'min:1'],
+            'checker_mode' => ['nullable', 'string', 'in:default,tokens,float,ignore_case,unordered'], // SỬA 21/10 — Cách chấm
+            'checker_epsilon' => ['nullable', 'numeric', 'gt:0', 'max:1'],
         ];
     }
 

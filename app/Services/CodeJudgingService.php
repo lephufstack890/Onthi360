@@ -17,8 +17,10 @@ class CodeJudgingService
      *
      * @throws RuntimeException
      */
-    public function judge(string $sourceCode, ?string $language, array $testCases, int $timeLimitMs, int $memoryLimitKb, ?array $fileIo = null): array
+    public function judge(string $sourceCode, ?string $language, array $testCases, int $timeLimitMs, int $memoryLimitKb, ?array $fileIo = null, ?array $checker = null): array
     {
+        // SỬA 21/10 (khách: "thêm checker") — $checker = grading_config['checker'] của câu (App\Support\OutputChecker).
+        // null / Mặc định thì chấm y như trước.
         if ($testCases === []) {
             return ['verdict' => VerdictStatus::SystemError, 'isAccepted' => false, 'details' => []];
         }
@@ -49,19 +51,23 @@ class CodeJudgingService
          * hơn không chấm được.
          */
         if ((bool) config('judge0.bundled_run')) {
-            $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo, $compilerOptions);
+            $bundled = $this->judgeBundled($sourceCode, self::languageKey($language), $testCases, $cpuTimeLimit, $memoryLimit, $fileIo, $compilerOptions, $checker);
 
             if ($bundled !== null) {
                 return $this->withFileIoNotes($bundled, $fileIo);
             }
         }
 
+        // SỬA 21/10 — cách chấm khác Mặc định: KHÔNG để Judge0 tự so (nó chỉ so kiểu Mặc định), lấy kết quả về rồi so ở
+        // đây bằng OutputChecker. Mặc định thì giữ nguyên như cũ (Judge0 so).
+        $ownCompare = ! \App\Support\OutputChecker::isDefault($checker);
+
         $submissions = array_map(static fn (array $tc) => [
             'source_code' => $sourceCode,
             'language_id' => $languageId,
             'compiler_options' => $compilerOptions,
             'stdin' => $tc['input'],
-            'expected_output' => $tc['expected_output'],
+            'expected_output' => $ownCompare ? null : $tc['expected_output'],
             'cpu_time_limit' => $cpuTimeLimit,
             'wall_time_limit' => $wallTimeLimit,
             'memory_limit' => $memoryLimit,
@@ -111,10 +117,16 @@ class CodeJudgingService
 
         foreach ($results as $i => $r) {
             $caseVerdict = $this->mapStatus((int) ($r['status']['id'] ?? 13), $r['memory'] ?? null, $memoryLimit);
+            // SỬA 21/10 — chạy xong không lỗi mà cách chấm khác Mặc định: tự so theo cách chấm của câu.
+            if ($ownCompare && $caseVerdict === VerdictStatus::Accepted) {
+                $caseVerdict = self::outputsMatch((string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''), $checker)
+                    ? VerdictStatus::Accepted
+                    : VerdictStatus::WrongAnswer;
+            }
             $crashStatusId = $caseVerdict === VerdictStatus::RuntimeError ? (int) ($r['status']['id'] ?? 12) : null;
             // SỬA 17/10 — tạm bỏ qua lỗi runtime: chỉ xét chương trình in ra có đúng đáp án không (config judge0.ignore_runtime_error).
             if ($caseVerdict === VerdictStatus::RuntimeError && (bool) config('judge0.ignore_runtime_error', true)) {
-                $caseVerdict = self::outputsMatch((string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''))
+                $caseVerdict = self::outputsMatch((string) ($r['stdout'] ?? ''), (string) ($testCases[$i]['expected_output'] ?? ''), $checker)
                     ? VerdictStatus::Accepted
                     : VerdictStatus::WrongAnswer;
             }
@@ -479,7 +491,7 @@ PY;
      * @param  array<int, array{input:string, expected_output:string}>  $testCases
      * @return array{verdict: VerdictStatus, isAccepted: bool, details: array}|null  null = không gộp được, hãy dùng cách cũ
      */
-    private function judgeBundled(string $sourceCode, ?string $langKey, array $testCases, float $perTestCpu, int $memoryLimit, ?array $fileIo, ?string $compilerOptions = null): ?array
+    private function judgeBundled(string $sourceCode, ?string $langKey, array $testCases, float $perTestCpu, int $memoryLimit, ?array $fileIo, ?string $compilerOptions = null, ?array $checker = null): ?array
     {
         if (! BundledJudgePackage::supports($langKey) || ! BundledJudgePackage::available()) {
             return null;
@@ -619,7 +631,7 @@ PY;
                 // ở 3 nhánh dưới; tắt cờ thì báo Runtime Error như cũ.
                 $row['exitCode'] !== 0 && ! (bool) config('judge0.ignore_runtime_error', true) => VerdictStatus::RuntimeError,
                 $truncated => VerdictStatus::WrongAnswer,
-                self::outputsMatch($actual, $expected) => VerdictStatus::Accepted,
+                self::outputsMatch($actual, $expected, $checker) => VerdictStatus::Accepted,
                 default => VerdictStatus::WrongAnswer,
             };
 
@@ -665,21 +677,11 @@ PY;
      * khác biệt về ký tự xuống dòng (CRLF/LF), khoảng trắng thừa ở CUỐI mỗi dòng, và dòng
      * trống ở cuối tệp. Khoảng trắng GIỮA dòng vẫn tính — "1 2" khác "1  2".
      */
-    private static function outputsMatch(string $actual, string $expected): bool
+    private static function outputsMatch(string $actual, string $expected, ?array $checker = null): bool
     {
-        $normalize = static function (string $text): string {
-            $text = str_replace(["\r\n", "\r"], "\n", $text);
-            $lines = explode("\n", $text);
-            $lines = array_map(static fn ($line) => rtrim($line, " \t"), $lines);
-
-            while ($lines !== [] && end($lines) === '') {
-                array_pop($lines);
-            }
-
-            return implode("\n", $lines);
-        };
-
-        return $normalize($actual) === $normalize($expected);
+        // SỬA 21/10 — luật so khớp chuyển hết sang App\Support\OutputChecker (Mặc định = đúng luật cũ ở đây: bỏ khoảng
+        // trắng cuối dòng + dòng trống ở cuối), thêm 4 cách chấm chọn theo câu.
+        return \App\Support\OutputChecker::matches($actual, $expected, $checker);
     }
 
     /**

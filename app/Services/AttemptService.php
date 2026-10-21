@@ -924,7 +924,7 @@ class AttemptService
         $judgedLanguage = (string) $answer->language;
 
         try {
-            $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null);
+            $result = $this->codeJudging->judge($answer->code_source, $answer->language, $testCases, $timeLimitMs, $memoryLimitKb, $config['file_io'] ?? null, $config['checker'] ?? null);
         } catch (Throwable $e) {
             Log::error('Không chấm được câu trả lời Lập trình #'.$answer->id.' (Judge0 không tới được)', ['exception' => $e]);
 

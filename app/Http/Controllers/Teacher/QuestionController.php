@@ -304,6 +304,8 @@ class QuestionController extends Controller
                 'time_limit_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
                 'memory_limit_mb' => ['nullable', 'integer', 'min:16', 'max:2048'],
                 'test_cases' => ['nullable', 'string', 'max:20000'],
+                'checker_mode' => ['nullable', 'string', 'in:default,tokens,float,ignore_case,unordered'], // SỬA 21/10 — Cách chấm
+                'checker_epsilon' => ['nullable', 'numeric', 'gt:0', 'max:1'],
             ],
             default => $common,
         };

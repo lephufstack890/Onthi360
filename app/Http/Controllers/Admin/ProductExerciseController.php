@@ -85,6 +85,8 @@ class ProductExerciseController extends Controller
             'test_cases_json' => ['nullable', 'string', 'max:8000000'],
             'time_limit_ms' => ['nullable', 'integer', 'min:1', 'max:60000'],
             'memory_limit_mb' => ['nullable', 'integer', 'min:1', 'max:4096'],
+            'checker_mode' => ['nullable', 'string', 'in:default,tokens,float,ignore_case,unordered'], // SỬA 21/10 — Cách chấm
+            'checker_epsilon' => ['nullable', 'numeric', 'gt:0', 'max:1'],
             'io_mode' => ['nullable', 'in:std,file'],
             'file_io_input' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
             'file_io_output' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
@@ -109,7 +111,7 @@ class ProductExerciseController extends Controller
             'body' => 'Câu hỏi', 'options.*' => 'Đáp án', 'correct_option' => 'Đáp án đúng', 'accepted_answers' => 'Đáp án được chấp nhận',
         ]);
 
-        $codingKeys = ['test_cases_json', 'time_limit_ms', 'memory_limit_mb', 'io_mode', 'file_io_input', 'file_io_output',
+        $codingKeys = ['test_cases_json', 'time_limit_ms', 'memory_limit_mb', 'checker_mode', 'checker_epsilon', 'io_mode', 'file_io_input', 'file_io_output',
             'statement_file', 'solution_file', 'reference_file', 'remove_attachments'];
         $manualKeys = ['kind', 'body', 'options', 'correct_option', 'tf_answer', 'accepted_answers', 'case_sensitive'];
 
@@ -168,6 +170,8 @@ class ProductExerciseController extends Controller
             'test_cases_raw' => ['nullable', 'string', 'max:10000'],
             'time_limit_ms' => ['nullable', 'integer', 'min:1'],
             'memory_limit_mb' => ['nullable', 'integer', 'min:1'],
+            'checker_mode' => ['nullable', 'string', 'in:default,tokens,float,ignore_case,unordered'], // SỬA 21/10 — Cách chấm
+            'checker_epsilon' => ['nullable', 'numeric', 'gt:0', 'max:1'],
             'tag_ids' => ['array'],
             'tag_ids.*' => ['integer'],
             'new_tags' => ['nullable', 'string', 'max:500'],

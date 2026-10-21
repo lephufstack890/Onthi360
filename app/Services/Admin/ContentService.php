@@ -1312,6 +1312,7 @@ class ContentService
         if ($question->type !== \App\Enums\QuestionType::Composite) {
             // SỬA 21/9 — ô test bị khoá (không gửi lên) thì giữ nguyên test cũ, xem buildGradingConfig().
             $data['_existing_test_cases'] = $question->grading_config['test_cases'] ?? [];
+            $data['_existing_checker'] = $question->grading_config['checker'] ?? null; // SỬA 21/10 — form không có ô Cách chấm thì giữ
             $attributes['grading_config'] = $this->buildGradingConfig($question->type->value, $data);
         }
 
@@ -1366,6 +1367,7 @@ class ContentService
         if ($question->type !== \App\Enums\QuestionType::Composite) {
             // SỬA 21/9 — cùng lý do ở questionUpdate(): ô test bị khoá thì giữ nguyên test cũ.
             $data['_existing_test_cases'] = $question->grading_config['test_cases'] ?? [];
+            $data['_existing_checker'] = $question->grading_config['checker'] ?? null; // SỬA 21/10 — form không có ô Cách chấm thì giữ
             $changes['grading_config'] = $this->buildGradingConfig($question->type->value, $data);
         }
 
@@ -1687,6 +1689,8 @@ class ContentService
                         : ($data['_existing_test_cases'] ?? [])),
                 'time_limit_ms' => filled($data['time_limit_ms'] ?? null) ? (int) $data['time_limit_ms'] : null,
                 'memory_limit_mb' => filled($data['memory_limit_mb'] ?? null) ? (int) $data['memory_limit_mb'] : null,
+                // SỬA 21/10 — Cách chấm (App\Support\OutputChecker). Mặc định -> null (không lưu khoá).
+                'checker' => \App\Support\OutputChecker::fromInput($data),
                 // SỬA 24/8 — 3 khoá dưới đây CHỈ được gói ZIP điền (form nhập tay không có
                 // trường tương ứng) — giữ lại trong grading_config để dành cho khi có judge
                 // chấm code thật sau này (ngôn ngữ cho phép / quy ước tên file input-output /
@@ -2664,6 +2668,10 @@ class ContentService
             // Người dùng chọn "Bàn phím / màn hình" -> bỏ hẳn quy ước tên tệp cũ (buildGradingConfig lọc bỏ khoá null).
             if (! array_key_exists('file_io', $fresh) && array_key_exists('io_mode', $data)) {
                 unset($merged['file_io']);
+            }
+            // SỬA 21/10 — chọn lại Cách chấm "Mặc định" -> bỏ khoá checker cũ (gộp không tự xoá).
+            if (! array_key_exists('checker', $fresh) && array_key_exists('checker_mode', $data)) {
+                unset($merged['checker']);
             }
             $attributes['grading_config'] = $merged;
         }

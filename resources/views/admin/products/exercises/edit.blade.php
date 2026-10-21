@@ -236,6 +236,7 @@
                                     <input id="memory_limit_mb" name="memory_limit_mb" type="number" min="1" max="4096" value="{{ old('memory_limit_mb', $memoryLimitMb) }}" class="admin-input">
                                 </div>
                             </div>
+                            <div style="margin-top:12px">@include('partials.coding-checker-fields', ['checker' => $config['checker'] ?? null])</div>
                             <div x-data="{ ioMode: @js(old('io_mode', $exIoMode)) }" class="ex-io">
                                 <label class="ex-lbl" for="io_mode">Đọc / ghi dữ liệu</label>
                                 <select id="io_mode" name="io_mode" x-model="ioMode" class="admin-input" style="max-width:320px">

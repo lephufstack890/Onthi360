@@ -361,6 +361,7 @@ class QuestionService
         // SẠCH cấu hình các phần con nếu gọi cho nó. Giữ NGUYÊN grading_config đã nhập từ ZIP —
         // đúng y cách App\Services\Admin\ContentService::questionUpdate() đã xử lý từ 31/8.
         if (($data['type'] ?? null) !== 'composite') {
+            $data['_existing_checker'] = $current?->grading_config['checker'] ?? null; // SỬA 21/10
             $attributes['grading_config'] = $this->buildGradingConfig($data['type'], $data);
         }
 
@@ -420,6 +421,8 @@ class QuestionService
                 'test_cases' => $data['test_cases_parsed'] ?? [],
                 'time_limit_ms' => filled($data['time_limit_ms'] ?? null) ? (int) $data['time_limit_ms'] : null,
                 'memory_limit_mb' => filled($data['memory_limit_mb'] ?? null) ? (int) $data['memory_limit_mb'] : null,
+                // SỬA 21/10 — Cách chấm (App\Support\OutputChecker), giống Admin\ContentService::buildGradingConfig().
+                'checker' => \App\Support\OutputChecker::fromInput($data),
                 // SỬA 24/8 — xem App\Services\Admin\ContentService::buildGradingConfig() cùng
                 // ngày: 3 khoá dưới đây chỉ được "Nhập từ gói ZIP" điền (form nhập tay không có
                 // trường tương ứng) — giữ lại trong grading_config để dành cho khi có judge

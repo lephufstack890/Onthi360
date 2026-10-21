@@ -208,6 +208,8 @@ class QuestionZipPackage
                 // null -> bị array_filter loại bỏ), giữ nguyên hành vi cũ khi gói khai rỗng.
                 'time_limit_ms' => filled($grading['time_limit_ms'] ?? 1000) ? (int) ($grading['time_limit_ms'] ?? 1000) : null,
                 'memory_limit_mb' => filled($grading['memory_limit_mb'] ?? 256) ? (int) ($grading['memory_limit_mb'] ?? 256) : null,
+                // SỬA 21/10 — "grading": { "checker": { "type": "float", "epsilon": 0.000001 } } (App\Support\OutputChecker).
+                'checker' => \App\Support\OutputChecker::normalize($grading['checker'] ?? null),
                 // SỬA 24/8 — 3 khoá dưới đây CHỈ được gói ZIP điền (form nhập tay không có
                 // trường tương ứng) — giữ lại trong grading_config để dành cho khi có judge
                 // chấm code thật sau này (ngôn ngữ cho phép / quy ước tên file input-output /
