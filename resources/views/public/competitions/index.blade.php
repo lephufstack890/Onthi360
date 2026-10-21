@@ -243,7 +243,8 @@
                                 </div>
                                 <div class="mt-1 flex justify-between text-[10px] text-slate-500">
                                     <span>Điểm cao nhất</span>
-                                    <span>Thang {{ (int) ($c['currentRound']['totalPoints'] ?: 100) }}</span>
+                                    {{-- SỬA 21/10 — cuộc thi CHƯA có vòng nào (vừa tạo) thì currentRound = null: đọc khoá trên null là lỗi 500. --}}
+                                    <span>Thang {{ (int) (($c['currentRound']['totalPoints'] ?? null) ?: 100) }}</span>
                                 </div>
                             </div>
                         </section>

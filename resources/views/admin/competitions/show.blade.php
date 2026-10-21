@@ -76,10 +76,7 @@
                 <p class="text-[13px] text-slate-600 whitespace-pre-line">{{ $competition->rules ?: '— Chưa nhập —' }}</p>
             </div>
 
-            <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                <h2 class="font-medium text-slate-700 mb-2">Đề/bộ bài tham chiếu (11.1)</h2>
-                <p class="text-[13px] text-slate-600">{{ $competition->assessment->title ?? '— Không gắn đề —' }}</p>
-            </div>
+            {{-- SỬA 21/10 (khách: "bỏ khối Đề/bộ bài tham chiếu") — đề của cuộc thi gắn theo từng kỳ thi ngay bên dưới. --}}
 
             {{-- Kỳ thi (vòng) bên trong cuộc thi — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi
                  kỳ thi tham chiếu 1 đề riêng và có bảng xếp hạng riêng. --}}

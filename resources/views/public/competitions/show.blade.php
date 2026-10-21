@@ -80,11 +80,7 @@
                     <p class="text-sm text-slate-500 whitespace-pre-line leading-relaxed">{{ $competition->rules ?: 'Chưa nhập thể lệ.' }}</p>
                 </div>
 
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>🧾</span> Đề tham chiếu</h2>
-                    <p class="text-sm text-slate-500">{{ $competition->assessment->title ?? '— Chưa gắn đề —' }}</p>
-                    <p class="text-xs text-slate-400 mt-3">Đề thi thuộc kho Tài liệu chung — cuộc thi chỉ tham chiếu để tổ chức thành sự kiện (4.3).</p>
-                </div>
+                {{-- SỬA 21/10 — bỏ khối "Đề tham chiếu" (form thêm/sửa cuộc thi không còn ô này; đề gắn theo từng vòng). --}}
 
                 {{-- SỬA 20/10 — bỏ khối "Quy tắc bảng xếp hạng" (admin không còn nhập các ô này nên không hiện số cũ ra ngoài). --}}
 
