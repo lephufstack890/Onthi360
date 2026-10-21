@@ -87,11 +87,40 @@
 
                     <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
                         @if ($pendingQrUrl)
-                            <div class="mx-auto sm:mx-0">
-                                {{-- SỬA 21/10 — ảnh QR ngân hàng admin tải lên (QR tĩnh, không có sẵn số tiền / nội dung CK). --}}
-                                <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền"
-                                     class="h-44 w-44 rounded-2xl border border-sky-100 bg-white object-contain p-1.5">
-                                <p style="max-width:11rem" class="mt-1.5 text-center text-[10px] leading-snug text-slate-400">Quét bằng app ngân hàng, rồi nhập <strong class="text-rose-600">đúng số tiền và nội dung CK</strong> bên cạnh</p>
+                            {{-- SỬA 21/10 (khách: "mã QR hiển thị to rõ ràng lên") — ảnh QR to (cao tới 440px), bấm vào để phóng to
+                                 toàn màn hình, có nút tải ảnh về để quét từ máy khác. CSS riêng tiền tố wqr- (Tailwind không build lại). --}}
+                            <div class="wqr" x-data="{ zoom: false }" @keydown.escape.window="zoom = false">
+                                <style>
+                                    .wqr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+                                    .wqr-box { display: block; padding: 8px; border: 1px solid #DDEAF0; border-radius: 18px; background: #fff; cursor: zoom-in; transition: box-shadow .15s; }
+                                    .wqr-box:hover { box-shadow: 0 6px 22px rgba(0, 90, 180, .12); }
+                                    .wqr-box img { display: block; width: auto; height: auto; max-width: min(100%, 300px); max-height: 440px; border-radius: 12px; }
+                                    @media (max-width: 639px) { .wqr-box img { max-width: 100%; max-height: 70vh; } }
+                                    .wqr-cap { max-width: 300px; margin: 0; text-align: center; font-size: 12px; line-height: 1.5; color: #64748B; }
+                                    .wqr-acts { display: flex; gap: 8px; }
+                                    .wqr-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; border: 1px solid #CFE3EE; background: #F8FBFE; font-size: 12px; font-weight: 700; color: #0F5E86; }
+                                    .wqr-btn:hover { background: #EAF5FB; }
+                                    .wqr-btn svg { width: 14px; height: 14px; }
+                                    .wqr-modal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .78); }
+                                    .wqr-modal-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+                                    .wqr-modal img { display: block; max-width: 92vw; max-height: 84vh; border-radius: 16px; background: #fff; }
+                                    .wqr-close { position: absolute; top: -12px; right: -12px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #fff; color: #0F172A; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+                                    .wqr-close svg { width: 18px; height: 18px; }
+                                </style>
+                                <button type="button" class="wqr-box" @click="zoom = true" aria-label="Phóng to mã QR">
+                                    <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền">
+                                </button>
+                                <p class="wqr-cap">Quét bằng app ngân hàng, rồi nhập <strong class="text-rose-600">đúng số tiền và nội dung CK</strong> bên cạnh.</p>
+                                <div class="wqr-acts">
+                                    <button type="button" class="wqr-btn" @click="zoom = true"><x-lucide name="maximize-2" />Phóng to</button>
+                                    <a href="{{ $pendingQrUrl }}" download="ma-qr-ngan-hang" class="wqr-btn"><x-lucide name="download" />Tải ảnh QR</a>
+                                </div>
+                                <div class="wqr-modal" x-show="zoom" x-cloak x-transition.opacity @click.self="zoom = false" role="dialog" aria-modal="true" aria-label="Mã QR ngân hàng">
+                                    <div class="wqr-modal-in">
+                                        <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền (phóng to)">
+                                        <button type="button" class="wqr-close" @click="zoom = false" aria-label="Đóng"><x-lucide name="x" /></button>
+                                    </div>
+                                </div>
                             </div>
                         @else
                             <div class="flex h-44 w-44 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-3 text-center">
