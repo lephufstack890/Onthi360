@@ -589,6 +589,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('vi')->name('wallet.')->group(function () {
         Route::get('/', [WalletController::class, 'index'])->name('index');
         Route::post('/nap', [WalletController::class, 'requestTopup'])->name('request');
+        Route::get('/qr', [WalletController::class, 'qrImage'])->name('qr'); // SỬA 21/10 — ảnh QR ngân hàng
     });
 
     Route::middleware(['role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {

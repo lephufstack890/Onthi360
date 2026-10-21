@@ -35,10 +35,17 @@ class SettingsController extends Controller
             'bank_name' => ['required', 'string', 'max:150'],
             'bank_account_no' => ['required', 'string', 'max:50'],
             'bank_account_name' => ['required', 'string', 'max:150'],
-            'bank_bin' => ['required', 'string', 'max:10'],
-        ]);
+            // SỬA 21/10 (khách: "thay Mã BIN bằng chọn hình ảnh QR ngân hàng") — ảnh QR nhận tiền tải từ app ngân hàng.
+            'bank_qr' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            'remove_bank_qr' => ['nullable', 'boolean'],
+        ], [], ['bank_qr' => 'Ảnh QR ngân hàng']);
 
-        $this->settingsService->updateWalletBankInfo($request->user(), $data);
+        $this->settingsService->updateWalletBankInfo(
+            $request->user(),
+            $data,
+            $request->file('bank_qr'),
+            $request->boolean('remove_bank_qr'),
+        );
 
         return redirect()->route('admin.settings.index')->with('status', 'settings-wallet-bank-updated');
     }

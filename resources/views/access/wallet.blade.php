@@ -88,14 +88,15 @@
                     <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
                         @if ($pendingQrUrl)
                             <div class="mx-auto sm:mx-0">
-                                <img src="{{ $pendingQrUrl }}" alt="Mã QR chuyển khoản {{ number_format($pendingTopup->amount) }}đ"
-                                     class="h-44 w-44 rounded-2xl border border-sky-100 bg-white p-1.5">
-                                <p class="mt-1.5 text-center text-[10px] text-slate-400">Quét bằng app ngân hàng</p>
+                                {{-- SỬA 21/10 — ảnh QR ngân hàng admin tải lên (QR tĩnh, không có sẵn số tiền / nội dung CK). --}}
+                                <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền"
+                                     class="h-44 w-44 rounded-2xl border border-sky-100 bg-white object-contain p-1.5">
+                                <p style="max-width:11rem" class="mt-1.5 text-center text-[10px] leading-snug text-slate-400">Quét bằng app ngân hàng, rồi nhập <strong class="text-rose-600">đúng số tiền và nội dung CK</strong> bên cạnh</p>
                             </div>
                         @else
                             <div class="flex h-44 w-44 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-3 text-center">
                                 <x-lucide name="qr-code" class="h-6 w-6 text-amber-500" />
-                                <p class="text-[11px] leading-relaxed text-amber-700">Chưa cấu hình đủ thông tin ngân hàng để tạo QR — chuyển khoản thủ công theo thông tin bên cạnh.</p>
+                                <p class="text-[11px] leading-relaxed text-amber-700">Chưa có ảnh QR ngân hàng — chuyển khoản thủ công theo thông tin bên cạnh.</p>
                             </div>
                         @endif
 
@@ -180,7 +181,8 @@
 
             <div class="mt-4 rounded-2xl border border-sky-100 bg-[#F8FBFE] p-3">
                 <p class="text-[11px] leading-relaxed text-slate-500">
-                    <strong class="text-slate-700">1 token = 1đ.</strong>
+                    {{-- SỬA 21/10 — đúng tỉ giá đang dùng (App\Support\TokenPrice), trước ghi cứng "1 token = 1đ". --}}
+                    <strong class="text-slate-700">1 token = {{ \App\Support\TokenPrice::vnd(\App\Support\TokenPrice::rate()) }}.</strong>
                     Token dùng để đăng ký thi, mua học liệu... không cần chuyển khoản riêng cho từng lần.
                 </p>
             </div>
@@ -190,7 +192,7 @@
                     <x-lucide name="info" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
                     <p class="flex-1 text-[11px] leading-relaxed text-amber-800">
                         Hệ thống chưa cấu hình thông tin ngân hàng nhận tiền. Quản trị viên cần điền ở
-                        <strong>Cấu hình hệ thống</strong> thì mới tạo được mã QR.
+                        <strong>Cấu hình hệ thống</strong> (kèm ảnh QR ngân hàng) thì học sinh mới nạp được.
                     </p>
                 </div>
             @endunless

@@ -7,6 +7,7 @@ use App\Models\TokenTopup;
 use App\Models\User;
 use App\Repositories\Contracts\TokenTopupRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,9 @@ use Illuminate\Validation\ValidationException;
 class WalletService
 {
     private const MIN_TOPUP_AMOUNT = 10000;
+
+    /** SỬA 21/10 — khoá cấu hình chứa đường dẫn ảnh QR ngân hàng (đĩa local), admin tải ở Cấu hình hệ thống. */
+    public const QR_SETTING = 'wallet.bank_qr_image';
 
     public function __construct(
         private readonly TokenTopupRepositoryInterface $topups,
@@ -95,7 +99,7 @@ class WalletService
      * Thông tin ngân hàng nhận chuyển khoản — cấu hình qua System Settings (18.8: Super
      * Admin chỉnh ở Cấu hình hệ thống, không hard-code số tài khoản thật trong code).
      *
-     * @return array{bankName: string, accountNo: string, accountName: string, bin: string}
+     * @return array{bankName: string, accountNo: string, accountName: string, qrUrl: ?string}
      */
     public function bankInfo(): array
     {
@@ -103,31 +107,38 @@ class WalletService
             'bankName' => $this->systemSettings->getString('wallet.bank_name', ''),
             'accountNo' => $this->systemSettings->getString('wallet.bank_account_no', ''),
             'accountName' => $this->systemSettings->getString('wallet.bank_account_name', ''),
-            'bin' => $this->systemSettings->getString('wallet.bank_bin', ''),
+            // SỬA 21/10 — thay Mã BIN bằng ảnh QR admin tải lên (null = chưa có ảnh).
+            'qrUrl' => $this->qrImageUrl(),
         ];
     }
 
+    /** SỬA 21/10 — đường dẫn ảnh QR trên đĩa local; null nếu chưa tải hoặc tệp đã mất. */
+    public function qrImagePath(): ?string
+    {
+        $path = trim($this->systemSettings->getString(self::QR_SETTING, ''));
+
+        return $path !== '' && Storage::disk('local')->exists($path) ? $path : null;
+    }
+
+    /** SỬA 21/10 — link ảnh QR (route wallet.qr); ?v= đổi theo tệp để trình duyệt không giữ ảnh cũ sau khi admin thay. */
+    public function qrImageUrl(): ?string
+    {
+        $path = $this->qrImagePath();
+
+        return $path !== null ? route('wallet.qr', ['v' => substr(md5($path), 0, 10)]) : null;
+    }
+
     /**
-     * Ảnh QR chuyển khoản (VietQR — dịch vụ ảnh công khai theo chuẩn NAPAS, không cần thêm
-     * thư viện tạo QR mới, đúng docs/ARCHITECTURE.md mục 1: ưu tiên không thêm dependency).
-     * Trả null nếu Super Admin chưa cấu hình đủ BIN + số tài khoản ở Cấu hình hệ thống.
+     * Ảnh QR chuyển khoản cho 1 yêu cầu nạp.
+     *
+     * SỬA 21/10 (khách: "thay Mã BIN bằng chọn hình ảnh QR ngân hàng") — TRƯỚC ĐÂY tự tạo ảnh VietQR từ Mã BIN + số tài
+     * khoản (kèm sẵn số tiền + nội dung CK). GIỜ dùng ẢNH QR admin tải lên ở Cấu hình hệ thống (QR tĩnh của tài khoản, lấy
+     * từ app ngân hàng) — ảnh này KHÔNG chứa số tiền / nội dung, nên trang Ví token nhắc người nạp tự nhập đúng 2 thứ đó.
+     * Trả null nếu chưa có ảnh -> Ví token chỉ hiện thông tin chuyển khoản tay như trước.
      */
     public function qrUrl(TokenTopup $topup): ?string
     {
-        $bank = $this->bankInfo();
-
-        if (blank($bank['bin']) || blank($bank['accountNo'])) {
-            return null;
-        }
-
-        return sprintf(
-            'https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s&accountName=%s',
-            rawurlencode($bank['bin']),
-            rawurlencode($bank['accountNo']),
-            $topup->amount,
-            rawurlencode($topup->transfer_code),
-            rawurlencode($bank['accountName'])
-        );
+        return $this->qrImageUrl();
     }
 
     /** @throws ValidationException nếu yêu cầu không còn ở trạng thái chờ duyệt (đã xử lý trước đó). */

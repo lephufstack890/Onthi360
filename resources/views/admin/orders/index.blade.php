@@ -50,7 +50,7 @@
 
     <div class="mt-8">
         <h2 class="text-base font-semibold text-slate-700 mb-1">💳 Yêu cầu nạp token</h2>
-        <p class="text-xs text-slate-400 mb-3">Đối soát đúng số tiền + nội dung chuyển khoản (mã CK) trên sao kê ngân hàng trước khi duyệt (note họp 13/8, mục 7-8).</p>
+        <p class="text-xs text-slate-400 mb-3">Đối soát đúng số tiền + nội dung chuyển khoản (mã CK) trên sao kê ngân hàng trước khi duyệt.</p>
 
         <x-ws.table :columns="['Học sinh', 'Số tiền', 'Mã CK', 'Trạng thái', '']">
             @forelse ($tokenTopups as $t)

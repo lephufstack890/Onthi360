@@ -71,9 +71,10 @@
                 </div>
                 <x-ws.badge :tone="($walletBankInfo['accountNo'] ?? null) ? 'success' : 'neutral'">{{ ($walletBankInfo['accountNo'] ?? null) ? 'Đã cấu hình' : 'Chưa cấu hình' }}</x-ws.badge>
             </div>
-            <p class="text-[13px] text-slate-500 leading-relaxed mb-3">Thông tin ngân hàng nhận chuyển khoản nạp token — hiện kèm mã QR VietQR cho học sinh ở trang Ví token (note họp 13/8, mục 7-8).</p>
+            <p class="text-[13px] text-slate-500 leading-relaxed mb-3">Thông tin ngân hàng nhận chuyển khoản nạp token — hiện kèm ảnh QR ngân hàng cho học sinh ở trang Ví token.</p>
 
-            <form method="POST" action="{{ route('admin.settings.wallet-bank.update') }}" class="space-y-3">
+            {{-- SỬA 21/10 — enctype: có ô tải ảnh QR. --}}
+            <form method="POST" action="{{ route('admin.settings.wallet-bank.update') }}" enctype="multipart/form-data" class="space-y-3">
                 @csrf
                 @method('PUT')
                 <div>
@@ -82,11 +83,31 @@
                            value="{{ old('bank_name', $walletBankInfo['bankName'] ?? '') }}" placeholder="VD: Vietcombank"
                            class="admin-input">
                 </div>
-                <div>
-                    <label class="block text-xs text-slate-500 mb-1" for="bank_bin">Mã BIN ngân hàng (chuẩn NAPAS — để tạo QR)</label>
-                    <input id="bank_bin" name="bank_bin" type="text" required maxlength="10"
-                           value="{{ old('bank_bin', $walletBankInfo['bin'] ?? '') }}" placeholder="VD: 970436"
-                           class="admin-input">
+                {{-- SỬA 21/10 (khách: "thay Mã BIN bằng chọn hình ảnh QR ngân hàng") — ảnh QR nhận tiền lấy từ app ngân hàng. --}}
+                <div x-data="{ preview: @js($walletBankInfo['qrUrl'] ?? null), remove: false,
+                               pick(e) { const f = e.target.files[0]; if (f) { this.preview = URL.createObjectURL(f); this.remove = false; } } }">
+                    <label class="block text-xs text-slate-500 mb-1" for="bank_qr">Ảnh QR ngân hàng</label>
+                    <div class="flex items-start gap-3">
+                        <div style="width:7rem" class="grid h-28 shrink-0 place-items-center overflow-hidden rounded-xl border border-sky-100 bg-[#F8FBFE]">
+                            <template x-if="preview && !remove">
+                                <img :src="preview" alt="Ảnh QR ngân hàng" class="h-full w-full object-contain">
+                            </template>
+                            <template x-if="!preview || remove">
+                                <span class="px-2 text-center text-[10px] leading-snug text-slate-400">Chưa có ảnh QR</span>
+                            </template>
+                        </div>
+                        <div class="min-w-0 flex-1 space-y-2">
+                            <input id="bank_qr" name="bank_qr" type="file" accept="image/png,image/jpeg,image/webp" @change="pick($event)"
+                                   class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700">
+                            <p class="text-[11px] leading-relaxed text-slate-400">PNG / JPG / WEBP, tối đa 4MB. Lấy ảnh QR nhận tiền trong app ngân hàng (mục "Mã QR của tôi"). Không chọn ảnh mới thì giữ ảnh đang dùng.</p>
+                            @if ($walletBankInfo['qrUrl'] ?? null)
+                                <label class="inline-flex items-center gap-1.5 text-[11px] text-rose-600">
+                                    <input type="checkbox" name="remove_bank_qr" value="1" x-model="remove" class="h-3.5 w-3.5 rounded border-slate-300">
+                                    Xoá ảnh QR đang dùng
+                                </label>
+                            @endif
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1" for="bank_account_no">Số tài khoản</label>

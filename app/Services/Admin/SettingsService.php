@@ -5,6 +5,9 @@ namespace App\Services\Admin;
 use App\Models\RatingSummary;
 use App\Models\User;
 use App\Repositories\Contracts\SystemSettingRepositoryInterface;
+use App\Services\WalletService;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,7 +26,8 @@ class SettingsService
         'bankName' => 'wallet.bank_name',
         'accountNo' => 'wallet.bank_account_no',
         'accountName' => 'wallet.bank_account_name',
-        'bin' => 'wallet.bank_bin',
+        // SỬA 21/10 — thay Mã BIN (wallet.bank_bin, không còn dùng) bằng ẢNH QR ngân hàng do admin tải lên.
+        'qr' => WalletService::QR_SETTING,
     ];
 
     public function __construct(private SystemSettingRepositoryInterface $settings) {}
@@ -72,7 +76,7 @@ class SettingsService
      * "Tích hợp thanh toán" — thông tin ngân hàng nhận chuyển khoản nạp token, đọc bởi
      * App\Services\WalletService::bankInfo() để hiện ở access.wallet (QR + số tài khoản).
      *
-     * @return array{bankName: ?string, accountNo: ?string, accountName: ?string, bin: ?string, updatedBy: ?string, updatedAt: mixed}
+     * @return array{bankName: ?string, accountNo: ?string, accountName: ?string, qrUrl: ?string, updatedBy: ?string, updatedAt: mixed}
      */
     public function walletBankInfoData(): array
     {
@@ -82,21 +86,36 @@ class SettingsService
             'bankName' => $this->settings->findByKey(self::WALLET_BANK_KEYS['bankName'])?->stringValue(),
             'accountNo' => $accountNoSetting?->stringValue(),
             'accountName' => $this->settings->findByKey(self::WALLET_BANK_KEYS['accountName'])?->stringValue(),
-            'bin' => $this->settings->findByKey(self::WALLET_BANK_KEYS['bin'])?->stringValue(),
+            // SỬA 21/10 — xem trước ảnh QR đang dùng (cùng đường ảnh học sinh thấy ở Ví token).
+            'qrUrl' => app(WalletService::class)->qrImageUrl(),
             'updatedBy' => $accountNoSetting?->updatedBy?->name,
             'updatedAt' => $accountNoSetting?->updated_at,
         ];
     }
 
-    /** @param array{bank_name: string, bank_account_no: string, bank_account_name: string, bank_bin: string} $data */
-    public function updateWalletBankInfo(User $admin, array $data): void
+    /**
+     * SỬA 21/10 (khách: "thay Mã BIN bằng chọn hình ảnh QR ngân hàng") — lưu 3 ô chữ như cũ + ảnh QR:
+     *   · có tệp mới  -> lưu vào đĩa local (storage/app/wallet/…), xoá ảnh cũ;
+     *   · tích "Xoá ảnh QR" (không chọn tệp mới) -> xoá ảnh, Ví token quay về chỉ hiện thông tin chuyển khoản tay;
+     *   · không chọn gì -> giữ ảnh đang có.
+     * Ảnh hiện cho người dùng qua route wallet.qr (WalletController::qrImage), không cần storage:link.
+     *
+     * @param  array{bank_name: string, bank_account_no: string, bank_account_name: string}  $data
+     */
+    public function updateWalletBankInfo(User $admin, array $data, ?UploadedFile $qr = null, bool $removeQr = false): void
     {
         $pairs = [
             self::WALLET_BANK_KEYS['bankName'] => ['value' => trim($data['bank_name']), 'label' => 'Tên ngân hàng nhận chuyển khoản nạp token'],
             self::WALLET_BANK_KEYS['accountNo'] => ['value' => trim($data['bank_account_no']), 'label' => 'Số tài khoản nhận chuyển khoản nạp token'],
             self::WALLET_BANK_KEYS['accountName'] => ['value' => trim($data['bank_account_name']), 'label' => 'Tên chủ tài khoản nhận chuyển khoản nạp token'],
-            self::WALLET_BANK_KEYS['bin'] => ['value' => trim($data['bank_bin']), 'label' => 'Mã BIN ngân hàng (theo chuẩn NAPAS, dùng để tạo QR VietQR)'],
         ];
+
+        $oldQr = trim((string) $this->settings->findByKey(self::WALLET_BANK_KEYS['qr'])?->stringValue());
+        if ($qr !== null) {
+            $pairs[self::WALLET_BANK_KEYS['qr']] = ['value' => $qr->store('wallet', 'local'), 'label' => 'Ảnh QR ngân hàng nhận chuyển khoản nạp token'];
+        } elseif ($removeQr) {
+            $pairs[self::WALLET_BANK_KEYS['qr']] = ['value' => '', 'label' => 'Ảnh QR ngân hàng nhận chuyển khoản nạp token'];
+        }
 
         foreach ($pairs as $key => $meta) {
             $setting = $this->settings->findByKey($key);
@@ -117,6 +136,11 @@ class SettingsService
                 'value' => $meta['value'],
                 'updated_by' => $admin->id,
             ]);
+        }
+
+        // Ảnh cũ không còn dùng (đã thay hoặc đã xoá) -> dọn khỏi đĩa.
+        if (($qr !== null || $removeQr) && $oldQr !== '' && Storage::disk('local')->exists($oldQr)) {
+            Storage::disk('local')->delete($oldQr);
         }
     }
 }

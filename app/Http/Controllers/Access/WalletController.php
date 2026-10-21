@@ -34,6 +34,20 @@ class WalletController extends Controller
         ]);
     }
 
+    /**
+     * SỬA 21/10 — wallet.qr: ảnh QR ngân hàng admin tải lên (Cấu hình hệ thống). Đọc từ đĩa local nên không cần
+     * storage:link; chỉ người đã đăng nhập xem được (cùng nhóm route Ví token).
+     */
+    public function qrImage(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $path = $this->walletService->qrImagePath();
+        abort_if($path === null, 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path, 'qr-ngan-hang.'.pathinfo($path, PATHINFO_EXTENSION), [
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
     /** wallet.request — tạo yêu cầu nạp token, sinh mã chuyển khoản riêng để đối soát (7.4). */
     public function requestTopup(Request $request): RedirectResponse
     {
