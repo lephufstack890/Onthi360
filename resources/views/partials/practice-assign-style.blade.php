@@ -264,6 +264,11 @@
     .managed-row small { display: block; font-size: 10px; margin-top: 5px; color: #607a90; }
     .managed-identity { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; overflow-wrap: anywhere; }
     .managed-identity h3 { font-size: 13px; font-weight: 700; line-height: 1.5; color: #123b68; }
+    /* SỬA 22/10 — tên đề / bài là link mở tab mới. */
+    .managed-identity h3 a { color: inherit; text-decoration: none; }
+    .managed-identity h3 a:hover { color: #0b6fb3; text-decoration: underline; text-underline-offset: 2px; }
+    .managed-identity h3 a svg { display: inline-block; width: 12px; height: 12px; margin-left: 4px; vertical-align: -1px; opacity: .55; }
+    .managed-identity h3 a:hover svg { opacity: 1; }
     .managed-identity code { font-size: 10px; color: #7a8e9f; }
     .managed-identity strong { font-size: 12px; color: #28765e; }
     .managed-identity > span { font-size: 11px; }

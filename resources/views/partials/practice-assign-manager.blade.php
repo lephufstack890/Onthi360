@@ -126,7 +126,11 @@
             <article class="managed-entry" :aria-label="row.title + ' · ' + row.account">
                 <div class="managed-grid managed-row">
                     <div class="managed-identity">
-                        <h3 x-text="row.title"></h3>
+                        {{-- SỬA 22/10 — tên đề / bài bấm được, mở trang chi tiết ở tab mới (row.href, PracticeAssignmentService::managed()). --}}
+                        <h3>
+                            <template x-if="row.href"><a :href="row.href" target="_blank" rel="noopener" :title="'Mở ' + row.title + ' (tab mới)'"><span x-text="row.title"></span><x-lucide name="external-link" /></a></template>
+                            <template x-if="! row.href"><span x-text="row.title"></span></template>
+                        </h3>
                         <code x-text="row.code"></code>
                         <strong x-text="row.studentName"></strong>
                         <span x-text="row.account"></span>

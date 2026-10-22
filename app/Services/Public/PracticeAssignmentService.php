@@ -432,6 +432,13 @@ class PracticeAssignmentService
                 'subjectId' => $a->subject_id,
                 'title' => $meta['title'],
                 'code' => $meta['code'],
+                // SỬA 22/10 (khách: "bấm tên đề / bài là mở trang chi tiết, tab mới") — đề: trang chi tiết đề luyện tập;
+                // bài: màn làm bài của bài đó. Nội dung đã bị xoá thì không có link.
+                'href' => $titles->has($a->subject_id)
+                    ? ($type === PracticeAssignment::TYPE_PROBLEM
+                        ? route('student.practiceByQuestion.setup', ['question' => $a->subject_id])
+                        : route('practice.exam.show', $a->subject_id))
+                    : null,
                 'studentName' => $a->student?->name ?? '—',
                 'account' => $a->student?->email ?: ($a->student?->phone ?: '—'),
                 'teacher' => $a->assigner?->name ?? '—',
