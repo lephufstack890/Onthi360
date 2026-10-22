@@ -50,6 +50,21 @@ class UploadLimit
         return max(1, (int) min($limits));
     }
 
+    /**
+     * SỬA 22/10 — trần riêng cho GÓI ZIP (đề / câu hỏi / bài tập): config('uploads.zip_max_mb'), mặc định 200MB, vẫn không
+     * vượt giới hạn thật của PHP (upload_max_filesize, post_max_size).
+     */
+    public static function zipKilobytes(): int
+    {
+        return self::maxKilobytes(max(1, (int) config('uploads.zip_max_mb', 200)) * 1024);
+    }
+
+    /** "200MB" — cỡ gói ZIP tối đa thật, để ghi lên form và câu báo lỗi. */
+    public static function zipLabel(): string
+    {
+        return self::label(max(1, (int) config('uploads.zip_max_mb', 200)) * 1024);
+    }
+
     /** Cỡ tối đa viết cho người đọc: "2MB", "512KB". */
     public static function label(int $ceilingKb = self::DEFAULT_CEILING_KB): string
     {

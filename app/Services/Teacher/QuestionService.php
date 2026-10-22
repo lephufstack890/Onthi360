@@ -697,7 +697,8 @@ class QuestionService
 
     public static function maxZipPackageKb(): int
     {
-        return self::MAX_ZIP_PACKAGE_KB;
+        // SỬA 22/10 — trần gói ZIP chung (config/uploads.php, mặc định 200MB), giống Admin\ContentService::maxQuestionZipKb().
+        return \App\Support\UploadLimit::zipKilobytes();
     }
 
     /**

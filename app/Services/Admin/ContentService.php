@@ -1884,7 +1884,8 @@ class ContentService
 
     public static function maxQuestionZipKb(): int
     {
-        return self::MAX_ZIP_PACKAGE_KB;
+        // SỬA 22/10 — gói câu hỏi có bộ test lớn dễ vượt 20MB: dùng trần gói ZIP chung (config/uploads.php, mặc định 200MB).
+        return \App\Support\UploadLimit::zipKilobytes();
     }
 
     /**

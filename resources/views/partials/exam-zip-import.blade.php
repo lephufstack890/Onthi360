@@ -62,9 +62,9 @@
 </style>
 
 <form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="ezi"
-      x-data="{ name: '', size: '', drag: false, busy: false,
-                pick(e) { const f = e.target.files && e.target.files[0]; this.name = f ? f.name : ''; this.size = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; },
-                clear() { this.$refs.zip.value = ''; this.name = ''; this.size = ''; } }"
+      x-data="{ name: '', size: '', drag: false, busy: false, tooBig: false, maxBytes: {{ \App\Support\UploadLimit::zipKilobytes() * 1024 }},
+                pick(e) { const f = e.target.files && e.target.files[0]; this.name = f ? f.name : ''; this.size = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; this.tooBig = !! f && f.size > this.maxBytes; },
+                clear() { this.$refs.zip.value = ''; this.name = ''; this.size = ''; this.tooBig = false; } }"
       @submit="busy = true">
     @csrf
     <div class="ezi-head">
@@ -100,7 +100,10 @@
         <span class="ezi-drop__txt">
             <b x-text="name || 'Kéo thả gói ZIP đề vào đây, hoặc bấm để chọn'">Kéo thả gói ZIP đề vào đây, hoặc bấm để chọn</b>
             <small x-show="! name">Gói OT360-EPACK 2.0: <code>exam.json</code> + {{ $eziMode === 'admin' ? 'thư mục từng câu (cau/01-…)' : 'de.pdf (+ lời giải, bản xem trước, ảnh bìa, thư mục bài lập trình)' }}</small>
-            <small x-show="name" x-cloak x-text="size + ' · bấm Nhập đề để đọc gói'"></small>
+            <small x-show="name && ! tooBig" x-cloak x-text="size + ' · bấm Nhập đề để đọc gói'"></small>
+            {{-- SỬA 22/10 — báo ngay khi chọn tệp quá cỡ máy chủ nhận (không phải đợi tải lên xong mới báo lỗi). --}}
+            <small x-show="tooBig" x-cloak style="color:#B91C1C;font-weight:700" x-text="size + ' — vượt quá {{ \App\Support\UploadLimit::zipLabel() }} máy chủ nhận được'"></small>
+            <small x-show="! name">Tối đa {{ \App\Support\UploadLimit::zipLabel() }}</small>
         </span>
         <input type="file" name="exam_zip" accept=".zip,application/zip" required x-ref="zip" @change="pick($event)">
     </label>
@@ -113,7 +116,7 @@
     </div>
 
     <div class="ezi-actions">
-        <button type="submit" class="ezi-btn ezi-btn--primary" :disabled="! name || busy">
+        <button type="submit" class="ezi-btn ezi-btn--primary" :disabled="! name || busy || tooBig">
             <x-lucide name="upload" /> <span x-text="busy ? 'Đang đọc gói đề…' : 'Nhập đề'">Nhập đề</span>
         </button>
         <button type="button" class="ezi-btn" x-show="name && ! busy" x-cloak @click="clear()">Chọn file khác</button>

@@ -316,8 +316,9 @@ class AssessmentController extends Controller
     public function papersZipImportStore(Request $request): RedirectResponse
     {
         $request->validate([
-            'exam_zip' => ['required', 'file', 'mimes:zip', 'max:'.\App\Support\UploadLimit::maxKilobytes()],
-        ], [], ['exam_zip' => 'Gói ZIP đề']);
+            // SỬA 22/10 — trần riêng cho gói ZIP (config/uploads.php, mặc định 200MB).
+            'exam_zip' => ['required', 'file', 'mimes:zip', 'max:'.\App\Support\UploadLimit::zipKilobytes()],
+        ], ['exam_zip.max' => 'Gói ZIP đề vượt quá '.\App\Support\UploadLimit::zipLabel().' mà máy chủ nhận được.'], ['exam_zip' => 'Gói ZIP đề']);
 
         try {
             $result = app(\App\Services\ExamZipImportService::class)->importForTeacher(Auth::user(), $request->file('exam_zip'));
