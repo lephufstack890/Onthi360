@@ -1089,6 +1089,17 @@
                 min-width: 0;
             }
             .home-typography [data-section='HOME-11-SUPPORT-ROW'] { grid-area: support; }
+
+            /* SỬA 22/10 (khách: "cột trái và cột phải không bằng nhau ở đáy, cho đẹp") — 2 cột kết thúc ngang nhau:
+               · hàng 'lower' là 1fr: phần cao dư của cột phải (trải 2 hàng) dồn hết vào hàng dưới, không đẩy hở hàng trên;
+               · cột phải + khối dưới cùng kéo giãn hết ô lưới; thẻ CUỐI mỗi cột (Thống kê hệ thống / Luyện thi SAT) giãn
+                 ra lấp phần còn thiếu, nên đáy 2 cột luôn thẳng hàng dù cột nào cao hơn. */
+            .home-typography [data-section='HOME-MAIN-GRID'] { grid-template-rows: auto 1fr auto; }
+            .home-typography [data-section='HOME-MAIN-GRID'] > .parent-lower-stack,
+            .home-typography [data-section='HOME-MAIN-GRID'] > [data-section='HOME-RIGHT-SIDEBAR'] { align-self: stretch; }
+            .home-typography .parent-lower-stack > section:last-of-type { flex-grow: 1; height: auto; align-content: center; }
+            .home-typography [data-section='HOME-RIGHT-SIDEBAR'] > .oi-sysstats { flex-grow: 1; display: flex; flex-direction: column; }
+            .home-typography [data-section='HOME-RIGHT-SIDEBAR'] > .oi-sysstats > .oi-ss-today { margin-top: auto; }
         }
         @media (min-width: 1280px) {
             .home-typography [data-section='HOME-MAIN-GRID'] { grid-template-columns: minmax(0, 1fr) 310px; }
