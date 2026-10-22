@@ -665,11 +665,16 @@ class CompetitionService
      */
     public function upcomingData(int $limit = 4): array
     {
+        /*
+         * SỬA 22/10 (khách: "trang chủ khối Cuộc thi & khảo sát không có dữ liệu — lấy tối đa 2 cái MỚI NHẤT") — trước đây
+         * chỉ lấy cuộc thi có starts_at > now(); form tạo cuộc thi đã ẩn ô Bắt đầu/Kết thúc từ 24/8 (lịch đặt theo TỪNG KỲ
+         * THI), nên cuộc thi mới luôn có starts_at = null và không bao giờ hiện. Giờ lấy cuộc thi / khảo sát MỚI TẠO NHẤT
+         * (chưa lưu trữ); ngày hiện trên thẻ lấy theo kỳ thi sớm nhất nếu cuộc thi không tự đặt ngày (mapCard()).
+         */
         $competitions = $this->competitions->query()
             ->where('status', '!=', CompetitionStatus::Archived->value)
-            ->whereNotNull('starts_at')
-            ->where('starts_at', '>', now())
-            ->orderBy('starts_at')
+            ->with('examSittings')
+            ->latest('id')
             ->limit($limit)
             ->get();
 
@@ -770,7 +775,10 @@ class CompetitionService
             'typeLabel' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
             'statusLabel' => $meta['label'],
             'statusTone' => $meta['tone'],
-            'startsAt' => $c->starts_at,
+            // SỬA 22/10 — cuộc thi không tự đặt ngày thì lấy ngày bắt đầu của kỳ thi sớm nhất (nếu đã nạp examSittings).
+            'startsAt' => $c->starts_at ?? ($c->relationLoaded('examSittings')
+                ? $c->examSittings->pluck('starts_at')->filter()->sort()->first()
+                : null),
             'endsAt' => $c->ends_at,
             'startCountdown' => $this->startCountdown($c->starts_at),
             'participants' => $c->leaderboard_entries_count,

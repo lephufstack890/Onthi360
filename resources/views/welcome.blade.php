@@ -830,7 +830,7 @@
                         </div>
                         <div class="min-w-0">
                             <h3 class="type-card-title">Cuộc thi & khảo sát</h3>
-                            <p class="type-meta mt-0.5 truncate text-slate-500">Sự kiện đang và sắp diễn ra</p>
+                            <p class="type-meta mt-0.5 truncate text-slate-500">Sự kiện mới nhất</p>
                         </div>
                     </div>
                     <a href="{{ route('competitions.index') }}" class="type-action text-[#3A7598] hover:text-[#285F7D] whitespace-nowrap cursor-pointer">Tất cả →</a>
@@ -863,7 +863,7 @@
                             </span>
                         </a>
                     @empty
-                        <p class="type-body py-3 text-center text-slate-400">Chưa có cuộc thi nào sắp diễn ra.</p>
+                        <p class="type-body py-3 text-center text-slate-400">Chưa có cuộc thi hay khảo sát nào.</p>
                     @endforelse
                 </div>
 
