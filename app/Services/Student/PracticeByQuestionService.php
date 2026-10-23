@@ -750,6 +750,11 @@ class PracticeByQuestionService
                 : null;
         }
 
+        // SỬA 23/10 — thời gian chạy / bộ nhớ của lượt nộp lập trình cho trang Lịch sử làm bài (SubmissionListService).
+        if (AttemptAnswer::supportsRunStats() && is_array($codingResult['testCases'] ?? null)) {
+            $payload += \App\Services\CodeJudgingService::runStats($codingResult['testCases'], $codingResult['peakMemoryKb'] ?? null);
+        }
+
         /*
          * SỬA 7/10 (khách: "cột Hoạt động — chỉ admin xem; dữ liệu lấy ở tab Nhật ký lúc làm bài") —
          * trình duyệt gửi kèm nhật ký làm bài lúc nộp (rời tab, phím chụp màn hình, mở Hướng dẫn/Bài
@@ -869,6 +874,7 @@ class PracticeByQuestionService
             'verdict' => $result['verdict']->value,
             'verdictLabel' => $result['verdict']->label(),
             'testCases' => $result['details'],
+            'peakMemoryKb' => $result['peakMemoryKb'] ?? null, // SỬA 23/10 — cho cột Bộ nhớ ở trang Lịch sử làm bài
             // SỬA 23/9 — mã không biên dịch được thì CodeJudgingService dừng ngay sau test đầu
             // và trả kèm số dòng sai; đẩy tiếp ra view để hiện "Lỗi ở dòng N".
             'compileError' => $result['compileError'] ?? null,

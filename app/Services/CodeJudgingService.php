@@ -667,7 +667,31 @@ PY;
             'verdict' => $verdict,
             'isAccepted' => $verdict === VerdictStatus::Accepted,
             'details' => $details,
+            // SỬA 23/10 — chấm gộp không tách được bộ nhớ từng test; giữ mức cao nhất của CẢ lượt (trang Lịch sử làm bài).
+            'peakMemoryKb' => isset($result['memory']) && is_numeric($result['memory']) ? (int) $result['memory'] : null,
         ];
+    }
+
+    /**
+     * SỬA 23/10 — thời gian chạy LÂU NHẤT (ms) và bộ nhớ NHIỀU NHẤT (KB) của một lượt chấm, từ chi tiết từng test
+     * (time = giây dạng chuỗi, memory = KB) + mức bộ nhớ cả lượt của chấm gộp. Không có số nào thì trả null.
+     *
+     * @return array{run_time_ms: ?int, run_memory_kb: ?int}
+     */
+    public static function runStats(array $details, ?int $peakMemoryKb = null): array
+    {
+        $ms = null;
+        $kb = $peakMemoryKb;
+        foreach ($details as $d) {
+            if (is_numeric($d['time'] ?? null)) {
+                $ms = max($ms ?? 0, (int) round((float) $d['time'] * 1000));
+            }
+            if (is_numeric($d['memory'] ?? null)) {
+                $kb = max($kb ?? 0, (int) $d['memory']);
+            }
+        }
+
+        return ['run_time_ms' => $ms, 'run_memory_kb' => $kb];
     }
 
     /**

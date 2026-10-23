@@ -24,6 +24,8 @@ class AttemptAnswer extends Model
         'passed_tests', 'total_tests',
         // SỬA 7/10 — nhật ký làm bài (rời tab, phím chụp màn hình…) của lượt nộp; chỉ admin đọc.
         'activity_log',
+        // SỬA 23/10 — thời gian chạy lâu nhất (ms) / bộ nhớ nhiều nhất (KB) của lượt nộp lập trình (trang Lịch sử làm bài).
+        'run_time_ms', 'run_memory_kb',
     ];
 
     /**
@@ -48,6 +50,18 @@ class AttemptAnswer extends Model
      * SỬA 7/10 — máy chủ đã chạy migration thêm cột activity_log chưa? Cùng khuôn với
      * supportsTestCounts(): deploy mã trước khi kịp migrate không được làm lỗi lần nộp bài.
      */
+    /** SỬA 23/10 — đã chạy migration 001250 (run_time_ms / run_memory_kb) chưa. Chưa thì không ghi, không lỗi. */
+    public static function supportsRunStats(): bool
+    {
+        static $supported = null;
+
+        if ($supported === null) {
+            $supported = Schema::hasColumn('attempt_answers', 'run_time_ms');
+        }
+
+        return $supported;
+    }
+
     public static function supportsActivityLog(): bool
     {
         static $supported = null;

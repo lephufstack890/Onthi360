@@ -124,6 +124,9 @@ Route::get('/luyen-tap/giao-bai/hoc-sinh', [PublicPracticeAssignmentController::
 // ai xem được lượt nộp của ai do PracticeHistoryService quyết (admin: tất cả, giáo viên: học sinh
 // mình đã giao, còn lại: chỉ của mình).
 Route::middleware('auth')->group(function () {
+    // SỬA 23/10 — trang Lịch sử làm bài / Lịch sử làm đề (danh sách bài nộp), xem SubmissionListController.
+    Route::get('/luyen-tap/lich-su-lam-bai', [\App\Http\Controllers\Public\SubmissionListController::class, 'problems'])->name('practice.submissions.problems');
+    Route::get('/luyen-tap/lich-su-lam-de', [\App\Http\Controllers\Public\SubmissionListController::class, 'exams'])->name('practice.submissions.exams');
     Route::get('/luyen-tap/nhat-ky/bai/{question}', [PublicPracticeHistoryController::class, 'problem'])
         ->whereNumber('question')->name('practice.history.problem');
     Route::get('/luyen-tap/nhat-ky/de/{assessment}', [PublicPracticeHistoryController::class, 'exam'])

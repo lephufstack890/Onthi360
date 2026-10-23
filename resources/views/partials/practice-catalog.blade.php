@@ -351,6 +351,24 @@
                         <x-lucide name="trending-up" class="w-4 h-4 text-amber-300" />
                         <span>Đang làm dở: {{ $doingCount }} bài</span>
                     </div>
+                    {{-- SỬA 23/10 (khách: "thêm nút Lịch sử làm bài / Lịch sử làm đề ở chỗ khoanh đỏ, thiết kế cho đẹp") — nút dạng kính
+                         mờ có chấm vàng, nổi hơn 2 ô số liệu bên cạnh để người dùng biết bấm được. CSS thường (không build lại Tailwind). --}}
+                    @once
+                        <style>
+                            .oi-hist-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 12px 4px 5px; border-radius: 999px;
+                                border: 1px solid rgba(255,255,255,.38); background: linear-gradient(120deg, rgba(255,255,255,.24), rgba(255,255,255,.1));
+                                font-size: 11px; font-weight: 800; color: #fff; text-decoration: none; backdrop-filter: blur(6px);
+                                box-shadow: 0 6px 16px rgba(4, 45, 105, .18); transition: transform .15s, background-color .15s, box-shadow .15s; }
+                            .oi-hist-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.28); box-shadow: 0 10px 22px rgba(4, 45, 105, .25); }
+                            .oi-hist-btn:focus-visible { outline: 3px solid rgba(255,255,255,.5); outline-offset: 2px; }
+                            .oi-hist-btn__ic { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: #FCD34D; color: #7A4A00; box-shadow: inset 0 -2px 0 rgba(0,0,0,.08); }
+                            .oi-hist-btn__ic svg { width: 14px; height: 14px; }
+                            .oi-hist-btn__go { width: 13px; height: 13px; opacity: .8; }
+                        </style>
+                    @endonce
+                    <a href="{{ route('practice.submissions.problems') }}" class="oi-hist-btn" title="Xem các lượt nộp bài tập chuyên đề">
+                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span>Lịch sử làm bài<x-lucide name="chevron-right" class="oi-hist-btn__go" />
+                    </a>
                 </div>
                 {{-- SỬA 9/10 — chế độ ĐỀ THI (PracticePage.jsx): "Làm đề ngay" + "Đã làm: a/b đề" + "Đã nộp: n lượt". --}}
                 <div class="mt-4 flex flex-wrap items-center gap-2.5" x-show="practiceMode === 'exams'" @if ($catalogMode !== 'exams') style="display: none" @endif>
@@ -368,6 +386,10 @@
                         <x-lucide name="trending-up" class="w-4 h-4 text-amber-300" />
                         <span>Đã nộp: {{ $examOverview['totalAttempts'] }} lượt</span>
                     </div>
+                    {{-- SỬA 23/10 — nút Lịch sử làm đề (CSS .oi-hist-btn ở khối Bài tập ngay trên). --}}
+                    <a href="{{ route('practice.submissions.exams') }}" class="oi-hist-btn" title="Xem các lượt nộp đề thi luyện tập">
+                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span>Lịch sử làm đề<x-lucide name="chevron-right" class="oi-hist-btn__go" />
+                    </a>
                 </div>
             </div>
 
