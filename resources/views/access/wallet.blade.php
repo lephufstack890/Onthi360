@@ -85,79 +85,141 @@
                         </p>
                     </div>
 
-                    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
-                        @if ($pendingQrUrl)
-                            {{-- SỬA 21/10 (khách: "mã QR hiển thị to rõ ràng lên") — ảnh QR to (cao tới 440px), bấm vào để phóng to
-                                 toàn màn hình, có nút tải ảnh về để quét từ máy khác. CSS riêng tiền tố wqr- (Tailwind không build lại). --}}
-                            <div class="wqr" x-data="{ zoom: false }" @keydown.escape.window="zoom = false">
-                                <style>
-                                    .wqr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-                                    .wqr-box { display: block; padding: 8px; border: 1px solid #DDEAF0; border-radius: 18px; background: #fff; cursor: zoom-in; transition: box-shadow .15s; }
-                                    .wqr-box:hover { box-shadow: 0 6px 22px rgba(0, 90, 180, .12); }
-                                    .wqr-box img { display: block; width: auto; height: auto; max-width: min(100%, 300px); max-height: 440px; border-radius: 12px; }
-                                    @media (max-width: 639px) { .wqr-box img { max-width: 100%; max-height: 70vh; } }
-                                    .wqr-cap { max-width: 300px; margin: 0; text-align: center; font-size: 12px; line-height: 1.5; color: #64748B; }
-                                    .wqr-acts { display: flex; gap: 8px; }
-                                    .wqr-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; border: 1px solid #CFE3EE; background: #F8FBFE; font-size: 12px; font-weight: 700; color: #0F5E86; }
-                                    .wqr-btn:hover { background: #EAF5FB; }
-                                    .wqr-btn svg { width: 14px; height: 14px; }
-                                    .wqr-modal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .78); }
-                                    .wqr-modal-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-                                    .wqr-modal img { display: block; max-width: 92vw; max-height: 84vh; border-radius: 16px; background: #fff; }
-                                    .wqr-close { position: absolute; top: -12px; right: -12px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #fff; color: #0F172A; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-                                    .wqr-close svg { width: 18px; height: 18px; }
-                                </style>
-                                <button type="button" class="wqr-box" @click="zoom = true" aria-label="Phóng to mã QR">
-                                    <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền">
-                                </button>
-                                <p class="wqr-cap">Quét bằng app ngân hàng, rồi nhập <strong class="text-rose-600">đúng số tiền và nội dung CK</strong> bên cạnh.</p>
-                                <div class="wqr-acts">
-                                    <button type="button" class="wqr-btn" @click="zoom = true"><x-lucide name="maximize-2" />Phóng to</button>
-                                    <a href="{{ $pendingQrUrl }}" download="ma-qr-ngan-hang" class="wqr-btn"><x-lucide name="download" />Tải ảnh QR</a>
-                                </div>
-                                <div class="wqr-modal" x-show="zoom" x-cloak x-transition.opacity @click.self="zoom = false" role="dialog" aria-modal="true" aria-label="Mã QR ngân hàng">
-                                    <div class="wqr-modal-in">
-                                        <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền (phóng to)">
-                                        <button type="button" class="wqr-close" @click="zoom = false" aria-label="Đóng"><x-lucide name="x" /></button>
+                    {{-- SỬA 23/10 (khách: "chỗ chuyển khoản nhiều màn hình bị vỡ, xấu — thiết kế lại cho đẹp, hợp mọi màn hình") —
+                         bố cục theo ĐỘ RỘNG CỦA KHUNG (container query) chứ không theo màn hình: khung rộng ≥ 620px thì QR bên trái +
+                         thông tin bên phải; hẹp hơn (điện thoại, máy tính bảng, cột hẹp) thì xếp dọc, QR ở trên. Thông tin quan trọng
+                         nhất (số tiền, nội dung CK) nằm trong 2 ô lớn có nút Sao chép; chữ dài tự xuống dòng thay vì bị cắt.
+                         CSS riêng tiền tố wpay- / wqr- (Tailwind không build lại trên máy chủ). --}}
+                    <style>
+                        .wpay { container-type: inline-size; margin-top: 16px; }
+                        .wpay-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+                        @container (min-width: 620px) { .wpay-grid { grid-template-columns: minmax(230px, 300px) minmax(0, 1fr); gap: 20px; } }
+                        .wpay-qr { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; border: 1px solid #DDEAF0; border-radius: 20px; background: linear-gradient(180deg, #F8FBFE, #fff); }
+                        .wqr-box { display: flex; justify-content: center; width: 100%; padding: 8px; border: 1px solid #E3EDF4; border-radius: 16px; background: #fff; cursor: zoom-in; transition: box-shadow .15s, transform .15s; }
+                        .wqr-box:hover { box-shadow: 0 8px 22px rgba(0, 90, 180, .12); transform: translateY(-1px); }
+                        .wqr-box img { display: block; width: 100%; height: auto; max-width: 300px; max-height: 360px; object-fit: contain; border-radius: 10px; }
+                        @container (max-width: 619px) { .wpay-qr { max-width: 360px; width: 100%; margin: 0 auto; } .wqr-box img { max-height: 58vh; } }
+                        .wqr-cap { margin: 0; text-align: center; font-size: 12px; line-height: 1.5; color: #64748B; }
+                        .wqr-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+                        .wqr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 11px; border: 1px solid #CFE3EE; background: #fff; font-size: 12px; font-weight: 800; color: #0F5E86; white-space: nowrap; }
+                        .wqr-btn:hover { background: #EAF5FB; }
+                        .wqr-btn svg { width: 14px; height: 14px; flex: none; }
+                        .wqr-modal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .8); }
+                        .wqr-modal-in { position: relative; }
+                        .wqr-modal img { display: block; max-width: 92vw; max-height: 86vh; border-radius: 16px; background: #fff; }
+                        .wqr-close { position: absolute; top: -12px; right: -12px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #fff; color: #0F172A; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+                        .wqr-close svg { width: 18px; height: 18px; }
+                        .wpay-noqr { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 180px; padding: 16px; border: 1px dashed #F2D8A0; border-radius: 20px; background: #FFFBF0; text-align: center; font-size: 12px; line-height: 1.55; color: #9A6B12; }
+                        .wpay-noqr svg { width: 26px; height: 26px; color: #E0A526; }
+                        .wpay-info { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+                        .wpay-key { padding: 14px 16px; border-radius: 18px; border: 1px solid #DDEAF0; background: #F8FBFE; }
+                        .wpay-key.is-code { border-color: #FBCFD6; background: linear-gradient(120deg, #FFF1F3, #FFF8F9); }
+                        .wpay-key-l { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 800; color: #64748B; }
+                        .wpay-key.is-code .wpay-key-l { color: #BE123C; }
+                        .wpay-req { padding: 1px 7px; border-radius: 999px; background: #FFE4E8; font-size: 10px; font-weight: 800; color: #BE123C; }
+                        .wpay-key-v { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 6px; }
+                        .wpay-big { font-size: 24px; font-weight: 900; line-height: 1.15; color: #0F2744; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+                        .wpay-key.is-code .wpay-big { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; letter-spacing: .06em; color: #BE123C; }
+                        .wpay-tok { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 9px; border-radius: 999px; background: #E3F6EC; font-size: 12px; font-weight: 800; color: #047857; vertical-align: middle; }
+                        .wpay-copy { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid #CFE3EE; background: #fff; font-size: 12px; font-weight: 800; color: #0F5E86; cursor: pointer; white-space: nowrap; }
+                        .wpay-key.is-code .wpay-copy { border-color: #FBCFD6; color: #BE123C; }
+                        .wpay-copy:hover { background: #F2F9FF; }
+                        .wpay-key.is-code .wpay-copy:hover { background: #FFF1F3; }
+                        .wpay-copy svg { width: 14px; height: 14px; }
+                        .wpay-copy.is-done { border-color: #A7E3C4; background: #ECFBF3; color: #047857; }
+                        .wpay-rows { border: 1px solid #DDEAF0; border-radius: 18px; background: #fff; }
+                        .wpay-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 11px 16px; }
+                        .wpay-row + .wpay-row { border-top: 1px solid #EEF4F8; }
+                        .wpay-row > span:first-child { font-size: 12px; font-weight: 700; color: #64748B; }
+                        .wpay-row-v { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 800; color: #0F2744; text-align: right; overflow-wrap: anywhere; }
+                        .wpay-mini { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 8px; border: 1px solid #DDEAF0; background: #F8FBFE; color: #5C7A94; cursor: pointer; }
+                        .wpay-mini:hover { color: #0F5FA8; border-color: #B8D8F0; }
+                        .wpay-mini.is-done { color: #047857; border-color: #A7E3C4; background: #ECFBF3; }
+                        .wpay-mini svg { width: 13px; height: 13px; }
+                        .wpay-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+                        .wpay-steps li { display: flex; align-items: flex-start; gap: 7px; padding: 9px 10px; border-radius: 14px; background: #F6FAFD; font-size: 11.5px; line-height: 1.45; color: #4C6A84; }
+                        .wpay-steps b { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border-radius: 7px; background: #DBEAFE; font-size: 11px; color: #1D4ED8; }
+                        @container (max-width: 420px) { .wpay-steps { grid-template-columns: 1fr; } .wpay-big { font-size: 21px; } .wpay-key.is-code .wpay-big { font-size: 19px; } }
+                        html.theme-dark .wpay-qr, html.theme-dark .wpay-rows, html.theme-dark .wqr-box, html.theme-dark .wpay-key { background: #12283A; border-color: #25445C; }
+                        html.theme-dark .wpay-key.is-code { background: #2A1620; border-color: #5B2335; }
+                        html.theme-dark .wpay-big, html.theme-dark .wpay-row-v { color: #E2ECF5; }
+                        html.theme-dark .wpay-row + .wpay-row { border-color: #1E3A50; }
+                        html.theme-dark .wpay-steps li { background: #15304A; color: #A9C0D2; }
+                        html.theme-dark .wpay-copy, html.theme-dark .wpay-mini, html.theme-dark .wqr-btn { background: #173246; border-color: #2B4E68; color: #9BD4F5; }
+                    </style>
+
+                    @php
+                        $wpayCopy = fn ($text) => "navigator.clipboard.writeText(".\Illuminate\Support\Js::from((string) $text).").then(() => { done = true; setTimeout(() => done = false, 1600) })";
+                    @endphp
+
+                    <div class="wpay">
+                        <div class="wpay-grid">
+                            @if ($pendingQrUrl)
+                                <div class="wpay-qr" x-data="{ zoom: false }" @keydown.escape.window="zoom = false">
+                                    <button type="button" class="wqr-box" @click="zoom = true" aria-label="Phóng to mã QR">
+                                        <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền">
+                                    </button>
+                                    <p class="wqr-cap">Quét bằng app ngân hàng, rồi nhập <strong class="text-rose-600">đúng số tiền và nội dung CK</strong>.</p>
+                                    <div class="wqr-acts">
+                                        <button type="button" class="wqr-btn" @click="zoom = true"><x-lucide name="maximize-2" />Phóng to</button>
+                                        <a href="{{ $pendingQrUrl }}" download="ma-qr-ngan-hang" class="wqr-btn"><x-lucide name="download" />Tải ảnh</a>
+                                    </div>
+                                    <div class="wqr-modal" x-show="zoom" x-cloak x-transition.opacity @click.self="zoom = false" role="dialog" aria-modal="true" aria-label="Mã QR ngân hàng">
+                                        <div class="wqr-modal-in">
+                                            <img src="{{ $pendingQrUrl }}" alt="Mã QR ngân hàng nhận tiền (phóng to)">
+                                            <button type="button" class="wqr-close" @click="zoom = false" aria-label="Đóng"><x-lucide name="x" /></button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        @else
-                            <div class="flex h-44 w-44 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-3 text-center">
-                                <x-lucide name="qr-code" class="h-6 w-6 text-amber-500" />
-                                <p class="text-[11px] leading-relaxed text-amber-700">Chưa có ảnh QR ngân hàng — chuyển khoản thủ công theo thông tin bên cạnh.</p>
-                            </div>
-                        @endif
+                            @else
+                                <div class="wpay-noqr">
+                                    <x-lucide name="qr-code" />
+                                    <span>Chưa có ảnh QR ngân hàng — chuyển khoản thủ công theo thông tin bên cạnh.</span>
+                                </div>
+                            @endif
 
-                        <div class="min-w-0 divide-y divide-slate-100 rounded-2xl border border-sky-100 bg-[#F8FBFE]">
-                            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                                <span class="text-[11px] font-bold text-slate-500">Ngân hàng</span>
-                                <span class="min-w-0 truncate text-[13px] font-bold text-slate-700">{{ $bankInfo['bankName'] ?: '—' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                                <span class="text-[11px] font-bold text-slate-500">Số tài khoản</span>
-                                <span class="min-w-0 truncate text-[13px] font-bold tracking-wide text-slate-700">{{ $bankInfo['accountNo'] ?: '—' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                                <span class="text-[11px] font-bold text-slate-500">Chủ tài khoản</span>
-                                <span class="min-w-0 truncate text-[13px] font-bold text-slate-700">{{ $bankInfo['accountName'] ?: '—' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                                <span class="text-[11px] font-bold text-slate-500">Số tiền</span>
-                                <span class="text-[13px] font-black text-slate-800">{{ \App\Support\TokenPrice::vnd($pendingTopup->amount) }} <span class="font-semibold text-emerald-700">→ {{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</span></span>
-                            </div>
-                            {{-- Nội dung chuyển khoản — nổi bật nhất vì sai một ký tự là Admin không đối soát được. --}}
-                            <div x-data="{ copied: false }" class="flex items-center justify-between gap-3 bg-rose-50/70 px-3.5 py-2.5">
-                                <span class="text-[11px] font-bold text-rose-600">Nội dung CK<br><span class="font-medium">(bắt buộc)</span></span>
-                                <span class="flex min-w-0 items-center gap-1.5">
-                                    <span class="min-w-0 truncate text-[13px] font-black tracking-wide text-rose-700">{{ $pendingTopup->transfer_code }}</span>
-                                    <button type="button" aria-label="Sao chép nội dung chuyển khoản"
-                                            @click="navigator.clipboard.writeText(@js($pendingTopup->transfer_code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })"
-                                            class="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 transition-colors hover:bg-rose-50">
-                                        <x-lucide name="copy" class="h-3.5 w-3.5" x-show="!copied" />
-                                        <x-lucide name="check-circle-2" class="h-3.5 w-3.5 text-emerald-600" x-show="copied" x-cloak />
-                                    </button>
-                                </span>
+                            <div class="wpay-info">
+                                {{-- Số tiền cần chuyển --}}
+                                <div class="wpay-key" x-data="{ done: false }">
+                                    <div class="wpay-key-l"><span>Số tiền cần chuyển</span></div>
+                                    <div class="wpay-key-v">
+                                        <span class="wpay-big">{{ \App\Support\TokenPrice::vnd($pendingTopup->amount) }}<span class="wpay-tok"><x-lucide name="arrow-right" class="h-3 w-3" />{{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</span></span>
+                                        <button type="button" class="wpay-copy" :class="done && 'is-done'" @click="{{ $wpayCopy($pendingTopup->amount) }}" aria-label="Sao chép số tiền">
+                                            <x-lucide name="copy" x-show="!done" /><x-lucide name="check-circle-2" x-show="done" x-cloak /><span x-text="done ? 'Đã chép' : 'Sao chép'">Sao chép</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Nội dung chuyển khoản — nổi bật nhất vì sai một ký tự là Admin không đối soát được. --}}
+                                <div class="wpay-key is-code" x-data="{ done: false }">
+                                    <div class="wpay-key-l"><span>Nội dung chuyển khoản</span><span class="wpay-req">Bắt buộc</span></div>
+                                    <div class="wpay-key-v">
+                                        <span class="wpay-big">{{ $pendingTopup->transfer_code }}</span>
+                                        <button type="button" class="wpay-copy" :class="done && 'is-done'" @click="{{ $wpayCopy($pendingTopup->transfer_code) }}" aria-label="Sao chép nội dung chuyển khoản">
+                                            <x-lucide name="copy" x-show="!done" /><x-lucide name="check-circle-2" x-show="done" x-cloak /><span x-text="done ? 'Đã chép' : 'Sao chép'">Sao chép</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Tài khoản nhận --}}
+                                <div class="wpay-rows">
+                                    <div class="wpay-row"><span>Ngân hàng</span><span class="wpay-row-v">{{ $bankInfo['bankName'] ?: '—' }}</span></div>
+                                    <div class="wpay-row" x-data="{ done: false }">
+                                        <span>Số tài khoản</span>
+                                        <span class="wpay-row-v" style="letter-spacing:.03em">{{ $bankInfo['accountNo'] ?: '—' }}
+                                            @if ($bankInfo['accountNo'])
+                                                <button type="button" class="wpay-mini" :class="done && 'is-done'" @click="{{ $wpayCopy($bankInfo['accountNo']) }}" aria-label="Sao chép số tài khoản"><x-lucide name="copy" x-show="!done" /><x-lucide name="check-circle-2" x-show="done" x-cloak /></button>
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="wpay-row"><span>Chủ tài khoản</span><span class="wpay-row-v">{{ $bankInfo['accountName'] ?: '—' }}</span></div>
+                                </div>
+
+                                <ol class="wpay-steps">
+                                    <li><b>1</b><span>Quét QR hoặc chuyển tay tới tài khoản trên.</span></li>
+                                    <li><b>2</b><span>Nhập đúng <strong>số tiền</strong> và <strong>nội dung CK</strong>.</span></li>
+                                    <li><b>3</b><span>Admin đối soát xong, token tự vào ví.</span></li>
+                                </ol>
                             </div>
                         </div>
                     </div>
