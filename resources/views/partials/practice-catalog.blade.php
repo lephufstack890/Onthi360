@@ -366,7 +366,7 @@
                             .oi-hist-btn__go { width: 13px; height: 13px; opacity: .8; }
                             /* SỬA 23/10 (khách: "nút vẫn bị xuống dòng ở laptop khác, để cùng 1 hàng") — từ 640px trở lên cả hàng
                                KHÔNG xuống dòng: nút Làm bài / Lịch sử giữ nguyên cỡ, 2 ô số liệu co lại (chữ dài thì "…").
-                               Khung hẹp (container query theo chính hàng này) thì nút Lịch sử thu về chỉ còn icon tròn. */
+                               Khung hẹp (container query theo chính hàng này) thì thu gọn khoảng đệm, vẫn giữ đủ chữ. */
                             .oi-hero-acts { container-type: inline-size; }
                             @media (min-width: 640px) {
                                 .oi-hero-acts { flex-wrap: nowrap !important; gap: 8px !important; }
@@ -375,9 +375,13 @@
                                 .oi-hero-acts > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                                 .oi-hero-acts > div > svg { flex-shrink: 0; }
                             }
-                            @container (max-width: 590px) {
-                                .oi-hist-btn { padding: 4px; gap: 0; }
-                                .oi-hist-btn__txt, .oi-hist-btn__go { display: none; }
+                            /* Khung hẹp: GIỮ chữ ở mọi nút, chỉ thu gọn khoảng đệm + bỏ icon nhỏ trong 2 ô số liệu cho vừa 1 hàng. */
+                            @container (max-width: 640px) {
+                                .oi-hero-acts > div { padding-left: 8px !important; padding-right: 8px !important; gap: 4px !important; }
+                                .oi-hero-acts > div > svg { display: none; }
+                                .oi-hero-acts > form > button, .oi-hero-acts > a:not(.oi-hist-btn) { padding-left: 10px !important; padding-right: 10px !important; }
+                                .oi-hist-btn { gap: 6px; padding-right: 9px; }
+                                .oi-hist-btn__go { display: none; }
                             }
                         </style>
                     @endonce
