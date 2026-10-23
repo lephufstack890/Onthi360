@@ -319,7 +319,7 @@
                     </span>
                 </p>
 
-                <div class="mt-4 flex flex-wrap items-center gap-2.5" x-show="practiceMode !== 'exams'" @if ($catalogMode === 'exams') style="display: none" @endif>
+                <div class="oi-hero-acts mt-4 flex flex-wrap items-center gap-2.5" x-show="practiceMode !== 'exams'" @if ($catalogMode === 'exams') style="display: none" @endif>
                     {{-- SỬA 24/9 (khách: "bấm vào đó thì vào 1 câu bất ngờ random cho người ta
                          làm") — trước đây nút này dẫn sang màn chọn chuyên đề, mà tên nút là
                          "Làm bài NGAY". Giờ bốc thẳng một câu ngẫu nhiên (ưu tiên câu chưa từng
@@ -364,14 +364,29 @@
                             .oi-hist-btn__ic { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: #FCD34D; color: #7A4A00; box-shadow: inset 0 -2px 0 rgba(0,0,0,.08); }
                             .oi-hist-btn__ic svg { width: 14px; height: 14px; }
                             .oi-hist-btn__go { width: 13px; height: 13px; opacity: .8; }
+                            /* SỬA 23/10 (khách: "nút vẫn bị xuống dòng ở laptop khác, để cùng 1 hàng") — từ 640px trở lên cả hàng
+                               KHÔNG xuống dòng: nút Làm bài / Lịch sử giữ nguyên cỡ, 2 ô số liệu co lại (chữ dài thì "…").
+                               Khung hẹp (container query theo chính hàng này) thì nút Lịch sử thu về chỉ còn icon tròn. */
+                            .oi-hero-acts { container-type: inline-size; }
+                            @media (min-width: 640px) {
+                                .oi-hero-acts { flex-wrap: nowrap !important; gap: 8px !important; }
+                                .oi-hero-acts > * { flex-shrink: 0; white-space: nowrap; }
+                                .oi-hero-acts > div { flex-shrink: 1; min-width: 0; }
+                                .oi-hero-acts > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                                .oi-hero-acts > div > svg { flex-shrink: 0; }
+                            }
+                            @container (max-width: 590px) {
+                                .oi-hist-btn { padding: 4px; gap: 0; }
+                                .oi-hist-btn__txt, .oi-hist-btn__go { display: none; }
+                            }
                         </style>
                     @endonce
                     <a href="{{ route('practice.submissions.problems') }}" class="oi-hist-btn" title="Xem các lượt nộp bài tập chuyên đề">
-                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span>Lịch sử làm bài<x-lucide name="chevron-right" class="oi-hist-btn__go" />
+                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span><span class="oi-hist-btn__txt">Lịch sử làm bài</span><x-lucide name="chevron-right" class="oi-hist-btn__go" />
                     </a>
                 </div>
                 {{-- SỬA 9/10 — chế độ ĐỀ THI (PracticePage.jsx): "Làm đề ngay" + "Đã làm: a/b đề" + "Đã nộp: n lượt". --}}
-                <div class="mt-4 flex flex-wrap items-center gap-2.5" x-show="practiceMode === 'exams'" @if ($catalogMode !== 'exams') style="display: none" @endif>
+                <div class="oi-hero-acts mt-4 flex flex-wrap items-center gap-2.5" x-show="practiceMode === 'exams'" @if ($catalogMode !== 'exams') style="display: none" @endif>
                     @if ($examOverview['firstHref'])
                         <a href="{{ $examOverview['firstHref'] }}"
                            class="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[11px] font-black text-[#126F91] shadow-[0_5px_12px_rgba(4,45,105,0.14)] transition hover:-translate-y-0.5 hover:bg-[#F4FBFF] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40 active:scale-[.98]">
@@ -388,7 +403,7 @@
                     </div>
                     {{-- SỬA 23/10 — nút Lịch sử làm đề (CSS .oi-hist-btn ở khối Bài tập ngay trên). --}}
                     <a href="{{ route('practice.submissions.exams') }}" class="oi-hist-btn" title="Xem các lượt nộp đề thi luyện tập">
-                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span>Lịch sử làm đề<x-lucide name="chevron-right" class="oi-hist-btn__go" />
+                        <span class="oi-hist-btn__ic"><x-lucide name="history" /></span><span class="oi-hist-btn__txt">Lịch sử làm đề</span><x-lucide name="chevron-right" class="oi-hist-btn__go" />
                     </a>
                 </div>
             </div>
