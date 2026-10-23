@@ -26,6 +26,9 @@ class ExamCategory
     public const CATEGORIES = [
         'hsg_lop_9' => 'HSG lớp 9',
         'hsg_lop_12' => 'HSG lớp 12',
+        // SỬA 23/10 (khách: "Cuộc thi đang thiếu Tuyển sinh vào lớp 10, thêm cả admin và public") — form đề (admin + giáo
+        // viên), ô lọc Cuộc thi ở trang Luyện tập và bộ lọc Bộ đề đều đọc danh sách này nên tự có mục mới.
+        'tuyen_sinh_10' => 'Tuyển sinh vào lớp 10',
         'tin_hoc_tre' => 'Tin học trẻ',
         'khac' => 'Khác',
     ];
@@ -39,7 +42,8 @@ class ExamCategory
     public const LEGACY = [
         'hsg_quoc_gia' => ['HSG Quốc gia', 'hsg_lop_12'],
         'hsg_tinh' => ['HSG Tỉnh/Thành', 'khac'],
-        'chuyen_tin' => ['Chuyên Tin 10', 'khac'],
+        // SỬA 23/10 — "Chuyên Tin 10" chính là đề tuyển sinh vào lớp 10 chuyên Tin: lọc vào nhóm Tuyển sinh vào lớp 10.
+        'chuyen_tin' => ['Chuyên Tin 10', 'tuyen_sinh_10'],
         'olympic' => ['Olympic Tin học', 'khac'],
         'thpt' => ['Thi thử THPT', 'khac'],
     ];

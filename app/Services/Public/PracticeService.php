@@ -48,7 +48,7 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v7'; // SỬA 16/10 — hàng bài tập có thêm topicLabels (mọi chuyên đề của câu)
+    private const CACHE_VERSION = 'v8'; // SỬA 23/10 — thêm nhóm Cuộc thi "Tuyển sinh vào lớp 10" (ExamCategory); v7: topicLabels
 
     /**
      * SỬA 10/10 (khách: "đăng 62 bài mà trang Luyện tập chỉ hiện 60") — trần cứng cũ là 60 câu / 30 đề nên
