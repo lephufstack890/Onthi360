@@ -187,12 +187,7 @@
 
         <form method="GET" action="{{ route($route) }}" class="shx-form">
             @if ($filters['all']) <input type="hidden" name="all" value="1"> @endif
-            <select name="status" class="shx-select" aria-label="Lọc theo trạng thái" onchange="this.form.submit()">
-                <option value="">Mọi trạng thái</option>
-                @foreach ($statuses as $value => $label)
-                    <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
+            {{-- SỬA 23/10 (khách: "bỏ ô Mọi trạng thái") — bỏ ô lọc trạng thái; bộ lọc ?status= vẫn nhận nếu có trong đường dẫn. --}}
             @if ($canSeeOthers)
                 @php $keep = array_filter(['status' => $filters['status'] ?: null, 'q' => $filters['q'] ?: null]); @endphp
                 <div class="shx-seg" role="group" aria-label="Phạm vi">
@@ -232,8 +227,6 @@
                         <th class="shx-c">{{ $isProblems ? 'Trạng thái' : 'Kết quả' }}</th>
                         <th>{{ $isProblems ? 'Bài tập' : 'Đề thi' }}</th>
                         @if ($isProblems)
-                            <th class="shx-c">Thời gian</th>
-                            <th class="shx-c">Bộ nhớ</th>
                             <th class="shx-c">Ngôn ngữ</th>
                         @else
                             <th>Điểm</th>
@@ -268,8 +261,7 @@
                                 @if ($r['code'])<code>{{ $r['code'] }}</code>@endif
                             </td>
                             @if ($isProblems)
-                                <td data-l="Thời gian" class="shx-c shx-num shx-td-met">{!! $r['time'] ? e($r['time']) : '<span class="shx-dim">--</span>' !!}</td>
-                                <td data-l="Bộ nhớ" class="shx-c shx-num shx-td-met">{!! $r['memory'] ? e($r['memory']) : '<span class="shx-dim">--</span>' !!}</td>
+                                {{-- SỬA 23/10 (khách: "bỏ cột thời gian và bộ nhớ") — 2 cột đã bỏ khỏi bảng. --}}
                                 <td data-l="Ngôn ngữ" class="shx-c shx-td-met"><span class="shx-lang">{{ $r['language'] }}</span></td>
                             @else
                                 <td data-l="Điểm" class="shx-score shx-td-met">
