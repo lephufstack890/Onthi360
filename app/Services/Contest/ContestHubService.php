@@ -98,14 +98,15 @@ class ContestHubService
             'url' => route('competitions.show', $c->id),
             'image' => $c->imageUrl(),
             'state' => $state,
-            'stateLabel' => self::STATE_LABELS[$state],
+            'stateLabel' => $this->stateHint($state, $start, $end),
             'roadmap' => $this->roadmap($c),
             'description' => $this->description($c),
             'organizer' => $this->organizerLabel($c),
             'roundsCount' => $rounds->count(),
             'duration' => $this->durationLabel($rounds),
-            'startLabel' => $start?->format('d/m/Y') ?? '—',
-            'endLabel' => $end?->format('d/m/Y') ?? '—',
+            // SỬA 24/10 — kèm giờ: cùng ngày mà chưa tới giờ vẫn là "Sắp diễn ra", không có giờ thì nhìn như sai.
+            'startLabel' => $start?->format('H:i · d/m/Y') ?? '—',
+            'endLabel' => $end?->format('H:i · d/m/Y') ?? '—',
             'registration' => $registration,
         ];
     }
@@ -170,8 +171,8 @@ class ContestHubService
                 'organizer' => $this->organizerLabel($c),
                 'roadmap' => $this->roadmap($c),
                 'state' => $eventState,
-                'stateLabel' => self::STATE_LABELS[$eventState],
-                'dateRange' => ($start?->format('d/m/Y') ?? 'Chưa xếp lịch').' – '.($end?->format('d/m/Y') ?? '…'),
+                'stateLabel' => $this->stateHint($eventState, $start, $end),
+                'dateRange' => ($start?->format('H:i d/m/Y') ?? 'Chưa xếp lịch').' – '.($end?->format('H:i d/m/Y') ?? '…'),
                 'publishLabel' => $c->publish_result_at?->format('H:i d/m/Y'),
             ],
             'viewer' => [
@@ -765,6 +766,32 @@ class ContestHubService
         $end = $c->ends_at ?? $c->examSittings->pluck('ends_at')->filter()->sort()->last();
 
         return [$start, $end];
+    }
+
+    /**
+     * SỬA 24/10 (khách: "trạng thái không khớp bắt đầu / kết thúc") — nhãn trạng thái ghi thêm còn bao lâu để đối chiếu
+     * được với ngày giờ: "Sắp diễn ra · còn 31 ngày", "Đang diễn ra · còn 5 giờ".
+     */
+    private function stateHint(string $state, ?Carbon $start, ?Carbon $end): string
+    {
+        $label = self::STATE_LABELS[$state];
+        $target = match ($state) {
+            'upcoming' => $start,
+            'current' => $end,
+            default => null,
+        };
+        if ($target === null || now()->gte($target)) {
+            return $label;
+        }
+
+        $minutes = (int) now()->diffInMinutes($target, true);
+        $left = match (true) {
+            $minutes >= 1440 => (int) ceil($minutes / 1440).' ngày',
+            $minutes >= 60 => (int) floor($minutes / 60).' giờ',
+            default => max(1, $minutes).' phút',
+        };
+
+        return $label.' · còn '.$left;
     }
 
     private function durationLabel(Collection $rounds): string
