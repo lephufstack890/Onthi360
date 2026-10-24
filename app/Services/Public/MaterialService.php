@@ -359,7 +359,9 @@ class MaterialService
         // SỬA 24/10 (khách: "thông tin bộ đề mô tả rõ: là bộ đề, khối nào, mục đích, có bao nhiêu đề") — chỉ loại Bộ đề.
         $bundle = $typeValue === 'exam' ? $this->bundleSummary($product) : null;
         if ($bundle !== null) {
-            $unitLabel = $bundle['exams'] > 0 ? $bundle['exams'].' đề' : 'Đang cập nhật đề';
+            $unitLabel = $bundle['exams'] > 0
+                ? $bundle['exams'].' đề'.($bundle['questions'] > 0 ? ' · '.$bundle['questions'].' bài' : '')
+                : 'Đang cập nhật đề';
         }
 
         // Đánh giá hiển thị = đánh giá nhập tay (admin) GỘP đánh giá thật của người đọc — cùng cách
@@ -449,8 +451,10 @@ class MaterialService
             default => count($provinces).' tỉnh/thành',
         };
         $schoolYear = static fn (int $y) => $y.'-'.($y + 1);
-        $yearsLabel = $years->isEmpty() ? null
-            : ($years->first() === $years->last() ? $schoolYear($years->first()) : $schoolYear($years->first()).' → '.$schoolYear($years->last()));
+        // SỬA 24/10 (khách: "Từ năm học ... đến năm học ...") — 1 năm thì chỉ ghi năm đó.
+        $yearFrom = $years->isEmpty() ? null : $schoolYear($years->first());
+        $yearTo = $years->isEmpty() || $years->first() === $years->last() ? null : $schoolYear($years->last());
+        $yearsLabel = $yearFrom === null ? null : ($yearTo === null ? $yearFrom : 'Từ '.$yearFrom.' đến '.$yearTo);
 
         $description = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $product->description)) ?? '');
         $sameAsTitle = Str::lower(Str::ascii($description)) === Str::lower(Str::ascii((string) $product->title));
@@ -463,6 +467,8 @@ class MaterialService
             'province' => $province,
             'provinces' => $provinces,   // ô lọc "Tỉnh/thành" khi xem thể loại Bộ đề
             'years' => $yearsLabel,
+            'yearFrom' => $yearFrom,
+            'yearTo' => $yearTo,
             'purpose' => 'Ôn luyện '.($contest !== null ? 'kỳ thi '.$contest : 'thi học sinh giỏi').(count($provinces) === 1 ? ' ('.$provinces[0].')' : '')
                 .' bằng đề thi thật — làm từng đề trực tuyến, chấm tự động, xem điểm từng bài.',
             'note' => $description !== '' && ! $sameAsTitle ? Str::limit($description, 140) : null,
