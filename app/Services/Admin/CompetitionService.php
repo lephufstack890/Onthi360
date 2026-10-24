@@ -442,6 +442,10 @@ class CompetitionService
             ->merge(\App\Models\CompetitionExamPaper::supported() && $examIds !== []
                 ? \App\Models\CompetitionExamPaper::query()->whereIn('competition_exam_id', $examIds)->whereNotNull('assessment_id')->pluck('assessment_id')
                 : [])
+            // SỬA 24/10 — đề cũ của đề ma trận đã chốt lại / đã xoá (chỉ còn bài làm trỏ tới).
+            ->merge($examIds !== []
+                ? \App\Models\Attempt::query()->whereIn('competition_exam_id', $examIds)->whereNotNull('assessment_id')->distinct()->pluck('assessment_id')
+                : [])
             ->filter()->map(fn ($v) => (int) $v)->unique()->values()->all();
         $imagePath = Competition::supportsHubFields() ? $competition->image_path : null;
 

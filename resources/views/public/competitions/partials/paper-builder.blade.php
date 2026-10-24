@@ -5,11 +5,11 @@
 --}}
 <div class="survey-builder" x-data="paperBuilder({{ Js::from(['stateUrl' => $round['paperStateUrl'], 'csrf' => csrf_token()]) }})" x-init="init()">
     <div class="hub-content-heading">
-        <div><h3>Thiết lập đề khảo sát</h3><p>Một ma trận → một đề · Một kỳ có thể gồm nhiều đề, học sinh được giao ngẫu nhiên 1 đề đã chốt</p></div>
+        <div><h3>Thiết lập đề khảo sát</h3><p>Một ma trận → một đề · Một kỳ có thể gồm nhiều đề, chốt đề nào thì học sinh chọn làm được đề đó ngay</p></div>
         <template x-if="paper">
-            <span class="survey-paper-status" :class="paper.lock ? 'locked' : (paper.status === 'published' ? 'published' : 'draft')">
+            <span class="survey-paper-status" :class="paper.status === 'published' ? 'published' : 'draft'">
                 <x-lucide name="file-check-2" />
-                <span x-text="paper.lock ? 'Đã khóa nội dung' : (paper.status === 'published' ? ('Đã chốt · v' + paper.version) : 'Chưa chốt đề')"></span>
+                <span x-text="paper.status === 'published' ? ('Đã chốt · v' + paper.version) : 'Chưa chốt đề'"></span>
             </span>
         </template>
         <template x-if="!paper && state && state.existing">
@@ -28,7 +28,7 @@
                 <template x-for="p in state.papers" :key="p.id">
                     <button type="button" class="pb-paper" :aria-selected="cur === p.id" @click="select(p.id)">
                         <b x-text="p.label"></b>
-                        <small x-text="p.lock ? 'Đã khoá' : (p.status === 'published' ? ('Đã chốt v' + p.version) : 'Nháp')"></small>
+                        <small x-text="p.status === 'published' ? ('Đã chốt v' + p.version) : 'Nháp'"></small>
                     </button>
                 </template>
                 <button type="button" class="pb-paper pb-paper-add" :disabled="busy" @click="addPaper()"><x-lucide name="plus" />Thêm đề</button>
@@ -43,19 +43,19 @@
             <template x-if="paper && draft">
                 <div>
                     <ol class="survey-builder-steps"><li><b>1</b>Chọn ma trận</li><li><b>2</b>Sinh &amp; duyệt câu hỏi</li><li><b>3</b>Chốt đề</li></ol>
-                    <div class="survey-builder-rule"><x-lucide name="file-check-2" /><p>Ngẫu nhiên khi giáo viên sinh đề. <strong>Cùng câu hỏi, cùng thứ tự, cùng thang điểm</strong> cho mọi học sinh nhận đề này và mọi lượt làm lại. Đề khóa khi học sinh đầu tiên bắt đầu làm.</p></div>
+                    <div class="survey-builder-rule"><x-lucide name="file-check-2" /><p>Ngẫu nhiên khi giáo viên sinh đề. <strong>Cùng câu hỏi, cùng thứ tự, cùng thang điểm</strong> cho mọi học sinh nhận đề này và mọi lượt làm lại. Sửa và chốt lại lúc nào cũng được: lượt làm mới dùng nội dung mới, bài đã làm giữ nguyên đề cũ.</p></div>
                     <p class="survey-builder-meta" x-show="paper.status === 'published'">Đề đang áp dụng: <span x-text="paper.applied.length"></span> câu · 100 điểm · Chốt bởi <span x-text="paper.publishedBy || '—'"></span> · <span x-text="paper.publishedAt"></span></p>
-                    <p class="survey-builder-warning" role="status" x-show="paper.lock" x-text="paper.lock"></p>
+                    <p class="survey-builder-warning" role="status" x-show="paper.note" x-text="paper.note"></p>
 
                     <div class="pb-basic">
-                        <label>Tên đề<input type="text" maxlength="120" x-model="draft.label" :disabled="locked" @input="dirty = true"></label>
-                        <label>Thời gian làm bài (phút)<input type="number" min="5" max="600" x-model.number="draft.duration" :disabled="locked" @input="dirty = true"></label>
+                        <label>Tên đề<input type="text" maxlength="120" x-model="draft.label" @input="dirty = true"></label>
+                        <label>Thời gian làm bài (phút)<input type="number" min="5" max="600" x-model.number="draft.duration" @input="dirty = true"></label>
                     </div>
 
                     <div class="survey-builder-section-heading"><h4>Ma trận câu hỏi</h4><span><span x-text="state.meta.bankCount"></span> câu đã phát hành trong Kho câu hỏi</span></div>
                     <div class="survey-no-repeat" :data-enabled="draft.excludeUsed ? 'true' : 'false'">
                         <label>
-                            <input type="checkbox" x-model="draft.excludeUsed" :disabled="locked" @change="changed()">
+                            <input type="checkbox" x-model="draft.excludeUsed" @change="changed()">
                             <span><strong>Không lấy câu đã dùng ở các kỳ khảo sát trước</strong><small>Áp dụng cho toàn bộ các phần trong đề</small></span>
                             <b x-text="draft.excludeUsed ? 'Đang bật' : 'Đang tắt'"></b>
                         </label>
@@ -63,7 +63,7 @@
                         <p x-text="draft.excludeUsed ? 'Đây là điều kiện bắt buộc. Thiếu câu sẽ dừng sinh đề; hệ thống không tự lấy lại câu cũ.' : 'Khi tắt, hệ thống chọn theo cách chọn câu của từng phần. Câu trong cùng một đề vẫn không được trùng.'"></p>
                     </div>
 
-                    <fieldset class="survey-matrix-fields" :disabled="locked || busy">
+                    <fieldset class="survey-matrix-fields" :disabled="busy">
                         <template x-for="(row, index) in draft.matrix" :key="row.id">
                             <section class="survey-matrix-section" :aria-label="'Điều kiện phần ' + (index + 1)">
                                 <div class="survey-matrix-row">
@@ -131,18 +131,18 @@
                         </div>
                     </fieldset>
 
-                    <ul class="survey-matrix-issues" aria-label="Kiểm tra ma trận" x-show="!locked && issues.length"><template x-for="it in issues" :key="it"><li x-text="it"></li></template></ul>
+                    <ul class="survey-matrix-issues" aria-label="Kiểm tra ma trận" x-show="issues.length"><template x-for="it in issues" :key="it"><li x-text="it"></li></template></ul>
                     <p class="survey-builder-meta">"Chưa dùng" = chưa xuất hiện trong đề đã chốt nào của kỳ khác. "Đã dùng" = có ít nhất một kỳ khác sử dụng. Sinh thử không tính lượt dùng. Hệ thống không lặp câu và không tự nới điều kiện khi thiếu câu.</p>
                     <details class="survey-bank-note"><summary>Nguồn câu hỏi &amp; cách chia điểm</summary><p>Dùng câu hỏi đã phát hành trong Kho câu hỏi (không gồm bài tập riêng của sản phẩm). Độ khó lấy theo ô "Độ khó" của câu (chưa đặt thì suy theo điểm). Điểm mỗi phần chia đều cho các câu, phần lẻ làm tròn đến 0,01 điểm để tổng luôn bằng 100.</p></details>
 
-                    <div class="survey-builder-actions" x-show="!locked">
+                    <div class="survey-builder-actions">
                         <button type="button" class="contest-btn primary" :disabled="busy || issues.length > 0" @click="generate()"><x-lucide name="shuffle" /><span x-text="draft.questions.length ? 'Sinh lại đề dự kiến' : 'Sinh đề dự kiến'"></span></button>
                         <button type="button" class="contest-btn secondary" :disabled="busy || !dirty" @click="save(false)"><x-lucide name="save" />Lưu bản nháp</button>
                         <span x-text="dirty ? 'Có thay đổi chưa lưu' : 'Bản soạn đã lưu / chưa chỉnh sửa'"></span>
                         <button type="button" class="contest-btn secondary pb-delete" :disabled="busy" @click="removePaper()"><x-lucide name="trash-2" />Xoá đề này</button>
                     </div>
 
-                    <div class="survey-builder-section-heading"><h4 x-text="locked ? 'Đề đã khóa' : 'Duyệt đề dự kiến'"></h4><span x-text="preview.length ? (preview.length + ' câu · 100 điểm') : 'Chưa sinh câu hỏi'"></span></div>
+                    <div class="survey-builder-section-heading"><h4 x-text="'Duyệt đề dự kiến'"></h4><span x-text="preview.length ? (preview.length + ' câu · 100 điểm') : 'Chưa sinh câu hỏi'"></span></div>
                     <div class="survey-preview-list" x-show="preview.length">
                         <template x-for="(q, index) in preview" :key="q.id + '-' + index">
                             <div class="survey-preview-row">
@@ -156,14 +156,14 @@
                                         <ol type="A" x-show="q.options && q.options.length"><template x-for="o in q.options"><li x-text="o"></li></template></ol>
                                     </details>
                                 </div>
-                                <button type="button" class="survey-icon-button" x-show="!locked" :disabled="busy" :aria-label="'Thay câu ' + (index + 1)" title="Thay bằng câu khác khớp toàn bộ điều kiện" @click="replace(q.id)"><x-lucide name="refresh-cw" /></button>
+                                <button type="button" class="survey-icon-button" :disabled="busy" :aria-label="'Thay câu ' + (index + 1)" title="Thay bằng câu khác khớp toàn bộ điều kiện" @click="replace(q.id)"><x-lucide name="refresh-cw" /></button>
                             </div>
                         </template>
                     </div>
                     <div class="survey-preview-empty" x-show="!preview.length"><x-lucide name="shuffle" /><p>Hoàn thiện ma trận rồi sinh đề để kiểm tra câu hỏi.</p></div>
 
-                    <div class="survey-publish-bar" x-show="!locked">
-                        <div><b>Chỉ giao đề sau khi chốt</b><p x-text="paper.status === 'published' ? 'Bản nháp không thay đổi đề đang áp dụng cho tới khi chốt lại.' : 'Học sinh chỉ nhận các đề đã chốt (ngẫu nhiên 1 đề / học sinh).'"></p></div>
+                    <div class="survey-publish-bar">
+                        <div><b>Chỉ giao đề sau khi chốt</b><p x-text="paper.status === 'published' ? 'Bản nháp không thay đổi đề đang áp dụng cho tới khi chốt lại.' : 'Chốt xong học sinh chọn làm được đề này ngay.'"></p></div>
                         <button type="button" class="contest-btn primary" :disabled="busy || issues.length > 0 || !draft.questions.length" @click="$refs.publishDialog.showModal()"><x-lucide name="file-check-2" />Chốt đề cho kỳ</button>
                     </div>
                 </div>
@@ -177,7 +177,7 @@
         <h2 id="survey-publish-title" x-text="'Chốt ' + (draft?.label || 'đề') + ' cho kỳ?'"></h2>
         <p x-text="(draft?.questions.length || 0) + ' câu · 100 điểm · ' + (draft?.duration || 45) + ' phút. Mọi học sinh nhận đề này và mọi lượt làm lại dùng cùng câu hỏi, đáp án và điểm.'"></p>
         <p><strong>Chống trùng kỳ trước:</strong> <span x-text="draft?.excludeUsed ? 'Bật · Không lấy lại câu đã từng chốt ở kỳ khác.' : 'Tắt · Theo cách chọn câu của từng phần.'"></span></p>
-        <p><span x-show="paper && paper.status === 'published'">Đề mới sẽ thay thế đề đang áp dụng. </span>Ngay khi có học sinh bắt đầu, đề sẽ được khóa. Muốn đổi nội dung sau đó, hãy thêm đề mới.</p>
+        <p><span x-show="paper && paper.status === 'published'">Đề mới sẽ thay thế đề đang áp dụng. </span>Bài học sinh đã làm giữ nguyên đề cũ; lượt làm mới dùng nội dung vừa chốt.</p>
         <div class="survey-builder-actions" style="justify-content:flex-end;margin-bottom:0">
             <button type="button" class="contest-btn secondary" @click="$refs.publishDialog.close()">Kiểm tra lại</button>
             <button type="button" class="contest-btn primary" @click="$refs.publishDialog.close(); save(true)">Chốt &amp; áp dụng</button>
@@ -198,7 +198,6 @@
             loading: true, busy: false, state: null, cur: null, draft: null, preview: [], counts: {}, issues: [], dirty: false, error: '', notice: '',
             async init() { await this.load(); },
             get paper() { return this.state ? this.state.papers.find((p) => p.id === this.cur) || null : null; },
-            get locked() { return !!(this.paper && this.paper.lock); },
             get totalCount() { return this.draft ? this.draft.matrix.reduce((s, r) => s + (Number(r.count) || 0), 0) : 0; },
             get totalPoints() { return this.draft ? this.draft.matrix.reduce((s, r) => s + (Number(r.points) || 0), 0) : 0; },
             async api(url, body) {
@@ -259,7 +258,7 @@
             replace(id) { return this.run(async () => { const r = await this.api(this.url('thay'), this.payload({ replaceId: id })); this.draft.questions = r.questions; this.preview = r.preview; this.dirty = true; }); },
             save(publish) { return this.run(async () => { const r = await this.api(this.url('luu'), this.payload({ publish: !!publish })); this.dirty = false; this.apply(r, this.cur); }); },
             removePaper() {
-                if (!confirm('Xoá ' + (this.paper ? this.paper.label : 'đề') + '? Đề đã chốt (chưa ai làm) cũng bị xoá.')) return;
+                if (!confirm('Xoá ' + (this.paper ? this.paper.label : 'đề') + '? Học sinh không chọn được đề này nữa; bài đã làm vẫn giữ để xem lại.')) return;
                 return this.run(async () => { const r = await this.api(this.url('xoa'), {}); this.dirty = false; this.apply(r); });
             },
         };

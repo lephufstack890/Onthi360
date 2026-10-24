@@ -25,9 +25,10 @@ use Illuminate\Validation\ValidationException;
  * gốc) → 2. sinh đề dự kiến từ Kho câu hỏi (đã phát hành), duyệt, thay từng câu → 3. chốt đề. Chốt = tạo/cập nhật một
  * Assessment thật (Đề thi, câu hỏi rời, tổng 100 điểm) nên làm bài / chấm / xếp hạng dùng NGUYÊN hạ tầng cũ.
  *
- * Một kỳ có thể có NHIỀU đề (Đề 1, Đề 2 …). Học sinh được giao ngẫu nhiên 1 đề đã chốt, giữ cố định cho mọi lượt làm lại
- * (lưu ở competition_registrations.exam_forms["paper:<id kỳ>"]). Đề khoá nội dung khi đã có học sinh làm; muốn đổi câu
- * thì thêm đề mới. "Đã dùng" = câu từng được chốt ở đề của KỲ KHÁC (kể cả bản đã bị thay) — bật "Không lấy câu đã dùng"
+ * Một kỳ có thể có NHIỀU đề (Đề 1, Đề 2 …). Chốt đề nào thì học sinh chọn làm được đề đó ngay (mỗi lượt chọn lại, lưu đề
+ * chọn gần nhất ở competition_registrations.exam_forms["paper:<id kỳ>"]). SỬA 24/10 (khách: "không có khoá gì hết, muốn
+ * xoá cũng được") — đề KHÔNG khoá: chốt lại đề đã có bài làm thì tạo Assessment MỚI cho đề (bài đã làm giữ nguyên đề cũ để
+ * xem lại / xếp hạng); xoá đề đã có bài làm thì giữ Assessment cũ cho các bài đó (dọn khi xoá cuộc thi). "Đã dùng" = câu từng được chốt ở đề của KỲ KHÁC (kể cả bản đã bị thay) — bật "Không lấy câu đã dùng"
  * thì chỉ lấy câu chưa từng dùng.
  */
 class ContestPaperService
@@ -390,13 +391,14 @@ class ContestPaperService
 
     // ───────────────────────────── Đề của kỳ ─────────────────────────────
 
-    public function lockReason(CompetitionExamPaper $paper): ?string
+    /** Đề đã có bài làm: không khoá, chỉ báo cho giáo viên biết chốt lại / xoá ảnh hưởng gì. */
+    public function attemptNote(CompetitionExamPaper $paper): ?string
     {
-        if ($paper->assessment_id !== null && Attempt::query()->where('assessment_id', $paper->assessment_id)->exists()) {
-            return 'Đã có học sinh làm đề này — nội dung đã khoá. Muốn đổi câu hỏi, hãy thêm đề mới cho kỳ.';
-        }
+        $n = $paper->assessment_id !== null ? Attempt::query()->where('assessment_id', $paper->assessment_id)->count() : 0;
 
-        return null;
+        return $n > 0
+            ? 'Đã có '.$n.' lượt làm đề này. Vẫn sửa, chốt lại hoặc xoá được: lượt làm mới dùng nội dung mới, bài đã làm giữ nguyên đề cũ để xem lại.'
+            : null;
     }
 
     public function createPaper(CompetitionExam $exam): CompetitionExamPaper
@@ -415,7 +417,6 @@ class ContestPaperService
 
     public function saveDraft(CompetitionExamPaper $paper, array $input): CompetitionExamPaper
     {
-        $this->assertUnlocked($paper);
         [$matrix, $excludeUsed, $questions, $duration, $label] = $this->input($input);
 
         $paper->update([
@@ -432,7 +433,6 @@ class ContestPaperService
     /** Chốt đề: tạo / cập nhật Assessment thật, thay toàn bộ câu theo đề dự kiến. */
     public function publish(CompetitionExamPaper $paper, User $user, array $input): CompetitionExamPaper
     {
-        $this->assertUnlocked($paper);
         [$matrix, $excludeUsed, $questions, $duration, $label] = $this->input($input);
         $exam = $paper->exam()->with('competition')->firstOrFail();
         $this->assertPreviewValid($matrix, $excludeUsed, $this->usage($exam), $questions);
@@ -441,6 +441,10 @@ class ContestPaperService
             $label = $label ?? $paper->label;
             $title = Str::limit(($exam->competition?->title ?? 'Khảo sát').' · '.$exam->displayTitle().' · '.$label, 250, '');
             $assessment = $paper->assessment_id !== null ? Assessment::query()->find($paper->assessment_id) : null;
+            // Đề đã có bài làm: KHÔNG sửa đè (bài cũ phải giữ đúng câu đã làm) — tạo đề mới cho các lượt sau.
+            if ($assessment !== null && Attempt::query()->where('assessment_id', $assessment->id)->exists()) {
+                $assessment = null;
+            }
             $attrs = [
                 'title' => $title,
                 'type' => \App\Enums\AssessmentType::Exam->value,
@@ -484,10 +488,10 @@ class ContestPaperService
 
     public function deletePaper(CompetitionExamPaper $paper): void
     {
-        $this->assertUnlocked($paper);
         $assessment = $paper->assessment_id !== null ? Assessment::query()->find($paper->assessment_id) : null;
         $paper->delete();
-        if ($assessment !== null) {
+        // Đã có bài làm: giữ đề cho các bài đó (xem lại, xếp hạng); dọn cùng lúc xoá cuộc thi.
+        if ($assessment !== null && ! Attempt::query()->where('assessment_id', $assessment->id)->exists()) {
             app(\App\Services\Admin\ContentService::class)->assessmentDestroy($assessment);
         }
     }
@@ -504,13 +508,6 @@ class ContestPaperService
             max(5, min(600, (int) ($input['duration'] ?? 45))),
             $label !== '' ? Str::limit($label, 120, '') : null,
         ];
-    }
-
-    private function assertUnlocked(CompetitionExamPaper $paper): void
-    {
-        if (($reason = $this->lockReason($paper)) !== null) {
-            $this->fail($reason);
-        }
     }
 
     // ───────────────────────────── Giao đề cho học sinh ─────────────────────────────
@@ -637,7 +634,7 @@ class ContestPaperService
                     'version' => (int) $p->version,
                     'publishedAt' => $p->published_at?->format('H:i d/m/Y'),
                     'publishedBy' => $p->publishedBy?->name,
-                    'lock' => $this->lockReason($p),
+                    'note' => $this->attemptNote($p),
                     'duration' => (int) $p->duration_minutes,
                     'excludeUsed' => (bool) $p->exclude_used,
                     'matrix' => $matrix,
