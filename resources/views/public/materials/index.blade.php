@@ -269,7 +269,8 @@
 
                     <div class="mp-card-body">
                         <div class="mp-unit"><x-lucide name="file-text" />{{ $item['unitLabel'] }}</div>
-                        <h3><a href="{{ $item['href'] }}" style="color:inherit;text-decoration:none">{{ $item['title'] }}</a></h3>
+                        {{-- SỬA 24/10 (khách: "title này cho in hoa") — chỉ đổi cách hiển thị, tên lưu trong DB giữ nguyên. --}}
+                        <h3 style="text-transform:uppercase"><a href="{{ $item['href'] }}" style="color:inherit;text-decoration:none">{{ $item['title'] }}</a></h3>
 
                         <div class="mp-quality">
                             <div class="mp-quality-row"><b>Độ khó</b>@include('partials.practice-difficulty-stars', ['level' => $item['difficultyLevel']])</div>
