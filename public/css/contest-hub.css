@@ -475,7 +475,7 @@
 
 /* ───────── Trang danh sách /cuoc-thi (ContestsPage.jsx) — viết bằng CSS thường thay cho các lớp Tailwind tuỳ biến
    của bản mẫu (máy chủ không build lại Tailwind). Tiền tố cc- để không đụng chỗ khác. ───────── */
-.cc-page { display:flex; min-width:0; flex-direction:column; gap:16px; max-width:1440px; margin:0 auto; padding:16px 16px 24px; color:#123b68; }
+.cc-page { display:flex; min-width:0; flex-direction:column; gap:16px; width:100%; padding:16px 12px 24px; color:#123b68; }
 @media(min-width:640px) { .cc-page { padding:20px 20px 28px; } }
 .cc-hero { position:relative; overflow:hidden; border-radius:24px; padding:20px; color:#fff; }
 @media(min-width:640px) { .cc-hero { padding:28px; } }
@@ -571,3 +571,19 @@
 /* Thanh nút dưới (≤600px) nằm NGAY TRÊN thanh điều hướng đáy của site (partials.mobile-bottom-nav), không che nhau. */
 .contest-hub .hub-mobile-action { bottom:var(--hub-bottom-offset, 0px); }
 @media(max-width:600px) { .contest-hub { padding-bottom:calc(76px + var(--hub-bottom-offset, 0px)); } }
+
+/* SỬA 24/10 (2) (khách: "tất cả mấy trang mới xây cho full ra") — trang danh sách + phòng thi rộng hết màn hình, lề trái/phải
+   khớp đúng thanh menu trên cùng của site (px-3 / sm:px-5 / lg:px-4 / 2xl:px-8) thay cho khung 1200px của bản mẫu. */
+.contest-hub .arena-topbar, .contest-hub .arena-container { max-width:none; padding-left:12px; padding-right:12px; }
+@media(min-width:640px) { .cc-page, .contest-hub .arena-topbar, .contest-hub .arena-container { padding-left:20px; padding-right:20px; } }
+@media(min-width:1024px) { .cc-page, .contest-hub .arena-topbar, .contest-hub .arena-container { padding-left:16px; padding-right:16px; } }
+@media(min-width:1536px) { .cc-page, .contest-hub .arena-topbar, .contest-hub .arena-container { padding-left:32px; padding-right:32px; } }
+@media(min-width:1440px) { .contest-hub .hub-workspace { grid-template-columns:280px minmax(0,1fr); gap:20px; } }
+@media(min-width:1700px) { .cc-grid { grid-template-columns:repeat(5,minmax(0,1fr)); } }
+/* Ô chọn: bỏ kiểu mặc định của trình duyệt (Safari vẽ ô thấp, mũi tên ⇕) → cao 40px, mũi tên xuống giống ô tìm kiếm. */
+.cc-filter select.material-input, .contest-ui select {
+    -webkit-appearance:none; appearance:none; height:40px; min-height:40px; line-height:20px; padding-right:34px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23607a90' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; background-size:16px; cursor:pointer; }
+.cc-filter select.material-input { background-color:#f8fafb; }
+.contest-ui select { background-color:#fff; }
