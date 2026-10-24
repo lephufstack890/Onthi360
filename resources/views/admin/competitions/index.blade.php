@@ -91,9 +91,11 @@
     --}}
 
     {{-- SỬA 24/10 (khách: "bỏ cột Đơn chờ duyệt, thêm nút Sửa và Xoá bên ngoài") — dải nhắc đơn chờ duyệt phía trên vẫn giữ. --}}
-    <x-ws.table :columns="['Tên', 'Loại', '']">
+    <x-ws.table :columns="['Ảnh', 'Tên', 'Loại', '']">
         @forelse ($competitions as $c)
             <tr>
+                {{-- SỬA 24/10 — cột Ảnh bìa (ảnh tải lên / chọn từ catalog / mặc định). --}}
+                <td class="px-4 py-2 w-28"><img src="{{ $c['image'] }}" alt="" loading="lazy" style="width:88px;height:50px;object-fit:cover;border-radius:10px;border:1px solid #e0ecf5;display:block"></td>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $c['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $c['type'] }}</td>
                 <td class="px-4 py-3">
@@ -110,7 +112,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="3" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
+            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
         @endforelse
     </x-ws.table>
 @endsection

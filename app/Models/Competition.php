@@ -113,7 +113,15 @@ class Competition extends Model
     public function imageUrl(): string
     {
         if (self::supportsHubFields() && $this->image_path) {
-            return asset('storage/'.$this->image_path);
+            // SỬA 24/10 — ảnh chọn từ catalog lưu dạng "catalog:<id>" (App\Support\CompetitionCover).
+            if (\App\Support\CompetitionCover::isCatalog($this->image_path)) {
+                $url = \App\Support\CompetitionCover::url($this->image_path);
+                if ($url !== null) {
+                    return $url;
+                }
+            } else {
+                return asset('storage/'.$this->image_path);
+            }
         }
 
         return asset('assets/contest-img-'.(($this->id % 3) + 1).'.jpg');

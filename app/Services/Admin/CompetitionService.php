@@ -133,6 +133,7 @@ class CompetitionService
             return [
                 'id' => $c->id,
                 'name' => $c->title,
+                'image' => $c->imageUrl(), // SỬA 24/10 — cột Ảnh ở danh sách
                 'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
                 'pendingRegistrations' => (int) ($pendingByCompetition[$c->id] ?? 0),
                 // Hiện rõ Bắt đầu/Kết thúc riêng (ngày + giờ) thay vì gộp mập mờ kiểu "18/08 -
@@ -311,14 +312,20 @@ class CompetitionService
         }
 
         $image = $data['image'] ?? null;
-        if ($image instanceof \Illuminate\Http\UploadedFile || ! empty($data['remove_image'])) {
+        // SỬA 24/10 — ảnh bìa: tải ảnh riêng (ưu tiên) > chọn từ catalog > "Bỏ ảnh đang dùng". Ảnh tải lên cũ bị thay
+        // thì xoá file khỏi đĩa; ảnh catalog chỉ là "catalog:<id>", không có file.
+        $catalogId = \App\Support\CompetitionCover::normalize($data['cover_catalog'] ?? null);
+        $keepCurrentCatalog = $catalogId !== null && $competition->image_path === \App\Support\CompetitionCover::marker($catalogId);
+        if ($image instanceof \Illuminate\Http\UploadedFile || ! empty($data['remove_image']) || ($catalogId !== null && ! $keepCurrentCatalog)) {
             $old = $competition->image_path;
-            if ($old && \Illuminate\Support\Facades\Storage::disk('public')->exists($old)) {
+            if ($old && ! \App\Support\CompetitionCover::isCatalog($old) && \Illuminate\Support\Facades\Storage::disk('public')->exists($old)) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($old);
             }
-            $attrs['image_path'] = $image instanceof \Illuminate\Http\UploadedFile
-                ? \App\Support\ImageOptimizer::store($image, 'competitions/covers', 'public')
-                : null;
+            $attrs['image_path'] = match (true) {
+                $image instanceof \Illuminate\Http\UploadedFile => \App\Support\ImageOptimizer::store($image, 'competitions/covers', 'public'),
+                ! empty($data['remove_image']) && $catalogId === null => null,
+                default => \App\Support\CompetitionCover::marker($catalogId),
+            };
         }
 
         $competition->forceFill($attrs)->save();
@@ -446,7 +453,7 @@ class CompetitionService
             $competition->delete();
         });
 
-        if ($imagePath && \Illuminate\Support\Facades\Storage::disk('public')->exists($imagePath)) {
+        if ($imagePath && ! \App\Support\CompetitionCover::isCatalog($imagePath) && \Illuminate\Support\Facades\Storage::disk('public')->exists($imagePath)) {
             \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
         }
 

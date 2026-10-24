@@ -46,6 +46,7 @@ class CompetitionController extends Controller
             'clear_entry_password' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_image' => ['nullable', 'boolean'],
+            'cover_catalog' => ['nullable', 'string', 'max:40'], // SỬA 24/10 — ảnh chọn từ catalog (CompetitionCover)
         ];
     }
 

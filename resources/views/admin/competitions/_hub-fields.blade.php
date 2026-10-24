@@ -45,7 +45,37 @@
                     <label class="inline-flex items-center gap-1.5 text-xs text-slate-500"><input type="checkbox" name="remove_image" value="1"> Bỏ ảnh đang dùng</label>
                 @endif
             </div>
+
+            {{-- SỬA 24/10 (khách: "chọn hình ảnh từ catalog mặc định như chỗ tài liệu") — bấm chọn là xong. Tải ảnh riêng ở
+                 ô trên thì ảnh tải lên được ưu tiên. Không chọn gì = giữ ảnh hiện tại. --}}
+            @php $ccPicked = (string) old('cover_catalog', \App\Support\CompetitionCover::idOf($hubCompetition?->image_path) ?? ''); @endphp
+            <div class="mt-3" x-data="{ picked: @js($ccPicked) }">
+                <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <span class="block text-xs text-slate-500">Hoặc chọn ảnh bìa từ catalog</span>
+                    <button type="button" class="ccv-clear" x-show="picked !== ''" x-cloak @click="picked = ''">Bỏ chọn</button>
+                </div>
+                <div class="ccv-grid" role="radiogroup" aria-label="Ảnh bìa cuộc thi từ catalog">
+                    @foreach (\App\Support\CompetitionCover::options() as $cc)
+                        <label class="ccv-item" :class="{ 'is-on': picked === @js($cc['id']) }">
+                            <input type="radio" name="cover_catalog" value="{{ $cc['id'] }}" x-model="picked">
+                            <img src="{{ $cc['url'] }}" alt="" loading="lazy">
+                            <span>{{ $cc['title'] }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
         </div>
+        <style>
+            .ccv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+            .ccv-item { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 6px; box-sizing: border-box; border: 2px solid transparent; border-radius: 12px; background: #fff; padding: 7px; cursor: pointer; }
+            .ccv-item:hover { border-color: #bfdbfe; }
+            .ccv-item.is-on { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }
+            .ccv-item input { position: absolute; right: 12px; top: 12px; width: 16px; height: 16px; margin: 0; accent-color: #2563eb; }
+            .ccv-item img { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; object-fit: cover; background: #f8fbfc; }
+            .ccv-item span { font-size: 11px; line-height: 1.35; font-weight: 600; color: #475569; }
+            .ccv-clear { border: 0; background: transparent; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #126f91; cursor: pointer; }
+            .ccv-clear:hover { background: #eaf5f8; }
+        </style>
         <div x-show="type === 'survey'" x-cloak class="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
             <label class="block text-xs font-medium text-emerald-800 mb-1" for="entry_password">Mật khẩu tham gia khảo sát {{ $hasPassword ? '' : '(bắt buộc)' }}</label>
             <input id="entry_password" name="entry_password" type="text" maxlength="100" autocomplete="off" class="admin-input"
