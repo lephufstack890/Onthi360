@@ -7,7 +7,7 @@
     @php
         $answerRows = $answerRows ?? [];
         $codingRows = $codingRows ?? [];
-        $assessmentTitle = $assessmentModel->title ?? 'Đề';
+        $assessmentTitle = $examTitleOverride ?? ($assessmentModel->title ?? 'Đề'); // SỬA 24/10 — phòng thi Cuộc thi dùng chung màn này
         $maxAttempts = $assessmentModel->resubmission_policy['max_attempts'] ?? null;
         $resubmissionNote = $maxAttempts ? 'Nộp lại tối đa '.$maxAttempts.' lần' : 'Không giới hạn số lần nộp lại';
         $totalCount = count($answerRows) + count($codingRows);

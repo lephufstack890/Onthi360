@@ -5,7 +5,8 @@
 @section('content')
     @php
         $questions = $questions ?? [];
-        $assessmentTitle = $assessmentModel->title ?? 'Đề';
+        // SỬA 24/10 — phòng thi Cuộc thi dùng chung màn này: tiêu đề "Cuộc thi · Kỳ thi · Đề" (xem Student\CompetitionController).
+        $assessmentTitle = $examTitleOverride ?? ($assessmentModel->title ?? 'Đề');
         $examCode = $examCode ?? null;
         $totalPoints = $totalPoints ?? collect($questions)->sum('points');
 
@@ -117,7 +118,7 @@
                  trong khung workspace theo VAI TRÒ của người đang đăng nhập, nên admin/giáo viên
                  bấm Thoát là rơi vào giao diện quản trị. Trang /luyen-tap công khai không có
                  khung đó, ai vào cũng ra đúng một trang. --}}
-            <a href="{{ route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
+            <a href="{{ $exitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
                @click="if (grading()) { $event.preventDefault(); askExit($el.href); }"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 

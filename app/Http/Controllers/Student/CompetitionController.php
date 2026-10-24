@@ -149,7 +149,7 @@ class CompetitionController extends Controller
          * buildTakeData() và chung partials/exam-pdf-workspace-script nên logic không tách đôi.
          */
         if ($data['isPdfMode']) {
-            return view('student.competitions.exam-pdf', array_merge($data, $context));
+            return view('student.assessment.take-pdf', array_merge($data, $context, $this->takeExtras($context)));
         }
 
         // SỬA 24/10 — mã đề hoán vị: chỉ đổi THỨ TỰ hiện câu (bài làm, chấm điểm vẫn theo question_id).
@@ -170,6 +170,18 @@ class CompetitionController extends Controller
             'so_cau' => count($data['questions']),
         ]);
 
-        return view('student.competitions.exam', array_merge($data, $context));
+        // SỬA 24/10 (khách: "giao diện làm bài cuộc thi in đúc giao diện làm đề bên Luyện tập") — dùng CHUNG màn làm đề của
+        // Luyện tập (student.assessment.take / take-pdf), chỉ đổi tiêu đề + nút Thoát quay về phòng thi. Màn riêng cũ
+        // (student.competitions.exam*) để lại, không dùng nữa.
+        return view('student.assessment.take', array_merge($data, $context, $this->takeExtras($context)));
+    }
+
+    /** @return array{exitUrl: string, examTitleOverride: string} */
+    private function takeExtras(array $context): array
+    {
+        return [
+            'exitUrl' => $context['contestRoomUrl'],
+            'examTitleOverride' => implode(' · ', array_filter([$context['contestTitle'], $context['contestRoundLabel'], $context['contestPaperLabel'] ?? null])),
+        ];
     }
 }
