@@ -64,6 +64,20 @@ class ContestManageController extends Controller
         return $this->review($request, $competition, $registration, false);
     }
 
+    /** SỬA 24/10 — gỡ học sinh khỏi danh sách (tab "Học sinh"). */
+    public function remove(Request $request, int $competition, int $registration): RedirectResponse
+    {
+        $model = Competition::query()->with('advisors:id,name')->findOrFail($competition);
+
+        try {
+            $name = $this->organizers->removeStudent($request->user(), $model, $registration);
+        } catch (ValidationException $e) {
+            return $this->back($request, $competition)->withErrors($e->errors());
+        }
+
+        return $this->back($request, $competition)->with('contest_notice', 'Đã gỡ '.$name.' khỏi danh sách.');
+    }
+
     private function review(Request $request, int $competition, int $registration, bool $approve): RedirectResponse
     {
         $reason = $request->validate(['reason' => ['nullable', 'string', 'max:255']])['reason'] ?? null;

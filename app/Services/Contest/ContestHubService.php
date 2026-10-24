@@ -367,6 +367,11 @@ class ContestHubService
             return ['allowed' => false, 'label' => $survey ? 'Chờ giáo viên chốt đề' : 'Kỳ thi chưa có đề'];
         }
         if ($survey) {
+            // SỬA 24/10 — khảo sát chỉ cho học sinh có trong danh sách (ban tổ chức thêm) + nhập đúng mật khẩu.
+            if ($registrationStatus !== CompetitionRegistration::STATUS_APPROVED) {
+                return ['allowed' => false, 'label' => 'Chưa có trong danh sách'];
+            }
+
             return ['allowed' => true, 'label' => $submitted ? 'Làm lại khảo sát' : 'Bắt đầu khảo sát'];
         }
         if ($submitted) {
@@ -419,6 +424,10 @@ class ContestHubService
         if (! $survey && ! $closed && $regStatus === CompetitionRegistration::STATUS_PENDING) {
             return ['kind' => 'disabled', 'label' => 'Đang chờ xét duyệt', 'icon' => 'clock-3',
                 'title' => 'Đăng ký đang chờ duyệt', 'text' => $organizer.' hoặc admin tổ chức sẽ xác nhận quyền tham gia của bạn.'];
+        }
+        if ($survey && ! $closed && $period === 'current' && $regStatus !== CompetitionRegistration::STATUS_APPROVED) {
+            return ['kind' => 'disabled', 'label' => 'Chưa có trong danh sách', 'icon' => 'lock-keyhole',
+                'title' => 'Bạn chưa có trong danh sách khảo sát', 'text' => 'Liên hệ '.$organizer.' để được thêm vào danh sách, sau đó nhập mật khẩu để bắt đầu.'];
         }
         if ($access['allowed']) {
             return ['kind' => 'enter', 'label' => $resume ? 'Tiếp tục làm bài' : $access['label'], 'icon' => $survey ? 'key-round' : 'play',
@@ -642,8 +651,12 @@ class ContestHubService
             ];
         }
 
-        // Người đã có bài nộp ở kỳ này nhưng không có dòng đăng ký (dữ liệu cũ).
-        $missing = array_diff($submittedIds, array_keys($byUser));
+        // Người đã có bài nộp ở kỳ này nhưng không có dòng đăng ký (dữ liệu cũ). Người đã bị gỡ (withdrawn) thì không hiện lại.
+        $removedIds = CompetitionRegistration::supported()
+            ? CompetitionRegistration::query()->where('competition_id', $c->id)->where('status', CompetitionRegistration::STATUS_WITHDRAWN)
+                ->pluck('student_id')->map(fn ($id) => (int) $id)->all()
+            : [];
+        $missing = array_diff($submittedIds, array_keys($byUser), $removedIds);
         if ($missing !== []) {
             User::query()->whereIn('id', $missing)->get(['id', 'name', 'email', 'phone'])->each(function ($u) use (&$byUser) {
                 $byUser[(int) $u->id] = ['registrationId' => null, 'userId' => (int) $u->id, 'name' => $u->name, 'account' => (string) ($u->email ?: $u->phone ?: ''),

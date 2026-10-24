@@ -166,6 +166,9 @@ Route::middleware('auth')->group(function () {
         ->whereNumber(['competition', 'registration'])->name('competitions.manage.approve');
     Route::post('/cuoc-thi/{competition}/ban-to-chuc/dang-ky/{registration}/tu-choi', [\App\Http\Controllers\ContestManageController::class, 'reject'])
         ->whereNumber(['competition', 'registration'])->name('competitions.manage.reject');
+    // SỬA 24/10 — gỡ học sinh khỏi danh sách.
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/dang-ky/{registration}/go', [\App\Http\Controllers\ContestManageController::class, 'remove'])
+        ->whereNumber(['competition', 'registration'])->name('competitions.manage.remove');
     // SỬA 24/10 — thêm / sửa / xoá kỳ thi ngay trong phòng thi.
     Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong', [\App\Http\Controllers\ContestManageController::class, 'storeRound'])
         ->whereNumber('competition')->name('competitions.manage.rounds.store');

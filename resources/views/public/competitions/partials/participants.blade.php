@@ -13,7 +13,7 @@
     <p class="hub-assessment-note">Sự kiện đã kết thúc. Bạn có thể xem danh sách và in báo cáo.</p>
 @endif
 @if ($survey)
-    <p class="hub-assessment-note">Khảo sát không cần duyệt: học sinh nhập đúng mật khẩu là vào danh sách. Thêm học sinh ở đây để theo dõi trước — học sinh vẫn phải nhập mật khẩu khi làm bài.</p>
+    <p class="hub-assessment-note">Chỉ học sinh có trong danh sách và nhập đúng mật khẩu mới làm được khảo sát. Thêm học sinh bằng nút "Thêm học sinh"; bấm "Gỡ" để đưa học sinh ra khỏi danh sách (bài đã nộp vẫn giữ).</p>
 @endif
 <label class="contest-participant-search"><x-lucide name="search" /><input type="search" aria-label="Tìm trong danh sách tham gia" placeholder="Tìm tên, lớp hoặc tài khoản…" x-model="peopleQuery"></label>
 @if (count($p['rows']))
@@ -30,8 +30,8 @@
                         <td>@if ($row['resultNote'])<b>{{ $row['resultLabel'] }}</b><small class="hub-ranking-class">{{ $row['resultNote'] }}</small>@else{{ $row['resultLabel'] }}@endif</td>
                         <td>{{ $row['addedLabel'] }}</td>
                         <td>
+                            <div class="contest-approval-actions">
                             @if ($row['status'] === 'pending' && ! $closed && $row['registrationId'])
-                                <div class="contest-approval-actions">
                                     <form method="POST" action="{{ route('competitions.manage.reject', ['competition' => $contest['id'], 'registration' => $row['registrationId']]) }}" onsubmit="return confirm('Từ chối đăng ký này?');">
                                         @csrf<input type="hidden" name="vong" value="{{ $round['id'] }}">
                                         <button type="submit" class="contest-btn secondary">Từ chối</button>
@@ -40,8 +40,16 @@
                                         @csrf<input type="hidden" name="vong" value="{{ $round['id'] }}">
                                         <button type="submit" class="contest-btn primary">Duyệt</button>
                                     </form>
-                                </div>
                             @endif
+                            {{-- SỬA 24/10 — gỡ học sinh khỏi danh sách (ContestManageController::remove). --}}
+                            @if ($row['registrationId'])
+                                <form method="POST" action="{{ route('competitions.manage.remove', ['competition' => $contest['id'], 'registration' => $row['registrationId']]) }}"
+                                      onsubmit="return confirm({{ Js::from('Gỡ '.$row['name'].' khỏi danh sách? Học sinh sẽ không vào làm bài được nữa; bài đã nộp vẫn giữ.') }});">
+                                    @csrf<input type="hidden" name="vong" value="{{ $round['id'] }}">
+                                    <button type="submit" class="contest-btn secondary contest-kick" title="Gỡ khỏi danh sách"><x-lucide name="x" />Gỡ</button>
+                                </form>
+                            @endif
+                            </div>
                         </td>
                     </tr>
                 @endforeach

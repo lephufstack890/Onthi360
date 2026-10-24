@@ -178,6 +178,20 @@ class ContestOrganizerService
             : $this->adminCompetitions->rejectRegistration($user, $competition->id, $registrationId, $reason);
     }
 
+    /**
+     * SỬA 24/10 (khách: "có thể kick học sinh ra khỏi danh sách") — gỡ học sinh khỏi danh sách cuộc thi / khảo sát
+     * (đánh dấu withdrawn, ẩn khỏi tab "Học sinh"). Bài đã nộp giữ nguyên. Thêm lại bằng "Thêm học sinh" như thường.
+     */
+    public function removeStudent(User $user, Competition $competition, int $registrationId): string
+    {
+        $this->assertCanManage($user, $competition);
+        $registration = CompetitionRegistration::query()->where('competition_id', $competition->id)
+            ->with('student:id,name')->findOrFail($registrationId);
+        $registration->forceFill(['status' => CompetitionRegistration::STATUS_WITHDRAWN])->save();
+
+        return $registration->student?->name ?? 'học sinh';
+    }
+
     /** id học sinh → tên lớp đang học (lớp đầu tiên tìm thấy). @return array<int, string> */
     public function classNamesFor(array $studentIds): array
     {
