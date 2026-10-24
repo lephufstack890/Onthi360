@@ -838,13 +838,6 @@
 
                 <div class="flex flex-col gap-2">
                     @forelse (array_slice($upcomingCompetitions, 0, 2) as $i => $c)
-                        @php
-                            $toneClasses = match ($c['statusTone']) {
-                                'success' => ['text-emerald-600', 'bg-emerald-500'],
-                                'info' => ['text-amber-500', 'bg-amber-400'],
-                                default => ['text-slate-500', 'bg-slate-400'],
-                            };
-                        @endphp
                         <a href="{{ route('competitions.show', $c['id']) }}"
                            class="group w-full overflow-hidden rounded-2xl border border-[#E7E5DE] bg-[#FAFBFB] text-left transition-all hover:border-[#E6D6AD] hover:bg-[#FFFCF4] hover:shadow-sm cursor-pointer block">
                             <span class="flex items-stretch">
@@ -855,10 +848,7 @@
                                         <x-lucide name="calendar" class="w-3 h-3 shrink-0" />
                                         <span class="truncate">{{ $c['startsAt'] ? 'Bắt đầu: '.$c['startsAt']->format('d/m/Y') : $c['typeLabel'] }}</span>
                                     </span>
-                                    <span class="type-meta mt-1 flex items-center gap-1 font-bold {{ $toneClasses[0] }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $toneClasses[1] }}"></span>
-                                        {{ $c['statusLabel'] }}
-                                    </span>
+                                    {{-- SỬA 24/10 (khách: "ngoài trang chủ bỏ trạng thái đi") — bỏ dòng Sắp diễn ra / Đang diễn ra. --}}
                                 </span>
                             </span>
                         </a>
