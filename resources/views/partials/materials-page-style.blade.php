@@ -55,6 +55,8 @@
     /* SỬA 16/10 — thanh tìm kiếm + nút "Bộ lọc" gập/mở các ô lọc phụ. */
     .mp-search-row { display: flex; align-items: flex-end; gap: 10px; }
     .mp-search-row > label { flex: 1; min-width: 0; }
+    .mp-search-row > label.mp-province-filter { flex: 0 0 260px; }
+    @media (max-width: 640px) { .mp-search-row { flex-wrap: wrap; } .mp-search-row > label.mp-province-filter { flex: 1 1 100%; } }
     .mp-more-btn { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid #d6e3ef; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 700; color: #126f91; cursor: pointer; transition: background .15s, border-color .15s; }
     .mp-more-btn:hover { background: #eaf5f8; border-color: #bddbe6; }
     .mp-more-btn.is-open { background: #eaf5f8; border-color: #9dc8d7; }

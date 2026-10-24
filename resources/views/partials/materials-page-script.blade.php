@@ -38,6 +38,8 @@
             access: 'all',
             status: 'all',
             sort: 'default',
+            // SỬA 24/10 (khách: "phần lọc bộ đề chỉ cần lọc theo tỉnh thành + tên") — chỉ dùng khi đang xem thể loại Bộ đề.
+            province: 'all',
             // SỬA 16/10 (khách: "ẩn bộ lọc dưới thanh tìm kiếm, bấm mới hiện cho gọn") — mặc định GẬP các ô lọc phụ.
             moreFilters: false,
             pageIndex: 1,
@@ -63,7 +65,8 @@
                 this.scopeTab = this.activeScope;
 
                 // Bản mẫu quay về trang 1 mỗi khi đổi bộ lọc / từ khoá / tab.
-                ['query', 'category', 'difficulty', 'price', 'access', 'status', 'sort', 'scopeTab'].forEach(function (key) {
+                this.$watch('category', function (v) { if (v !== 'exams') { self.province = 'all'; } });
+                ['query', 'category', 'difficulty', 'price', 'access', 'status', 'sort', 'scopeTab', 'province'].forEach(function (key) {
                     self.$watch(key, function () { self.pageIndex = 1; self.syncUrl(); });
                 });
                 // "Hạn đọc gần nhất" chỉ có ở các danh sách lượt giao; rời khỏi đó thì về sắp xếp mặc định.
@@ -107,8 +110,20 @@
                 return list;
             },
 
+            // Đang xem thể loại Bộ đề (Kho / Tài liệu của tôi): chỉ lọc theo tên + tỉnh/thành, ẩn các ô lọc phụ.
+            get isBundleView() { return !this.isAssignmentView && this.category === 'exams'; },
+            get provinceOptions() {
+                var seen = {};
+                this.rows.forEach(function (r) {
+                    if (r.category === 'exams' && r.inCatalog && r.bundle) {
+                        (r.bundle.provinces || []).forEach(function (p) { seen[p] = true; });
+                    }
+                });
+                return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+            },
+
             get hasFilters() {
-                return !!this.query.trim() || this.category !== 'all' || this.difficulty !== 'all' || this.price !== 'all'
+                return !!this.query.trim() || this.category !== 'all' || this.province !== 'all' || this.difficulty !== 'all' || this.price !== 'all'
                     || (this.canFilterAccess && this.access !== 'all') || (this.isAssignmentView && this.status !== 'all');
             },
             get canReset() { return this.hasFilters || this.sort !== 'default'; },
@@ -122,7 +137,7 @@
 
             resetFilters() {
                 this.query = ''; this.category = 'all'; this.difficulty = 'all'; this.price = 'all';
-                this.access = 'all'; this.status = 'all'; this.sort = 'default';
+                this.access = 'all'; this.status = 'all'; this.sort = 'default'; this.province = 'all';
             },
 
             setScope(id) { this.scopeTab = id; this.status = 'all'; },
@@ -147,6 +162,10 @@
                     if (!q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; })) { return false; }
                 }
                 if (this.category !== 'all' && item.category !== this.category) { return false; }
+                if (this.isBundleView) {
+                    // Bộ đề: chỉ tên (ô tìm kiếm ở trên) + tỉnh/thành; bỏ qua độ khó / giá / quyền sử dụng.
+                    return this.province === 'all' || !!(item.bundle && (item.bundle.provinces || []).indexOf(this.province) !== -1);
+                }
                 if (this.difficulty !== 'all' && item.difficultyLevel !== Number(this.difficulty)) { return false; }
                 var cost = item.priceValue || 0;
                 if (this.price === 'under100' && cost >= 100000) { return false; }
@@ -161,7 +180,7 @@
             },
 
             sortEntries(list, assigned) {
-                var sort = (!assigned && this.sort === 'deadline') ? 'default' : this.sort;
+                var sort = (!assigned && (this.sort === 'deadline' || this.isBundleView)) ? 'default' : this.sort;
                 var titleCmp = function (a, b) { return a.title.localeCompare(b.title, 'vi', { numeric: true, sensitivity: 'base' }); };
                 var catIdx = function (id) { return CATEGORY_ORDER.indexOf(id); };
                 return list.slice().sort(function (l, r) {

@@ -425,7 +425,7 @@ class MaterialService
      * SỬA 24/10 — tóm tắt Bộ đề cho thẻ / hộp thông tin ở Kho tài liệu: số đề, số bài, khối, kỳ thi, tỉnh/thành, năm học,
      * mục đích. Tính từ danh sách đề THẬT của bộ (ExamBundleService::items() — đề luyện tập đã phát hành, nhớ trong request).
      *
-     * @return array{exams: int, questions: int, level: ?string, contest: ?string, province: ?string, years: ?string, purpose: string, note: ?string}
+     * @return array{exams: int, questions: int, level: ?string, contest: ?string, province: ?string, provinces: list<string>, years: ?string, purpose: string, note: ?string}
      */
     private function bundleSummary(Product $product): array
     {
@@ -461,6 +461,7 @@ class MaterialService
             'level' => implode(' · ', array_filter([implode(', ', $levels), $grade])) ?: null,
             'contest' => $contest,
             'province' => $province,
+            'provinces' => $provinces,   // ô lọc "Tỉnh/thành" khi xem thể loại Bộ đề
             'years' => $yearsLabel,
             'purpose' => 'Ôn luyện '.($contest !== null ? 'kỳ thi '.$contest : 'thi học sinh giỏi').(count($provinces) === 1 ? ' ('.$provinces[0].')' : '')
                 .' bằng đề thi thật — làm từng đề trực tuyến, chấm tự động, xem điểm từng bài.',

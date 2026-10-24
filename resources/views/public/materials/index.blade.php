@@ -163,14 +163,22 @@
              đếm ô đang lọc khi đang gập. Logic lọc không đổi. --}}
         <div class="mp-search-row">
             <label style="min-width:0">
-                <span class="mp-label" x-text="isAssignmentView ? (activeScope === 'managed' ? 'Tìm tài liệu, học sinh hoặc người giao' : 'Tìm tài liệu, người giao hoặc lời nhắn') : 'Tìm tài liệu, tác giả'"></span>
+                <span class="mp-label" x-text="isAssignmentView ? (activeScope === 'managed' ? 'Tìm tài liệu, học sinh hoặc người giao' : 'Tìm tài liệu, người giao hoặc lời nhắn') : (isBundleView ? 'Tìm bộ đề theo tên' : 'Tìm tài liệu, tác giả')"></span>
                 <span class="mp-search">
                     <x-lucide name="search" />
                     <input type="search" class="mp-input" aria-label="Tìm kiếm tài liệu" x-model="query"
-                           :placeholder="isAssignmentView ? (activeScope === 'managed' ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, người giao, lời nhắn...') : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)'">
+                           :placeholder="isAssignmentView ? (activeScope === 'managed' ? 'Tên tài liệu, học sinh, người giao, lời nhắn...' : 'Tên tài liệu, người giao, lời nhắn...') : (isBundleView ? 'Tên bộ đề... (có thể gõ không dấu)' : 'Tên tài liệu, tác giả, nội dung... (có thể gõ không dấu)')">
                 </span>
             </label>
-            <button type="button" class="mp-more-btn" :class="moreFilters ? 'is-open' : ''" @click="moreFilters = ! moreFilters"
+            {{-- SỬA 24/10 (khách: "phần lọc bộ đề chỉ cần lọc theo tỉnh thành + tên") — thể loại Bộ đề thay các ô lọc phụ bằng 1 ô Tỉnh/thành. --}}
+            <label class="mp-province-filter" x-show="isBundleView" x-cloak>
+                <span class="mp-label">Tỉnh/thành</span>
+                <select class="mp-input" aria-label="Lọc bộ đề theo tỉnh/thành" x-model="province">
+                    <option value="all">Tất cả tỉnh/thành</option>
+                    <template x-for="p in provinceOptions" :key="p"><option :value="p" x-text="p" :selected="province === p"></option></template>
+                </select>
+            </label>
+            <button type="button" class="mp-more-btn" x-show="!isBundleView" :class="moreFilters ? 'is-open' : ''" @click="moreFilters = ! moreFilters"
                     :aria-expanded="moreFilters ? 'true' : 'false'" aria-controls="mp-adv-filters">
                 <x-lucide name="filter" />
                 <span class="mp-more-txt" x-text="moreFilters ? 'Ẩn bộ lọc' : 'Hiện thêm bộ lọc'">Hiện thêm bộ lọc</span>
@@ -179,7 +187,7 @@
             </button>
         </div>
 
-        <div id="mp-adv-filters" class="mp-grid-filters mp-adv" x-show="moreFilters" x-cloak x-transition.opacity>
+        <div id="mp-adv-filters" class="mp-grid-filters mp-adv" x-show="moreFilters && !isBundleView" x-cloak x-transition.opacity>
 
             <label x-show="isAssignmentView" x-cloak style="min-width:0">
                 <span class="mp-label">Trạng thái đọc</span>
