@@ -771,6 +771,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('competitions/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
         Route::post('competitions/{competition}/archive', [AdminCompetitionController::class, 'archive'])->name('competitions.archive');
         Route::post('competitions/{competition}/unarchive', [AdminCompetitionController::class, 'unarchive'])->name('competitions.unarchive');
+        // SỬA 24/10 — nút Xoá ở danh sách cuộc thi: xoá vĩnh viễn cuộc thi + kỳ thi + bài làm + đề liên quan.
+        Route::delete('competitions/{competition}', [AdminCompetitionController::class, 'destroy'])->name('competitions.destroy');
         Route::get('competitions/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
         Route::post('competitions/{competition}/exams', [AdminCompetitionController::class, 'examStore'])->name('competitions.exams.store');
         Route::put('competitions/exams/{competitionExam}', [AdminCompetitionController::class, 'examUpdate'])->name('competitions.exams.update');

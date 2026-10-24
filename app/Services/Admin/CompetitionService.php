@@ -412,6 +412,90 @@ class CompetitionService
     }
 
     /**
+     * SỬA 24/10 (khách: "xoá là xoá toàn bộ cuộc thi + kỳ thi + đề liên quan, file đồ xoá hết để tránh dữ liệu rác").
+     *
+     * Xoá VĨNH VIỄN, theo thứ tự:
+     *  1. Lượt làm bài của cuộc thi (attempts) — bài làm, điểm từng câu, lượt chấm Judge0 rơi theo cascade.
+     *  2. Cuộc thi — kỳ thi, đơn đăng ký, giáo viên tổ chức, bảng xếp hạng rơi theo cascade; ảnh bìa trên đĩa.
+     *  3. Thông báo "đơn tham gia cuộc thi" đã gửi cho học sinh (link sẽ chết).
+     *  4. Đề của các kỳ thi (kèm ảnh bìa + PDF qua ContentService::assessmentDestroy) — CHỈ khi đề loại "Đề thi" và
+     *     không còn dùng ở chỗ khác (cuộc thi khác, bài giao lớp, buổi học, tài liệu, bộ đề bán, luyện tập được giao,
+     *     lượt làm ngoài cuộc thi). Đề đang dùng chỗ khác thì GIỮ, báo lại tên. Câu hỏi trong Kho câu hỏi không xoá
+     *     (dùng chung cho nhiều đề).
+     *
+     * @return array{deleted: int, kept: array<int, string>}
+     */
+    public function destroy(Competition $competition): array
+    {
+        $id = (int) $competition->id;
+        $examIds = CompetitionExam::query()->where('competition_id', $id)->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $assessmentIds = CompetitionExam::query()->where('competition_id', $id)->whereNotNull('assessment_id')->pluck('assessment_id')
+            ->push($competition->assessment_id)->filter()->map(fn ($v) => (int) $v)->unique()->values()->all();
+        $imagePath = Competition::supportsHubFields() ? $competition->image_path : null;
+
+        DB::transaction(function () use ($competition, $id, $examIds) {
+            \App\Models\Attempt::query()
+                ->where(fn ($q) => $q->where('competition_id', $id)->orWhereIn('competition_exam_id', $examIds === [] ? [0] : $examIds))
+                ->delete();
+            // Ghi rõ từng bảng (không chỉ trông vào cascade của CSDL) để chắc chắn không sót dòng rác.
+            LeaderboardEntry::query()->where('competition_id', $id)
+                ->orWhereIn('competition_exam_id', $examIds === [] ? [0] : $examIds)->delete();
+            CompetitionRegistration::query()->where('competition_id', $id)->delete();
+            CompetitionExam::query()->where('competition_id', $id)->delete();
+            $competition->advisors()->detach();
+            $competition->delete();
+        });
+
+        if ($imagePath && \Illuminate\Support\Facades\Storage::disk('public')->exists($imagePath)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+            // Lọc bằng PHP (đọc url trong data) thay cho LIKE — dấu "\/" trong JSON khác nhau giữa các CSDL.
+            $ids = DB::table('notifications')->where('type', CompetitionJoinDecided::class)->get(['id', 'data'])
+                ->filter(fn ($n) => preg_match('#/competitions/'.$id.'(/|$|\?)#', (string) (json_decode((string) $n->data, true)['url'] ?? '')))
+                ->pluck('id')->all();
+            if ($ids !== []) {
+                DB::table('notifications')->whereIn('id', $ids)->delete();
+            }
+        }
+
+        $deleted = 0;
+        $kept = [];
+        $content = app(ContentService::class);
+        foreach (\App\Models\Assessment::query()->whereIn('id', $assessmentIds === [] ? [0] : $assessmentIds)->get() as $assessment) {
+            if ($this->assessmentUsedElsewhere($assessment)) {
+                $kept[] = $assessment->title;
+
+                continue;
+            }
+            [$ok] = $content->assessmentDestroy($assessment);
+            $ok ? $deleted++ : $kept[] = $assessment->title;
+        }
+
+        return ['deleted' => $deleted, 'kept' => $kept];
+    }
+
+    /** SỬA 24/10 — đề còn được dùng ở chỗ khác (ngoài cuộc thi vừa xoá) thì không xoá. */
+    private function assessmentUsedElsewhere(\App\Models\Assessment $assessment): bool
+    {
+        $aid = (int) $assessment->id;
+        $has = fn (string $table, string $column = 'assessment_id', ?callable $extra = null) => \Illuminate\Support\Facades\Schema::hasTable($table)
+            && \Illuminate\Support\Facades\Schema::hasColumn($table, $column)
+            && DB::table($table)->where($column, $aid)->when($extra, $extra)->exists();
+
+        return ($assessment->type?->value ?? $assessment->type) !== \App\Enums\AssessmentType::Exam->value
+            || $has('competition_exams')
+            || $has('competitions')
+            || $has('attempts')
+            || $has('assignments')
+            || $has('session_resources')
+            || $has('materials')
+            || $has('product_assessments')
+            || $has('practice_assignments', 'subject_id', fn ($q) => $q->where('type', 'exam'));
+    }
+
+    /**
      * admin.competitions.archive — Competition KHÔNG có deleted_at (không xóa mềm được, giống
      * Material) — "gỡ" một cuộc thi khỏi lưu hành dùng status=archived, đúng bước cuối vòng đời
      * 11.1 (Sắp diễn ra → Đang diễn ra → Chờ công bố → Đã công bố → Lưu trữ), không xóa bản ghi.

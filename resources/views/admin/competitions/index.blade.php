@@ -19,6 +19,9 @@
     @if ($competitionStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $competitionStatusMessage])
     @endif
+    @if (session('competition_deleted'))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('competition_deleted')])
+    @endif
 
     <x-ws.page-header title="Cuộc thi" icon="trophy" subtitle="Đề thi luôn thuộc Tài liệu; cuộc thi chỉ tham chiếu đề để tổ chức sự kiện.">
         <x-slot:actions>
@@ -87,27 +90,27 @@
     </x-ws.table>
     --}}
 
-    <x-ws.table :columns="['Tên', 'Loại', 'Đơn chờ duyệt', '']">
+    {{-- SỬA 24/10 (khách: "bỏ cột Đơn chờ duyệt, thêm nút Sửa và Xoá bên ngoài") — dải nhắc đơn chờ duyệt phía trên vẫn giữ. --}}
+    <x-ws.table :columns="['Tên', 'Loại', '']">
         @forelse ($competitions as $c)
-            @php $pending = $c['pendingRegistrations'] ?? 0; @endphp
-            {{-- Tô nền vàng cả dòng khi có đơn chờ: lướt bảng là thấy ngay dòng nào cần xử lý. --}}
-            <tr class="{{ $pending > 0 ? 'bg-amber-50/60' : '' }}">
+            <tr>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $c['name'] }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ $c['type'] }}</td>
                 <td class="px-4 py-3">
-                    @if ($pending > 0)
-                        <a href="{{ route('admin.competitions.show', $c['id']) }}#don-dang-ky"
-                           class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100">
-                            <x-lucide name="user-check" class="h-3.5 w-3.5 shrink-0" />{{ $pending }} đơn chờ duyệt
-                        </a>
-                    @else
-                        <span class="text-xs text-slate-400">Không có</span>
-                    @endif
+                    <div class="flex items-center justify-end gap-3 whitespace-nowrap">
+                        <a href="{{ route('admin.competitions.show', $c['id']) }}" class="text-blue-600 font-medium">Xem</a>
+                        <a href="{{ route('admin.competitions.edit', $c['id']) }}" class="inline-flex items-center gap-1 text-slate-600 font-medium hover:text-blue-600"><x-lucide name="pencil" class="h-3.5 w-3.5" />Sửa</a>
+                        <form method="POST" action="{{ route('admin.competitions.destroy', $c['id']) }}" class="inline"
+                              onsubmit="return confirm({{ Js::from('XOÁ VĨNH VIỄN cuộc thi "'.$c['name'].'"? Sẽ xoá luôn: các kỳ thi, đơn đăng ký, bài làm & điểm của học sinh, bảng xếp hạng, ảnh bìa và các đề thi chỉ dùng cho cuộc thi này (kèm file PDF). Đề đang dùng ở chỗ khác sẽ được giữ lại. Không thể khôi phục. Tiếp tục?') }});">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="inline-flex items-center gap-1 font-medium text-rose-600 hover:text-rose-700"><x-lucide name="trash-2" class="h-3.5 w-3.5" />Xoá</button>
+                        </form>
+                    </div>
                 </td>
-                <td class="px-4 py-3 text-right"><a href="{{ route('admin.competitions.show', $c['id']) }}" class="text-blue-600 font-medium">Xem</a></td>
             </tr>
         @empty
-            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
+            <tr><td colspan="3" class="px-4 py-6 text-center text-slate-400">Chưa có cuộc thi nào.</td></tr>
         @endforelse
     </x-ws.table>
 @endsection

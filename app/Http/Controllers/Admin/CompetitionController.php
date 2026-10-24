@@ -147,6 +147,20 @@ class CompetitionController extends Controller
         return redirect()->route('admin.competitions.show', $competition->id)->with('status', 'competition-unarchived');
     }
 
+    /** SỬA 24/10 — admin.competitions.destroy: xoá vĩnh viễn cuộc thi + kỳ thi + bài làm + đề liên quan (xem CompetitionService::destroy()). */
+    public function destroy(Request $request, Competition $competition): RedirectResponse
+    {
+        $title = $competition->title;
+        $result = $this->competitionService->destroy($competition);
+
+        $message = 'Đã xoá cuộc thi "'.$title.'" cùng các kỳ thi, bài làm'.($result['deleted'] ? ' và '.$result['deleted'].' đề' : '').'.';
+        if ($result['kept'] !== []) {
+            $message .= ' Giữ lại đề đang dùng ở chỗ khác: '.implode(', ', $result['kept']).'.';
+        }
+
+        return redirect()->route('admin.competitions.index')->with('competition_deleted', $message);
+    }
+
     public function show(Request $request, int $competition): View
     {
         return view('admin.competitions.show', $this->competitionService->showData($competition));
