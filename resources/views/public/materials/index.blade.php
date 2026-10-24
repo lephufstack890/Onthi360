@@ -310,6 +310,8 @@
                                  Tỉnh thành, Từ năm học … đến năm học …") — số đề / số bài nằm ở dòng nhỏ trên tên bộ đề. --}}
                             {{-- SỬA 24/10 (khách: "thống kê bao nhiêu đề, năm học" — đặt NGAY DƯỚI nhãn "Đang công khai", ngoài khung xanh;
                                  bỏ danh sách "số đề theo năm học") --}}
+                            {{-- SỬA 24/10 (khách: "tạm thời xoá đi, không cần") — TẠM ẨN 3 ô thống kê. Muốn hiện lại: bỏ cặp chú thích
+                                 Blade bao quanh khối dưới (CSS .mp-bundle-stats vẫn giữ trong partials/materials-page-style).
                             @if ($bd['exams'] > 0)
                                 <div class="mp-bundle-stats">
                                     <div><b>{{ $bd['exams'] }}</b><small>đề thi</small></div>
@@ -317,6 +319,7 @@
                                     <div><b>{{ $bd['questions'] }}</b><small>bài</small></div>
                                 </div>
                             @endif
+                            --}}
                             <p class="mp-bundle-desc is-box">{{ $bd['purpose'] }}</p>
                             @if ($bd['note'])<p class="mp-bundle-desc">{{ $bd['note'] }}</p>@endif
                             <ul class="mp-bundle-facts">
