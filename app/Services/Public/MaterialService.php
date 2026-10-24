@@ -455,6 +455,9 @@ class MaterialService
         $yearFrom = $years->isEmpty() ? null : $schoolYear($years->first());
         $yearTo = $years->isEmpty() || $years->first() === $years->last() ? null : $schoolYear($years->last());
         $yearsLabel = $yearFrom === null ? null : ($yearTo === null ? $yearFrom : 'Từ '.$yearFrom.' đến '.$yearTo);
+        // SỬA 24/10 (khách: "thống kê bao nhiêu đề, năm nào đến năm nào") — số đề theo từng năm học, năm mới trước.
+        $byYear = $years->countBy()->sortKeysDesc()->map(fn ($n, $y) => ['year' => $schoolYear((int) $y), 'count' => (int) $n])->values()->all();
+        $undated = $items->count() - $years->count();
 
         $description = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $product->description)) ?? '');
         $sameAsTitle = Str::lower(Str::ascii($description)) === Str::lower(Str::ascii((string) $product->title));
@@ -469,6 +472,9 @@ class MaterialService
             'years' => $yearsLabel,
             'yearFrom' => $yearFrom,
             'yearTo' => $yearTo,
+            'byYear' => $byYear,          // [['year' => '2024-2025', 'count' => 3], …]
+            'yearCount' => count($byYear),
+            'undated' => $undated,        // số đề chưa ghi năm học
             'purpose' => 'Ôn luyện '.($contest !== null ? 'kỳ thi '.$contest : 'thi học sinh giỏi').(count($provinces) === 1 ? ' ('.$provinces[0].')' : '')
                 .' bằng đề thi thật — làm từng đề trực tuyến, chấm tự động, xem điểm từng bài.',
             'note' => $description !== '' && ! $sameAsTitle ? Str::limit($description, 140) : null,

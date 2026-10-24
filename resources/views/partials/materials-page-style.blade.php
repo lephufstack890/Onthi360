@@ -145,6 +145,15 @@
     .mp-bundle-facts li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; font-size: 11px; line-height: 18px; color: #36546a; }
     .mp-bundle-facts b { color: #7a8f9d; font-weight: 600; }
     .mp-bundle-facts strong { color: #173d57; font-weight: 700; }
+    .mp-bundle-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 10px 0 0; }
+    .mp-bundle-stats div { padding: 7px 4px; border-radius: 9px; background: #fff; border: 1px solid #e3eef3; text-align: center; }
+    .mp-bundle-stats b { display: block; font-size: 16px; line-height: 20px; font-weight: 800; color: #123b68; }
+    .mp-bundle-stats small { font-size: 10px; color: #7a8f9d; }
+    .mp-bundle-years-title { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: #7a8f9d; }
+    .mp-bundle-years { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 12px; }
+    .mp-bundle-years span { display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 8px; border-radius: 999px; background: #f4f9fb; border: 1px solid #e3eef3; font-size: 10px; color: #36546a; }
+    .mp-bundle-years span b { padding: 0 6px; border-radius: 999px; background: #138a8a; color: #fff; font-size: 10px; line-height: 16px; }
+    .mp-bundle-years span.is-muted b { background: #9aaab5; }
     .mp-bundle-lines { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 20px; color: #36546a; }
     .mp-bundle-lines b { color: #7a8f9d; font-weight: 600; }
     .mp-buy { margin-top: auto; border-top: 1px solid #e7eff3; padding-top: 12px; }

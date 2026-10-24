@@ -310,6 +310,14 @@
                                  Tỉnh thành, Từ năm học … đến năm học …") — số đề / số bài nằm ở dòng nhỏ trên tên bộ đề. --}}
                             <p class="mp-bundle-desc is-box">{{ $bd['purpose'] }}</p>
                             @if ($bd['note'])<p class="mp-bundle-desc">{{ $bd['note'] }}</p>@endif
+                            {{-- SỬA 24/10 (khách: "thống kê bao nhiêu đề, năm học nào đến năm học nào") --}}
+                            @if ($bd['exams'] > 0)
+                                <div class="mp-bundle-stats">
+                                    <div><b>{{ $bd['exams'] }}</b><small>đề thi</small></div>
+                                    <div><b>{{ $bd['yearCount'] }}</b><small>năm học</small></div>
+                                    <div><b>{{ $bd['questions'] }}</b><small>bài</small></div>
+                                </div>
+                            @endif
                             <ul class="mp-bundle-facts">
                                 @if ($bd['contest'])<li><b>Cuộc thi</b><span>{{ $bd['contest'] }}</span></li>@endif
                                 @if ($bd['province'])<li><b>Tỉnh/thành</b><span>{{ $bd['province'] }}</span></li>@endif
@@ -317,6 +325,15 @@
                                     <li><b>Năm học</b><span>@if ($bd['yearTo'])Từ <strong>{{ $bd['yearFrom'] }}</strong> đến <strong>{{ $bd['yearTo'] }}</strong>@else<strong>{{ $bd['yearFrom'] }}</strong>@endif</span></li>
                                 @endif
                             </ul>
+                            @if ($bd['byYear'] !== [] || $bd['undated'] > 0)
+                                <p class="mp-bundle-years-title">Số đề theo năm học</p>
+                                <div class="mp-bundle-years">
+                                    @foreach ($bd['byYear'] as $y)
+                                        <span>{{ $y['year'] }}<b>{{ $y['count'] }} đề</b></span>
+                                    @endforeach
+                                    @if ($bd['undated'] > 0)<span class="is-muted">Chưa ghi năm<b>{{ $bd['undated'] }} đề</b></span>@endif
+                                </div>
+                            @endif
                         @else
                             <p class="mp-desc">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', strip_tags((string) $item['highlight']))) ?: 'Học liệu bản quyền của Ôn Thi 360.', 160) }}</p>
                         @endif
@@ -451,6 +468,7 @@
                                         <li x-show="selected.bundle.contest"><b>Cuộc thi:</b> <span x-text="selected.bundle.contest"></span></li>
                                         <li x-show="selected.bundle.province"><b>Tỉnh/thành:</b> <span x-text="selected.bundle.province"></span></li>
                                         <li x-show="selected.bundle.years"><b>Năm học:</b> <span x-text="selected.bundle.years"></span></li>
+                                        <li x-show="(selected.bundle.byYear || []).length"><b>Số đề theo năm:</b> <span x-text="(selected.bundle.byYear || []).map(function (y) { return y.year + ': ' + y.count + ' đề'; }).join(' · ')"></span></li>
                                         <li x-show="selected.bundle.questions"><b>Số bài:</b> <span x-text="selected.bundle.questions + ' bài'"></span></li>
                                         <li><b>Mục đích:</b> <span x-text="selected.bundle.purpose"></span></li>
                                     </ul>
