@@ -41,7 +41,7 @@ class CompetitionController extends Controller
             // SỬA 24/10 — trường của trang Cuộc thi & phòng thi mới (CompetitionService::applyHubFields()).
             'description' => ['nullable', 'string', 'max:1000'],
             'edition_label' => ['nullable', 'string', 'max:120'],
-            'learning_path_id' => ['nullable', 'integer', 'exists:learning_paths,id'],
+            'course_id' => ['nullable', 'integer', 'exists:courses,id'], // "Lộ trình học" = khoá học
             'entry_password' => ['nullable', 'string', 'max:100'],
             'clear_entry_password' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],

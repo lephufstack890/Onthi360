@@ -58,7 +58,7 @@ class CompetitionService
     {
         return [
             'types' => [CompetitionType::Contest->value => 'Cuộc thi', CompetitionType::Survey->value => 'Khảo sát'],
-            'learningPathOptions' => $this->learningPathOptions(), // SỬA 24/10
+            'courseOptions' => $this->courseOptions(), // SỬA 24/10 — ô "Lộ trình học" = khoá học
             // Đề thi luôn thuộc Tài liệu (11.1) — cuộc thi chỉ THAM CHIẾU, không tạo đề riêng.
             // SỬA 11/10 (khách: "Đề/bộ bài tham chiếu chỉ đổ ra đề thuộc loại Đề thi") — chỉ liệt kê đề
             // có Loại = "Đề thi" (AssessmentType::Exam). Khi SỬA cuộc thi mà đề đang gắn thuộc loại khác
@@ -259,15 +259,15 @@ class CompetitionService
         }
     }
 
-    /** SỬA 24/10 — lộ trình cho ô "Lộ trình học liên quan". */
-    private function learningPathOptions(): array
+    /** SỬA 24/10 — khoá học cho ô "Lộ trình học" (khách: "lộ trình học = khoá học"). */
+    private function courseOptions(): array
     {
-        if (! Competition::supportsHubFields()) {
+        if (! Competition::supportsCourse()) {
             return [];
         }
 
-        return \App\Models\LearningPath::query()->orderBy('title')->get(['id', 'title'])
-            ->map(fn ($lp) => ['id' => (int) $lp->id, 'title' => (string) $lp->title])->all();
+        return \App\Models\Course::query()->orderBy('title')->get(['id', 'title'])
+            ->map(fn ($c) => ['id' => (int) $c->id, 'title' => (string) $c->title])->all();
     }
 
     /** SỬA 24/10 (khách: "khảo sát khi tham gia sẽ nhập mật khẩu") — khảo sát phải có mật khẩu tham gia. */
@@ -298,8 +298,10 @@ class CompetitionService
         $attrs = [
             'description' => trim((string) ($data['description'] ?? '')) ?: null,
             'edition_label' => trim((string) ($data['edition_label'] ?? '')) ?: null,
-            'learning_path_id' => ($data['learning_path_id'] ?? null) ?: null,
         ];
+        if (Competition::supportsCourse()) {
+            $attrs['course_id'] = ($data['course_id'] ?? null) ?: null;
+        }
 
         $password = trim((string) ($data['entry_password'] ?? ''));
         if ($password !== '') {

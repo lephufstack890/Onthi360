@@ -3,7 +3,7 @@
      Cần migration 001260; chưa chạy thì khối này tự ẩn (Competition::supportsHubFields()). --}}
 @php
     $hubCompetition = $competition ?? null;
-    $learningPathOptions = $learningPathOptions ?? [];
+    $courseOptions = $courseOptions ?? [];
     $hasPassword = $hubCompetition?->hasEntryPassword() ?? false;
 @endphp
 @if (\App\Models\Competition::supportsHubFields())
@@ -21,13 +21,17 @@
                        value="{{ old('edition_label', $hubCompetition?->edition_label) }}" placeholder="VD: Mùa giải 2026 · Dành cho học sinh THCS">
             </div>
             <div>
-                <label class="block text-xs text-slate-500 mb-1" for="learning_path_id">Lộ trình học liên quan</label>
-                <x-ws.select id="learning_path_id" name="learning_path_id">
-                    <option value="">— Không gắn lộ trình —</option>
-                    @foreach ($learningPathOptions as $lp)
-                        <option value="{{ $lp['id'] }}" @selected((string) old('learning_path_id', $hubCompetition?->learning_path_id) === (string) $lp['id'])>{{ $lp['title'] }}</option>
+                {{-- SỬA 24/10 (khách: "cuộc thi / khảo sát thuộc khoá học nào — lộ trình học = khoá học") --}}
+                <label class="block text-xs text-slate-500 mb-1" for="course_id">Lộ trình học (khoá học của cuộc thi)</label>
+                <x-ws.select id="course_id" name="course_id">
+                    <option value="">— Không thuộc khoá học nào —</option>
+                    @foreach ($courseOptions as $co)
+                        <option value="{{ $co['id'] }}" @selected((string) old('course_id', $hubCompetition?->course_id) === (string) $co['id'])>{{ $co['title'] }}</option>
                     @endforeach
                 </x-ws.select>
+                @unless (\App\Models\Competition::supportsCourse())
+                    <p class="text-xs text-rose-600 mt-1">Chưa chạy migration 001270 — chạy "php artisan migrate" để chọn khoá học.</p>
+                @endunless
             </div>
         </div>
         <div>

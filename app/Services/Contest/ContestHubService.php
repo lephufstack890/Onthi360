@@ -49,7 +49,7 @@ class ContestHubService
 
         $competitions = Competition::query()
             ->where('status', '!=', CompetitionStatus::Archived->value)
-            ->with(array_merge(['examSittings.assessment:id,title,duration_minutes', 'advisors:id,name'], $hub ? ['learningPath:id,title,slug'] : []))
+            ->with(array_merge(['examSittings.assessment:id,title,duration_minutes', 'advisors:id,name'], Competition::supportsCourse() ? ['course:id,title'] : []))
             ->latest('id')
             ->limit(200)
             ->get();
@@ -118,7 +118,7 @@ class ContestHubService
 
         /** @var Competition $c */
         $c = Competition::query()
-            ->with(array_merge(['examSittings.assessment', 'advisors:id,name'], $hub ? ['learningPath:id,title,slug'] : []))
+            ->with(array_merge(['examSittings.assessment', 'advisors:id,name'], Competition::supportsCourse() ? ['course:id,title'] : []))
             ->findOrFail($competitionId);
 
         $survey = $c->isSurvey();
@@ -771,11 +771,12 @@ class ContestHubService
 
     private function roadmap(Competition $c): ?array
     {
-        if (! Competition::supportsHubFields() || $c->learning_path_id === null || ! $c->relationLoaded('learningPath') || $c->learningPath === null) {
+        // SỬA 24/10 — "Lộ trình học" = KHOÁ HỌC của cuộc thi (competitions.course_id), link sang trang khoá học.
+        if (! Competition::supportsCourse() || $c->course_id === null || ! $c->relationLoaded('course') || $c->course === null) {
             return null;
         }
 
-        return ['id' => (int) $c->learningPath->id, 'title' => $c->learningPath->title, 'href' => route('learningPaths.show', $c->learningPath->slug)];
+        return ['id' => (int) $c->course->id, 'title' => $c->course->title, 'href' => route('courses.show', $c->course->id)];
     }
 
     private function description(Competition $c): string

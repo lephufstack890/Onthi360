@@ -10,7 +10,7 @@
             <div class="min-w-0 flex-1 space-y-1 text-[13px] text-slate-600">
                 <p><span class="text-slate-400">Mô tả:</span> {{ $competition->description ?: '— Chưa nhập (dùng thể lệ) —' }}</p>
                 <p><span class="text-slate-400">Nhãn mùa giải:</span> {{ $competition->edition_label ?: '—' }}</p>
-                <p><span class="text-slate-400">Lộ trình:</span> {{ $competition->learningPath?->title ?: '—' }}</p>
+                <p><span class="text-slate-400">Lộ trình học (khoá học):</span> {{ \App\Models\Competition::supportsCourse() ? ($competition->course?->title ?: '—') : '—' }}</p>
                 @if ($competition->isSurvey())
                     @php $pw = $competition->entryPassword(); @endphp
                     <p x-data="{ show: false }"><span class="text-slate-400">Mật khẩu khảo sát:</span>

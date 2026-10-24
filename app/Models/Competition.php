@@ -19,6 +19,7 @@ class Competition extends Model
         'starts_at', 'ends_at', 'publish_result_at', 'status', 'ranking_rule',
         // SỬA 24/10 — phòng thi mới (migration 001260)
         'description', 'edition_label', 'image_path', 'learning_path_id', 'entry_password',
+        'course_id', // SỬA 24/10 — "Lộ trình học" = khoá học (migration 001270)
     ];
 
     protected $casts = [
@@ -72,7 +73,24 @@ class Competition extends Model
         return $this->belongsToMany(User::class, 'competition_advisors', 'competition_id', 'teacher_id')->withTimestamps();
     }
 
-    /** SỬA 24/10 — lộ trình học liên quan (bộ lọc "Lộ trình" + link trong phòng thi). */
+    /**
+     * SỬA 24/10 (khách: "lộ trình học = khoá học") — KHOÁ HỌC mà cuộc thi / khảo sát thuộc về. Giao diện vẫn gọi là
+     * "Lộ trình học" (thẻ cuộc thi, bộ lọc "Lộ trình", link trong phòng thi).
+     */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    /** Đã chạy migration 001270 (cột course_id) chưa. */
+    public static function supportsCourse(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('competitions', 'course_id');
+    }
+
+    /** SỬA 24/10 — (không dùng nữa, thay bằng course()) lộ trình học liên quan. */
     public function learningPath(): BelongsTo
     {
         return $this->belongsTo(LearningPath::class);
