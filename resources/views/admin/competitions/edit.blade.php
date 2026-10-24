@@ -24,8 +24,9 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
+    {{-- SỬA 24/10 (khách: "khi sửa là lưu cái mới luôn, không có lưu trữ hay tính lại theo giờ") — bỏ khối Lưu trữ bên phải, form chiếm hết bề ngang. --}}
+    <div>
+        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
             <form method="POST" action="{{ route('admin.competitions.update', $competition->id) }}" class="space-y-4" enctype="multipart/form-data"
                   x-data="{ organizerType: '{{ old('organizer_type', $competition->organizer_type->value) }}', type: '{{ old('type', $competition->type->value) }}' }">
                 @csrf
@@ -135,26 +136,5 @@
             </form>
         </div>
 
-        <div class="bg-white rounded-3xl border border-blue-200 p-6 space-y-3">
-            @if ($competition->status->value === 'archived')
-                {{-- SỬA 19/8: "Lưu trữ" trước đây là hành động MỘT CHIỀU tuyệt đối — bấm nhầm là
-                     kẹt cứng, sửa lại Bắt đầu/Kết thúc phía trên cũng KHÔNG có tác dụng đổi
-                     trạng thái nữa (xem docblock CompetitionService::unarchive()). Giờ thêm nút
-                     này để tự mở lại được, không cần sửa DB tay. --}}
-                <h3 class="flex items-center gap-2 text-[13px] font-bold text-blue-700"><span><x-lucide name="library" class="h-4 w-4" /></span> Đã lưu trữ</h3>
-                <p class="text-[13px] text-slate-500">Cuộc thi đang ở trạng thái "Lưu trữ" — sửa Bắt đầu/Kết thúc ở form bên trên sẽ KHÔNG tự đổi trạng thái, phải bấm "Bỏ lưu trữ" trước.</p>
-                <form method="POST" action="{{ route('admin.competitions.unarchive', $competition->id) }}">
-                    @csrf
-                    <button type="submit" class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white text-[13px] font-medium">Bỏ lưu trữ (tính lại trạng thái theo giờ)</button>
-                </form>
-            @else
-                <h3 class="flex items-center gap-2 text-[13px] font-bold text-blue-700"><span><x-lucide name="library" class="h-4 w-4" /></span> Lưu trữ cuộc thi</h3>
-                <p class="text-[13px] text-slate-500">Không xóa dữ liệu — chỉ chuyển trạng thái "Lưu trữ" (11.1), khớp bước cuối vòng đời cuộc thi. Sau khi lưu trữ, sửa lại ngày giờ sẽ KHÔNG tự mở lại — phải bấm "Bỏ lưu trữ".</p>
-                <form method="POST" action="{{ route('admin.competitions.archive', $competition->id) }}" onsubmit="return confirm('Xác nhận lưu trữ cuộc thi này?');">
-                    @csrf
-                    <button type="submit" class="w-full inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Lưu trữ cuộc thi</button>
-                </form>
-            @endif
-        </div>
     </div>
 @endsection

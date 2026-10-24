@@ -384,15 +384,10 @@ class CompetitionService
         $this->assertDatesValid($data);
         $this->assertHubFields($data, $competition);
 
-        // Trạng thái TỰ TÍNH lại theo lịch mới nhập — trừ khi cuộc thi ĐANG "Lưu trữ" thì giữ
-        // nguyên (Lưu trữ là hành động thủ công riêng của admin qua archive(), sửa ngày giờ
-        // không được phép tự "mở lại" 1 cuộc thi đã lưu trữ).
-        $status = Competition::computeStatusFor(
-            $data['starts_at'] ?? null,
-            $data['ends_at'] ?? null,
-            $data['publish_result_at'] ?? null,
-            $competition->status === CompetitionStatus::Archived,
-        );
+        // SỬA 24/10 (khách: "khi sửa là lưu cái mới luôn, không có lưu trữ hay tính lại theo giờ") — Lưu = ghi đúng dữ liệu
+        // mới trong form, KHÔNG tự tính lại trạng thái. Trạng thái hiển thị ở trang Cuộc thi tính theo giờ của từng kỳ thi
+        // (ContestHubService). Cuộc thi lỡ ở "Lưu trữ" từ trước thì Lưu là mở lại luôn (đã bỏ chức năng lưu trữ).
+        $status = $competition->status === CompetitionStatus::Archived ? CompetitionStatus::Upcoming : $competition->status;
 
         $updated = $this->competitions->update($competition, [
             'title' => $data['title'],
@@ -401,12 +396,15 @@ class CompetitionService
             'organizer_name' => $data['organizer_type'] === CompetitionOrganizerType::External->value ? trim($data['organizer_name']) : null,
             'assessment_id' => ($data['assessment_id'] ?? null) ?: null, // SỬA 20/10 — form không còn ô này
             'rules' => $data['rules'] ?? null,
-            'starts_at' => $data['starts_at'] ?: null,
-            'ends_at' => $data['ends_at'] ?: null,
-            'publish_result_at' => $data['publish_result_at'] ?: null,
             'status' => $status->value,
             'ranking_rule' => $this->buildRankingRule($data),
-        ]);
+        ]
+        // Form sửa không còn ô Bắt đầu / Kết thúc / Công bố — ô nào không gửi lên thì GIỮ giá trị cũ, không xoá về trống.
+        + array_filter([
+            'starts_at' => $data['starts_at'] ?? null,
+            'ends_at' => $data['ends_at'] ?? null,
+            'publish_result_at' => $data['publish_result_at'] ?? null,
+        ], fn ($v) => $v !== null && $v !== ''));
 
         $updated->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
         $this->applyHubFields($updated, $data);
