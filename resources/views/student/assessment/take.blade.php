@@ -118,8 +118,8 @@
                  trong khung workspace theo VAI TRÒ của người đang đăng nhập, nên admin/giáo viên
                  bấm Thoát là rơi vào giao diện quản trị. Trang /luyen-tap công khai không có
                  khung đó, ai vào cũng ra đúng một trang. --}}
-            <a href="{{ $exitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="Thoát (bài làm đã tự lưu)"
-               @click="if (grading()) { $event.preventDefault(); askExit($el.href); }"
+            <a href="{{ $exitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="{{ empty($exitWarning) ? 'Thoát (bài làm đã tự lưu)' : 'Thoát (lượt đang làm sẽ bị huỷ)' }}"
+               @click="if (grading()) { $event.preventDefault(); askExit($el.href); }{{ empty($exitWarning) ? '' : ' else if (! confirm('.e(json_encode($exitWarning, JSON_UNESCAPED_UNICODE)).')) { $event.preventDefault(); }' }}"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
             <div class="min-w-0 flex-1">

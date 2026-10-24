@@ -35,7 +35,7 @@
         'contestId' => $contest['id'],
         'openEntry' => $entryFailed,
         // SỬA 24/10 — đề học sinh chọn (khảo sát nhiều đề).
-        'selectedPaper' => ($doingPaperId ?? null) ?? ($myPaperId ?? null) ?? (($paperList ?? [])[0]['id'] ?? null),
+        'selectedPaper' => ($myPaperId ?? null) ?? (($paperList ?? [])[0]['id'] ?? null),
         'paperLabels' => collect($paperList ?? [])->pluck('label', 'id')->all(),
         'selectedForm' => $assignedForm ?? (($round['assignmentMode'] ?? 'random') === 'choice' ? 1 : null),
         'searchUrl' => $participants['searchUrl'] ?? null,

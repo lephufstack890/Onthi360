@@ -218,9 +218,9 @@ class ContestHubService
         $survey = $c->isSurvey();
         // SỬA 24/10 — kỳ có đề sinh từ ma trận: hiện theo đề đã giao cho học sinh, chưa nhận đề thì đề đầu tiên.
         $papers = $this->papers->publishedPapers($exam);
-        // SỬA 24/10 — học sinh tự chọn đề: đề đang làm dở > đề chọn lần trước > đề đầu tiên.
-        $doingPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->inProgressPaper($viewer, $exam, $papers) : null;
-        $myPaper = $doingPaper ?? (($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null);
+        // SỬA 24/10 — học sinh tự chọn đề: chọn sẵn đề làm lần trước, chưa có thì đề đầu tiên. Khảo sát thoát giữa chừng
+        // là làm lại từ đầu (ContestEntryService::enter() huỷ lượt dở) nên không khoá theo đề đang làm dở.
+        $myPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null;
         $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : $exam->assessment;
         $period = $this->roundState($exam);
         $questions = $this->questionsOfAssessment($assessment);
@@ -259,7 +259,8 @@ class ContestHubService
         }
 
         // Quyền vào thi + nút hành động (bản mẫu: contestEntry() + chuỗi if/else "action" trong ContestRoomPage.jsx)
-        $resume = $inProgress !== null;
+        // Khảo sát: lượt dở không "tiếp tục" được — bắt đầu lại là lượt mới (xem ContestEntryService::enter()).
+        $resume = $inProgress !== null && ! $survey;
         $access = $this->access($survey, $period, $isStudent, $assessment !== null, $latest !== null, $registration?->status);
         $action = $this->action($c, $survey, $period, $closed, $manager, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
 
@@ -319,10 +320,10 @@ class ContestHubService
                 'label' => $p->label,
                 'questionCount' => $p->assessment ? $p->assessment->items()->count() : 0,
                 'duration' => $p->assessment?->duration_minutes,
-                'questions' => $manager ? $this->questionsOfAssessment($p->assessment) : [],
+                'questions' => ($manager || ($survey && $attemptRows !== [])) ? $this->questionsOfAssessment($p->assessment) : [],
             ])->values()->all(),
             'myPaperId' => $myPaper?->id,
-            'doingPaperId' => $doingPaper?->id,
+            'surveyDraft' => $survey && $inProgress !== null,
             'questionsVisible' => $manager || ($survey && $attemptRows !== []),
             'forms' => $forms,
             'assignedForm' => $assignedForm,

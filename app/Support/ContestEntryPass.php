@@ -24,6 +24,16 @@ final class ContestEntryPass
         session()->put(self::KEY, $passes);
     }
 
+    /** SỬA 24/10 — ra lại phòng thi = rời bài khảo sát: bỏ dấu đã nhập mật khẩu của các kỳ này. */
+    public static function revoke(array $examIds): void
+    {
+        $passes = (array) session(self::KEY, []);
+        foreach ($examIds as $id) {
+            unset($passes[(int) $id]);
+        }
+        session()->put(self::KEY, $passes);
+    }
+
     public static function has(int $examId): bool
     {
         $at = ((array) session(self::KEY, []))[$examId] ?? null;

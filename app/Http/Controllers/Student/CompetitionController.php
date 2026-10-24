@@ -182,6 +182,9 @@ class CompetitionController extends Controller
     {
         return [
             'exitUrl' => $context['contestRoomUrl'],
+            // SỬA 24/10 — khảo sát: thoát giữa chừng là lượt đang làm bị huỷ, hỏi lại trước khi thoát.
+            'exitWarning' => ! empty($context['contestIsSurvey'])
+                ? 'Thoát bây giờ thì lượt đang làm sẽ bị huỷ — lần sau bắt đầu lại từ đầu và được chọn đề khác. Vẫn thoát?' : null,
             'examTitleOverride' => implode(' · ', array_filter([$context['contestTitle'], $context['contestRoundLabel'], $context['contestPaperLabel'] ?? null])),
         ];
     }

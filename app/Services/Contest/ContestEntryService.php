@@ -10,7 +10,9 @@ use App\Models\CompetitionRegistration;
 use App\Models\User;
 use App\Support\ContestEntryPass;
 use App\Support\ContestForms;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -98,8 +100,13 @@ class ContestEntryService
             }
 
             // SỬA 24/10 — kỳ nhiều đề: học sinh tự chọn đề để làm (xem ContestPaperService::choosePaper()).
+            // SỬA 24/10 (khách: "đang làm nửa chừng mà thoát ra là reset lại từ đầu và cho chọn đề") — mỗi lần nhập mật
+            // khẩu là một lượt MỚI: huỷ lượt đang làm dở của kỳ này rồi lấy đề vừa chọn. Chọn đề lỗi thì không huỷ gì.
             try {
-                app(ContestPaperService::class)->choosePaper($user, $exam, $paperId);
+                DB::transaction(function () use ($user, $exam, $paperId) {
+                    $this->discardInProgress($user, $exam);
+                    app(ContestPaperService::class)->choosePaper($user, $exam, $paperId);
+                });
             } catch (ValidationException $e) {
                 $this->fail((string) (collect($e->errors())->flatten()->first() ?? 'Chưa chọn được đề.'));
             }
@@ -158,6 +165,30 @@ class ContestEntryService
             ->where('competition_exam_id', $exam->id)
             ->whereNotNull('submitted_at')
             ->count();
+    }
+
+    /**
+     * SỬA 24/10 — xoá hẳn lượt khảo sát đang làm dở của học sinh ở kỳ này (câu trả lời, khoá đáp án, câu lập trình, lượt
+     * chấm code). Chỉ gọi cho KHẢO SÁT; lượt đã nộp không đụng tới.
+     */
+    private function discardInProgress(User $user, CompetitionExam $exam): void
+    {
+        $ids = Attempt::query()->where('user_id', $user->id)->where('competition_exam_id', $exam->id)
+            ->where('status', AttemptStatus::InProgress->value)->pluck('id')->all();
+        if ($ids === []) {
+            return;
+        }
+
+        $answerIds = DB::table('attempt_answers')->whereIn('attempt_id', $ids)->pluck('id')->all();
+        if ($answerIds !== [] && Schema::hasTable('judge_submissions')) {
+            DB::table('judge_submissions')->whereIn('attempt_answer_id', $answerIds)->delete();
+        }
+        foreach (['attempt_answers', 'attempt_answer_keys', 'attempt_coding_items'] as $table) {
+            if (Schema::hasTable($table)) {
+                DB::table($table)->whereIn('attempt_id', $ids)->delete();
+            }
+        }
+        Attempt::query()->whereIn('id', $ids)->delete();
     }
 
     public function hasInProgress(User $user, CompetitionExam $exam): bool

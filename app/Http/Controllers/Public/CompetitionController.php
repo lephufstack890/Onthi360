@@ -34,6 +34,12 @@ class CompetitionController extends Controller
         $roundId = $request->integer('vong') ?: null;
         $tab = $request->query('tab');
 
+        // SỬA 24/10 (khách: "đang làm nửa chừng mà thoát ra là reset lại từ đầu") — về phòng thi là rời bài khảo sát:
+        // bỏ dấu đã nhập mật khẩu, muốn làm phải bắt đầu lại (lượt dở bị huỷ ở ContestEntryService::enter()).
+        if (Auth::check()) {
+            \App\Support\ContestEntryPass::revoke(\App\Models\CompetitionExam::query()->where('competition_id', $competition)->pluck('id')->all());
+        }
+
         return view('public.competitions.show', $this->hub->roomData($competition, Auth::user(), $roundId, is_string($tab) ? $tab : null));
     }
 }

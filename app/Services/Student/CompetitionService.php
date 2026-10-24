@@ -355,6 +355,7 @@ class CompetitionService
             'assessmentId' => $assessmentId,
             'contestId' => $competition->id,
             'contestTitle' => $competition->title,
+            'contestIsSurvey' => $competition->isSurvey(),
             'contestRoundLabel' => $exam->displayTitle(),
             // SỬA 24/10 — tên đề được giao khi kỳ có nhiều đề (Đề 1, Đề 2 …).
             'contestPaperLabel' => app(\App\Services\Contest\ContestPaperService::class)->paperFor($user, $exam)?->label,

@@ -28,7 +28,11 @@
         @if ($survey && count($paperList ?? []) > 1)
             {{-- SỬA 24/10 — đề học sinh đã chọn ở "Danh sách đề". --}}
             <input type="hidden" name="paper" :value="selectedPaper">
-            <p class="contest-dialog-help"><b x-text="paperLabels[selectedPaper] || 'Chưa chọn đề'"></b> · {{ ($doingPaperId ?? null) ? 'Tiếp tục đúng đề đang làm dở.' : 'Đổi đề ở mục "Danh sách đề" trong tab Thông tin kỳ thi.' }}</p>
+            <p class="contest-dialog-help"><b x-text="paperLabels[selectedPaper] || 'Chưa chọn đề'"></b> · Đổi đề ở mục "Danh sách đề" trong tab Thông tin kỳ thi.</p>
+        @endif
+        @if ($survey && ($surveyDraft ?? false))
+            {{-- SỬA 24/10 — khảo sát thoát giữa chừng: bắt đầu lại là làm từ đầu (ContestEntryService::enter()). --}}
+            <p class="contest-dialog-help"><b>Lượt đang làm dở sẽ bị huỷ</b> · Bài mới bắt đầu lại từ đầu.</p>
         @endif
         @if ($round['needsPassword'])
             <label for="survey-password" style="margin-top:16px">Mật khẩu do giáo viên cung cấp</label>
