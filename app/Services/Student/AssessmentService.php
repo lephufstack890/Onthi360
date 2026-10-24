@@ -678,11 +678,29 @@ class AssessmentService
 
         // SỬA 20/10 (khách: "Đề thi và Luyện tập in đúc 100%, chỉ khác Loại") — Đề thi câu hỏi rời cũng có nút Chấm câu,
         // TRỪ đề đang dùng cho Cuộc thi (chấm từng câu trong lúc thi là lộ đúng/sai).
-        return $assessment->type === \App\Enums\AssessmentType::Exam
-            && ! \App\Models\CompetitionExam::query()->where('assessment_id', $assessment->id)->exists()
-            && ! \App\Models\Competition::query()->where('assessment_id', $assessment->id)->exists()
-            // SỬA 24/10 — đề sinh từ ma trận của kỳ thi cũng là đề cuộc thi.
-            && ! (\App\Models\CompetitionExamPaper::supported() && \App\Models\CompetitionExamPaper::query()->where('assessment_id', $assessment->id)->exists());
+        // SỬA 24/10 (khách: "thiếu nút chấm câu, làm giống UI làm đề ở luyện tập") — đề của KHẢO SÁT thì có Chấm câu
+        // (khảo sát làm lại nhiều lần, giống luyện tập). Đề dùng cho CUỘC THI (xếp hạng, 1 lượt) vẫn không có.
+        if ($assessment->type !== \App\Enums\AssessmentType::Exam) {
+            return false;
+        }
+        $competitionIds = $this->competitionIdsUsing($assessment->id);
+
+        return $competitionIds === []
+            || ! \App\Models\Competition::query()->whereIn('id', $competitionIds)
+                ->where('type', '!=', \App\Enums\CompetitionType::Survey->value)->exists();
+    }
+
+    /** Các cuộc thi / khảo sát đang dùng đề này (gắn trực tiếp, gắn vào kỳ, hoặc đề sinh từ ma trận của kỳ). */
+    private function competitionIdsUsing(int $assessmentId): array
+    {
+        $ids = \App\Models\Competition::query()->where('assessment_id', $assessmentId)->pluck('id')
+            ->merge(\App\Models\CompetitionExam::query()->where('assessment_id', $assessmentId)->pluck('competition_id'));
+        if (\App\Models\CompetitionExamPaper::supported()) {
+            $examIds = \App\Models\CompetitionExamPaper::query()->where('assessment_id', $assessmentId)->pluck('competition_exam_id');
+            $ids = $ids->merge(\App\Models\CompetitionExam::query()->whereIn('id', $examIds)->pluck('competition_id'));
+        }
+
+        return $ids->map(fn ($v) => (int) $v)->unique()->values()->all();
     }
 
     /**

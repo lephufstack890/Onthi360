@@ -559,6 +559,52 @@ class ContestPaperService
         return $pick;
     }
 
+    /**
+     * SỬA 24/10 (khách: "học sinh được chọn đề bất kỳ để làm") — học sinh tự chọn đề khi bắt đầu (mỗi lượt có thể chọn đề
+     * khác). Đang có bài làm dở ở kỳ thì bắt buộc tiếp tục đúng đề đó. Không chọn: dùng đề đã chọn lần trước; kỳ chỉ có
+     * 1 đề thì lấy luôn đề đó.
+     */
+    public function choosePaper(User $user, CompetitionExam $exam, ?int $paperId): ?CompetitionExamPaper
+    {
+        $papers = $this->publishedPapers($exam);
+        if ($papers->isEmpty()) {
+            return null;
+        }
+
+        $pick = $this->inProgressPaper($user, $exam, $papers)
+            ?? ($paperId !== null ? $papers->firstWhere('id', $paperId) : null);
+
+        if ($pick === null) {
+            if ($paperId !== null) {
+                $this->fail('Đề đã chọn không còn trong kỳ này. Tải lại trang và chọn lại.');
+            }
+            if ($papers->count() > 1 && $this->paperFor($user, $exam) === null) {
+                $this->fail('Chọn một đề trong danh sách trước khi bắt đầu.');
+            }
+
+            return $this->paperFor($user, $exam, true);
+        }
+
+        $reg = CompetitionRegistration::query()->where('competition_id', $exam->competition_id)->where('student_id', $user->id)->first();
+        if ($reg !== null && CompetitionRegistration::supportsHubFields()) {
+            $forms = (array) $reg->exam_forms;
+            $forms['paper:'.$exam->id] = $pick->id;
+            $reg->forceFill(['exam_forms' => $forms])->save();
+        }
+
+        return $pick;
+    }
+
+    /** Đề của bài đang làm dở (nếu có) ở kỳ này. */
+    public function inProgressPaper(User $user, CompetitionExam $exam, ?Collection $papers = null): ?CompetitionExamPaper
+    {
+        $papers ??= $this->publishedPapers($exam);
+        $aid = Attempt::query()->where('user_id', $user->id)->where('competition_exam_id', $exam->id)
+            ->where('status', \App\Enums\AttemptStatus::InProgress->value)->latest('id')->value('assessment_id');
+
+        return $aid !== null ? $papers->firstWhere('assessment_id', (int) $aid) : null;
+    }
+
     /** Đề (assessment) học sinh làm ở kỳ: đề ma trận được giao, không có thì đề gắn sẵn của kỳ. */
     public function assessmentIdFor(User $user, CompetitionExam $exam): ?int
     {

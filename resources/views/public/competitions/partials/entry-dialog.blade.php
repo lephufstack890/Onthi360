@@ -25,6 +25,11 @@
                 <p class="contest-dialog-help"><b>Giao đề ngẫu nhiên</b> · Hệ thống giao một đề tương đương khi bạn xác nhận; không đổi đề khi tải lại.</p>
             @endif
         @endif
+        @if ($survey && count($paperList ?? []) > 1)
+            {{-- SỬA 24/10 — đề học sinh đã chọn ở "Danh sách đề". --}}
+            <input type="hidden" name="paper" :value="selectedPaper">
+            <p class="contest-dialog-help"><b x-text="paperLabels[selectedPaper] || 'Chưa chọn đề'"></b> · {{ ($doingPaperId ?? null) ? 'Tiếp tục đúng đề đang làm dở.' : 'Đổi đề ở mục "Danh sách đề" trong tab Thông tin kỳ thi.' }}</p>
+        @endif
         @if ($round['needsPassword'])
             <label for="survey-password" style="margin-top:16px">Mật khẩu do giáo viên cung cấp</label>
             <input id="survey-password" name="password" type="password" autocomplete="off" required maxlength="100" @error('entry') aria-invalid="true" @enderror aria-describedby="contest-password-help">

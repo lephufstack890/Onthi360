@@ -34,6 +34,9 @@
         'target' => $round['countdownTargetMs'] ?? null,
         'contestId' => $contest['id'],
         'openEntry' => $entryFailed,
+        // SỬA 24/10 — đề học sinh chọn (khảo sát nhiều đề).
+        'selectedPaper' => ($doingPaperId ?? null) ?? ($myPaperId ?? null) ?? (($paperList ?? [])[0]['id'] ?? null),
+        'paperLabels' => collect($paperList ?? [])->pluck('label', 'id')->all(),
         'selectedForm' => $assignedForm ?? (($round['assignmentMode'] ?? 'random') === 'choice' ? 1 : null),
         'searchUrl' => $participants['searchUrl'] ?? null,
         // SỬA 24/10 — hộp thoại Thêm / Sửa kỳ thi (ban tổ chức).
@@ -260,6 +263,8 @@
             announcementOpen: false,
             announcementRead: false,
             selectedForm: cfg.selectedForm,
+            selectedPaper: cfg.selectedPaper,
+            paperLabels: cfg.paperLabels || {},
             nowMs: Date.now() + offset,
             init() {
                 try { this.announcementRead = sessionStorage.getItem('contest-notice-read:' + cfg.contestId) === '1'; } catch (e) {}

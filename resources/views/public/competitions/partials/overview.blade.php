@@ -44,6 +44,48 @@
             @endforeach
         </div>
     @endif
+@elseif (count($paperList ?? []) > 1)
+    {{-- SỬA 24/10 (khách: "thiết lập đề có 2 đề thì Thông tin kỳ thi cũng hiển thị 2 đề; học sinh được chọn đề bất kỳ để làm") --}}
+    @php $canPickPaper = ($action['kind'] ?? '') === 'enter'; @endphp
+    <div class="hub-content-heading"><h3>Danh sách đề</h3><span class="hub-score-scale">{{ count($paperList) }} đề · mỗi đề 100 điểm</span></div>
+    <p class="hub-assessment-note">
+        @if ($manager)
+            Kỳ gồm nhiều đề sinh từ ma trận. Học sinh tự chọn đề khi bắt đầu; mỗi lượt làm lại có thể chọn đề khác.
+        @elseif ($doingPaperId)
+            Bạn đang làm dở một đề — hãy tiếp tục đúng đề đó. Nộp xong, lượt sau có thể chọn đề khác.
+        @else
+            Chọn một đề để làm. Mỗi lượt làm lại có thể chọn đề khác; bảng xếp hạng lấy điểm cao nhất của bạn.
+        @endif
+    </p>
+    <div class="hub-exam-forms" role="group" aria-label="Các đề của kỳ">
+        @foreach ($paperList as $p)
+            @php $doing = $doingPaperId === $p['id']; @endphp
+            <label class="hub-exam-form" :data-selected="selectedPaper === {{ $p['id'] }} ? 'true' : 'false'">
+                @if ($canPickPaper)
+                    <input type="radio" name="contest-paper" value="{{ $p['id'] }}" x-model.number="selectedPaper" aria-label="Chọn {{ $p['label'] }}" @disabled($doingPaperId && ! $doing)>
+                @else
+                    <x-lucide name="file-text" />
+                @endif
+                <span><b>{{ $p['label'] }}</b><small>{{ $p['questionCount'] }} câu · 100 điểm · {{ $p['duration'] ? $p['duration'].' phút' : 'Không giới hạn' }}</small></span>
+                <em>{{ $doing ? 'Đang làm' : ($myPaperId === $p['id'] && ! $manager ? 'Đã chọn lần trước' : 'Đề '.$loop->iteration) }}</em>
+            </label>
+        @endforeach
+    </div>
+    @if ($canPickPaper)
+        <div class="hub-desktop-action" style="margin-top:4px"><button type="button" class="contest-btn primary hub-primary-action" @click="openEntry()"><x-lucide name="key-round" /><span x-text="'Làm ' + (paperLabels[selectedPaper] || 'đề đã chọn')"></span><x-lucide name="arrow-right" /></button></div>
+    @endif
+    @if ($manager)
+        @foreach ($paperList as $p)
+            <details class="hub-rules">
+                <summary>Câu hỏi {{ $p['label'] }} ({{ count($p['questions']) }} câu)<x-lucide name="chevron-down" /></summary>
+                <div class="hub-question-grid">
+                    @foreach ($p['questions'] as $i => $q)
+                        <div class="hub-question"><span>{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</span><div><b>{{ $q['title'] }}</b><small>{{ $q['kind'] }}</small></div><small class="hub-question-points">{{ rtrim(rtrim(number_format($q['points'], 2, '.', ''), '0'), '.') }} điểm</small></div>
+                    @endforeach
+                </div>
+            </details>
+        @endforeach
+    @endif
 @else
     <div class="hub-content-heading"><h3>Câu hỏi khảo sát</h3><span class="hub-score-scale">{{ count($questions) }} câu · {{ $round['totalPoints'] }} điểm</span></div>
     <p class="hub-assessment-note">

@@ -218,7 +218,9 @@ class ContestHubService
         $survey = $c->isSurvey();
         // SỬA 24/10 — kỳ có đề sinh từ ma trận: hiện theo đề đã giao cho học sinh, chưa nhận đề thì đề đầu tiên.
         $papers = $this->papers->publishedPapers($exam);
-        $myPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null;
+        // SỬA 24/10 — học sinh tự chọn đề: đề đang làm dở > đề chọn lần trước > đề đầu tiên.
+        $doingPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->inProgressPaper($viewer, $exam, $papers) : null;
+        $myPaper = $doingPaper ?? (($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null);
         $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : $exam->assessment;
         $period = $this->roundState($exam);
         $questions = $this->questionsOfAssessment($assessment);
@@ -311,6 +313,16 @@ class ContestHubService
                     ? route('competitions.manage.papers', ['competition' => $c->id, 'exam' => $exam->id]) : null,
             ],
             'questions' => $questions,
+            // SỬA 24/10 — danh sách đề của kỳ (khảo sát nhiều đề) cho tab Thông tin kỳ thi.
+            'paperList' => $papers->map(fn ($p) => [
+                'id' => (int) $p->id,
+                'label' => $p->label,
+                'questionCount' => $p->assessment ? $p->assessment->items()->count() : 0,
+                'duration' => $p->assessment?->duration_minutes,
+                'questions' => $manager ? $this->questionsOfAssessment($p->assessment) : [],
+            ])->values()->all(),
+            'myPaperId' => $myPaper?->id,
+            'doingPaperId' => $doingPaper?->id,
             'questionsVisible' => $manager || ($survey && $attemptRows !== []),
             'forms' => $forms,
             'assignedForm' => $assignedForm,

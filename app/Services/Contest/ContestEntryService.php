@@ -58,7 +58,7 @@ class ContestEntryService
      *
      * @throws ValidationException (khoá 'entry')
      */
-    public function enter(User $user, int $competitionId, int $examId, ?string $password, ?int $formNo): CompetitionExam
+    public function enter(User $user, int $competitionId, int $examId, ?string $password, ?int $formNo, ?int $paperId = null): CompetitionExam
     {
         [$competition, $exam] = $this->load($competitionId, $examId);
 
@@ -95,6 +95,13 @@ class ContestEntryService
                     $values['source'] = CompetitionRegistration::SOURCE_PASSWORD;
                 }
                 CompetitionRegistration::updateOrCreate(['competition_id' => $competition->id, 'student_id' => $user->id], $values);
+            }
+
+            // SỬA 24/10 — kỳ nhiều đề: học sinh tự chọn đề để làm (xem ContestPaperService::choosePaper()).
+            try {
+                app(ContestPaperService::class)->choosePaper($user, $exam, $paperId);
+            } catch (ValidationException $e) {
+                $this->fail((string) (collect($e->errors())->flatten()->first() ?? 'Chưa chọn được đề.'));
             }
 
             ContestEntryPass::grant($exam->id);

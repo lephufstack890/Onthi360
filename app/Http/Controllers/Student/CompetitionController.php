@@ -66,10 +66,11 @@ class CompetitionController extends Controller
         $data = $request->validate([
             'password' => ['nullable', 'string', 'max:100'],
             'form' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
+            'paper' => ['nullable', 'integer'], // SỬA 24/10 — đề học sinh chọn (khảo sát nhiều đề)
         ]);
 
         try {
-            $this->entry->enter($request->user(), $competition, $exam, $data['password'] ?? null, isset($data['form']) ? (int) $data['form'] : null);
+            $this->entry->enter($request->user(), $competition, $exam, $data['password'] ?? null, isset($data['form']) ? (int) $data['form'] : null, isset($data['paper']) ? (int) $data['paper'] : null);
         } catch (ValidationException $e) {
             return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam])
                 ->withErrors($e->errors())->with('contest_entry_failed', true);
