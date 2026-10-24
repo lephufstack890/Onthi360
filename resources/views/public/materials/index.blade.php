@@ -308,7 +308,7 @@
                             @php $bd = $item['bundle']; @endphp
                             {{-- SỬA 24/10 (lần 2, khách: "mục đích chuyển thành mô tả, ra khỏi khối nền đậm; bên ngoài nêu Cuộc thi,
                                  Tỉnh thành, Từ năm học … đến năm học …") — số đề / số bài nằm ở dòng nhỏ trên tên bộ đề. --}}
-                            <p class="mp-bundle-desc">{{ $bd['purpose'] }}</p>
+                            <p class="mp-bundle-desc is-box">{{ $bd['purpose'] }}</p>
                             @if ($bd['note'])<p class="mp-bundle-desc">{{ $bd['note'] }}</p>@endif
                             <ul class="mp-bundle-facts">
                                 @if ($bd['contest'])<li><b>Cuộc thi</b><span>{{ $bd['contest'] }}</span></li>@endif

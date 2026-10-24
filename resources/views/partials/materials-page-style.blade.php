@@ -140,6 +140,7 @@
     .mp-bundle dd.is-plain { font-weight: 400; }
     .mp-bundle-note { margin: 6px 0 0; font-size: 11px; line-height: 18px; color: #607a90; }
     .mp-bundle-desc { margin: 8px 0 0; font-size: 11px; line-height: 19px; color: #607a90; }
+    .mp-bundle-desc.is-box { padding: 10px 12px; border-radius: 10px; background: #f4f9fb; border: 1px solid #e3eef3; color: #36546a; }
     .mp-bundle-facts { margin: 10px 0 12px; padding: 0; list-style: none; display: grid; gap: 5px; }
     .mp-bundle-facts li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; font-size: 11px; line-height: 18px; color: #36546a; }
     .mp-bundle-facts b { color: #7a8f9d; font-weight: 600; }
