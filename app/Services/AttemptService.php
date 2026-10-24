@@ -147,6 +147,11 @@ class AttemptService
 
         $maxAttempts = $assessment->resubmission_policy['max_attempts'] ?? ($isCompetitionScoped ? 1 : null);
 
+        // SỬA 24/10 (phòng thi mới) — kỳ thi của KHẢO SÁT: làm lại không giới hạn; của CUỘC THI: đúng 1 lượt nộp / kỳ.
+        if ($competitionContext['competitionExamId'] !== null) {
+            $maxAttempts = $this->competitionExamIsSurvey((int) $competitionContext['competitionExamId']) ? null : 1;
+        }
+
         if ($maxAttempts === null) {
             return;
         }
@@ -427,6 +432,16 @@ class AttemptService
                     return $this->notApprovedDecision();
                 }
 
+                // SỬA 24/10 — khảo sát: phải vừa nhập đúng mật khẩu ở phòng thi (kể cả khi mở đề bằng đường khác).
+                if ($competition->type === \App\Enums\CompetitionType::Survey && ! \App\Support\ContestEntryPass::has((int) $exam->id)) {
+                    return [
+                        'open' => false,
+                        'message' => 'Khảo sát cần nhập mật khẩu — mở trang khảo sát, chọn kỳ đang mở và bấm "Bắt đầu khảo sát".',
+                        'competitionId' => null,
+                        'competitionExamId' => null,
+                    ];
+                }
+
                 return ['open' => true, 'message' => null, 'competitionId' => null, 'competitionExamId' => $exam->id];
             }
         }
@@ -460,6 +475,14 @@ class AttemptService
             ->where('competition_id', $competitionId)
             ->where('student_id', $user->id)
             ->where('status', CompetitionRegistration::STATUS_APPROVED)
+            ->exists();
+    }
+
+    /** SỬA 24/10 — kỳ thi này thuộc cuộc thi loại Khảo sát? */
+    private function competitionExamIsSurvey(int $competitionExamId): bool
+    {
+        return CompetitionExam::query()->whereKey($competitionExamId)
+            ->whereHas('competition', fn ($q) => $q->where('type', \App\Enums\CompetitionType::Survey->value))
             ->exists();
     }
 

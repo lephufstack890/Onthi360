@@ -55,6 +55,11 @@ class CompetitionService
             throw ValidationException::withMessages(['competition_id' => 'Cuộc thi đã lưu trữ — không nhận đăng ký nữa.']);
         }
 
+        // SỬA 24/10 — khảo sát KHÔNG đăng ký / duyệt: học sinh nhập mật khẩu khi vào làm (ContestEntryService::enter()).
+        if ($competition->isSurvey()) {
+            throw ValidationException::withMessages(['competition_id' => 'Khảo sát không cần đăng ký — chọn kỳ khảo sát đang mở, bấm "Bắt đầu khảo sát" và nhập mật khẩu giáo viên cung cấp.']);
+        }
+
         $existing = CompetitionRegistration::query()
             ->where('competition_id', $competition->id)
             ->where('student_id', $user->id)
@@ -78,7 +83,7 @@ class CompetitionService
                 'approved_at' => null,
                 'approved_by' => null,
                 'reject_reason' => null,
-            ],
+            ] + (CompetitionRegistration::supportsHubFields() ? ['source' => CompetitionRegistration::SOURCE_STUDENT, 'added_by' => null] : []),
         );
 
         return $competition;

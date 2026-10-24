@@ -43,6 +43,16 @@ class CompetitionLeaderboardService
     private function upsertAndRerank(string $scope, string $scopeColumn, int $scopeId, int $competitionId, Attempt $attempt): void
     {
         DB::transaction(function () use ($scope, $scopeColumn, $scopeId, $competitionId, $attempt) {
+            // SỬA 24/10 — KHẢO SÁT làm nhiều lượt: giữ ĐIỂM CAO NHẤT (lượt thấp hơn không kéo điểm / hạng xuống).
+            if ($scope === 'competition_exam'
+                && \App\Models\Competition::query()->whereKey($competitionId)->where('type', \App\Enums\CompetitionType::Survey->value)->exists()) {
+                $current = LeaderboardEntry::query()->where('scope', $scope)->where($scopeColumn, $scopeId)
+                    ->where('user_id', $attempt->user_id)->value('score');
+                if ($current !== null && (float) $current >= (float) ($attempt->total_score ?? 0)) {
+                    return;
+                }
+            }
+
             LeaderboardEntry::updateOrCreate(
                 [
                     'scope' => $scope,

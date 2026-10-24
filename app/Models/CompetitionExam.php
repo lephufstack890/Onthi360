@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Kỳ thi (đề) bên trong 1 Competition — 1 Competition có thể gồm NHIỀU kỳ thi (vd: Vòng 1,
@@ -16,7 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class CompetitionExam extends Model
 {
-    protected $fillable = ['competition_id', 'assessment_id', 'title', 'order', 'starts_at', 'ends_at'];
+    protected $fillable = ['competition_id', 'assessment_id', 'title', 'order', 'starts_at', 'ends_at', 'assignment_mode', 'form_count'];
+
+    /** SỬA 24/10 — cách giao mã đề hoán vị: hệ thống bốc ngẫu nhiên / học sinh tự chọn (xem App\Support\ContestForms). */
+    public const MODE_RANDOM = 'random';
+
+    public const MODE_CHOICE = 'choice';
 
     protected $casts = [
         'starts_at' => 'datetime',
@@ -65,6 +71,25 @@ class CompetitionExam extends Model
         }
 
         return 'ongoing';
+    }
+
+    /** SỬA 24/10 — đã chạy migration 001260 chưa. */
+    public static function supportsForms(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('competition_exams', 'form_count');
+    }
+
+    /** Số mã đề hoán vị (1 = không hoán vị). */
+    public function formCount(): int
+    {
+        return self::supportsForms() ? max(1, min(\App\Support\ContestForms::MAX, (int) ($this->form_count ?? 1))) : 1;
+    }
+
+    public function assignmentMode(): string
+    {
+        return self::supportsForms() && $this->assignment_mode === self::MODE_CHOICE ? self::MODE_CHOICE : self::MODE_RANDOM;
     }
 
     /** title rỗng (đa số kỳ thi backfill từ cuộc thi cũ) thì hiển thị tên đề tham chiếu. */

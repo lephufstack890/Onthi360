@@ -35,6 +35,9 @@
                     @endif
                 </div>
                 <p class="text-[13px] text-slate-500">{{ $competition->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát' }}</p>
+                {{-- SỬA 24/10 — giáo viên tổ chức quản lý học sinh / duyệt đăng ký / in bảng xếp hạng ngay trong phòng thi. --}}
+                <a href="{{ route('competitions.show', ['competition' => $competition->id, 'tab' => 'registrations']) }}" target="_blank" rel="noopener"
+                   class="mt-1 inline-flex text-xs font-bold text-blue-600 hover:text-blue-700">Mở phòng thi — quản lý học sinh ↗</a>
             </div>
         </div>
         {{-- Giáo viên KHÔNG có nút "Sửa cuộc thi" — chỉ Admin mới sửa được thông tin cuộc thi

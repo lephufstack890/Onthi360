@@ -1,231 +1,309 @@
 @extends('layouts.guest')
 
-@section('title', $competition->title)
-@section('meta-description', 'Cuộc thi '.$competition->title.' trên Ôn Thi 360 — thể lệ, thời gian diễn ra, cách tính điểm xếp hạng và hướng dẫn tham gia.')
+@section('title', $contest['title'])
+@section('meta-description', \Illuminate\Support\Str::limit($contest['description'], 155))
+
+@push('head')
+    {{-- SỬA 24/10 — CSS riêng của phòng thi (chép từ source UI mới: contests.css, contestRoom.css …). --}}
+    <link rel="stylesheet" href="{{ asset('css/contest-hub.css') }}?v={{ @filemtime(public_path('css/contest-hub.css')) }}">
+@endpush
 
 @section('content')
-    @php
-        $rankingRule = $rankingRule ?? [];
-        $startCountdown = $startCountdown ?? null;
-        $countdownText = match ($startCountdown['unit'] ?? null) {
-            'days' => $startCountdown['days'].' ngày',
-            'hm' => $startCountdown['hours'].' giờ '.$startCountdown['minutes'].' phút',
-            default => null,
-        };
-        $canJoinDirectly = $canJoinDirectly ?? false;
-        $alreadyAttempted = $alreadyAttempted ?? false;
-        $examSittings = $examSittings ?? [];
-        $endedExamsCount = collect($examSittings)->where('hasEnded', true)->count();
+@php
+    /*
+     * SỬA 24/10 (khách: "làm lại trang cuộc thi theo UI mới … khảo sát nhập mật khẩu, cuộc thi đăng ký như bình thường")
+     * PHÒNG THI — dựng theo ContestRoomPage.jsx của source mới. Một trang cho mọi người:
+     *   khách      : xem thông tin, nút "Đăng nhập để tham gia"
+     *   học sinh   : cuộc thi → Đăng ký → chờ duyệt → Vào thi (nhận mã đề, nộp 1 lần)
+     *                khảo sát → Bắt đầu khảo sát → nhập mật khẩu → làm bài (nhiều lượt)
+     *   ban tổ chức: (admin / giáo viên tổ chức) thêm tab "Học sinh", nút in bảng xếp hạng gửi phụ huynh
+     * Dữ liệu + luật: App\Services\Contest\ContestHubService::roomData(). Nút vào thi gửi về
+     * student.competitions.enter (ContestEntryService) — kiểm lại toàn bộ ở máy chủ, giao diện chỉ hiển thị.
+     */
+    $survey = $contest['isSurvey'];
+    $round = $round ?? null;
+    $manager = $viewer['isManager'];
+    $entryFailed = session('contest_entry_failed') && $errors->has('entry');
+    $notice = session('contest_notice')
+        ?? (session('status') === 'competition-join-requested' ? 'Đã gửi đăng ký. Giáo viên hoặc ban tổ chức sẽ xét duyệt.' : null);
+    $otherErrors = collect($errors->getMessages())->except('entry')->flatten()->first();
+    $pageCfg = [
+        'tab' => $activeTab ?? 'overview',
+        'tabs' => array_column($tabs ?? [], 'id'),
+        'serverNow' => $serverNowMs,
+        'target' => $round['countdownTargetMs'] ?? null,
+        'contestId' => $contest['id'],
+        'openEntry' => $entryFailed,
+        'selectedForm' => $assignedForm ?? (($round['assignmentMode'] ?? 'random') === 'choice' ? 1 : null),
+        'searchUrl' => $participants['searchUrl'] ?? null,
+    ];
+@endphp
 
-        // SỬA 19/9 — luồng "đăng ký → BTC duyệt → vào phòng". Giá trị do
-        // Public\CompetitionService::showData() tính; ?? để trang không vỡ nếu view được
-        // render từ nơi khác chưa truyền đủ.
-        $registrationPending = $registrationPending ?? false;
-        $registrationApproved = $registrationApproved ?? false;
-        $registrationRejected = $registrationRejected ?? false;
-        $canRequestJoin = $canRequestJoin ?? false;
-        $directExamId = $directExamId ?? null;
-        $approvedRegistrations = $approvedRegistrations ?? 0;
-    @endphp
-
-    <div class="max-w-5xl mx-auto px-4 pt-6">
-        <a href="{{ route('competitions.index') }}" class="text-sm text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-rose-600">‹ Quay lại Cuộc thi</a>
-
-        <div class="rounded-3xl overflow-hidden relative mt-3 mb-8 shadow-sm">
-            <img src="https://picsum.photos/seed/{{ \Illuminate\Support\Str::slug($competition->title) }}/1200/480" alt="" class="w-full h-56 lg:h-72 object-cover">
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/35 to-transparent"></div>
-            <div class="absolute inset-x-0 bottom-0 p-6 lg:p-8 text-white">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 text-white text-xs font-medium">{{ $competition->type->value === 'contest' ? '🏆 Cuộc thi' : '📊 Khảo sát' }}</span>
-                    @if ($competition->isExternallyOrganized())
-                        <x-status-badge tone="warning">Tổ chức bởi {{ $competition->organizer_name }}</x-status-badge>
-                    @endif
-                </div>
-
-                <h1 class="text-2xl lg:text-3xl font-semibold mt-2 leading-tight">{{ $competition->title }}</h1>
-
-            </div>
+<div class="contest-ui contest-hub {{ $survey ? 'is-survey' : '' }}" x-data="contestRoom({{ Js::from($pageCfg) }})" x-init="init()">
+    <header class="hub-header">
+        <div class="arena-topbar">
+            <a class="hub-back" href="{{ $catalogUrl }}" aria-label="Quay lại danh sách cuộc thi"><x-lucide name="arrow-left" />Cuộc thi &amp; khảo sát</a>
+            <span class="arena-breadcrumb">/ <span>{{ $survey ? 'Khảo sát năng lực' : 'Chi tiết cuộc thi' }}</span></span>
+            <button type="button" class="hub-bell" aria-label="Mở thông báo ban tổ chức" :aria-expanded="announcementOpen" aria-controls="hub-announcement" @click="announcementOpen = !announcementOpen">
+                <x-lucide name="bell" /><span>Thông báo</span><b x-show="!announcementRead">1</b>
+            </button>
         </div>
-    </div>
+    </header>
 
-    <div class="max-w-5xl mx-auto px-4 pb-14">
-        <div class="grid grid-cols-1 {{ $countdownText ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }} gap-4 mb-8">
-            @if ($countdownText)
-                <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-                    <p class="text-2xl font-semibold text-rose-600">⏳ {{ $countdownText }}</p>
-                    <p class="text-xs text-slate-400 mt-1">nữa bắt đầu</p>
+    <div class="arena-container">
+        <section class="arena-hero" aria-labelledby="arena-title">
+            <img class="arena-header-backdrop" src="{{ asset('assets/hero-contests.jpg') }}" alt="" aria-hidden="true">
+            <img class="arena-cover" src="{{ $contest['image'] }}" alt="">
+            <div class="arena-hero-copy">
+                <div class="arena-kicker">
+                    <span><x-lucide :name="$survey ? 'key-round' : 'trophy'" />{{ $survey ? 'Khảo sát năng lực' : 'Cuộc thi' }}</span>
+                    <span class="contest-badge {{ $contest['state'] }}">{{ $contest['stateLabel'] }}</span>
+                    @if ($contest['editionLabel'] !== '')<small>{{ $contest['editionLabel'] }}</small>@endif
                 </div>
-            @endif
-            {{-- SỬA 19/9 (12) — hai con số KHÁC NHAU, cố ý tách riêng: "đã được duyệt" là số
-                 thí sinh ban tổ chức nhận vào, "trên bảng xếp hạng" là số người đã có kết quả
-                 chấm xong. Gộp làm một là nói dối một trong hai. --}}
-            <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-                <p class="text-2xl font-semibold text-slate-800">👥 {{ number_format($approvedRegistrations) }}</p>
-                <p class="text-xs text-slate-400 mt-1">thí sinh đã được duyệt</p>
-            </div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-                <p class="text-2xl font-semibold text-slate-800">🏅 {{ number_format($competition->leaderboard_entries_count) }}</p>
-                <p class="text-xs text-slate-400 mt-1">đã có trên bảng xếp hạng</p>
-            </div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-                <p class="text-2xl font-semibold text-slate-800">⏱ {{ $competition->assessment?->duration_minutes ? $competition->assessment->duration_minutes."'" : '—' }}</p>
-                <p class="text-xs text-slate-400 mt-1">thời gian mỗi lượt thi</p>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 space-y-5">
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>📋</span> Thể lệ</h2>
-                    <p class="text-sm text-slate-500 whitespace-pre-line leading-relaxed">{{ $competition->rules ?: 'Chưa nhập thể lệ.' }}</p>
-                </div>
-
-                {{-- SỬA 21/10 — bỏ khối "Đề tham chiếu" (form thêm/sửa cuộc thi không còn ô này; đề gắn theo từng vòng). --}}
-
-                {{-- SỬA 20/10 — bỏ khối "Quy tắc bảng xếp hạng" (admin không còn nhập các ô này nên không hiện số cũ ra ngoài). --}}
-
-                @if ($competition->isExternallyOrganized() && $competition->advisors->isNotEmpty())
-                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                        <h2 class="font-medium text-slate-700 mb-3 flex items-center gap-2"><span>🎓</span> Giáo viên cố vấn/đồng hành</h2>
-                        <ul class="flex flex-wrap gap-2">
-                            @foreach ($competition->advisors as $advisor)
-                                <li class="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-xs text-amber-700">{{ $advisor->name }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+                <h1 id="arena-title">{{ $contest['title'] }}</h1>
+                @if ($contest['roadmap'])
+                    <a class="hub-roadmap-link" href="{{ $contest['roadmap']['href'] }}">Lộ trình: {{ $contest['roadmap']['title'] }}<x-lucide name="arrow-right" /></a>
                 @endif
+                <div class="arena-meta">
+                    <span><x-lucide name="shield-check" />{{ $contest['organizer'] }}</span>
+                    <span><x-lucide name="calendar-days" />{{ $contest['dateRange'] }}</span>
+                </div>
             </div>
+        </section>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 h-fit sticky top-6 shadow-sm">
-                {{--
-                    SỬA 19/9 — thẻ đăng ký, ĐẶT TRÊN CÙNG vì đây là việc học sinh phải làm
-                    trước mọi thứ khác: chưa được BTC duyệt thì mọi nút "Vào thi" bên dưới đều
-                    bị AttemptService chặn. Cùng bộ luật với popup ở trang danh sách
-                    (public/competitions/index.blade.php) — sửa một bên nhớ sửa bên kia.
-                --}}
-                @if ($registrationApproved || $registrationPending || $canRequestJoin)
-                    <div class="mb-5 rounded-xl border border-sky-100 bg-sky-50/50 p-3.5">
-                        <div class="flex items-center justify-between gap-2">
-                            <h2 class="text-sm font-semibold text-[#123B68]">Đăng ký tham gia</h2>
-                            <span class="text-[10px] font-medium text-slate-500">BTC duyệt trước khi vào phòng</span>
-                        </div>
-
-                        <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-[10px] font-semibold">
-                            <span class="rounded-lg p-1.5 {{ $registrationPending || $registrationApproved ? 'bg-[#E7F3EE] text-[#39755F]' : 'bg-white text-slate-500' }}">1<br>Gửi đăng ký</span>
-                            <span class="rounded-lg p-1.5 {{ $registrationApproved ? 'bg-[#E7F3EE] text-[#39755F]' : ($registrationPending ? 'bg-[#FFF3D9] text-[#9A741E]' : 'bg-white text-slate-500') }}">2<br>BTC duyệt</span>
-                            <span class="rounded-lg p-1.5 {{ $registrationApproved ? 'bg-[#EAF2F8] text-[#356782]' : 'bg-white text-slate-500' }}">3<br>Vào phòng</span>
-                        </div>
-
-                        @if ($registrationApproved)
-                            <a href="{{ route('student.competitions.room', $competition->id) }}"
-                               class="mt-2.5 block rounded-lg bg-[#43876F] px-3 py-2 text-center text-xs font-semibold text-white hover:bg-[#3A7561]">
-                                Đã duyệt · Vào không gian thi
-                            </a>
-                        @elseif ($registrationPending)
-                            <p class="mt-2.5 rounded-lg bg-[#FFF0C7] px-3 py-2 text-center text-xs font-semibold text-[#8D6A1A]">Đã gửi · Chờ BTC duyệt</p>
+        @if ($manager)
+            {{-- Ban tổ chức: nhắc mật khẩu khảo sát + lối sang trang quản trị. --}}
+            <div class="hub-manager-bar">
+                <span><b>Bạn đang xem với quyền ban tổ chức.</b></span>
+                @if ($survey)
+                    @php $pw = $competition->entryPassword(); @endphp
+                    <span class="hub-pass">Mật khẩu khảo sát:
+                        @if ($pw !== null)
+                            <code x-data="{ show: false }" @click="show = !show" style="cursor:pointer" :title="show ? '' : 'Bấm để hiện'"><span x-show="show" x-cloak>{{ $pw }}</span><span x-show="!show">••••••</span></code>
                         @else
-                            <form method="POST" action="{{ route('student.competitions.requestJoin', $competition->id) }}" class="mt-2.5">
-                                @csrf
-                                <button type="submit" class="w-full rounded-lg bg-[#2F7890] px-3 py-2 text-xs font-semibold text-white hover:bg-[#286B80]">
-                                    Đăng ký tham gia
-                                </button>
-                            </form>
-                            @if ($registrationRejected)
-                                <p class="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[11px] font-medium text-rose-700">Đơn trước bị từ chối — bạn có thể gửi lại.</p>
-                            @endif
+                            <code>Chưa đặt</code>
                         @endif
-                    </div>
+                    </span>
                 @endif
-
-                @if (session('status') === 'competition-join-requested')
-                    <p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">Đã gửi đăng ký. Vui lòng chờ ban tổ chức duyệt.</p>
+                @if ($adminUrl)
+                    <a href="{{ $adminUrl }}"><x-lucide name="settings" />Quản trị cuộc thi (kỳ thi, đề, mật khẩu)</a>
                 @endif
-                @if ($errors->any())
-                    <p class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{{ $errors->first() }}</p>
-                @endif
+            </div>
+        @endif
 
-                @if (count($examSittings) > 0)
-                    <div class="flex items-center justify-between mb-1">
-                        <h2 class="font-medium text-slate-700">Các kỳ thi</h2>
-                        <span class="text-xs text-slate-400">{{ count($examSittings) }} kỳ thi</span>
-                    </div>
-                    <p class="text-sm text-slate-500 mb-4">Chọn kỳ thi để vào làm hoặc xem bảng xếp hạng riêng.</p>
+        <section id="hub-announcement" class="hub-announcement" aria-label="Thông báo ban tổ chức" x-show="announcementOpen" x-cloak>
+            <x-lucide name="megaphone" />
+            <div>
+                <h3>{{ $announcement['title'] ?? ($survey ? 'Nhận mật khẩu trước khi khảo sát' : 'Hoàn tất đăng ký trước khi vào thi') }}</h3>
+                <p>{{ $announcement['text'] ?? '' }}</p>
+                <small>{{ $contest['organizer'] }} · Hướng dẫn tham gia</small>
+            </div>
+            <button type="button" @click="markRead()">Đã đọc</button>
+        </section>
 
-                    <div class="space-y-3">
-                        @foreach ($examSittings as $exam)
-                            <div class="rounded-xl border p-3.5 transition-colors
-                                @if ($exam['hasEnded']) border-slate-200 bg-slate-50
-                                @elseif ($exam['ongoing']) border-emerald-200 bg-emerald-50/50
-                                @else border-slate-200 bg-white @endif">
-                                <div class="flex items-center justify-between gap-2 mb-1.5">
-                                    <p class="text-sm font-medium text-slate-700 truncate">{{ $exam['title'] }}</p>
-                                    <x-status-badge :tone="$exam['statusTone']">{{ $exam['statusLabel'] }}</x-status-badge>
-                                </div>
-                                @if ($exam['startsAt'] || $exam['endsAt'])
-                                    <p class="text-xs text-slate-400 mb-3">
-                                        🗓 {{ $exam['startsAt']?->format('d/m/Y H:i') ?? '…' }} – {{ $exam['endsAt']?->format('d/m/Y H:i') ?? '…' }}
-                                    </p>
-                                @endif
+        @if ($notice)
+            <div role="status" class="contest-notice" x-data="{ open: true }" x-show="open"><x-lucide name="info" /><span>{{ $notice }}</span><button type="button" aria-label="Đóng thông báo" @click="open = false"><x-lucide name="x" /></button></div>
+        @endif
+        @if ($otherErrors || ($errors->has('entry') && ! $entryFailed))
+            <div role="alert" class="contest-notice" style="background:#fff3f2;border-color:#f3cccc;color:#a33b3b" x-data="{ open: true }" x-show="open"><x-lucide name="info" /><span>{{ $otherErrors ?: $errors->first('entry') }}</span><button type="button" aria-label="Đóng thông báo" @click="open = false"><x-lucide name="x" /></button></div>
+        @endif
 
-                                @if ($exam['hasEnded'])
-                                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-100">
-                                        Xem kết quả ›
-                                    </a>
-                                @elseif ($exam['alreadyAttempted'])
-                                    {{-- SỬA 18/8: mỗi học sinh chỉ được làm 1 kỳ thi con này 1 lần — đã nộp bài rồi (dù kỳ thi vẫn đang "Đang diễn ra" cho người khác) thì hiện "Đã làm" thay vì "Vào thi" nữa, vẫn cho xem bảng xếp hạng riêng của kỳ thi này. --}}
-                                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium hover:bg-emerald-100">
-                                        ✓ Đã làm — Xem xếp hạng
-                                    </a>
-                                @elseif ($exam['canJoinDirectly'])
-                                    {{-- SỬA 19/9 (2) — phòng thi RIÊNG của cuộc thi, định danh bằng id vòng thi. --}}
-                                    <a href="{{ route('student.competitions.exam', ['competition' => $competition->id, 'exam' => $exam['id']]) }}" class="block text-center px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
-                                        Vào thi
-                                    </a>
-                                @elseif ($exam['ongoing'])
-                                    <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="block text-center px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
-                                        {{ auth()->check() ? 'Về trang của tôi' : 'Đăng nhập để tham gia' }}
-                                    </a>
-                                @else
-                                    <p class="text-center px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-sm font-medium">Chưa mở — quay lại sau</p>
-                                @endif
-                            </div>
+        <div class="arena-section-heading">
+            <h2>Các kỳ thi <span>{{ count($rounds) }}</span></h2>
+            <p>{{ $survey ? 'Nhập mật khẩu · Có thể làm nhiều lần' : 'Đăng ký một lần · Duyệt cho toàn cuộc thi' }}</p>
+        </div>
+
+        @if ($round === null)
+            <div class="contest-empty"><x-lucide name="list-checks" /><h3>{{ $action['title'] }}</h3><p>{{ $action['text'] }}</p></div>
+        @else
+            <main class="hub-workspace">
+                <aside class="hub-round-selector" aria-label="Các kỳ thi">
+                    <label class="hub-round-select"><span>Kỳ thi đang xem</span>
+                        <select aria-label="Chọn kỳ thi" onchange="window.location.href = this.value">
+                            @foreach ($rounds as $r)
+                                <option value="{{ $r['url'] }}" @selected($r['id'] === $round['id'])>{{ $r['noLabel'] }} · {{ $r['label'] }} · {{ $r['stateLabel'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <div class="hub-round-grid">
+                        @foreach ($rounds as $r)
+                            @php $sel = $r['id'] === $round['id']; @endphp
+                            <a href="{{ $r['url'] }}" class="hub-round-card" @if ($sel) aria-current="page" @endif>
+                                <span class="hub-round-number">@if ($r['submitted'])<x-lucide name="check-circle-2" />@else{{ $r['noLabel'] }}@endif</span>
+                                <span class="arena-round-copy">
+                                    <span class="contest-badge {{ $r['state'] }}">{{ $r['stateLabel'] }}</span>
+                                    <b>{{ $r['label'] }}</b>
+                                    <span class="hub-round-date">{{ $r['dateRange'] }}</span>
+                                    <span class="hub-round-own {{ $r['submitted'] ? 'is-done' : '' }}">{{ $r['submitted'] ? 'Bạn đã nộp bài' : ($r['hasDraft'] ? 'Có bài đang làm' : ($sel ? 'Đang xem kỳ thi này' : 'Xem kỳ thi')) }}<x-lucide name="arrow-right" /></span>
+                                </span>
+                            </a>
                         @endforeach
                     </div>
-
-                    @if ($endedExamsCount > 0)
-                        <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-4 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
-                            Xem bảng xếp hạng tổng
-                        </a>
+                    @if ($viewer['isStudent'])
+                        <div class="arena-progress">
+                            <span>Đã tham gia <b>{{ $doneCount }}/{{ count($rounds) }} kỳ thi</b></span>
+                            <div role="progressbar" aria-label="Số kỳ thi đã tham gia" aria-valuenow="{{ $doneCount }}" aria-valuemin="0" aria-valuemax="{{ count($rounds) }}"><i style="width: {{ count($rounds) ? round($doneCount / count($rounds) * 100, 1) : 0 }}%"></i></div>
+                        </div>
                     @endif
-                @elseif ($canJoinDirectly)
-                    <h2 class="font-medium text-slate-700 mb-2">Sẵn sàng tham gia?</h2>
-                    <p class="text-sm text-slate-500 mb-4">Vào làm đề tham chiếu của cuộc thi — kết quả sẽ được ghi nhận vào hồ sơ của bạn.</p>
-                    {{-- $directExamId null = cuộc thi cũ chưa có vòng thi nào trỏ tới đề này; khi đó
-                         vẫn dùng màn làm bài chung để nút không bị chết. --}}
-                    <a href="{{ $directExamId !== null ? route('student.competitions.exam', ['competition' => $competition->id, 'exam' => $directExamId]) : route('student.assessment.take', $competition->assessment_id) }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
-                        Vào thi ngay
-                    </a>
-                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
-                        Xem bảng xếp hạng
-                    </a>
-                @elseif ($alreadyAttempted)
-                    {{-- SỬA 18/8: mỗi học sinh chỉ được làm cuộc thi này 1 lần — đã nộp bài rồi thì hiện "Đã làm" thay vì "Vào thi ngay" nữa. --}}
-                    <h2 class="font-medium text-slate-700 mb-2">Bạn đã hoàn thành!</h2>
-                    <p class="text-sm text-slate-500 mb-4">Bạn đã nộp bài cho cuộc thi này rồi — mỗi học sinh chỉ được làm 1 lần. Xem kết quả và bảng xếp hạng bên dưới.</p>
-                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
-                        ✓ Đã làm — Xem bảng xếp hạng
-                    </a>
-                @else
-                    <h2 class="font-medium text-slate-700 mb-2">Sẵn sàng tham gia?</h2>
-                    <p class="text-sm text-slate-500 mb-4">Đăng nhập để tham gia — kết quả và bảng xếp hạng sẽ tự cập nhật vào hồ sơ của bạn.</p>
-                    <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="block text-center px-4 py-2.5 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
-                        {{ auth()->check() ? 'Về trang của tôi' : 'Đăng nhập để tham gia' }}
-                    </a>
-                    <a href="{{ route('leaderboard.index', ['competition' => $competition->id]) }}" class="block text-center mt-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
-                        Xem bảng xếp hạng
-                    </a>
-                @endif
-            </div>
-        </div>
+                </aside>
+
+                <section class="hub-exam" aria-label="Kỳ thi đang chọn">
+                    <div class="hub-exam-summary">
+                        <div class="arena-round-heading"><h2>{{ $round['label'] }}</h2><span class="contest-badge {{ $round['state'] }}">{{ $round['stateLabel'] }}</span></div>
+                        <div class="arena-round-time"><x-lucide name="calendar-days" /><span>{{ $round['timeFrom'] }} <x-lucide name="arrow-right" /> {{ $round['timeTo'] }} <small>(GMT+7)</small></span></div>
+                        <div class="arena-round-details">
+                            <div class="hub-exam-metrics">
+                                <span><x-lucide name="clock-3" /><b>{{ $round['duration'] }}</b> / lượt</span>
+                                <span><x-lucide name="file-text" /><b>{{ $round['questionCount'] }} câu hỏi</b></span>
+                                <span><x-lucide :name="$survey ? 'rotate-ccw' : 'shield-check'" /><b>{{ $survey ? 'Không giới hạn lượt' : '1 lượt nộp / kỳ' }}</b></span>
+                            </div>
+                            <div class="hub-countdown"><span>{{ $round['countdownLabel'] }}</span>@if ($round['countdownTargetMs'])<b x-text="clock">--:--:--</b>@endif</div>
+                        </div>
+                        <section class="arena-entry {{ $latest ? 'is-complete' : '' }}" aria-label="Quyền tham gia">
+                            <span class="arena-entry-icon"><x-lucide :name="$action['icon']" /></span>
+                            <div class="arena-entry-copy">
+                                <h2>{{ $action['title'] }}</h2>
+                                <p>{{ $action['text'] }}</p>
+                                @if ($latest)
+                                    <span class="arena-inline-result"><b>{{ $latest['scoreLabel'] }}{{ $latest['graded'] ? ' điểm' : '' }}</b><i></i>{{ $survey ? count($attempts).' lượt đã làm' : ($myRank ? 'Hạng #'.$myRank : 'Đang cập nhật thứ hạng') }}</span>
+                                @endif
+                            </div>
+                            <div class="hub-desktop-action">@include('public.competitions.partials.action-button')</div>
+                        </section>
+                    </div>
+
+                    <div x-ref="tabs" role="tablist" aria-label="Nội dung kỳ thi" class="hub-tabs">
+                        @foreach ($tabs as $i => $t)
+                            <button type="button" role="tab" id="hub-tab-{{ $t['id'] }}" :aria-selected="tab === '{{ $t['id'] }}'" aria-controls="hub-tabpanel"
+                                    :tabindex="tab === '{{ $t['id'] }}' ? 0 : -1" @click="showTab('{{ $t['id'] }}')" @keydown="keyTabs($event, {{ $i }})">
+                                <x-lucide :name="$t['icon']" /><span>{{ $t['label'] }}</span>@if ($t['count'] !== null)<b>{{ $t['count'] }}</b>@endif
+                            </button>
+                        @endforeach
+                    </div>
+                    <div class="hub-tab-content" id="hub-tabpanel" role="tabpanel" tabindex="0">
+                        @if (! $round['hasAssessment'])
+                            <p class="contest-error" role="alert">Kỳ thi này chưa được ban tổ chức gắn đề.</p>
+                        @endif
+                        <div x-show="tab === 'overview'">@include('public.competitions.partials.overview')</div>
+                        @if ($viewer['loggedIn'])
+                            <div x-show="tab === 'submissions'" x-cloak>@include('public.competitions.partials.submissions')</div>
+                        @endif
+                        @if ($survey)
+                            <div x-show="tab === 'results'" x-cloak>@include('public.competitions.partials.survey-results')</div>
+                            <div x-show="tab === 'ranking'" x-cloak>@include('public.competitions.partials.rankings')</div>
+                        @else
+                            <div x-show="tab === 'results'" x-cloak>@include('public.competitions.partials.rankings')</div>
+                        @endif
+                        @if ($manager && $participants !== null)
+                            <div x-show="tab === 'registrations'" x-cloak>@include('public.competitions.partials.participants')</div>
+                        @endif
+                    </div>
+                </section>
+            </main>
+        @endif
+
+        <footer class="arena-footer"><p>Thời gian mở và đóng kỳ thi theo múi giờ Việt Nam (GMT+7).</p></footer>
     </div>
+
+    @if ($round !== null)
+        <div class="hub-mobile-action"><div><span>Kỳ thi đang chọn</span><b>{{ $round['label'] }}</b></div>@include('public.competitions.partials.action-button')</div>
+        @if (($action['kind'] ?? '') === 'enter')
+            @include('public.competitions.partials.entry-dialog')
+        @endif
+        @if ($manager && $participants !== null)
+            @include('public.competitions.partials.add-students-dialog')
+            @include('public.competitions.partials.ranking-print')
+        @endif
+    @endif
+</div>
 @endsection
+
+@push('scripts')
+<script>
+    // SỬA 24/10 — trạng thái giao diện phòng thi (tab, đồng hồ, hộp thoại). Mọi luật quyền nằm ở máy chủ.
+    function contestRoom(cfg) {
+        const offset = (cfg.serverNow || Date.now()) - Date.now();
+        return {
+            tab: cfg.tab || 'overview',
+            announcementOpen: false,
+            announcementRead: false,
+            selectedForm: cfg.selectedForm,
+            nowMs: Date.now() + offset,
+            init() {
+                try { this.announcementRead = sessionStorage.getItem('contest-notice-read:' + cfg.contestId) === '1'; } catch (e) {}
+                if (cfg.target) {
+                    const timer = setInterval(() => {
+                        this.nowMs = Date.now() + offset;
+                        if (this.nowMs >= cfg.target) { clearInterval(timer); setTimeout(() => window.location.reload(), 1500); }
+                    }, 1000);
+                }
+                // Chừa chỗ cho thanh điều hướng đáy của site trên điện thoại.
+                const fit = () => { const nav = document.querySelector('nav[aria-label="Điều hướng nhanh"]'); const h = nav && getComputedStyle(nav).display !== 'none' ? nav.offsetHeight : 0; this.$root.style.setProperty('--hub-bottom-offset', h + 'px'); };
+                fit(); window.addEventListener('resize', fit);
+                const print = document.getElementById('contest-ranking-print');
+                if (print) document.body.appendChild(print); // CSS in: body:has(> .contest-ranking-print)
+                this.$nextTick(() => {
+                    if (cfg.openEntry) this.openEntry();
+                });
+            },
+            get clock() {
+                const remaining = Math.max(0, (cfg.target || 0) - this.nowMs);
+                const days = Math.floor(remaining / 86400000);
+                const pad = (n) => String(n).padStart(2, '0');
+                return (days ? days + ' ngày ' : '') + pad(Math.floor(remaining / 3600000) % 24) + ':' + pad(Math.floor(remaining / 60000) % 60) + ':' + pad(Math.floor(remaining / 1000) % 60);
+            },
+            markRead() {
+                this.announcementRead = true; this.announcementOpen = false;
+                try { sessionStorage.setItem('contest-notice-read:' + cfg.contestId, '1'); } catch (e) {}
+            },
+            showTab(id) {
+                if (!cfg.tabs.includes(id)) return;
+                this.tab = id;
+                try { const u = new URL(window.location.href); u.searchParams.set('tab', id); history.replaceState(null, '', u); } catch (e) {}
+                this.$nextTick(() => { const el = document.getElementById('hub-tab-' + id); if (el) el.focus({ preventScroll: true }); this.$refs.tabs && this.$refs.tabs.scrollIntoView({ block: 'nearest' }); });
+            },
+            keyTabs(event, index) {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const n = cfg.tabs.length;
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? n - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + n) % n;
+                this.showTab(cfg.tabs[next]);
+            },
+            openEntry() { const d = this.$refs.entryDialog; if (d && !d.open) d.showModal(); },
+            closeEntry() { const d = this.$refs.entryDialog; if (d && d.open) d.close(); },
+            openAdd() { this.showTab('registrations'); const d = this.$refs.addDialog; if (d && !d.open) { d.showModal(); this.search(); } },
+            closeAdd() { const d = this.$refs.addDialog; if (d && d.open) d.close(); },
+
+            // ── Hộp thoại "Thêm học sinh" ──
+            addQuery: '', addClass: '', students: [], picked: [], loading: false, loadError: '',
+            async search() {
+                if (!cfg.searchUrl) return;
+                this.loading = true; this.loadError = '';
+                try {
+                    const u = new URL(cfg.searchUrl, window.location.origin);
+                    if (this.addQuery.trim()) u.searchParams.set('q', this.addQuery.trim());
+                    if (this.addClass) u.searchParams.set('lop', this.addClass);
+                    const res = await fetch(u, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                    if (!res.ok) throw new Error();
+                    this.students = (await res.json()).students || [];
+                } catch (e) { this.students = []; this.loadError = 'Không tải được danh sách học sinh. Vui lòng thử lại.'; }
+                this.loading = false;
+            },
+            get selectable() { return this.students.filter((s) => !s.added); },
+            get allPicked() { return this.selectable.length > 0 && this.selectable.every((s) => this.picked.includes(s.id)); },
+            togglePick(id) { this.picked = this.picked.includes(id) ? this.picked.filter((x) => x !== id) : [...this.picked, id]; },
+            toggleAll() {
+                const ids = this.selectable.map((s) => s.id);
+                this.picked = this.allPicked ? this.picked.filter((id) => !ids.includes(id)) : [...new Set([...this.picked, ...ids])];
+            },
+
+            // ── Lọc bảng "Học sinh tham gia" ──
+            peopleQuery: '',
+            peopleMatch(key) {
+                const q = this.peopleQuery.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
+                return q === '' || key.includes(q);
+            },
+        };
+    }
+</script>
+@endpush

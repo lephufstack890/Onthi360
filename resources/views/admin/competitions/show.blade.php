@@ -76,6 +76,8 @@
                 <p class="text-[13px] text-slate-600 whitespace-pre-line">{{ $competition->rules ?: '— Chưa nhập —' }}</p>
             </div>
 
+            @include('admin.competitions._hub-info')
+
             {{-- SỬA 21/10 (khách: "bỏ khối Đề/bộ bài tham chiếu") — đề của cuộc thi gắn theo từng kỳ thi ngay bên dưới. --}}
 
             {{-- Kỳ thi (vòng) bên trong cuộc thi — 1 cuộc thi có thể gồm nhiều kỳ thi, mỗi
@@ -131,6 +133,7 @@
                                                          :yearValue="$exam['endsAt']?->format('Y')"
                                                          :hourValue="$exam['endsAt']?->format('H')"
                                                          :minuteValue="$exam['endsAt']?->format('i')" />
+                                    @include('admin.competitions._round-form-fields', ['mode' => $exam['assignmentMode'] ?? 'random', 'count' => $exam['formCount'] ?? 1])
                                     <div class="sm:col-span-2 flex items-center gap-2">
                                         <button type="submit" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-medium">Lưu</button>
                                         <a href="{{ route('admin.ranking.show', ['scope' => 'exam', 'id' => $exam['id']]) }}" class="text-xs text-slate-500 hover:text-blue-600">Xem bảng xếp hạng riêng ›</a>
@@ -173,6 +176,7 @@
                         </div>
                         <x-date-time-fields name="starts_at" label="Bắt đầu" />
                         <x-date-time-fields name="ends_at" label="Kết thúc" />
+                        @include('admin.competitions._round-form-fields', ['mode' => 'random', 'count' => 1])
                     </div>
                     <button type="submit" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-medium">+ Thêm kỳ thi</button>
                 </form>
@@ -194,6 +198,15 @@
                     @endif
                 @else
                     <p class="text-[13px] text-slate-600">Nội bộ (nền tảng tự tổ chức) — không bắt buộc cố vấn.</p>
+                    {{-- SỬA 24/10 — giáo viên tổ chức (quản lý học sinh, duyệt đăng ký trong phòng thi) cũng hiện với cuộc thi nội bộ. --}}
+                    @if ($competition->advisors->isNotEmpty())
+                        <p class="text-xs text-slate-400 mt-2 mb-1">Giáo viên tổ chức:</p>
+                        <ul class="flex flex-wrap gap-2">
+                            @foreach ($competition->advisors as $advisor)
+                                <li class="px-2.5 py-1 rounded-full bg-sky-50 border border-sky-100 text-xs text-sky-700">{{ $advisor->name }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
                 @endif
             </div>
 

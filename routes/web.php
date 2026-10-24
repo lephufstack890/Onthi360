@@ -156,6 +156,17 @@ Route::middleware('auth')->group(function () {
 });
 Route::get('/cuoc-thi', [PublicCompetitionController::class, 'index'])->name('competitions.index');
 Route::get('/cuoc-thi/{competition}', [PublicCompetitionController::class, 'show'])->name('competitions.show');
+// SỬA 24/10 — thao tác BAN TỔ CHỨC ngay trong phòng thi (tab "Học sinh"). Quyền: ContestOrganizerService::canManage().
+Route::middleware('auth')->group(function () {
+    Route::get('/cuoc-thi/{competition}/ban-to-chuc/hoc-sinh', [\App\Http\Controllers\ContestManageController::class, 'students'])
+        ->whereNumber('competition')->name('competitions.manage.students');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/hoc-sinh', [\App\Http\Controllers\ContestManageController::class, 'add'])
+        ->whereNumber('competition')->name('competitions.manage.add');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/dang-ky/{registration}/duyet', [\App\Http\Controllers\ContestManageController::class, 'approve'])
+        ->whereNumber(['competition', 'registration'])->name('competitions.manage.approve');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/dang-ky/{registration}/tu-choi', [\App\Http\Controllers\ContestManageController::class, 'reject'])
+        ->whereNumber(['competition', 'registration'])->name('competitions.manage.reject');
+});
 Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('/giao-vien-tieu-bieu', [PublicTeacherController::class, 'index'])->name('teachers.index');
 Route::get('/giao-vien-tieu-bieu/{teacher}', fn ($teacher) => view('public.teachers.show'))->name('teachers.show');
@@ -244,6 +255,9 @@ Route::middleware(['auth'])->group(function () {
         // vào thi vẫn nằm ở AttemptService::competitionEntryDecision(), không phải ở route.
         Route::post('competitions/{competition}/dang-ky', [StudentCompetitionController::class, 'requestJoin'])
             ->whereNumber('competition')->name('competitions.requestJoin');
+        // SỬA 24/10 — nút trong hộp thoại vào thi (khảo sát: mật khẩu; cuộc thi: mã đề), xem ContestEntryService.
+        Route::post('competitions/{competition}/vong/{exam}/vao-thi', [StudentCompetitionController::class, 'enter'])
+            ->whereNumber(['competition', 'exam'])->name('competitions.enter');
         Route::get('competitions/{competition}/phong-thi', [StudentCompetitionController::class, 'room'])
             ->whereNumber('competition')->name('competitions.room');
         // SỬA 19/9 (2) (khách: "vào thi thì mở màn làm bài RIÊNG cho cuộc thi") — phòng thi

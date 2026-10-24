@@ -25,6 +25,8 @@ class CompetitionController extends Controller
         // viết bản sao: mọi luật (mở/tiếp tục lượt, hết giờ tự nộp, số lượt làm lại, chấm) chỉ
         // tồn tại ở MỘT chỗ, nên sửa ở đó là cả hai đường vào cùng đúng.
         private readonly AssessmentService $assessmentService,
+        // SỬA 24/10 — luật vào thi của phòng thi mới (mật khẩu khảo sát, mã đề cuộc thi).
+        private readonly \App\Services\Contest\ContestEntryService $entry,
     ) {}
 
     /**
@@ -44,23 +46,36 @@ class CompetitionController extends Controller
      * student.competitions.room — KHÔNG GIAN THI. Chỉ mở cho học sinh đã được ban tổ chức duyệt;
      * kiểm tra nằm trong roomData() (không tin giao diện đã ẩn link).
      */
-    public function room(Request $request, int $competition): View|RedirectResponse
+    public function room(Request $request, int $competition): RedirectResponse
     {
-        // ?vong=<id kỳ thi> — cho phép chia sẻ đường dẫn tới đúng vòng đang xem; giá trị lạ
-        // (vòng của cuộc thi khác, id không tồn tại) bị roomData() bỏ qua và tự chọn vòng hợp lý.
-        $selectedExamId = $request->integer('vong') ?: null;
+        // SỬA 24/10 (phòng thi mới) — không gian thi giờ là chính trang /cuoc-thi/{id} (mọi người cùng xem, nút theo quyền),
+        // đường dẫn cũ chuyển về đó, giữ ?vong= để link đã chia sẻ vẫn mở đúng kỳ thi.
+        return redirect()->route('competitions.show', array_filter([
+            'competition' => $competition,
+            'vong' => $request->integer('vong') ?: null,
+        ]));
+    }
+
+    /**
+     * SỬA 24/10 — student.competitions.enter: nút trong hộp thoại "Sẵn sàng vào thi? / Nhập mật khẩu khảo sát".
+     * Khảo sát: kiểm mật khẩu (giới hạn số lần sai) → vào danh sách + dấu đã nhập. Cuộc thi: phải được duyệt, chưa nộp,
+     * nhận mã đề (ngẫu nhiên / tự chọn, chốt cố định). Xong thì sang trang làm bài. Luật: App\Services\Contest\ContestEntryService.
+     */
+    public function enter(Request $request, int $competition, int $exam): RedirectResponse
+    {
+        $data = $request->validate([
+            'password' => ['nullable', 'string', 'max:100'],
+            'form' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
+        ]);
 
         try {
-            $data = $this->competitionService->roomData($request->user(), $competition, $selectedExamId);
+            $this->entry->enter($request->user(), $competition, $exam, $data['password'] ?? null, isset($data['form']) ? (int) $data['form'] : null);
         } catch (ValidationException $e) {
-            // SỬA 19/9 (11) — chưa đăng ký / vừa bị ban tổ chức gỡ: đưa về trang cuộc thi công
-            // khai kèm lý do, thay vì quăng trang 403 trắng không giải thích gì.
-            return redirect()
-                ->route('competitions.show', $competition)
-                ->withErrors($e->errors());
+            return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam])
+                ->withErrors($e->errors())->with('contest_entry_failed', true);
         }
 
-        return view('student.competitions.room', $data);
+        return redirect()->route('student.competitions.exam', ['competition' => $competition, 'exam' => $exam]);
     }
 
     /**
@@ -83,6 +98,13 @@ class CompetitionController extends Controller
     public function exam(Request $request, int $competition, int $exam): View|RedirectResponse
     {
         $user = $request->user();
+
+        // SỬA 24/10 — khảo sát phải vừa nhập đúng mật khẩu; cuộc thi phải có mã đề (giao 1 lần, chốt cố định).
+        try {
+            $formNo = $this->entry->guardExamPage($user, $competition, $exam);
+        } catch (ValidationException $e) {
+            return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam])->withErrors($e->errors());
+        }
 
         try {
             // Gộp chung một try: cả 2 bước đều ném ValidationException cho các lý do NGHIỆP VỤ
@@ -128,6 +150,16 @@ class CompetitionController extends Controller
          */
         if ($data['isPdfMode']) {
             return view('student.competitions.exam-pdf', array_merge($data, $context));
+        }
+
+        // SỬA 24/10 — mã đề hoán vị: chỉ đổi THỨ TỰ hiện câu (bài làm, chấm điểm vẫn theo question_id).
+        if ($formNo > 1) {
+            $ordered = \App\Support\ContestForms::order($data['questions'], $exam, $formNo);
+            foreach ($ordered as $i => $q) {
+                $ordered[$i]['no'] = $i + 1;
+            }
+            $data['questions'] = $ordered;
+            $context['contestRoundLabel'] .= ' · '.\App\Support\ContestForms::label($formNo);
         }
 
         Log::info('Phòng thi cuộc thi: MỞ MODAL', [

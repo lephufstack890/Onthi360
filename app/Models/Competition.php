@@ -10,12 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class Competition extends Model
 {
     protected $fillable = [
         'title', 'slug', 'type', 'organizer_type', 'organizer_name', 'assessment_id', 'rules',
         'starts_at', 'ends_at', 'publish_result_at', 'status', 'ranking_rule',
+        // SỬA 24/10 — phòng thi mới (migration 001260)
+        'description', 'edition_label', 'image_path', 'learning_path_id', 'entry_password',
     ];
 
     protected $casts = [
@@ -26,6 +29,8 @@ class Competition extends Model
         'ends_at' => 'datetime',
         'publish_result_at' => 'datetime',
         'ranking_rule' => 'array',
+        // SỬA 24/10 — mật khẩu khảo sát lưu MÃ HOÁ (APP_KEY) để admin xem lại & gửi học sinh.
+        'entry_password' => 'encrypted',
     ];
 
     public function assessment(): BelongsTo
@@ -65,6 +70,63 @@ class Competition extends Model
     public function advisors(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'competition_advisors', 'competition_id', 'teacher_id')->withTimestamps();
+    }
+
+    /** SỬA 24/10 — lộ trình học liên quan (bộ lọc "Lộ trình" + link trong phòng thi). */
+    public function learningPath(): BelongsTo
+    {
+        return $this->belongsTo(LearningPath::class);
+    }
+
+    /** SỬA 24/10 — đã chạy migration 001260 chưa (chưa thì các trường mới coi như trống, trang không lỗi). */
+    public static function supportsHubFields(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('competitions', 'entry_password');
+    }
+
+    public function isSurvey(): bool
+    {
+        return $this->type === CompetitionType::Survey;
+    }
+
+    /** Ảnh bìa: ảnh admin tải lên, không có thì 1 trong 3 ảnh mặc định. */
+    public function imageUrl(): string
+    {
+        if (self::supportsHubFields() && $this->image_path) {
+            return asset('storage/'.$this->image_path);
+        }
+
+        return asset('assets/contest-img-'.(($this->id % 3) + 1).'.jpg');
+    }
+
+    /** Mật khẩu khảo sát (đã giải mã); null nếu chưa đặt / chưa migrate / không giải mã được (đổi APP_KEY). */
+    public function entryPassword(): ?string
+    {
+        if (! self::supportsHubFields()) {
+            return null;
+        }
+
+        try {
+            $value = $this->entry_password;
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    public function hasEntryPassword(): bool
+    {
+        return $this->entryPassword() !== null;
+    }
+
+    public function checkEntryPassword(string $input): bool
+    {
+        $stored = $this->entryPassword();
+
+        return $stored === null || hash_equals($stored, trim($input));
     }
 
     public function isExternallyOrganized(): bool

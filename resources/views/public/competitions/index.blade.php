@@ -1,473 +1,164 @@
 @extends('layouts.guest')
 
-@section('title', 'Cuộc thi & Đấu trường 360')
-@section('meta-description', 'Cuộc thi lập trình và khảo sát năng lực trên Ôn Thi 360 — lịch từng vòng thi, điểm cao nhất, Top 5 và cách vào phòng thi.')
+@section('title', 'Cuộc thi & Khảo sát năng lực')
+@section('meta-description', 'Cuộc thi và khảo sát năng lực trên Ôn Thi 360 — xem các kỳ thi, đăng ký tham gia hoặc vào khảo sát bằng mật khẩu, theo dõi kết quả của bạn.')
+
+@push('head')
+    {{-- SỬA 24/10 — CSS riêng của trang cuộc thi (chép từ source UI mới), không build lại Tailwind. --}}
+    <link rel="stylesheet" href="{{ asset('css/contest-hub.css') }}?v={{ @filemtime(public_path('css/contest-hub.css')) }}">
+@endpush
 
 @section('content')
 @php
-    $competitions = $competitions ?? [];
-    $heroPanel = $heroPanel ?? ['eyebrow' => 'Lịch thi', 'deadline' => null, 'note' => 'Chưa có sự kiện nào đang mở'];
-
-    // SỬA 20/10 (khách: "chia 2 tab như source UI mới: Cuộc thi / Khảo sát") — dải tab cùng khuôn ContestsPage.jsx,
-    // chỉ còn 2 tab theo Loại của cuộc thi (competitions.type = contest | survey).
-    $contestFilters = [
-        ['id' => 'contests', 'label' => 'Cuộc thi', 'icon' => 'trophy', 'count' => count(array_filter($competitions, fn ($c) => $c['type'] === 'contest'))],
-        ['id' => 'surveys', 'label' => 'Khảo sát', 'icon' => 'clipboard-list', 'count' => count(array_filter($competitions, fn ($c) => $c['type'] !== 'contest'))],
-    ];
-
-    $contestRows = [];
-    foreach ($competitions as $c) {
-        $contestRows[] = [
-            'id' => $c['id'],
-            'type' => $c['type'],
-            'statusValue' => $c['statusValue'],
-            'participated' => $c['participated'],
-            // SỬA 19/9 — để tab "Đã tham gia" gom cả đơn đang chờ duyệt / đã duyệt.
-            'registrationStatus' => $c['registrationStatus'],
-        ];
-    }
+    /*
+     * SỬA 24/10 (khách: "làm lại trang cuộc thi theo UI mới") — dựng theo ContestsPage.jsx của source mới:
+     * hero 2 con số, bộ lọc (tên / lộ trình / loại sự kiện), lưới thẻ 4 cột. Dữ liệu: ContestHubService::catalogData().
+     * Lọc ngay trên trình duyệt (danh sách ≤ 200 sự kiện), không tải lại trang.
+     */
+    $cards = $cards ?? [];
+    $roadmaps = $roadmaps ?? [];
+    $filterRows = array_map(fn ($c) => ['id' => $c['id'], 'type' => $c['type'], 'roadmap' => $c['roadmap']['id'] ?? null, 'title' => $c['title']], $cards);
 @endphp
 
-<div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
-<div x-data="onthiContestsPage({{ Js::from(['rows' => $contestRows, 'deadline' => $heroPanel['deadline']]) }})"
-     class="flex flex-col gap-4 animate-fadeIn">
+<div class="materials-page contests-catalog-page cc-page"
+     x-data="contestCatalog({{ Js::from(['rows' => $filterRows, 'type' => $initialType ?? 'all']) }})">
 
-    {{-- SỬA 19/9 — thông báo sau khi gửi đơn đăng ký (bản mẫu: notice nổi ở đáy màn). --}}
-    @if (session('status') === 'competition-join-requested')
-        <div role="status" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" x-cloak
-             class="fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-[11px] font-bold text-emerald-700 shadow-2xl">
-            <x-lucide name="check-circle-2" class="h-4 w-4 shrink-0" />
-            Đã gửi đăng ký. Vui lòng chờ ban tổ chức duyệt.
-        </div>
-    @endif
     @if ($errors->any())
-        <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold text-rose-700">
-            {{ $errors->first() }}
-        </div>
+        <div role="alert" class="cc-alert">{{ $errors->first() }}</div>
     @endif
 
-    {{-- ══════ 1. HERO ══════ --}}
-    <div class="relative flex flex-col items-center justify-between gap-4 overflow-hidden rounded-3xl border border-sky-200/90 bg-gradient-to-r from-[#0050A0] via-[#0066CC] to-[#0284C7] p-5 text-white shadow-[0_10px_35px_rgba(0,100,220,0.08)] md:flex-row sm:p-6">
-        <img src="{{ asset('assets/hero-contests.jpg') }}" alt="" loading="eager" decoding="async"
-             class="pointer-events-none absolute inset-0 h-full w-full object-cover object-right opacity-40 mix-blend-overlay">
-
-        <div class="relative z-10 max-w-2xl">
-            <div class="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-bold text-amber-950 shadow-sm">
-                <x-lucide name="trophy" class="h-3.5 w-3.5" />Đấu trường Đỉnh cao
+    {{-- ══ Hero ══ --}}
+    <header class="material-hero cc-hero">
+        <img src="{{ asset('assets/hero-contests.jpg') }}" alt="" class="cc-hero-bg">
+        <div class="cc-hero-inner">
+            <div class="cc-hero-copy">
+                <span class="cc-kicker"><x-lucide name="trophy" />Không gian thi Ôn Thi 360</span>
+                <h1>Cuộc thi &amp; Khảo sát năng lực</h1>
+                <p>Chọn cuộc thi phù hợp, xem các kỳ thi và theo dõi kết quả của bạn.</p>
+                <div class="cc-hero-tags">
+                    <span><x-lucide name="user-check" />Cuộc thi · Duyệt đăng ký · 1 lượt/kỳ</span>
+                    <span><x-lucide name="key-round" />Khảo sát · Mật khẩu · Nhiều lượt</span>
+                </div>
             </div>
-            <h1 class="text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">Cuộc thi Lập trình & Đấu trường 360</h1>
-            <p class="mt-1.5 text-xs leading-relaxed text-sky-100">
-                Theo dõi các vòng thi, thành tích và vào phòng thi khi vòng đang mở. Mỗi vòng có khung giờ riêng — hết giờ là khoá, kết quả công bố theo lịch của cuộc thi.
-            </p>
-        </div>
-
-        {{-- Đồng hồ đếm ngược THẬT: tới giờ đóng của cuộc thi đang mở, hoặc tới giờ mở của cuộc thi gần nhất. --}}
-        <div class="relative z-10 w-full rounded-2xl border border-white/20 bg-white/10 p-3 text-center shadow-xl backdrop-blur-md md:w-64">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-sky-200">{{ $heroPanel['eyebrow'] }}</p>
-            <p class="mt-1 font-mono text-xl font-black text-white" x-text="countdownLabel">—</p>
-            <div class="mt-1 flex items-center justify-center gap-1 text-[10px] text-sky-100">
-                <x-lucide name="sparkles" class="h-3 w-3 shrink-0 text-amber-300" />
-                <span class="truncate">{{ $heroPanel['note'] }}</span>
+            <div class="cc-hero-stats">
+                <div><b>{{ $contestCount ?? 0 }}</b><span>Cuộc thi</span></div>
+                <div><b class="is-amber">{{ $surveyCount ?? 0 }}</b><span>Khảo sát năng lực</span></div>
             </div>
         </div>
-    </div>
+    </header>
 
-    {{-- ══════ 2. TAB Cuộc thi / Khảo sát (SỬA 20/10) ══════ --}}
-    <div class="flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,100,220,0.04)]">
-        <div role="tablist" aria-label="Loại sự kiện" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            @foreach ($contestFilters as $f)
-                <button type="button" role="tab" :aria-selected="activeTab === '{{ $f['id'] }}'" @click="setTab('{{ $f['id'] }}')"
-                        class="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all"
-                        :class="activeTab === '{{ $f['id'] }}' ? 'bg-[#0066CC] text-white shadow-2xs' : 'text-slate-600 hover:bg-sky-50'">
-                    <x-lucide :name="$f['icon']" class="h-3.5 w-3.5" />{{ $f['label'] }}
-                    <span class="rounded-full px-1.5 text-[10px]" :class="activeTab === '{{ $f['id'] }}' ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-700'">{{ $f['count'] }}</span>
-                </button>
+    {{-- ══ Bộ lọc ══ --}}
+    <section aria-label="Bộ lọc cuộc thi" class="cc-filter">
+        <div class="contest-catalog-filter-grid">
+            <label class="contest-catalog-search" style="min-width:0">
+                <span class="cc-label">Tìm theo tên</span>
+                <span class="cc-search-wrap">
+                    <x-lucide name="search" />
+                    <input type="search" class="material-input pl-9" aria-label="Tìm cuộc thi hoặc khảo sát" placeholder="Nhập tên cuộc thi hoặc khảo sát…" x-model="query">
+                </span>
+            </label>
+            <label style="min-width:0">
+                <span class="cc-label">Lộ trình</span>
+                <select class="material-input" aria-label="Lộ trình" x-model="roadmap">
+                    <option value="all">Tất cả lộ trình</option>
+                    @foreach ($roadmaps as $r)
+                        <option value="{{ $r['id'] }}">{{ $r['title'] }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label style="min-width:0">
+                <span class="cc-label">Loại sự kiện</span>
+                <select class="material-input" aria-label="Loại sự kiện" x-model="type">
+                    <option value="all">Tất cả loại</option>
+                    <option value="contest">Cuộc thi</option>
+                    <option value="survey">Khảo sát năng lực</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-text-button cc-reset" x-show="hasFilters" x-cloak @click="reset()"><x-lucide name="rotate-ccw" />Xóa bộ lọc</button>
+    </section>
+
+    {{-- ══ Danh sách ══ --}}
+    <section aria-label="Danh sách cuộc thi và khảo sát" style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div class="cc-list-head">
+            <div>
+                <h2 x-text="type === 'survey' ? 'Danh sách khảo sát năng lực' : (type === 'contest' ? 'Danh sách cuộc thi' : 'Danh sách cuộc thi & khảo sát')">Danh sách cuộc thi &amp; khảo sát</h2>
+                <p role="status"><span x-text="visibleCount">{{ count($cards) }}</span> / {{ count($cards) }} sự kiện phù hợp · Chọn sự kiện để xem các kỳ thi.</p>
+            </div>
+        </div>
+
+        <div class="cc-grid">
+            @foreach ($cards as $c)
+                @php
+                    $stateClass = match ($c['state']) { 'current' => 'material-status-opened', 'upcoming' => 'material-status-todo', default => 'material-status-neutral' };
+                    $regClass = match ($c['registration']['tone']) { 'opened' => 'material-status-opened', 'todo' => 'material-status-todo', default => 'material-status-neutral' };
+                @endphp
+                <article class="material-card contest-event-card" x-show="isVisible({{ $c['id'] }})">
+                    <a href="{{ $c['url'] }}" class="material-card-cover cc-card-cover" aria-label="Xem {{ $c['isSurvey'] ? 'khảo sát' : 'cuộc thi' }}: {{ $c['title'] }}">
+                        <img src="{{ $c['image'] }}" alt="" loading="lazy" decoding="async">
+                        <span class="material-status {{ $stateClass }}">{{ $c['stateLabel'] }}</span>
+                    </a>
+                    <div class="cc-card-body">
+                        <div class="contest-type-badge {{ $c['isSurvey'] ? 'is-survey' : 'is-contest' }}">
+                            <x-lucide :name="$c['isSurvey'] ? 'key-round' : 'trophy'" style="width:14px;height:14px" />{{ $c['isSurvey'] ? 'Khảo sát năng lực' : 'Cuộc thi' }}
+                        </div>
+                        <h3><a href="{{ $c['url'] }}">{{ $c['title'] }}</a></h3>
+                        @if ($c['roadmap'])
+                            <a class="contest-roadmap" href="{{ $c['roadmap']['href'] }}"><span>Lộ trình học</span><b>{{ $c['roadmap']['title'] }}<x-lucide name="chevron-right" style="width:13px;height:13px" /></b></a>
+                        @endif
+                        <p class="cc-desc">{{ $c['description'] }}</p>
+                        <p class="cc-organizer"><x-lucide name="shield-check" />{{ $c['organizer'] }}</p>
+                        <div class="cc-facts">
+                            <div><x-lucide name="list-checks" /><b>{{ $c['roundsCount'] }} kỳ thi</b><small>Cấu trúc</small></div>
+                            <div><x-lucide name="clock-3" /><b>{{ $c['duration'] }}</b><small>Mỗi kỳ thi</small></div>
+                            <div><x-lucide name="rotate-ccw" class="is-green" /><b>{{ $c['isSurvey'] ? 'Nhiều lần' : '1 lần' }}</b><small>Lượt nộp / kỳ</small></div>
+                        </div>
+                        <div class="cc-dates">
+                            <p><span><x-lucide name="calendar-days" />Bắt đầu</span><b>{{ $c['startLabel'] }}</b></p>
+                            <p><span><x-lucide name="clock-3" />Kết thúc</span><b>{{ $c['endLabel'] }}</b></p>
+                        </div>
+                        <div class="cc-card-foot">
+                            <span class="material-status {{ $regClass }}"><x-lucide :name="$c['registration']['icon']" />{{ $c['registration']['label'] }}</span>
+                            <p>{{ $c['isSurvey'] ? 'Không chờ duyệt · Lưu kết quả từng lượt' : 'Giáo viên / admin duyệt · Có xếp hạng' }}</p>
+                            <a href="{{ $c['url'] }}" class="material-primary contest-catalog-open"><x-lucide name="list-checks" />Xem các kỳ thi<x-lucide name="chevron-right" /></a>
+                        </div>
+                    </div>
+                </article>
             @endforeach
         </div>
-        <span class="hidden shrink-0 text-[10px] font-bold text-slate-400 sm:block"><span x-text="matchedIds.length">{{ count($competitions) }}</span> sự kiện</span>
-    </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @foreach ($competitions as $c)
-            <article x-show="isVisible({{ $c['id'] }})" x-cloak
-                     class="group flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 hover:border-sky-200 hover:shadow-lg {{ $c['cardStyle'] }}">
-                <div>
-                    <div class="relative h-32 overflow-hidden bg-slate-100">
-                        <img src="{{ $c['image'] }}" alt="{{ $c['title'] }}" loading="lazy" decoding="async"
-                             class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
-                        <span class="absolute left-3 top-3 rounded-full border border-sky-200 bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-[#0050A0] shadow-2xs backdrop-blur-xs">{{ $c['tag'] }}</span>
-                        <span class="absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-bold shadow-2xs backdrop-blur-xs {{ $c['statusStyle'] }}">{{ $c['statusLabel'] }}</span>
-                    </div>
-
-                    <div class="p-4">
-                        <h3 class="mb-2 line-clamp-2 text-sm font-bold leading-5 text-[#0B3C78] transition-colors group-hover:text-blue-600">{{ $c['title'] }}</h3>
-
-                        <div class="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-500">
-                            <span class="rounded-lg border border-sky-100 bg-sky-50 px-2 py-1">{{ $c['editionLabel'] }}</span>
-                            <span class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1">{{ $c['roundLabel'] }}</span>
-                        </div>
-
-                        {{-- Dải vòng thi + 4 chỉ số, tất cả từ competition_exams / assessments thật --}}
-                        <div class="mb-3 rounded-xl border border-sky-100 bg-[#F8FBFE] p-2.5">
-                            @include('partials.contest-round-timeline', ['rounds' => $c['rounds'], 'compact' => true])
-
-                            <div class="mt-2 grid grid-cols-2 gap-2 border-t border-sky-100 pt-2 text-[10px] text-slate-500">
-                                <span class="inline-flex items-center gap-1.5">
-                                    <x-lucide name="calendar" class="h-3.5 w-3.5 shrink-0 text-blue-500" />{{ $c['currentRound']['date'] ?? 'Đã kết thúc' }}
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <x-lucide name="users" class="h-3.5 w-3.5 shrink-0 text-purple-500" />{{ number_format($c['participants'], 0, ',', '.') }} người
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <x-lucide name="clock-3" class="h-3.5 w-3.5 shrink-0 text-amber-500" />{{ $c['duration'] }}
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <x-lucide name="bar-chart-3" class="h-3.5 w-3.5 shrink-0 text-emerald-500" />{{ $c['completedRounds'] }}/{{ count($c['rounds']) }} vòng qua
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] font-bold text-amber-700">
-                            <x-lucide name="award" class="h-4 w-4 shrink-0 text-amber-500" />
-                            <span class="truncate">{{ $c['awardLabel'] }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-2 border-t border-sky-100 p-4 pt-3">
-                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $c['participationStyle'] }}">
-                        <x-lucide name="user-check" class="h-3.5 w-3.5 shrink-0" />{{ $c['participationLabel'] }}
-                    </span>
-                    <button type="button" @click="openDetail({{ $c['id'] }})"
-                            class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 px-3 py-2 text-[11px] font-bold text-white shadow-md transition-all hover:brightness-105">
-                        Chi tiết cuộc thi <x-lucide name="chevron-right" class="h-3.5 w-3.5" />
-                    </button>
-                </div>
-            </article>
-        @endforeach
-    </div>
-
-    {{-- ══════ 4. PHÂN TRANG ══════ --}}
-    <nav x-show="totalPages > 1" x-cloak aria-label="Phân trang danh sách cuộc thi"
-         class="mt-1 flex flex-col items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-white p-2.5 shadow-[0_2px_10px_rgba(0,100,220,0.04)] sm:flex-row">
-        <span class="text-[11px] text-slate-400">Trang <strong class="text-slate-600" x-text="page">1</strong> / <span x-text="totalPages">1</span></span>
-        <div class="flex items-center gap-1.5">
-            <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="page = page - 1"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 text-sky-700 transition-colors hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-35">
-                <x-lucide name="chevron-left" class="h-4 w-4" />
-            </button>
-            <template x-for="pageNumber in totalPages" :key="pageNumber">
-                <button type="button" :aria-label="'Trang ' + pageNumber" :aria-current="pageNumber === page ? 'page' : null"
-                        @click="page = pageNumber"
-                        class="inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-[11px] font-bold transition-colors"
-                        :class="pageNumber === page ? 'bg-[#0066CC] text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50'"
-                        x-text="pageNumber"></button>
-            </template>
-            <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="page = page + 1"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 text-sky-700 transition-colors hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-35">
-                <x-lucide name="chevron-right" class="h-4 w-4" />
-            </button>
+        <div class="cc-empty" x-show="visibleCount === 0" @if (count($cards) > 0) x-cloak @endif>
+            <x-lucide name="search" />
+            <h3>{{ count($cards) ? 'Chưa tìm thấy sự kiện phù hợp' : 'Chưa có cuộc thi hoặc khảo sát nào' }}</h3>
+            <p>{{ count($cards) ? 'Thử tên khác hoặc thay đổi bộ lọc.' : 'Các sự kiện mới sẽ xuất hiện ở đây khi ban tổ chức công bố.' }}</p>
+            @if (count($cards))
+                <button type="button" class="material-text-button" style="margin-top:12px" @click="reset()">Đặt lại tất cả</button>
+            @endif
         </div>
-    </nav>
-
-    {{-- ══════ 5. TRẠNG THÁI RỖNG ══════ --}}
-    <div x-show="matchedIds.length === 0" x-cloak class="rounded-3xl border border-dashed border-sky-200 bg-white p-10 text-center">
-        <x-lucide name="trophy" class="mx-auto h-9 w-9 text-sky-300" />
-        <h2 class="mt-3 text-sm font-black text-slate-800" x-text="activeTab === 'surveys' ? 'Chưa có khảo sát nào' : 'Chưa có cuộc thi nào'">Chưa có sự kiện nào</h2>
-        <p class="mt-1 text-xs text-slate-500">Hãy quay lại sau hoặc xem tab còn lại.</p>
-        @if (false)
-            <button type="button" @click="setTab('all')" class="mt-4 text-xs font-bold text-blue-600">Xem tất cả</button>
-        @endif
-    </div>
-
-    @foreach ($competitions as $c)
-        <template x-teleport="body">
-        <div x-show="openId === {{ $c['id'] }}" x-cloak
-             class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-2 sm:p-4"
-             @mousedown.self="openId = null" @keydown.escape.window="openId = null">
-            <section role="dialog" aria-modal="true" aria-labelledby="contest-detail-title-{{ $c['id'] }}"
-                     class="max-h-[calc(100vh-16px)] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-
-                <header class="relative overflow-hidden bg-gradient-to-r from-[#064C99] via-[#0066CC] to-[#0891B2] px-4 py-3.5 text-white sm:px-5">
-                    <img src="{{ $c['image'] }}" alt="" decoding="async" class="absolute inset-0 h-full w-full object-cover opacity-20">
-                    <div class="relative">
-                        <button type="button" aria-label="Đóng chi tiết cuộc thi" @click="openId = null"
-                                class="absolute right-0 top-0 rounded-xl bg-white/15 p-1.5 text-white transition hover:bg-white/25">
-                            <x-lucide name="x" class="h-4 w-4" />
-                        </button>
-                        <div class="flex flex-wrap items-center gap-1.5 pr-8">
-                            <span class="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold">{{ $c['editionLabel'] }}</span>
-                            <span class="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black text-amber-950">{{ $c['roundLabel'] }}</span>
-                            <span class="rounded-full border px-2 py-0.5 text-[9px] font-bold {{ $c['statusStyle'] }}">{{ $c['statusLabel'] }}</span>
-                        </div>
-                        <h2 id="contest-detail-title-{{ $c['id'] }}" class="mt-2 max-w-3xl text-lg font-black leading-tight text-white sm:text-xl">{{ $c['title'] }}</h2>
-                        <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-medium text-sky-100">
-                            <span class="inline-flex items-center gap-1"><x-lucide name="calendar" class="h-3 w-3 shrink-0" />Vòng này: {{ $c['currentRound']['date'] ?? 'Chưa xếp lịch' }}</span>
-                            <span class="inline-flex items-center gap-1"><x-lucide name="clock-3" class="h-3 w-3 shrink-0" />{{ $c['duration'] }}</span>
-                            <span class="inline-flex items-center gap-1"><x-lucide name="users" class="h-3 w-3 shrink-0" />Tổ chức: {{ $c['organizerLabel'] }}</span>
-                        </div>
-                    </div>
-                </header>
-
-                <div class="space-y-2 p-3 sm:p-4">
-                    {{-- Dải các vòng --}}
-                    <section class="rounded-xl border border-sky-100 bg-sky-50/50 px-3 py-2">
-                        <div class="flex items-center justify-between text-[9px] font-bold text-slate-500">
-                            <span>Các vòng thi</span>
-                            <span>{{ $c['completedRounds'] }}/{{ count($c['rounds']) }} vòng đã qua</span>
-                        </div>
-                        <div class="mt-1">
-                            @include('partials.contest-round-timeline', ['rounds' => $c['rounds'], 'compact' => true])
-                        </div>
-                    </section>
-
-                    <div class="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
-                        {{-- Biểu đồ điểm cao nhất từng vòng (MAX(score) thật của bảng xếp hạng vòng đó) --}}
-                        <section class="rounded-xl border border-sky-100 bg-white p-3">
-                            <div class="flex items-center gap-2">
-                                <x-lucide name="bar-chart-3" class="h-4 w-4 shrink-0 text-amber-600" />
-                                <h3 class="text-xs font-black text-[#123B68]">Điểm cao nhất</h3>
-                            </div>
-                            @php $scoredRounds = array_values(array_filter($c['rounds'], fn ($r) => $r['maxScore'] !== null)); @endphp
-                            <div class="mt-2 rounded-xl border border-amber-100 bg-[#FFFCF4] p-2.5">
-                                <div class="flex h-28 items-end gap-3 border-b border-l border-amber-200 px-3 pt-2 sm:gap-5">
-                                    @forelse ($scoredRounds as $r)
-                                        <div class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-                                            <span class="text-[11px] font-black text-amber-700">{{ rtrim(rtrim(number_format($r['maxScore'], 2, ',', ''), '0'), ',') }}đ</span>
-                                            <div class="w-full max-w-10 rounded-t-lg bg-amber-400" style="height: {{ max(18, min(100, (int) round($r['maxScore'] / max(1, (float) ($r['totalPoints'] ?: 100)) * 100))) }}%"></div>
-                                            <span class="w-16 truncate text-center text-[10px] font-bold text-slate-600">{{ $r['shortLabel'] }}</span>
-                                        </div>
-                                    @empty
-                                        <p class="w-full pb-5 text-center text-[11px] text-slate-400">Chưa có điểm</p>
-                                    @endforelse
-                                </div>
-                                <div class="mt-1 flex justify-between text-[10px] text-slate-500">
-                                    <span>Điểm cao nhất</span>
-                                    {{-- SỬA 21/10 — cuộc thi CHƯA có vòng nào (vừa tạo) thì currentRound = null: đọc khoá trên null là lỗi 500. --}}
-                                    <span>Thang {{ (int) (($c['currentRound']['totalPoints'] ?? null) ?: 100) }}</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        {{-- Top 5 (ẩn danh) --}}
-                        <section class="rounded-xl border border-sky-100 bg-white p-3">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-xs font-black text-[#123B68]">Top 5 bảng tổng</h3>
-                                <x-lucide name="award" class="h-4 w-4 shrink-0 text-amber-500" />
-                            </div>
-                            <div class="mt-2 overflow-hidden rounded-xl border border-sky-100">
-                                <div class="grid grid-cols-[22px_30px_1fr_48px] gap-2 bg-[#F3F7FA] px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                                    <span>#</span><span></span><span>Học viên dẫn đầu</span><span class="text-right">Điểm</span>
-                                </div>
-                                <div class="divide-y divide-sky-50 bg-white">
-                                    @forelse ($c['topFive'] as $i => $t)
-                                        <div class="grid grid-cols-[22px_30px_1fr_48px] items-center gap-2 px-2.5 py-2">
-                                            <span class="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black {{ $i === 0 ? 'bg-[#FFF1CF] text-[#9A741E]' : 'bg-slate-100 text-slate-500' }}">{{ $t['rank'] }}</span>
-                                            <img src="{{ $t['avatar'] }}" alt="" decoding="async" class="h-7 w-7 rounded-full border border-white object-cover shadow-sm">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-[11px] font-bold {{ $t['isViewer'] ? 'text-blue-700' : 'text-slate-700' }}">{{ $t['name'] }}@if ($t['isViewer']) <span class="font-black">· Bạn</span>@endif</p>
-                                                <p class="truncate text-[10px] text-slate-400">Chấm ngày {{ $t['note'] }}</p>
-                                            </div>
-                                            <span class="text-right text-[11px] font-black text-[#9A741E]">{{ rtrim(rtrim(number_format($t['score'], 2, ',', ''), '0'), ',') }}đ</span>
-                                        </div>
-                                    @empty
-                                        <p class="px-2.5 py-6 text-center text-[11px] text-slate-400">Chưa có kết quả nào được chấm.</p>
-                                    @endforelse
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    {{-- Chi tiết vòng + 3 bước tham gia THẬT --}}
-                    <section class="rounded-xl border border-sky-100 bg-[#F8FBFE] p-3">
-                        <div class="flex items-center gap-2">
-                            <x-lucide name="calendar" class="h-4 w-4 shrink-0 text-blue-600" />
-                            <h3 class="text-xs font-black text-[#123B68]">Chi tiết vòng & cách tham gia</h3>
-                        </div>
-
-                        <div class="mt-2 grid gap-2 sm:grid-cols-[1.15fr_0.85fr]">
-                            <div class="grid grid-cols-2 gap-1.5">
-                                <div class="rounded-lg bg-white p-2">
-                                    <p class="text-[9px] text-slate-400">Thời gian vòng này</p>
-                                    <p class="mt-0.5 text-[10px] font-black text-slate-700">{{ $c['currentRound']['date'] ?? 'Chưa xếp lịch' }}</p>
-                                </div>
-                                <div class="rounded-lg bg-white p-2">
-                                    <p class="text-[9px] text-slate-400">Đã dự thi vòng này</p>
-                                    <p class="mt-0.5 text-[10px] font-black text-[#126F91]">{{ number_format($c['currentRound']['participants'] ?? 0, 0, ',', '.') }} người</p>
-                                </div>
-                                <div class="rounded-lg bg-white p-2">
-                                    <p class="text-[9px] text-slate-400">Bài thi</p>
-                                    <p class="mt-0.5 text-[10px] font-black text-slate-700">{{ $c['problemsCount'] }} câu · {{ $c['duration'] }}</p>
-                                </div>
-                                <div class="rounded-lg bg-white p-2">
-                                    <p class="text-[9px] text-slate-400">Hạn dự thi</p>
-                                    <p class="mt-0.5 text-[10px] font-black text-slate-700">{{ $c['deadlineLabel'] }}</p>
-                                </div>
-                                <div class="col-span-2 flex min-w-0 items-center gap-3 overflow-hidden rounded-lg bg-white px-2 py-1.5 text-[9px]">
-                                    <span class="min-w-0 truncate"><b class="font-bold text-slate-400">Kết quả:</b> <span class="font-black text-amber-700">{{ $c['awardLabel'] }}</span></span>
-                                    <span class="min-w-0 truncate text-slate-600"><b class="font-bold text-slate-400">Mở thi:</b> {{ $c['startsAtLabel'] }}</span>
-                                </div>
-                            </div>
-
-                            {{--
-                                SỬA 19/9 (khách: "click đăng ký tham gia thì admin sẽ duyệt. Sau khi admin
-                                duyệt xong thì học sinh sẽ vào được màn không gian thi") — thay khối
-                                "Đăng nhập → Vào phòng thi → Xem kết quả" cũ bằng đúng widget
-                                RegistrationStatus của bản mẫu: Gửi đăng ký → BTC duyệt → Vào phòng.
-
-                                Mọi biến bên dưới đã được Public\CompetitionService::mapContestCard()
-                                tính sẵn — view KHÔNG tự suy luận lại luật duyệt, vì cùng luật đó còn
-                                được dùng ở AttemptService (chặn thật) và competitions.show.
-                            --}}
-                            @php
-                                // "Đóng đăng ký": cuộc thi đã qua giai đoạn nhận thí sinh. Bản mẫu dùng
-                                // waiting|published; ở đây thêm archived vì đó mới là trạng thái khoá thật.
-                                $regClosed = in_array($c['statusValue'], ['pending_publish', 'published', 'archived'], true);
-                                $regPending = $c['registrationPending'];
-                                $regApproved = $c['registrationApproved'];
-                            @endphp
-                            <div class="rounded-xl border border-sky-100 bg-white p-3">
-                                <div class="flex items-center justify-between gap-2">
-                                    <div class="flex items-center gap-1.5">
-                                        <x-lucide name="user-check" class="h-3.5 w-3.5 shrink-0 text-[#3A7185]" />
-                                        <h3 class="text-sm font-black text-[#123B68]">Đăng ký tham gia</h3>
-                                    </div>
-                                    <span class="text-[10px] font-bold text-slate-500">BTC duyệt trước khi vào phòng</span>
-                                </div>
-
-                                <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-[10px] font-bold">
-                                    <div class="rounded-lg p-1.5 {{ $regPending || $regApproved ? 'bg-[#E7F3EE] text-[#39755F]' : 'bg-slate-50 text-slate-500' }}">
-                                        @if ($regPending || $regApproved)
-                                            <x-lucide name="check" class="mx-auto mb-0.5 h-3 w-3" />
-                                        @else
-                                            1<br>
-                                        @endif
-                                        Gửi đăng ký
-                                    </div>
-                                    <div class="rounded-lg p-1.5 {{ $regApproved ? 'bg-[#E7F3EE] text-[#39755F]' : ($regPending ? 'bg-[#FFF3D9] text-[#9A741E]' : 'bg-slate-50 text-slate-500') }}">
-                                        @if ($regApproved)
-                                            <x-lucide name="check" class="mx-auto mb-0.5 h-3 w-3" />
-                                        @else
-                                            2<br>
-                                        @endif
-                                        BTC duyệt
-                                    </div>
-                                    <div class="rounded-lg p-1.5 {{ $regApproved ? 'bg-[#EAF2F8] text-[#356782]' : 'bg-slate-50 text-slate-500' }}">
-                                        3<br>Vào phòng
-                                    </div>
-                                </div>
-
-                                @guest
-                                    {{-- Chưa đăng nhập thì chưa thể gửi đơn — mời đăng nhập trước. --}}
-                                    <a href="{{ route('login') }}"
-                                       class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F7890] px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-[#286B80]">
-                                        <x-lucide name="shield-check" class="h-3.5 w-3.5" />Đăng nhập để đăng ký
-                                    </a>
-                                @else
-                                    @if ($regApproved)
-                                        <a href="{{ $c['roomUrl'] }}"
-                                           class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
-                                            <x-lucide name="play" class="h-3.5 w-3.5" />Đã duyệt · Vào không gian thi
-                                        </a>
-                                    @elseif ($regPending)
-                                        {{-- Nút khoá (không phải <button disabled> trong form) để không gửi trùng đơn. --}}
-                                        <span class="mt-2 flex min-h-9 w-full cursor-default items-center justify-center gap-1.5 rounded-lg bg-[#FFF0C7] px-3 py-2 text-[11px] font-black text-[#8D6A1A]">
-                                            <x-lucide name="clock-3" class="h-3.5 w-3.5" />Đã gửi · Chờ BTC duyệt
-                                        </span>
-                                    @elseif ($c['canRequestJoin'] && ! $regClosed)
-                                        <form method="POST" action="{{ $c['requestJoinUrl'] }}" class="mt-2">
-                                            @csrf
-                                            <button type="submit"
-                                                    class="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#2F7890] px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-[#286B80]">
-                                                <x-lucide name="file-check-2" class="h-3.5 w-3.5" />Đăng ký tham gia
-                                            </button>
-                                        </form>
-                                        @if ($c['registrationRejected'])
-                                            <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[10px] font-bold text-rose-700">
-                                                <x-lucide name="info" class="h-3.5 w-3.5 shrink-0" />Đơn trước bị từ chối — bạn có thể gửi lại.
-                                            </div>
-                                        @endif
-                                    @else
-                                        {{-- Không phải học sinh, hoặc cuộc thi đã đóng đăng ký: chỉ còn đường xem. --}}
-                                        <a href="{{ $c['leaderboardHref'] }}"
-                                           class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-100 bg-white px-3 py-2 text-[11px] font-black text-[#2F7890] transition hover:bg-sky-50">
-                                            <x-lucide name="bar-chart-3" class="h-3.5 w-3.5" />Xem bảng xếp hạng
-                                        </a>
-                                        @if ($regClosed)
-                                            <div class="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] font-bold text-violet-700">
-                                                <x-lucide name="info" class="h-3.5 w-3.5 shrink-0" />Đã đóng đăng ký — bạn vẫn xem lại được kết quả.
-                                            </div>
-                                        @endif
-                                    @endif
-                                @endguest
-
-                                @php
-                                    // Vòng đang thật sự mở cho CHÍNH người này (canJoin đã gộp cả luật
-                                    // "đã được duyệt"). Không dùng currentRound vì vòng đang xem có thể
-                                    // là vòng sắp tới/đã kết thúc — bấm vào sẽ ra đề sai.
-                                    $openRound = null;
-                                    foreach ($c['rounds'] as $r) {
-                                        if ($r['canJoin']) { $openRound = $r; break; }
-                                    }
-                                @endphp
-                                @if ($openRound !== null)
-                                    <a href="{{ route('student.competitions.exam', ['competition' => $c['id'], 'exam' => $openRound['id']]) }}"
-                                       class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#43876F] px-3 py-2 text-[11px] font-black text-white transition hover:bg-[#3A7561]">
-                                        <x-lucide name="play" class="h-3.5 w-3.5" />Vào thi ngay · {{ $openRound['shortLabel'] }}
-                                    </a>
-                                @endif
-
-                                <a href="{{ $c['href'] }}" class="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline">
-                                    Xem thể lệ đầy đủ <x-lucide name="chevron-right" class="h-3 w-3" />
-                                </a>
-                            </div>
-                        </div>
-
-                        {{-- Bảng từng vòng: giờ riêng + trạng thái + nút vào đúng vòng đang mở --}}
-                        <div class="mt-2 overflow-hidden rounded-xl border border-sky-100 bg-white">
-                            @foreach ($c['rounds'] as $r)
-                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-sky-50 px-3 py-2 last:border-b-0">
-                                    <div class="min-w-0">
-                                        <p class="truncate text-[11px] font-bold text-slate-700">{{ $r['label'] }}</p>
-                                        <p class="mt-0.5 text-[10px] text-slate-400">
-                                            {{ $r['date'] }}
-                                            @if ($r['maxScore'] !== null)
-                                                · cao nhất {{ rtrim(rtrim(number_format($r['maxScore'], 2, ',', ''), '0'), ',') }}đ
-                                            @endif
-                                        </p>
-                                    </div>
-                                    <div class="flex shrink-0 items-center gap-1.5">
-                                        <span class="rounded-full border px-2 py-0.5 text-[9px] font-bold {{ $r['status'] === 'completed' ? 'border-slate-200 bg-slate-50 text-slate-600' : ($r['status'] === 'current' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700') }}">
-                                            {{ $r['status'] === 'completed' ? 'Đã kết thúc' : ($r['status'] === 'current' ? 'Đang diễn ra' : 'Sắp diễn ra') }}
-                                        </span>
-                                        @if ($r['canJoin'])
-                                            <a href="{{ route('student.competitions.exam', ['competition' => $c['id'], 'exam' => $r['id']]) }}"
-                                               class="inline-flex items-center gap-1 rounded-lg bg-[#43876F] px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-[#3A7561]">
-                                                <x-lucide name="play" class="h-3 w-3" />Vào thi
-                                            </a>
-                                        @elseif ($r['alreadyAttempted'])
-                                            <span class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
-                                                <x-lucide name="check-circle-2" class="h-3 w-3" />Đã làm
-                                            </span>
-                                        @endif
-                                        <a href="{{ route('leaderboard.index', ['competition' => $c['id'], 'exam' => $r['id']]) }}"
-                                           class="inline-flex items-center gap-1 rounded-lg border border-sky-100 px-2.5 py-1 text-[10px] font-bold text-sky-700 transition hover:bg-sky-50">
-                                            <x-lucide name="bar-chart-3" class="h-3 w-3" />Xếp hạng
-                                        </a>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </section>
-                </div>
-            </section>
-        </div>
-        </template>
-    @endforeach
-</div>
+    </section>
 </div>
 @endsection
 
 @push('scripts')
-    @include('partials.contests-page-script')
+<script>
+    // SỬA 24/10 — lọc danh sách theo tên (bỏ dấu), lộ trình, loại sự kiện (bản mẫu: ContestsPage.jsx).
+    function contestCatalog(init) {
+        const normalize = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
+        const rows = (init.rows || []).map((r) => ({ ...r, key: normalize(r.title) }));
+        return {
+            query: '',
+            roadmap: 'all',
+            type: init.type || 'all',
+            get hasFilters() { return this.query !== '' || this.roadmap !== 'all' || this.type !== 'all'; },
+            match(r) {
+                return (this.type === 'all' || r.type === this.type)
+                    && (this.roadmap === 'all' || String(r.roadmap) === String(this.roadmap))
+                    && r.key.includes(normalize(this.query.trim()));
+            },
+            isVisible(id) { const r = rows.find((x) => x.id === id); return r ? this.match(r) : false; },
+            get visibleCount() { return rows.filter((r) => this.match(r)).length; },
+            reset() { this.query = ''; this.roadmap = 'all'; this.type = 'all'; },
+        };
+    }
+</script>
 @endpush

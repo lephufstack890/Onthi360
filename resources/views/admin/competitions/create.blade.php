@@ -18,7 +18,7 @@
     @endif
 
     <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 sm:p-6">
-        <form method="POST" action="{{ route('admin.competitions.store') }}" class="space-y-4" x-data="{ organizerType: '{{ old('organizer_type', 'internal') }}' }">
+        <form method="POST" action="{{ route('admin.competitions.store') }}" class="space-y-4" enctype="multipart/form-data" x-data="{ organizerType: '{{ old('organizer_type', 'internal') }}', type: '{{ old('type', 'contest') }}' }">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -29,7 +29,7 @@
                 </div>
                 <div>
                     <label class="block text-[13px] font-medium text-slate-600 mb-1" for="type">Loại</label>
-                    <x-ws.select id="type" name="type" required>
+                    <x-ws.select id="type" name="type" required x-model="type">
                         @foreach ($types as $value => $label)
                             <option value="{{ $value }}" @selected(old('type', 'contest') === $value)>{{ $label }}</option>
                         @endforeach
@@ -53,8 +53,10 @@
                     <input id="organizer_name" name="organizer_name" type="text" value="{{ old('organizer_name') }}" maxlength="255"
                            placeholder="Ví dụ: Hội Tin học TP..."
                            class="admin-input">
-
-                    <label class="block text-xs text-slate-500 mb-1 mt-3">Giáo viên cố vấn/đồng hành (bắt buộc ≥1 — tăng uy tín cho cuộc thi bên ngoài)</label>
+                </div>
+                <div>
+                    {{-- SỬA 24/10 — giáo viên tổ chức hiện cho CẢ cuộc thi nội bộ: họ quản lý học sinh, duyệt đăng ký ngay trong phòng thi. --}}
+                    <label class="block text-xs text-slate-500 mb-1">Giáo viên tổ chức / cố vấn — quản lý học sinh &amp; duyệt đăng ký trong phòng thi <span class="text-slate-400">(bắt buộc ≥1 nếu bên ngoài tổ chức)</span></label>
                     <div class="max-h-40 overflow-y-auto rounded-xl border border-sky-100 bg-white p-2 space-y-1">
                         @forelse ($teacherOptions as $t)
                             <label class="flex items-center gap-2 text-[13px] px-2 py-1 rounded hover:bg-amber-50 cursor-pointer">
@@ -67,6 +69,8 @@
                     </div>
                 </div>
             </div>
+
+            @include('admin.competitions._hub-fields', ['competition' => null])
 
             {{-- SỬA 20/10 (khách: "thêm/sửa cuộc thi bỏ ô Đề/bộ bài tham chiếu và khối Quy tắc bảng xếp hạng") — bỏ khỏi form;
                  đề của cuộc thi gắn theo từng kỳ thi ở trang chi tiết. --}}

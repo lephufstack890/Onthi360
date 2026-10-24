@@ -30,11 +30,21 @@ class CompetitionRegistration extends Model
     protected $fillable = [
         'competition_id', 'student_id', 'status',
         'requested_at', 'approved_at', 'approved_by', 'reject_reason',
+        // SỬA 24/10 — phòng thi mới (migration 001260)
+        'source', 'added_by', 'exam_forms',
     ];
+
+    /** SỬA 24/10 — dòng này từ đâu ra: học sinh tự đăng ký / ban tổ chức thêm / vào khảo sát bằng mật khẩu. */
+    public const SOURCE_STUDENT = 'student';
+
+    public const SOURCE_ORGANIZER = 'organizer';
+
+    public const SOURCE_PASSWORD = 'password';
 
     protected $casts = [
         'requested_at' => 'datetime',
         'approved_at' => 'datetime',
+        'exam_forms' => 'array',
     ];
 
     /**
@@ -55,6 +65,19 @@ class CompetitionRegistration extends Model
         }
 
         return $has;
+    }
+
+    /** SỬA 24/10 — đã có cột source / added_by / exam_forms chưa (migration 001260). */
+    public static function supportsHubFields(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('competition_registrations', 'source');
+    }
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by');
     }
 
     public function competition(): BelongsTo

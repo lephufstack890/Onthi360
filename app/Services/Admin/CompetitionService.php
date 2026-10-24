@@ -58,6 +58,7 @@ class CompetitionService
     {
         return [
             'types' => [CompetitionType::Contest->value => 'Cuộc thi', CompetitionType::Survey->value => 'Khảo sát'],
+            'learningPathOptions' => $this->learningPathOptions(), // SỬA 24/10
             // Đề thi luôn thuộc Tài liệu (11.1) — cuộc thi chỉ THAM CHIẾU, không tạo đề riêng.
             // SỬA 11/10 (khách: "Đề/bộ bài tham chiếu chỉ đổ ra đề thuộc loại Đề thi") — chỉ liệt kê đề
             // có Loại = "Đề thi" (AssessmentType::Exam). Khi SỬA cuộc thi mà đề đang gắn thuộc loại khác
@@ -258,12 +259,76 @@ class CompetitionService
         }
     }
 
+    /** SỬA 24/10 — lộ trình cho ô "Lộ trình học liên quan". */
+    private function learningPathOptions(): array
+    {
+        if (! Competition::supportsHubFields()) {
+            return [];
+        }
+
+        return \App\Models\LearningPath::query()->orderBy('title')->get(['id', 'title'])
+            ->map(fn ($lp) => ['id' => (int) $lp->id, 'title' => (string) $lp->title])->all();
+    }
+
+    /** SỬA 24/10 (khách: "khảo sát khi tham gia sẽ nhập mật khẩu") — khảo sát phải có mật khẩu tham gia. */
+    private function assertHubFields(array $data, ?Competition $existing): void
+    {
+        if (! Competition::supportsHubFields() || ($data['type'] ?? null) !== CompetitionType::Survey->value) {
+            return;
+        }
+
+        $typed = trim((string) ($data['entry_password'] ?? ''));
+        $clear = ! empty($data['clear_entry_password']);
+        $keeps = $existing !== null && $existing->hasEntryPassword() && ! $clear;
+
+        if ($typed === '' && ! $keeps && ! $clear) {
+            throw ValidationException::withMessages([
+                'entry_password' => 'Khảo sát cần mật khẩu tham gia — nhập mật khẩu để giáo viên gửi cho học sinh.',
+            ]);
+        }
+    }
+
+    /** SỬA 24/10 — lưu các trường của trang Cuộc thi mới: mô tả, nhãn mùa giải, lộ trình, ảnh bìa, mật khẩu khảo sát. */
+    private function applyHubFields(Competition $competition, array $data): void
+    {
+        if (! Competition::supportsHubFields()) {
+            return;
+        }
+
+        $attrs = [
+            'description' => trim((string) ($data['description'] ?? '')) ?: null,
+            'edition_label' => trim((string) ($data['edition_label'] ?? '')) ?: null,
+            'learning_path_id' => ($data['learning_path_id'] ?? null) ?: null,
+        ];
+
+        $password = trim((string) ($data['entry_password'] ?? ''));
+        if ($password !== '') {
+            $attrs['entry_password'] = $password;
+        } elseif (! empty($data['clear_entry_password'])) {
+            $attrs['entry_password'] = null;
+        }
+
+        $image = $data['image'] ?? null;
+        if ($image instanceof \Illuminate\Http\UploadedFile || ! empty($data['remove_image'])) {
+            $old = $competition->image_path;
+            if ($old && \Illuminate\Support\Facades\Storage::disk('public')->exists($old)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($old);
+            }
+            $attrs['image_path'] = $image instanceof \Illuminate\Http\UploadedFile
+                ? \App\Support\ImageOptimizer::store($image, 'competitions/covers', 'public')
+                : null;
+        }
+
+        $competition->forceFill($attrs)->save();
+    }
+
     /** admin.competitions.store — slug tự sinh từ tiêu đề (giống Course/Product). */
     public function store(array $data): Competition
     {
         $this->assertOrganizerDataValid($data);
         $this->assertExamAssessment($data['assessment_id'] ?? null);
         $this->assertDatesValid($data);
+        $this->assertHubFields($data, null);
 
         $baseSlug = Str::slug($data['title']);
         $slug = $baseSlug;
@@ -294,6 +359,7 @@ class CompetitionService
         ]);
 
         $competition->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
+        $this->applyHubFields($competition, $data);
 
         return $competition;
     }
@@ -314,6 +380,7 @@ class CompetitionService
         $this->assertOrganizerDataValid($data);
         $this->assertExamAssessment($data['assessment_id'] ?? null, $competition->assessment_id);
         $this->assertDatesValid($data);
+        $this->assertHubFields($data, $competition);
 
         // Trạng thái TỰ TÍNH lại theo lịch mới nhập — trừ khi cuộc thi ĐANG "Lưu trữ" thì giữ
         // nguyên (Lưu trữ là hành động thủ công riêng của admin qua archive(), sửa ngày giờ
@@ -340,6 +407,7 @@ class CompetitionService
         ]);
 
         $updated->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
+        $this->applyHubFields($updated, $data);
 
         return $updated;
     }
@@ -595,6 +663,8 @@ class CompetitionService
             'assessmentTitle' => $e->assessment->title ?? '— Không gắn đề —',
             'startsAt' => $e->starts_at,
             'endsAt' => $e->ends_at,
+            'assignmentMode' => $e->assignmentMode(), // SỬA 24/10 — mã đề hoán vị
+            'formCount' => $e->formCount(),
             'entriesCount' => $e->leaderboardEntries()->count(),
         ])->all();
 
@@ -623,6 +693,9 @@ class CompetitionService
             'title' => ['nullable', 'string', 'max:255'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date'],
+            // SỬA 24/10 — mã đề hoán vị (chỉ cuộc thi); không gửi = giữ nguyên giá trị cũ.
+            'assignment_mode' => ['nullable', 'string', 'in:random,choice'],
+            'form_count' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
         ];
     }
 
@@ -659,7 +732,7 @@ class CompetitionService
             'order' => $nextOrder,
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,
-        ]);
+        ] + $this->examFormAttributes($data));
     }
 
     /**
@@ -683,7 +756,25 @@ class CompetitionService
             'title' => trim($data['title'] ?? '') ?: null,
             'starts_at' => $data['starts_at'] ?: null,
             'ends_at' => $data['ends_at'] ?: null,
-        ]);
+        ] + $this->examFormAttributes($data));
+    }
+
+    /** SỬA 24/10 — 2 trường mã đề hoán vị của kỳ thi; chưa migrate / không gửi thì bỏ qua. */
+    private function examFormAttributes(array $data): array
+    {
+        if (! CompetitionExam::supportsForms()) {
+            return [];
+        }
+
+        $out = [];
+        if (($data['assignment_mode'] ?? null) !== null) {
+            $out['assignment_mode'] = $data['assignment_mode'];
+        }
+        if (($data['form_count'] ?? null) !== null) {
+            $out['form_count'] = (int) $data['form_count'];
+        }
+
+        return $out;
     }
 
     /**
