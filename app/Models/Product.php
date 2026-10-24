@@ -124,6 +124,18 @@ class Product extends Model
         return $this->type->chapterLabel();
     }
 
+    /**
+     * SỬA 24/10 (khách: "nút back ở sách thì về tab Sách, chuyên đề về Chuyên đề, bộ đề về Bộ đề") — link Kho tài liệu
+     * mở sẵn đúng thể loại của tài liệu này (?category=books|topics|exams, đọc ở public/materials/index).
+     */
+    public function catalogUrl(): string
+    {
+        $type = $this->type instanceof \App\Enums\ProductType ? $this->type->value : (string) $this->type;
+        $category = ['book' => 'books', 'topic' => 'topics', 'exam' => 'exams'][$type] ?? null;
+
+        return route('materials.index', $category !== null ? ['category' => $category] : []);
+    }
+
     public function accessRights(): HasMany
     {
         return $this->hasMany(AccessRight::class);
