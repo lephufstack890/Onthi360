@@ -9,6 +9,7 @@
             <img src="{{ $competition->imageUrl() }}" alt="" style="width:128px;height:72px;object-fit:cover;border-radius:12px;border:1px solid #e0ecf5">
             <div class="min-w-0 flex-1 space-y-1 text-[13px] text-slate-600">
                 <p><span class="text-slate-400">Mô tả:</span> {{ $competition->description ?: '— Chưa nhập (dùng thể lệ) —' }}</p>
+                <p><span class="text-slate-400">Thời gian:</span> {{ $competition->starts_at?->format('H:i d/m/Y') ?? 'Theo các kỳ thi' }} → {{ $competition->ends_at?->format('H:i d/m/Y') ?? 'Theo các kỳ thi' }}</p>
                 <p><span class="text-slate-400">Nhãn mùa giải:</span> {{ $competition->edition_label ?: '—' }}</p>
                 <p><span class="text-slate-400">Lộ trình học (khoá học):</span> {{ \App\Models\Competition::supportsCourse() ? ($competition->course?->title ?: '—') : '—' }}</p>
                 @if ($competition->isSurvey())

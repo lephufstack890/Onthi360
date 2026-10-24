@@ -119,6 +119,8 @@ class CompetitionController extends Controller
     {
         $this->combineDateTimeInputs($request, ['starts_at', 'ends_at', 'publish_result_at']);
         $data = $request->validate($this->validationRules());
+        // SỬA 24/10 — form có ô Bắt đầu/Kết thúc thì lưu đúng giá trị (kể cả xoá trống); ô Công bố chưa có trên form thì giữ cũ.
+        $data['dates_in_form'] = $request->exists('starts_at_day');
 
         try {
             $this->competitionService->update($competition, $data);

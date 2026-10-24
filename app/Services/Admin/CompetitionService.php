@@ -400,11 +400,10 @@ class CompetitionService
             'ranking_rule' => $this->buildRankingRule($data),
         ]
         // Form sửa không còn ô Bắt đầu / Kết thúc / Công bố — ô nào không gửi lên thì GIỮ giá trị cũ, không xoá về trống.
-        + array_filter([
-            'starts_at' => $data['starts_at'] ?? null,
-            'ends_at' => $data['ends_at'] ?? null,
-            'publish_result_at' => $data['publish_result_at'] ?? null,
-        ], fn ($v) => $v !== null && $v !== ''));
+        + (! empty($data['dates_in_form'])
+            ? ['starts_at' => ($data['starts_at'] ?? null) ?: null, 'ends_at' => ($data['ends_at'] ?? null) ?: null]
+            : array_filter(['starts_at' => $data['starts_at'] ?? null, 'ends_at' => $data['ends_at'] ?? null], fn ($v) => $v !== null && $v !== ''))
+        + array_filter(['publish_result_at' => $data['publish_result_at'] ?? null], fn ($v) => $v !== null && $v !== ''));
 
         $updated->advisors()->sync(array_map('intval', $data['advisor_teacher_ids'] ?? []));
         $this->applyHubFields($updated, $data);

@@ -737,6 +737,14 @@ class ContestHubService
             return 'completed';
         }
 
+        // SỬA 24/10 — cuộc thi có đặt Bắt đầu / Kết thúc riêng thì trạng thái chung theo đúng 2 mốc đó.
+        if ($c->starts_at !== null && now()->lt($c->starts_at)) {
+            return 'upcoming';
+        }
+        if ($c->ends_at !== null && now()->gt($c->ends_at)) {
+            return 'completed';
+        }
+
         $states = $c->examSittings->map(fn ($e) => $this->roundState($e))->all();
         if ($states === []) {
             return match ($c->computedStatus()) {
@@ -752,8 +760,9 @@ class ContestHubService
     /** @return array{0: ?Carbon, 1: ?Carbon} ngày bắt đầu sớm nhất / kết thúc muộn nhất của các kỳ thi */
     private function eventRange(Competition $c): array
     {
-        $start = $c->examSittings->pluck('starts_at')->filter()->sort()->first() ?? $c->starts_at;
-        $end = $c->examSittings->pluck('ends_at')->filter()->sort()->last() ?? $c->ends_at;
+        // SỬA 24/10 — ưu tiên Bắt đầu / Kết thúc admin nhập cho cuộc thi; để trống mới lấy theo các kỳ thi.
+        $start = $c->starts_at ?? $c->examSittings->pluck('starts_at')->filter()->sort()->first();
+        $end = $c->ends_at ?? $c->examSittings->pluck('ends_at')->filter()->sort()->last();
 
         return [$start, $end];
     }

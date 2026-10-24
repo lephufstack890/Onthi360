@@ -81,6 +81,20 @@
                           class="admin-input">{{ old('rules') }}</textarea>
             </div>
 
+            {{-- SỬA 24/10 (khách: "thiếu thời gian bắt đầu và kết thúc của cuộc thi") — mở lại 2 ô Bắt đầu / Kết thúc.
+                 Hiện ở thẻ cuộc thi + phòng thi; để trống thì lấy theo ngày của các kỳ thi. --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <x-date-time-fields name="starts_at" label="Thời gian bắt đầu"
+                                     :dayValue="old('starts_at_day')" :monthValue="old('starts_at_month')"
+                                     :yearValue="old('starts_at_year')" :hourValue="old('starts_at_hour')"
+                                     :minuteValue="old('starts_at_minute')" />
+                <x-date-time-fields name="ends_at" label="Thời gian kết thúc"
+                                     :dayValue="old('ends_at_day')" :monthValue="old('ends_at_month')"
+                                     :yearValue="old('ends_at_year')" :hourValue="old('ends_at_hour')"
+                                     :minuteValue="old('ends_at_minute')" />
+            </div>
+            <p class="text-xs text-slate-400 -mt-2">Để trống = lấy theo ngày sớm nhất / muộn nhất của các kỳ thi bên trong.</p>
+
             {{--
               TẠM ẨN 24/8: Khách hiện không cần nhập Bắt đầu/Kết thúc/Công bố kết quả lúc tạo
               cuộc thi (đang thừa) — comment lại (KHÔNG xoá) để sau này cần dùng lại thì chỉ
