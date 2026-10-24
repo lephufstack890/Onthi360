@@ -410,7 +410,9 @@
 .contest-student-filters label>span { display:block; margin-bottom:5px; }
 .contest-student-filters :is(input,select) { box-sizing:border-box; width:100%; min-width:0; padding:9px; border:1px solid #dce6ed; border-radius:7px; background:white; font-size:12px; }
 .contest-select-all { display:flex; align-items:center; gap:8px; padding:10px 0; font-size:12px; color:#52778e; }
-.contest-select-all span { margin-left:auto; font-size:11px; }
+.contest-select-all .csa-text { display:inline-flex; align-items:center; gap:6px; }
+.contest-select-all .csa-total { font-style:normal; min-width:22px; padding:1px 7px; border-radius:999px; background:#eaf3f7; color:#2f6580; font-size:11px; font-weight:700; text-align:center; line-height:18px; }
+.contest-select-all .csa-count { margin-left:auto; font-size:11px; }
 .contest-student-options { border:1px solid #e3ebf1; border-radius:8px; margin-bottom:12px; }
 .contest-student-options>label { display:flex; gap:10px; align-items:center; padding:12px; border-bottom:1px solid #edf2f5; }
 .contest-student-options>label:last-child { border-bottom:0; }.contest-student-options>label>span { flex:1; min-width:0; }

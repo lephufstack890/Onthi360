@@ -19,7 +19,7 @@
                     </select>
                 </label>
             </div>
-            <label class="contest-select-all"><input type="checkbox" :checked="allPicked" :disabled="!selectable.length" @change="toggleAll()">Chọn tất cả kết quả (<span x-text="selectable.length"></span>)<span>Đã chọn <b x-text="picked.length"></b></span></label>
+            <label class="contest-select-all"><input type="checkbox" :checked="allPicked" :disabled="!selectable.length" @change="toggleAll()"><span class="csa-text">Chọn tất cả kết quả <em class="csa-total" x-text="selectable.length"></em></span><span class="csa-count">Đã chọn <b x-text="picked.length"></b></span></label>
             <div class="contest-student-options">
                 <p class="is-loading" x-show="loading">Đang tải danh sách…</p>
                 <template x-for="s in students" :key="s.id">
