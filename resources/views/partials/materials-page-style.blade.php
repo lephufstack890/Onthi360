@@ -124,6 +124,21 @@
     .mp-status.is-neutral { color: #607a90; background: #f4f8fb; border-color: #ddeaf0; }
     .mp-desc { margin: 8px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; line-height: 20px; color: #607a90; }
     .mp-author { margin: 4px 0 12px; font-size: 10px; line-height: 16px; color: #64748b; }
+    /* SỬA 24/10 — số đếm thể loại + khối thông tin Bộ đề trên thẻ / hộp thông tin */
+    .mp-cat { display: inline-flex; align-items: center; gap: 6px; }
+    .mp-cat-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: #e3eef3; color: #46657a; font-size: 10px; line-height: 18px; text-align: center; }
+    .mp-cat[aria-pressed="true"] .mp-cat-count { background: rgba(255, 255, 255, .22); color: #fff; }
+    .mp-bundle { margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: #f4f9fb; border: 1px solid #e3eef3; }
+    .mp-bundle-kind { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 11px; font-weight: 700; color: #1f5f7a; }
+    .mp-bundle-kind svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .mp-bundle dl { margin: 0; display: grid; gap: 3px; }
+    .mp-bundle dl div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 6px; font-size: 11px; line-height: 18px; }
+    .mp-bundle dt { color: #7a8f9d; }
+    .mp-bundle dd { margin: 0; color: #36546a; font-weight: 600; }
+    .mp-bundle dd.is-plain { font-weight: 400; }
+    .mp-bundle-note { margin: 6px 0 0; font-size: 11px; line-height: 18px; color: #607a90; }
+    .mp-bundle-lines { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 20px; color: #36546a; }
+    .mp-bundle-lines b { color: #7a8f9d; font-weight: 600; }
     .mp-buy { margin-top: auto; border-top: 1px solid #e7eff3; padding-top: 12px; }
     .mp-price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; }
     .mp-price-row small { display: block; font-size: 10px; color: #607a90; }

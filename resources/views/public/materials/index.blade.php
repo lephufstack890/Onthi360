@@ -55,6 +55,7 @@
             'hasPrintOption' => (bool) $m['hasPrintOption'],
             'durationMonths' => $m['durationMonths'],
             'unitLabel' => $m['unitLabel'],
+            'bundle' => $m['bundle'] ?? null,
             'search' => $m['search'],
             'href' => $m['href'],
             'checkoutHref' => $m['checkoutHref'],
@@ -148,7 +149,11 @@
             <p class="mp-label" style="margin-bottom: 8px;">Thể loại</p>
             <div class="mp-cats" style="margin-bottom: 0;" aria-label="Thể loại tài liệu">
                 <template x-for="c in categories" :key="c.id">
-                    <button type="button" class="mp-cat" :aria-pressed="category === c.id ? 'true' : 'false'" @click="category = c.id" x-text="c.label"></button>
+                    <button type="button" class="mp-cat" :aria-pressed="category === c.id ? 'true' : 'false'" @click="category = c.id">
+                        <span x-text="c.label"></span>
+                        {{-- SỬA 24/10 (khách: "chưa có số lượng sách / chuyên đề / bộ đề") --}}
+                        <span class="mp-cat-count" x-show="!isAssignmentView" x-text="catCount(c.id)"></span>
+                    </button>
                 </template>
             </div>
         </div>
@@ -290,7 +295,23 @@
                             @endif
                         </div>
 
-                        <p class="mp-desc">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', strip_tags((string) $item['highlight']))) ?: 'Học liệu bản quyền của Ôn Thi 360.', 160) }}</p>
+                        @if (! empty($item['bundle']))
+                            {{-- SỬA 24/10 (khách: "thông tin bộ đề mô tả rõ: là bộ đề, khối nào, mục đích, có bao nhiêu đề") --}}
+                            @php $bd = $item['bundle']; @endphp
+                            <div class="mp-bundle">
+                                <p class="mp-bundle-kind"><x-lucide name="file-check" />Bộ đề thi · {{ $bd['exams'] > 0 ? $bd['exams'].' đề' : 'đang cập nhật đề' }}@if ($bd['questions'] > 0)<span>· {{ $bd['questions'] }} bài</span>@endif</p>
+                                <dl>
+                                    @if ($bd['level'])<div><dt>Khối</dt><dd>{{ $bd['level'] }}</dd></div>@endif
+                                    @if ($bd['contest'])<div><dt>Kỳ thi</dt><dd>{{ $bd['contest'] }}</dd></div>@endif
+                                    @if ($bd['province'])<div><dt>Tỉnh/thành</dt><dd>{{ $bd['province'] }}</dd></div>@endif
+                                    @if ($bd['years'])<div><dt>Năm học</dt><dd>{{ $bd['years'] }}</dd></div>@endif
+                                    <div><dt>Mục đích</dt><dd class="is-plain">{{ $bd['purpose'] }}</dd></div>
+                                </dl>
+                                @if ($bd['note'])<p class="mp-bundle-note">{{ $bd['note'] }}</p>@endif
+                            </div>
+                        @else
+                            <p class="mp-desc">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', strip_tags((string) $item['highlight']))) ?: 'Học liệu bản quyền của Ôn Thi 360.', 160) }}</p>
+                        @endif
                         <p class="mp-author">{{ $item['author'] }}</p>
 
                         <div class="mp-buy">
@@ -305,12 +326,12 @@
 
                             @if ($isAdmin && $item['readHref'])
                                 {{-- SỬA 14/10 — admin đọc được mọi tài liệu không cần mua (khách yêu cầu). --}}
-                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu<x-lucide name="chevron-right" /></a>
+                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide :name="$item['category'] === 'exams' ? 'pen-line' : 'book-open'" />{{ $item['category'] === 'exams' ? 'Làm bộ đề' : 'Đọc tài liệu' }}<x-lucide name="chevron-right" /></a>
                                 <a href="{{ route('admin.products.show', $item['id']) }}" class="mp-text-btn">Quản lý tài liệu</a>
                             @elseif ($isAdmin)
                                 <a href="{{ route('admin.products.show', $item['id']) }}" class="mp-primary">Quản lý tài liệu<x-lucide name="chevron-right" /></a>
                             @elseif ($item['owned'] && $item['readHref'])
-                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu<x-lucide name="chevron-right" /></a>
+                                <a href="{{ $item['readHref'] }}" class="mp-primary is-green"><x-lucide :name="$item['category'] === 'exams' ? 'pen-line' : 'book-open'" />{{ $item['category'] === 'exams' ? 'Làm bộ đề' : 'Đọc tài liệu' }}<x-lucide name="chevron-right" /></a>
                             @elseif ($item['owned'])
                                 <button type="button" class="mp-primary" @click="openDetail({{ $item['id'] }})"><x-lucide name="book-open" />Xem thông tin<x-lucide name="chevron-right" /></button>
                             @else
@@ -415,7 +436,17 @@
                                 <span class="mp-status is-neutral" x-text="selected.tag"></span>
                                 <h3 style="margin-top:6px" x-text="selected.title"></h3>
                                 <p x-text="'Tác giả: ' + selected.author"></p>
-                                <p class="is-accent" x-text="selected.unitLabel + ' · Đọc trực tuyến và luyện tập'"></p>
+                                <p class="is-accent" x-text="selected.unitLabel + (selected.bundle ? ' · Làm bài và chấm trực tuyến' : ' · Đọc trực tuyến và luyện tập')"></p>
+                                <template x-if="selected.bundle">
+                                    <ul class="mp-bundle-lines">
+                                        <li x-show="selected.bundle.level"><b>Khối:</b> <span x-text="selected.bundle.level"></span></li>
+                                        <li x-show="selected.bundle.contest"><b>Kỳ thi:</b> <span x-text="selected.bundle.contest"></span></li>
+                                        <li x-show="selected.bundle.province"><b>Tỉnh/thành:</b> <span x-text="selected.bundle.province"></span></li>
+                                        <li x-show="selected.bundle.years"><b>Năm học:</b> <span x-text="selected.bundle.years"></span></li>
+                                        <li x-show="selected.bundle.questions"><b>Số bài:</b> <span x-text="selected.bundle.questions + ' bài'"></span></li>
+                                        <li><b>Mục đích:</b> <span x-text="selected.bundle.purpose"></span></li>
+                                    </ul>
+                                </template>
                             </div>
                         </div>
 
@@ -456,13 +487,13 @@
                             @if ($canBuy)
                                 <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a>
                                 <a :href="selected.checkoutHref" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
-                                <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" />Vào đọc ngay →</a>
+                                <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="selected.bundle ? 'Làm bộ đề →' : 'Vào đọc ngay →'">Vào đọc ngay →</span></a>
                             @endif
                             @if ($scope['canManage'])
                                 <button type="button" class="oi-assign-chip" style="min-height:40px;padding:0 14px" x-show="selected.inCatalog" @click="openAssign(selected.id)"><x-lucide name="send" />Giao tài liệu</button>
                             @endif
                             @if ($isAdmin)
-                                <a :href="selected.readHref" x-show="selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" />Đọc tài liệu</a>
+                                <a :href="selected.readHref" x-show="selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="selected.bundle ? 'Làm bộ đề' : 'Đọc tài liệu'">Đọc tài liệu</span></a>
                                 <a :href="selected.adminHref" class="mp-primary">Quản lý tài liệu</a>
                             @endif
                         </div>

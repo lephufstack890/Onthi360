@@ -184,6 +184,14 @@
                 });
             },
 
+            // SỬA 24/10 — số tài liệu mỗi thể loại trong không gian đang xem (chưa tính ô tìm kiếm / bộ lọc phụ).
+            catCount(id) {
+                var mine = this.activeScope === 'mine';
+                return this.rows.filter(function (r) {
+                    return r.inCatalog && (!mine || r.owned || r.expired) && (id === 'all' || r.category === id);
+                }).length;
+            },
+
             // Danh sách thẻ (Kho tài liệu / Tài liệu của tôi) sau lọc + sắp xếp.
             get cardEntries() {
                 var self = this;

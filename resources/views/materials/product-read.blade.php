@@ -483,6 +483,14 @@
             var SCALE_DEFAULT = 1.4, SCALE_MIN = 0.8, SCALE_MAX = 2.4, SCALE_STEP = 0.2;
             var scale = SCALE_DEFAULT;
 
+            // SỬA 24/10 (khách: "chỗ bộ đề hiển thị bị to quá che mất") — trang PDF khổ lớn (đề scan) vượt bề ngang khung
+            // đọc: thu nhỏ cho vừa khung (KHÔNG phóng to trang nhỏ). Khung đổi bề ngang (Tập trung, xoay máy) thì tính lại.
+            function viewportOf(page) {
+                var base = page.getViewport({ scale: 1 });
+                var avail = Math.max(240, (container.clientWidth || 800) - 8);
+                return page.getViewport({ scale: Math.min(scale, avail / base.width) });
+            }
+
             var docs = new Array(parts.length); // tài liệu pdf.js của từng phần (undefined = chưa tải)
             var entries = [];                   // mỗi TRANG của cả quyển: { partIndex, page, wrapper, label, canvas, rendering, failed }
             var nextToLoad = 0;
@@ -616,7 +624,7 @@
                 }
                 entry.rendering = true;
                 try {
-                    var vp = entry.page.getViewport({ scale: scale });
+                    var vp = viewportOf(entry.page);
                     var canvas = document.createElement('canvas');
                     canvas.width = vp.width;
                     canvas.height = vp.height;
@@ -678,7 +686,7 @@
                         console.error('Khong doc duoc trang', i, part.title, err);
                         continue;
                     }
-                    var vp = page.getViewport({ scale: scale });
+                    var vp = viewportOf(page);
 
                     var wrapper = document.createElement('div');
                     wrapper.className = 'reader-page-wrap';
@@ -953,7 +961,7 @@
                     entry.wrapper.innerHTML = '';
                     entry.canvas = null;
                     entry.failed = false;
-                    var vp = entry.page.getViewport({ scale: scale });
+                    var vp = viewportOf(entry.page);
                     entry.wrapper.style.width = vp.width + 'px';
                     entry.wrapper.style.height = vp.height + 'px';
                 }
@@ -987,6 +995,25 @@
                     setZoomLabel();
                     applyScale();
                 });
+            }
+
+            var lastWidth = container.clientWidth;
+            var resizeTimer = null;
+            function onViewerResize() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function () {
+                    var w = container.clientWidth;
+                    if (Math.abs(w - lastWidth) < 16) {
+                        return;
+                    }
+                    lastWidth = w;
+                    applyScale();
+                }, 200);
+            }
+            if (window.ResizeObserver) {
+                new ResizeObserver(onViewerResize).observe(container);
+            } else {
+                window.addEventListener('resize', onViewerResize);
             }
 
             container.innerHTML = '';

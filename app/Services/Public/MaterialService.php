@@ -356,6 +356,12 @@ class MaterialService
             default => $unitCount > 0 ? $unitCount.' chương' : 'Đang cập nhật',
         };
 
+        // SỬA 24/10 (khách: "thông tin bộ đề mô tả rõ: là bộ đề, khối nào, mục đích, có bao nhiêu đề") — chỉ loại Bộ đề.
+        $bundle = $typeValue === 'exam' ? $this->bundleSummary($product) : null;
+        if ($bundle !== null) {
+            $unitLabel = $bundle['exams'] > 0 ? $bundle['exams'].' đề' : 'Đang cập nhật đề';
+        }
+
         // Đánh giá hiển thị = đánh giá nhập tay (admin) GỘP đánh giá thật của người đọc — cùng cách
         // làm với đề thi (PracticeService::combinedRating).
         $rating = $this->combinedRating($product, $summary);
@@ -397,6 +403,7 @@ class MaterialService
             'image' => $this->coverUrl($product),
             'tag' => $tagLabel,
             'unitLabel' => $unitLabel,
+            'bundle' => $bundle,
             'highlight' => $product->description,
             'author' => $author,
             'priceSoft' => $price > 0 ? $this->money($price) : 'Miễn phí',
@@ -409,6 +416,55 @@ class MaterialService
             'href' => route('materials.show', $product->id),
             'checkoutHref' => route('access.checkout', $product->id),
             'readHref' => $this->readHrefFor($product, $firstReadableMaterialId, $readRoutePrefix),
+        ];
+    }
+
+    private ?\App\Services\ExamBundle\ExamBundleService $bundleService = null;
+
+    /**
+     * SỬA 24/10 — tóm tắt Bộ đề cho thẻ / hộp thông tin ở Kho tài liệu: số đề, số bài, khối, kỳ thi, tỉnh/thành, năm học,
+     * mục đích. Tính từ danh sách đề THẬT của bộ (ExamBundleService::items() — đề luyện tập đã phát hành, nhớ trong request).
+     *
+     * @return array{exams: int, questions: int, level: ?string, contest: ?string, province: ?string, years: ?string, purpose: string, note: ?string}
+     */
+    private function bundleSummary(Product $product): array
+    {
+        $this->bundleService ??= app(\App\Services\ExamBundle\ExamBundleService::class);
+        $items = $this->bundleService->items($product);
+        $uniq = fn (callable $pick) => $items->map($pick)->filter()->unique()->values()->all();
+
+        $contests = $uniq(fn ($a) => $a->examCategoryLabel());
+        $levels = $uniq(fn ($a) => $a->examLevelLabel());
+        $provinces = $uniq(fn ($a) => $a->provinceLabel());
+        $years = $items->map(fn ($a) => \App\Support\ExamBundleFilters::yearOf($a->academic_year))->filter()->sort()->values();
+        $questions = (int) $items->sum(fn ($a) => (int) ($a->items_count ?? 0) > 0
+            ? (int) $a->items_count
+            : (int) ($a->answer_keys_count ?? 0) + (int) ($a->coding_items_count ?? 0));
+
+        $grade = trim((string) ($product->grade ?? ''));
+        $contest = $contests !== [] ? implode(', ', $contests) : null;
+        $province = match (true) {
+            $provinces === [] => null,
+            count($provinces) <= 3 => implode(', ', $provinces),
+            default => count($provinces).' tỉnh/thành',
+        };
+        $schoolYear = static fn (int $y) => $y.'-'.($y + 1);
+        $yearsLabel = $years->isEmpty() ? null
+            : ($years->first() === $years->last() ? $schoolYear($years->first()) : $schoolYear($years->first()).' → '.$schoolYear($years->last()));
+
+        $description = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $product->description)) ?? '');
+        $sameAsTitle = Str::lower(Str::ascii($description)) === Str::lower(Str::ascii((string) $product->title));
+
+        return [
+            'exams' => $items->count(),
+            'questions' => $questions,
+            'level' => implode(' · ', array_filter([implode(', ', $levels), $grade])) ?: null,
+            'contest' => $contest,
+            'province' => $province,
+            'years' => $yearsLabel,
+            'purpose' => 'Ôn luyện '.($contest !== null ? 'kỳ thi '.$contest : 'thi học sinh giỏi').(count($provinces) === 1 ? ' ('.$provinces[0].')' : '')
+                .' bằng đề thi thật — làm từng đề trực tuyến, chấm tự động, xem điểm từng bài.',
+            'note' => $description !== '' && ! $sameAsTitle ? Str::limit($description, 140) : null,
         ];
     }
 
