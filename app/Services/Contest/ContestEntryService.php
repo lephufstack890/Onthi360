@@ -66,8 +66,8 @@ class ContestEntryService
             $this->fail($exam->computedStatus() === 'upcoming' ? 'Kỳ thi chưa đến giờ mở.' : 'Kỳ thi đã kết thúc.');
         }
 
-        if ($exam->assessment_id === null) {
-            $this->fail('Kỳ thi này chưa được ban tổ chức gắn đề.');
+        if ($exam->assessment_id === null && app(ContestPaperService::class)->publishedPapers($exam)->isEmpty()) {
+            $this->fail($competition->isSurvey() ? 'Giáo viên chưa chốt đề cho kỳ khảo sát này.' : 'Kỳ thi này chưa được ban tổ chức gắn đề.');
         }
 
         if (! CompetitionRegistration::supported()) {

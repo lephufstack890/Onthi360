@@ -78,6 +78,59 @@ class ContestManageController extends Controller
         return $this->back($request, $competition)->with('contest_notice', $approve ? 'Đã duyệt học sinh tham gia.' : 'Đã từ chối đăng ký.');
     }
 
+    /** SỬA 24/10 — hộp thoại Thêm kỳ thi trong phòng thi (admin / giáo viên tổ chức). */
+    public function storeRound(Request $request, int $competition): RedirectResponse
+    {
+        return $this->saveRound($request, $competition, null);
+    }
+
+    public function updateRound(Request $request, int $competition, int $exam): RedirectResponse
+    {
+        return $this->saveRound($request, $competition, $exam);
+    }
+
+    public function destroyRound(Request $request, int $competition, int $exam): RedirectResponse
+    {
+        $model = Competition::query()->with('advisors:id,name')->findOrFail($competition);
+        $round = \App\Models\CompetitionExam::query()->where('competition_id', $model->id)->findOrFail($exam);
+
+        try {
+            $this->organizers->deleteRound($request->user(), $model, $round);
+        } catch (ValidationException $e) {
+            return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam])->withErrors($e->errors());
+        }
+
+        return redirect()->route('competitions.show', $competition)->with('contest_notice', 'Đã xoá kỳ thi.');
+    }
+
+    private function saveRound(Request $request, int $competition, ?int $examId): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date'],
+            'assessment_id' => ['nullable', 'integer'],
+            'assignment_mode' => ['nullable', 'in:random,choice'],
+            'form_count' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
+        ]);
+        $model = Competition::query()->with('advisors:id,name')->findOrFail($competition);
+        $round = $examId !== null ? \App\Models\CompetitionExam::query()->where('competition_id', $model->id)->findOrFail($examId) : null;
+
+        try {
+            $saved = $this->organizers->saveRound($request->user(), $model, $round, $data);
+        } catch (ValidationException $e) {
+            return redirect()->route('competitions.show', array_filter(['competition' => $competition, 'vong' => $examId]))
+                ->withErrors($e->errors())->withInput()->with('round_dialog', $examId ?? 'new');
+        }
+
+        $notice = $round === null
+            ? ($model->isSurvey() && $saved->assessment_id === null ? 'Đã thêm kỳ khảo sát. Mở tab "Thiết lập đề" để sinh đề cho kỳ.' : 'Đã thêm kỳ thi.')
+            : 'Đã lưu kỳ thi.';
+
+        return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $saved->id] + ($model->isSurvey() && $saved->assessment_id === null ? ['tab' => 'paper'] : []))
+            ->with('contest_notice', $notice);
+    }
+
     private function back(Request $request, int $competition): RedirectResponse
     {
         return redirect()->route('competitions.show', array_filter([

@@ -36,6 +36,13 @@
         'openEntry' => $entryFailed,
         'selectedForm' => $assignedForm ?? (($round['assignmentMode'] ?? 'random') === 'choice' ? 1 : null),
         'searchUrl' => $participants['searchUrl'] ?? null,
+        // SỬA 24/10 — hộp thoại Thêm / Sửa kỳ thi (ban tổ chức).
+        'roundEditor' => $roundEditor ?? null,
+        'roundOpen' => session('round_dialog'),
+        'roundOld' => session('round_dialog') ? [
+            'title' => old('title'), 'startsAt' => old('starts_at'), 'endsAt' => old('ends_at'), 'assessmentId' => (string) old('assessment_id', ''),
+            'formCount' => (string) old('form_count', '1'), 'assignmentMode' => old('assignment_mode', 'random'),
+        ] : null,
     ];
 @endphp
 
@@ -110,11 +117,21 @@
 
         <div class="arena-section-heading">
             <h2>Các kỳ thi <span>{{ count($rounds) }}</span></h2>
-            <p>{{ $survey ? 'Nhập mật khẩu · Có thể làm nhiều lần' : 'Đăng ký một lần · Duyệt cho toàn cuộc thi' }}</p>
+            <div class="hub-heading-right">
+                <p>{{ $survey ? 'Nhập mật khẩu · Có thể làm nhiều lần' : 'Đăng ký một lần · Duyệt cho toàn cuộc thi' }}</p>
+                @if (! empty($roundEditor))
+                    {{-- SỬA 24/10 — ban tổ chức thêm kỳ thi ngay trong phòng thi. --}}
+                    <button type="button" class="hub-add-round" @click="openRound(null)"><x-lucide name="plus" />Thêm kỳ thi</button>
+                @endif
+            </div>
         </div>
 
         @if ($round === null)
-            <div class="contest-empty"><x-lucide name="list-checks" /><h3>{{ $action['title'] }}</h3><p>{{ $action['text'] }}</p></div>
+            <div class="contest-empty"><x-lucide name="list-checks" /><h3>{{ $action['title'] }}</h3><p>{{ $action['text'] }}</p>
+                @if (! empty($roundEditor))
+                    <button type="button" class="hub-add-round" @click="openRound(null)"><x-lucide name="plus" />Thêm kỳ thi đầu tiên</button>
+                @endif
+            </div>
         @else
             <main class="hub-workspace">
                 <aside class="hub-round-selector" aria-label="Các kỳ thi">
@@ -149,7 +166,14 @@
 
                 <section class="hub-exam" aria-label="Kỳ thi đang chọn">
                     <div class="hub-exam-summary">
-                        <div class="arena-round-heading"><h2>{{ $round['label'] }}</h2><span class="contest-badge {{ $round['state'] }}">{{ $round['stateLabel'] }}</span></div>
+                        <div class="arena-round-heading"><h2>{{ $round['label'] }}</h2>
+                            <span class="hub-round-head-right">
+                                @if (! empty($roundEditor))
+                                    <button type="button" class="hub-edit-round" @click="openRound({{ $round['id'] }})"><x-lucide name="pencil" />Sửa kỳ thi</button>
+                                @endif
+                                <span class="contest-badge {{ $round['state'] }}">{{ $round['stateLabel'] }}</span>
+                            </span>
+                        </div>
                         <div class="arena-round-time"><x-lucide name="calendar-days" /><span>{{ $round['timeFrom'] }} <x-lucide name="arrow-right" /> {{ $round['timeTo'] }} <small>(GMT+7)</small></span></div>
                         <div class="arena-round-details">
                             <div class="hub-exam-metrics">
@@ -185,6 +209,10 @@
                             <p class="contest-error" role="alert">Kỳ thi này chưa được ban tổ chức gắn đề.</p>
                         @endif
                         <div x-show="tab === 'overview'">@include('public.competitions.partials.overview')</div>
+                        @if (! empty($round['paperStateUrl']))
+                            {{-- SỬA 24/10 — tab Thiết lập đề (ban tổ chức, khảo sát). --}}
+                            <div x-show="tab === 'paper'" x-cloak>@include('public.competitions.partials.paper-builder')</div>
+                        @endif
                         @if ($viewer['loggedIn'])
                             <div x-show="tab === 'submissions'" x-cloak>@include('public.competitions.partials.submissions')</div>
                         @endif
@@ -204,6 +232,10 @@
 
         <footer class="arena-footer"><p>Thời gian mở và đóng kỳ thi theo múi giờ Việt Nam (GMT+7).</p></footer>
     </div>
+
+    @if (! empty($roundEditor))
+        @include('public.competitions.partials.round-dialog')
+    @endif
 
     @if ($round !== null)
         <div class="hub-mobile-action"><div><span>Kỳ thi đang chọn</span><b>{{ $round['label'] }}</b></div>@include('public.competitions.partials.action-button')</div>
@@ -243,6 +275,7 @@
                 const print = document.getElementById('contest-ranking-print');
                 if (print) document.body.appendChild(print); // CSS in: body:has(> .contest-ranking-print)
                 this.$nextTick(() => {
+                    if (cfg.roundOpen) this.openRound(cfg.roundOpen === 'new' ? null : Number(cfg.roundOpen), cfg.roundOld);
                     if (cfg.openEntry) this.openEntry();
                 });
             },
@@ -270,6 +303,37 @@
                 this.showTab(cfg.tabs[next]);
             },
             openEntry() { const d = this.$refs.entryDialog; if (d && !d.open) d.showModal(); },
+
+            // ── SỬA 24/10 — hộp thoại Thêm / Sửa kỳ thi ──
+            roundForm: { id: null, url: '', deleteUrl: '', title: '', startsAt: '', endsAt: '', assessmentId: '', source: 'matrix', formCount: '1', assignmentMode: 'random', locked: false, q: '' },
+            get filteredOptions() {
+                const ed = cfg.roundEditor; if (!ed) return [];
+                const n = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+                const q = n(this.roundForm.q.trim());
+                return ed.options.filter((o) => q === '' || n(o.title).includes(q) || String(o.id) === this.roundForm.assessmentId).slice(0, 300);
+            },
+            openRound(id, old) {
+                const ed = cfg.roundEditor; if (!ed) return;
+                const r = id ? ed.rounds[id] : null;
+                const v = old || {};
+                this.roundForm = {
+                    id: r ? r.id : null, url: r ? r.updateUrl : ed.storeUrl, deleteUrl: r ? r.deleteUrl : '',
+                    title: v.title ?? (r ? r.title : ''), startsAt: v.startsAt ?? (r ? r.startsAt : ''), endsAt: v.endsAt ?? (r ? r.endsAt : ''),
+                    assessmentId: String(v.assessmentId ?? (r ? r.assessmentId : '')), formCount: String(v.formCount ?? (r ? r.formCount : 1)),
+                    assignmentMode: v.assignmentMode ?? (r ? r.assignmentMode : 'random'), locked: !!(r && r.locked), q: '', source: 'matrix',
+                };
+                this.roundForm.source = this.roundForm.assessmentId ? 'existing' : 'matrix';
+                this.$nextTick(() => { const d = this.$refs.roundDialog; if (d && !d.open) d.showModal(); });
+            },
+            closeRound() { const d = this.$refs.roundDialog; if (d && d.open) d.close(); },
+            presetRound(days) {
+                const pad = (x) => String(x).padStart(2, '0');
+                const fmt = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                let start = this.roundForm.startsAt ? new Date(this.roundForm.startsAt) : null;
+                if (!start || isNaN(start) || days === 0) { start = new Date(); start.setSeconds(0, 0); start.setMinutes(Math.ceil(start.getMinutes() / 5) * 5); }
+                this.roundForm.startsAt = fmt(start);
+                if (days > 0) this.roundForm.endsAt = fmt(new Date(start.getTime() + days * 86400000));
+            },
             closeEntry() { const d = this.$refs.entryDialog; if (d && d.open) d.close(); },
             openAdd() { this.showTab('registrations'); const d = this.$refs.addDialog; if (d && !d.open) { d.showModal(); this.search(); } },
             closeAdd() { const d = this.$refs.addDialog; if (d && d.open) d.close(); },

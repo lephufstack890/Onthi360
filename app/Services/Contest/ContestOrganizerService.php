@@ -199,6 +199,114 @@ class ContestOrganizerService
         return $names;
     }
 
+    /**
+     * SỬA 24/10 (khách: "admin và giáo viên có nút thêm kỳ thi trong phòng thi, bấm thì hiện modal") — dữ liệu cho hộp
+     * thoại Thêm / Sửa kỳ thi: danh sách đề loại "Đề thi" (trừ đề do tab Thiết lập đề tự tạo) + giá trị từng kỳ.
+     */
+    public function roundEditor(Competition $competition): array
+    {
+        $paperIds = \App\Models\CompetitionExamPaper::supported()
+            ? \App\Models\CompetitionExamPaper::query()->whereNotNull('assessment_id')->pluck('assessment_id')->all()
+            : [];
+        $exams = \App\Models\CompetitionExam::query()->where('competition_id', $competition->id)->orderBy('order')->get();
+        $keep = $exams->pluck('assessment_id')->filter()->all();
+
+        $options = \App\Models\Assessment::query()
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', \App\Enums\AssessmentType::Exam->value)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
+                ->orWhereIn('id', $keep === [] ? [0] : $keep))
+            ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes'])
+            ->map(fn ($a) => ['id' => (int) $a->id, 'title' => (string) $a->title, 'duration' => $a->duration_minutes])->all();
+
+        $attempted = \App\Models\Attempt::query()->whereIn('competition_exam_id', $exams->pluck('id')->all() ?: [0])
+            ->distinct()->pluck('competition_exam_id')->map(fn ($v) => (int) $v)->all();
+
+        return [
+            'isSurvey' => $competition->isSurvey(),
+            'storeUrl' => route('competitions.manage.rounds.store', $competition->id),
+            'options' => $options,
+            'formsSupported' => \App\Models\CompetitionExam::supportsForms(),
+            'maxForms' => \App\Support\ContestForms::MAX,
+            'rounds' => $exams->mapWithKeys(fn ($e) => [(int) $e->id => [
+                'id' => (int) $e->id,
+                'title' => (string) ($e->title ?? ''),
+                'startsAt' => $e->starts_at?->format('Y-m-d\\TH:i') ?? '',
+                'endsAt' => $e->ends_at?->format('Y-m-d\\TH:i') ?? '',
+                'assessmentId' => $e->assessment_id !== null ? (int) $e->assessment_id : '',
+                'assignmentMode' => $e->assignmentMode(),
+                'formCount' => $e->formCount(),
+                'locked' => in_array((int) $e->id, $attempted, true),
+                'updateUrl' => route('competitions.manage.rounds.update', ['competition' => $competition->id, 'exam' => $e->id]),
+                'deleteUrl' => route('competitions.manage.rounds.destroy', ['competition' => $competition->id, 'exam' => $e->id]),
+            ]])->all(),
+        ];
+    }
+
+    /** Thêm (exam = null) hoặc sửa một kỳ thi. Cuộc thi bắt buộc có đề; khảo sát có thể để trống rồi sinh đề ở tab Thiết lập đề. */
+    public function saveRound(User $user, Competition $competition, ?\App\Models\CompetitionExam $exam, array $data): \App\Models\CompetitionExam
+    {
+        $this->assertCanManage($user, $competition);
+
+        $starts = filled($data['starts_at'] ?? null) ? \Illuminate\Support\Carbon::parse($data['starts_at']) : null;
+        $ends = filled($data['ends_at'] ?? null) ? \Illuminate\Support\Carbon::parse($data['ends_at']) : null;
+        if ($starts !== null && $ends !== null && $ends->lt($starts)) {
+            throw ValidationException::withMessages(['ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.']);
+        }
+
+        $assessmentId = filled($data['assessment_id'] ?? null) ? (int) $data['assessment_id'] : null;
+        if ($assessmentId !== null && $assessmentId !== (int) ($exam?->assessment_id ?? 0)
+            && ! \App\Models\Assessment::query()->whereKey($assessmentId)->where('type', \App\Enums\AssessmentType::Exam->value)->exists()) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "Đề thi".']);
+        }
+        if ($assessmentId === null && ! $competition->isSurvey()) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chọn đề cho kỳ thi.']);
+        }
+        if ($exam !== null && $assessmentId !== ($exam->assessment_id !== null ? (int) $exam->assessment_id : null)
+            && \App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
+            throw ValidationException::withMessages(['assessment_id' => 'Kỳ thi đã có bài làm — không đổi đề được nữa.']);
+        }
+
+        $attrs = [
+            'title' => trim((string) ($data['title'] ?? '')) ?: null,
+            'assessment_id' => $assessmentId,
+            'starts_at' => $starts,
+            'ends_at' => $ends,
+        ];
+        if (\App\Models\CompetitionExam::supportsForms() && ! $competition->isSurvey()) {
+            $attrs['assignment_mode'] = ($data['assignment_mode'] ?? 'random') === 'choice' ? 'choice' : 'random';
+            $attrs['form_count'] = max(1, min(\App\Support\ContestForms::MAX, (int) ($data['form_count'] ?? 1)));
+        }
+
+        if ($exam === null) {
+            $attrs['competition_id'] = $competition->id;
+            $attrs['order'] = (int) \App\Models\CompetitionExam::query()->where('competition_id', $competition->id)->max('order') + 1;
+
+            return \App\Models\CompetitionExam::create($attrs);
+        }
+
+        $exam->update($attrs);
+
+        return $exam;
+    }
+
+    /** Xoá kỳ thi chưa có bài làm (kèm đề sinh từ ma trận của kỳ). */
+    public function deleteRound(User $user, Competition $competition, \App\Models\CompetitionExam $exam): void
+    {
+        $this->assertCanManage($user, $competition);
+
+        if (\App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
+            throw ValidationException::withMessages(['exam' => 'Kỳ thi đã có bài làm của học sinh — không xoá được.']);
+        }
+
+        if (\App\Models\CompetitionExamPaper::supported()) {
+            $papers = app(\App\Services\Contest\ContestPaperService::class);
+            foreach (\App\Models\CompetitionExamPaper::query()->where('competition_exam_id', $exam->id)->get() as $paper) {
+                $papers->deletePaper($paper);
+            }
+        }
+        \App\Models\LeaderboardEntry::query()->where('competition_exam_id', $exam->id)->delete();
+        $exam->delete();
+    }
+
     private function assertCanManage(User $user, Competition $competition): void
     {
         abort_unless($this->canManage($user, $competition), 403, 'Bạn không có quyền quản lý cuộc thi này.');

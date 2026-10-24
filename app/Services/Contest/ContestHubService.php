@@ -39,6 +39,8 @@ class ContestHubService
     public function __construct(
         private readonly ContestOrganizerService $organizers,
         private readonly ContestEntryService $entry,
+        // SỬA 24/10 — đề sinh từ ma trận (nhiều đề / kỳ).
+        private readonly ContestPaperService $papers,
     ) {}
 
     // ───────────────────────────── Danh sách ─────────────────────────────
@@ -190,6 +192,8 @@ class ContestHubService
             'catalogUrl' => route('competitions.index'),
             'adminUrl' => $viewer !== null && $this->organizers->isAdmin($viewer) ? route('admin.competitions.show', $c->id) : null,
             'serverNowMs' => (int) round(microtime(true) * 1000),
+            // SỬA 24/10 — hộp thoại Thêm / Sửa kỳ thi cho ban tổ chức.
+            'roundEditor' => $manager ? $this->organizers->roundEditor($c) : null,
         ];
 
         if ($selectedExam === null) {
@@ -212,9 +216,14 @@ class ContestHubService
         ?string $tab,
     ): array {
         $survey = $c->isSurvey();
-        $assessment = $exam->assessment;
+        // SỬA 24/10 — kỳ có đề sinh từ ma trận: hiện theo đề đã giao cho học sinh, chưa nhận đề thì đề đầu tiên.
+        $papers = $this->papers->publishedPapers($exam);
+        $myPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null;
+        $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : $exam->assessment;
         $period = $this->roundState($exam);
-        $questions = $this->questionsOf($exam);
+        $questions = $this->questionsOfAssessment($assessment);
+        // Bảng xếp hạng / thống kê theo câu: kỳ nhiều đề thì gộp câu của mọi đề.
+        $rankQuestions = $papers->count() > 1 ? $this->questionsOf($exam, $papers) : $questions;
         $totalPoints = (float) ($assessment?->total_points ?: array_sum(array_column($questions, 'points')) ?: 100);
         $duration = $assessment?->duration_minutes ? $assessment->duration_minutes.' phút' : 'Không giới hạn';
 
@@ -238,7 +247,7 @@ class ContestHubService
 
         // Bảng xếp hạng + thống kê
         $resultsPublic = $manager || $c->publish_result_at === null || now()->gte($c->publish_result_at);
-        $rankings = $this->rankings($exam, $questions, $totalPoints, $survey, $viewer, $manager, $formCount);
+        $rankings = $this->rankings($exam, $rankQuestions, $totalPoints, $survey, $viewer, $manager, $formCount);
         $myRank = 0;
         foreach ($rankings as $i => $row) {
             if ($row['isViewer']) {
@@ -254,6 +263,7 @@ class ContestHubService
 
         $tabs = array_values(array_filter([
             ['id' => 'overview', 'icon' => 'list-checks', 'label' => 'Thông tin kỳ thi', 'count' => null],
+            ($manager && $survey && \App\Models\CompetitionExamPaper::supported()) ? ['id' => 'paper', 'icon' => 'file-text', 'label' => 'Thiết lập đề', 'count' => null] : null,
             $viewer !== null ? ['id' => 'submissions', 'icon' => 'file-text', 'label' => 'Bài nộp của tôi', 'count' => count($attemptRows)] : null,
             ['id' => 'results', 'icon' => $survey ? 'bar-chart-3' : 'trophy', 'label' => $survey ? 'Kết quả năng lực' : 'Bảng xếp hạng', 'count' => null],
             $survey ? ['id' => 'ranking', 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null] : null,
@@ -295,6 +305,10 @@ class ContestHubService
                 'formCount' => $formCount,
                 'enterUrl' => route('student.competitions.enter', ['competition' => $c->id, 'exam' => $exam->id]),
                 'needsPassword' => $survey && $c->hasEntryPassword(),
+                'paperCount' => $papers->count(),
+                'myPaperLabel' => $myPaper?->label,
+                'paperStateUrl' => ($manager && $survey && \App\Models\CompetitionExamPaper::supported())
+                    ? route('competitions.manage.papers', ['competition' => $c->id, 'exam' => $exam->id]) : null,
             ],
             'questions' => $questions,
             'questionsVisible' => $manager || ($survey && $attemptRows !== []),
@@ -308,7 +322,8 @@ class ContestHubService
             'resultsPublic' => $resultsPublic,
             'rankings' => $resultsPublic ? $rankings : [],
             'distribution' => $resultsPublic ? $this->distribution($rankings) : [],
-            'questionStats' => $resultsPublic ? $this->questionStats($questions, $rankings) : [],
+            'questionStats' => $resultsPublic ? $this->questionStats($rankQuestions, $rankings) : [],
+            'rankQuestions' => $rankQuestions,
             'surveyResult' => $survey ? $this->surveyResult($attemptRows, $questions, $attempts) : null,
             'participants' => $participants,
             'access' => $access,
@@ -414,7 +429,7 @@ class ContestHubService
     private function noRoundAction(bool $manager): array
     {
         return ['kind' => 'disabled', 'label' => 'Chưa có kỳ thi', 'icon' => 'lock-keyhole',
-            'title' => 'Ban tổ chức đang chuẩn bị', 'text' => $manager ? 'Thêm kỳ thi (vòng) ở trang quản trị cuộc thi.' : 'Các kỳ thi sẽ hiện ở đây khi ban tổ chức công bố lịch.'];
+            'title' => 'Ban tổ chức đang chuẩn bị', 'text' => $manager ? 'Bấm "Thêm kỳ thi" để tạo kỳ đầu tiên cho sự kiện.' : 'Các kỳ thi sẽ hiện ở đây khi ban tổ chức công bố lịch.'];
     }
 
     // ───────────────────────────── Bảng xếp hạng ─────────────────────────────
@@ -681,9 +696,29 @@ class ContestHubService
     }
 
     /** @return array<int, array{id:int, title:string, kind:string, points:float}> câu theo thứ tự GỐC của đề */
-    private function questionsOf(CompetitionExam $exam): array
+    private function questionsOf(CompetitionExam $exam, ?Collection $papers = null): array
     {
-        $assessment = $exam->assessment;
+        // SỬA 24/10 — kỳ nhiều đề: cột C1…Cn / thống kê theo câu lấy GỘP câu của mọi đề đã chốt (không trùng).
+        if ($papers !== null && $papers->isNotEmpty()) {
+            $seen = [];
+            $out = [];
+            foreach ($papers as $paper) {
+                foreach ($this->questionsOfAssessment($paper->assessment) as $q) {
+                    if ($q['id'] > 0 && ! isset($seen[$q['id']])) {
+                        $seen[$q['id']] = true;
+                        $out[] = $q;
+                    }
+                }
+            }
+
+            return $out;
+        }
+
+        return $this->questionsOfAssessment($exam->assessment);
+    }
+
+    private function questionsOfAssessment(?\App\Models\Assessment $assessment): array
+    {
         if ($assessment === null) {
             return [];
         }

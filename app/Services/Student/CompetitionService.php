@@ -343,14 +343,16 @@ class CompetitionService
 
         abort_if($exam === null, 404);
 
-        if ($exam->assessment_id === null) {
-            abort(404, 'Vòng thi này chưa được ban tổ chức gắn đề.');
+        // SỬA 24/10 — kỳ có đề sinh từ ma trận: học sinh làm đề được giao (ngẫu nhiên, cố định); không có thì đề gắn sẵn.
+        $assessmentId = app(\App\Services\Contest\ContestPaperService::class)->assessmentIdFor($user, $exam);
+        if ($assessmentId === null) {
+            throw ValidationException::withMessages(['attempt' => 'Kỳ thi chưa có đề — giáo viên chưa chốt đề cho kỳ này.']);
         }
 
         $examStatus = $exam->computedStatus();   // upcoming | ongoing | ended
 
         return [
-            'assessmentId' => (int) $exam->assessment_id,
+            'assessmentId' => $assessmentId,
             'contestId' => $competition->id,
             'contestTitle' => $competition->title,
             'contestRoundLabel' => $exam->displayTitle(),

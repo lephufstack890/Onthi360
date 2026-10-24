@@ -680,7 +680,9 @@ class AssessmentService
         // TRỪ đề đang dùng cho Cuộc thi (chấm từng câu trong lúc thi là lộ đúng/sai).
         return $assessment->type === \App\Enums\AssessmentType::Exam
             && ! \App\Models\CompetitionExam::query()->where('assessment_id', $assessment->id)->exists()
-            && ! \App\Models\Competition::query()->where('assessment_id', $assessment->id)->exists();
+            && ! \App\Models\Competition::query()->where('assessment_id', $assessment->id)->exists()
+            // SỬA 24/10 — đề sinh từ ma trận của kỳ thi cũng là đề cuộc thi.
+            && ! (\App\Models\CompetitionExamPaper::supported() && \App\Models\CompetitionExamPaper::query()->where('assessment_id', $assessment->id)->exists());
     }
 
     /**

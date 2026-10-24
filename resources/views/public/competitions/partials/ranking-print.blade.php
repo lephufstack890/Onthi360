@@ -19,7 +19,7 @@
     <p class="ranking-print-rule">{{ $rankingRule }} {{ $survey ? 'Cả kỳ dùng một bộ câu hỏi chung, kể cả khi làm lại. Điểm từng câu thuộc lượt đạt điểm cao nhất, không ghép điểm từ nhiều lượt.' : 'Điểm từng câu được đối chiếu theo đề gốc giữa các mã đề hoán vị.' }}</p>
     @include('public.competitions.partials.ranking-table', ['withOwn' => false])
     <footer>
-        <p>C1–C{{ count($questions) }}: thứ tự câu hỏi gốc · Thang điểm tổng: {{ $round['totalPoints'] }} · "—": chưa có điểm chi tiết. Chỉ học sinh có ít nhất một bài đã chấm được xếp hạng.</p>
+        <p>C1–C{{ count($rankQuestions ?? $questions) }}: thứ tự câu hỏi gốc · Thang điểm tổng: {{ $round['totalPoints'] }} · "—": chưa có điểm chi tiết. Chỉ học sinh có ít nhất một bài đã chấm được xếp hạng.</p>
         <p>{{ $round['state'] === 'completed' ? 'Kết quả tại thời điểm lập báo cáo.' : 'Kỳ thi chưa kết thúc; thứ hạng có thể thay đổi khi có kết quả mới.' }}</p>
     </footer>
 </article>

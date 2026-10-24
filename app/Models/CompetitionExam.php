@@ -73,6 +73,12 @@ class CompetitionExam extends Model
         return 'ongoing';
     }
 
+    /** SỬA 24/10 — các đề sinh từ ma trận của kỳ (tab "Thiết lập đề"), xem App\Models\CompetitionExamPaper. */
+    public function papers(): HasMany
+    {
+        return $this->hasMany(CompetitionExamPaper::class)->orderBy('id');
+    }
+
     /** SỬA 24/10 — đã chạy migration 001260 chưa. */
     public static function supportsForms(): bool
     {

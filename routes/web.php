@@ -166,6 +166,23 @@ Route::middleware('auth')->group(function () {
         ->whereNumber(['competition', 'registration'])->name('competitions.manage.approve');
     Route::post('/cuoc-thi/{competition}/ban-to-chuc/dang-ky/{registration}/tu-choi', [\App\Http\Controllers\ContestManageController::class, 'reject'])
         ->whereNumber(['competition', 'registration'])->name('competitions.manage.reject');
+    // SỬA 24/10 — thêm / sửa / xoá kỳ thi ngay trong phòng thi.
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong', [\App\Http\Controllers\ContestManageController::class, 'storeRound'])
+        ->whereNumber('competition')->name('competitions.manage.rounds.store');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}', [\App\Http\Controllers\ContestManageController::class, 'updateRound'])
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.rounds.update');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/xoa', [\App\Http\Controllers\ContestManageController::class, 'destroyRound'])
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.rounds.destroy');
+    // SỬA 24/10 — tab "Thiết lập đề" (API JSON), xem ContestPaperController.
+    Route::prefix('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/de')->whereNumber(['competition', 'exam'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\ContestPaperController::class, 'state'])->name('competitions.manage.papers');
+        Route::post('/', [\App\Http\Controllers\ContestPaperController::class, 'create'])->name('competitions.manage.papers.create');
+        Route::post('/{paper}/dem', [\App\Http\Controllers\ContestPaperController::class, 'check'])->whereNumber('paper')->name('competitions.manage.papers.check');
+        Route::post('/{paper}/sinh', [\App\Http\Controllers\ContestPaperController::class, 'generate'])->whereNumber('paper')->name('competitions.manage.papers.generate');
+        Route::post('/{paper}/thay', [\App\Http\Controllers\ContestPaperController::class, 'replace'])->whereNumber('paper')->name('competitions.manage.papers.replace');
+        Route::post('/{paper}/luu', [\App\Http\Controllers\ContestPaperController::class, 'save'])->whereNumber('paper')->name('competitions.manage.papers.save');
+        Route::post('/{paper}/xoa', [\App\Http\Controllers\ContestPaperController::class, 'destroy'])->whereNumber('paper')->name('competitions.manage.papers.destroy');
+    });
 });
 Route::get('/bang-xep-hang', [PublicLeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('/giao-vien-tieu-bieu', [PublicTeacherController::class, 'index'])->name('teachers.index');

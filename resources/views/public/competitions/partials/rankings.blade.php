@@ -28,7 +28,7 @@
         <div class="contest-table-scroll hub-ranking-table {{ $survey ? 'hub-survey-ranking' : '' }}">
             @include('public.competitions.partials.ranking-table', ['withOwn' => true])
         </div>
-        <p class="contest-table-note">C1–C{{ count($questions) }} theo thứ tự câu hỏi gốc. {{ $survey ? 'Điểm từng câu lấy từ cùng lượt đạt điểm cao nhất, không cộng dồn qua các lượt.' : 'Ghép đúng câu giữa các mã đề hoán vị.' }}</p>
+        <p class="contest-table-note">C1–C{{ count($rankQuestions ?? $questions) }} theo thứ tự câu hỏi gốc. {{ $survey ? 'Điểm từng câu lấy từ cùng lượt đạt điểm cao nhất, không cộng dồn qua các lượt.' : 'Ghép đúng câu giữa các mã đề hoán vị.' }}</p>
         @if (count($questionStats))
             @include('public.competitions.partials.question-stats', ['stats' => $questionStats, 'statsNote' => 'Theo bài nộp đã chấm'])
         @endif

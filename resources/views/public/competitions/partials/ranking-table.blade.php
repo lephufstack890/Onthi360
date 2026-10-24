@@ -4,7 +4,7 @@
         <tr>
             <th>Hạng</th><th>Học sinh / Lớp</th>
             @if ($survey)<th>Lượt làm</th>@endif
-            @foreach ($questions as $i => $q)<th>C{{ $i + 1 }}<small>/{{ rtrim(rtrim(number_format($q['points'], 2, '.', ''), '0'), '.') }}</small></th>@endforeach
+            @foreach (($rankQuestions ?? $questions) as $i => $q)<th>C{{ $i + 1 }}<small>/{{ rtrim(rtrim(number_format($q['points'], 2, '.', ''), '0'), '.') }}</small></th>@endforeach
             <th>{{ $survey ? 'Cao nhất' : 'Tổng điểm' }}</th>
             @if ($survey)<th>Gần nhất</th>@endif
             <th>{{ $survey ? 'Đạt điểm cao nhất' : 'Thời điểm nộp' }}</th>

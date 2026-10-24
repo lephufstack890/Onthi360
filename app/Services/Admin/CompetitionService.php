@@ -437,7 +437,12 @@ class CompetitionService
         $id = (int) $competition->id;
         $examIds = CompetitionExam::query()->where('competition_id', $id)->pluck('id')->map(fn ($v) => (int) $v)->all();
         $assessmentIds = CompetitionExam::query()->where('competition_id', $id)->whereNotNull('assessment_id')->pluck('assessment_id')
-            ->push($competition->assessment_id)->filter()->map(fn ($v) => (int) $v)->unique()->values()->all();
+            ->push($competition->assessment_id)
+            // SỬA 24/10 — cả đề sinh từ ma trận của các kỳ.
+            ->merge(\App\Models\CompetitionExamPaper::supported() && $examIds !== []
+                ? \App\Models\CompetitionExamPaper::query()->whereIn('competition_exam_id', $examIds)->whereNotNull('assessment_id')->pluck('assessment_id')
+                : [])
+            ->filter()->map(fn ($v) => (int) $v)->unique()->values()->all();
         $imagePath = Competition::supportsHubFields() ? $competition->image_path : null;
 
         DB::transaction(function () use ($competition, $id, $examIds) {
@@ -448,6 +453,9 @@ class CompetitionService
             LeaderboardEntry::query()->where('competition_id', $id)
                 ->orWhereIn('competition_exam_id', $examIds === [] ? [0] : $examIds)->delete();
             CompetitionRegistration::query()->where('competition_id', $id)->delete();
+            if (\App\Models\CompetitionExamPaper::supported() && $examIds !== []) {
+                \App\Models\CompetitionExamPaper::query()->whereIn('competition_exam_id', $examIds)->delete();
+            }
             CompetitionExam::query()->where('competition_id', $id)->delete();
             $competition->advisors()->detach();
             $competition->delete();
@@ -493,6 +501,7 @@ class CompetitionService
 
         return ($assessment->type?->value ?? $assessment->type) !== \App\Enums\AssessmentType::Exam->value
             || $has('competition_exams')
+            || $has('competition_exam_papers')
             || $has('competitions')
             || $has('attempts')
             || $has('assignments')

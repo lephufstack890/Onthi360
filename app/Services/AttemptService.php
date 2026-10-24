@@ -390,6 +390,15 @@ class AttemptService
             ->whereDoesntHave('examSittings')
             ->get();
         $exams = CompetitionExam::where('assessment_id', $assessment->id)->with('competition')->get();
+        // SỬA 24/10 — đề sinh từ ma trận (tab "Thiết lập đề") cũng thuộc kỳ thi của nó.
+        $paperExamIds = [];
+        if (\App\Models\CompetitionExamPaper::supported()) {
+            $paperExamIds = \App\Models\CompetitionExamPaper::query()->where('assessment_id', $assessment->id)
+                ->where('status', \App\Models\CompetitionExamPaper::STATUS_PUBLISHED)->pluck('competition_exam_id')->map(fn ($v) => (int) $v)->all();
+            if ($paperExamIds !== []) {
+                $exams = $exams->merge(CompetitionExam::whereIn('id', $paperExamIds)->with('competition')->get())->unique('id')->values();
+            }
+        }
 
         if ($directCompetitions->isEmpty() && $exams->isEmpty()) {
             return null;
@@ -430,6 +439,12 @@ class AttemptService
                 // học sinh đăng ký lại từng vòng: thi nhiều vòng vẫn là một cuộc thi.
                 if (! $this->isApprovedForCompetition($user, $competition->id)) {
                     return $this->notApprovedDecision();
+                }
+
+                // SỬA 24/10 — kỳ nhiều đề: chỉ làm được ĐÚNG đề đã giao cho mình.
+                if (in_array((int) $exam->id, $paperExamIds, true)
+                    && app(\App\Services\Contest\ContestPaperService::class)->assessmentIdFor($user, $exam) !== (int) $assessment->id) {
+                    return ['open' => false, 'message' => 'Đây không phải đề được giao cho bạn ở kỳ này — mở phòng thi và bấm vào làm bài.', 'competitionId' => null, 'competitionExamId' => null];
                 }
 
                 // SỬA 24/10 — khảo sát: phải vừa nhập đúng mật khẩu ở phòng thi (kể cả khi mở đề bằng đường khác).
