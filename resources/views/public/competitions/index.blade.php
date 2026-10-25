@@ -79,11 +79,11 @@
     </section>
 
     {{-- ══ Danh sách ══ --}}
-    <section aria-label="Danh sách cuộc thi và khảo sát" style="display:flex;flex-direction:column;gap:16px;min-width:0">
+    <section aria-label="Danh sách cuộc thi và khảo sát" style="display:flex;flex-direction:column;gap:16px;min-width:0;scroll-margin-top:72px" x-ref="list">
         <div class="cc-list-head">
             <div>
                 <h2 x-text="type === 'survey' ? 'Danh sách khảo sát năng lực' : (type === 'contest' ? 'Danh sách cuộc thi' : 'Danh sách cuộc thi & khảo sát')">Danh sách cuộc thi &amp; khảo sát</h2>
-                <p role="status"><span x-text="visibleCount">{{ count($cards) }}</span> / {{ count($cards) }} sự kiện phù hợp · Chọn sự kiện để xem các kỳ thi.</p>
+                <p role="status"><span x-text="visibleCount">{{ count($cards) }}</span> / {{ count($cards) }} sự kiện phù hợp<span x-show="totalPages > 1" x-cloak> · Hiển thị <b x-text="rangeLabel"></b></span> · Chọn sự kiện để xem các kỳ thi.</p>
             </div>
         </div>
 
@@ -128,6 +128,32 @@
             @endforeach
         </div>
 
+        {{-- SỬA 25/10 (khách: "quá 5 mục thì phân trang, giống phân trang Đề thi luyện tập") — cùng giao diện / cách rút gọn số
+             trang với partials.practice-catalog (pageItems). --}}
+        <nav aria-label="Phân trang cuộc thi và khảo sát" x-show="totalPages > 1" x-cloak
+             class="flex flex-col items-center justify-between gap-2 rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] p-2 sm:flex-row">
+            <span class="text-[11px] text-[#607A90]">Trang <b class="text-[#45657D]" x-text="page"></b> / <span x-text="totalPages"></span></span>
+            <div class="flex items-center gap-1.5">
+                <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="goPage(page - 1)"
+                        class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                    <x-lucide name="chevron-left" class="h-4 w-4" />
+                </button>
+                <template x-for="it in pageItems" :key="'cp' + it.key">
+                    <span style="display:contents">
+                        <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                        <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="page === it.n ? 'page' : null" @click="goPage(it.n)"
+                                class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
+                                :class="page === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                                x-text="it.n"></button>
+                    </span>
+                </template>
+                <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="goPage(page + 1)"
+                        class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                    <x-lucide name="chevron-right" class="h-4 w-4" />
+                </button>
+            </div>
+        </nav>
+
         <div class="cc-empty" x-show="visibleCount === 0" @if (count($cards) > 0) x-cloak @endif>
             <x-lucide name="search" />
             <h3>{{ count($cards) ? 'Chưa tìm thấy sự kiện phù hợp' : 'Chưa có cuộc thi hoặc khảo sát nào' }}</h3>
@@ -146,18 +172,44 @@
     function contestCatalog(init) {
         const normalize = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
         const rows = (init.rows || []).map((r) => ({ ...r, key: normalize(r.title) }));
+        const PAGE_SIZE = 5; // SỬA 25/10 — quá 5 sự kiện thì phân trang
         return {
             query: '',
             roadmap: 'all',
             type: init.type || 'all',
+            pageIndex: 1,
+            init() {
+                // Đổi bộ lọc / từ khoá thì về trang 1.
+                ['query', 'roadmap', 'type'].forEach((k) => this.$watch(k, () => { this.pageIndex = 1; }));
+            },
             get hasFilters() { return this.query !== '' || this.roadmap !== 'all' || this.type !== 'all'; },
             match(r) {
                 return (this.type === 'all' || r.type === this.type)
                     && (this.roadmap === 'all' || String(r.roadmap) === String(this.roadmap))
                     && r.key.includes(normalize(this.query.trim()));
             },
-            isVisible(id) { const r = rows.find((x) => x.id === id); return r ? this.match(r) : false; },
-            get visibleCount() { return rows.filter((r) => this.match(r)).length; },
+            get matchedIds() { return rows.filter((r) => this.match(r)).map((r) => r.id); },
+            get visibleCount() { return this.matchedIds.length; },
+            get totalPages() { return Math.max(1, Math.ceil(this.visibleCount / PAGE_SIZE)); },
+            get page() { return Math.min(this.pageIndex, this.totalPages); },
+            get pageIds() { const start = (this.page - 1) * PAGE_SIZE; return this.matchedIds.slice(start, start + PAGE_SIZE); },
+            get rangeLabel() { const start = (this.page - 1) * PAGE_SIZE; return (start + 1) + '–' + Math.min(start + PAGE_SIZE, this.visibleCount); },
+            isVisible(id) { return this.pageIds.includes(id); },
+            goPage(n) {
+                this.pageIndex = Math.min(Math.max(1, n), this.totalPages);
+                this.$nextTick(() => this.$refs.list && this.$refs.list.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+            },
+            // Dãy số trang rút gọn — giống pageItems() của trang Luyện tập (partials.practice-page-script).
+            get pageItems() {
+                const total = this.totalPages, current = this.page, items = [];
+                const add = (n) => items.push({ key: 'n' + n, n, gap: false });
+                const gap = (k) => items.push({ key: k, n: 0, gap: true });
+                if (total <= 7) { for (let i = 1; i <= total; i++) add(i); return items; }
+                if (current <= 4) { for (let i = 1; i <= 6; i++) add(i); gap('gr'); add(total); }
+                else if (current >= total - 3) { add(1); gap('gl'); for (let i = total - 5; i <= total; i++) add(i); }
+                else { add(1); gap('gl'); for (let i = current - 1; i <= current + 1; i++) add(i); gap('gr'); add(total); }
+                return items;
+            },
             reset() { this.query = ''; this.roadmap = 'all'; this.type = 'all'; },
         };
     }
