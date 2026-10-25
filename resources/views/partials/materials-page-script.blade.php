@@ -8,7 +8,7 @@
 <script>
     function onthiMaterialsPage(config) {
         var CATEGORY_ORDER = ['books', 'topics', 'exams'];
-        var PAGE_CARD = 8;
+        var PAGE_CARD = 4; // SỬA 25/10 — khách: "quá 4 tài liệu thì phân trang"
         var PAGE_ASSIGN = 6;
 
         // Chuẩn hoá để tìm KHÔNG DẤU (bản mẫu: normalizeMaterialSearch).
@@ -244,6 +244,21 @@
             get totalPages() { return Math.max(1, Math.ceil(this.total / this.pageSize)); },
             get page() { return Math.min(this.pageIndex, this.totalPages); },
             get pageEntries() { var start = (this.page - 1) * this.pageSize; return this.entries.slice(start, start + this.pageSize); },
+            // SỬA 25/10 — chuyển trang + dãy số trang rút gọn, giống pageItems() của trang Luyện tập (partials.practice-page-script).
+            goPage: function (n) {
+                this.pageIndex = Math.min(Math.max(1, n), this.totalPages);
+                this.$nextTick(function () { var el = document.getElementById('mp-panel'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+            },
+            get pageItems() {
+                var total = this.totalPages, current = this.page, items = [], i;
+                var add = function (n) { items.push({ key: 'n' + n, n: n, gap: false }); };
+                var gap = function (k) { items.push({ key: k, n: 0, gap: true }); };
+                if (total <= 7) { for (i = 1; i <= total; i++) add(i); return items; }
+                if (current <= 4) { for (i = 1; i <= 6; i++) add(i); gap('gr'); add(total); }
+                else if (current >= total - 3) { add(1); gap('gl'); for (i = total - 5; i <= total; i++) add(i); }
+                else { add(1); gap('gl'); for (i = current - 1; i <= current + 1; i++) add(i); gap('gr'); add(total); }
+                return items;
+            },
 
             // id các thẻ hiển thị (thẻ dựng sẵn ở máy chủ cho SEO, ẩn/hiện bằng x-show) theo thứ tự đã sắp.
             get visibleIds() { return this.isAssignmentView ? [] : this.pageEntries.map(function (r) { return r.id; }); },

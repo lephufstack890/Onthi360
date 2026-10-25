@@ -422,11 +422,29 @@
         </div>
 
         {{-- ── Phân trang ── --}}
-        <nav aria-label="Phân trang tài liệu" class="mp-pager" x-show="totalPages > 1" x-cloak>
-            <span>Trang <span x-text="page"></span> / <span x-text="totalPages"></span></span>
-            <div>
-                <button type="button" class="mp-icon-btn" aria-label="Trang trước" :disabled="page === 1" @click="pageIndex = Math.max(1, page - 1)"><x-lucide name="chevron-left" /></button>
-                <button type="button" class="mp-icon-btn" aria-label="Trang sau" :disabled="page === totalPages" @click="pageIndex = Math.min(totalPages, page + 1)"><x-lucide name="chevron-right" /></button>
+        {{-- SỬA 25/10 (khách: "quá 4 item là phân trang, giống trang đề luyện tập") — cùng giao diện / cách rút gọn số trang với
+             partials.practice-catalog (pageItems trong partials.materials-page-script). --}}
+        <nav aria-label="Phân trang tài liệu" x-show="totalPages > 1" x-cloak
+             class="mt-4 flex flex-col items-center justify-between gap-2 rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] p-2 sm:flex-row">
+            <span class="text-[11px] text-[#607A90]">Trang <b class="text-[#45657D]" x-text="page"></b> / <span x-text="totalPages"></span></span>
+            <div class="flex items-center gap-1.5">
+                <button type="button" aria-label="Trang trước" :disabled="page === 1" @click="goPage(page - 1)"
+                        class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                    <x-lucide name="chevron-left" class="h-4 w-4" />
+                </button>
+                <template x-for="it in pageItems" :key="'mp' + it.key">
+                    <span style="display:contents">
+                        <span x-show="it.gap" class="grid h-9 min-w-6 place-items-center px-0.5 text-[13px] font-extrabold tracking-widest text-[#8BA0AF]" aria-hidden="true">…</span>
+                        <button type="button" x-show="!it.gap" :aria-label="'Trang ' + it.n" :aria-current="page === it.n ? 'page' : null" @click="goPage(it.n)"
+                                class="grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[11px] font-extrabold transition"
+                                :class="page === it.n ? 'bg-[#126F91] text-white shadow-[0_3px_8px_rgba(18,111,145,0.16)]' : 'text-[#45657D] hover:bg-white'"
+                                x-text="it.n"></button>
+                    </span>
+                </template>
+                <button type="button" aria-label="Trang sau" :disabled="page === totalPages" @click="goPage(page + 1)"
+                        class="grid h-9 w-9 place-items-center rounded-lg border border-[#DDEAF0] bg-white text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8] disabled:cursor-not-allowed disabled:opacity-40">
+                    <x-lucide name="chevron-right" class="h-4 w-4" />
+                </button>
             </div>
         </nav>
 
