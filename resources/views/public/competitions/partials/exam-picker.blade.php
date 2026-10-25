@@ -42,7 +42,7 @@
                     <template x-for="o in pickerOptions" :key="o.id">
                         <div class="round-exam-option" :data-selected="picker.ids.includes(String(o.id)) ? 'true' : 'false'">
                             <label>
-                                <input type="checkbox" name="assessment_ids[]" :value="o.id" :checked="picker.ids.includes(String(o.id))" @change="togglePick(o.id)"
+                                <input type="checkbox" name="assessment_ids[]" :value="o.id" :checked="picker.ids.includes(String(o.id))" @change="toggleExamPick(o.id)"
                                        :disabled="picker.locked || (! picker.ids.includes(String(o.id)) && picker.ids.length >= maxBank)">
                                 <span>
                                     <b x-text="o.title"></b>

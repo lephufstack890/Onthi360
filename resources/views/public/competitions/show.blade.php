@@ -344,7 +344,7 @@
             picker: { url: '', roundId: null, source: 'exam', ids: [], formCount: '1', mode: 'random', q: '', locked: false },
             // SỬA 25/10 — chọn nhiều đề cho 1 kỳ (thứ tự bấm chọn; đề đầu là đề chính của kỳ).
             get maxBank() { return (cfg.roundEditor && cfg.roundEditor.maxBank) || 10; },
-            togglePick(id) {
+            toggleExamPick(id) { // SỬA 25/10 — tên riêng: togglePick đã dùng cho hộp Thêm học sinh
                 id = String(id); const i = this.picker.ids.indexOf(id);
                 if (i >= 0) this.picker.ids.splice(i, 1); else if (this.picker.ids.length < this.maxBank) this.picker.ids.push(id);
             },
