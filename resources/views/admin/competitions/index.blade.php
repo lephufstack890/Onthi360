@@ -32,7 +32,7 @@
         </x-slot:actions>
     </x-ws.page-header>
 
-    <x-ws.tabs :tabs="$tabs" />
+    {{-- SỬA 25/10 (khách: "bỏ đi") — bỏ thanh tab "Cuộc thi" (chỉ có 1 tab, thừa). --}}
 
     {{--
         SỬA 19/9 (10) (khách: "học sinh đăng ký cuộc thi đó admin không biết cuộc thi nào đang
