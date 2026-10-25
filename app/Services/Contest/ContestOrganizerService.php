@@ -288,7 +288,8 @@ class ContestOrganizerService
             'storeUrl' => route('competitions.manage.rounds.store', $competition->id),
             'formsSupported' => CompetitionExam::supportsForms(),
             'maxForms' => \App\Support\ContestForms::MAX,
-            'options' => $mine->isNotEmpty() ? $this->examOptions($viewer, $mine) : [],
+            'options' => $mine->isNotEmpty() ? $this->examOptions($viewer, $mine, $competition) : [],
+            'bankTypeLabel' => self::bankTypeLabel($competition), // SỬA 25/10 — "Luyện tập" (khảo sát) / "Đề thi" (cuộc thi)
             'rounds' => $mine->mapWithKeys(fn (CompetitionExam $e) => [(int) $e->id => [
                 'id' => (int) $e->id,
                 'title' => (string) ($e->title ?? ''),
@@ -308,20 +309,36 @@ class ContestOrganizerService
     }
 
     /**
-     * Đề có sẵn để chọn: Assessment loại "Đề thi" (trừ đề do tab Thiết lập đề tự sinh) + lịch sử dùng của CHÍNH người
-     * xem ("Bạn đã dùng · N kỳ khác" như source). Đề đang gắn ở kỳ của người xem luôn có trong danh sách.
+     * SỬA 25/10 (khách: "lấy từ ngân hàng đề: khảo sát lấy nguồn đề loại Luyện tập, cuộc thi lấy nguồn đề loại Đề thi")
+     * — Loại đề (Assessment.type) được chọn cho kỳ của cuộc thi này. Đổi luật ở ĐÂY là đổi cả danh sách lẫn kiểm tra.
+     */
+    public static function bankTypeFor(Competition $competition): \App\Enums\AssessmentType
+    {
+        return $competition->isSurvey() ? \App\Enums\AssessmentType::Practice : \App\Enums\AssessmentType::Exam;
+    }
+
+    public static function bankTypeLabel(Competition $competition): string
+    {
+        return $competition->isSurvey() ? 'Luyện tập' : 'Đề thi';
+    }
+
+    /**
+     * Đề có sẵn để chọn: Assessment đúng Loại của cuộc thi (bankTypeFor(): khảo sát → "Luyện tập", cuộc thi → "Đề thi"),
+     * trừ đề do tab Thiết lập đề tự sinh, + lịch sử dùng của CHÍNH người xem ("Bạn đã dùng · N kỳ khác" như source).
+     * Đề đang gắn ở kỳ của người xem luôn có trong danh sách.
      *
      * @param  Collection<int, CompetitionExam>  $mine
      */
-    private function examOptions(User $viewer, Collection $mine): array
+    private function examOptions(User $viewer, Collection $mine, Competition $competition): array
     {
+        $bankType = self::bankTypeFor($competition)->value;
         $paperIds = \App\Models\CompetitionExamPaper::supported()
             ? \App\Models\CompetitionExamPaper::query()->whereNotNull('assessment_id')->pluck('assessment_id')->all()
             : [];
         $keep = $mine->pluck('assessment_id')->filter()->all();
 
         $options = \App\Models\Assessment::query()
-            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', \App\Enums\AssessmentType::Exam->value)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', $bankType)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
                 ->orWhereIn('id', $keep === [] ? [0] : $keep))
             ->withCount('items')
             ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes', 'content_mode']);
@@ -416,8 +433,8 @@ class ContestOrganizerService
             throw ValidationException::withMessages(['assessment_id' => 'Chọn một đề trong ngân hàng đề.']);
         }
         if ($assessmentId !== null && $assessmentId !== (int) ($exam->assessment_id ?? 0)
-            && ! \App\Models\Assessment::query()->whereKey($assessmentId)->where('type', \App\Enums\AssessmentType::Exam->value)->exists()) {
-            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "Đề thi".']);
+            && ! \App\Models\Assessment::query()->whereKey($assessmentId)->where('type', self::bankTypeFor($competition)->value)->exists()) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "'.self::bankTypeLabel($competition).'".']);
         }
         if (! $survey && $assessmentId !== ($exam->assessment_id !== null ? (int) $exam->assessment_id : null)
             && \App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {

@@ -73,9 +73,18 @@ class AttemptService
      *                             riêng học sinh này), nếu học sinh không thuộc lớp được
      *                             giao, hoặc nếu chưa đủ quyền học liệu (7.1/7.3).
      */
-    public function startOrResume(User $user, Assessment $assessment, ?Assignment $assignment = null): Attempt
+    public function startOrResume(User $user, Assessment $assessment, ?Assignment $assignment = null, ?int $competitionExamId = null): Attempt
     {
-        $existing = $this->attempts->inProgressForUserAndAssessment($user->id, $assessment->id);
+        // SỬA 25/10 (khảo sát lấy đề Loại "Luyện tập") — đề Luyện tập vốn mở tự do, nên lượt làm TRONG KỲ KHẢO SÁT phải
+        // tách hẳn khỏi lượt tự luyện của cùng đề: vào từ phòng thi (có $competitionExamId) chỉ tiếp tục lượt của đúng kỳ
+        // đó; vào từ Luyện tập thì không bao giờ "nhặt" nhầm lượt đang làm của khảo sát. Đề loại khác giữ nguyên như cũ.
+        $roundScoped = $competitionExamId !== null && $assessment->type === AssessmentType::Practice;
+        $existing = $assessment->type === AssessmentType::Practice
+            ? Attempt::query()->where('user_id', $user->id)->where('assessment_id', $assessment->id)
+                ->where('status', AttemptStatus::InProgress->value)
+                ->when($roundScoped, fn ($q) => $q->where('competition_exam_id', $competitionExamId), fn ($q) => $q->whereNull('competition_exam_id'))
+                ->latest('started_at')->first()
+            : $this->attempts->inProgressForUserAndAssessment($user->id, $assessment->id);
 
         if ($existing !== null) {
             return $existing;
@@ -85,7 +94,9 @@ class AttemptService
             $this->assertAssignmentAccessible($user, $assignment);
         }
 
-        $competitionContext = $this->assertMaterialAccessible($user, $assessment, $assignment);
+        $competitionContext = $roundScoped
+            ? $this->roundContext($user, $assessment, $competitionExamId)
+            : $this->assertMaterialAccessible($user, $assessment, $assignment);
 
         $this->assertResubmissionAllowed($user, $assessment, $competitionContext);
 
@@ -320,6 +331,23 @@ class AttemptService
     }
 
     /**
+     * SỬA 25/10 — đề Luyện tập mở từ phòng thi của 1 kỳ khảo sát: kỳ đó phải đang mở, có tham chiếu đúng đề này, học
+     * sinh được duyệt và đã nhập mật khẩu (cùng các cửa của competitionEntryDecision(), chỉ xét ĐÚNG kỳ đó).
+     *
+     * @return array{competitionId: null, competitionExamId: int, classRoomId: null}
+     */
+    private function roundContext(User $user, Assessment $assessment, int $competitionExamId): array
+    {
+        $decision = $this->competitionEntryDecision($user, $assessment, $competitionExamId);
+
+        if ($decision === null || ! $decision['open']) {
+            throw ValidationException::withMessages(['attempt' => $decision['message'] ?? 'Đề này không thuộc kỳ bạn đang mở — quay lại trang khảo sát và bấm vào làm bài.']);
+        }
+
+        return ['competitionId' => null, 'competitionExamId' => (int) $decision['competitionExamId'], 'classRoomId' => null];
+    }
+
+    /**
      * SỬA 9/9 (5) — trả về class_room_id nếu đề $assessment đang nằm trong 1 hoạt động ĐÃ PHÁT
      * (session_activities.published_at khác null) của một buổi học thuộc lớp mà $user đang là
      * học sinh ĐANG HỌC (class_enrollments.status = 'active'); ngược lại trả null.
@@ -384,7 +412,7 @@ class AttemptService
      * @return array{open: bool, message: ?string, competitionId: ?int, competitionExamId: ?int}|null
      *         null nếu đề KHÔNG được cuộc thi/kỳ thi nào tham chiếu tới.
      */
-    private function competitionEntryDecision(User $user, Assessment $assessment): ?array
+    private function competitionEntryDecision(User $user, Assessment $assessment, ?int $onlyExamId = null): ?array
     {
         $directCompetitions = Competition::where('assessment_id', $assessment->id)
             ->whereDoesntHave('examSittings')
@@ -398,6 +426,11 @@ class AttemptService
             if ($paperExamIds !== []) {
                 $exams = $exams->merge(CompetitionExam::whereIn('id', $paperExamIds)->with('competition')->get())->unique('id')->values();
             }
+        }
+        // SỬA 25/10 — chỉ xét đúng 1 kỳ (đề Luyện tập mở từ phòng thi khảo sát, xem roundContext()).
+        if ($onlyExamId !== null) {
+            $directCompetitions = collect();
+            $exams = $exams->filter(fn ($e) => (int) $e->id === $onlyExamId)->values();
         }
 
         if ($directCompetitions->isEmpty() && $exams->isEmpty()) {

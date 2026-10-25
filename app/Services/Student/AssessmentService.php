@@ -56,7 +56,7 @@ class AssessmentService
      * KHÔNG tạo route riêng, để mọi nơi đã link sẵn student.assessment.take (trang chủ, Bài
      * được giao, Luyện tập, Cuộc thi...) không cần sửa gì thêm.
      */
-    public function buildTakeData(User $user, int $assessmentId, ?int $assignmentId = null): array
+    public function buildTakeData(User $user, int $assessmentId, ?int $assignmentId = null, ?int $competitionExamId = null): array
     {
         $assessmentModel = $this->assessments->withItemsAndQuestions($assessmentId);
         abort_if($assessmentModel === null, 404);
@@ -68,10 +68,14 @@ class AssessmentService
 
         // SỬA 18/10 — MODULE BỘ ĐỀ: đề "Chỉ trong bộ đề" chỉ người mua bộ đề (hoặc được giao) mới làm được.
         // Ném ValidationException('attempt') -> StudentAssessmentController::take() hiện màn "không mở được lượt làm".
-        app(\App\Services\ExamBundle\ExamBundleService::class)->assertCanTake($user, $assessmentModel, $assignment);
+        // SỬA 25/10 — đề Luyện tập do ban tổ chức chọn cho kỳ khảo sát: vào từ phòng thi thì không đòi mua bộ đề
+        // (quyền vào do kỳ khảo sát quyết định — AttemptService::roundContext()).
+        if ($competitionExamId === null || $assessmentModel->type !== \App\Enums\AssessmentType::Practice) {
+            app(\App\Services\ExamBundle\ExamBundleService::class)->assertCanTake($user, $assessmentModel, $assignment);
+        }
 
         if ($assessmentModel->isPdfMode()) {
-            return $this->buildPdfTakeData($user, $assessmentModel, $assignment);
+            return $this->buildPdfTakeData($user, $assessmentModel, $assignment, $competitionExamId);
         }
 
         // SỬA 11/10 — tổng điểm hiển thị = cộng điểm từng câu người ra đề đã nhập.
@@ -80,7 +84,7 @@ class AssessmentService
         // Hết giờ trong lúc học sinh không mở trang (đóng tab, mất mạng, rớt wifi giữa
         // chừng...) — tự nộp NGAY khi họ quay lại thay vì hiện lại y hệt trang làm bài như
         // chưa có gì xảy ra. SỬA 14/10 — rồi mở luôn lượt MỚI nếu đề còn cho làm lại, xem openAttempt().
-        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment);
+        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment, $competitionExamId);
 
         $existingAnswers = $this->attemptAnswers->forAttempt($attempt->id);
 
@@ -216,9 +220,9 @@ class AssessmentService
      *
      * @return array{0: Attempt, 1: ?Attempt}  [lượt dùng để làm bài, lượt cũ vừa bị tự nộp vì hết giờ (nếu có)]
      */
-    private function openAttempt(User $user, Assessment $assessmentModel, ?Assignment $assignment): array
+    private function openAttempt(User $user, Assessment $assessmentModel, ?Assignment $assignment, ?int $competitionExamId = null): array
     {
-        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
+        $attempt = $this->attemptService->startOrResume($user, $assessmentModel, $assignment, $competitionExamId);
         $attempt = $this->attemptService->finalizeIfExpired($attempt);
 
         if ($attempt->status === \App\Enums\AttemptStatus::InProgress) {
@@ -228,7 +232,7 @@ class AssessmentService
         $expired = $attempt;
 
         try {
-            $fresh = $this->attemptService->startOrResume($user, $assessmentModel, $assignment);
+            $fresh = $this->attemptService->startOrResume($user, $assessmentModel, $assignment, $competitionExamId);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return [$expired, null];
         }
@@ -275,9 +279,9 @@ class AssessmentService
      * deadlineFor không phụ thuộc Question); chỉ nội dung hiển thị (answerRows/codingRows) và
      * việc lưu/nộp câu trả lời (xem saveDraftAnswers()/submitAttempt() bên dưới) là khác nhau.
      */
-    private function buildPdfTakeData(User $user, Assessment $assessmentModel, ?Assignment $assignment): array
+    private function buildPdfTakeData(User $user, Assessment $assessmentModel, ?Assignment $assignment, ?int $competitionExamId = null): array
     {
-        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment);
+        [$attempt, $previousExpired] = $this->openAttempt($user, $assessmentModel, $assignment, $competitionExamId);
 
         $assessmentModel->load(['answerKeys', 'codingItems.testCases']);
         $attempt->load(['answerKeys', 'codingItems']);

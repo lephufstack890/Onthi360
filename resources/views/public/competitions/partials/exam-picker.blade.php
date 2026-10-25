@@ -23,7 +23,7 @@
 
             @if ($sv)
                 <fieldset class="round-source-options"><legend>Chọn nguồn để tạo bộ đề</legend>
-                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một đề đã hoàn chỉnh trong ngân hàng</small></span></label>
+                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một đề {{ mb_strtolower($re['bankTypeLabel'] ?? 'Luyện tập') }} đã hoàn chỉnh trong ngân hàng</small></span></label>
                     <label :data-selected="picker.source === 'questions' ? 'true' : 'false'"><input type="radio" name="source_type" value="questions" x-model="picker.source"><x-lucide name="list-checks" /><span><b>Từ nguồn câu hỏi</b><small>Lập ma trận và sinh số đề theo nhu cầu</small></span></label>
                 </fieldset>
             @else
@@ -31,7 +31,7 @@
             @endif
 
             <section class="round-exam-picker" aria-label="Chọn đề có sẵn" x-show="picker.source === 'exam'">
-                <h3>Chọn đề từ ngân hàng đề</h3>
+                <h3>Chọn đề từ ngân hàng đề <small>· chỉ đề Loại "{{ $re['bankTypeLabel'] ?? 'Đề thi' }}"</small></h3>
                 <label class="round-exam-search"><x-lucide name="search" /><input type="search" aria-label="Tìm đề có sẵn" placeholder="Tìm tên hoặc mã đề…" x-model="picker.q"></label>
                 <div class="round-exam-list">
                     <template x-for="o in pickerOptions" :key="o.id">
@@ -52,7 +52,7 @@
                         </div>
                     </template>
                 </div>
-                <p class="round-help" role="status" x-show="!pickerOptions.length">Không tìm thấy đề phù hợp. Thử từ khoá khác hoặc tạo đề loại "Đề thi" trong Tài liệu.</p>
+                <p class="round-help" role="status" x-show="!pickerOptions.length">Không tìm thấy đề phù hợp. Thử từ khoá khác hoặc tạo đề Loại "{{ $re['bankTypeLabel'] ?? 'Đề thi' }}" trong Tài liệu.</p>
                 <p class="round-help">Lịch sử chỉ tính các kỳ bạn chủ trì. Có thể dùng lại đề cho nhiều kỳ.</p>
             </section>
             <p class="round-help" x-show="picker.source === 'questions'" x-cloak>Chọn nguồn, chuyên đề, độ khó, số câu và điểm bằng ma trận ở tab <b>Thiết lập đề</b>. Học sinh chỉ bắt đầu khi bạn đã chốt đề. Đề có sẵn đang gắn (nếu có) sẽ được gỡ khỏi kỳ.</p>

@@ -112,7 +112,8 @@ class CompetitionController extends Controller
             // (chưa duyệt / chưa tới giờ / hết lượt...). Lỗi truy cập bất thường (404/403 của
             // abort()) KHÔNG phải ValidationException nên vẫn đi thẳng ra trang lỗi đúng của nó.
             $context = $this->competitionService->examContext($user, $competition, $exam);
-            $data = $this->assessmentService->buildTakeData($user, $context['assessmentId']);
+            // SỬA 25/10 — truyền kỳ đang mở: đề Luyện tập của khảo sát ghi lượt làm vào đúng kỳ này.
+            $data = $this->assessmentService->buildTakeData($user, $context['assessmentId'], null, $exam);
         } catch (ValidationException $e) {
             $message = $e->errors()['attempt'][0] ?? 'Không thể mở lượt làm bài của vòng thi này.';
 

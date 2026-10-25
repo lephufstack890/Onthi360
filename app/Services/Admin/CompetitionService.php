@@ -213,19 +213,23 @@ class CompetitionService
      *
      * @throws ValidationException
      */
-    private function assertExamAssessment(mixed $assessmentId, ?int $currentId = null): void
+    private function assertExamAssessment(mixed $assessmentId, ?int $currentId = null, ?Competition $roundOf = null): void
     {
         if (blank($assessmentId) || (int) $assessmentId === (int) $currentId) {
             return;
         }
 
+        // SỬA 25/10 — kỳ của Khảo sát lấy đề Loại "Luyện tập", của Cuộc thi lấy "Đề thi" (cùng luật với ban tổ chức).
+        $type = $roundOf !== null ? \App\Services\Contest\ContestOrganizerService::bankTypeFor($roundOf) : \App\Enums\AssessmentType::Exam;
+        $label = $roundOf !== null ? \App\Services\Contest\ContestOrganizerService::bankTypeLabel($roundOf) : 'Đề thi';
+
         $ok = $this->assessments->query()
             ->whereKey((int) $assessmentId)
-            ->where('type', \App\Enums\AssessmentType::Exam->value)
+            ->where('type', $type->value)
             ->exists();
 
         if (! $ok) {
-            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "Đề thi".']);
+            throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "'.$label.'".']);
         }
     }
 
@@ -806,8 +810,8 @@ class CompetitionService
         return [
             'exams' => $exams,
             'assessmentOptions' => $this->assessments->query()
-                ->where(function ($q) use ($keepIds) {
-                    $q->where('type', \App\Enums\AssessmentType::Exam->value);
+                ->where(function ($q) use ($keepIds, $competition) {
+                    $q->where('type', \App\Services\Contest\ContestOrganizerService::bankTypeFor($competition)->value); // SỬA 25/10
                     if ($keepIds !== []) {
                         $q->orWhereIn('id', $keepIds);
                     }
@@ -852,7 +856,7 @@ class CompetitionService
     public function storeExam(Competition $competition, array $data): CompetitionExam
     {
         $this->assertExamDatesValid($data);
-        $this->assertExamAssessment($data['assessment_id'] ?? null); // SỬA 20/10 — chỉ đề Loại "Đề thi"
+        $this->assertExamAssessment($data['assessment_id'] ?? null, null, $competition); // SỬA 25/10 — khảo sát: "Luyện tập"; cuộc thi: "Đề thi"
 
         $nextOrder = ((int) $this->competitionExams->query()->where('competition_id', $competition->id)->max('order')) + 1;
 
@@ -874,7 +878,7 @@ class CompetitionService
     public function updateExam(CompetitionExam $exam, array $data): CompetitionExam
     {
         $this->assertExamDatesValid($data);
-        $this->assertExamAssessment($data['assessment_id'] ?? null, $exam->assessment_id); // SỬA 20/10 — giữ đề cũ thì cho qua
+        $this->assertExamAssessment($data['assessment_id'] ?? null, $exam->assessment_id, $exam->competition); // SỬA 25/10 — giữ đề cũ thì cho qua
 
         if ((int) $data['assessment_id'] !== $exam->assessment_id && $exam->leaderboardEntries()->exists()) {
             throw ValidationException::withMessages([
