@@ -56,11 +56,8 @@ class ContestHubService
             ->limit(200)
             ->get();
 
-        // SỬA 25/10 — cuộc thi / khảo sát tự sinh theo khoá học mà chưa có kỳ nào (hoặc khoá học chưa phát hành): chỉ ban
-        // tổ chức (admin / giáo viên) thấy để thêm kỳ; học sinh và khách không thấy sự kiện rỗng.
-        if (! $this->organizers->canCreateRound($viewer)) {
-            $competitions = $competitions->filter(fn (Competition $c) => $c->examSittings->isNotEmpty() && ! $this->courseHidden($c))->values();
-        }
+        // SỬA 25/10 (khách: "cho thấy hết, chưa có kỳ vẫn hiển thị") — học sinh / khách thấy mọi sự kiện như ban tổ chức
+        // (bỏ lọc "chưa có kỳ / khoá học chưa phát hành"). Sự kiện chưa có kỳ: nhãn "Sắp mở · Chưa có kỳ" (xem card()).
 
         $statuses = ($viewer !== null && CompetitionRegistration::supported() && $competitions->isNotEmpty())
             ? CompetitionRegistration::query()
@@ -106,8 +103,9 @@ class ContestHubService
             'type' => $survey ? 'survey' : 'contest',
             'url' => route('competitions.show', $c->id),
             'image' => $c->imageUrl(),
-            'state' => $state,
-            'stateLabel' => $this->stateHint($state, $start, $end),
+            // SỬA 25/10 — chưa có kỳ nào (và không đặt lịch riêng): hiện "Sắp mở", không suy ra "Đã kết thúc".
+            'state' => $rounds->isEmpty() && $start === null && $end === null ? 'upcoming' : $state,
+            'stateLabel' => $rounds->isEmpty() && $start === null && $end === null ? 'Sắp mở · Chưa có kỳ' : $this->stateHint($state, $start, $end),
             'roadmap' => $this->roadmap($c),
             'description' => $this->description($c),
             'organizer' => $this->organizerLabel($c),
