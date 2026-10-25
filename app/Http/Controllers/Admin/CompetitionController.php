@@ -18,7 +18,8 @@ class CompetitionController extends Controller
     /** admin.competitions.index (ADM-05) — 11.1: vòng đời cuộc thi. */
     public function index(Request $request): View
     {
-        return view('admin.competitions.index', $this->competitionService->indexData());
+        // SỬA 25/10 — phân trang + bộ lọc (tên, lộ trình, loại) như trang công khai.
+        return view('admin.competitions.index', $this->competitionService->indexData($request->only(['q', 'lo_trinh', 'loai'])));
     }
 
     private function validationRules(): array

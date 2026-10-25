@@ -99,38 +99,44 @@ class CompetitionService
             ->count();
     }
 
-    public function indexData(): array
+    /** SỬA 25/10 (khách: "trang cuộc thi trong admin cũng phân trang + bộ lọc như ngoài") — số dòng mỗi trang. */
+    public const INDEX_PER_PAGE = 10;
+
+    /**
+     * admin.competitions.index — danh sách có PHÂN TRANG + BỘ LỌC giống trang công khai: tên (khớp cả tên khoá học vì tên
+     * hiển thị là "<loại> · <tên khoá>"), lộ trình (khoá học), loại sự kiện. Lọc ở máy chủ (?q=, ?lo_trinh=, ?loai=).
+     *
+     * @param  array{q?: ?string, lo_trinh?: mixed, loai?: ?string}  $filters
+     */
+    public function indexData(array $filters = []): array
     {
         /*
          * SỬA 4/10 (khách: "cho tách riêng đi đừng gộp với trang cuộc thi nha") — BỎ tab "Giáo
-         * viên và chuyên gia". Màn đó giờ là một mục menu đứng riêng (xem partials/sidebar-admin);
-         * để lại tab ở đây thì hai lối vào cùng một màn, mà lối này còn làm người ta tưởng nó là
-         * một phần của Cuộc thi — đúng cái khách vừa bảo bỏ.
+         * viên và chuyên gia". Màn đó giờ là một mục menu đứng riêng (xem partials/sidebar-admin).
          */
         $tabs = [
             ['label' => 'Cuộc thi', 'href' => route('admin.competitions.index'), 'active' => true, 'count' => $this->competitions->count()],
         ];
 
-        $rows = $this->competitions->latest(50);
-        if (Competition::supportsCourse() && $rows instanceof \Illuminate\Database\Eloquent\Collection) {
-            $rows->load('course:id,title'); // tên hiển thị theo khoá học (Competition::displayTitle())
-        }
+        $hasCourse = Competition::supportsCourse();
+        $q = trim(mb_substr((string) ($filters['q'] ?? ''), 0, 100));
+        $type = in_array($filters['loai'] ?? '', [CompetitionType::Contest->value, CompetitionType::Survey->value], true) ? (string) $filters['loai'] : '';
+        $courseId = $hasCourse ? ((int) ($filters['lo_trinh'] ?? 0) ?: null) : null;
 
-        /*
-         * SỬA 19/9 (10) — số đơn CHỜ DUYỆT của từng cuộc thi, gộp MỘT truy vấn cho cả trang
-         * (đừng bắn 50 truy vấn con). Khoá = competition_id, giá trị = số đơn đang chờ.
-         */
-        $pendingByCompetition = CompetitionRegistration::supported()
-            ? CompetitionRegistration::query()
-                ->selectRaw('competition_id, COUNT(*) as pending')
-                ->where('status', CompetitionRegistration::STATUS_PENDING)
-                ->whereIn('competition_id', $rows->pluck('id')->all())
-                ->groupBy('competition_id')
-                ->pluck('pending', 'competition_id')
-                ->all()
-            : [];
+        $paginator = Competition::query()
+            ->when($hasCourse, fn ($w) => $w->with('course:id,title')) // tên hiển thị theo khoá học (Competition::displayTitle())
+            ->when($type !== '', fn ($w) => $w->where('type', $type))
+            ->when($courseId !== null, fn ($w) => $w->where('course_id', $courseId))
+            ->when($q !== '', function ($w) use ($q, $hasCourse) {
+                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q).'%';
+                $w->where(fn ($x) => $x->where('title', 'like', $like)
+                    ->when($hasCourse, fn ($y) => $y->orWhereHas('course', fn ($c) => $c->where('title', 'like', $like))));
+            })
+            ->orderByDesc('starts_at')->orderByDesc('id')
+            ->paginate(self::INDEX_PER_PAGE)
+            ->withQueryString();
 
-        $competitions = $rows->map(function ($c) use ($pendingByCompetition) {
+        $competitions = $paginator->getCollection()->map(function (Competition $c) {
             $statusValue = $c->computedStatus()->value;
 
             return [
@@ -138,9 +144,6 @@ class CompetitionService
                 'name' => $c->displayTitle(), // SỬA 25/10 — "<loại> · <tên khoá học>" khi gắn khoá học
                 'image' => $c->imageUrl(), // SỬA 24/10 — cột Ảnh ở danh sách
                 'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
-                'pendingRegistrations' => (int) ($pendingByCompetition[$c->id] ?? 0),
-                // Hiện rõ Bắt đầu/Kết thúc riêng (ngày + giờ) thay vì gộp mập mờ kiểu "18/08 -
-                // 19/08/2026" — nhìn 1 cái là biết chính xác mốc nào, không phải đoán.
                 'startsAtLabel' => $c->starts_at?->format('d/m/Y H:i') ?? '— Chưa đặt —',
                 'endsAtLabel' => $c->ends_at?->format('d/m/Y H:i') ?? '— Chưa đặt —',
                 'status' => self::STATUS_LABELS[$statusValue] ?? $statusValue,
@@ -149,18 +152,40 @@ class CompetitionService
         })->all();
 
         /*
-         * pendingTotal lấy số TOÀN HỆ THỐNG (cùng nguồn với viên số đỏ ở menu) chứ không cộng
-         * lại từ 50 dòng đang hiện: bảng chỉ liệt kê 50 cuộc thi mới nhất, nếu có đơn nằm ở
-         * cuộc thi cũ hơn thì hai con số sẽ lệch nhau và quản trị viên có quyền nghi ngờ cái
-         * nào đúng. pendingListed là phần ĐANG THẤY, chênh lệch được nói rõ ở view.
+         * SỬA 19/9 (10) — DẢI NHẮC đơn chờ duyệt: lấy trên TOÀN BỘ cuộc thi (không phụ thuộc trang / bộ lọc đang xem),
+         * tối đa 20 cuộc thi có đơn mới nhất. pendingTotal = số đơn toàn hệ thống (cùng nguồn với viên số đỏ ở menu).
          */
-        $pendingListed = array_sum(array_column($competitions, 'pendingRegistrations'));
+        $pendingByCompetition = CompetitionRegistration::supported()
+            ? CompetitionRegistration::query()
+                ->selectRaw('competition_id, COUNT(*) as pending')
+                ->where('status', CompetitionRegistration::STATUS_PENDING)
+                ->groupBy('competition_id')
+                ->pluck('pending', 'competition_id')
+                ->all()
+            : [];
+        $needReview = $pendingByCompetition === [] ? [] : Competition::query()
+            ->when($hasCourse, fn ($w) => $w->with('course:id,title'))
+            ->whereIn('id', array_keys($pendingByCompetition))
+            ->orderByDesc('id')->limit(20)->get()
+            ->map(fn (Competition $c) => ['id' => $c->id, 'name' => $c->displayTitle(), 'pendingRegistrations' => (int) $pendingByCompetition[$c->id]])
+            ->all();
+
+        $courseOptions = $hasCourse
+            ? \App\Models\Course::query()
+                ->whereIn('id', Competition::query()->whereNotNull('course_id')->select('course_id'))
+                ->orderBy('title')->get(['id', 'title'])
+                ->map(fn ($co) => ['id' => (int) $co->id, 'title' => (string) $co->title])->all()
+            : [];
 
         return [
             'tabs' => $tabs,
             'competitions' => $competitions,
+            'paginator' => $paginator,
+            'filters' => ['q' => $q, 'loai' => $type, 'lo_trinh' => $courseId],
+            'courseOptions' => $courseOptions,
+            'needReview' => $needReview,
             'pendingTotal' => $this->pendingRegistrationCount(),
-            'pendingListed' => $pendingListed,
+            'pendingListed' => array_sum(array_column($needReview, 'pendingRegistrations')),
         ];
     }
 
