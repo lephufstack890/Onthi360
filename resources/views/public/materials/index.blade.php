@@ -491,13 +491,19 @@
                         <div style="margin-top: 16px;">@include('partials.materials-quality', ['expr' => 'selected'])</div>
 
                         <p class="mp-legend">Hình thức & giá</p>
-                        <div class="mp-opt is-on">
-                            <span>Bản mềm (Online)<small x-text="selected.durationMonths ? 'Quyền đọc trực tuyến ' + selected.durationMonths + ' tháng' : 'Quyền đọc trực tuyến không giới hạn thời gian'"></small></span>
-                            <strong x-text="selected.priceSoft"></strong>
-                        </div>
-                        <div class="mp-opt" x-show="selected.pricePrint">
-                            <span>Bản mềm + sách in<small>Giao tận nhà · chọn ở bước thanh toán</small></span>
-                            <strong x-text="selected.pricePrint"></strong>
+                        {{-- SỬA 25/10 (khách: "không chọn được Bản mềm + sách in") — 2 ô bấm chọn được (buyFormat); nút Mua mang
+                             lựa chọn sang trang đặt đơn (buyHref()). --}}
+                        <div role="radiogroup" aria-label="Hình thức mua">
+                            <button type="button" role="radio" class="mp-opt mp-opt-pick" :class="buyFormat === 'soft' ? 'is-on' : ''"
+                                    :aria-checked="buyFormat === 'soft' ? 'true' : 'false'" @click="buyFormat = 'soft'">
+                                <span>Bản mềm (Online)<small x-text="selected.durationMonths ? 'Quyền đọc trực tuyến ' + selected.durationMonths + ' tháng' : 'Quyền đọc trực tuyến không giới hạn thời gian'"></small></span>
+                                <strong x-text="selected.priceSoft"></strong>
+                            </button>
+                            <button type="button" role="radio" class="mp-opt mp-opt-pick" x-show="selected.pricePrint" :class="buyFormat === 'print' ? 'is-on' : ''"
+                                    :aria-checked="buyFormat === 'print' ? 'true' : 'false'" @click="buyFormat = 'print'">
+                                <span>Bản mềm + sách in<small>Giao tận nhà · nhập địa chỉ ở bước thanh toán</small></span>
+                                <strong x-text="selected.pricePrint"></strong>
+                            </button>
                         </div>
                         <p class="mp-meta-line"><x-lucide name="clock" />Thời hạn tính từ khi kích hoạt quyền đọc.</p>
 
@@ -525,7 +531,7 @@
                             @if ($canBuy)
                                 {{-- SỬA 25/10 (khách: "mua sách / bộ đề / chuyên đề gì cũng bỏ nút Nhập mã kích hoạt") — TẠM ẨN, không xoá:
                                 <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a> --}}
-                                <a :href="selected.checkoutHref" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
+                                <a :href="buyHref()" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
                                 <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="selected.bundle ? 'Làm bộ đề →' : 'Vào đọc ngay →'">Vào đọc ngay →</span></a>
                             @endif
                             @if ($scope['canManage'])

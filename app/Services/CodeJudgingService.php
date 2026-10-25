@@ -31,6 +31,11 @@ class CodeJudgingService
             return ['verdict' => VerdictStatus::CompileError, 'isAccepted' => false, 'details' => []];
         }
 
+        // SỬA 25/10 — mở sai tên tệp INP/OUT của đề: dừng luôn, không chấm test nào (xem fileIoNameMismatch()).
+        if (($badName = self::fileIoNameMismatch($sourceCode, self::languageKey($language), $fileIo)) !== null) {
+            return $this->fileNameErrorResult($badName, count($testCases));
+        }
+
         $sourceCode = $this->withFileIo($sourceCode, self::languageKey($language), $fileIo);
         $compilerOptions = self::compilerOptions($language);
 
@@ -184,6 +189,19 @@ class CodeJudgingService
 
         $cpuTimeLimit = min((float) config('judge0.max_cpu_time_limit'), max(1.0, $timeLimitMs / 1000));
         $memoryLimit = min((int) config('judge0.max_memory_limit_kb'), max(16384, $memoryLimitKb));
+
+        // SỬA 25/10 — chạy thử: mở sai tên tệp INP/OUT thì báo luôn, không gửi máy chấm.
+        if (($badName = self::fileIoNameMismatch($sourceCode, self::languageKey($language), $fileIo)) !== null) {
+            return [
+                'ranCleanly' => false,
+                'statusLabel' => 'Sai tên tệp',
+                'output' => '',
+                'stderr' => $badName['message'],
+                'compileOutput' => null,
+                'time' => null,
+                'memory' => null,
+            ];
+        }
 
         $sourceCode = $this->withFileIo($sourceCode, self::languageKey($language), $fileIo);
 
@@ -827,6 +845,162 @@ PY;
             1 => 'mã thoát 1 — có ngoại lệ/lỗi chưa bắt (vd chia 0, sai chỉ số danh sách, đọc dữ liệu sai kiểu)',
             default => 'mã thoát '.$exitCode,
         };
+    }
+
+    /**
+     * SỬA 25/10 (khách: "freopen tên file INP / OUT mà sai thì máy ngừng luôn, không chấm, báo lỗi sai file") — dò các lệnh
+     * mở tệp có TÊN VIẾT SẴN trong mã (freopen / fopen / ifstream / ofstream / fstream / .open, open() của Python) rồi so
+     * với tên tệp đề khai, KHÔNG phân biệt hoa/thường (giống Themis — xem withFileIo()). Bỏ qua:
+     *   · lệnh nằm trong chú thích (// … , /* … *\/ , # … của Python) — kiểu "//freopen(...)" rất hay gặp;
+     *   · tên ghép từ biến / macro (freopen(NAME".INP", …)) — không đoán bừa, để máy chấm chạy như cũ;
+     *   · đề không khai tệp vào/ra.
+     * Trả null nếu không thấy sai.
+     *
+     * @return array{line: int, kind: string, found: string, expected: string, message: string}|null
+     */
+    public static function fileIoNameMismatch(string $sourceCode, ?string $languageKey, ?array $fileIo): ?array
+    {
+        $names = self::fileIoNames($fileIo);
+        if ($names === null) {
+            return null;
+        }
+        $python = $languageKey === 'python';
+        $code = self::blankComments($sourceCode, $python);
+
+        $pattern = '/(?<![\w.])(freopen|fopen|ifstream|ofstream|fstream|open)\s*(?:[A-Za-z_]\w*\s*)?[({]\s*[rRbBuUfF]{0,2}(["\'])([^"\'\r\n\\\\]{1,200})\2\s*(?:,([^)\r\n]*))?/';
+        $dotOpen = '/\.\s*open\s*\(\s*[rRbBuUfF]{0,2}(["\'])([^"\'\r\n\\\\]{1,200})\1\s*(?:,([^)\r\n]*))?/';
+
+        $calls = [];
+        if (preg_match_all($pattern, $code, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            foreach ($m as $hit) {
+                $calls[] = ['fn' => $hit[1][0], 'name' => $hit[3][0], 'args' => $hit[4][0] ?? '', 'at' => $hit[0][1]];
+            }
+        }
+        if (preg_match_all($dotOpen, $code, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            foreach ($m as $hit) {
+                $calls[] = ['fn' => '.open', 'name' => $hit[2][0], 'args' => $hit[3][0] ?? '', 'at' => $hit[0][1]];
+            }
+        }
+        usort($calls, fn ($a, $b) => $a['at'] <=> $b['at']);
+
+        foreach ($calls as $c) {
+            $name = preg_replace('#^\./#', '', trim($c['name']));
+            $args = strtolower($c['args']);
+            $mode = null;
+            if (preg_match('/["\']([^"\']*)["\']/', $c['args'], $mm)) {
+                $mode = strtolower($mm[1]);
+            }
+
+            $dir = match ($c['fn']) {
+                'freopen' => str_contains($args, 'stdin') ? 'in' : (str_contains($args, 'stdout') ? 'out' : self::dirFromMode($mode)),
+                'fopen' => self::dirFromMode($mode),
+                'ifstream' => 'in',
+                'ofstream' => 'out',
+                'fstream', '.open' => str_contains($args, 'ios::out') || str_contains($args, 'ios_base::out') ? 'out'
+                    : (str_contains($args, 'ios::in') || str_contains($args, 'ios_base::in') ? 'in' : ($python ? (self::dirFromMode($mode) ?? 'in') : null)),
+                'open' => $python ? (self::dirFromMode($mode) ?? 'in') : null,
+                default => null,
+            };
+
+            // Không rõ chiều (vd f.open("X") của C++): khớp tên nào cũng được; không khớp thì đoán theo đuôi tệp.
+            if ($dir === null) {
+                if (($names['input'] !== null && strcasecmp($name, $names['input']) === 0)
+                    || ($names['output'] !== null && strcasecmp($name, $names['output']) === 0)) {
+                    continue;
+                }
+                $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                $dir = in_array($ext, ['out', 'ans', 'ok'], true) ? 'out' : (in_array($ext, ['inp', 'in'], true) ? 'in' : null);
+                if ($dir === null) {
+                    continue;
+                }
+            }
+
+            $expected = $dir === 'in' ? $names['input'] : $names['output'];
+            if ($expected === null || strcasecmp($name, $expected) === 0) {
+                continue;
+            }
+
+            $line = substr_count(substr($code, 0, $c['at']), "\n") + 1;
+            $kind = $dir === 'in' ? 'INP' : 'OUT';
+
+            return [
+                'line' => $line,
+                'kind' => $kind,
+                'found' => $name,
+                'expected' => $expected,
+                'message' => 'Sai tên tệp '.$kind.' (dòng '.$line.'): bài làm '.($dir === 'in' ? 'đọc từ' : 'ghi ra').' "'.$name
+                    .'" nhưng đề yêu cầu '.($dir === 'in' ? 'đọc từ' : 'ghi ra').' "'.$expected.'". Máy chấm đã dừng, chưa chấm test nào — sửa đúng tên tệp rồi nộp lại.',
+            ];
+        }
+
+        return null;
+    }
+
+    /** "r" → đọc, "w"/"a"/"x" → ghi (C fopen / freopen, Python open). Không có chế độ → null. */
+    private static function dirFromMode(?string $mode): ?string
+    {
+        if ($mode === null || $mode === '') {
+            return null;
+        }
+
+        return preg_match('/[wax]/', $mode) ? 'out' : (str_contains($mode, 'r') ? 'in' : null);
+    }
+
+    /** Thay chú thích bằng khoảng trắng (giữ nguyên xuống dòng → số dòng không đổi); chuỗi trong nháy giữ nguyên. */
+    private static function blankComments(string $code, bool $python): string
+    {
+        $out = '';
+        $n = strlen($code);
+        for ($i = 0; $i < $n; $i++) {
+            $ch = $code[$i];
+            if ($ch === '"' || $ch === "'") {
+                $out .= $ch;
+                for ($i++; $i < $n; $i++) {
+                    $out .= $code[$i];
+                    if ($code[$i] === '\\' && $i + 1 < $n) {
+                        $out .= $code[++$i];
+                    } elseif ($code[$i] === $ch || $code[$i] === "\n") {
+                        break;
+                    }
+                }
+                continue;
+            }
+            $two = substr($code, $i, 2);
+            if ((! $python && $two === '//') || ($python && $ch === '#')) {
+                for (; $i < $n && $code[$i] !== "\n"; $i++) {
+                    $out .= ' ';
+                }
+                $i--;
+                continue;
+            }
+            if (! $python && $two === '/*') {
+                $end = strpos($code, '*/', $i + 2);
+                $end = $end === false ? $n : $end + 2;
+                $out .= preg_replace('/[^\n]/', ' ', substr($code, $i, $end - $i));
+                $i = $end - 1;
+                continue;
+            }
+            $out .= $ch;
+        }
+
+        return $out;
+    }
+
+    /** Kết quả "sai tên tệp": như lỗi biên dịch (không chấm test nào, 0 điểm) nhưng nói rõ sai tệp INP/OUT nào, dòng nào. */
+    private function fileNameErrorResult(array $bad, int $testCount): array
+    {
+        $result = $this->compileErrorResult(['compile_output' => $bad['message']], max(1, $testCount), null, null);
+        $result['errorLine'] = $bad['line'];
+        $result['errorMessage'] = $bad['message'];
+        $result['fileNameError'] = true;
+        foreach ($result['details'] as $i => $d) {
+            $result['details'][$i]['statusLabel'] = 'Sai tên tệp '.$bad['kind'];
+            $result['details'][$i]['status'] = 'File Name Error';
+            $result['details'][$i]['errorCode'] = 'FILE';
+            $result['details'][$i]['reason'] = $bad['message'];
+        }
+
+        return $result;
     }
 
     private function compileErrorResult(?array $result, int $testCount, ?string $languageKey, ?array $fileIo): array

@@ -292,7 +292,13 @@
             },
 
             // ── Hộp chi tiết giá & quyền sử dụng ──
-            openDetail(id) { this.selected = this.byId[id] || null; },
+            openDetail(id) { this.selected = this.byId[id] || null; this.buyFormat = 'soft'; },
+            // SỬA 25/10 — hình thức chọn trong hộp mua: 'soft' (bản mềm) | 'print' (bản mềm + sách in → trang đặt đơn tích sẵn bản in).
+            buyFormat: 'soft',
+            buyHref() {
+                var s = this.selected; if (!s) return '#';
+                return s.checkoutHref + (this.buyFormat === 'print' && s.pricePrint ? (s.checkoutHref.indexOf('?') >= 0 ? '&' : '?') + 'ban-in=1' : '');
+            },
             closeDetail() { this.selected = null; },
             statusClass(s) { return 'is-' + s; },
 

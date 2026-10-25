@@ -55,7 +55,8 @@
     <form method="POST" action="{{ route('access.checkout.store', $product->id) }}"
           class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]"
           x-data="{
-              includePrint: false,
+              {{-- SỬA 25/10 — chọn "Bản mềm + sách in" ở hộp mua tài liệu (?ban-in=1) thì tích sẵn ô Mua kèm bản in. --}}
+              includePrint: {{ (! $isCourse && $product->has_print_option && old('include_print', request()->boolean('ban-in'))) ? 'true' : 'false' }},
               scope: 'personal_learning',
               paymentMethod: 'token',
               priceLearning: {{ (int) $product->price }},

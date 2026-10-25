@@ -843,7 +843,9 @@ class AssessmentService
                 ];
             }
             if ($verdict === \App\Enums\VerdictStatus::CompileError) {
-                $status = 'Lỗi biên dịch';
+                // SỬA 25/10 — mở sai tên tệp INP/OUT (CodeJudgingService::fileNameErrorResult()) thì nói đúng lỗi.
+                $first = is_array($raw) ? (array_values($raw)[0] ?? []) : [];
+                $status = ($first['errorCode'] ?? null) === 'FILE' ? 'Sai tên tệp vào/ra' : 'Lỗi biên dịch';
             }
         }
 

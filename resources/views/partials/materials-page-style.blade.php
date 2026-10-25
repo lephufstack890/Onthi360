@@ -222,6 +222,11 @@
     .mp-modal-item p.is-accent { color: #126f91; }
     .mp-opt { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-top: 8px; }
     .mp-opt.is-on { border-color: #0ea5e9; background: #f0f9ff; }
+    /* SỬA 25/10 — ô hình thức bấm chọn được */
+    .mp-opt-pick { width: 100%; text-align: left; font: inherit; color: inherit; background: #fff; cursor: pointer; transition: border-color .15s, background .15s; }
+    .mp-opt-pick:hover { border-color: #7dd3fc; }
+    .mp-opt-pick.is-on { border-color: #0ea5e9; background: #f0f9ff; box-shadow: 0 0 0 1px #0ea5e9 inset; }
+    .mp-opt-pick:focus-visible { outline: 2px solid #0ea5e9; outline-offset: 2px; }
     .mp-opt span { flex: 1 1 auto; font-size: 12px; font-weight: 600; }
     .mp-opt small { display: block; margin-top: 4px; font-weight: 400; color: #64748b; }
     .mp-opt strong { font-size: 14px; color: #123b68; }
