@@ -103,13 +103,14 @@
                             <x-lucide :name="$c['isSurvey'] ? 'key-round' : 'trophy'" style="width:14px;height:14px" />{{ $c['isSurvey'] ? 'Khảo sát năng lực' : 'Cuộc thi' }}
                         </div>
                         <h3><a href="{{ $c['url'] }}">{{ $c['title'] }}</a></h3>
+                        @if ($c['edition'] !== '')<p class="cc-edition">{{ $c['edition'] }}</p>@endif
                         @if ($c['roadmap'])
                             <a class="contest-roadmap" href="{{ $c['roadmap']['href'] }}"><span>Lộ trình học</span><b>{{ $c['roadmap']['title'] }}<x-lucide name="chevron-right" style="width:13px;height:13px" /></b></a>
                         @endif
                         <p class="cc-desc">{{ $c['description'] }}</p>
                         <p class="cc-organizer"><x-lucide name="shield-check" />{{ $c['organizer'] }}</p>
                         <div class="cc-facts">
-                            <div><x-lucide name="list-checks" /><b>{{ $c['roundsCount'] }} kỳ thi</b><small>Cấu trúc</small></div>
+                            <div><x-lucide name="list-checks" /><b>{{ $c['roundsCount'] }} {{ $c['isSurvey'] ? 'kỳ khảo sát' : 'kỳ thi' }}</b><small>Cấu trúc</small></div>
                             <div><x-lucide name="clock-3" /><b>{{ $c['duration'] }}</b><small>Mỗi kỳ thi</small></div>
                             <div><x-lucide name="rotate-ccw" class="is-green" /><b>{{ $c['isSurvey'] ? 'Nhiều lần' : '1 lần' }}</b><small>Lượt nộp / kỳ</small></div>
                         </div>
@@ -119,8 +120,8 @@
                         </div>
                         <div class="cc-card-foot">
                             <span class="material-status {{ $regClass }}"><x-lucide :name="$c['registration']['icon']" />{{ $c['registration']['label'] }}</span>
-                            <p>{{ $c['isSurvey'] ? 'Không chờ duyệt · Lưu kết quả từng lượt' : 'Giáo viên / admin duyệt · Có xếp hạng' }}</p>
-                            <a href="{{ $c['url'] }}" class="material-primary contest-catalog-open"><x-lucide name="list-checks" />Xem các kỳ thi<x-lucide name="chevron-right" /></a>
+                            <p>{{ $c['isSurvey'] ? 'Có tên trong danh sách + mật khẩu · Lưu kết quả từng lượt' : 'Giáo viên / admin duyệt · Có xếp hạng' }}</p>
+                            <a href="{{ $c['url'] }}" class="material-primary contest-catalog-open"><x-lucide name="list-checks" />{{ $c['isSurvey'] ? 'Xem các kỳ khảo sát' : 'Xem các kỳ thi' }}<x-lucide name="chevron-right" /></a>
                         </div>
                     </div>
                 </article>

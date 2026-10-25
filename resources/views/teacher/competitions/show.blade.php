@@ -1,6 +1,6 @@
 @extends('layouts.teacher')
 
-@section('title', $competition->title)
+@section('title', $competition->displayTitle())
 @section('page-title', 'Chi tiết cuộc thi')
 
 @section('content')
@@ -29,7 +29,7 @@
             <x-ws.icon-tile icon="trophy" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->title }}</h1>
+                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->displayTitle() }}</h1>
                     @if ($competition->isExternallyOrganized())
                         <x-ws.badge tone="warning">Bên ngoài tổ chức</x-ws.badge>
                     @endif

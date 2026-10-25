@@ -17,7 +17,13 @@ use Illuminate\Support\Facades\Schema;
  */
 class CompetitionExam extends Model
 {
-    protected $fillable = ['competition_id', 'assessment_id', 'title', 'order', 'starts_at', 'ends_at', 'assignment_mode', 'form_count'];
+    protected $fillable = ['competition_id', 'assessment_id', 'title', 'order', 'starts_at', 'ends_at', 'assignment_mode', 'form_count',
+        'organizer_id', 'source_type']; // SỬA 25/10 — người chủ trì + nguồn đề (migration 001290)
+
+    /** SỬA 25/10 — nguồn đề của kỳ: lấy đề có sẵn trong ngân hàng / thiết lập ma trận từ nguồn câu hỏi (chỉ khảo sát). */
+    public const SOURCE_EXAM = 'exam';
+
+    public const SOURCE_QUESTIONS = 'questions';
 
     /** SỬA 24/10 — cách giao mã đề hoán vị: hệ thống bốc ngẫu nhiên / học sinh tự chọn (xem App\Support\ContestForms). */
     public const MODE_RANDOM = 'random';
@@ -71,6 +77,40 @@ class CompetitionExam extends Model
         }
 
         return 'ongoing';
+    }
+
+    /** SỬA 25/10 — giáo viên / admin CHỦ TRÌ kỳ (người tạo kỳ trong phòng thi). Null = kỳ cũ, do ban tổ chức cuộc thi quản lý. */
+    public function organizer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'organizer_id');
+    }
+
+    /** SỬA 25/10 — đã chạy migration 001290 (organizer_id, source_type) chưa. */
+    public static function supportsRoundSetup(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('competition_exams', 'source_type');
+    }
+
+    /**
+     * SỬA 25/10 — nguồn đề: cuộc thi luôn "đề có sẵn"; khảo sát theo cột source_type, kỳ cũ chưa ghi thì suy ra:
+     * có đề ma trận → nguồn câu hỏi; có đề gắn sẵn → đề có sẵn; chưa có gì → nguồn câu hỏi.
+     */
+    public function sourceType(?Competition $competition = null): string
+    {
+        $competition ??= $this->competition;
+        if ($competition !== null && ! $competition->isSurvey()) {
+            return self::SOURCE_EXAM;
+        }
+        if (self::supportsRoundSetup() && in_array($this->source_type, [self::SOURCE_EXAM, self::SOURCE_QUESTIONS], true)) {
+            return $this->source_type;
+        }
+        if (CompetitionExamPaper::supported() && $this->papers()->exists()) {
+            return self::SOURCE_QUESTIONS;
+        }
+
+        return $this->assessment_id !== null ? self::SOURCE_EXAM : self::SOURCE_QUESTIONS;
     }
 
     /** SỬA 24/10 — các đề sinh từ ma trận của kỳ (tab "Thiết lập đề"), xem App\Models\CompetitionExamPaper. */

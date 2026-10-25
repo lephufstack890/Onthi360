@@ -102,8 +102,9 @@ class ContestPaperController extends Controller
         abort_unless(CompetitionExamPaper::supported(), 409, 'Chưa chạy migration 001280 — chạy "php artisan migrate".');
 
         $competition = Competition::query()->with('advisors:id,name')->findOrFail($competitionId);
-        abort_unless($this->organizers->canManage($request->user(), $competition), 403, 'Bạn không có quyền quản lý cuộc thi này.');
         $exam = CompetitionExam::query()->with('assessment:id,title')->where('competition_id', $competition->id)->findOrFail($examId);
+        // SỬA 25/10 — chỉ người chủ trì kỳ (hoặc admin) được thiết lập đề của kỳ.
+        $this->organizers->assertCanManageRound($request->user(), $competition, $exam);
         $paper = $paperId !== null ? CompetitionExamPaper::query()->where('competition_exam_id', $exam->id)->findOrFail($paperId) : null;
 
         try {

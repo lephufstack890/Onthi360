@@ -45,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // không khớp permission nào (không trả `false`) để các Policy đã có (VD.
         // ClassRoomPolicy, ProductPolicy...) vẫn được Laravel gọi tới bình thường —
         // Gate::before chỉ "tắt sớm" cho các ability match đúng permission slug.
+        // SỬA 25/10 (khách: "thêm khoá học (lộ trình) thì cuộc thi và khảo sát tự sinh ra luôn") — xem
+        // App\Services\Contest\CourseCompetitionProvisioner. Khoá học cũ: php artisan db:seed --class=CourseCompetitionSeeder
+        \App\Models\Course::observe(\App\Observers\CourseCompetitionObserver::class);
+
         Gate::before(function (User $user, string $ability) {
             return $user->hasPermission($ability) ? true : null;
         });

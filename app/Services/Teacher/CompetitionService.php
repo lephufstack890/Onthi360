@@ -43,7 +43,7 @@ class CompetitionService
             ->get()
             ->map(fn (Competition $c) => [
                 'id' => $c->id,
-                'name' => $c->title,
+                'name' => $c->displayTitle(), // SỬA 25/10 — tên hiển thị theo khoá học
                 'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
                 'examsCount' => $c->exam_sittings_count,
             ])->all();

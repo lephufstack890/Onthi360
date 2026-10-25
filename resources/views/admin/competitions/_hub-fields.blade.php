@@ -29,6 +29,8 @@
                         <option value="{{ $co['id'] }}" @selected((string) old('course_id', $hubCompetition?->course_id) === (string) $co['id'])>{{ $co['title'] }}</option>
                     @endforeach
                 </x-ws.select>
+                {{-- SỬA 25/10 — tên hiển thị theo khoá học (App\Support\CompetitionNaming). --}}
+                <p class="text-xs text-slate-500 mt-1">Chọn khoá học thì tên hiển thị tự là “Cuộc thi đánh giá năng lực · &lt;tên khoá&gt;” (khảo sát: “Khảo sát năng lực · &lt;tên khoá&gt;”); tên nhập ở trên hiện ở dòng phụ.</p>
                 @unless (\App\Models\Competition::supportsCourse())
                     <p class="text-xs text-rose-600 mt-1">Chưa chạy migration 001270 — chạy "php artisan migrate" để chọn khoá học.</p>
                 @endunless

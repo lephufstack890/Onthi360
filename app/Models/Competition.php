@@ -90,6 +90,32 @@ class Competition extends Model
         return $has ??= Schema::hasColumn('competitions', 'course_id');
     }
 
+    /**
+     * SỬA 25/10 (khách: "loại cuộc thi thì title là Cuộc thi đánh giá năng lực + tên lộ trình; khảo sát thì Khảo sát năng lực +
+     * tên lộ trình") — tên HIỂN THỊ: gắn khoá học thì "<loại> · <tên khoá>" (đổi tên khoá là tên cuộc thi đổi theo), chưa gắn
+     * thì tên đã lưu. Chữ mặc định ở App\Support\CompetitionNaming.
+     */
+    public function displayTitle(): string
+    {
+        if (self::supportsCourse() && $this->course_id !== null) {
+            $course = $this->relationLoaded('course') ? $this->course : $this->course()->first(['id', 'title']);
+            $name = \App\Support\CompetitionNaming::forCourse($this->type, $course?->title);
+            if ($name !== null) {
+                return $name;
+            }
+        }
+
+        return (string) $this->title;
+    }
+
+    /** Tên riêng đã lưu khi khác tên hiển thị (vd "Học sinh giỏi Tin học mở rộng 2026") — hiện như dòng phụ / mùa giải. */
+    public function customTitle(): ?string
+    {
+        $title = trim((string) $this->title);
+
+        return $title !== '' && $title !== $this->displayTitle() ? $title : null;
+    }
+
     /** SỬA 24/10 — (không dùng nữa, thay bằng course()) lộ trình học liên quan. */
     public function learningPath(): BelongsTo
     {

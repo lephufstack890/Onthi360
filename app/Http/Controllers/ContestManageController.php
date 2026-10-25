@@ -120,12 +120,14 @@ class ContestManageController extends Controller
     private function saveRound(Request $request, int $competition, ?int $examId): RedirectResponse
     {
         $data = $request->validate([
-            'title' => ['nullable', 'string', 'max:255'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date'],
-            'assessment_id' => ['nullable', 'integer'],
-            'assignment_mode' => ['nullable', 'in:random,choice'],
-            'form_count' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
+            'title' => ['required', 'string', 'max:160'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date'],
+            'source_type' => ['nullable', 'in:exam,questions'],
+        ], [
+            'title.required' => 'Nhập tên kỳ.',
+            'starts_at.required' => 'Chọn thời gian bắt đầu.',
+            'ends_at.required' => 'Chọn thời gian kết thúc.',
         ]);
         $model = Competition::query()->with('advisors:id,name')->findOrFail($competition);
         $round = $examId !== null ? \App\Models\CompetitionExam::query()->where('competition_id', $model->id)->findOrFail($examId) : null;
@@ -137,12 +139,42 @@ class ContestManageController extends Controller
                 ->withErrors($e->errors())->withInput()->with('round_dialog', $examId ?? 'new');
         }
 
-        $notice = $round === null
-            ? ($model->isSurvey() && $saved->assessment_id === null ? 'Đã thêm kỳ khảo sát. Mở tab "Thiết lập đề" để sinh đề cho kỳ.' : 'Đã thêm kỳ thi.')
-            : 'Đã lưu kỳ thi.';
+        if ($round !== null) {
+            return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $saved->id])->with('contest_notice', 'Đã lưu kỳ.');
+        }
 
-        return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $saved->id] + ($model->isSurvey() && $saved->assessment_id === null ? ['tab' => 'paper'] : []))
-            ->with('contest_notice', $notice);
+        // Bản mẫu: tạo xong mở ngay bước chọn đề ("Tạo kỳ & chọn đề") hoặc lập ma trận ("Tạo kỳ & lập ma trận").
+        $fromBank = $saved->sourceType($model) === \App\Models\CompetitionExam::SOURCE_EXAM;
+
+        return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $saved->id, 'tab' => 'paper'] + ($fromBank ? ['chon' => 1] : []))
+            ->with('contest_notice', $fromBank
+                ? 'Đã tạo kỳ từ đề có sẵn. Chọn đề từ ngân hàng đề để hoàn tất thiết lập.'
+                : 'Đã tạo kỳ khảo sát từ nguồn câu hỏi. Thiết lập ma trận rồi sinh và chốt đề.');
+    }
+
+    /** SỬA 25/10 — tab "Lấy đề có sẵn": chọn đề trong ngân hàng cho kỳ (khảo sát: đổi nguồn đề). */
+    public function setRoundExam(Request $request, int $competition, int $exam): RedirectResponse
+    {
+        $data = $request->validate([
+            'source_type' => ['nullable', 'in:exam,questions'],
+            'assessment_id' => ['nullable', 'integer'],
+            'assignment_mode' => ['nullable', 'in:random,choice'],
+            'form_count' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
+        ]);
+        $model = Competition::query()->with('advisors:id,name')->findOrFail($competition);
+        $round = \App\Models\CompetitionExam::query()->where('competition_id', $model->id)->findOrFail($exam);
+
+        try {
+            $saved = $this->organizers->setRoundExam($request->user(), $model, $round, $data);
+        } catch (ValidationException $e) {
+            return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam, 'tab' => 'paper'])
+                ->withErrors($e->errors())->with('exam_picker', true);
+        }
+
+        $questions = $saved->sourceType($model) === \App\Models\CompetitionExam::SOURCE_QUESTIONS;
+
+        return redirect()->route('competitions.show', ['competition' => $competition, 'vong' => $exam, 'tab' => 'paper'])
+            ->with('contest_notice', $questions ? 'Đã chuyển sang nguồn câu hỏi. Thiết lập ma trận rồi sinh và chốt đề.' : 'Đã lưu thiết lập đề.');
     }
 
     private function back(Request $request, int $competition): RedirectResponse

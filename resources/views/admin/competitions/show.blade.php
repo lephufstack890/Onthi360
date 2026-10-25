@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', $competition->title)
+@section('title', $competition->displayTitle())
 @section('page-title', 'Chi tiết cuộc thi')
 
 @section('content')
@@ -54,7 +54,7 @@
             <x-ws.icon-tile emoji="🏆" tone="rose" />
             <div>
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->title }}</h1>
+                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800">{{ $competition->displayTitle() }}</h1>
                     {{-- TẠM ẨN 24/8: Khách hiện không cần hiện Trạng thái ở đây (đang thừa) —
                          comment lại (KHÔNG xoá), $meta vẫn tính ở phần khai báo đầu file, chỉ không hiện.
                     <x-ws.badge :tone="$meta['tone']">{{ $meta['label'] }}</x-ws.badge>

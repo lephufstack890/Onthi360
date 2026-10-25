@@ -5,11 +5,13 @@ namespace App\Services\Contest;
 use App\Models\ClassEnrollment;
 use App\Models\ClassRoom;
 use App\Models\Competition;
+use App\Models\CompetitionExam;
 use App\Models\CompetitionRegistration;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Admin\CompetitionService as AdminCompetitionService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -42,9 +44,57 @@ class ContestOrganizerService
             return false;
         }
 
+        // SỬA 25/10 — giáo viên tổ chức của cuộc thi, HOẶC giáo viên chủ trì ít nhất 1 kỳ trong cuộc thi (quản lý danh
+        // sách học sinh, duyệt đăng ký của cả cuộc thi).
+        return $this->isAdvisor($user, $competition) || $this->organizesRound($user, $competition);
+    }
+
+    /**
+     * SỬA 25/10 (khách: "vai trò admin và giáo viên có nút thêm kỳ thi") — mọi giáo viên / admin đang hoạt động được thêm
+     * kỳ vào bất kỳ cuộc thi / khảo sát nào và trở thành NGƯỜI CHỦ TRÌ kỳ đó (bản mẫu: canCreateContestRound).
+     */
+    public function canCreateRound(?User $user): bool
+    {
+        return $user !== null && ($this->isAdmin($user) || $user->hasRole(Role::TEACHER));
+    }
+
+    /**
+     * Ai quản lý được 1 kỳ (sửa, xoá, chọn đề, thiết lập ma trận): admin mọi kỳ; giáo viên kỳ mình chủ trì; kỳ cũ chưa có
+     * người chủ trì thì giáo viên tổ chức của cuộc thi (bản mẫu: canManageRound).
+     */
+    public function canManageRound(?User $user, Competition $competition, CompetitionExam $exam): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+        if (! $user->hasRole(Role::TEACHER)) {
+            return false;
+        }
+
+        $organizerId = CompetitionExam::supportsRoundSetup() ? $exam->organizer_id : null;
+
+        return $organizerId !== null ? (int) $organizerId === (int) $user->id : $this->isAdvisor($user, $competition);
+    }
+
+    private function isAdvisor(User $user, Competition $competition): bool
+    {
         return $competition->relationLoaded('advisors')
             ? $competition->advisors->contains('id', $user->id)
             : $competition->advisors()->where('users.id', $user->id)->exists();
+    }
+
+    private function organizesRound(User $user, Competition $competition): bool
+    {
+        if (! CompetitionExam::supportsRoundSetup()) {
+            return false;
+        }
+
+        return $competition->relationLoaded('examSittings')
+            ? $competition->examSittings->contains(fn ($e) => (int) $e->organizer_id === (int) $user->id)
+            : CompetitionExam::query()->where('competition_id', $competition->id)->where('organizer_id', $user->id)->exists();
     }
 
     public function isAdmin(User $user): bool
@@ -214,98 +264,193 @@ class ContestOrganizerService
     }
 
     /**
-     * SỬA 24/10 (khách: "admin và giáo viên có nút thêm kỳ thi trong phòng thi, bấm thì hiện modal") — dữ liệu cho hộp
-     * thoại Thêm / Sửa kỳ thi: danh sách đề loại "Đề thi" (trừ đề do tab Thiết lập đề tự tạo) + giá trị từng kỳ.
+     * SỬA 25/10 (khách: "UI phòng thi như source mới — Các kỳ tôi tổ chức, nút Thêm kỳ thi / Thêm kỳ khảo sát, modal
+     * như source") — dữ liệu cho 3 hộp thoại của ban tổ chức trong phòng thi:
+     *   · Thêm kỳ (tên, thời gian, nguồn câu hỏi) — người tạo là NGƯỜI CHỦ TRÌ kỳ.
+     *   · Sửa kỳ (tên, thời gian) / Xoá kỳ.
+     *   · Lấy đề có sẵn (chọn đề trong ngân hàng + mã đề hoán vị / cách giao đề) — xem setRoundExam().
+     * Mỗi người chỉ nhận dữ liệu của các kỳ MÌNH quản lý được (canManageRound()).
      */
-    public function roundEditor(Competition $competition): array
+    public function roundEditor(Competition $competition, User $viewer): array
     {
-        $paperIds = \App\Models\CompetitionExamPaper::supported()
-            ? \App\Models\CompetitionExamPaper::query()->whereNotNull('assessment_id')->pluck('assessment_id')->all()
-            : [];
-        $exams = \App\Models\CompetitionExam::query()->where('competition_id', $competition->id)->orderBy('order')->get();
-        $keep = $exams->pluck('assessment_id')->filter()->all();
-
-        $options = \App\Models\Assessment::query()
-            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', \App\Enums\AssessmentType::Exam->value)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
-                ->orWhereIn('id', $keep === [] ? [0] : $keep))
-            ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes'])
-            ->map(fn ($a) => ['id' => (int) $a->id, 'title' => (string) $a->title, 'duration' => $a->duration_minutes])->all();
+        $exams = CompetitionExam::query()->where('competition_id', $competition->id)
+            ->with(CompetitionExam::supportsRoundSetup() ? ['organizer:id,name'] : [])->orderBy('order')->get();
+        $fallbackHost = $this->organizerLabel($competition);
+        $mine = $exams->filter(fn (CompetitionExam $e) => $this->canManageRound($viewer, $competition, $e))->values();
 
         $attempted = \App\Models\Attempt::query()->whereIn('competition_exam_id', $exams->pluck('id')->all() ?: [0])
             ->distinct()->pluck('competition_exam_id')->map(fn ($v) => (int) $v)->all();
 
         return [
             'isSurvey' => $competition->isSurvey(),
+            'contestTitle' => $competition->displayTitle(),
+            'organizerName' => (string) $viewer->name,
             'storeUrl' => route('competitions.manage.rounds.store', $competition->id),
-            'options' => $options,
-            'formsSupported' => \App\Models\CompetitionExam::supportsForms(),
+            'formsSupported' => CompetitionExam::supportsForms(),
             'maxForms' => \App\Support\ContestForms::MAX,
-            'rounds' => $exams->mapWithKeys(fn ($e) => [(int) $e->id => [
+            'options' => $mine->isNotEmpty() ? $this->examOptions($viewer, $mine) : [],
+            'rounds' => $mine->mapWithKeys(fn (CompetitionExam $e) => [(int) $e->id => [
                 'id' => (int) $e->id,
                 'title' => (string) ($e->title ?? ''),
+                'host' => $this->roundHostName($e, $fallbackHost),
                 'startsAt' => $e->starts_at?->format('Y-m-d\\TH:i') ?? '',
                 'endsAt' => $e->ends_at?->format('Y-m-d\\TH:i') ?? '',
+                'source' => $e->sourceType($competition),
                 'assessmentId' => $e->assessment_id !== null ? (int) $e->assessment_id : '',
                 'assignmentMode' => $e->assignmentMode(),
                 'formCount' => $e->formCount(),
                 'locked' => in_array((int) $e->id, $attempted, true),
                 'updateUrl' => route('competitions.manage.rounds.update', ['competition' => $competition->id, 'exam' => $e->id]),
                 'deleteUrl' => route('competitions.manage.rounds.destroy', ['competition' => $competition->id, 'exam' => $e->id]),
+                'examUrl' => route('competitions.manage.rounds.exam', ['competition' => $competition->id, 'exam' => $e->id]),
             ]])->all(),
         ];
     }
 
-    /** Thêm (exam = null) hoặc sửa một kỳ thi. Cuộc thi bắt buộc có đề; khảo sát có thể để trống rồi sinh đề ở tab Thiết lập đề. */
-    public function saveRound(User $user, Competition $competition, ?\App\Models\CompetitionExam $exam, array $data): \App\Models\CompetitionExam
+    /**
+     * Đề có sẵn để chọn: Assessment loại "Đề thi" (trừ đề do tab Thiết lập đề tự sinh) + lịch sử dùng của CHÍNH người
+     * xem ("Bạn đã dùng · N kỳ khác" như source). Đề đang gắn ở kỳ của người xem luôn có trong danh sách.
+     *
+     * @param  Collection<int, CompetitionExam>  $mine
+     */
+    private function examOptions(User $viewer, Collection $mine): array
     {
-        $this->assertCanManage($user, $competition);
+        $paperIds = \App\Models\CompetitionExamPaper::supported()
+            ? \App\Models\CompetitionExamPaper::query()->whereNotNull('assessment_id')->pluck('assessment_id')->all()
+            : [];
+        $keep = $mine->pluck('assessment_id')->filter()->all();
 
+        $options = \App\Models\Assessment::query()
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', \App\Enums\AssessmentType::Exam->value)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
+                ->orWhereIn('id', $keep === [] ? [0] : $keep))
+            ->withCount('items')
+            ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes', 'content_mode']);
+
+        // Kỳ (ở mọi cuộc thi) do người xem chủ trì đang dùng từng đề.
+        $usage = [];
+        if (CompetitionExam::supportsRoundSetup()) {
+            CompetitionExam::query()->with('competition:id,title,type,course_id')
+                ->where('organizer_id', $viewer->id)->whereNotNull('assessment_id')
+                ->get(['id', 'competition_id', 'assessment_id', 'title', 'starts_at'])
+                ->each(function (CompetitionExam $e) use (&$usage) {
+                    $usage[(int) $e->assessment_id][] = [
+                        'roundId' => (int) $e->id,
+                        'label' => $e->displayTitle(),
+                        'date' => $e->starts_at?->format('d/m/Y') ?? 'Chưa xếp lịch',
+                        'contest' => $e->competition?->displayTitle() ?? '',
+                    ];
+                });
+        }
+
+        return $options->map(fn ($a) => [
+            'id' => (int) $a->id,
+            'title' => (string) $a->title,
+            'duration' => $a->duration_minutes,
+            'questions' => (int) $a->items_count,
+            'isPdf' => $a->isPdfMode(),
+            'uses' => $usage[(int) $a->id] ?? [],
+        ])->all();
+    }
+
+    /**
+     * Thêm (exam = null) hoặc sửa tên / thời gian một kỳ. Đề của kỳ chọn sau ở tab "Lấy đề có sẵn" (setRoundExam) hoặc
+     * "Thiết lập đề" (ma trận) — đúng luồng source: "Tạo kỳ & chọn đề" / "Tạo kỳ & lập ma trận".
+     */
+    public function saveRound(User $user, Competition $competition, ?CompetitionExam $exam, array $data): CompetitionExam
+    {
+        $exam === null ? $this->assertCanCreateRound($user) : $this->assertCanManageRound($user, $competition, $exam);
+
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            throw ValidationException::withMessages(['title' => 'Nhập tên kỳ '.($competition->isSurvey() ? 'khảo sát' : 'thi').'.']);
+        }
         $starts = filled($data['starts_at'] ?? null) ? \Illuminate\Support\Carbon::parse($data['starts_at']) : null;
         $ends = filled($data['ends_at'] ?? null) ? \Illuminate\Support\Carbon::parse($data['ends_at']) : null;
-        if ($starts !== null && $ends !== null && $ends->lt($starts)) {
+        if ($starts === null || $ends === null) {
+            throw ValidationException::withMessages(['starts_at' => 'Chọn thời gian bắt đầu và kết thúc.']);
+        }
+        if ($ends->lte($starts)) {
             throw ValidationException::withMessages(['ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.']);
         }
 
-        $assessmentId = filled($data['assessment_id'] ?? null) ? (int) $data['assessment_id'] : null;
-        if ($assessmentId !== null && $assessmentId !== (int) ($exam?->assessment_id ?? 0)
+        $attrs = ['title' => \Illuminate\Support\Str::limit($title, 160, ''), 'starts_at' => $starts, 'ends_at' => $ends];
+
+        if ($exam !== null) {
+            $exam->update($attrs);
+
+            return $exam;
+        }
+
+        if ($ends->isPast()) {
+            throw ValidationException::withMessages(['ends_at' => 'Thời gian kết thúc phải ở trong tương lai.']);
+        }
+
+        $attrs['competition_id'] = $competition->id;
+        $attrs['order'] = (int) CompetitionExam::query()->where('competition_id', $competition->id)->max('order') + 1;
+        if (CompetitionExam::supportsRoundSetup()) {
+            $attrs['organizer_id'] = $user->id;
+            // Cuộc thi luôn lấy đề có sẵn; khảo sát chọn 1 trong 2 nguồn.
+            $attrs['source_type'] = $competition->isSurvey() && ($data['source_type'] ?? '') === CompetitionExam::SOURCE_EXAM
+                ? CompetitionExam::SOURCE_EXAM
+                : ($competition->isSurvey() ? CompetitionExam::SOURCE_QUESTIONS : CompetitionExam::SOURCE_EXAM);
+        }
+
+        return CompetitionExam::create($attrs);
+    }
+
+    /**
+     * SỬA 25/10 — tab "Lấy đề có sẵn": chọn đề trong ngân hàng cho kỳ (+ cuộc thi: số mã đề hoán vị, cách giao đề).
+     * Khảo sát được đổi qua lại 2 nguồn: chọn "Từ nguồn câu hỏi" thì bỏ đề có sẵn, đề ma trận đã chốt được dùng lại;
+     * chọn "Từ đề có sẵn" thì các đề ma trận chuyển về bản nháp (không giao cho học sinh nữa, không xoá).
+     * Cuộc thi đã có bài làm thì không đổi đề (mỗi học sinh nộp 1 lần — đổi đề là bất công); khảo sát không khoá.
+     */
+    public function setRoundExam(User $user, Competition $competition, CompetitionExam $exam, array $data): CompetitionExam
+    {
+        $this->assertCanManageRound($user, $competition, $exam);
+        $survey = $competition->isSurvey();
+        $source = $survey && ($data['source_type'] ?? CompetitionExam::SOURCE_EXAM) === CompetitionExam::SOURCE_QUESTIONS
+            ? CompetitionExam::SOURCE_QUESTIONS : CompetitionExam::SOURCE_EXAM;
+
+        $assessmentId = $source === CompetitionExam::SOURCE_EXAM && filled($data['assessment_id'] ?? null) ? (int) $data['assessment_id'] : null;
+        if ($source === CompetitionExam::SOURCE_EXAM && $assessmentId === null) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chọn một đề trong ngân hàng đề.']);
+        }
+        if ($assessmentId !== null && $assessmentId !== (int) ($exam->assessment_id ?? 0)
             && ! \App\Models\Assessment::query()->whereKey($assessmentId)->where('type', \App\Enums\AssessmentType::Exam->value)->exists()) {
             throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "Đề thi".']);
         }
-        if ($assessmentId === null && ! $competition->isSurvey()) {
-            throw ValidationException::withMessages(['assessment_id' => 'Chọn đề cho kỳ thi.']);
-        }
-        if ($exam !== null && $assessmentId !== ($exam->assessment_id !== null ? (int) $exam->assessment_id : null)
+        if (! $survey && $assessmentId !== ($exam->assessment_id !== null ? (int) $exam->assessment_id : null)
             && \App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
             throw ValidationException::withMessages(['assessment_id' => 'Kỳ thi đã có bài làm — không đổi đề được nữa.']);
         }
 
-        $attrs = [
-            'title' => trim((string) ($data['title'] ?? '')) ?: null,
-            'assessment_id' => $assessmentId,
-            'starts_at' => $starts,
-            'ends_at' => $ends,
-        ];
-        if (\App\Models\CompetitionExam::supportsForms() && ! $competition->isSurvey()) {
+        $attrs = ['assessment_id' => $assessmentId];
+        if (CompetitionExam::supportsRoundSetup()) {
+            $attrs['source_type'] = $source;
+        }
+        if (CompetitionExam::supportsForms() && ! $survey) {
             $attrs['assignment_mode'] = ($data['assignment_mode'] ?? 'random') === 'choice' ? 'choice' : 'random';
             $attrs['form_count'] = max(1, min(\App\Support\ContestForms::MAX, (int) ($data['form_count'] ?? 1)));
         }
 
-        if ($exam === null) {
-            $attrs['competition_id'] = $competition->id;
-            $attrs['order'] = (int) \App\Models\CompetitionExam::query()->where('competition_id', $competition->id)->max('order') + 1;
-
-            return \App\Models\CompetitionExam::create($attrs);
-        }
-
-        $exam->update($attrs);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($exam, $attrs, $source) {
+            $exam->update($attrs);
+            if (\App\Models\CompetitionExamPaper::supported()) {
+                $papers = \App\Models\CompetitionExamPaper::query()->where('competition_exam_id', $exam->id);
+                $source === CompetitionExam::SOURCE_EXAM
+                    // Đề có sẵn: đề ma trận thôi giao (về bản nháp), không xoá.
+                    ? $papers->where('status', \App\Models\CompetitionExamPaper::STATUS_PUBLISHED)->update(['status' => \App\Models\CompetitionExamPaper::STATUS_DRAFT])
+                    : null;
+            }
+        });
 
         return $exam;
     }
 
-    /** Xoá kỳ thi chưa có bài làm (kèm đề sinh từ ma trận của kỳ). */
-    public function deleteRound(User $user, Competition $competition, \App\Models\CompetitionExam $exam): void
+    /** Xoá kỳ chưa có bài làm (kèm đề sinh từ ma trận của kỳ). */
+    public function deleteRound(User $user, Competition $competition, CompetitionExam $exam): void
     {
-        $this->assertCanManage($user, $competition);
+        $this->assertCanManageRound($user, $competition, $exam);
 
         if (\App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
             throw ValidationException::withMessages(['exam' => 'Kỳ thi đã có bài làm của học sinh — không xoá được.']);
@@ -321,9 +466,39 @@ class ContestOrganizerService
         $exam->delete();
     }
 
+    /** Người chủ trì kỳ: người tạo kỳ; kỳ cũ chưa ghi thì là ban tổ chức của cuộc thi ($fallback). */
+    public function roundHostName(CompetitionExam $exam, string $fallback): string
+    {
+        $name = CompetitionExam::supportsRoundSetup() && $exam->organizer_id !== null ? $exam->organizer?->name : null;
+
+        return $name ?: $fallback;
+    }
+
+    /** Tên ban tổ chức của cả cuộc thi: đơn vị ngoài (nếu có) → giáo viên tổ chức → mặc định. */
+    public function organizerLabel(Competition $c): string
+    {
+        if ($c->isExternallyOrganized() && trim((string) $c->organizer_name) !== '') {
+            return trim((string) $c->organizer_name);
+        }
+
+        $names = $c->advisors->pluck('name')->filter()->take(2)->all();
+
+        return $names !== [] ? implode(', ', $names) : 'Ban tổ chức Ôn Thi 360';
+    }
+
     private function assertCanManage(User $user, Competition $competition): void
     {
         abort_unless($this->canManage($user, $competition), 403, 'Bạn không có quyền quản lý cuộc thi này.');
+    }
+
+    private function assertCanCreateRound(User $user): void
+    {
+        abort_unless($this->canCreateRound($user), 403, 'Chỉ giáo viên hoặc admin được thêm kỳ.');
+    }
+
+    public function assertCanManageRound(?User $user, Competition $competition, CompetitionExam $exam): void
+    {
+        abort_unless($this->canManageRound($user, $competition, $exam), 403, 'Chỉ người chủ trì kỳ này (hoặc admin) được thay đổi.');
     }
 
     /** Tài khoản học sinh đang hoạt động trong phạm vi người quản lý. */

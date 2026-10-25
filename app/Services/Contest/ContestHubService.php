@@ -51,10 +51,16 @@ class ContestHubService
 
         $competitions = Competition::query()
             ->where('status', '!=', CompetitionStatus::Archived->value)
-            ->with(array_merge(['examSittings.assessment:id,title,duration_minutes', 'advisors:id,name'], Competition::supportsCourse() ? ['course:id,title'] : []))
+            ->with(array_merge(['examSittings.assessment:id,title,duration_minutes', 'advisors:id,name'], Competition::supportsCourse() ? ['course:id,title,status'] : []))
             ->latest('id')
             ->limit(200)
             ->get();
+
+        // SỬA 25/10 — cuộc thi / khảo sát tự sinh theo khoá học mà chưa có kỳ nào (hoặc khoá học chưa phát hành): chỉ ban
+        // tổ chức (admin / giáo viên) thấy để thêm kỳ; học sinh và khách không thấy sự kiện rỗng.
+        if (! $this->organizers->canCreateRound($viewer)) {
+            $competitions = $competitions->filter(fn (Competition $c) => $c->examSittings->isNotEmpty() && ! $this->courseHidden($c))->values();
+        }
 
         $statuses = ($viewer !== null && CompetitionRegistration::supported() && $competitions->isNotEmpty())
             ? CompetitionRegistration::query()
@@ -94,7 +100,8 @@ class ContestHubService
 
         return [
             'id' => $c->id,
-            'title' => $c->title,
+            'title' => $c->displayTitle(),
+            'edition' => $this->editionLabel($c),
             'isSurvey' => $survey,
             'type' => $survey ? 'survey' : 'contest',
             'url' => route('competitions.show', $c->id),
@@ -115,30 +122,43 @@ class ContestHubService
 
     // ───────────────────────────── Phòng thi ─────────────────────────────
 
+    /**
+     * SỬA 25/10 (khách: "UI phòng thi như source mới, cả admin lẫn giáo viên") — 2 kiểu xem:
+     *   · Ban tổ chức (admin / giáo viên — canCreateRound): "Các kỳ tôi tổ chức" — giáo viên chỉ thấy kỳ MÌNH chủ trì
+     *     (admin thấy mọi kỳ), nút "Thêm kỳ thi" / "Thêm kỳ khảo sát", tab Tổng quan · Thiết lập đề (hoặc Lấy đề có sẵn)
+     *     · Học sinh · Bảng xếp hạng. Bản mẫu: ContestRoomPage.jsx + ContestOrganizerOverview.jsx + ContestPaperSettings.jsx.
+     *   · Học sinh / khách: như trước, thêm dòng "Chủ trì" ở từng kỳ.
+     */
     public function roomData(int $competitionId, ?User $viewer, ?int $roundId = null, ?string $tab = null): array
     {
-        $hub = Competition::supportsHubFields();
-
         /** @var Competition $c */
         $c = Competition::query()
-            ->with(array_merge(['examSittings.assessment', 'advisors:id,name'], Competition::supportsCourse() ? ['course:id,title'] : []))
+            ->with(array_merge(
+                ['examSittings.assessment', 'advisors:id,name'],
+                CompetitionExam::supportsRoundSetup() ? ['examSittings.organizer:id,name'] : [],
+                Competition::supportsCourse() ? ['course:id,title'] : [],
+            ))
             ->findOrFail($competitionId);
 
         $survey = $c->isSurvey();
+        $staff = $this->organizers->canCreateRound($viewer);
         $manager = $this->organizers->canManage($viewer, $c);
-        $isStudent = $viewer !== null && $viewer->hasRole(Role::STUDENT) && ! $manager;
+        $isStudent = $viewer !== null && $viewer->hasRole(Role::STUDENT) && ! $staff;
         $registration = $isStudent ? $this->entry->registrationFor($viewer, $c->id) : null;
         $eventState = $this->eventState($c);
         $closed = $eventState === 'completed';
 
-        $exams = $c->examSittings->values();
+        // Ban tổ chức chỉ thấy các kỳ mình quản lý được (admin: mọi kỳ).
+        $exams = $c->examSittings
+            ->filter(fn (CompetitionExam $e) => ! $staff || $this->organizers->canManageRound($viewer, $c, $e))
+            ->values();
         $examIds = $exams->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $myAttempts = ($viewer !== null && $examIds !== [])
             ? Attempt::query()->where('user_id', $viewer->id)->whereIn('competition_exam_id', $examIds)->orderBy('id')->get()->groupBy('competition_exam_id')
             : collect();
 
-        $rounds = $exams->map(function (CompetitionExam $e, int $i) use ($myAttempts) {
+        $rounds = $exams->map(function (CompetitionExam $e, int $i) use ($myAttempts, $c) {
             $mine = $myAttempts->get($e->id, collect());
             $state = $this->roundState($e);
 
@@ -147,6 +167,7 @@ class ContestHubService
                 'no' => $i + 1,
                 'noLabel' => str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT),
                 'label' => $e->displayTitle(),
+                'host' => $this->roundHost($c, $e),
                 'state' => $state,
                 'stateLabel' => self::STATE_LABELS[$state],
                 'dateRange' => ($e->starts_at?->format('d/m/Y') ?? 'Chưa xếp lịch').($e->ends_at ? ' – '.$e->ends_at->format('d/m/Y') : ''),
@@ -157,14 +178,15 @@ class ContestHubService
         })->all();
 
         $selectedExam = $this->pickRound($exams, $roundId);
-        [$start, $end] = $this->eventRange($c);
         $doneCount = count(array_filter($rounds, fn ($r) => $r['submitted']));
+        $isAdmin = $viewer !== null && $this->organizers->isAdmin($viewer);
+        $kind = $survey ? 'kỳ khảo sát' : 'kỳ thi';
 
         $base = [
             'competition' => $c,
             'contest' => [
                 'id' => $c->id,
-                'title' => $c->title,
+                'title' => $c->displayTitle(),
                 'isSurvey' => $survey,
                 'image' => $c->imageUrl(),
                 'editionLabel' => $this->editionLabel($c),
@@ -173,40 +195,48 @@ class ContestHubService
                 'organizer' => $this->organizerLabel($c),
                 'roadmap' => $this->roadmap($c),
                 'state' => $eventState,
-                'stateLabel' => $this->stateHint($eventState, $start, $end),
-                'dateRange' => ($start?->format('H:i d/m/Y') ?? 'Chưa xếp lịch').' – '.($end?->format('H:i d/m/Y') ?? '…'),
+                'stateLabel' => $this->stateHint($eventState, ...$this->eventRange($c)),
                 'publishLabel' => $c->publish_result_at?->format('H:i d/m/Y'),
+                'kind' => $kind,
             ],
             'viewer' => [
                 'loggedIn' => $viewer !== null,
                 'isStudent' => $isStudent,
+                'isStaff' => $staff,
                 'isManager' => $manager,
-                'isAdmin' => $viewer !== null && $this->organizers->isAdmin($viewer),
+                'isAdmin' => $isAdmin,
                 'registrationStatus' => $registration?->status,
                 'name' => $viewer?->name,
+                'roleLabel' => match (true) {
+                    $staff => 'Người tổ chức',
+                    $isStudent => 'Học sinh',
+                    $viewer !== null => 'Chế độ xem',
+                    default => 'Khách · Chế độ xem',
+                },
             ],
             'rounds' => $rounds,
+            'roundsHeading' => $staff ? ($isAdmin ? 'Các kỳ đang tổ chức' : 'Các kỳ tôi tổ chức') : ($survey ? 'Các kỳ khảo sát' : 'Các kỳ thi'),
             'doneCount' => $doneCount,
             'closed' => $closed,
             'loginUrl' => route('login'),
             'catalogUrl' => route('competitions.index'),
-            'adminUrl' => $viewer !== null && $this->organizers->isAdmin($viewer) ? route('admin.competitions.show', $c->id) : null,
+            'adminUrl' => $isAdmin ? route('admin.competitions.show', $c->id) : null,
             'serverNowMs' => (int) round(microtime(true) * 1000),
-            // SỬA 24/10 — hộp thoại Thêm / Sửa kỳ thi cho ban tổ chức.
-            'roundEditor' => $manager ? $this->organizers->roundEditor($c) : null,
+            'roundEditor' => $staff ? $this->organizers->roundEditor($c, $viewer) : null,
         ];
 
         if ($selectedExam === null) {
-            return $base + ['round' => null, 'tabs' => [], 'activeTab' => 'overview', 'action' => $this->noRoundAction($manager)];
+            return $base + ['round' => null, 'tabs' => [], 'activeTab' => 'overview', 'action' => $this->noRoundAction($staff, $kind)];
         }
 
-        return $base + $this->roundData($c, $selectedExam, $rounds, $viewer, $registration, $manager, $isStudent, $closed, $myAttempts->get($selectedExam->id, collect()), $tab);
+        $roundManager = $staff && $this->organizers->canManageRound($viewer, $c, $selectedExam);
+
+        return $base + $this->roundData($c, $selectedExam, $viewer, $registration, $roundManager, $isStudent, $closed, $myAttempts->get($selectedExam->id, collect()), $tab);
     }
 
     private function roundData(
         Competition $c,
         CompetitionExam $exam,
-        array $rounds,
         ?User $viewer,
         ?CompetitionRegistration $registration,
         bool $manager,
@@ -216,12 +246,13 @@ class ContestHubService
         ?string $tab,
     ): array {
         $survey = $c->isSurvey();
-        // SỬA 24/10 — kỳ có đề sinh từ ma trận: hiện theo đề đã giao cho học sinh, chưa nhận đề thì đề đầu tiên.
-        $papers = $this->papers->publishedPapers($exam);
-        // SỬA 24/10 — học sinh tự chọn đề: chọn sẵn đề làm lần trước, chưa có thì đề đầu tiên. Khảo sát thoát giữa chừng
-        // là làm lại từ đầu (ContestEntryService::enter() huỷ lượt dở) nên không khoá theo đề đang làm dở.
+        $source = $exam->sourceType($c);
+        // SỬA 25/10 — nguồn "đề có sẵn" dùng đề gắn ở kỳ; nguồn "câu hỏi" dùng các đề ma trận đã chốt.
+        $papers = $source === CompetitionExam::SOURCE_QUESTIONS ? $this->papers->publishedPapers($exam) : collect();
+        // Học sinh tự chọn đề: chọn sẵn đề làm lần trước, chưa có thì đề đầu tiên. Khảo sát thoát giữa chừng là làm lại
+        // từ đầu (ContestEntryService::enter() huỷ lượt dở) nên không khoá theo đề đang làm dở.
         $myPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null;
-        $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : $exam->assessment;
+        $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : ($source === CompetitionExam::SOURCE_EXAM ? $exam->assessment : null);
         $period = $this->roundState($exam);
         $questions = $this->questionsOfAssessment($assessment);
         // Bảng xếp hạng / thống kê theo câu: kỳ nhiều đề thì gộp câu của mọi đề.
@@ -235,7 +266,7 @@ class ContestHubService
         $latest = $attemptRows === [] ? null : end($attemptRows);
         $inProgress = $mine->first(fn (Attempt $a) => $a->status === AttemptStatus::InProgress);
 
-        // Mã đề
+        // Mã đề hoán vị (cuộc thi)
         $isPdf = $assessment?->isPdfMode() ?? false;
         $formCount = (! $survey && ! $isPdf) ? $exam->formCount() : 1;
         $assignedForm = $this->entry->assignedForm($registration, $exam);
@@ -258,30 +289,31 @@ class ContestHubService
             }
         }
 
-        // Quyền vào thi + nút hành động (bản mẫu: contestEntry() + chuỗi if/else "action" trong ContestRoomPage.jsx)
+        $participants = ($manager && $viewer !== null) ? $this->participants($c, $exam, $rankings, $viewer) : null;
+        $setup = $this->roundSetup($c, $exam, $source, $assessment, $papers, $questions, $formCount);
+
         // Khảo sát: lượt dở không "tiếp tục" được — bắt đầu lại là lượt mới (xem ContestEntryService::enter()).
         $resume = $inProgress !== null && ! $survey;
         $access = $this->access($survey, $period, $isStudent, $assessment !== null, $latest !== null, $registration?->status);
-        $action = $this->action($c, $survey, $period, $closed, $manager, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
+        $action = $manager
+            ? $this->managerAction($survey, $period, $setup['ready'], (int) ($participants['pending'] ?? 0))
+            : $this->action($c, $survey, $period, $closed, false, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
 
-        $tabs = array_values(array_filter([
-            ['id' => 'overview', 'icon' => 'list-checks', 'label' => 'Thông tin kỳ thi', 'count' => null],
-            ($manager && $survey && \App\Models\CompetitionExamPaper::supported()) ? ['id' => 'paper', 'icon' => 'file-text', 'label' => 'Thiết lập đề', 'count' => null] : null,
-            $viewer !== null ? ['id' => 'submissions', 'icon' => 'file-text', 'label' => 'Bài nộp của tôi', 'count' => count($attemptRows)] : null,
-            ['id' => 'results', 'icon' => $survey ? 'bar-chart-3' : 'trophy', 'label' => $survey ? 'Kết quả năng lực' : 'Bảng xếp hạng', 'count' => null],
-            $survey ? ['id' => 'ranking', 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null] : null,
-            $manager ? ['id' => 'registrations', 'icon' => 'user-check', 'label' => 'Học sinh', 'count' => null] : null,
-        ]));
+        $rankTab = $survey ? 'ranking' : 'results';
+        $tabs = $manager
+            ? [
+                ['id' => 'overview', 'icon' => 'list-checks', 'label' => 'Tổng quan', 'count' => null],
+                ['id' => 'paper', 'icon' => 'file-text', 'label' => $setup['tabLabel'], 'count' => null],
+                ['id' => 'registrations', 'icon' => 'user-check', 'label' => 'Học sinh', 'count' => $participants !== null ? ($participants['pending'] ?: count($participants['rows'])) : null],
+                ['id' => $rankTab, 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null],
+            ]
+            : array_values(array_filter([
+                ['id' => 'overview', 'icon' => 'list-checks', 'label' => $survey ? 'Thông tin kỳ khảo sát' : 'Thông tin kỳ thi', 'count' => null],
+                $viewer !== null ? ['id' => 'submissions', 'icon' => 'file-text', 'label' => 'Bài nộp của tôi', 'count' => count($attemptRows)] : null,
+                ['id' => 'results', 'icon' => $survey ? 'bar-chart-3' : 'trophy', 'label' => $survey ? 'Kết quả năng lực' : 'Bảng xếp hạng', 'count' => null],
+                $survey ? ['id' => 'ranking', 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null] : null,
+            ]));
         $tabIds = array_column($tabs, 'id');
-
-        $participants = ($manager && $viewer !== null) ? $this->participants($c, $exam, $rankings, $viewer) : null;
-        if ($participants !== null) {
-            foreach ($tabs as $i => $t) {
-                if ($t['id'] === 'registrations') {
-                    $tabs[$i]['count'] = $participants['pending'] ?: count($participants['rows']);
-                }
-            }
-        }
 
         $countdownTarget = match ($period) {
             'upcoming' => $exam->starts_at,
@@ -293,12 +325,14 @@ class ContestHubService
             'round' => [
                 'id' => (int) $exam->id,
                 'label' => $exam->displayTitle(),
+                'host' => $this->roundHost($c, $exam),
                 'state' => $period,
                 'stateLabel' => self::STATE_LABELS[$period],
                 'timeFrom' => $exam->starts_at?->format('H:i d/m/Y') ?? 'Chưa xếp lịch',
                 'timeTo' => $exam->ends_at?->format('H:i d/m/Y') ?? 'Không giới hạn',
                 'countdownLabel' => $period === 'upcoming' ? 'Mở kỳ thi sau' : ($period === 'current' ? 'Đóng kỳ thi sau' : 'Đã đóng kỳ thi'),
                 'countdownTargetMs' => $countdownTarget !== null ? $countdownTarget->getTimestamp() * 1000 : null,
+                'deadline' => $this->deadlineText($period, $countdownTarget),
                 'duration' => $duration,
                 'questionCount' => count($questions),
                 'totalPoints' => $this->num($totalPoints),
@@ -310,11 +344,19 @@ class ContestHubService
                 'needsPassword' => $survey && $c->hasEntryPassword(),
                 'paperCount' => $papers->count(),
                 'myPaperLabel' => $myPaper?->label,
-                'paperStateUrl' => ($manager && $survey && \App\Models\CompetitionExamPaper::supported())
+                'paperStateUrl' => ($manager && $survey && $source === CompetitionExam::SOURCE_QUESTIONS && \App\Models\CompetitionExamPaper::supported())
                     ? route('competitions.manage.papers', ['competition' => $c->id, 'exam' => $exam->id]) : null,
             ],
+            'setup' => $setup,
+            'organizerOverview' => $participants !== null ? [
+                'participants' => count($participants['rows']),
+                'pending' => $participants['pending'],
+                'records' => $participants['records'],
+                'submitters' => $participants['submitted'],
+                'password' => $survey ? $c->entryPassword() : null,
+            ] : null,
             'questions' => $questions,
-            // SỬA 24/10 — danh sách đề của kỳ (khảo sát nhiều đề) cho tab Thông tin kỳ thi.
+            // Danh sách đề của kỳ (khảo sát nhiều đề) cho tab Thông tin kỳ thi.
             'paperList' => $papers->map(fn ($p) => [
                 'id' => (int) $p->id,
                 'label' => $p->label,
@@ -339,6 +381,7 @@ class ContestHubService
             'rankQuestions' => $rankQuestions,
             'surveyResult' => $survey ? $this->surveyResult($attemptRows, $questions, $attempts) : null,
             'participants' => $participants,
+            'roundManager' => $manager,
             'access' => $access,
             'action' => $action,
             'tabs' => $tabs,
@@ -350,6 +393,121 @@ class ContestHubService
                 ? ['title' => 'Nhận mật khẩu trước khi khảo sát', 'text' => 'Liên hệ giáo viên để nhận mật khẩu. Nhập lại mật khẩu mỗi khi bắt đầu hoặc tiếp tục làm bài.']
                 : ['title' => 'Hoàn tất đăng ký trước khi vào thi', 'text' => 'Sau khi đăng ký được giáo viên hoặc admin tổ chức duyệt, bạn có thể vào các kỳ thi đang mở. Mỗi kỳ thi chỉ được nộp một lần.'],
         ];
+    }
+
+    /**
+     * SỬA 25/10 — tình trạng đề của kỳ cho ban tổ chức (ô "Bộ đề", tab Thiết lập đề / Lấy đề có sẵn, thẻ Tổng quan).
+     * Bản mẫu: ContestPaperTab + hub-round-facts trong ContestRoomPage.jsx.
+     */
+    private function roundSetup(Competition $c, CompetitionExam $exam, string $source, ?\App\Models\Assessment $assessment, Collection $papers, array $questions, int $formCount): array
+    {
+        $survey = $c->isSurvey();
+        $fromBank = $source === CompetitionExam::SOURCE_EXAM;
+
+        if ($fromBank) {
+            $count = $assessment !== null ? ($survey ? 1 : $formCount) : 0;
+            $mode = $count <= 1 ? 'fixed' : $exam->assignmentMode();
+            $forms = $assessment === null ? [] : array_map(fn (int $no) => [
+                'label' => ContestForms::label($no),
+                'title' => (string) $assessment->title,
+                'meta' => count($questions).' câu · 100 điểm',
+            ], range(1, $count));
+            $perForm = (string) count($questions);
+        } else {
+            $count = $papers->count();
+            $mode = $count <= 1 ? 'fixed' : 'choice'; // khảo sát nhiều đề: học sinh tự chọn đề (ContestPaperService::choosePaper)
+            $sizes = $papers->map(fn ($p) => $p->assessment ? $p->assessment->items()->count() : 0)->values();
+            $forms = $papers->values()->map(fn ($p, $i) => [
+                'label' => $p->label,
+                'title' => 'Đề ma trận '.($i + 1),
+                'meta' => ($sizes[$i] ?? 0).' câu · 100 điểm',
+            ])->all();
+            $perForm = $sizes->isEmpty() ? '0' : ($sizes->min() === $sizes->max() ? (string) $sizes->min() : $sizes->min().'–'.$sizes->max());
+        }
+
+        if ($count === 0) {
+            // Chưa có đề: hiện cách giao sẽ áp dụng (cuộc thi theo thiết lập kỳ; khảo sát nhiều đề → học sinh tự chọn).
+            $mode = $fromBank && ! $survey ? $exam->assignmentMode() : 'choice';
+        }
+        $ready = $count > 0 && ($questions !== [] || ($assessment?->isPdfMode() ?? false));
+        $modeLabel = ['fixed' => 'Đề cố định', 'choice' => 'Tự chọn', 'random' => 'Ngẫu nhiên'][$mode];
+        $drafts = ! $fromBank && \App\Models\CompetitionExamPaper::supported()
+            ? \App\Models\CompetitionExamPaper::query()->where('competition_exam_id', $exam->id)->count() - $count : 0;
+        $locked = ! $survey && Attempt::query()->where('competition_exam_id', $exam->id)->exists();
+
+        return [
+            'source' => $source,
+            'fromBank' => $fromBank,
+            'sourceLabel' => $fromBank ? 'Nguồn đề có sẵn' : 'Nguồn ma trận câu hỏi',
+            // Khách: "chọn từ nguồn câu hỏi thì chữ Thiết lập đề; lấy từ đề có sẵn thì chữ Lấy đề có sẵn".
+            'tabLabel' => $fromBank ? 'Lấy đề có sẵn' : 'Thiết lập đề',
+            'ready' => $ready,
+            'count' => $count,
+            'perForm' => $perForm,
+            'mode' => $mode,
+            'modeLabel' => $modeLabel,
+            'deliveryLabel' => ['fixed' => 'Một đề cố định', 'choice' => 'Học sinh tự chọn', 'random' => 'Giao ngẫu nhiên'][$mode],
+            'factValue' => $ready ? $count.' đề' : 'Đang chuẩn bị',
+            'factNote' => $ready ? $perForm.' câu/đề · '.$modeLabel : 'Chờ người tổ chức áp dụng',
+            'status' => match (true) {
+                $locked => 'Đã có bài làm',
+                $fromBank => $assessment !== null ? 'Đã chọn đề' : 'Chưa chọn đề',
+                $count > 0 => 'Đã chốt '.$count.' đề',
+                $drafts > 0 => 'Đã lưu ma trận nháp',
+                default => 'Chưa thiết lập ma trận',
+            },
+            'examTitle' => $fromBank ? $assessment?->title : null,
+            'forms' => $forms,
+            'locked' => $locked,
+            'openBuilder' => ! $fromBank && $count === 0,
+        ];
+    }
+
+    /** Nút chính của ban tổ chức — bản mẫu: nhánh manager trong ContestRoomPage.jsx. */
+    private function managerAction(bool $survey, string $period, bool $ready, int $pending): array
+    {
+        $rankTab = $survey ? 'ranking' : 'results';
+
+        if ($period === 'completed') {
+            return ['kind' => 'tab', 'tab' => $rankTab, 'label' => 'Xem kết quả', 'icon' => 'bar-chart-3',
+                'title' => 'Kỳ đã kết thúc', 'text' => 'Xem bài nộp, đối chiếu kết quả và in báo cáo trong Bảng xếp hạng.'];
+        }
+        if (! $ready) {
+            return ['kind' => 'tab', 'tab' => 'paper', 'label' => 'Hoàn tất thiết lập đề', 'icon' => 'file-text',
+                'title' => 'Cần chuẩn bị đề trước khi học sinh vào làm', 'text' => 'Chọn bộ đề, kiểm tra cách giao đề rồi áp dụng cho kỳ này.'];
+        }
+        if (! $survey && $pending > 0) {
+            return ['kind' => 'tab', 'tab' => 'registrations', 'label' => 'Duyệt đăng ký', 'icon' => 'user-check',
+                'title' => $pending.' học sinh đang chờ duyệt', 'text' => 'Bộ đề đã sẵn sàng. Mở danh sách để xác nhận học sinh được tham gia.'];
+        }
+
+        return ['kind' => 'tab', 'tab' => 'registrations', 'label' => 'Quản lý học sinh', 'icon' => 'user-check',
+            'title' => $period === 'upcoming' ? 'Đã chuẩn bị đề · Chờ đến giờ mở' : 'Bộ đề đã sẵn sàng',
+            'text' => $survey
+                ? 'Học sinh trong danh sách dùng mật khẩu để vào khảo sát. Theo dõi các lượt làm trong danh sách và bảng xếp hạng.'
+                : 'Học sinh được duyệt có thể vào thi khi kỳ mở. Theo dõi đăng ký và bài nộp trong danh sách.'];
+    }
+
+    /** "Mở sau 4 ngày 0 giờ 15 phút" / "Còn 22 ngày 11 giờ 13 phút để hoàn thành và nộp bài" (trình duyệt tự cập nhật). */
+    private function deadlineText(string $period, ?Carbon $target): ?array
+    {
+        if ($target === null || $period === 'completed') {
+            return null;
+        }
+        $minutes = max(0, (int) now()->diffInMinutes($target, true));
+        $clock = $minutes < 1 ? 'Dưới 1 phút' : trim((intdiv($minutes, 1440) ? intdiv($minutes, 1440).' ngày ' : '').intdiv($minutes % 1440, 60).' giờ '.($minutes % 60).' phút');
+
+        return [
+            'prefix' => $period === 'upcoming' ? 'Mở sau' : 'Còn',
+            'clock' => $clock,
+            'suffix' => $period === 'current' ? ' để hoàn thành và nộp bài' : '',
+        ];
+    }
+
+    /** Người chủ trì kỳ: người tạo kỳ; kỳ cũ chưa có thì là ban tổ chức của cuộc thi. */
+    private function roundHost(Competition $c, CompetitionExam $e): string
+    {
+        return $this->organizers->roundHostName($e, $this->organizerLabel($c));
     }
 
     // ───────────────────────────── Luật hiển thị ─────────────────────────────
@@ -448,10 +606,24 @@ class ContestHubService
         return $action;
     }
 
-    private function noRoundAction(bool $manager): array
+    private function noRoundAction(bool $staff, string $kind): array
     {
-        return ['kind' => 'disabled', 'label' => 'Chưa có kỳ thi', 'icon' => 'lock-keyhole',
-            'title' => 'Ban tổ chức đang chuẩn bị', 'text' => $manager ? 'Bấm "Thêm kỳ thi" để tạo kỳ đầu tiên cho sự kiện.' : 'Các kỳ thi sẽ hiện ở đây khi ban tổ chức công bố lịch.'];
+        return $staff
+            ? ['kind' => 'disabled', 'label' => 'Chưa có kỳ', 'icon' => 'list-checks',
+                'title' => 'Bạn chưa tổ chức kỳ nào', 'text' => 'Thêm '.$kind.' mới để quản lý học sinh và thiết lập đề của bạn.']
+            : ['kind' => 'disabled', 'label' => 'Chưa có '.$kind, 'icon' => 'lock-keyhole',
+                'title' => 'Ban tổ chức đang chuẩn bị', 'text' => 'Các '.$kind.' sẽ hiện ở đây khi ban tổ chức công bố lịch.'];
+    }
+
+    /** Khoá học của cuộc thi chưa phát hành → ẩn với học sinh / khách. */
+    private function courseHidden(Competition $c): bool
+    {
+        if (! Competition::supportsCourse() || $c->course_id === null || ! $c->relationLoaded('course') || $c->course === null) {
+            return false;
+        }
+        $status = $c->course->status;
+
+        return ($status instanceof \BackedEnum ? $status->value : (string) $status) !== \App\Enums\ContentStatus::Published->value;
     }
 
     // ───────────────────────────── Bảng xếp hạng ─────────────────────────────
@@ -698,6 +870,7 @@ class ContestHubService
             'rows' => $rows,
             'pending' => count(array_filter($rows, fn ($r) => $r['status'] === CompetitionRegistration::STATUS_PENDING)),
             'submitted' => count(array_filter($rows, fn ($r) => in_array($r['userId'], $submittedIds, true))),
+            'records' => Attempt::query()->where('competition_exam_id', $exam->id)->whereNotNull('submitted_at')->count(),
             'searchUrl' => route('competitions.manage.students', $c->id),
             'addUrl' => route('competitions.manage.add', $c->id),
             'classes' => $this->organizers->classOptions($viewer),
@@ -894,6 +1067,10 @@ class ContestHubService
         if ($label !== '') {
             return $label;
         }
+        // SỬA 25/10 — gắn khoá học thì tên hiển thị là "<loại> · <tên khoá>"; tên riêng đã lưu hiện ở dòng phụ như source.
+        if (($custom = $c->customTitle()) !== null) {
+            return $custom;
+        }
         [$start] = $this->eventRange($c);
 
         return $start !== null ? 'Mùa '.$start->format('Y') : '';
@@ -901,13 +1078,7 @@ class ContestHubService
 
     public function organizerLabel(Competition $c): string
     {
-        if ($c->isExternallyOrganized() && trim((string) $c->organizer_name) !== '') {
-            return trim((string) $c->organizer_name);
-        }
-
-        $names = $c->advisors->pluck('name')->filter()->take(2)->all();
-
-        return $names !== [] ? implode(', ', $names) : 'Ban tổ chức Ôn Thi 360';
+        return $this->organizers->organizerLabel($c);
     }
 
     private function num(float $v): string

@@ -112,6 +112,9 @@ class CompetitionService
         ];
 
         $rows = $this->competitions->latest(50);
+        if (Competition::supportsCourse() && $rows instanceof \Illuminate\Database\Eloquent\Collection) {
+            $rows->load('course:id,title'); // tên hiển thị theo khoá học (Competition::displayTitle())
+        }
 
         /*
          * SỬA 19/9 (10) — số đơn CHỜ DUYỆT của từng cuộc thi, gộp MỘT truy vấn cho cả trang
@@ -132,7 +135,7 @@ class CompetitionService
 
             return [
                 'id' => $c->id,
-                'name' => $c->title,
+                'name' => $c->displayTitle(), // SỬA 25/10 — "<loại> · <tên khoá học>" khi gắn khoá học
                 'image' => $c->imageUrl(), // SỬA 24/10 — cột Ảnh ở danh sách
                 'type' => $c->type->value === 'contest' ? 'Cuộc thi' : 'Khảo sát',
                 'pendingRegistrations' => (int) ($pendingByCompetition[$c->id] ?? 0),
