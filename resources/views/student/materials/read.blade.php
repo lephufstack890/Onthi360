@@ -424,7 +424,7 @@
                 {{-- ══════ CỘT PHẢI: BÀI TẬP ══════ --}}
                 {{-- SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — lưới mã bài theo
                      chương + học liệu theo chương, dựng theo MaterialChapterGrid.jsx của source mới. --}}
-                <aside class="min-w-0">
+                <aside class="min-w-0 rd-aside-fill">{{-- SỬA 25/10 — cao bằng cột đọc (partials/reader-roomy) --}}
                     @include('partials.reader-chapter-panel')
                 </aside>
             </div>

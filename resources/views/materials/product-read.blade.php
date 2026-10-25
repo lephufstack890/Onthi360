@@ -377,9 +377,6 @@
                          nhất để nhảy chương. --}}
                     {{-- SỬA 25/10 (khách: "cột Bài tập phải bằng khung đọc") — màn đọc bộ đề: cột Bài tập cao đúng bằng cột đọc bên trái
                          (trước đây cao theo màn hình nên lệch đáy). Chỉ áp cho bộ đề, màn đọc sách giữ nguyên. --}}
-                    @if ($bundleMode ?? false)
-                        <style>@media (min-width: 1024px) { .rd-aside-fill > .rcp, .rd-aside-fill > .rcp.is-focus { position: static; height: 100%; max-height: none; } }</style>
-                    @endif
                     <aside class="flex h-full flex-col lg:sticky {{ ($bundleMode ?? false) ? 'rd-aside-fill' : '' }}" :class="focus ? 'lg:top-4' : 'lg:top-[76px]'">
                         @if ($bundleMode ?? false)
                             {{-- SỬA 18/10 — MODULE BỘ ĐỀ: cột Bài tập = câu hỏi của từng đề, cùng khung ô mã bài với trang đọc sách

@@ -27,6 +27,14 @@
     .rd-ui .rcp-meta, .rd-ui .rcp-legend { font-size: 12px; }
     .rd-ui .rcp-media-row p { font-size: 14px; }
 
+    /* SỬA 25/10 (khách: "cột Bài tập phải bằng khung đọc" — sách, chuyên đề, bộ đề) — cột phải có lớp .rd-aside-fill thì cột
+       Bài tập cao đúng bằng cột đọc bên trái (trước đây cao theo màn hình nên lệch đáy); danh sách dài cuộn bên trong. */
+    @media (min-width: 1024px) {
+        /* Cột phải không tự đẩy cao hàng: khung Bài tập phủ kín cột (absolute), hàng cao theo cột đọc bên trái. */
+        .rd-ui .rd-aside-fill { position: relative; top: auto; height: auto; min-height: 0; }
+        .rd-ui .rd-aside-fill > .rcp, .rd-ui .rd-aside-fill > .rcp.is-focus { position: absolute; inset: 0; height: auto; max-height: none; }
+    }
+
     /* Chế độ Tập trung: ẩn thanh đầu trang (giữ cột Bài tập) -> vùng đọc PDF cao thêm cho vừa màn hình. */
     @media (min-width: 1024px) { .rd-ui .rd-focus #reader-scroll-box { height: calc(100dvh - 150px); max-height: none; } }
 </style>
