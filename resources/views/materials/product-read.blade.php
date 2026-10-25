@@ -335,7 +335,8 @@
                                     </select>
                                 @endif
 
-                                <span class="hidden truncate text-[11px] font-semibold text-[#61798B] sm:block" id="reader-part-label"></span>
+                                {{-- SỬA 25/10 (khách: "bỏ dòng tên đề/chương lặp lại bên phải ô chọn") — ẩn hẳn; ô chọn Đề/Chương đã hiện tên. --}}
+                                <span class="hidden" id="reader-part-label" aria-hidden="true"></span>
                                 <span class="hidden" id="reader-page-indicator"></span>
                             </div>
 
