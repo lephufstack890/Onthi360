@@ -83,6 +83,8 @@
 
             {{-- SỬA 24/10 (khách: "thiếu thời gian bắt đầu và kết thúc của cuộc thi") — mở lại 2 ô Bắt đầu / Kết thúc.
                  Hiện ở thẻ cuộc thi + phòng thi; để trống thì lấy theo ngày của các kỳ thi. --}}
+            {{-- SỬA 25/10 (khách: "tạm thời ẩn thời gian bắt đầu / kết thúc trong thêm và sửa") — TẠM ẨN. Không gửi 2 ô này thì
+                 lúc Sửa giữ nguyên thời gian đã lưu (CompetitionService::update — dates_in_form). Muốn hiện lại: bỏ cặp chú thích.
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <x-date-time-fields name="starts_at" label="Thời gian bắt đầu"
                                      :dayValue="old('starts_at_day')" :monthValue="old('starts_at_month')"
@@ -94,6 +96,7 @@
                                      :minuteValue="old('ends_at_minute')" />
             </div>
             <p class="text-xs text-slate-400 -mt-2">Để trống = lấy theo ngày sớm nhất / muộn nhất của các kỳ thi bên trong.</p>
+            --}}
 
             {{--
               TẠM ẨN 24/8: Khách hiện không cần nhập Bắt đầu/Kết thúc/Công bố kết quả lúc tạo
