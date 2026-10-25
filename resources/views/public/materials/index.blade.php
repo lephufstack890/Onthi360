@@ -449,7 +449,7 @@
         </nav>
 
         <p class="mp-note">
-            Giá bản mềm đã gồm thời hạn sử dụng ghi trên từng tài liệu; quyền đọc tính từ lúc kích hoạt mã hoặc lúc giáo viên giao tài liệu.
+            Giá bản mềm đã gồm thời hạn sử dụng ghi trên từng tài liệu; quyền đọc tính từ lúc mua hoặc lúc giáo viên giao tài liệu.
             <span x-show="isAssignmentView" x-cloak>Trạng thái “Đã mở” chỉ ghi nhận việc mở tài liệu, không đồng nghĩa đã đọc xong.</span>
         </p>
     </section>
@@ -460,7 +460,7 @@
             <header class="mp-modal-head">
                 <div>
                     <p class="mp-eyebrow">Thông tin & quyền sử dụng</p>
-                    <h2 id="mp-modal-title" x-text="selected && selected.owned ? 'Thông tin tài liệu' : 'Mua / kích hoạt tài liệu'"></h2>
+                    <h2 id="mp-modal-title" x-text="selected && selected.owned ? 'Thông tin tài liệu' : 'Mua tài liệu'"></h2>
                 </div>
                 <button type="button" class="mp-icon-btn" aria-label="Đóng thông tin tài liệu" @click="closeDetail()"><x-lucide name="x" /></button>
             </header>
@@ -509,12 +509,12 @@
                             </p>
                         </div>
                         <div class="mp-box is-amber" x-show="!selected.owned && selected.expired" role="status">
-                            <p x-text="'Quyền đọc đã hết hạn từ ' + selected.expiresAt + '. Mua hoặc nhập mã kích hoạt để gia hạn.'"></p>
+                            <p x-text="'Quyền đọc đã hết hạn từ ' + selected.expiresAt + '. Mua quyền học để gia hạn.'"></p>
                         </div>
                         @if ($role === 'guest')
                             <div class="mp-box is-amber" x-show="!selected.owned"><p>Đăng nhập hoặc đăng ký để mua và kích hoạt tài liệu này.</p></div>
                         @elseif (! $isAdmin)
-                            <div class="mp-box is-sky" x-show="!selected.owned && !selected.expired"><p>Bạn chưa có quyền đọc tài liệu này. Mua quyền học hoặc nhập mã kích hoạt đã có.</p></div>
+                            <div class="mp-box is-sky" x-show="!selected.owned && !selected.expired"><p>Bạn chưa có quyền đọc tài liệu này. Mua quyền học để bắt đầu.</p></div>
                         @endif
 
                         <div class="mp-modal-actions">
@@ -523,7 +523,8 @@
                                 <a :href="loginHref" class="mp-primary">Đăng nhập để mua</a>
                             @endif
                             @if ($canBuy)
-                                <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a>
+                                {{-- SỬA 25/10 (khách: "mua sách / bộ đề / chuyên đề gì cũng bỏ nút Nhập mã kích hoạt") — TẠM ẨN, không xoá:
+                                <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a> --}}
                                 <a :href="selected.checkoutHref" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
                                 <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="selected.bundle ? 'Làm bộ đề →' : 'Vào đọc ngay →'">Vào đọc ngay →</span></a>
                             @endif
