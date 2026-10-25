@@ -158,6 +158,9 @@ class ContestManageController extends Controller
         $data = $request->validate([
             'source_type' => ['nullable', 'in:exam,questions'],
             'assessment_id' => ['nullable', 'integer'],
+            // SỬA 25/10 — chọn nhiều đề cho 1 kỳ
+            'assessment_ids' => ['nullable', 'array', 'max:'.\App\Services\Contest\ContestOrganizerService::MAX_BANK],
+            'assessment_ids.*' => ['integer'],
             'assignment_mode' => ['nullable', 'in:random,choice'],
             'form_count' => ['nullable', 'integer', 'min:1', 'max:'.\App\Support\ContestForms::MAX],
         ]);

@@ -6,7 +6,7 @@
         <p style="white-space:pre-line">{{ $contest['rules'] }}</p>
     @endif
     <ul>
-        <li>{{ $survey ? 'Không giới hạn số lượt trong thời gian kỳ khảo sát mở. Cần có tên trong danh sách và nhập mật khẩu trước khi làm bài.' : 'Mỗi học sinh nộp một lần cho mỗi kỳ thi. Giáo viên hoặc admin tổ chức duyệt đăng ký cho toàn cuộc thi.' }}</li>
+        <li>{{ $survey ? 'Không giới hạn số lượt trong thời gian kỳ khảo sát mở. Chỉ cần nhập đúng mật khẩu (nhận từ giáo viên) trước khi làm bài.' : 'Mỗi học sinh nộp một lần cho mỗi kỳ thi. Giáo viên hoặc admin tổ chức duyệt đăng ký cho toàn cuộc thi.' }}</li>
         <li>{{ $rankingRule }}</li>
         @if ($contest['publishLabel'])
             <li>Bảng xếp hạng công bố lúc {{ $contest['publishLabel'] }}.</li>

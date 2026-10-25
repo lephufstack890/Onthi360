@@ -23,7 +23,7 @@
 
             @if ($sv)
                 <fieldset class="round-source-options"><legend>Chọn nguồn để tạo bộ đề</legend>
-                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một đề {{ mb_strtolower($re['bankTypeLabel'] ?? 'Luyện tập') }} đã hoàn chỉnh trong ngân hàng</small></span></label>
+                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một hoặc nhiều đề {{ mb_strtolower($re['bankTypeLabel'] ?? 'Luyện tập') }} trong ngân hàng</small></span></label>
                     <label :data-selected="picker.source === 'questions' ? 'true' : 'false'"><input type="radio" name="source_type" value="questions" x-model="picker.source"><x-lucide name="list-checks" /><span><b>Từ nguồn câu hỏi</b><small>Lập ma trận và sinh số đề theo nhu cầu</small></span></label>
                 </fieldset>
             @else
@@ -31,13 +31,19 @@
             @endif
 
             <section class="round-exam-picker" aria-label="Chọn đề có sẵn" x-show="picker.source === 'exam'">
-                <h3>Chọn đề từ ngân hàng đề <small>· chỉ đề Loại "{{ $re['bankTypeLabel'] ?? 'Đề thi' }}"</small></h3>
+                <h3>Chọn đề từ ngân hàng đề <small>· chỉ đề Loại "{{ $re['bankTypeLabel'] ?? 'Đề thi' }}" · chọn được nhiều đề</small></h3>
+                {{-- SỬA 25/10 — chọn nhiều đề: học sinh được bốc ngẫu nhiên 1 đề. --}}
+                <p class="round-help round-pick-note" role="status" x-show="picker.ids.length" x-cloak>
+                    <b x-text="'Đã chọn ' + picker.ids.length + ' đề'"></b>
+                    <span x-show="picker.ids.length > 1">{{ $sv ? ' · Mỗi lượt khảo sát, hệ thống bốc ngẫu nhiên 1 đề cho học sinh.' : ' · Mỗi học sinh được bốc ngẫu nhiên 1 đề khi vào thi; đề đã nhận được giữ cố định.' }}</span>
+                </p>
                 <label class="round-exam-search"><x-lucide name="search" /><input type="search" aria-label="Tìm đề có sẵn" placeholder="Tìm tên hoặc mã đề…" x-model="picker.q"></label>
                 <div class="round-exam-list">
                     <template x-for="o in pickerOptions" :key="o.id">
-                        <div class="round-exam-option" :data-selected="String(o.id) === picker.assessmentId ? 'true' : 'false'">
+                        <div class="round-exam-option" :data-selected="picker.ids.includes(String(o.id)) ? 'true' : 'false'">
                             <label>
-                                <input type="radio" name="assessment_id" :value="o.id" :checked="String(o.id) === picker.assessmentId" @change="picker.assessmentId = String(o.id)" :disabled="picker.locked && String(o.id) !== picker.assessmentId">
+                                <input type="checkbox" name="assessment_ids[]" :value="o.id" :checked="picker.ids.includes(String(o.id))" @change="togglePick(o.id)"
+                                       :disabled="picker.locked || (! picker.ids.includes(String(o.id)) && picker.ids.length >= maxBank)">
                                 <span>
                                     <b x-text="o.title"></b>
                                     <small x-text="(o.isPdf ? 'Đề PDF' : (o.questions + ' câu')) + ' · 100 điểm' + (o.duration ? ' · ' + o.duration + ' phút' : '')"></small>
@@ -58,14 +64,14 @@
             <p class="round-help" x-show="picker.source === 'questions'" x-cloak>Chọn nguồn, chuyên đề, độ khó, số câu và điểm bằng ma trận ở tab <b>Thiết lập đề</b>. Học sinh chỉ bắt đầu khi bạn đã chốt đề. Đề có sẵn đang gắn (nếu có) sẽ được gỡ khỏi kỳ.</p>
 
             @if (! $sv && $re['formsSupported'])
-                <label class="round-field" x-show="picker.source === 'exam'">Số mã đề hoán vị
+                <label class="round-field" x-show="picker.source === 'exam' && picker.ids.length <= 1">Số mã đề hoán vị
                     <select name="form_count" x-model="picker.formCount" :disabled="picker.locked">
                         @foreach (range(1, $re['maxForms']) as $n)
                             <option value="{{ $n }}">{{ $n === 1 ? '1 đề — không hoán vị' : $n.' đề (Đề 101 → '.(100 + $n).')' }}</option>
                         @endforeach
                     </select>
                 </label>
-                <fieldset class="paper-delivery-options" :disabled="picker.locked">
+                <fieldset class="paper-delivery-options" :disabled="picker.locked" x-show="picker.ids.length <= 1">
                     <legend>Cách giao đề cho học sinh</legend>
                     <div>
                         <label :data-selected="picker.mode === 'choice' ? 'true' : 'false'"><input type="radio" name="assignment_mode" value="choice" x-model="picker.mode"><x-lucide name="list-checks" /><span><b>Học sinh tự chọn</b><small x-text="'Chọn một trong ' + picker.formCount + ' đề trước khi bắt đầu.'"></small></span></label>
@@ -78,7 +84,7 @@
 
         <footer>
             <button type="button" class="contest-btn secondary" @click="closePicker()">Đóng</button>
-            <button type="submit" class="contest-btn primary" x-show="!picker.locked" :disabled="picker.source === 'exam' && !picker.assessmentId"
+            <button type="submit" class="contest-btn primary" x-show="!picker.locked" :disabled="picker.source === 'exam' && !picker.ids.length"
                     x-text="picker.source === 'questions' ? 'Tiếp tục lập ma trận' : 'Lưu thiết lập đề'">Lưu thiết lập đề</button>
         </footer>
     </form>

@@ -120,7 +120,7 @@
                         </div>
                         <div class="cc-card-foot">
                             <span class="material-status {{ $regClass }}"><x-lucide :name="$c['registration']['icon']" />{{ $c['registration']['label'] }}</span>
-                            <p>{{ $c['isSurvey'] ? 'Có tên trong danh sách + mật khẩu · Lưu kết quả từng lượt' : 'Giáo viên / admin duyệt · Có xếp hạng' }}</p>
+                            <p>{{ $c['isSurvey'] ? 'Nhập mật khẩu · Lưu kết quả từng lượt' : 'Giáo viên / admin duyệt · Có xếp hạng' }}</p>
                             <a href="{{ $c['url'] }}" class="material-primary contest-catalog-open"><x-lucide name="list-checks" />{{ $c['isSurvey'] ? 'Xem các kỳ khảo sát' : 'Xem các kỳ thi' }}<x-lucide name="chevron-right" /></a>
                         </div>
                     </div>

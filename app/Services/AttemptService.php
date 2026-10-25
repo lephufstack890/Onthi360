@@ -427,6 +427,18 @@ class AttemptService
                 $exams = $exams->merge(CompetitionExam::whereIn('id', $paperExamIds)->with('competition')->get())->unique('id')->values();
             }
         }
+        // SỬA 25/10 — kỳ chọn nhiều đề từ ngân hàng: đề này có thể là đề thứ 2, 3… của kỳ (học sinh được bốc ngẫu nhiên).
+        $bankExamIds = [];
+        if (\App\Models\CompetitionExamAssessment::supported()) {
+            $bankExams = CompetitionExam::query()
+                ->whereIn('id', \App\Models\CompetitionExamAssessment::query()->where('assessment_id', $assessment->id)->select('competition_exam_id'))
+                ->with('competition')->get()
+                ->filter(fn (CompetitionExam $e) => in_array((int) $assessment->id, $e->bankAssessmentIds(), true))->values();
+            if ($bankExams->isNotEmpty()) {
+                $exams = $exams->merge($bankExams)->unique('id')->values();
+                $bankExamIds = $bankExams->pluck('id')->map(fn ($v) => (int) $v)->all();
+            }
+        }
         // SỬA 25/10 — chỉ xét đúng 1 kỳ (đề Luyện tập mở từ phòng thi khảo sát, xem roundContext()).
         if ($onlyExamId !== null) {
             $directCompetitions = collect();
@@ -475,7 +487,7 @@ class AttemptService
                 }
 
                 // SỬA 24/10 — kỳ nhiều đề: chỉ làm được ĐÚNG đề đã giao cho mình.
-                if (in_array((int) $exam->id, $paperExamIds, true)
+                if ((in_array((int) $exam->id, $paperExamIds, true) || in_array((int) $exam->id, $bankExamIds, true))
                     && app(\App\Services\Contest\ContestPaperService::class)->assessmentIdFor($user, $exam) !== (int) $assessment->id) {
                     return ['open' => false, 'message' => 'Đây không phải đề được giao cho bạn ở kỳ này — mở phòng thi và bấm vào làm bài.', 'competitionId' => null, 'competitionExamId' => null];
                 }

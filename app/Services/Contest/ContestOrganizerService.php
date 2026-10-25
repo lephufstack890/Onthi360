@@ -288,6 +288,7 @@ class ContestOrganizerService
             'storeUrl' => route('competitions.manage.rounds.store', $competition->id),
             'formsSupported' => CompetitionExam::supportsForms(),
             'maxForms' => \App\Support\ContestForms::MAX,
+            'maxBank' => self::MAX_BANK, // SỬA 25/10 — số đề tối đa chọn cho 1 kỳ
             'options' => $mine->isNotEmpty() ? $this->examOptions($viewer, $mine, $competition) : [],
             'bankTypeLabel' => self::bankTypeLabel($competition), // SỬA 25/10 — "Luyện tập" (khảo sát) / "Đề thi" (cuộc thi)
             'rounds' => $mine->mapWithKeys(fn (CompetitionExam $e) => [(int) $e->id => [
@@ -298,6 +299,7 @@ class ContestOrganizerService
                 'endsAt' => $e->ends_at?->format('Y-m-d\\TH:i') ?? '',
                 'source' => $e->sourceType($competition),
                 'assessmentId' => $e->assessment_id !== null ? (int) $e->assessment_id : '',
+                'assessmentIds' => $e->bankAssessmentIds(), // SỬA 25/10 — kỳ nhiều đề
                 'assignmentMode' => $e->assignmentMode(),
                 'formCount' => $e->formCount(),
                 'locked' => in_array((int) $e->id, $attempted, true),
@@ -312,6 +314,9 @@ class ContestOrganizerService
      * SỬA 25/10 (khách: "lấy từ ngân hàng đề: khảo sát lấy nguồn đề loại Luyện tập, cuộc thi lấy nguồn đề loại Đề thi")
      * — Loại đề (Assessment.type) được chọn cho kỳ của cuộc thi này. Đổi luật ở ĐÂY là đổi cả danh sách lẫn kiểm tra.
      */
+    /** SỬA 25/10 — tối đa bấy nhiêu đề ngân hàng cho 1 kỳ (học sinh được bốc ngẫu nhiên 1 đề). */
+    public const MAX_BANK = 10;
+
     public static function bankTypeFor(Competition $competition): \App\Enums\AssessmentType
     {
         return $competition->isSurvey() ? \App\Enums\AssessmentType::Practice : \App\Enums\AssessmentType::Exam;
@@ -335,7 +340,7 @@ class ContestOrganizerService
         $paperIds = \App\Models\CompetitionExamPaper::supported()
             ? \App\Models\CompetitionExamPaper::query()->whereNotNull('assessment_id')->pluck('assessment_id')->all()
             : [];
-        $keep = $mine->pluck('assessment_id')->filter()->all();
+        $keep = $mine->flatMap(fn (CompetitionExam $e) => $e->bankAssessmentIds())->unique()->values()->all();
 
         $options = \App\Models\Assessment::query()
             ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', $bankType)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
@@ -350,7 +355,7 @@ class ContestOrganizerService
                 ->where('organizer_id', $viewer->id)->whereNotNull('assessment_id')
                 ->get(['id', 'competition_id', 'assessment_id', 'title', 'starts_at'])
                 ->each(function (CompetitionExam $e) use (&$usage) {
-                    $usage[(int) $e->assessment_id][] = [
+                    foreach ($e->bankAssessmentIds() as $aid) $usage[$aid][] = [ // SỬA 25/10 — tính cả kỳ nhiều đề
                         'roundId' => (int) $e->id,
                         'label' => $e->displayTitle(),
                         'date' => $e->starts_at?->format('d/m/Y') ?? 'Chưa xếp lịch',
@@ -428,30 +433,45 @@ class ContestOrganizerService
         $source = $survey && ($data['source_type'] ?? CompetitionExam::SOURCE_EXAM) === CompetitionExam::SOURCE_QUESTIONS
             ? CompetitionExam::SOURCE_QUESTIONS : CompetitionExam::SOURCE_EXAM;
 
-        $assessmentId = $source === CompetitionExam::SOURCE_EXAM && filled($data['assessment_id'] ?? null) ? (int) $data['assessment_id'] : null;
-        if ($source === CompetitionExam::SOURCE_EXAM && $assessmentId === null) {
-            throw ValidationException::withMessages(['assessment_id' => 'Chọn một đề trong ngân hàng đề.']);
+        // SỬA 25/10 (khách: "chọn được nhiều đề trong 1 kỳ, học sinh làm thì random 1 đề") — nhận assessment_ids[] (vẫn
+        // nhận assessment_id cũ). Đề đầu là assessment_id của kỳ; ≥ 2 đề thì mỗi học sinh được bốc ngẫu nhiên 1 đề.
+        $ids = $source === CompetitionExam::SOURCE_EXAM
+            ? collect((array) ($data['assessment_ids'] ?? []))->push($data['assessment_id'] ?? null)
+                ->filter(fn ($v) => filled($v))->map(fn ($v) => (int) $v)->unique()->values()->all()
+            : [];
+        if ($source === CompetitionExam::SOURCE_EXAM && $ids === []) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chọn ít nhất một đề trong ngân hàng đề.']);
         }
-        if ($assessmentId !== null && $assessmentId !== (int) ($exam->assessment_id ?? 0)
-            && ! \App\Models\Assessment::query()->whereKey($assessmentId)->where('type', self::bankTypeFor($competition)->value)->exists()) {
+        if (count($ids) > self::MAX_BANK) {
+            throw ValidationException::withMessages(['assessment_id' => 'Chọn tối đa '.self::MAX_BANK.' đề cho một kỳ.']);
+        }
+        if (count($ids) > 1 && ! \App\Models\CompetitionExamAssessment::supported()) {
+            throw ValidationException::withMessages(['assessment_id' => 'Máy chủ chưa chạy migration cho tính năng nhiều đề — báo quản trị viên chạy "php artisan migrate".']);
+        }
+        $current = $exam->bankAssessmentIds();
+        $added = array_values(array_diff($ids, $current)); // đề đang gắn sẵn (kể cả loại khác, dữ liệu cũ) giữ được
+        if ($added !== [] && \App\Models\Assessment::query()->whereIn('id', $added)->where('type', self::bankTypeFor($competition)->value)->count() !== count($added)) {
             throw ValidationException::withMessages(['assessment_id' => 'Chỉ chọn được đề có Loại là "'.self::bankTypeLabel($competition).'".']);
         }
-        if (! $survey && $assessmentId !== ($exam->assessment_id !== null ? (int) $exam->assessment_id : null)
-            && \App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
+        $same = count($ids) === count($current) && array_diff($ids, $current) === [];
+        if (! $survey && ! $same && \App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
             throw ValidationException::withMessages(['assessment_id' => 'Kỳ thi đã có bài làm — không đổi đề được nữa.']);
         }
+        $multi = count($ids) > 1;
 
-        $attrs = ['assessment_id' => $assessmentId];
+        $attrs = ['assessment_id' => $ids[0] ?? null];
         if (CompetitionExam::supportsRoundSetup()) {
             $attrs['source_type'] = $source;
         }
         if (CompetitionExam::supportsForms() && ! $survey) {
-            $attrs['assignment_mode'] = ($data['assignment_mode'] ?? 'random') === 'choice' ? 'choice' : 'random';
-            $attrs['form_count'] = max(1, min(\App\Support\ContestForms::MAX, (int) ($data['form_count'] ?? 1)));
+            // Nhiều đề: mỗi đề là một đề riêng, giao ngẫu nhiên — không chia mã đề hoán vị nữa.
+            $attrs['assignment_mode'] = ! $multi && ($data['assignment_mode'] ?? 'random') === 'choice' ? 'choice' : 'random';
+            $attrs['form_count'] = $multi ? 1 : max(1, min(\App\Support\ContestForms::MAX, (int) ($data['form_count'] ?? 1)));
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($exam, $attrs, $source) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($exam, $attrs, $source, $ids) {
             $exam->update($attrs);
+            $exam->syncBankAssessments($ids);
             if (\App\Models\CompetitionExamPaper::supported()) {
                 $papers = \App\Models\CompetitionExamPaper::query()->where('competition_exam_id', $exam->id);
                 $source === CompetitionExam::SOURCE_EXAM

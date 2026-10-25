@@ -95,7 +95,7 @@
             <x-lucide name="megaphone" />
             <div>
                 <h3>{{ $announcement['title'] ?? ($survey ? 'Nhận mật khẩu trước khi khảo sát' : 'Hoàn tất đăng ký trước khi vào thi') }}</h3>
-                <p>{{ $announcement['text'] ?? ($survey ? 'Liên hệ giáo viên để được thêm vào danh sách và nhận mật khẩu.' : 'Đăng ký và chờ giáo viên duyệt trước khi vào thi.') }}</p>
+                <p>{{ $announcement['text'] ?? ($survey ? 'Liên hệ giáo viên để nhận mật khẩu.' : 'Đăng ký và chờ giáo viên duyệt trước khi vào thi.') }}</p>
                 <small>{{ $contest['organizer'] }} · Hướng dẫn tham gia</small>
             </div>
             <button type="button" @click="markRead()">Đã đọc</button>
@@ -113,7 +113,7 @@
             @if (! empty($roundEditor))
                 <button type="button" class="contest-btn primary" @click="openRound(null)"><x-lucide name="plus" />{{ $survey ? 'Thêm kỳ khảo sát' : 'Thêm kỳ thi' }}</button>
             @else
-                <p>{{ $survey ? 'Có tên trong danh sách + mật khẩu · Làm nhiều lần' : 'Đăng ký một lần · Duyệt cho toàn cuộc thi' }}</p>
+                <p>{{ $survey ? 'Nhập mật khẩu · Làm nhiều lần' : 'Đăng ký một lần · Duyệt cho toàn cuộc thi' }}</p>
             @endif
         </div>
 
@@ -178,7 +178,7 @@
                         <dl class="hub-round-facts">
                             <div><dt>Thời lượng</dt><dd>{{ $round['duration'] }}<small>Mỗi lượt làm</small></dd></div>
                             <div><dt>Bộ đề</dt><dd>{{ $setup['factValue'] }}<small>{{ $setup['factNote'] }}</small></dd></div>
-                            <div><dt>Tham gia bằng</dt><dd>{{ $survey ? 'Mật khẩu' : 'Đăng ký' }}<small>{{ $survey ? 'Có tên trong danh sách' : 'Cần được duyệt' }}</small></dd></div>
+                            <div><dt>Tham gia bằng</dt><dd>{{ $survey ? 'Mật khẩu' : 'Đăng ký' }}<small>{{ $survey ? 'Nhận từ giáo viên' : 'Cần được duyệt' }}</small></dd></div>
                             <div><dt>Số lượt nộp</dt><dd>{{ $survey ? 'Không giới hạn' : '1 lượt' }}<small>Trong thời gian kỳ mở</small></dd></div>
                         </dl>
                         @if ($round['deadline'])
@@ -341,16 +341,22 @@
             closeRound() { const d = this.$refs.roundDialog; if (d && d.open) d.close(); },
 
             // ── Hộp thoại "Lấy đề có sẵn" (bản mẫu: ContestPaperSettings.jsx) ──
-            picker: { url: '', roundId: null, source: 'exam', assessmentId: '', formCount: '1', mode: 'random', q: '', locked: false },
+            picker: { url: '', roundId: null, source: 'exam', ids: [], formCount: '1', mode: 'random', q: '', locked: false },
+            // SỬA 25/10 — chọn nhiều đề cho 1 kỳ (thứ tự bấm chọn; đề đầu là đề chính của kỳ).
+            get maxBank() { return (cfg.roundEditor && cfg.roundEditor.maxBank) || 10; },
+            togglePick(id) {
+                id = String(id); const i = this.picker.ids.indexOf(id);
+                if (i >= 0) this.picker.ids.splice(i, 1); else if (this.picker.ids.length < this.maxBank) this.picker.ids.push(id);
+            },
             get pickerOptions() {
                 const ed = cfg.roundEditor; if (!ed) return [];
                 const q = norm(this.picker.q.trim());
-                return ed.options.filter((o) => q === '' || norm(o.title + ' ' + o.id).includes(q) || String(o.id) === this.picker.assessmentId).slice(0, 300);
+                return ed.options.filter((o) => q === '' || norm(o.title + ' ' + o.id).includes(q) || this.picker.ids.includes(String(o.id))).slice(0, 300);
             },
             usesOther(o) { return (o.uses || []).filter((u) => u.roundId !== this.picker.roundId); },
             openPicker() {
                 const ed = cfg.roundEditor; const r = ed && cfg.roundId ? ed.rounds[cfg.roundId] : null; if (!r) return;
-                this.picker = { url: r.examUrl, roundId: r.id, source: r.source, assessmentId: String(r.assessmentId || ''), formCount: String(r.formCount || 1), mode: r.assignmentMode || 'random', q: '', locked: !!(r.locked && !ed.isSurvey) };
+                this.picker = { url: r.examUrl, roundId: r.id, source: r.source, ids: (r.assessmentIds && r.assessmentIds.length ? r.assessmentIds : (r.assessmentId ? [r.assessmentId] : [])).map(String), formCount: String(r.formCount || 1), mode: r.assignmentMode || 'random', q: '', locked: !!(r.locked && !ed.isSurvey) };
                 this.$nextTick(() => { const d = this.$refs.pickerDialog; if (d && !d.open) d.showModal(); });
             },
             closePicker() { const d = this.$refs.pickerDialog; if (d && d.open) d.close(); },

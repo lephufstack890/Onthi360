@@ -252,11 +252,26 @@ class ContestHubService
         // Học sinh tự chọn đề: chọn sẵn đề làm lần trước, chưa có thì đề đầu tiên. Khảo sát thoát giữa chừng là làm lại
         // từ đầu (ContestEntryService::enter() huỷ lượt dở) nên không khoá theo đề đang làm dở.
         $myPaper = ($isStudent && $papers->isNotEmpty()) ? $this->papers->paperFor($viewer, $exam) : null;
-        $assessment = $papers->isNotEmpty() ? ($myPaper ?? $papers->first())->assessment : ($source === CompetitionExam::SOURCE_EXAM ? $exam->assessment : null);
+        // SỬA 25/10 — kỳ chọn nhiều đề từ ngân hàng: học sinh được bốc ngẫu nhiên 1 đề (ContestPaperService::bankAssessmentFor()).
+        $bankIds = $source === CompetitionExam::SOURCE_EXAM ? $exam->bankAssessmentIds() : [];
+        $bank = count($bankIds) > 1
+            ? \App\Models\Assessment::query()->whereIn('id', $bankIds)->get()->sortBy(fn ($a) => array_search((int) $a->id, $bankIds, true))->values()
+            : collect();
+        $myBankId = ($isStudent && $bank->isNotEmpty()) ? $this->papers->bankAssessmentFor($viewer, $exam) : null;
+        $assessment = match (true) {
+            $papers->isNotEmpty() => ($myPaper ?? $papers->first())->assessment,
+            $bank->isNotEmpty() => $bank->firstWhere('id', $myBankId) ?? $bank->first(),
+            $source === CompetitionExam::SOURCE_EXAM => $exam->assessment,
+            default => null,
+        };
         $period = $this->roundState($exam);
         $questions = $this->questionsOfAssessment($assessment);
         // Bảng xếp hạng / thống kê theo câu: kỳ nhiều đề thì gộp câu của mọi đề.
-        $rankQuestions = $papers->count() > 1 ? $this->questionsOf($exam, $papers) : $questions;
+        $rankQuestions = match (true) {
+            $papers->count() > 1 => $this->questionsOf($exam, $papers),
+            $bank->isNotEmpty() => $this->questionsOf($exam, $bank->map(fn ($a) => (object) ['assessment' => $a])),
+            default => $questions,
+        };
         $totalPoints = (float) ($assessment?->total_points ?: array_sum(array_column($questions, 'points')) ?: 100);
         $duration = $assessment?->duration_minutes ? $assessment->duration_minutes.' phút' : 'Không giới hạn';
 
@@ -268,7 +283,7 @@ class ContestHubService
 
         // Mã đề hoán vị (cuộc thi)
         $isPdf = $assessment?->isPdfMode() ?? false;
-        $formCount = (! $survey && ! $isPdf) ? $exam->formCount() : 1;
+        $formCount = (! $survey && ! $isPdf && $bank->isEmpty()) ? $exam->formCount() : 1; // nhiều đề: không hoán vị
         $assignedForm = $this->entry->assignedForm($registration, $exam);
         $forms = $survey ? [] : array_map(fn (int $no) => [
             'no' => $no,
@@ -290,7 +305,7 @@ class ContestHubService
         }
 
         $participants = ($manager && $viewer !== null) ? $this->participants($c, $exam, $rankings, $viewer) : null;
-        $setup = $this->roundSetup($c, $exam, $source, $assessment, $papers, $questions, $formCount);
+        $setup = $this->roundSetup($c, $exam, $source, $assessment, $papers, $questions, $formCount, $bank);
 
         // Khảo sát: lượt dở không "tiếp tục" được — bắt đầu lại là lượt mới (xem ContestEntryService::enter()).
         $resume = $inProgress !== null && ! $survey;
@@ -300,13 +315,14 @@ class ContestHubService
             : $this->action($c, $survey, $period, $closed, false, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
 
         $rankTab = $survey ? 'ranking' : 'results';
+        // SỬA 25/10 (khách: "khảo sát ẩn tab Học sinh, không cần add; chỉ cuộc thi mới cần") — khảo sát vào bằng mật khẩu.
         $tabs = $manager
-            ? [
+            ? array_values(array_filter([
                 ['id' => 'overview', 'icon' => 'list-checks', 'label' => 'Tổng quan', 'count' => null],
                 ['id' => 'paper', 'icon' => 'file-text', 'label' => $setup['tabLabel'], 'count' => null],
-                ['id' => 'registrations', 'icon' => 'user-check', 'label' => 'Học sinh', 'count' => $participants !== null ? ($participants['pending'] ?: count($participants['rows'])) : null],
+                $survey ? null : ['id' => 'registrations', 'icon' => 'user-check', 'label' => 'Học sinh', 'count' => $participants !== null ? ($participants['pending'] ?: count($participants['rows'])) : null],
                 ['id' => $rankTab, 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null],
-            ]
+            ]))
             : array_values(array_filter([
                 ['id' => 'overview', 'icon' => 'list-checks', 'label' => $survey ? 'Thông tin kỳ khảo sát' : 'Thông tin kỳ thi', 'count' => null],
                 $viewer !== null ? ['id' => 'submissions', 'icon' => 'file-text', 'label' => 'Bài nộp của tôi', 'count' => count($attemptRows)] : null,
@@ -343,6 +359,7 @@ class ContestHubService
                 'enterUrl' => route('student.competitions.enter', ['competition' => $c->id, 'exam' => $exam->id]),
                 'needsPassword' => $survey && $c->hasEntryPassword(),
                 'paperCount' => $papers->count(),
+                'bankCount' => $bank->count(), // SỬA 25/10 — kỳ nhiều đề ngân hàng
                 'myPaperLabel' => $myPaper?->label,
                 'paperStateUrl' => ($manager && $survey && $source === CompetitionExam::SOURCE_QUESTIONS && \App\Models\CompetitionExamPaper::supported())
                     ? route('competitions.manage.papers', ['competition' => $c->id, 'exam' => $exam->id]) : null,
@@ -399,12 +416,24 @@ class ContestHubService
      * SỬA 25/10 — tình trạng đề của kỳ cho ban tổ chức (ô "Bộ đề", tab Thiết lập đề / Lấy đề có sẵn, thẻ Tổng quan).
      * Bản mẫu: ContestPaperTab + hub-round-facts trong ContestRoomPage.jsx.
      */
-    private function roundSetup(Competition $c, CompetitionExam $exam, string $source, ?\App\Models\Assessment $assessment, Collection $papers, array $questions, int $formCount): array
+    private function roundSetup(Competition $c, CompetitionExam $exam, string $source, ?\App\Models\Assessment $assessment, Collection $papers, array $questions, int $formCount, ?Collection $bank = null): array
     {
         $survey = $c->isSurvey();
         $fromBank = $source === CompetitionExam::SOURCE_EXAM;
+        $bank ??= collect();
 
-        if ($fromBank) {
+        if ($fromBank && $bank->isNotEmpty()) {
+            // SỬA 25/10 — nhiều đề ngân hàng: mỗi học sinh được bốc ngẫu nhiên 1 đề.
+            $count = $bank->count();
+            $mode = 'random';
+            $sizes = $bank->map(fn ($a) => $a->isPdfMode() ? $a->answerKeys()->count() : $a->items()->count())->values();
+            $forms = $bank->values()->map(fn ($a, $i) => [
+                'label' => 'Đề '.($i + 1),
+                'title' => (string) $a->title,
+                'meta' => ($sizes[$i] ?? 0).' câu',
+            ])->all();
+            $perForm = $sizes->min() === $sizes->max() ? (string) $sizes->min() : $sizes->min().'–'.$sizes->max();
+        } elseif ($fromBank) {
             $count = $assessment !== null ? ($survey ? 1 : $formCount) : 0;
             $mode = $count <= 1 ? 'fixed' : $exam->assignmentMode();
             $forms = $assessment === null ? [] : array_map(fn (int $no) => [
@@ -451,12 +480,12 @@ class ContestHubService
             'factNote' => $ready ? $perForm.' câu/đề · '.$modeLabel : 'Chờ người tổ chức áp dụng',
             'status' => match (true) {
                 $locked => 'Đã có bài làm',
-                $fromBank => $assessment !== null ? 'Đã chọn đề' : 'Chưa chọn đề',
+                $fromBank => $assessment !== null ? ($bank->count() > 1 ? 'Đã chọn '.$bank->count().' đề' : 'Đã chọn đề') : 'Chưa chọn đề',
                 $count > 0 => 'Đã chốt '.$count.' đề',
                 $drafts > 0 => 'Đã lưu ma trận nháp',
                 default => 'Chưa thiết lập ma trận',
             },
-            'examTitle' => $fromBank ? $assessment?->title : null,
+            'examTitle' => $fromBank ? ($bank->count() > 1 ? $bank->count().' đề · Bốc ngẫu nhiên 1 đề cho mỗi học sinh' : $assessment?->title) : null,
             'forms' => $forms,
             'locked' => $locked,
             'openBuilder' => ! $fromBank && $count === 0,
@@ -479,6 +508,13 @@ class ContestHubService
         if (! $survey && $pending > 0) {
             return ['kind' => 'tab', 'tab' => 'registrations', 'label' => 'Duyệt đăng ký', 'icon' => 'user-check',
                 'title' => $pending.' học sinh đang chờ duyệt', 'text' => 'Bộ đề đã sẵn sàng. Mở danh sách để xác nhận học sinh được tham gia.'];
+        }
+
+        if ($survey) {
+            // SỬA 25/10 — khảo sát không quản lý danh sách học sinh: biết mật khẩu là vào làm.
+            return ['kind' => 'tab', 'tab' => $rankTab, 'label' => 'Xem bảng xếp hạng', 'icon' => 'trophy',
+                'title' => $period === 'upcoming' ? 'Đã chuẩn bị đề · Chờ đến giờ mở' : 'Bộ đề đã sẵn sàng',
+                'text' => 'Học sinh chỉ cần nhập đúng mật khẩu là vào khảo sát. Theo dõi các lượt làm trong Bảng xếp hạng.'];
         }
 
         return ['kind' => 'tab', 'tab' => 'registrations', 'label' => 'Quản lý học sinh', 'icon' => 'user-check',
@@ -525,11 +561,7 @@ class ContestHubService
             return ['allowed' => false, 'label' => $survey ? 'Chờ giáo viên chốt đề' : 'Kỳ thi chưa có đề'];
         }
         if ($survey) {
-            // SỬA 24/10 — khảo sát chỉ cho học sinh có trong danh sách (ban tổ chức thêm) + nhập đúng mật khẩu.
-            if ($registrationStatus !== CompetitionRegistration::STATUS_APPROVED) {
-                return ['allowed' => false, 'label' => 'Chưa có trong danh sách'];
-            }
-
+            // SỬA 25/10 — khảo sát: biết mật khẩu là vào (không cần có trong danh sách).
             return ['allowed' => true, 'label' => $submitted ? 'Làm lại khảo sát' : 'Bắt đầu khảo sát'];
         }
         if ($submitted) {
@@ -582,10 +614,6 @@ class ContestHubService
         if (! $survey && ! $closed && $regStatus === CompetitionRegistration::STATUS_PENDING) {
             return ['kind' => 'disabled', 'label' => 'Đang chờ xét duyệt', 'icon' => 'clock-3',
                 'title' => 'Đăng ký đang chờ duyệt', 'text' => $organizer.' hoặc admin tổ chức sẽ xác nhận quyền tham gia của bạn.'];
-        }
-        if ($survey && ! $closed && $period === 'current' && $regStatus !== CompetitionRegistration::STATUS_APPROVED) {
-            return ['kind' => 'disabled', 'label' => 'Chưa có trong danh sách', 'icon' => 'lock-keyhole',
-                'title' => 'Bạn chưa có trong danh sách khảo sát', 'text' => 'Liên hệ '.$organizer.' để được thêm vào danh sách, sau đó nhập mật khẩu để bắt đầu.'];
         }
         if ($access['allowed']) {
             return ['kind' => 'enter', 'label' => $resume ? 'Tiếp tục làm bài' : $access['label'], 'icon' => $survey ? 'key-round' : 'play',

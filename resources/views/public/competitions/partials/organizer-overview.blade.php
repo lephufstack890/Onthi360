@@ -9,11 +9,12 @@
     $ended = $round['state'] === 'completed';
 @endphp
 <section class="hub-organizer-overview" aria-label="Tổng quan tổ chức">
-    <div class="hub-content-heading"><div><h3>Tổng quan tổ chức</h3><p>{{ $ended ? 'Đối chiếu bài nộp và xem báo cáo của kỳ đã kết thúc.' : 'Chuẩn bị đề, quản lý học sinh và theo dõi bài nộp trong kỳ này.' }}</p></div></div>
+    <div class="hub-content-heading"><div><h3>Tổng quan tổ chức</h3><p>{{ $ended ? 'Đối chiếu bài nộp và xem báo cáo của kỳ đã kết thúc.' : ($survey ? 'Chuẩn bị đề và theo dõi bài nộp trong kỳ này.' : 'Chuẩn bị đề, quản lý học sinh và theo dõi bài nộp trong kỳ này.') }}</p></div></div>
 
     <div class="hub-management-cards">
         <button type="button" @click="showTab('paper')"><x-lucide name="file-text" /><span>Bộ đề<strong>{{ $s['ready'] ? $s['count'].' đề đã sẵn sàng' : 'Cần thiết lập đề' }}</strong><small>{{ $s['fromBank'] ? 'Từ ngân hàng đề' : 'Theo ma trận câu hỏi' }}</small></span><x-lucide name="arrow-right" /></button>
-        <button type="button" @click="showTab('registrations')"><x-lucide name="user-check" /><span>Học sinh<strong>{{ $o['participants'] }} học sinh</strong><small>{{ $survey ? 'Danh sách theo dõi của sự kiện' : $o['pending'].' đăng ký chờ duyệt' }}</small></span><x-lucide name="arrow-right" /></button>
+        {{-- SỬA 25/10 — khảo sát không có tab Học sinh (vào bằng mật khẩu): thẻ này mở Bảng xếp hạng. --}}
+        <button type="button" @click="showTab('{{ $survey ? $rankTab : 'registrations' }}')"><x-lucide name="user-check" /><span>{{ $survey ? 'Người tham gia' : 'Học sinh' }}<strong>{{ $o['participants'] }} học sinh</strong><small>{{ $survey ? 'Vào khảo sát bằng mật khẩu' : $o['pending'].' đăng ký chờ duyệt' }}</small></span><x-lucide name="arrow-right" /></button>
         <button type="button" @click="showTab('{{ $rankTab }}')"><x-lucide name="list-checks" /><span>Bài nộp<strong>{{ $o['records'] }} lượt đã nộp</strong><small>{{ $o['submitters'] }} học sinh đã nộp bài</small></span><x-lucide name="arrow-right" /></button>
     </div>
 
@@ -35,14 +36,16 @@
                         @if ($o['password'] !== null)
                             Mật khẩu: <code class="hub-pass-code" x-data="{ show: false }" @click="show = !show" :title="show ? '' : 'Bấm để hiện'"><i x-show="show" x-cloak>{{ $o['password'] }}</i><i x-show="!show">••••••</i></code>.
                         @else
-                            Chưa đặt mật khẩu — học sinh trong danh sách vào thẳng; admin đặt mật khẩu ở trang quản trị cuộc thi.
+                            Chưa đặt mật khẩu — học sinh vào thẳng; admin đặt mật khẩu ở trang quản trị cuộc thi.
                         @endif
-                        Chỉ học sinh có tên trong danh sách mới vào được; gửi mật khẩu cho các em trước khi khảo sát.
+                        Học sinh chỉ cần nhập đúng mật khẩu là vào làm được — gửi mật khẩu cho các em trước khi khảo sát.
                     @else
                         Duyệt đăng ký hoặc thêm học sinh từ lớp trước khi các em vào thi.
                     @endif
                 </span></p>
-            <button type="button" @click="showTab('registrations')">Mở danh sách học sinh<x-lucide name="arrow-right" /></button>
+            @unless ($survey)
+                <button type="button" @click="showTab('registrations')">Mở danh sách học sinh<x-lucide name="arrow-right" /></button>
+            @endunless
         </div>
     </div>
 </section>

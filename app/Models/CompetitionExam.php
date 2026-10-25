@@ -138,6 +138,43 @@ class CompetitionExam extends Model
         return self::supportsForms() && $this->assignment_mode === self::MODE_CHOICE ? self::MODE_CHOICE : self::MODE_RANDOM;
     }
 
+    /**
+     * SỬA 25/10 (khách: "1 kỳ chọn được nhiều đề, học sinh làm thì random 1 đề") — các đề ngân hàng của kỳ theo thứ tự
+     * chọn; đề đầu luôn là assessment_id. Kỳ cũ / chưa chạy migration 001300 → chỉ [assessment_id]. Danh sách lệch với
+     * assessment_id (đề bị đổi ở chỗ khác) thì coi như kỳ chỉ còn assessment_id.
+     *
+     * @return array<int, int>
+     */
+    public function bankAssessmentIds(): array
+    {
+        if ($this->assessment_id === null) {
+            return [];
+        }
+        $main = (int) $this->assessment_id;
+        if ($this->id === null || ! CompetitionExamAssessment::supported()) {
+            return [$main];
+        }
+        $ids = CompetitionExamAssessment::query()->where('competition_exam_id', $this->id)
+            ->orderBy('position')->orderBy('id')->pluck('assessment_id')->map(fn ($v) => (int) $v)->all();
+
+        return in_array($main, $ids, true) ? array_values(array_unique(array_merge([$main], $ids))) : [$main];
+    }
+
+    /** SỬA 25/10 — lưu danh sách đề ngân hàng của kỳ (≤ 1 đề thì không cần dòng nào). assessment_id do người gọi đặt. */
+    public function syncBankAssessments(array $ids): void
+    {
+        if (! CompetitionExamAssessment::supported()) {
+            return;
+        }
+        CompetitionExamAssessment::query()->where('competition_exam_id', $this->id)->delete();
+        if (count($ids) <= 1) {
+            return;
+        }
+        foreach (array_values($ids) as $i => $id) {
+            CompetitionExamAssessment::query()->create(['competition_exam_id' => $this->id, 'assessment_id' => (int) $id, 'position' => $i]);
+        }
+    }
+
     /** title rỗng (đa số kỳ thi backfill từ cuộc thi cũ) thì hiển thị tên đề tham chiếu. */
     public function displayTitle(): string
     {

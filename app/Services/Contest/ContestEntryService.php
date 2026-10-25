@@ -79,15 +79,23 @@ class ContestEntryService
         $registration = $this->registrationFor($user, $competition->id);
 
         if ($competition->isSurvey()) {
-            // SỬA 24/10 (khách: "làm khảo sát phải check học sinh trong danh sách + nhập đúng mật khẩu mới được vào") — không
-            // còn tự vào danh sách bằng mật khẩu: ban tổ chức thêm học sinh ở tab "Học sinh" trước.
-            if ($registration === null || ! $registration->isApproved()) {
-                $this->fail($registration?->status === CompetitionRegistration::STATUS_REJECTED
-                    ? 'Bạn đã bị ban tổ chức gỡ khỏi khảo sát này'.($registration->reject_reason ? ' — '.$registration->reject_reason : '').'.'
-                    : 'Bạn chưa có trong danh sách của khảo sát này. Liên hệ giáo viên để được thêm vào danh sách.');
-            }
-
+            // SỬA 25/10 (khách: "khảo sát không cần add học sinh, chỉ cần biết mật khẩu là vào làm được; chỉ cuộc thi mới cần
+            // add") — đúng mật khẩu là vào: tự ghi học sinh vào danh sách (đã duyệt) để các bước kiểm tra sau nhận ra.
             $this->checkSurveyPassword($user, $competition, (string) $password);
+
+            if ($registration === null || ! $registration->isApproved()) {
+                $values = [
+                    'status' => CompetitionRegistration::STATUS_APPROVED,
+                    'requested_at' => $registration?->requested_at ?? now(),
+                    'approved_at' => now(),
+                    'approved_by' => null,
+                    'reject_reason' => null,
+                ];
+                if (CompetitionRegistration::supportsHubFields()) {
+                    $values['source'] = CompetitionRegistration::SOURCE_PASSWORD;
+                }
+                CompetitionRegistration::updateOrCreate(['competition_id' => $competition->id, 'student_id' => $user->id], $values);
+            }
 
             // SỬA 24/10 — kỳ nhiều đề: học sinh tự chọn đề để làm (xem ContestPaperService::choosePaper()).
             // SỬA 24/10 (khách: "đang làm nửa chừng mà thoát ra là reset lại từ đầu và cho chọn đề") — mỗi lần nhập mật
@@ -96,6 +104,8 @@ class ContestEntryService
                 DB::transaction(function () use ($user, $exam, $paperId) {
                     $this->discardInProgress($user, $exam);
                     app(ContestPaperService::class)->choosePaper($user, $exam, $paperId);
+                    // SỬA 25/10 — kỳ nhiều đề ngân hàng: mỗi lượt khảo sát mới bốc lại ngẫu nhiên 1 đề.
+                    app(ContestPaperService::class)->bankAssessmentFor($user, $exam, true, true);
                 });
             } catch (ValidationException $e) {
                 $this->fail((string) (collect($e->errors())->flatten()->first() ?? 'Chưa chọn được đề.'));
@@ -136,7 +146,7 @@ class ContestEntryService
             // SỬA 24/10 — bị gỡ khỏi danh sách thì không mở bài được nữa (dù vừa nhập mật khẩu).
             $registration = $this->registrationFor($user, $competition->id);
             if ($registration === null || ! $registration->isApproved()) {
-                $this->fail('Bạn không có trong danh sách của khảo sát này.');
+                $this->fail('Nhập mật khẩu khảo sát để bắt đầu hoặc tiếp tục làm bài.');
             }
             if (! ContestEntryPass::has($exam->id)) {
                 $this->fail('Nhập mật khẩu khảo sát để bắt đầu hoặc tiếp tục làm bài.');

@@ -538,6 +538,7 @@ class CompetitionService
         return ($assessment->type?->value ?? $assessment->type) !== \App\Enums\AssessmentType::Exam->value
             || $has('competition_exams')
             || $has('competition_exam_papers')
+            || $has('competition_exam_assessments') // SỬA 25/10 — đề thuộc kỳ nhiều đề
             || $has('competitions')
             || $has('attempts')
             || $has('assignments')
@@ -884,6 +885,11 @@ class CompetitionService
             throw ValidationException::withMessages([
                 'assessment_id' => 'Kỳ thi này đã có dữ liệu xếp hạng — không thể đổi đề tham chiếu (sẽ làm sai lệch dữ liệu đã tính).',
             ]);
+        }
+
+        // SỬA 25/10 — đổi đề ở trang quản trị: kỳ quay về 1 đề (bỏ danh sách nhiều đề).
+        if ((int) ($data['assessment_id'] ?? 0) !== (int) $exam->assessment_id) {
+            $exam->syncBankAssessments([]);
         }
 
         return $this->competitionExams->update($exam, [

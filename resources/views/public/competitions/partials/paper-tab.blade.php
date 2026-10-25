@@ -19,8 +19,8 @@
         <div>
             <b>{{ $s['fromBank'] ? ($s['examTitle'] ?? 'Chọn đề phù hợp cho kỳ này') : 'Thiết lập ma trận để chọn câu hỏi' }}</b>
             <p>{{ $s['fromBank']
-                ? ($survey ? 'Chọn một đề đã hoàn chỉnh trong ngân hàng, xem lịch sử sử dụng; mọi học sinh làm đề này ở mỗi lượt.'
-                           : 'Chọn đề trong ngân hàng, xem lịch sử sử dụng; chia mã đề hoán vị, cho học sinh tự chọn hoặc nhận ngẫu nhiên.')
+                ? ($survey ? 'Chọn một hoặc nhiều đề trong ngân hàng, xem lịch sử sử dụng; nhiều đề thì mỗi lượt học sinh được bốc ngẫu nhiên 1 đề.'
+                           : 'Chọn một hoặc nhiều đề trong ngân hàng; nhiều đề thì mỗi học sinh được bốc ngẫu nhiên 1 đề, một đề thì chia được mã đề hoán vị.')
                 : 'Chọn nguồn câu hỏi, chuyên đề, độ khó, số câu và điểm cho từng phần; sinh nhiều đề, duyệt từng đề rồi chốt.' }}</p>
         </div>
     </div>

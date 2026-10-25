@@ -602,12 +602,46 @@ class ContestPaperService
         return $aid !== null ? $papers->firstWhere('assessment_id', (int) $aid) : null;
     }
 
-    /** Đề (assessment) học sinh làm ở kỳ: đề ma trận được giao, không có thì đề gắn sẵn của kỳ. */
+    /** Đề (assessment) học sinh làm ở kỳ: đề ma trận được giao, không có thì đề ngân hàng của kỳ (nhiều đề: đề bốc cho mình). */
     public function assessmentIdFor(User $user, CompetitionExam $exam): ?int
     {
         $paper = $this->paperFor($user, $exam, true);
 
-        return $paper !== null ? (int) $paper->assessment_id : ($exam->assessment_id !== null ? (int) $exam->assessment_id : null);
+        return $paper !== null ? (int) $paper->assessment_id : $this->bankAssessmentFor($user, $exam, true);
+    }
+
+    /**
+     * SỬA 25/10 (khách: "chọn nhiều đề trong 1 kỳ, học sinh làm thì random 1 đề bất kỳ") — kỳ lấy NHIỀU đề từ ngân hàng:
+     * đề của học sinh được bốc ngẫu nhiên rồi giữ trong exam_forms['bank:{kỳ}'] của dòng đăng ký (tải lại trang vẫn đúng
+     * đề). $fresh = bốc lại — khảo sát gọi mỗi lần nhập mật khẩu (mỗi lượt mới một đề ngẫu nhiên). Kỳ 1 đề → đề đó.
+     * Chưa bốc và không được bốc ($assign = false) → null.
+     */
+    public function bankAssessmentFor(?User $user, CompetitionExam $exam, bool $assign = false, bool $fresh = false): ?int
+    {
+        $ids = $exam->bankAssessmentIds();
+        if (count($ids) <= 1) {
+            return $ids[0] ?? null;
+        }
+        if ($user === null || ! CompetitionRegistration::supportsHubFields()) {
+            return null;
+        }
+
+        $reg = CompetitionRegistration::query()->where('competition_id', $exam->competition_id)->where('student_id', $user->id)->first();
+        $key = 'bank:'.$exam->id;
+        $saved = $reg !== null ? (int) (((array) $reg->exam_forms)[$key] ?? 0) : 0;
+        if (! $fresh && in_array($saved, $ids, true)) {
+            return $saved;
+        }
+        if ($reg === null || (! $assign && ! $fresh)) {
+            return null;
+        }
+
+        $pick = $ids[random_int(0, count($ids) - 1)];
+        $forms = (array) $reg->exam_forms;
+        $forms[$key] = $pick;
+        $reg->forceFill(['exam_forms' => $forms])->save();
+
+        return $pick;
     }
 
     // ───────────────────────────── Dữ liệu cho tab "Thiết lập đề" ─────────────────────────────
