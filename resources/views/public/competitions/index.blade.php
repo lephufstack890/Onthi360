@@ -128,7 +128,7 @@
             @endforeach
         </div>
 
-        {{-- SỬA 25/10 (khách: "quá 5 mục thì phân trang, giống phân trang Đề thi luyện tập") — cùng giao diện / cách rút gọn số
+        {{-- SỬA 25/10 (khách: "quá 4 mục thì phân trang (26/10; trước là 5), giống phân trang Đề thi luyện tập") — cùng giao diện / cách rút gọn số
              trang với partials.practice-catalog (pageItems). --}}
         <nav aria-label="Phân trang cuộc thi và khảo sát" x-show="totalPages > 1" x-cloak
              class="flex flex-col items-center justify-between gap-2 rounded-xl border border-[#DDEAF0] bg-[#F8FAFB] p-2 sm:flex-row">
@@ -172,7 +172,7 @@
     function contestCatalog(init) {
         const normalize = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
         const rows = (init.rows || []).map((r) => ({ ...r, key: normalize(r.title) }));
-        const PAGE_SIZE = 5; // SỬA 25/10 — quá 5 sự kiện thì phân trang
+        const PAGE_SIZE = 4; // SỬA 26/10 — khách: "hơn 4 mục thì phân trang" (trước: 5)
         return {
             query: '',
             roadmap: 'all',
