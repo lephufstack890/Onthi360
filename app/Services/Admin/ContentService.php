@@ -2200,6 +2200,7 @@ class ContentService
         return \App\Support\QuestionOrder::sortMaterialExercises($product->exercises()->with(['tags', 'chapter'])->get())->map(fn (Question $q) => [
             'id' => $q->id,
             'code' => (string) $q->code,
+            'chapterId' => $q->material_id !== null ? (int) $q->material_id : null, // SỬA 27/10 — lọc theo chương ở trang tài liệu
             'title' => $q->title,
             'points' => $q->points,
             // SỬA 31/8 (2, "mở rộng ZIP bài tập") — trước đây 'testCasesCount' (chỉ đúng cho

@@ -259,10 +259,38 @@
                         <x-ws.empty-state title="Chưa có bài tập nào" description="Tải gói ZIP ở khung trên để thêm bài đầu tiên." />
                     @else
                         {{-- SỬA 27/10 (khách: "cho scroll để kéo chứ dài quá, hiển thị theo thứ tự câu") — khung cuộn riêng, xếp theo
-                             chương rồi mã bài (ContentService::productExercisesFor). --}}
+                             chương rồi mã bài (ContentService::productExercisesFor).
+                             SỬA 27/10 (khách: "chọn chương nào thì hiển thị bài tập chương đó, mặc định chương 1") — dải chọn chương; mặc
+                             định chương đầu tiên CÓ bài tập (chương 1). "c0" = bài chưa gắn chương. --}}
+                        @php
+                            $exByChapter = collect($exercises)->countBy(fn ($e) => 'c'.($e['chapterId'] ?? 0));
+                            $exChapters = collect($chapters)->map(fn ($c) => ['key' => 'c'.$c['id'], 'title' => $c['title'], 'count' => (int) ($exByChapter['c'.$c['id']] ?? 0)])
+                                ->filter(fn ($c) => $c['count'] > 0)->values();
+                            if (($exByChapter['c0'] ?? 0) > 0) {
+                                $exChapters->push(['key' => 'c0', 'title' => 'Chưa gắn '.($chapterLabel ? mb_strtolower($chapterLabel) : 'chương'), 'count' => (int) $exByChapter['c0']]);
+                            }
+                            $exDefault = $exChapters->first()['key'] ?? 'all';
+                        @endphp
+                        <div x-data="{ exCh: @js($exDefault) }">
+                        @if ($exChapters->count() > 1)
+                            <div role="tablist" aria-label="Lọc bài tập theo {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }}" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 10px">
+                                @foreach ($exChapters as $c)
+                                    <button type="button" role="tab" @click="exCh = @js($c['key'])" :aria-selected="exCh === @js($c['key'])"
+                                            :style="exCh === @js($c['key']) ? 'background:#2563EB;border-color:#2563EB;color:#fff' : ''"
+                                            style="min-height:34px;padding:0 12px;border:1px solid #D7E3F0;border-radius:999px;background:#fff;color:#4B627A;font-size:12.5px;font-weight:700;cursor:pointer">
+                                        {{ $c['title'] }} <small style="opacity:.75">({{ $c['count'] }})</small>
+                                    </button>
+                                @endforeach
+                                <button type="button" role="tab" @click="exCh = 'all'" :aria-selected="exCh === 'all'"
+                                        :style="exCh === 'all' ? 'background:#2563EB;border-color:#2563EB;color:#fff' : ''"
+                                        style="min-height:34px;padding:0 12px;border:1px solid #D7E3F0;border-radius:999px;background:#fff;color:#4B627A;font-size:12.5px;font-weight:700;cursor:pointer">
+                                    Tất cả <small style="opacity:.75">({{ count($exercises) }})</small>
+                                </button>
+                            </div>
+                        @endif
                         <div class="apx-list" style="max-height:620px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin">
                             @foreach ($exercises as $ex)
-                                <div class="apx-item">
+                                <div class="apx-item" x-show="exCh === 'all' || exCh === @js('c'.($ex['chapterId'] ?? 0))">
                                     <div class="apx-item__main">
                                         <p class="apx-item__title">
                                             @if (! empty($ex['code']))<code style="margin-right:6px;font-size:12px;font-weight:700;color:#2563EB">{{ $ex['code'] }}</code>@endif
@@ -290,6 +318,7 @@
                                 </div>
                             @endforeach
                         </div>
+                        </div>{{-- /x-data exCh --}}
                     @endif
                 </section>
                 @endunless
