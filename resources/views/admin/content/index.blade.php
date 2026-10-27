@@ -234,6 +234,9 @@
             @endforelse
         </div>
         <div class="akx-pg acx-panel" style="margin-top:12px" data-pg-nav="drafts" hidden></div>
+    @elseif ($tab === 'material_exercises')
+        {{-- SỬA 27/10 — tab "Bài của tài liệu" (sách / chuyên đề / bộ đề), xem MaterialExerciseIndexService. --}}
+        @include('admin.content.partials.material-exercises')
     @elseif ($tab === 'tags')
         {{-- SỬA 19/8 (Giai đoạn 6 — "Gắn tag/chủ đề cho câu hỏi"): CRUD gọn trong 1 khối,
              không cần trang riêng — xem ContentService::indexData()/tagStore()/tagUpdate()/

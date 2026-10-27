@@ -270,6 +270,9 @@ class ContentService
         $tabs = [
             ['label' => 'Bài chung', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
             ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
+            // SỬA 27/10 (khách: "thêm tab Bài của tài liệu: bài tập của sách, chuyên đề, bộ đề") — dữ liệu & bộ lọc ở
+            // App\Services\Admin\MaterialExerciseIndexService (ContentController::index() ghép vào khi mở tab này).
+            ['label' => 'Bài của tài liệu', 'href' => route('admin.content.index', ['tab' => 'material_exercises']), 'active' => $tab === 'material_exercises', 'count' => app(\App\Services\Admin\MaterialExerciseIndexService::class)->count()],
             ['label' => 'Đề thi', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
@@ -380,6 +383,8 @@ class ContentService
             })->all();
         } elseif ($tab === 'drafts') {
             $documents = $this->pendingDocuments();
+        } elseif ($tab === 'material_exercises') {
+            // SỬA 27/10 — tab "Bài của tài liệu": dữ liệu do MaterialExerciseIndexService dựng (ContentController::index()).
         } elseif ($tab === 'tags') {
             // SỬA 19/8 (Giai đoạn 6) — withCount('questions') để hiện rõ tag nào đang được
             // dùng cho bao nhiêu câu hỏi trước khi admin lỡ tay xoá (xem tagDestroy() bên dưới,

@@ -66,7 +66,14 @@ class ContentController extends Controller
         // service tự chặn khi vượt quá trang cuối.
         $page = max(1, (int) $request->query('page', 1));
 
-        return view('admin.content.index', $this->contentService->indexData($tab, $filters, $page));
+        $data = $this->contentService->indexData($tab, $filters, $page);
+
+        // SỬA 27/10 — tab "Bài của tài liệu" (sách / chuyên đề / bộ đề), bộ lọc riêng: loai, tai_lieu, phan, dang, trang_thai, q.
+        if ($tab === 'material_exercises') {
+            $data += app(\App\Services\Admin\MaterialExerciseIndexService::class)->indexData($request->query(), $page);
+        }
+
+        return view('admin.content.index', $data);
     }
 
     /** admin.content.show — 6.2 (chặn phát hành khi thiếu cấu hình). */
