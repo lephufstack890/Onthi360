@@ -47,6 +47,8 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu bài tập.'])
     @elseif (session('status') === 'exercise-deleted')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá bài tập.'])
+    @elseif (session('status') === 'exercises-deleted-many')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã xoá các bài tập đã chọn.')])
     @elseif (session('status') === 'chapter-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm '.mb_strtolower($chapterLabel ?? 'mục').'.'])
     @elseif (session('status') === 'chapter-updated')
@@ -271,13 +273,41 @@
                              SỬA 27/10 (khách: "chọn chương nào thì hiển thị bài tập chương đó, mặc định chương 1"; lần 2: "bỏ dải nút, chỉ cần
                              chọn ô Thuộc chương") — danh sách lọc theo ô "Thuộc chương" của khối nhập (sự kiện ex-chapter); mặc định
                              chương đầu tiên CÓ bài tập (chương 1). "c0" = bài chưa gắn chương. --}}
-                        @php $exCounts = collect($exercises)->countBy(fn ($e) => 'c'.($e['chapterId'] ?? 0))->all(); @endphp
-                        <div x-data="{ exCh: @js('c'.($exDefaultChapterId ?? 0)), counts: @js((object) $exCounts) }"
-                             @ex-chapter.window="exCh = 'c' + ($event.detail ? $event.detail : 0)">
+                        @php
+                            $exCounts = collect($exercises)->countBy(fn ($e) => 'c'.($e['chapterId'] ?? 0))->all();
+                            // SỬA 27/10 (khách: "thêm nút chọn tất cả rồi xoá tất cả") — id bài theo từng chương, để "Chọn tất cả" chỉ chọn
+                            // đúng các bài ĐANG HIỆN (chương đang xem). Đổi chương là bỏ chọn hết, không bao giờ xoá nhầm bài bị ẩn.
+                            $exIdsByChapter = collect($exercises)->groupBy(fn ($e) => 'c'.($e['chapterId'] ?? 0))->map(fn ($g) => $g->pluck('id')->map(fn ($id) => (int) $id)->values())->all();
+                        @endphp
+                        <div x-data="{ exCh: @js('c'.($exDefaultChapterId ?? 0)), counts: @js((object) $exCounts), idsBy: @js((object) $exIdsByChapter), sel: [],
+                                       get visibleIds() { return this.idsBy[this.exCh] || []; },
+                                       get allOn() { return this.visibleIds.length > 0 && this.visibleIds.every((id) => this.sel.includes(id)); },
+                                       toggleAll() { this.sel = this.allOn ? [] : this.visibleIds.slice(); } }"
+                             @ex-chapter.window="exCh = 'c' + ($event.detail ? $event.detail : 0); sel = []">
+                        <style>
+                            .apx-bulkbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 0 0 8px; padding: 10px 12px; border: 1px solid #E2ECF3; border-radius: 12px; background: #F8FBFD; }
+                            .apx-bulkbar label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #334E68; cursor: pointer; }
+                            .apx-bulkbar input, .apx-pick input { width: 16px; height: 16px; accent-color: #2563EB; cursor: pointer; }
+                            .apx-bulkbar__del { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid #FECDD3; border-radius: 10px; background: #FFF1F2; color: #BE123C; font-size: 13px; font-weight: 700; cursor: pointer; }
+                            .apx-bulkbar__del:hover { background: #FFE4E6; }
+                            .apx-pick { flex: none; display: flex; align-items: center; padding-left: 4px; }
+                            .apx-item.is-picked { background: #F5F9FF; }
+                        </style>
                         <p class="apx-hint" role="status" style="margin:14px 0 8px" x-text="(counts[exCh] || 0) + ' bài trong {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }} đang chọn ở ô &quot;Thuộc {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }}&quot; phía trên · tổng {{ count($exercises) }} bài'"></p>
+                        <div class="apx-bulkbar" x-show="visibleIds.length" x-cloak>
+                            <label><input type="checkbox" :checked="allOn" @click.prevent="toggleAll()"> Chọn tất cả <span x-text="visibleIds.length"></span> bài đang hiện</label>
+                            <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" x-show="sel.length" x-cloak
+                                  @submit="if (! confirm('Xoá ' + sel.length + ' bài tập đã chọn? Xoá hẳn cả tệp đính kèm, không thể hoàn tác.')) $event.preventDefault()">
+                                @csrf
+                                @method('DELETE')
+                                <template x-for="id in sel" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                                <button type="submit" class="apx-bulkbar__del"><x-lucide name="trash-2" /> <span x-text="'Xoá ' + sel.length + ' bài đã chọn'"></span></button>
+                            </form>
+                        </div>
                         <div class="apx-list" style="max-height:620px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin">
                             @foreach ($exercises as $ex)
-                                <div class="apx-item" x-show="exCh === 'all' || exCh === @js('c'.($ex['chapterId'] ?? 0))">
+                                <div class="apx-item" x-show="exCh === 'all' || exCh === @js('c'.($ex['chapterId'] ?? 0))" :class="sel.includes({{ (int) $ex['id'] }}) ? 'is-picked' : ''">
+                                    <label class="apx-pick" title="Chọn để xoá nhiều bài"><input type="checkbox" value="{{ (int) $ex['id'] }}" x-model.number="sel" aria-label="Chọn bài {{ $ex['code'] ?? $ex['title'] }}"></label>
                                     <div class="apx-item__main">
                                         <p class="apx-item__title">
                                             @if (! empty($ex['code']))<code style="margin-right:6px;font-size:12px;font-weight:700;color:#2563EB">{{ $ex['code'] }}</code>@endif

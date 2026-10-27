@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Question;
 use App\Services\Admin\ContentService;
 use App\Services\Admin\ProductExerciseBulkImportService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -56,6 +58,29 @@ class ProductExerciseBulkController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['ok' => false, 'message' => (string) collect($e->errors())->flatten()->first()], 422);
         }
+    }
+
+    /**
+     * SỬA 27/10 (khách: "thêm nút chọn tất cả rồi xoá tất cả") — xoá nhiều bài tập một lần. Mỗi bài xoá đúng như nút Xoá
+     * từng bài (ContentService::productExerciseDestroy: xoá hẳn + xoá tệp). Chỉ nhận bài THUỘC tài liệu này — id lạ bị bỏ qua.
+     */
+    public function destroyMany(Request $request, Product $product, ContentService $content): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:1000'],
+            'ids.*' => ['integer'],
+        ], [], ['ids' => 'Bài tập']);
+
+        @set_time_limit(300);
+
+        $exercises = Question::query()->where('product_id', $product->id)->whereIn('id', $data['ids'])->get();
+        foreach ($exercises as $exercise) {
+            $content->productExerciseDestroy($exercise);
+        }
+
+        return redirect()->route('admin.products.show', $product->id)
+            ->with('status', 'exercises-deleted-many')
+            ->with('statusMessage', 'Đã xoá '.$exercises->count().' bài tập.');
     }
 
     /** Xong (hoặc dừng giữa chừng): dọn thư mục tạm. */

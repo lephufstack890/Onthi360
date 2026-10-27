@@ -732,6 +732,8 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 27/10 — nhập HÀNG LOẠT (kiểm trùng trước, rồi nhập lần lượt từng bài). Xem Admin\ProductExerciseBulkController.
         Route::post('products/{product}/exercises/bulk', [AdminProductExerciseBulkController::class, 'prepare'])->name('products.exercises.bulk.prepare');
         Route::get('products/{product}/exercises/kiem-tra-ma', [AdminProductExerciseBulkController::class, 'checkCode'])->name('products.exercises.checkCode');
+        // SỬA 27/10 — chọn nhiều bài rồi xoá một lần (danh sách Bài tập đính kèm). Xem ProductExerciseBulkController::destroyMany().
+        Route::delete('products/{product}/exercises', [AdminProductExerciseBulkController::class, 'destroyMany'])->name('products.exercises.destroyMany');
         // SỬA 27/10 — "Lấy từ bài có sẵn" (bài tập của tài liệu khác → bản sao vào tài liệu này). Xem Admin\ProductExercisePickController.
         Route::get('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'sources'])->name('products.exercises.pick.sources');
         Route::post('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'store'])->name('products.exercises.pick.store');
