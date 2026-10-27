@@ -275,7 +275,8 @@ class ProductReadService
         $mine = AttemptAnswer::query()
             ->selectRaw('question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted', ['accepted'])
             ->whereIn('question_id', $questions->pluck('id')->all())
-            ->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id))
+            // SỬA 27/10 — bài dùng chung: chỉ tính lượt làm ở CHÍNH tài liệu này ("bên nào ra bên đó").
+            ->when(true, fn ($q) => \App\Support\ProductExerciseLinks::answersInProduct($q, (int) $user->id, (int) $product->id, \App\Support\ProductExerciseLinks::linkedIdsIn($questions)))
             ->groupBy('question_id')
             ->get()
             ->keyBy('question_id');

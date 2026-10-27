@@ -35,6 +35,46 @@ final class ProductExerciseLinks
         return $has ??= Schema::hasTable('product_exercise_links');
     }
 
+    /** SỬA 27/10 — attempts.context_product_id (migration 001320): lượt luyện được mở từ tài liệu nào. */
+    public static function supportsAnswerContext(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasColumn('attempts', 'context_product_id');
+    }
+
+    /**
+     * SỬA 27/10 (khách: "dùng chung nhưng bên nào ra bên đó") — lọc bài nộp của $userId tính cho tài liệu $productId:
+     *   · bài CỦA tài liệu này: lượt mở từ chính tài liệu này, hoặc lượt cũ / từ trang Luyện tập (chưa ghi tài liệu);
+     *   · bài DÙNG KÉ ($linkedIds): CHỈ lượt mở từ tài liệu này — làm ở tài liệu gốc không tính sang đây và ngược lại.
+     * Chưa chạy migration 001320 thì lọc theo người dùng như cũ.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $answers  truy vấn AttemptAnswer
+     * @param  list<int>  $linkedIds
+     */
+    public static function answersInProduct($answers, int $userId, int $productId, array $linkedIds)
+    {
+        if (! self::supportsAnswerContext()) {
+            return $answers->whereHas('attempt', fn ($q) => $q->where('user_id', $userId));
+        }
+
+        return $answers->where(function ($w) use ($userId, $productId, $linkedIds) {
+            $w->where(fn ($own) => $own->whereNotIn('question_id', $linkedIds !== [] ? $linkedIds : [0])
+                ->whereHas('attempt', fn ($a) => $a->where('user_id', $userId)
+                    ->where(fn ($c) => $c->whereNull('context_product_id')->orWhere('context_product_id', $productId))));
+            if ($linkedIds !== []) {
+                $w->orWhere(fn ($ln) => $ln->whereIn('question_id', $linkedIds)
+                    ->whereHas('attempt', fn ($a) => $a->where('user_id', $userId)->where('context_product_id', $productId)));
+            }
+        });
+    }
+
+    /** id các bài DÙNG KÉ trong một danh sách đã gộp bằng withLinked(). @return list<int> */
+    public static function linkedIdsIn(Collection $questions): array
+    {
+        return $questions->filter(fn ($q) => $q instanceof Question && self::isLinked($q))->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+    }
+
     /** @return array<int, ?int> id bài dùng ké → id chương bên tài liệu này (null = chưa gắn chương) */
     public static function chapterMap(int $productId): array
     {

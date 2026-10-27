@@ -240,7 +240,7 @@ class PracticeByQuestionController extends Controller
             $returnUrl = null;
         }
 
-        $this->service->startForQuestion($exercise->id, $returnUrl, $returnUrl !== null ? ($data['back_label'] ?? null) : null, $siblings);
+        $this->service->startForQuestion($exercise->id, $returnUrl, $returnUrl !== null ? ($data['back_label'] ?? null) : null, $siblings, (int) $product->id);
 
         return redirect()->route('student.practiceByQuestion.play');
     }

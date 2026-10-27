@@ -92,9 +92,11 @@ class PracticeByQuestionService
      * nơi quay về hai chỗ khác nhau nên nút quay lại không thể ghi cứng một nhãn như trước.
      * Bỏ trống -> giữ nguyên nhãn cũ ("Quay lại Tài liệu của tôi"), không đổi hành vi hiện có.
      */
-    public function startForQuestion(int $questionId, ?string $returnUrl = null, ?string $backLabel = null, ?array $siblings = null): void
+    public function startForQuestion(int $questionId, ?string $returnUrl = null, ?string $backLabel = null, ?array $siblings = null, ?int $contextProductId = null): void
     {
         Session::put(self::SESSION_KEY, [
+            // SỬA 27/10 — mở từ tài liệu nào (bài dùng chung: "bên nào ra bên đó"), ghi vào attempts.context_product_id.
+            'contextProductId' => $contextProductId,
             'question_ids' => [$questionId],
             'index' => 0,
             'answered' => 0,
@@ -179,7 +181,8 @@ class PracticeByQuestionService
             return false;
         }
 
-        $this->startForQuestion($questionId, $state['returnUrl'] ?? null, $state['backLabel'] ?? null);
+        // SỬA 27/10 — giữ nguyên danh sách bài và tài liệu đang đứng (bài dùng chung: Bài tiếp đi đúng danh sách tài liệu này).
+        $this->startForQuestion($questionId, $state['returnUrl'] ?? null, $state['backLabel'] ?? null, $state['siblings'] ?? null, $state['contextProductId'] ?? null);
 
         return true;
     }
@@ -320,9 +323,12 @@ class PracticeByQuestionService
             return null;
         }
 
+        // SỬA 27/10 — mở từ một tài liệu: kết quả lần trước chỉ lấy lượt làm ở CHÍNH tài liệu đó (bài dùng chung).
+        $ctx = Session::get(self::SESSION_KEY)['contextProductId'] ?? null;
         $answer = AttemptAnswer::query()
             ->where('question_id', $question->id)
-            ->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id))
+            ->when($ctx !== null, fn ($q) => \App\Support\ProductExerciseLinks::answersInProduct($q, (int) $user->id, (int) $ctx, (int) $question->product_id === (int) $ctx ? [] : [(int) $question->id]))
+            ->when($ctx === null, fn ($q) => $q->whereHas('attempt', fn ($a) => $a->where('user_id', $user->id)))
             // graded_at chưa có (bài ghi nhận mà chưa chấm xong) thì xuống cuối: sắp giảm dần
             // nên NULL nằm sau. Thêm id để hai lần chấm cùng giây vẫn ra thứ tự cố định.
             ->orderByDesc('graded_at')
@@ -691,6 +697,10 @@ class PracticeByQuestionService
                 'total_score' => 0,
                 'is_provisional' => false,
             ]);
+            // SỬA 27/10 — ghi tài liệu đang đứng (bài dùng chung tính "đã làm" riêng từng tài liệu).
+            if (! empty($state['contextProductId']) && \App\Support\ProductExerciseLinks::supportsAnswerContext()) {
+                $attempt->forceFill(['context_product_id' => (int) $state['contextProductId']])->save();
+            }
 
             $state['attempt_id'] = $attempt->id;
         }
