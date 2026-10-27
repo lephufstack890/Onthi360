@@ -243,6 +243,15 @@ class ContentService
      * @param int $page  SỬA 7/10 — trang hiện tại của tab Câu hỏi (QUESTIONS_PER_PAGE câu/trang).
      * @return array{tab: string, tabs: array, rows: array, total: int, documents: array}
      */
+    /** SỬA 27/10 — chuỗi so khớp ô tìm đề: chữ thường, bỏ dấu tiếng Việt (đ → d), gộp khoảng trắng. */
+    private static function searchKey(string $text): string
+    {
+        $t = mb_strtolower(trim($text));
+        $t = Str::ascii(str_replace('đ', 'd', $t));
+
+        return (string) preg_replace('/\s+/', ' ', $t);
+    }
+
     public function indexData(string $tab, array $filters = [], int $page = 1): array
     {
         $counts = [
@@ -381,6 +390,12 @@ class ContentService
                     'deleteLabel' => 'Xoá vĩnh viễn đề này cùng file PDF đề, lời giải, bản xem trước và ảnh bìa? Không thể khôi phục.',
                 ];
             })->all();
+
+            // SỬA 27/10 (khách: "thêm tìm kiếm theo tên đề thi") — lọc theo tên đề, không phân biệt hoa/thường và
+            // có dấu/không dấu ("hung yen" vẫn ra "HƯNG YÊN"). Lọc trên danh sách đã lấy (tối đa 500 đề) nên không đổi truy vấn.
+            if (($kw = self::searchKey((string) ($filters['q'] ?? ''))) !== '') {
+                $rows = array_values(array_filter($rows, fn ($r) => str_contains(self::searchKey((string) $r['title']), $kw)));
+            }
         } elseif ($tab === 'drafts') {
             $documents = $this->pendingDocuments();
         } elseif ($tab === 'material_exercises') {
@@ -423,6 +438,7 @@ class ContentService
                 $tab === 'drafts' => count($documents),
                 // SỬA 8/9 (3) — tab Câu hỏi hiện tổng ĐÃ LỌC, không phải tổng toàn kho.
                 $tab === 'questions' => $filteredTotal ?? count($rows),
+                $tab === 'assessments' && ! empty($filters['q']) => count($rows),
                 default => $counts[$tab] ?? count($rows),
             },
             // SỬA 8/9 (3) — dữ liệu dựng thanh bộ lọc ở admin/content/index.blade.php.

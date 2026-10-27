@@ -129,6 +129,29 @@
         @endforeach
     </nav>
 
+    {{-- SỬA 27/10 (khách: "thêm tìm kiếm theo tên đề thi") — ô tìm của tab Đề thi (lọc ở ContentService::indexData()). --}}
+    @if ($tab === 'assessments')
+        <section class="acx-panel" style="margin-top:16px" aria-label="Tìm đề thi">
+            <div class="akx-pad">
+                <form method="GET" action="{{ route('admin.content.index') }}" class="akx-form">
+                    <input type="hidden" name="tab" value="assessments">
+                    <div class="akx-grow">
+                        <label class="akx-lbl" for="filter-assess-q">Tìm theo tên đề thi</label>
+                        <div class="acx-search">
+                            <x-lucide name="search" />
+                            <input id="filter-assess-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
+                                   placeholder="Ví dụ: Hưng Yên, HSG, khảo sát tin 9…" class="admin-input">
+                        </div>
+                    </div>
+                    <button type="submit" class="acx-btn acx-btn--primary">Tìm</button>
+                    @if (($filters['q'] ?? '') !== '')
+                        <a href="{{ route('admin.content.index', ['tab' => 'assessments']) }}" class="acx-btn">Xoá tìm</a>
+                    @endif
+                </form>
+            </div>
+        </section>
+    @endif
+
     @if ($isQuestions)
         <section class="acx-panel" style="margin-top:16px" aria-label="Bộ lọc câu hỏi">
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
@@ -399,8 +422,13 @@
                 </table>
                 @if (count($rows) === 0)
                     <div class="akx-empty">
+                        @if ($tab === 'assessments' && ($filters['q'] ?? '') !== '')
+                            <strong>Không có đề nào khớp "{{ $filters['q'] }}"</strong>
+                            Thử từ khoá ngắn hơn hoặc bấm "Xoá tìm".
+                        @else
                         <strong>{{ $isQuestions && $hasActiveFilter ? 'Không có câu hỏi nào khớp bộ lọc' : 'Chưa có dữ liệu.' }}</strong>
                         {{ $isQuestions && $hasActiveFilter ? 'Thử bỏ bớt điều kiện hoặc bấm "Xoá lọc".' : 'Thêm nội dung đầu tiên để bắt đầu.' }}
+                        @endif
                     </div>
                 @endif
             </div>
