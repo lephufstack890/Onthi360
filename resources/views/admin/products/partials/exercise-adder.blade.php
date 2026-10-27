@@ -34,7 +34,8 @@
 <div x-show="addMode === 'bulk'" x-cloak>@include('admin.products.partials.exercise-bulk-adder')</div>
 <form x-show="addMode === 'single'" action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data"
       class="oi-add oi-zip"
-      x-data="{ chapter: @js((string) old('material_id', '')), zipName: '', zipSize: '', drag: false, busy: false,
+      @ex-chapter.window="chapter = String($event.detail ?? '')"
+      x-data="{ chapter: @js((string) old('material_id', (string) ($exDefaultChapterId ?? ''))), zipName: '', zipSize: '', drag: false, busy: false,
                 pick(e) { const f = e.target.files && e.target.files[0]; this.zipName = f ? f.name : ''; this.zipSize = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; },
                 clear() { this.$refs.zip.value = ''; this.zipName = ''; this.zipSize = ''; } }"
       @submit="busy = true">
@@ -49,7 +50,7 @@
     @if ($chapterLabel)
         <div>
             <label class="oi-add__lbl" for="ex-chapter">1. Thuộc {{ $exChapterLower }}</label>
-            <select id="ex-chapter" x-model="chapter" class="oi-add__input" style="max-width: 460px">
+            <select id="ex-chapter" x-model="chapter" @change="$dispatch('ex-chapter', chapter)" class="oi-add__input" style="max-width: 460px">
                 <option value="">— Chưa gắn {{ $exChapterLower }} —</option>
                 @foreach ($chapters as $c)
                     <option value="{{ $c['id'] }}">{{ $c['title'] }}</option>

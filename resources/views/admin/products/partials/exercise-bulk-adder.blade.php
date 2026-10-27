@@ -12,6 +12,7 @@
         'importUrl' => route('admin.products.exercises.bulk.import', [$product->id, 'TOKEN32TOKEN32TOKEN32TOKEN32TOKE', 999999]),
         'finishUrl' => route('admin.products.exercises.bulk.finish', [$product->id, 'TOKEN32TOKEN32TOKEN32TOKEN32TOKE']),
         'csrf' => csrf_token(),
+        'chapter' => (string) ($exDefaultChapterId ?? ''), // SỬA 27/10 — chương mặc định (chương 1), xem admin/products/show
         'maxFiles' => $bkMaxFiles,
     ];
 @endphp
@@ -35,7 +36,7 @@
 <script>
     function exerciseBulk(cfg) {
         return {
-            chapter: '', files: [], drag: false, phase: 'pick', // pick | checking | blocked | ready | importing | done
+            chapter: cfg.chapter || '', files: [], drag: false, phase: 'pick', // pick | checking | blocked | ready | importing | done
             message: '', duplicates: [], invalid: [], items: [], token: '', doneCount: 0, failCount: 0,
             get sizeLabel() { return (this.files.reduce((s, f) => s + f.size, 0) / 1048576).toFixed(1) + ' MB'; },
             get percent() { return this.items.length ? Math.round((this.doneCount + this.failCount) / this.items.length * 100) : 0; },
@@ -99,11 +100,11 @@
 </script>
 @endonce
 
-<div class="oi-add oi-zip" x-data="exerciseBulk(@js($bkCfg))">
+<div class="oi-add oi-zip" x-data="exerciseBulk(@js($bkCfg))" @ex-chapter.window="if (phase !== 'importing') chapter = String($event.detail ?? '')">
     @if ($chapterLabel)
         <div>
             <label class="oi-add__lbl" for="bk-chapter">1. Thuộc {{ $bkChapterLower }} <small>(áp cho mọi bài trong lần nhập này)</small></label>
-            <select id="bk-chapter" x-model="chapter" class="oi-add__input" style="max-width: 460px" :disabled="phase === 'importing'">
+            <select id="bk-chapter" x-model="chapter" @change="$dispatch('ex-chapter', chapter)" class="oi-add__input" style="max-width: 460px" :disabled="phase === 'importing'">
                 <option value="">— Chưa gắn {{ $bkChapterLower }} —</option>
                 @foreach ($chapters as $c)
                     <option value="{{ $c['id'] }}">{{ $c['title'] }}</option>
