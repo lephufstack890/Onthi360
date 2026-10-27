@@ -65,4 +65,19 @@ class ProductExercisePickController extends Controller
             ->with('status', 'exercises-deleted-many')
             ->with('statusMessage', 'Đã gỡ bài '.$exercise->code.' khỏi tài liệu này (bài gốc vẫn giữ nguyên).');
     }
+
+    /** SỬA 27/10 (khách: "chọn tất cả xong gỡ") — gỡ nhiều bài dùng chung khỏi tài liệu này một lần (bài gốc giữ nguyên). */
+    public function unlinkMany(Request $request, Product $product): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:1000'],
+            'ids.*' => ['integer'],
+        ], [], ['ids' => 'Bài tập']);
+
+        $count = $this->pick->unlinkMany($product, $data['ids']);
+
+        return redirect()->route('admin.products.show', $product->id)
+            ->with('status', 'exercises-deleted-many')
+            ->with('statusMessage', 'Đã gỡ '.$count.' bài dùng chung khỏi tài liệu này (bài gốc vẫn giữ nguyên).');
+    }
 }

@@ -278,8 +278,13 @@
                             // SỬA 27/10 (khách: "thêm nút chọn tất cả rồi xoá tất cả") — id bài theo từng chương, để "Chọn tất cả" chỉ chọn
                             // đúng các bài ĐANG HIỆN (chương đang xem). Đổi chương là bỏ chọn hết, không bao giờ xoá nhầm bài bị ẩn.
                             $exIdsByChapter = collect($exercises)->groupBy(fn ($e) => 'c'.($e['chapterId'] ?? 0))->map(fn ($g) => $g->pluck('id')->map(fn ($id) => (int) $id)->values())->all();
+                            // SỬA 27/10 (khách: "chọn tất cả xong gỡ các bài dùng chung") — id bài DÙNG CHUNG: trong số bài đã chọn, bài
+                            // dùng chung đi nút "Gỡ" (chỉ bỏ khỏi tài liệu này), bài của chính tài liệu đi nút "Xoá".
+                            $exLinkedIds = collect($exercises)->filter(fn ($e) => ! empty($e['linked']))->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
                         @endphp
-                        <div x-data="{ exCh: @js('c'.($exDefaultChapterId ?? 0)), counts: @js((object) $exCounts), idsBy: @js((object) $exIdsByChapter), sel: [],
+                        <div x-data="{ exCh: @js('c'.($exDefaultChapterId ?? 0)), counts: @js((object) $exCounts), idsBy: @js((object) $exIdsByChapter), linkedIds: @js($exLinkedIds), sel: [],
+                                       get selLinked() { return this.sel.filter((id) => this.linkedIds.includes(id)); },
+                                       get selOwn() { return this.sel.filter((id) => ! this.linkedIds.includes(id)); },
                                        get visibleIds() { return this.idsBy[this.exCh] || []; },
                                        get allOn() { return this.visibleIds.length > 0 && this.visibleIds.every((id) => this.sel.includes(id)); },
                                        toggleAll() { this.sel = this.allOn ? [] : this.visibleIds.slice(); } }"
@@ -296,13 +301,23 @@
                         <p class="apx-hint" role="status" style="margin:14px 0 8px" x-text="(counts[exCh] || 0) + ' bài trong {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }} đang chọn ở ô &quot;Thuộc {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }}&quot; phía trên · tổng {{ count($exercises) }} bài'"></p>
                         <div class="apx-bulkbar" x-show="visibleIds.length" x-cloak>
                             <label><input type="checkbox" :checked="allOn" @click.prevent="toggleAll()"> Chọn tất cả <span x-text="visibleIds.length"></span> bài đang hiện</label>
-                            <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" x-show="sel.length" x-cloak
-                                  @submit="if (! confirm('Xoá ' + sel.length + ' bài tập đã chọn? Xoá hẳn cả tệp đính kèm, không thể hoàn tác.')) $event.preventDefault()">
-                                @csrf
-                                @method('DELETE')
-                                <template x-for="id in sel" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
-                                <button type="submit" class="apx-bulkbar__del"><x-lucide name="trash-2" /> <span x-text="'Xoá ' + sel.length + ' bài đã chọn'"></span></button>
-                            </form>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                {{-- SỬA 27/10 — bài DÙNG CHUNG đã chọn: Gỡ khỏi tài liệu này (bài gốc ở tài liệu kia giữ nguyên, không xoá tệp). --}}
+                                <form action="{{ route('admin.products.exercises.pick.unlinkMany', $product->id) }}" method="POST" x-show="selLinked.length" x-cloak
+                                      @submit="if (! confirm('Gỡ ' + selLinked.length + ' bài dùng chung khỏi tài liệu này? Bài gốc ở tài liệu kia vẫn giữ nguyên.')) $event.preventDefault()">
+                                    @csrf
+                                    @method('DELETE')
+                                    <template x-for="id in selLinked" :key="'l' + id"><input type="hidden" name="ids[]" :value="id"></template>
+                                    <button type="submit" class="apx-bulkbar__del" style="border-color:#BAE6FD;background:#F0F9FF;color:#075985"><x-lucide name="x" /> <span x-text="'Gỡ ' + selLinked.length + ' bài dùng chung'"></span></button>
+                                </form>
+                                <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" x-show="selOwn.length" x-cloak
+                                      @submit="if (! confirm('Xoá ' + selOwn.length + ' bài tập đã chọn? Xoá hẳn cả tệp đính kèm, không thể hoàn tác.')) $event.preventDefault()">
+                                    @csrf
+                                    @method('DELETE')
+                                    <template x-for="id in selOwn" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                                    <button type="submit" class="apx-bulkbar__del"><x-lucide name="trash-2" /> <span x-text="'Xoá ' + selOwn.length + ' bài đã chọn'"></span></button>
+                                </form>
+                            </div>
                         </div>
                         <div class="apx-list" style="max-height:620px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin">
                             @foreach ($exercises as $ex)

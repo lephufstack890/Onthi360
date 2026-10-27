@@ -181,6 +181,21 @@ final class ProductExercisePickService
         return ['added' => $added, 'skipped' => $skipped];
     }
 
+    /**
+     * SỬA 27/10 — gỡ nhiều bài dùng chung khỏi tài liệu (chỉ xoá dòng liên kết của CHÍNH tài liệu này; bài gốc, tệp và
+     * các tài liệu khác không đụng tới). Trả số bài đã gỡ.
+     *
+     * @param  array<int, int|string>  $ids
+     */
+    public function unlinkMany(Product $target, array $ids): int
+    {
+        if (! ProductExerciseLinks::supported() || $ids === []) {
+            return 0;
+        }
+
+        return ProductExerciseLink::query()->where('product_id', $target->id)->whereIn('question_id', array_map('intval', $ids))->delete();
+    }
+
     /** Gỡ một bài dùng ké khỏi tài liệu (bài gốc giữ nguyên). */
     public function unlink(Product $target, Question $question): bool
     {

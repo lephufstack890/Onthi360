@@ -739,6 +739,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'store'])->name('products.exercises.pick.store');
         // SỬA 27/10 lần 2 — gỡ bài DÙNG KÉ khỏi tài liệu (bài gốc giữ nguyên).
         Route::delete('products/{product}/exercises/{exercise}/dung-ke', [AdminProductExercisePickController::class, 'unlink'])->name('products.exercises.pick.unlink');
+        // SỬA 27/10 — chọn nhiều bài dùng chung rồi gỡ một lần.
+        Route::delete('products/{product}/bai-dung-chung', [AdminProductExercisePickController::class, 'unlinkMany'])->name('products.exercises.pick.unlinkMany');
         Route::post('products/{product}/exercises/bulk/{token}/{index}', [AdminProductExerciseBulkController::class, 'import'])
             ->where('token', '[A-Za-z0-9]{32}')->whereNumber('index')->name('products.exercises.bulk.import');
         Route::post('products/{product}/exercises/bulk/{token}/xong', [AdminProductExerciseBulkController::class, 'finish'])
