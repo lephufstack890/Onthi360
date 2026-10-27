@@ -77,6 +77,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductChapterController as AdminProductChapterController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExerciseController;
+use App\Http\Controllers\Admin\ProductExerciseBulkController as AdminProductExerciseBulkController; // SỬA 27/10 — nhập bài tập hàng loạt
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\MaterialReadController as AdminMaterialReadController;
@@ -727,6 +728,12 @@ Route::middleware(['auth'])->group(function () {
         // middleware role:admin,super_admin với các route products.* ở trên) — không mở cho
         // editor/giáo viên. Xem App\Http\Controllers\Admin\ProductExerciseController.
         Route::post('products/{product}/exercises', [AdminProductExerciseController::class, 'store'])->name('products.exercises.store');
+        // SỬA 27/10 — nhập HÀNG LOẠT (kiểm trùng trước, rồi nhập lần lượt từng bài). Xem Admin\ProductExerciseBulkController.
+        Route::post('products/{product}/exercises/bulk', [AdminProductExerciseBulkController::class, 'prepare'])->name('products.exercises.bulk.prepare');
+        Route::post('products/{product}/exercises/bulk/{token}/{index}', [AdminProductExerciseBulkController::class, 'import'])
+            ->where('token', '[A-Za-z0-9]{32}')->whereNumber('index')->name('products.exercises.bulk.import');
+        Route::post('products/{product}/exercises/bulk/{token}/xong', [AdminProductExerciseBulkController::class, 'finish'])
+            ->where('token', '[A-Za-z0-9]{32}')->name('products.exercises.bulk.finish');
         // SỬA 4/9 (khách yêu cầu "vừa thêm được từ ZIP và thêm thủ công nữa") — form nhập tay
         // riêng, xem ProductExerciseController::createManual()/storeManual().
         Route::get('products/{product}/exercises/create', [AdminProductExerciseController::class, 'createManual'])->name('products.exercises.createManual');

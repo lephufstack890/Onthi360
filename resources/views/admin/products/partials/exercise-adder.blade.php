@@ -19,7 +19,20 @@
     ];
 @endphp
 
-<form action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data"
+{{-- SỬA 27/10 (khách: "chọn được 2 loại: 1 loại up ZIP 1 bài như bình thường, 1 loại ZIP up hàng loạt") — 2 cách nhập:
+     · Từng bài: form cũ bên dưới (đọc gói → màn Sửa rà lại → Lưu). Trùng mã bài thì báo, không ghi đè.
+     · Hàng loạt: partials/exercise-bulk-adder (1 ZIP chứa nhiều ZIP bài, hoặc nhiều ZIP bài) — kiểm trùng hết rồi nhập luôn. --}}
+<div x-data="{ addMode: 'single' }">
+<div class="oi-tf" role="radiogroup" aria-label="Cách nhập bài tập" style="margin-bottom:10px">
+    <label :class="addMode === 'single' ? 'is-on-true' : ''">
+        <input type="radio" value="single" x-model="addMode" style="accent-color:#2F8A6B"> Từng bài — 1 file ZIP 1 bài
+    </label>
+    <label :class="addMode === 'bulk' ? 'is-on-true' : ''">
+        <input type="radio" value="bulk" x-model="addMode" style="accent-color:#2F8A6B"> Hàng loạt — 1 file ZIP chứa nhiều bài
+    </label>
+</div>
+<div x-show="addMode === 'bulk'" x-cloak>@include('admin.products.partials.exercise-bulk-adder')</div>
+<form x-show="addMode === 'single'" action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data"
       class="oi-add oi-zip"
       x-data="{ chapter: @js((string) old('material_id', '')), zipName: '', zipSize: '', drag: false, busy: false,
                 pick(e) { const f = e.target.files && e.target.files[0]; this.zipName = f ? f.name : ''; this.zipSize = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; },
@@ -74,6 +87,7 @@
         </button>
         <button type="button" class="acx-btn acx-btn--sm" x-show="zipName && ! busy" x-cloak @click="clear()">Chọn file khác</button>
         <a href="{{ asset('templates/mau-cau-hoi.zip') }}" download="MAU-CAU-HOI.zip" class="oi-zip__tpl"><x-lucide name="download" /> Tải file mẫu</a>
-        <span class="oi-add__note" style="margin:0">Đọc xong sẽ mở màn kiểm tra lại — xem đề, đáp án rồi bấm "Lưu bài tập" để hoàn tất.</span>
+        <span class="oi-add__note" style="margin:0">Đọc xong sẽ mở màn kiểm tra lại — xem đề, đáp án rồi bấm "Lưu bài tập" để hoàn tất. Bài đã có (trùng mã = tên file ZIP) thì báo, không ghi đè.</span>
     </div>
 </form>
+</div>

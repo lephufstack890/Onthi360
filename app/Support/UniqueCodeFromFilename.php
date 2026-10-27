@@ -25,9 +25,7 @@ class UniqueCodeFromFilename
      */
     public static function generate(string $originalFilename, callable $exists, int $maxLength = 40): string
     {
-        $base = trim((string) pathinfo($originalFilename, PATHINFO_FILENAME));
-        $base = $base !== '' ? $base : 'IMPORT';
-        $base = mb_substr($base, 0, max(1, $maxLength - 4)); // chừa chỗ cho hậu tố "-NN"
+        $base = self::base($originalFilename, $maxLength);
 
         $code = $base;
         $suffix = 1;
@@ -37,5 +35,14 @@ class UniqueCodeFromFilename
         }
 
         return $code;
+    }
+
+    /** SỬA 27/10 — mã gốc lấy từ tên tệp (chưa thêm hậu tố "-2"): "T1B001.zip" → "T1B001". Dùng để kiểm trùng trước khi nhập. */
+    public static function base(string $originalFilename, int $maxLength = 40): string
+    {
+        $base = trim((string) pathinfo($originalFilename, PATHINFO_FILENAME));
+        $base = $base !== '' ? $base : 'IMPORT';
+
+        return mb_substr($base, 0, max(1, $maxLength - 4)); // chừa chỗ cho hậu tố "-NN"
     }
 }

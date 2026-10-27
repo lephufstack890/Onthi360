@@ -2449,6 +2449,17 @@ class ContentService
     {
         $this->discardAbandonedDraftsFor($product);
 
+        // SỬA 27/10 (khách: "bài đã có rồi thì báo không ghi đè được, tránh bị trùng") — mã bài = tên file ZIP. Đã có bài mang
+        // mã đó (ở bất kỳ tài liệu nào / kho chung) thì DỪNG, không tạo bản "-2" như trước.
+        $baseCode = \App\Support\UniqueCodeFromFilename::base($zip->getClientOriginalName());
+        $existing = \App\Models\Question::withTrashed()->where('code', $baseCode)->with('product:id,title')->first(['id', 'code', 'title', 'product_id', 'deleted_at']);
+        if ($existing !== null) {
+            throw ValidationException::withMessages([
+                'zip_package' => 'Bài "'.$baseCode.'" ('.$zip->getClientOriginalName().') — '.\App\Services\Admin\ProductExerciseBulkImportService::whereLabel($existing)
+                    .'. Hệ thống không ghi đè: muốn nhập lại thì xoá bài cũ trước, hoặc bỏ file ZIP này ra.',
+            ]);
+        }
+
         $package = $this->parseZipQuestionPackage($zip);
         $json = $package['json'];
         $content = $json['content'] ?? [];
