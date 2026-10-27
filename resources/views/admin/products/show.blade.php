@@ -285,6 +285,10 @@
                                             @if ($ex['chapterTitle'])
                                                 <span class="apx-tag">{{ $ex['chapterTitle'] }}</span>
                                             @endif
+                                            {{-- SỬA 27/10 — bản sao thêm bằng "Lấy từ bài có sẵn". --}}
+                                            @if (! empty($ex['copiedFrom']))
+                                                <span class="apx-tag" style="background:#FEF3C7;color:#92400E" title="Bản sao riêng của tài liệu này — sửa bài này không ảnh hưởng bài gốc">{{ $ex['copiedFrom'] }}</span>
+                                            @endif
                                         </p>
                                         <p class="apx-item__sub">
                                             {{ $ex['points'] }} điểm · {{ $ex['summary'] }}

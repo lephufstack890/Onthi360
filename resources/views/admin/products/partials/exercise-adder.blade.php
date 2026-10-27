@@ -23,15 +23,48 @@
      · Từng bài: form cũ bên dưới (đọc gói → màn Sửa rà lại → Lưu). Trùng mã bài thì báo, không ghi đè.
      · Hàng loạt: partials/exercise-bulk-adder (1 ZIP chứa nhiều ZIP bài, hoặc nhiều ZIP bài) — kiểm trùng hết rồi nhập luôn. --}}
 <div x-data="{ addMode: 'single' }">
-<div class="oi-tf" role="radiogroup" aria-label="Cách nhập bài tập" style="margin-bottom:10px">
-    <label :class="addMode === 'single' ? 'is-on-true' : ''">
-        <input type="radio" value="single" x-model="addMode" style="accent-color:#2F8A6B"> Từng bài — 1 file ZIP 1 bài
+{{-- SỬA 27/10 (khách: "hiển thị hơi xấu, làm cho đẹp") — 3 cách thêm thành 3 thẻ đều nhau (biểu tượng + tên + mô tả ngắn),
+     màn hẹp tự xếp dọc. Chỉ đổi giao diện, giá trị addMode giữ nguyên. --}}
+<style>
+    .oi-mode { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    @media (max-width: 860px) { .oi-mode { grid-template-columns: 1fr; } }
+    .oi-mode__opt { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 14px 40px 14px 14px; border: 1.5px solid #DDEAF0; border-radius: 14px; background: #fff; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+    .oi-mode__opt:hover { border-color: #B9D3E0; box-shadow: 0 4px 14px rgba(15, 59, 90, .06); }
+    .oi-mode__opt input { position: absolute; opacity: 0; pointer-events: none; }
+    .oi-mode__ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: #F1F6FA; color: #5B7A90; }
+    .oi-mode__ic svg { width: 20px; height: 20px; }
+    .oi-mode__txt b { display: block; font-size: 14px; font-weight: 800; color: #1F3B52; line-height: 1.3; }
+    .oi-mode__txt small { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: #7A92A3; }
+    .oi-mode__dot { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; border: 2px solid #C9D9E3; border-radius: 50%; background: #fff; }
+    .oi-mode__opt.is-on { border-color: #2F8A6B; background: #F2FAF6; box-shadow: 0 0 0 3px rgba(47, 138, 107, .12); }
+    .oi-mode__opt.is-on .oi-mode__ic { background: #2F8A6B; color: #fff; }
+    .oi-mode__opt.is-on .oi-mode__txt b { color: #1B6A4F; }
+    .oi-mode__opt.is-on .oi-mode__dot { border-color: #2F8A6B; background: radial-gradient(circle, #2F8A6B 0 4px, #fff 5px); }
+    .oi-mode__opt:focus-within { outline: 2px solid #93C5FD; outline-offset: 2px; }
+</style>
+<div class="oi-mode" role="radiogroup" aria-label="Cách thêm bài tập">
+    <label class="oi-mode__opt" :class="addMode === 'single' ? 'is-on' : ''">
+        <input type="radio" value="single" x-model="addMode">
+        <span class="oi-mode__ic"><x-lucide name="upload" /></span>
+        <span class="oi-mode__txt"><b>Từng bài</b><small>1 file ZIP = 1 bài, đọc xong mở màn rà lại rồi Lưu</small></span>
+        <span class="oi-mode__dot" aria-hidden="true"></span>
     </label>
-    <label :class="addMode === 'bulk' ? 'is-on-true' : ''">
-        <input type="radio" value="bulk" x-model="addMode" style="accent-color:#2F8A6B"> Hàng loạt — 1 file ZIP chứa nhiều bài
+    <label class="oi-mode__opt" :class="addMode === 'bulk' ? 'is-on' : ''">
+        <input type="radio" value="bulk" x-model="addMode">
+        <span class="oi-mode__ic"><x-lucide name="package" /></span>
+        <span class="oi-mode__txt"><b>Hàng loạt</b><small>1 file ZIP chứa nhiều bài (cả chương), kiểm trùng rồi nhập hết</small></span>
+        <span class="oi-mode__dot" aria-hidden="true"></span>
+    </label>
+    {{-- SỬA 27/10 (khách: "thêm option chọn up từ bài có sẵn — bài của tài liệu khác") — xem partials/exercise-pick-adder. --}}
+    <label class="oi-mode__opt" :class="addMode === 'pick' ? 'is-on' : ''">
+        <input type="radio" value="pick" x-model="addMode" @change="$dispatch('ex-pick-open')">
+        <span class="oi-mode__ic"><x-lucide name="copy" /></span>
+        <span class="oi-mode__txt"><b>Lấy từ bài có sẵn</b><small>Chọn bài của sách / tài liệu khác để thêm vào chương</small></span>
+        <span class="oi-mode__dot" aria-hidden="true"></span>
     </label>
 </div>
 <div x-show="addMode === 'bulk'" x-cloak>@include('admin.products.partials.exercise-bulk-adder')</div>
+<div x-show="addMode === 'pick'" x-cloak>@include('admin.products.partials.exercise-pick-adder')</div>
 <form x-show="addMode === 'single'" action="{{ route('admin.products.exercises.store', $product->id) }}" method="POST" enctype="multipart/form-data"
       class="oi-add oi-zip"
       @ex-chapter.window="chapter = String($event.detail ?? '')"

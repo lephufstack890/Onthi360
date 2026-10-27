@@ -78,6 +78,7 @@ use App\Http\Controllers\Admin\ProductChapterController as AdminProductChapterCo
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExerciseController;
 use App\Http\Controllers\Admin\ProductExerciseBulkController as AdminProductExerciseBulkController; // SỬA 27/10 — nhập bài tập hàng loạt
+use App\Http\Controllers\Admin\ProductExercisePickController as AdminProductExercisePickController; // SỬA 27/10 — lấy từ bài có sẵn
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\MaterialReadController as AdminMaterialReadController;
@@ -731,6 +732,9 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 27/10 — nhập HÀNG LOẠT (kiểm trùng trước, rồi nhập lần lượt từng bài). Xem Admin\ProductExerciseBulkController.
         Route::post('products/{product}/exercises/bulk', [AdminProductExerciseBulkController::class, 'prepare'])->name('products.exercises.bulk.prepare');
         Route::get('products/{product}/exercises/kiem-tra-ma', [AdminProductExerciseBulkController::class, 'checkCode'])->name('products.exercises.checkCode');
+        // SỬA 27/10 — "Lấy từ bài có sẵn" (bài tập của tài liệu khác → bản sao vào tài liệu này). Xem Admin\ProductExercisePickController.
+        Route::get('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'sources'])->name('products.exercises.pick.sources');
+        Route::post('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'store'])->name('products.exercises.pick.store');
         Route::post('products/{product}/exercises/bulk/{token}/{index}', [AdminProductExerciseBulkController::class, 'import'])
             ->where('token', '[A-Za-z0-9]{32}')->whereNumber('index')->name('products.exercises.bulk.import');
         Route::post('products/{product}/exercises/bulk/{token}/xong', [AdminProductExerciseBulkController::class, 'finish'])

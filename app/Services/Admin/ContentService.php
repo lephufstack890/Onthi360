@@ -2240,6 +2240,10 @@ class ContentService
             // về (null nếu chưa gắn) — xem Question::chapter().
             'chapterTitle' => $q->chapter?->title,
             'createdAt' => $q->created_at?->format('d/m/Y H:i'),
+            // SỬA 27/10 — bài thêm bằng "Lấy từ bài có sẵn" (bản sao): nhãn "Lấy từ T1B001 · Sách …", xem ProductExercisePickService.
+            'copiedFrom' => isset($q->metadata['copied_from']['code'])
+                ? 'Lấy từ '.$q->metadata['copied_from']['code'].(filled($q->metadata['copied_from']['product_title'] ?? null) ? ' · '.$q->metadata['copied_from']['product_title'] : '')
+                : null,
         ])->all();
     }
 
