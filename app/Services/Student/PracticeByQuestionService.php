@@ -154,6 +154,12 @@ class PracticeByQuestionService
 
         $ids = QuestionOrder::apply($query)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
+        // SỬA 27/10 — bài tập tài liệu: Bài trước / Bài tiếp theo đi đúng thứ tự cột Bài tập (theo chương rồi mã bài).
+        if ($question->product_id !== null && $ids !== []) {
+            $ids = QuestionOrder::sortMaterialExercises(Question::query()->whereIn('id', $ids)->get(['id', 'code', 'material_id']))
+                ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
         return in_array($questionId, $ids, true) ? $ids : [$questionId];
     }
 

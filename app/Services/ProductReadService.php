@@ -259,12 +259,13 @@ class ProductReadService
         // theo thứ tự ưu tiên hiển thị), thay cho xếp theo id như trước. Dùng chung một hàm với
         // hai nút "Bài trước / Bài tiếp theo" ở màn làm bài, nếu không thì bấm "Bài tiếp theo"
         // sẽ nhảy sang một bài không nằm ngay dưới trong danh sách này.
-        $questions = QuestionOrder::apply(
+        // SỬA 27/10 — theo chương rồi mã bài (QuestionOrder::sortMaterialExercises), không gom theo dạng.
+        $questions = QuestionOrder::sortMaterialExercises(QuestionOrder::apply(
             Question::query()
                 ->where('product_id', $product->id)
                 ->where('status', ContentStatus::Published->value)
                 ->with(['tags:id,name'])
-        )->get();
+        )->get());
 
         if ($questions->isEmpty()) {
             return [];

@@ -55,4 +55,33 @@ class QuestionOrder
             ->orderByDesc('display_order')
             ->orderBy('id');
     }
+
+    /**
+     * SỬA 27/10 (khách: "bài tập của tài liệu đổ ra sắp xếp theo thứ tự đàng hoàng" — lưới T1B086, T1B090, T1B085… lộn xộn)
+     * — bài tập của TÀI LIỆU (sách / chuyên đề / bộ đề) xếp theo đúng thứ tự trong sách, KHÔNG gom theo dạng bài:
+     *   1. theo chương / phần / đề (thứ tự chương ở trang quản lý tài liệu); bài chưa gắn chương xếp cuối;
+     *   2. trong chương: theo mã bài kiểu số tự nhiên (T1B2 < T1B10, BAI9 < BAI10);
+     *   3. hoà nhau thì theo id. Dùng chung cho cột Bài tập màn đọc và 2 nút Bài trước / Bài tiếp theo.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Question>  $questions  (cần các cột id, code, material_id)
+     * @return \Illuminate\Support\Collection<int, \App\Models\Question>
+     */
+    public static function sortMaterialExercises(\Illuminate\Support\Collection $questions): \Illuminate\Support\Collection
+    {
+        $chapterIds = $questions->pluck('material_id')->filter()->unique()->values()->all();
+        $orders = $chapterIds === [] ? [] : \App\Models\Material::query()->whereIn('id', $chapterIds)->pluck('order', 'id')->all();
+        $key = fn ($q) => $q->material_id !== null && array_key_exists((int) $q->material_id, $orders)
+            ? [0, (int) $orders[(int) $q->material_id], (int) $q->material_id]
+            : [1, 0, 0];
+
+        return $questions->sort(function ($a, $b) use ($key) {
+            $c = $key($a) <=> $key($b);
+            if ($c !== 0) {
+                return $c;
+            }
+            $c = strnatcasecmp((string) $a->code, (string) $b->code);
+
+            return $c !== 0 ? $c : ((int) $a->id <=> (int) $b->id);
+        })->values();
+    }
 }

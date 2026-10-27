@@ -186,12 +186,13 @@ class MaterialReadService
         }
 
         // SỬA 14/10 — xếp theo đúng thứ tự hiển thị chuẩn (QuestionOrder), giống màn đọc sản phẩm.
-        $questions = \App\Support\QuestionOrder::apply(
+        // SỬA 27/10 — bài tập tài liệu: theo chương rồi mã bài (QuestionOrder::sortMaterialExercises), không gom theo dạng.
+        $questions = \App\Support\QuestionOrder::sortMaterialExercises(\App\Support\QuestionOrder::apply(
             Question::query()
                 ->where('product_id', $material->product_id)
                 ->where('status', ContentStatus::Published->value)
                 ->with(['tags:id,name'])
-        )->get();
+        )->get());
 
         if ($questions->isEmpty()) {
             return [];
