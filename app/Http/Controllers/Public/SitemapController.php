@@ -18,6 +18,7 @@ use App\Services\Public\InfoService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\URL;
 
 /**
  * sitemap.xml — bản đồ trang gửi cho Google/Bing.
@@ -89,7 +90,8 @@ class SitemapController extends Controller
      */
     // 5 (15/9) — rút trang Lộ trình ra khỏi sitemap khi công tắc PUBLIC_ENABLED tắt.
     // 6 (14/10) — thêm trang chi tiết đề luyện tập (/luyen-tap/de-thi/{id}).
-    private const STRUCTURE_VERSION = 6;
+    // 7 (27/10) — mọi địa chỉ trong sitemap lấy theo APP_URL (trước đây theo tên miền người gọi → có lúc ra https://36.50.177.27/...).
+    private const STRUCTURE_VERSION = 7;
 
     public function index(): Response
     {
@@ -105,13 +107,34 @@ class SitemapController extends Controller
         $xml = Cache::remember(
             'sitemap.xml:'.$fingerprint,
             now()->addMinutes(self::CACHE_MINUTES),
-            fn () => $this->build($lastmods),
+            fn () => $this->buildForSite($lastmods),
         );
 
         return response($xml, 200, [
             'Content-Type' => 'application/xml; charset=UTF-8',
             'Cache-Control' => 'public, max-age='.(self::CACHE_MINUTES * 60),
         ]);
+    }
+
+    /**
+     * SỬA 27/10 (Search Console: "URL không được phép" — sitemap ghi https://36.50.177.27/...). route() lấy tên miền theo
+     * lượt gọi hiện tại; bot nào gọi /sitemap.xml qua IP máy chủ thì bản đệm chứa IP và mọi người (cả Google) nhận bản đó.
+     * Giờ dựng sitemap luôn theo APP_URL (vd https://tinhoc.onthi360.vn), không phụ thuộc người gọi.
+     *
+     * @param  array<string, ?Carbon>  $lastmods
+     */
+    private function buildForSite(array $lastmods): string
+    {
+        $root = rtrim((string) config('app.url'), '/');
+        if (! preg_match('#^https?://#i', $root)) {
+            return $this->build($lastmods);
+        }
+        URL::forceRootUrl($root);
+        try {
+            return $this->build($lastmods);
+        } finally {
+            URL::forceRootUrl(null);
+        }
     }
 
     /** @param array<string, ?Carbon> $lastmods */

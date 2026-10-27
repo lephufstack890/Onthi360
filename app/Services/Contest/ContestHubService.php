@@ -1022,9 +1022,12 @@ class ContestHubService
     /** @return array{0: ?Carbon, 1: ?Carbon} ngày bắt đầu sớm nhất / kết thúc muộn nhất của các kỳ thi */
     private function eventRange(Competition $c): array
     {
-        // SỬA 24/10 — ưu tiên Bắt đầu / Kết thúc admin nhập cho cuộc thi; để trống mới lấy theo các kỳ thi.
-        $start = $c->starts_at ?? $c->examSittings->pluck('starts_at')->filter()->sort()->first();
-        $end = $c->ends_at ?? $c->examSittings->pluck('ends_at')->filter()->sort()->last();
+        // SỬA 27/10 (khách: "thời gian bắt đầu / kết thúc đang sai" — thẻ ghi 24/10 → 25/11 theo lịch chung của cuộc thi
+        // trong khi kỳ duy nhất là 27/10 14:00 → 28/10 14:00). Đã có kỳ xếp lịch thì Bắt đầu = giờ mở của kỳ SỚM NHẤT,
+        // Kết thúc = giờ đóng của kỳ MUỘN NHẤT — đúng thời gian học sinh làm bài được. Chưa có kỳ nào xếp lịch mới dùng
+        // Bắt đầu / Kết thúc nhập cho cuộc thi (SỬA 24/10). Nhãn "còn … ngày" cũng tính theo 2 mốc này.
+        $start = $c->examSittings->pluck('starts_at')->filter()->sort()->first() ?? $c->starts_at;
+        $end = $c->examSittings->pluck('ends_at')->filter()->sort()->last() ?? $c->ends_at;
 
         return [$start, $end];
     }
