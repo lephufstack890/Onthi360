@@ -45,6 +45,9 @@
     .mex-note{margin:0;padding:0 20px 12px;font-size:12px;color:#6b7f93}
 </style>
 
+@if (! empty($meError))
+    <p role="alert" style="margin:16px 0 0;padding:12px 16px;border:1px solid #f3cccc;border-radius:12px;background:#fff3f2;color:#a33b3b;font-size:13px">{{ $meError }}</p>
+@endif
 <section class="acx-panel" style="margin-top:16px" aria-label="Bộ lọc bài của tài liệu">
     {{-- Loại tài liệu: chip có số đếm, bấm là lọc (đổi loại thì bỏ chọn tài liệu / chương). --}}
     <div class="akx-pad">
@@ -121,7 +124,7 @@
         <span><b>{{ $pg['total'] }}</b> kết quả · Bài của tài liệu</span>
         <span>Sắp xếp: loại tài liệu → tài liệu → {{ $f['tai_lieu'] !== null ? \Illuminate\Support\Str::lower($mePartWord) : 'chương / phần / đề' }}</span>
     </div>
-    <p class="mex-note">Bài gắn vào sách / chuyên đề sửa ở màn bài của tài liệu; câu trong đề của bộ đề là câu của đề — sửa một lần là mọi nơi dùng câu đó cùng đổi.</p>
+    <p class="mex-note">Bài tập lấy từ chính tài liệu (bài nhập ZIP / tạo ở trang quản lý tài liệu) — cùng danh sách với cột "Bài tập" khi đọc tài liệu. Bấm Sửa để sửa bài; thêm bài mới ở trang quản lý từng tài liệu.</p>
 
     <div class="acx-scroll">
         <table class="acx-table apx-up akx-table" style="min-width:900px">

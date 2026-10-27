@@ -2,10 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Assessment;
 use App\Models\Product;
 use App\Models\Question;
-use App\Services\ExamBundle\ExamBundleService;
 use App\Support\QuestionDifficulty;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -14,13 +12,10 @@ use Illuminate\Support\Str;
  * SỬA 27/10 (khách: "thêm tab Bài của tài liệu trong Kho bài tập — đổ bài tập của sách, chuyên đề, bộ đề; thiết kế phần lọc
  * để sau này dễ tìm kiếm và dễ sửa nhất") — dữ liệu cho tab admin.content.index?tab=material_exercises.
  *
- * HAI NGUỒN BÀI TẬP của tài liệu:
- *   1. Bài gắn thẳng vào tài liệu: questions.product_id (nhập ZIP / tạo tay ở trang Tài liệu), thuộc Chương / Phần / Đề nào
- *      thì theo questions.material_id. Nút Sửa mở đúng màn sửa bài của tài liệu (admin.products.exercises.edit).
- *   2. Bộ đề (module bộ đề): câu hỏi của từng đề trong bộ, đúng thứ tự bộ đề đang hiện cho người đọc
- *      (ExamBundleService::items()). Câu này là câu của đề nên nút Sửa mở màn sửa câu hỏi chung.
- *
- * Mỗi dòng = 1 bài trong 1 tài liệu (một câu nằm ở 2 bộ đề thì có 2 dòng — đúng với cách người học nhìn thấy).
+ * NGUỒN (SỬA 27/10 lần 2 — khách: "chỉ lấy bài tập từ tài liệu đổ ra thôi"): đúng bài tập của tài liệu — questions.product_id
+ * (nhập ZIP / tạo tay ở trang Tài liệu), cùng nguồn với cột "Bài tập" ở màn đọc (Student\MaterialReadService::exercisesFor()).
+ * Thuộc Chương / Phần / Đề nào theo questions.material_id. Nút Sửa mở màn sửa bài của tài liệu (admin.products.exercises.edit).
+ * Câu hỏi của các đề trong bộ đề KHÔNG đổ vào đây (đó là "Bài của đề").
  *
  * LỌC (mọi điều kiện nằm ở indexData(), thêm điều kiện mới chỉ sửa một chỗ): Loại tài liệu (chip có số đếm) · Tài liệu ·
  * Chương/Phần/Đề (hiện khi đã chọn tài liệu) · Dạng bài · Trạng thái · Tìm theo tên / mã bài / tên tài liệu (gõ không dấu
@@ -47,21 +42,11 @@ final class MaterialExerciseIndexService
 
     private int $seq = 0;
 
-    public function __construct(private readonly ExamBundleService $bundles) {}
-
     /** Số trên tab (đếm nhanh, không dựng cả danh sách). */
     public function count(): int
     {
         $productIds = Product::query()->whereIn('type', array_keys(self::TYPE_LABELS))->select('id');
-        $n = Question::query()->whereIn('product_id', $productIds)->count();
-
-        if (ExamBundleService::ready()) {
-            foreach (Product::query()->where('type', 'exam')->get() as $product) {
-                $n += (int) $this->bundles->items($product)->sum('items_count');
-            }
-        }
-
-        return $n;
+        return Question::query()->whereIn('product_id', $productIds)->count();
     }
 
     /**
@@ -133,6 +118,25 @@ final class MaterialExerciseIndexService
         ];
     }
 
+    /** Dữ liệu rỗng kèm thông báo — dùng khi dựng danh sách lỗi (ContentController bắt lỗi, trang vẫn mở, lỗi ghi log). */
+    public function emptyData(string $message): array
+    {
+        return [
+            'meFilters' => ['loai' => null, 'tai_lieu' => null, 'phan' => null, 'dang' => null, 'trang_thai' => null, 'q' => null],
+            'meRows' => [],
+            'mePagination' => ['page' => 1, 'perPage' => self::PER_PAGE, 'lastPage' => 1, 'total' => 0],
+            'meTotalAll' => 0,
+            'meTypeCounts' => [],
+            'meProductOptions' => [],
+            'mePartOptions' => [],
+            'mePartWord' => 'Chương / Phần / Đề',
+            'meTypeLabels' => self::TYPE_LABELS,
+            'meQuestionTypes' => self::QUESTION_TYPES,
+            'meStatuses' => array_map(fn ($s) => $s[0], self::STATUSES),
+            'meError' => $message,
+        ];
+    }
+
     /** Toàn bộ bài của tài liệu, đã sắp: loại tài liệu → tên tài liệu → chương/phần/đề → thứ tự bài. */
     private function rows(): Collection
     {
@@ -143,7 +147,7 @@ final class MaterialExerciseIndexService
         $products = Product::query()->whereIn('type', array_keys(self::TYPE_LABELS))->get()->keyBy('id');
         $rows = collect();
 
-        // 1) Bài gắn thẳng vào tài liệu.
+        // Bài tập gắn vào tài liệu.
         Question::query()
             ->whereIn('product_id', $products->keys()->all() ?: [0])
             ->with('chapter:id,title,order')
@@ -163,34 +167,6 @@ final class MaterialExerciseIndexService
                     null,
                 ));
             });
-
-        // 2) Bộ đề: câu hỏi của từng đề trong bộ.
-        if (ExamBundleService::ready()) {
-            foreach ($products->filter(fn (Product $p) => $this->bundles->isBundle($p)) as $p) {
-                $exams = $this->bundles->items($p)->values();
-                if ($exams->isEmpty()) {
-                    continue;
-                }
-                $full = Assessment::query()->whereIn('id', $exams->pluck('id')->all())
-                    ->with(['items' => fn ($q) => $q->orderBy('order')->orderBy('id'), 'items.question'])
-                    ->get()->keyBy('id');
-                foreach ($exams as $ei => $exam) {
-                    foreach ($full->get($exam->id)?->items ?? [] as $item) {
-                        if ($item->question === null) {
-                            continue;
-                        }
-                        $rows->push($this->row(
-                            $item->question, $p,
-                            'a'.(int) $exam->id,
-                            (string) $exam->title,
-                            (int) $ei,
-                            route('admin.content.questions.edit', $item->question->id),
-                            route('admin.content.show', ['content' => $exam->id, 'kind' => 'assessment']),
-                        ));
-                    }
-                }
-            }
-        }
 
         $typeOrder = array_flip(array_keys(self::TYPE_LABELS));
 

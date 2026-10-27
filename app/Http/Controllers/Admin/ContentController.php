@@ -70,7 +70,12 @@ class ContentController extends Controller
 
         // SỬA 27/10 — tab "Bài của tài liệu" (sách / chuyên đề / bộ đề), bộ lọc riêng: loai, tai_lieu, phan, dang, trang_thai, q.
         if ($tab === 'material_exercises') {
-            $data += app(\App\Services\Admin\MaterialExerciseIndexService::class)->indexData($request->query(), $page);
+            $svc = app(\App\Services\Admin\MaterialExerciseIndexService::class);
+            // Lỗi dựng danh sách thì vẫn mở trang (kèm thông báo), chi tiết lỗi ghi vào storage/logs/laravel.log.
+            $data += rescue(
+                fn () => $svc->indexData($request->query(), $page),
+                fn () => $svc->emptyData('Chưa tải được danh sách bài của tài liệu — lỗi đã ghi vào nhật ký hệ thống (storage/logs/laravel.log).'),
+            );
         }
 
         return view('admin.content.index', $data);

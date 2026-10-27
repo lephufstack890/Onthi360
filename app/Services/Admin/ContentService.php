@@ -272,7 +272,7 @@ class ContentService
             ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
             // SỬA 27/10 (khách: "thêm tab Bài của tài liệu: bài tập của sách, chuyên đề, bộ đề") — dữ liệu & bộ lọc ở
             // App\Services\Admin\MaterialExerciseIndexService (ContentController::index() ghép vào khi mở tab này).
-            ['label' => 'Bài của tài liệu', 'href' => route('admin.content.index', ['tab' => 'material_exercises']), 'active' => $tab === 'material_exercises', 'count' => app(\App\Services\Admin\MaterialExerciseIndexService::class)->count()],
+            ['label' => 'Bài của tài liệu', 'href' => route('admin.content.index', ['tab' => 'material_exercises']), 'active' => $tab === 'material_exercises', 'count' => rescue(fn () => app(\App\Services\Admin\MaterialExerciseIndexService::class)->count(), null)],
             ['label' => 'Đề thi', 'href' => route('admin.content.index', ['tab' => 'assessments']), 'active' => $tab === 'assessments', 'count' => $counts['assessments']],
             // ['label' => 'Câu hỏi chờ rà soát (OCR)', 'href' => route('admin.content.index', ['tab' => 'drafts']), 'active' => $tab === 'drafts', 'count' => $counts['drafts']],
             ['label' => 'Tag/Chuyên đề', 'href' => route('admin.content.index', ['tab' => 'tags']), 'active' => $tab === 'tags', 'count' => $counts['tags']],
