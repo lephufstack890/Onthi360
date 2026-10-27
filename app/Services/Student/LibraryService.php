@@ -112,6 +112,12 @@ class LibraryService
             // 'test_cases' cứng — thiếu cột này match() sẽ luôn nhận giá trị cast mặc định sai.
             ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config'])
             ->groupBy('product_id');
+        // SỬA 27/10 lần 2 — thêm bài DÙNG KÉ từ tài liệu khác (App\Support\ProductExerciseLinks).
+        if (\App\Support\ProductExerciseLinks::supported()) {
+            foreach ($productsForTab as $tabProduct) {
+                $exercisesByProduct->put($tabProduct->id, \App\Support\ProductExerciseLinks::withLinked((int) $tabProduct->id, $exercisesByProduct->get($tabProduct->id, collect()), [], ['id', 'product_id', 'title', 'points', 'type', 'grading_config']));
+            }
+        }
 
         // SỬA 18/9 (khách: "có nút đọc tài liệu thì nó sẽ hiển thị ra trang đó") — dựng sẵn
         // link vào trang đọc. Tiền tố route suy từ $routeName nên giáo viên ra
@@ -202,6 +208,7 @@ class LibraryService
             ->where('status', ContentStatus::Published->value)
             ->orderByDesc('id')
             ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config']);
+        $exercises = \App\Support\ProductExerciseLinks::withLinked((int) $product->id, $exercises, [], ['id', 'product_id', 'title', 'points', 'type', 'grading_config']); // SỬA 27/10 lần 2 — bài dùng ké
 
         return [
             'id' => $product->id,

@@ -147,7 +147,9 @@ class AccessService
         abort_unless($this->accessGate->canAccessProduct($user, $product)->allowed, 403);
 
         /** @var Question $exercise */
-        $exercise = Question::where('product_id', $productId)->findOrFail($questionId);
+        $exercise = Question::findOrFail($questionId);
+        // SỬA 27/10 lần 2 — bài của tài liệu này HOẶC bài tài liệu này đang dùng ké (App\Support\ProductExerciseLinks).
+        abort_unless(\App\Support\ProductExerciseLinks::belongsTo($exercise, (int) $productId), 404);
 
         if (in_array($kind, ['solution', 'reference'], true)
             && $user->hasAnyRole(Role::STUDENT)

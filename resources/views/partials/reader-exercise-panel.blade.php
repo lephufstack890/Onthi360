@@ -89,7 +89,7 @@
                                         @else
                                             {{-- Giữ NGUYÊN đường đi cũ của nút Làm bài ở "Tài liệu của tôi":
                                                  POST kèm return_url tương đối để làm xong quay lại đúng trang này. --}}
-                                            <form method="POST" action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" class="w-full">
+                                            <form method="POST" action="{{ route('student.practiceByQuestion.startExercise', array_filter(['exercise' => $ex['id'], 'san_pham' => $ex['productId'] ?? null])) }}" class="w-full">
                                                 @csrf
                                                 <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
                                                 <button type="submit" title="Làm bài" aria-label="Làm bài {{ $ex['title'] }}"

@@ -7,10 +7,9 @@ use App\Models\Material;
 use App\Models\Product;
 use App\Models\Question;
 use App\Models\User;
-use App\Support\UniqueCodeFromFilename;
+use App\Models\ProductExerciseLink;
+use App\Support\ProductExerciseLinks;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -19,17 +18,12 @@ use Illuminate\Validation\ValidationException;
  * cũng dùng ở chương của tài liệu khác. Cho chọn sách, chọn chương để lọc bài cho dễ. Bài nào có rồi thì đừng hiển thị
  * trong option để khỏi chọn trùng").
  *
- * CÁCH LÀM: SAO CHÉP bài (bản sao độc lập) vào tài liệu đang mở — câu hỏi mới product_id = tài liệu này, material_id =
- * chương chọn; copy nguyên nội dung, đáp án / test case, tag, và tệp đính kèm (PDF đề, lời giải, ảnh / audio sang thư mục
- * questions/{id mới}). Chọn sao chép thay vì "dùng chung 1 bản ghi" để KHÔNG phải sửa bất kỳ logic có sẵn nào (màn đọc,
- * quyền truy cập theo tài liệu đã mua, Bài trước / Bài tiếp, đếm bài, xoá bài) — bản sao là bài tập bình thường của tài
- * liệu. Đánh đổi: sửa bài gốc không tự cập nhật bản sao (mỗi bản sửa riêng); danh sách bài có nhãn "Lấy từ …" để biết.
+ * SỬA 27/10 lần 2 (khách: "chỉ dùng ké, không lưu thêm — thêm nhiều nặng; dùng chung") — KHÔNG sao chép nữa. "Thêm" = tạo
+ * một dòng product_exercise_links (tài liệu này dùng ké bài gốc, đặt ở chương chọn). Không chép bài, không chép tệp; sửa bài
+ * gốc là mọi nơi thấy ngay; xoá bài gốc thì tự gỡ khỏi mọi nơi dùng ké. Xem App\Support\ProductExerciseLinks.
  *
- * MÃ BÀI: mã là duy nhất toàn hệ thống nên bản sao mang mã gốc + hậu tố (T1B001 → T1B001-2), như quy ước có sẵn của
- * UniqueCodeFromFilename. metadata.copied_from ghi bài GỐC (id, mã, tài liệu) — dùng để ẩn bài đã có khỏi danh sách chọn.
- *
- * "BÀI ĐÃ CÓ" trong tài liệu đích (không hiện để chọn, và máy chủ chặn lại lần nữa khi bấm thêm): bài gốc đã nằm trong
- * tài liệu này, hoặc tài liệu này đã có một bản sao của cùng bài gốc (bản sao của bản sao cũng tính về đúng bài gốc).
+ * "BÀI ĐÃ CÓ" trong tài liệu đích (không hiện để chọn, máy chủ chặn lại lần nữa khi bấm thêm): bài của chính tài liệu này,
+ * bài nó đang dùng ké, và (với các bản sao tạo bằng cách cũ — metadata.copied_from) bài gốc của bản sao đó.
  */
 final class ProductExercisePickService
 {
@@ -130,14 +124,17 @@ final class ProductExercisePickService
     }
 
     /**
-     * Thêm (sao chép) các bài đã chọn vào tài liệu đích, gắn chương $chapterId. Mỗi bài một giao dịch riêng: bài lỗi / đã có
-     * thì bỏ qua và báo lại, các bài khác vẫn thêm.
+     * Thêm các bài đã chọn vào tài liệu đích theo kiểu DÙNG KÉ (gắn chương $chapterId). Bài lỗi / đã có thì bỏ qua và báo lại,
+     * các bài khác vẫn thêm.
      *
      * @param  array<int, int>  $ids
      * @return array{added: array, skipped: array}
      */
-    public function copy(Product $target, User $admin, array $ids, ?int $chapterId): array
+    public function link(Product $target, User $admin, array $ids, ?int $chapterId): array
     {
+        if (! ProductExerciseLinks::supported()) {
+            throw ValidationException::withMessages(['ids' => 'Máy chủ chưa cập nhật CSDL cho tính năng dùng chung bài — chạy "php artisan migrate" rồi thử lại.']);
+        }
         $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($ids === []) {
             throw ValidationException::withMessages(['ids' => 'Chưa chọn bài nào.']);
@@ -148,11 +145,11 @@ final class ProductExercisePickService
 
         $chapterId = $chapterId !== null ? $target->chapters()->whereKey($chapterId)->value('id') : null;
         $taken = $this->takenOrigins($target);
-        $sources = Question::query()->whereIn('id', $ids)->with(['tags:id', 'product:id,title,type'])->get()->keyBy('id');
+        $sources = Question::query()->whereIn('id', $ids)->with(['product:id,title,type'])->get()->keyBy('id');
 
         $added = [];
         $skipped = [];
-        $batchRoots = []; // gốc → mã bản sao vừa tạo trong lượt này
+        $batchRoots = []; // gốc → mã bài vừa thêm trong lượt này
         foreach ($ids as $id) {
             /** @var Question|null $src */
             $src = $sources->get($id);
@@ -160,7 +157,7 @@ final class ProductExercisePickService
                 $src === null => 'Bài không còn tồn tại.',
                 $src->product_id === null || ! array_key_exists(self::typeValue($src->product), self::TYPE_LABELS) => 'Không phải bài tập của tài liệu.',
                 (int) $src->product_id === (int) $target->id => 'Bài đã nằm trong tài liệu này.',
-                $src->status !== ContentStatus::Published && $src->status !== ContentStatus::Published->value => 'Bài gốc chưa phát hành.',
+                $src->status !== ContentStatus::Published => 'Bài gốc chưa phát hành.',
                 isset($batchRoots[self::originId($src)]) => 'Trùng với bài '.$batchRoots[self::originId($src)].' vừa thêm ở trên (cùng một bài gốc).',
                 isset($taken[$src->id]) || isset($taken[self::originId($src)]) => 'Tài liệu này đã có bài này rồi.',
                 default => null,
@@ -171,105 +168,30 @@ final class ProductExercisePickService
                 continue;
             }
 
-            $copy = $this->copyOne($src, $target, $admin, $chapterId);
-            // Cùng một bài gốc chọn 2 lần trong 1 lượt (bài gốc + bản sao của nó ở tài liệu khác) → lần sau bị bỏ qua ở trên.
+            ProductExerciseLink::query()->firstOrCreate(
+                ['product_id' => $target->id, 'question_id' => $src->id],
+                ['material_id' => $chapterId, 'created_by' => $admin->id],
+            );
+            $taken[(int) $src->id] = true;
             $taken[self::originId($src)] = true;
-            $taken[$copy->id] = true;
-            $batchRoots[self::originId($src)] = (string) $copy->code;
-            $added[] = ['code' => (string) $copy->code, 'title' => (string) $copy->title, 'from' => (string) $src->code];
+            $batchRoots[self::originId($src)] = (string) $src->code;
+            $added[] = ['code' => (string) $src->code, 'title' => (string) $src->title, 'from' => (string) ($src->product?->title ?? '')];
         }
 
         return ['added' => $added, 'skipped' => $skipped];
     }
 
-    private function copyOne(Question $src, Product $target, User $admin, ?int $chapterId): Question
+    /** Gỡ một bài dùng ké khỏi tài liệu (bài gốc giữ nguyên). */
+    public function unlink(Product $target, Question $question): bool
     {
-        $newPaths = []; // tệp đã chép — giao dịch lỗi thì xoá lại cho sạch
-
-        try {
-            return DB::transaction(function () use ($src, $target, $admin, $chapterId, &$newPaths) {
-                $copy = $src->replicate(['code']);
-                $root = $src->metadata['copied_from'] ?? null;
-                // Mã bản sao lấy theo mã bài GỐC (lấy lại từ một bản sao vẫn ra T1B001-3, không thành T1B001-2-2).
-                $baseCode = is_array($root) && filled($root['code'] ?? null) ? (string) $root['code'] : (string) $src->code;
-                $copy->forceFill([
-                    'code' => UniqueCodeFromFilename::generate(
-                        $baseCode.'.zip',
-                        fn (string $code) => Question::withTrashed()->where('code', $code)->exists(),
-                    ),
-                    'product_id' => $target->id,
-                    'material_id' => $chapterId,
-                    'status' => ContentStatus::Published->value,
-                    'version' => 1,
-                    'parent_version_id' => null,
-                    'created_by' => $admin->id,
-                ]);
-                $copy->save();
-
-                $metadata = $this->copyFiles($src, $copy, (array) ($src->metadata ?? []), $newPaths);
-                $metadata['copied_from'] = is_array($root) && isset($root['id']) ? $root : [
-                    'id' => (int) $src->id,
-                    'code' => (string) $src->code,
-                    'product_id' => (int) $src->product_id,
-                    'product_title' => (string) ($src->product?->title ?? ''),
-                ];
-                $metadata['copied_from']['copied_at'] = now()->toIso8601String();
-                $copy->forceFill(['metadata' => $metadata])->save();
-
-                $tagIds = $src->tags->pluck('id')->all();
-                if ($tagIds !== []) {
-                    $copy->tags()->sync($tagIds);
-                }
-
-                return $copy;
-            });
-        } catch (\Throwable $e) {
-            foreach ($newPaths as $p) {
-                Storage::disk('local')->delete($p);
-            }
-            throw $e;
-        }
-    }
-
-    /**
-     * Chép mọi tệp của bài gốc sang questions/{id bản sao}/… và đổi đường dẫn trong metadata. Duyệt cả cây metadata (mọi
-     * chuỗi bắt đầu bằng "questions/{id gốc}/"), nên loại tệp nào thêm sau này cũng được chép theo; đính kèm / asset kiểu cũ
-     * nằm ngoài thư mục đó thì chép vào questions/{id bản sao}/ giữ tên tệp.
-     */
-    private function copyFiles(Question $src, Question $copy, array $metadata, array &$newPaths): array
-    {
-        $disk = Storage::disk('local');
-        $from = 'questions/'.$src->id.'/';
-        $to = 'questions/'.$copy->id.'/';
-
-        $move = function (string $path) use ($disk, $from, $to, &$newPaths): string {
-            $dest = str_starts_with($path, $from) ? $to.substr($path, strlen($from)) : $to.'legacy/'.basename($path);
-            if ($disk->exists($path) && ! $disk->exists($dest)) {
-                $disk->copy($path, $dest);
-                $newPaths[] = $dest;
-            }
-
-            return $dest;
-        };
-
-        foreach (['attachments', 'assets'] as $group) {
-            foreach (($metadata[$group] ?? []) as $k => $file) {
-                if (is_array($file) && is_string($file['path'] ?? null) && $file['path'] !== '') {
-                    $metadata[$group][$k]['path'] = $move($file['path']);
-                }
-            }
+        if (! ProductExerciseLinks::supported()) {
+            return false;
         }
 
-        array_walk_recursive($metadata, function (&$value) use ($from, $move) {
-            if (is_string($value) && str_starts_with($value, $from)) {
-                $value = $move($value);
-            }
-        });
-
-        return $metadata;
+        return ProductExerciseLink::query()->where('product_id', $target->id)->where('question_id', $question->id)->delete() > 0;
     }
 
-    /** id bài gốc + id mọi bài đang nằm trong tài liệu đích (tính cả nháp) → để ẩn / chặn chọn trùng. */
+    /** id bài gốc + id mọi bài đang nằm trong tài liệu đích (tính cả nháp và bài đang dùng ké) → để ẩn / chặn chọn trùng. */
     private function takenOrigins(Product $target): array
     {
         $taken = [];
@@ -278,6 +200,9 @@ final class ProductExercisePickService
                 $taken[(int) $q->id] = true;
                 $taken[self::originId($q)] = true;
             });
+        foreach (ProductExerciseLinks::linkedQuestionIds((int) $target->id) as $id) {
+            $taken[$id] = true;
+        }
 
         return $taken;
     }

@@ -2213,8 +2213,21 @@ class ContentService
 
         // SỬA 27/10 (khách: "hiển thị theo thứ tự câu") — theo chương rồi mã bài (T1B001, T1B002…), cùng thứ tự với cột
         // Bài tập ở màn đọc (QuestionOrder::sortMaterialExercises), thay cho "mới nhập trước".
-        return \App\Support\QuestionOrder::sortMaterialExercises($product->exercises()->with(['tags', 'chapter'])->get())->map(fn (Question $q) => [
+        // SỬA 27/10 lần 2 (khách: "dùng chung, không lưu thêm") — gộp thêm bài DÙNG KÉ từ tài liệu khác (kể cả bài gốc đang
+        // nháp, để admin còn thấy mà gỡ). Bài dùng ké: Sửa = sửa bài gốc, nút "Gỡ" thay cho "Xoá". Xem App\Support\ProductExerciseLinks.
+        $exLinks = \App\Support\ProductExerciseLinks::class;
+        $exList = $exLinks::withLinked((int) $product->id, $product->exercises()->with(['tags', 'chapter'])->get(), ['tags', 'product:id,title'], ['*'], false);
+        $exUsedBy = $exLinks::supported() && $exList->isNotEmpty()
+            ? \App\Models\ProductExerciseLink::query()->whereIn('question_id', $exList->pluck('id')->all())->where('product_id', '!=', $product->id)
+                ->selectRaw('question_id, COUNT(*) as n')->groupBy('question_id')->pluck('n', 'question_id')->all()
+            : [];
+
+        return \App\Support\QuestionOrder::sortMaterialExercises($exList)->map(fn (Question $q) => [
             'id' => $q->id,
+            'linked' => $exLinks::isLinked($q),
+            'ownerProductId' => (int) $q->product_id,
+            'linkedFrom' => $exLinks::isLinked($q) ? 'Dùng chung từ '.($q->product?->title ?? 'tài liệu #'.$q->product_id) : null,
+            'usedByCount' => (int) ($exUsedBy[$q->id] ?? 0), // số tài liệu KHÁC đang dùng ké bài này
             'code' => (string) $q->code,
             'chapterId' => $q->material_id !== null ? (int) $q->material_id : null, // SỬA 27/10 — lọc theo chương ở trang tài liệu
             'title' => $q->title,

@@ -58,8 +58,8 @@
     {{-- SỬA 27/10 (khách: "thêm option chọn up từ bài có sẵn — bài của tài liệu khác") — xem partials/exercise-pick-adder. --}}
     <label class="oi-mode__opt" :class="addMode === 'pick' ? 'is-on' : ''">
         <input type="radio" value="pick" x-model="addMode" @change="$dispatch('ex-pick-open')">
-        <span class="oi-mode__ic"><x-lucide name="copy" /></span>
-        <span class="oi-mode__txt"><b>Lấy từ bài có sẵn</b><small>Chọn bài của sách / tài liệu khác để thêm vào chương</small></span>
+        <span class="oi-mode__ic"><x-lucide name="library" /></span>
+        <span class="oi-mode__txt"><b>Dùng bài có sẵn</b><small>Dùng chung bài của sách / tài liệu khác, không lưu thêm</small></span>
         <span class="oi-mode__dot" aria-hidden="true"></span>
     </label>
 </div>

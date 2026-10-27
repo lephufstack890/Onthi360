@@ -42,7 +42,8 @@
             // Luyện tập (student.practiceByQuestion.startExercise, nhóm route mở cho mọi tài khoản đã đăng nhập; quyền vào
             // sản phẩm vẫn do AccessGate kiểm như cũ — admin đọc/làm được mọi tài liệu).
             // SỬA 18/10 — bên gọi được truyền sẵn đường vào làm bài (vd màn đọc Bộ đề: route bundles.startQuestion).
-            'startUrl' => $ex['startUrl'] ?? route('student.practiceByQuestion.startExercise', $ex['id']),
+            // SỬA 27/10 lần 2 — kèm san_pham (tài liệu đang đọc) để bài DÙNG KÉ mở đúng danh sách Bài trước / Bài tiếp.
+            'startUrl' => $ex['startUrl'] ?? route('student.practiceByQuestion.startExercise', array_filter(['exercise' => $ex['id'], 'san_pham' => $ex['productId'] ?? null])),
             'viewUrl' => array_key_exists('viewUrl', $ex) && $readerRole !== 'admin' ? $ex['viewUrl'] : match ($readerRole) {
                 'admin' => $ex['editHref'] ?? null,
                 'teacher' => route('access.resource.exerciseAttachment', [$ex['productId'] ?? 0, $ex['id'], 'statement']),

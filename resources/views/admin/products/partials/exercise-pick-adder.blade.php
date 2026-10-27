@@ -1,6 +1,7 @@
 {{-- SỬA 27/10 (khách: "thêm option chọn up từ bài có sẵn — bài của tài liệu; 1 bài dùng ở chương tài liệu này cũng dùng ở chương
      tài liệu khác. Cho chọn sách, chọn chương lọc để chọn bài cho dễ. Bài nào có rồi thì đừng hiển thị trong option") — cách thêm
-     thứ 3 của khối Bài tập đính kèm. Chọn bài ở tài liệu khác → thêm vào chương đang chọn (bản sao độc lập, mã gốc + hậu tố).
+     thứ 3 của khối Bài tập đính kèm. Chọn bài ở tài liệu khác → thêm vào chương đang chọn.
+     SỬA 27/10 lần 2 (khách: "chỉ dùng ké, không lưu thêm") — thêm = DÙNG CHUNG bài gốc (không chép bài / tệp), xem App\Support\ProductExerciseLinks.
      Máy chủ: Admin\ProductExercisePickController + Services\Admin\ProductExercisePickService (đã bỏ sẵn bài tài liệu này có rồi).
      Tham số: $product, $chapters, $chapterLabel, $exDefaultChapterId. --}}
 @php
@@ -174,9 +175,9 @@
 
     <div class="oi-add__actions">
         <button type="button" class="acx-btn acx-btn--primary acx-btn--sm" :disabled="! picked.length || saving" @click="save()">
-            <x-lucide name="copy" /> <span x-text="saving ? 'Đang thêm…' : (picked.length ? 'Thêm ' + picked.length + ' bài vào {{ $pkChapterLower ?? 'tài liệu' }} đã chọn' : 'Chọn bài để thêm')">Chọn bài để thêm</span>
+            <x-lucide name="plus" /> <span x-text="saving ? 'Đang thêm…' : (picked.length ? 'Thêm ' + picked.length + ' bài vào {{ $pkChapterLower ?? 'tài liệu' }} đã chọn' : 'Chọn bài để thêm')">Chọn bài để thêm</span>
         </button>
         <button type="button" class="acx-btn acx-btn--sm" x-show="picked.length && ! saving" x-cloak @click="picked = []; roots = {}; note = ''">Bỏ chọn</button>
-        <span class="oi-add__note" style="margin:0">Bài thêm vào là <b>bản sao riêng</b> của tài liệu này (mã gốc + hậu tố, vd T1B001 → T1B001-2), đã Phát hành, có nhãn "Lấy từ …" trong danh sách. Sửa bản này không ảnh hưởng bài gốc và ngược lại.</span>
+        <span class="oi-add__note" style="margin:0">Bài được <b>dùng chung</b> với tài liệu gốc — không lưu thêm bản nào, giữ nguyên mã bài. Sửa bài gốc là ở đây đổi theo; muốn bỏ thì bấm "Gỡ" (bài gốc không bị xoá).</span>
     </div>
 </div>

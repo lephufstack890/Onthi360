@@ -78,9 +78,14 @@ class ProductExerciseBulkController extends Controller
             $content->productExerciseDestroy($exercise);
         }
 
+        // SỬA 27/10 lần 2 — bài DÙNG KÉ được chọn thì chỉ GỠ khỏi tài liệu này (bài gốc ở tài liệu kia giữ nguyên).
+        $unlinked = \App\Support\ProductExerciseLinks::supported()
+            ? \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $data['ids'])->delete()
+            : 0;
+
         return redirect()->route('admin.products.show', $product->id)
             ->with('status', 'exercises-deleted-many')
-            ->with('statusMessage', 'Đã xoá '.$exercises->count().' bài tập.');
+            ->with('statusMessage', 'Đã xoá '.$exercises->count().' bài tập'.($unlinked > 0 ? ', gỡ '.$unlinked.' bài dùng chung' : '').'.');
     }
 
     /** Xong (hoặc dừng giữa chừng): dọn thư mục tạm. */

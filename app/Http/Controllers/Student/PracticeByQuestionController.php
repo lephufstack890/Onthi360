@@ -65,7 +65,7 @@ class PracticeByQuestionController extends Controller
             abort_if($question === null || $question->status !== ContentStatus::Published, 404);
 
             if ($question->product_id !== null) {
-                abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+                abort_unless(\App\Support\ProductExerciseLinks::canAccess(Auth::user(), $question, $this->accessGate), 403); // SỬA 27/10 lần 2 — tính cả tài liệu dùng ké
             }
 
             // Quay về ĐÚNG trang vừa bấm. route(..., absolute: false) cho ra đường dẫn tương
@@ -204,7 +204,7 @@ class PracticeByQuestionController extends Controller
         abort_if($exercise->status !== ContentStatus::Published, 404);
 
         if ($exercise->product_id !== null) {
-            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $exercise->product)->allowed, 403);
+            abort_unless(\App\Support\ProductExerciseLinks::canAccess(Auth::user(), $exercise, $this->accessGate), 403); // SỬA 27/10 lần 2 — tính cả tài liệu dùng ké
         }
 
         abort_unless($this->service->switchToSibling($exercise->id), 404);
@@ -216,8 +216,14 @@ class PracticeByQuestionController extends Controller
     {
         abort_if($exercise->product_id === null, 404);
 
-        $product = $exercise->product;
-        abort_unless($this->accessGate->canAccessProduct(Auth::user(), $product)->allowed, 403);
+        // SỬA 27/10 lần 2 (bài DÙNG KÉ) — được mở nếu có quyền tài liệu gốc HOẶC một tài liệu đang dùng ké bài này. Tài liệu
+        // "đang đứng" ưu tiên ?san_pham= (màn đọc gửi kèm) để Bài trước / Bài tiếp đi đúng danh sách của tài liệu đó.
+        $product = \App\Support\ProductExerciseLinks::contextProduct(Auth::user(), $exercise, $this->accessGate, ctype_digit((string) $request->input('san_pham')) ? (int) $request->input('san_pham') : null);
+        abort_unless($product !== null, 403);
+        $siblings = \App\Support\ProductExerciseLinks::supported()
+            && ((int) $product->id !== (int) $exercise->product_id || \App\Support\ProductExerciseLinks::linkedQuestionIds((int) $product->id) !== [])
+            ? \App\Support\ProductExerciseLinks::siblingIds((int) $product->id)
+            : null;
 
         $data = $request->validate([
             'return_url' => ['nullable', 'string', 'max:2000'],
@@ -234,7 +240,7 @@ class PracticeByQuestionController extends Controller
             $returnUrl = null;
         }
 
-        $this->service->startForQuestion($exercise->id, $returnUrl, $returnUrl !== null ? ($data['back_label'] ?? null) : null);
+        $this->service->startForQuestion($exercise->id, $returnUrl, $returnUrl !== null ? ($data['back_label'] ?? null) : null, $siblings);
 
         return redirect()->route('student.practiceByQuestion.play');
     }
@@ -336,7 +342,7 @@ class PracticeByQuestionController extends Controller
         abort_unless($question->status === ContentStatus::Published, 404);
 
         if ($question->product_id !== null) {
-            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+            abort_unless(\App\Support\ProductExerciseLinks::canAccess(Auth::user(), $question, $this->accessGate), 403); // SỬA 27/10 lần 2 — tính cả tài liệu dùng ké
         }
 
         $info = $question->findAsset($asset);
@@ -362,7 +368,7 @@ class PracticeByQuestionController extends Controller
         abort_unless($question->status === ContentStatus::Published, 404);
 
         if ($question->product_id !== null) {
-            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+            abort_unless(\App\Support\ProductExerciseLinks::canAccess(Auth::user(), $question, $this->accessGate), 403); // SỬA 27/10 lần 2 — tính cả tài liệu dùng ké
         }
 
         $info = $question->attachmentInfo('statement');
@@ -404,7 +410,7 @@ class PracticeByQuestionController extends Controller
         abort_unless($question->status === ContentStatus::Published, 404);
 
         if ($question->product_id !== null) {
-            abort_unless($this->accessGate->canAccessProduct(Auth::user(), $question->product)->allowed, 403);
+            abort_unless(\App\Support\ProductExerciseLinks::canAccess(Auth::user(), $question, $this->accessGate), 403); // SỬA 27/10 lần 2 — tính cả tài liệu dùng ké
         }
 
         // LUẬT DUY NHẤT dùng chung với chỗ hiện 2 tab ở màn làm bài — view và route không được

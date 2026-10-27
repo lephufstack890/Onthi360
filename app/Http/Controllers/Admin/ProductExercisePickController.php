@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Question;
 use App\Services\Admin\ProductExercisePickService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -31,7 +33,7 @@ class ProductExercisePickController extends Controller
         return response()->json($this->pick->sources($product, $request->query()));
     }
 
-    /** Thêm (sao chép) các bài đã chọn vào tài liệu này. */
+    /** Thêm các bài đã chọn vào tài liệu này theo kiểu DÙNG KÉ (SỬA 27/10 lần 2 — không sao chép). */
     public function store(Request $request, Product $product): JsonResponse
     {
         $request->validate([
@@ -43,7 +45,7 @@ class ProductExercisePickController extends Controller
         @set_time_limit(300);
 
         try {
-            return response()->json(['ok' => true] + $this->pick->copy(
+            return response()->json(['ok' => true] + $this->pick->link(
                 $product,
                 $request->user(),
                 (array) $request->input('ids', []),
@@ -52,5 +54,15 @@ class ProductExercisePickController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['ok' => false, 'message' => (string) collect($e->errors())->flatten()->first()], 422);
         }
+    }
+
+    /** Gỡ bài dùng ké khỏi tài liệu này — bài gốc (ở tài liệu khác) và tệp của nó giữ nguyên. */
+    public function unlink(Product $product, Question $exercise): RedirectResponse
+    {
+        $this->pick->unlink($product, $exercise);
+
+        return redirect()->route('admin.products.show', $product->id)
+            ->with('status', 'exercises-deleted-many')
+            ->with('statusMessage', 'Đã gỡ bài '.$exercise->code.' khỏi tài liệu này (bài gốc vẫn giữ nguyên).');
     }
 }

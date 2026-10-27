@@ -187,12 +187,13 @@ class MaterialReadService
 
         // SỬA 14/10 — xếp theo đúng thứ tự hiển thị chuẩn (QuestionOrder), giống màn đọc sản phẩm.
         // SỬA 27/10 — bài tập tài liệu: theo chương rồi mã bài (QuestionOrder::sortMaterialExercises), không gom theo dạng.
-        $questions = \App\Support\QuestionOrder::sortMaterialExercises(\App\Support\QuestionOrder::apply(
+        // SỬA 27/10 lần 2 — gộp thêm bài DÙNG KÉ từ tài liệu khác (App\Support\ProductExerciseLinks), gắn đúng chương bên tài liệu này.
+        $questions = \App\Support\QuestionOrder::sortMaterialExercises(\App\Support\ProductExerciseLinks::withLinked((int) $material->product_id, \App\Support\QuestionOrder::apply(
             Question::query()
                 ->where('product_id', $material->product_id)
                 ->where('status', ContentStatus::Published->value)
                 ->with(['tags:id,name'])
-        )->get());
+        )->get(), ['tags:id,name']));
 
         if ($questions->isEmpty()) {
             return [];
@@ -225,7 +226,7 @@ class MaterialReadService
                 'chapterId' => $question->material_id !== null ? (int) $question->material_id : null,
                 'productId' => (int) $material->product_id,
                 'editHref' => $routePrefix === 'admin'
-                    ? route('admin.products.exercises.edit', [$material->product_id, $question->id])
+                    ? route('admin.products.exercises.edit', [$question->product_id, $question->id]) // bài dùng ké: sửa ở tài liệu gốc
                     : null,
                 'title' => $question->title,
                 'tags' => $question->tags->pluck('name')->take(3)->values()->all(),

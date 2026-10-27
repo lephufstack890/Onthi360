@@ -319,6 +319,13 @@
                                             @if (! empty($ex['copiedFrom']))
                                                 <span class="apx-tag" style="background:#FEF3C7;color:#92400E" title="Bản sao riêng của tài liệu này — sửa bài này không ảnh hưởng bài gốc">{{ $ex['copiedFrom'] }}</span>
                                             @endif
+                                            {{-- SỬA 27/10 lần 2 — bài DÙNG KÉ (dùng chung bài gốc của tài liệu khác, không lưu thêm). --}}
+                                            @if (! empty($ex['linkedFrom']))
+                                                <span class="apx-tag" style="background:#E0F2FE;color:#075985" title="Bài dùng chung — sửa bài gốc thì ở đây đổi theo">{{ $ex['linkedFrom'] }}</span>
+                                            @endif
+                                            @if (($ex['usedByCount'] ?? 0) > 0)
+                                                <span class="apx-tag" style="background:#EEF2FF;color:#3730A3" title="Tài liệu khác đang dùng chung bài này">Đang dùng chung ở {{ $ex['usedByCount'] }} tài liệu khác</span>
+                                            @endif
                                         </p>
                                         <p class="apx-item__sub">
                                             {{ $ex['points'] }} điểm · {{ $ex['summary'] }}
@@ -329,12 +336,22 @@
                                         </p>
                                     </div>
                                     <div class="apx-item__side">
+                                        @if (! empty($ex['linked']))
+                                            {{-- Bài dùng ké: Sửa = sửa bài GỐC (ở tài liệu gốc); Gỡ = bỏ khỏi tài liệu này, bài gốc giữ nguyên. --}}
+                                            <a href="{{ route('admin.products.exercises.edit', [$ex['ownerProductId'], $ex['id']]) }}" class="acx-link" title="Sửa bài gốc — mọi tài liệu dùng chung đều đổi theo">Sửa</a>
+                                            <form action="{{ route('admin.products.exercises.pick.unlink', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Gỡ bài này khỏi tài liệu? Bài gốc ở tài liệu kia vẫn giữ nguyên.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="acx-link acx-link--del">Gỡ</button>
+                                            </form>
+                                        @else
                                         <a href="{{ route('admin.products.exercises.edit', [$product->id, $ex['id']]) }}" class="acx-link">Sửa</a>
-                                        <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Xoá bài tập này? Không thể hoàn tác.');">
+                                        <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm({{ \Illuminate\Support\Js::from(($ex['usedByCount'] ?? 0) > 0 ? 'Bài này đang được dùng chung ở '.$ex['usedByCount'].' tài liệu khác — xoá sẽ mất ở cả các tài liệu đó. Xoá bài tập này? Không thể hoàn tác.' : 'Xoá bài tập này? Không thể hoàn tác.') }});">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="acx-link acx-link--del">Xoá</button>
                                         </form>
+                                        @endif
                                     </div>
                                 </div>
                             @endforeach

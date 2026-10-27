@@ -737,6 +737,8 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 27/10 — "Lấy từ bài có sẵn" (bài tập của tài liệu khác → bản sao vào tài liệu này). Xem Admin\ProductExercisePickController.
         Route::get('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'sources'])->name('products.exercises.pick.sources');
         Route::post('products/{product}/exercises/lay-tu-bai-co-san', [AdminProductExercisePickController::class, 'store'])->name('products.exercises.pick.store');
+        // SỬA 27/10 lần 2 — gỡ bài DÙNG KÉ khỏi tài liệu (bài gốc giữ nguyên).
+        Route::delete('products/{product}/exercises/{exercise}/dung-ke', [AdminProductExercisePickController::class, 'unlink'])->name('products.exercises.pick.unlink');
         Route::post('products/{product}/exercises/bulk/{token}/{index}', [AdminProductExerciseBulkController::class, 'import'])
             ->where('token', '[A-Za-z0-9]{32}')->whereNumber('index')->name('products.exercises.bulk.import');
         Route::post('products/{product}/exercises/bulk/{token}/xong', [AdminProductExerciseBulkController::class, 'finish'])
