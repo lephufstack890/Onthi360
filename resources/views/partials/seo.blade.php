@@ -21,15 +21,20 @@
     $seoDecode = fn (string $value) => html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
     $seoPageTitle = $seoDecode(trim((string) $__env->yieldContent('title')));
+    // SỬA 27/10 — tiêu đề đã có sẵn tên thương hiệu "Onthi360" (trang chủ) thì giữ nguyên, không gắn thêm đuôi.
     $seoTitle = ($seoPageTitle !== '' && $seoPageTitle !== $seoSite)
-        ? $seoPageTitle.' — '.$seoSite
+        ? (str_contains(mb_strtolower($seoPageTitle), 'onthi360') ? $seoPageTitle : $seoPageTitle.' — '.$seoSite)
         : $seoSite.' — Học và luyện thi trực tuyến';
+    // SỬA 27/10 — tên hiển thị khi chia sẻ link (Zalo / Facebook) và tên tổ chức trong dữ liệu Google.
+    $seoBrand = 'Tin học Onthi360';
+    $seoIsHome = request()->routeIs('home');
 
     $seoDescription = $seoDecode(trim((string) $__env->yieldContent('meta-description')));
     if ($seoDescription === '') {
         $seoDescription = 'Ôn Thi 360 — nền tảng học và luyện thi trực tuyến: khoá học theo môn và khối lớp, kho tài liệu, luyện tập theo từng câu hỏi biết đúng/sai ngay, cuộc thi và bảng xếp hạng.';
     }
-    if (mb_strlen($seoDescription) > 165) {
+    // SỬA 27/10 — trang chủ giữ đủ mô tả khách duyệt (Google / Zalo tự cắt phần dư khi hiển thị); trang khác giữ giới hạn 165.
+    if (! $seoIsHome && mb_strlen($seoDescription) > 165) {
         $seoDescription = rtrim(mb_substr($seoDescription, 0, 162), " \t\n\r\0\x0B.,;:-").'…';
     }
 
@@ -40,7 +45,8 @@
         $seoRobots = 'index, follow, max-image-preview:large, max-snippet:-1';
     }
 
-    $seoImage = trim((string) $__env->yieldContent('meta-image')) ?: asset('og-image.png');
+    // SỬA 27/10 — gắn ?v= theo thời điểm sửa ảnh: Zalo / Facebook nhớ ảnh xem trước theo đường dẫn, đổi ảnh là đổi đường dẫn.
+    $seoImage = trim((string) $__env->yieldContent('meta-image')) ?: asset('og-image.png').'?v='.(@filemtime(public_path('og-image.png')) ?: '1');
     $seoUrl = url()->current();
 @endphp
     <title>{{ $seoTitle }}</title>
@@ -50,7 +56,7 @@
     <link rel="canonical" href="{{ $seoUrl }}">
 
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="{{ $seoSite }}">
+    <meta property="og:site_name" content="{{ $seoBrand }}">
     <meta property="og:locale" content="vi_VN">
     <meta property="og:title" content="{{ $seoTitle }}">
     <meta property="og:description" content="{{ $seoDescription }}">
@@ -58,7 +64,7 @@
     <meta property="og:image" content="{{ $seoImage }}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="{{ $seoSite }}">
+    <meta property="og:image:alt" content="{{ $seoIsHome ? $seoTitle : $seoBrand }}">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $seoTitle }}">
@@ -98,16 +104,18 @@
                 [
                     '@type' => 'EducationalOrganization',
                     '@id' => $seoHome.'#to-chuc',
-                    'name' => $seoSite,
+                    'name' => $seoBrand,
+                    'alternateName' => [$seoSite, 'Onthi360'],
                     'url' => $seoHome,
                     'logo' => asset('icon-512.png'),
-                    'description' => 'Nền tảng học và luyện thi trực tuyến: khoá học, tài liệu, luyện tập theo câu hỏi, cuộc thi và bảng xếp hạng.',
+                    'description' => $seoDescription,
                 ],
                 [
                     '@type' => 'WebSite',
                     '@id' => $seoHome.'#website',
                     'url' => $seoHome,
-                    'name' => $seoSite,
+                    'name' => $seoBrand,
+                    'alternateName' => $seoSite,
                     'inLanguage' => 'vi-VN',
                     'publisher' => ['@id' => $seoHome.'#to-chuc'],
                 ],

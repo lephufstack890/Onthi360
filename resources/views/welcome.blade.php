@@ -1,7 +1,9 @@
 @extends('layouts.guest')
 
-@section('title', 'Luyện thi Tin học - Học cùng mục tiêu, Vươn xa ước mơ')
-@section('meta-description', 'Ôn Thi 360 — nền tảng luyện thi Tin học: lớp học, bài tập tự luyện theo chuyên đề, tài liệu, cuộc thi và bảng xếp hạng cho học sinh lớp 6–12.')
+{{-- SỬA 27/10 (khách: đổi tiêu đề + mô tả hiện khi gửi link qua Zalo/Facebook, tối ưu SEO). Tiêu đề có chữ "Onthi360"
+     nên partials/seo KHÔNG gắn thêm đuôi " — Ôn Thi 360". --}}
+@section('title', 'Tin học Onthi360 - Luyện thi Tin học: Học cùng mục tiêu, Vươn xa ước mơ')
+@section('meta-description', 'Tin học Onthi360 - Nền tảng học tập và luyện thi môn Tin học, lập trình thi đấu, HSG Tin học lớp 9, HSG Tin học lớp 12, Thi Tốt nghiệp THPT Quốc gia môn Tin học. Hệ thống bài tập, tài liệu, chuyên đề phong phú, chất lượng; Các giáo viên, chuyên gia uy tín hàng đầu; Hệ thống cuộc thi phong phú, cập nhật.')
 
 @section('content')
 
