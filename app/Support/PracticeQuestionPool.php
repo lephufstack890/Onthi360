@@ -16,7 +16,9 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * chuyên đề — người học gặp lại đúng bài đó hai lần ở hai chỗ. Giờ câu nào đã được xếp vào
  * một đề luyện tập thì CHỈ còn xuất hiện trong đề đó.
  *
- * PHẠM VI: chỉ tính đề LUYỆN TẬP (type = 'practice') và ĐÃ PHÁT HÀNH (status = 'published'),
+ * SỬA 27/10 — thêm: câu nằm trong đề Loại "Đề thi" (type = 'exam', mọi trạng thái, trừ đề ma trận khảo sát) cũng ẩn.
+ *
+ * PHẠM VI (đề luyện tập): chỉ tính đề LUYỆN TẬP (type = 'practice') và ĐÃ PHÁT HÀNH (status = 'published'),
  * chưa bị xoá mềm. Cố ý không tính đề nháp: đề nháp chưa ai xem được, nếu cũng ẩn câu đi thì
  * câu ấy biến mất khỏi cả hai chỗ — không còn lối nào vào. Đề thuộc loại khác (bài kiểm tra
  * giao cho lớp…) cũng không tính, vì chúng không nằm trên trang Luyện tập công khai.
@@ -49,9 +51,29 @@ final class PracticeQuestionPool
                 ->from('assessment_items')
                 ->join('assessments', 'assessments.id', '=', 'assessment_items.assessment_id')
                 ->whereColumn('assessment_items.question_id', $questionIdColumn)
-                ->where('assessments.type', 'practice')
-                ->where('assessments.status', 'published')
-                ->whereNull('assessments.deleted_at');
+                ->whereNull('assessments.deleted_at')
+                ->where(function (QueryBuilder $w) {
+                    // Đề luyện tập: chỉ đề đã phát hành (như cũ).
+                    $w->where(fn (QueryBuilder $p) => $p->where('assessments.type', 'practice')->where('assessments.status', 'published'))
+                        // SỬA 27/10 (khách: "câu hỏi thuộc đề thi cũng không được hiển thị ở bài tập chuyên đề") — đề Loại
+                        // "Đề thi" (cả bản nháp: đề đang soạn cho cuộc thi cũng không được lộ câu ra ngoài). TRỪ đề do ma trận
+                        // của kỳ khảo sát tự sinh (competition_exam_papers) — đề đó bốc câu từ chính kho chung, nếu tính thì
+                        // mỗi lần chốt đề ma trận lại làm hụt bài tập chuyên đề.
+                        ->orWhere(function (QueryBuilder $e) {
+                            $e->where('assessments.type', 'exam');
+                            if (self::hasPaperTable()) {
+                                $e->whereNotExists(fn (QueryBuilder $pp) => $pp->selectRaw('1')->from('competition_exam_papers')
+                                    ->whereColumn('competition_exam_papers.assessment_id', 'assessments.id'));
+                            }
+                        });
+                });
         });
+    }
+
+    private static function hasPaperTable(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasTable('competition_exam_papers');
     }
 }
