@@ -2195,8 +2195,11 @@ class ContentService
     {
         $this->discardAbandonedDraftsFor($product);
 
-        return $product->exercises()->with(['tags', 'chapter'])->get()->map(fn (Question $q) => [
+        // SỬA 27/10 (khách: "hiển thị theo thứ tự câu") — theo chương rồi mã bài (T1B001, T1B002…), cùng thứ tự với cột
+        // Bài tập ở màn đọc (QuestionOrder::sortMaterialExercises), thay cho "mới nhập trước".
+        return \App\Support\QuestionOrder::sortMaterialExercises($product->exercises()->with(['tags', 'chapter'])->get())->map(fn (Question $q) => [
             'id' => $q->id,
+            'code' => (string) $q->code,
             'title' => $q->title,
             'points' => $q->points,
             // SỬA 31/8 (2, "mở rộng ZIP bài tập") — trước đây 'testCasesCount' (chỉ đúng cho

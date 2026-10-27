@@ -258,11 +258,14 @@
                     @if (empty($exercises))
                         <x-ws.empty-state title="Chưa có bài tập nào" description="Tải gói ZIP ở khung trên để thêm bài đầu tiên." />
                     @else
-                        <div class="apx-list">
+                        {{-- SỬA 27/10 (khách: "cho scroll để kéo chứ dài quá, hiển thị theo thứ tự câu") — khung cuộn riêng, xếp theo
+                             chương rồi mã bài (ContentService::productExercisesFor). --}}
+                        <div class="apx-list" style="max-height:620px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin">
                             @foreach ($exercises as $ex)
                                 <div class="apx-item">
                                     <div class="apx-item__main">
                                         <p class="apx-item__title">
+                                            @if (! empty($ex['code']))<code style="margin-right:6px;font-size:12px;font-weight:700;color:#2563EB">{{ $ex['code'] }}</code>@endif
                                             {{ $ex['title'] }} <span class="apx-muted" style="font-weight:400">· {{ $ex['typeLabel'] }}</span>
                                             @if ($ex['chapterTitle'])
                                                 <span class="apx-tag">{{ $ex['chapterTitle'] }}</span>
