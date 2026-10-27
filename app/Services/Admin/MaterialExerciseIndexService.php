@@ -47,7 +47,12 @@ final class MaterialExerciseIndexService
     public function count(): int
     {
         $productIds = Product::query()->whereIn('type', array_keys(self::TYPE_LABELS))->select('id');
-        return Question::query()->whereIn('product_id', $productIds)->count();
+        // SỬA 27/10 — cộng cả bài DÙNG CHUNG (mỗi tài liệu dùng chung một bài = một dòng, như danh sách bên dưới).
+        $shared = \App\Support\ProductExerciseLinks::supported()
+            ? \App\Models\ProductExerciseLink::query()->whereIn('product_id', $productIds)->count()
+            : 0;
+
+        return Question::query()->whereIn('product_id', $productIds)->count() + $shared;
     }
 
     /**
@@ -187,13 +192,44 @@ final class MaterialExerciseIndexService
                 ));
             });
 
+        // SỬA 27/10 (khách: "Python dùng chung với C++ mà lại 0 bài — có nhiều trường hợp dùng chung, chung và riêng lẫn lộn")
+        // — thêm bài DÙNG CHUNG: mỗi tài liệu đang dùng chung một bài là một dòng riêng, nằm đúng chương bên tài liệu đó, ghi
+        // rõ "Dùng chung từ <tài liệu gốc>". Nút Sửa = sửa bài gốc. Xem App\Support\ProductExerciseLinks.
+        if (\App\Support\ProductExerciseLinks::supported()) {
+            \App\Models\ProductExerciseLink::query()
+                ->whereIn('product_id', $products->keys()->all() ?: [0])
+                ->with(['question', 'chapter:id,title,order'])
+                ->orderBy('id')
+                ->get()
+                ->each(function ($link) use ($products, $rows) {
+                    $p = $products->get($link->product_id);
+                    $q = $link->question;
+                    if ($p === null || $q === null || $q->product_id === null) {
+                        return;
+                    }
+                    $owner = $products->get($q->product_id);
+                    $row = $this->row(
+                        $q, $p,
+                        'm'.(int) ($link->material_id ?? 0),
+                        $link->chapter?->title,
+                        $link->chapter !== null ? (int) $link->chapter->order : PHP_INT_MAX,
+                        route('admin.products.exercises.edit', [$q->product_id, $q->id]),
+                        null,
+                    );
+                    $row['sharedFrom'] = $owner?->title ?? ('tài liệu #'.$q->product_id);
+                    $row['search'] .= ' dung chung';
+                    $rows->push($row);
+                });
+        }
+
         $typeOrder = array_flip(array_keys(self::TYPE_LABELS));
 
-        return $this->rowsCache = $rows->sort(fn ($a, $b) => [
-            $typeOrder[$a['productType']] ?? 99, $a['productSort'], $a['productId'], $a['partOrder'], $a['seq'],
+        // SỬA 27/10 — trong cùng chương: theo mã bài tự nhiên (T1B002 trước T1B010), để bài riêng và bài dùng chung xen đúng thứ tự.
+        return $this->rowsCache = $rows->sort(fn ($a, $b) => ([
+            $typeOrder[$a['productType']] ?? 99, $a['productSort'], $a['productId'], $a['partOrder'],
         ] <=> [
-            $typeOrder[$b['productType']] ?? 99, $b['productSort'], $b['productId'], $b['partOrder'], $b['seq'],
-        ])->values();
+            $typeOrder[$b['productType']] ?? 99, $b['productSort'], $b['productId'], $b['partOrder'],
+        ]) ?: (strnatcasecmp($a['code'], $b['code']) ?: $a['seq'] <=> $b['seq']))->values();
     }
 
     private function row(Question $q, Product $p, string $partKey, ?string $partTitle, int $partOrder, string $editHref, ?string $partHref): array

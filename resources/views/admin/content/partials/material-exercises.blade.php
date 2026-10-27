@@ -159,6 +159,10 @@
                                     <span class="akx-mute">chưa gắn</span>
                                 @endif
                             </div>
+                            {{-- SỬA 27/10 — bài dùng chung (bài gốc ở tài liệu khác). --}}
+                            @if (! empty($r['sharedFrom']))
+                                <div class="mex-part"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#E0F2FE;color:#075985;font-weight:700;font-size:12px">Dùng chung từ {{ $r['sharedFrom'] }}</span></div>
+                            @endif
                         </td>
                         <td>
                             <div class="akx-k">{{ $r['typeLabel'] }}</div>
