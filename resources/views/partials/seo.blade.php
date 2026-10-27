@@ -48,7 +48,7 @@
     // SỬA 27/10 — gắn ?v= theo thời điểm sửa ảnh: Zalo / Facebook nhớ ảnh xem trước theo đường dẫn, đổi ảnh là đổi đường dẫn.
     // SỬA 27/10 (lần 2) — Zalo vẫn hiện ảnh cũ dù đã thêm ?v= (Zalo nhớ ảnh theo tên file, bỏ qua phần ?v=) → dùng TÊN FILE MỚI.
     // Sau này đổi ảnh chia sẻ: đặt file với tên mới khác (vd og-tinhoc-onthi360-2.png) rồi sửa tên ở dòng dưới.
-    $seoOgFile = 'og-tinhoc-onthi360.png';
+    $seoOgFile = 'og-tinhoc-onthi360-v2.png'; // v2: logo + màu thương hiệu (xanh #0057F5, cam 360)
     $seoImage = trim((string) $__env->yieldContent('meta-image')) ?: asset($seoOgFile).'?v='.(@filemtime(public_path($seoOgFile)) ?: '1');
     $seoUrl = url()->current();
 @endphp
