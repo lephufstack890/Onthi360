@@ -23,7 +23,7 @@
 
             @if ($sv)
                 <fieldset class="round-source-options"><legend>Chọn nguồn để tạo bộ đề</legend>
-                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một hoặc nhiều đề {{ mb_strtolower($re['bankTypeLabel'] ?? 'Luyện tập') }} trong ngân hàng</small></span></label>
+                    <label :data-selected="picker.source === 'exam' ? 'true' : 'false'"><input type="radio" name="source_type" value="exam" x-model="picker.source"><x-lucide name="file-text" /><span><b>Từ đề có sẵn</b><small>Chọn một hoặc nhiều đề Loại "{{ $re['bankTypeLabel'] ?? 'Đề thi' }}" trong ngân hàng</small></span></label>
                     <label :data-selected="picker.source === 'questions' ? 'true' : 'false'"><input type="radio" name="source_type" value="questions" x-model="picker.source"><x-lucide name="list-checks" /><span><b>Từ nguồn câu hỏi</b><small>Lập ma trận và sinh số đề theo nhu cầu</small></span></label>
                 </fieldset>
             @else

@@ -319,12 +319,14 @@ class ContestOrganizerService
 
     public static function bankTypeFor(Competition $competition): \App\Enums\AssessmentType
     {
-        return $competition->isSurvey() ? \App\Enums\AssessmentType::Practice : \App\Enums\AssessmentType::Exam;
+        // SỬA 27/10 (khách: "sửa lại lấy từ loại Đề thi") — khảo sát và cuộc thi đều lấy đề Loại "Đề thi". Kỳ khảo sát đang gắn
+        // đề Luyện tập (chọn theo luật cũ) vẫn giữ và làm bài bình thường (AttemptService::roundContext()).
+        return \App\Enums\AssessmentType::Exam;
     }
 
     public static function bankTypeLabel(Competition $competition): string
     {
-        return $competition->isSurvey() ? 'Luyện tập' : 'Đề thi';
+        return 'Đề thi';
     }
 
     /**
