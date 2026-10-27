@@ -65,10 +65,14 @@
           bao nhiêu") — mã không biên dịch được thì máy chấm dừng sau test đầu, không có bảng
           test nào để vẽ. Chỉ nói thẳng sai ở dòng nào và sai gì.
         --}}
+        {{-- SỬA 25/10 — mở sai tên file INP/OUT (CodeJudgingService::fileIoNameMismatch()): máy chấm dừng, không phải lỗi biên dịch.
+             SỬA 27/10 (khách: "hiện 1 dòng ngắn thôi, sai file nào là xong") — chỉ 1 dòng, không thêm khối nào khác. --}}
+        @php $fileNameError = str_starts_with((string) $feedback['codingCompileError'], 'Sai tên file'); @endphp
+        @if ($fileNameError)
+            <p role="status" aria-atomic="true" class="break-words font-semibold text-rose-700">{{ $feedback['codingCompileError'] }}</p>
+        @else
         <p role="status" aria-atomic="true" class="text-[#45657D]">
-            {{-- SỬA 25/10 — mở sai tên tệp INP/OUT (CodeJudgingService::fileIoNameMismatch()): máy chấm dừng, không phải lỗi biên dịch. --}}
-            @php $fileNameError = str_starts_with((string) $feedback['codingCompileError'], 'Sai tên tệp'); @endphp
-            <strong class="text-rose-700">Kết quả chấm: {{ $fileNameError ? 'Sai tên tệp vào/ra — chưa chấm.' : 'Mã chưa biên dịch được.' }}</strong>
+            <strong class="text-rose-700">Kết quả chấm: Mã chưa biên dịch được.</strong>
             @if (! empty($feedback['codingErrorLine']))Lỗi ở dòng {{ $feedback['codingErrorLine'] }}.@endif
         </p>
         @if (! empty($feedback['codingErrorMessage']))
@@ -76,9 +80,10 @@
         @endif
         <p class="mt-1 text-[#607A90]">Chưa chấm test nào — sửa lỗi rồi bấm "Nộp bài" ở thanh dưới để chấm lại.</p>
         <details class="mt-2">
-            <summary class="cursor-pointer font-semibold text-[#126F91]">{{ $fileNameError ? 'Xem thông báo của máy chấm' : 'Xem toàn bộ thông báo của trình biên dịch' }}</summary>
+            <summary class="cursor-pointer font-semibold text-[#126F91]">Xem toàn bộ thông báo của trình biên dịch</summary>
             <pre class="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-[#FEF3F2] p-2 font-mono text-[10px] leading-5 text-rose-700">{{ $feedback['codingCompileError'] }}</pre>
         </details>
+        @endif
 
     @else
         {{-- ── Dòng trạng thái: đúng cấu trúc câu của bản mẫu ── --}}

@@ -748,7 +748,7 @@ html.theme-dark .paper-delivery-options small,html.theme-dark .contest-ui .paper
 @media(min-width:1024px) { .cc-page, .contest-hub .arena-topbar, .contest-hub .arena-container { padding-left:16px; padding-right:16px; } }
 @media(min-width:1536px) { .cc-page, .contest-hub .arena-topbar, .contest-hub .arena-container { padding-left:32px; padding-right:32px; } }
 @media(min-width:1440px) { .contest-hub .hub-workspace { grid-template-columns:280px minmax(0,1fr); gap:20px; } }
-@media(min-width:1700px) { .cc-grid { grid-template-columns:repeat(5,minmax(0,1fr)); } }
+/* SỬA 27/10 (khách: "chia 4 cột thôi, màn rộng bị trống 1 ô") — bỏ 5 cột ở màn ≥1700px; tối đa 4 cột, khớp 4 mục / trang. */
 /* Ô chọn: bỏ kiểu mặc định của trình duyệt (Safari vẽ ô thấp, mũi tên ⇕) → cao 40px, mũi tên xuống giống ô tìm kiếm. */
 .cc-filter select.material-input, .contest-ui select {
     -webkit-appearance:none; appearance:none; height:40px; min-height:40px; line-height:20px; padding-right:34px;

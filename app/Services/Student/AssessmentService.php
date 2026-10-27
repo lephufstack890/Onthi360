@@ -845,7 +845,17 @@ class AssessmentService
             if ($verdict === \App\Enums\VerdictStatus::CompileError) {
                 // SỬA 25/10 — mở sai tên tệp INP/OUT (CodeJudgingService::fileNameErrorResult()) thì nói đúng lỗi.
                 $first = is_array($raw) ? (array_values($raw)[0] ?? []) : [];
-                $status = ($first['errorCode'] ?? null) === 'FILE' ? 'Sai tên tệp vào/ra' : 'Lỗi biên dịch';
+                $status = ($first['errorCode'] ?? null) === 'FILE' ? 'Sai tên file' : 'Lỗi biên dịch';
+                // SỬA 27/10 (khách: "Chấm câu trong đề sai file INP/OUT thì ngừng chấm, chỉ hiện 1 dòng ngắn") — không liệt kê
+                // từng test (máy chấm không chạy test nào), chỉ 1 dòng "Sai tên file INP (dòng 6): "A.INP" → phải là "B.INP"".
+                if (($first['errorCode'] ?? null) === 'FILE') {
+                    $fileError = (string) ($first['reason'] ?? 'Sai tên file vào/ra.');
+                    // Kết quả chấm trước bản sửa này (câu dài) → rút về dạng ngắn.
+                    if (preg_match('/^Sai tên (?:tệp|file) (INP|OUT) \(dòng (\d+)\)[^"]*"([^"]+)"[^"]*"([^"]+)"/u', $fileError, $fm)) {
+                        $fileError = 'Sai tên file '.$fm[1].' (dòng '.$fm[2].'): "'.$fm[3].'" → phải là "'.$fm[4].'"';
+                    }
+                    $tests = [];
+                }
             }
         }
 
@@ -861,6 +871,7 @@ class AssessmentService
             'passed' => $passed,
             'total' => $total,
             'tests' => $tests,
+            'fileError' => $fileError ?? null, // SỬA 27/10 — sai tên file INP/OUT: 1 dòng thay cho danh sách test
         ];
     }
 

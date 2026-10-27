@@ -194,7 +194,7 @@ class CodeJudgingService
         if (($badName = self::fileIoNameMismatch($sourceCode, self::languageKey($language), $fileIo)) !== null) {
             return [
                 'ranCleanly' => false,
-                'statusLabel' => 'Sai tên tệp',
+                'statusLabel' => 'Sai tên file',
                 'output' => '',
                 'stderr' => $badName['message'],
                 'compileOutput' => null,
@@ -928,8 +928,8 @@ PY;
                 'kind' => $kind,
                 'found' => $name,
                 'expected' => $expected,
-                'message' => 'Sai tên tệp '.$kind.' (dòng '.$line.'): bài làm '.($dir === 'in' ? 'đọc từ' : 'ghi ra').' "'.$name
-                    .'" nhưng đề yêu cầu '.($dir === 'in' ? 'đọc từ' : 'ghi ra').' "'.$expected.'". Máy chấm đã dừng, chưa chấm test nào — sửa đúng tên tệp rồi nộp lại.',
+                // SỬA 27/10 (khách: "hiện 1 dòng ngắn thôi, sai file nào là xong").
+                'message' => 'Sai tên file '.$kind.' (dòng '.$line.'): "'.$name.'" → phải là "'.$expected.'"',
             ];
         }
 
@@ -994,7 +994,7 @@ PY;
         $result['errorMessage'] = $bad['message'];
         $result['fileNameError'] = true;
         foreach ($result['details'] as $i => $d) {
-            $result['details'][$i]['statusLabel'] = 'Sai tên tệp '.$bad['kind'];
+            $result['details'][$i]['statusLabel'] = 'Sai tên file '.$bad['kind'];
             $result['details'][$i]['status'] = 'File Name Error';
             $result['details'][$i]['errorCode'] = 'FILE';
             $result['details'][$i]['reason'] = $bad['message'];

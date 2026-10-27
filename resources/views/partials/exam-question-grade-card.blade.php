@@ -59,7 +59,12 @@
         <p role="status" class="oi-grade-wait"><span class="oi-grade-spin" aria-hidden="true"></span>Đang chấm câu trả lời...</p>
     </template>
 
-    <template x-if="gradingId !== {{ $qid }} && doneGradeOf({{ $qid }})">
+    {{-- SỬA 27/10 (khách: "sai file INP/OUT thì ngừng chấm, hiện 1 dòng ngắn sai file nào là xong") — xem AssessmentService (fileError). --}}
+    <template x-if="gradingId !== {{ $qid }} && doneGradeOf({{ $qid }}) && doneGradeOf({{ $qid }}).fileError">
+        <p role="status" aria-atomic="true" class="oi-grade-error" style="font-weight:600" x-text="doneGradeOf({{ $qid }}).fileError"></p>
+    </template>
+
+    <template x-if="gradingId !== {{ $qid }} && doneGradeOf({{ $qid }}) && !doneGradeOf({{ $qid }}).fileError">
         <div>
             <p role="status" aria-atomic="true" class="oi-grade-head">
                 <strong :class="doneGradeOf({{ $qid }}).status === 'Đúng' ? 'is-ok' : (doneGradeOf({{ $qid }}).status === 'Đúng một phần' ? 'is-part' : 'is-bad')">Kết quả chấm: <span x-text="doneGradeOf({{ $qid }}).status"></span>.</strong>
