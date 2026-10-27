@@ -268,7 +268,7 @@
                 },
                 /** SỬA 20/10 — câu lập trình có điểm mà không có danh sách từng test (lượt chấm cũ lưu lỗi): cho chấm lại. */
                 gradeMissingTests(g) {
-                    return !!(g && g.isCode && g.total > 0 && !(g.tests || []).length);
+                    return !!(g && g.isCode && g.total > 0 && !(g.tests || []).length && !g.fileError); // SỬA 27/10 — sai tên file: không phải thiếu test
                 },
                 canGradeCurrent() {
                     var g = this.doneGradeOf(this.activeId);
