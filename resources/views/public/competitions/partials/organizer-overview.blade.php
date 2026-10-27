@@ -24,7 +24,7 @@
             <x-lucide name="check-circle-2" />
             <p><b>{{ $s['ready'] ? 'Bộ đề đã áp dụng' : 'Bộ đề chưa sẵn sàng' }}</b>
                 <span>{{ $s['ready']
-                    ? $s['deliveryLabel'].' · '.($survey ? 'Mỗi lượt làm một đề; điểm tính trên thang 100.' : 'Mỗi học sinh làm một đề; đề đã nhận được giữ cố định.')
+                    ? $s['deliveryLabel'].' · '.($survey ? 'Mỗi lượt làm một đề; điểm tính theo thang điểm của đề.' : 'Mỗi học sinh làm một đề; đề đã nhận được giữ cố định.')
                     : 'Mở tab '.$s['tabLabel'].' để '.($s['fromBank'] ? 'chọn đề có sẵn cho kỳ.' : 'thiết lập ma trận rồi sinh và chốt đề.') }}</span></p>
             <button type="button" @click="showTab('paper')">Mở tab {{ $s['tabLabel'] }}<x-lucide name="arrow-right" /></button>
         </div>

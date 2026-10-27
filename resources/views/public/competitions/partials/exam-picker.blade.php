@@ -46,7 +46,7 @@
                                        :disabled="picker.locked || (! picker.ids.includes(String(o.id)) && picker.ids.length >= maxBank)">
                                 <span>
                                     <b x-text="o.title"></b>
-                                    <small x-text="(o.isPdf ? 'Đề PDF' : (o.questions + ' câu')) + ' · 100 điểm' + (o.duration ? ' · ' + o.duration + ' phút' : '')"></small>
+                                    <small x-text="(o.isPdf ? 'Đề PDF' : (o.questions + ' câu')) + ' · ' + (o.points || 0) + ' điểm' + (o.duration ? ' · ' + o.duration + ' phút' : '')"></small>
                                     <em :class="usesOther(o).length ? 'round-used' : 'round-unused'" x-text="usesOther(o).length ? ('Bạn đã dùng · ' + usesOther(o).length + ' kỳ khác') : 'Bạn chưa dùng ở kỳ khác'"></em>
                                 </span>
                             </label>

@@ -428,7 +428,8 @@ class ContestHubService
             $forms = $bank->values()->map(fn ($a, $i) => [
                 'label' => 'Đề '.($i + 1),
                 'title' => (string) $a->title,
-                'meta' => ($sizes[$i] ?? 0).' câu',
+                // SỬA 27/10 (khách: "thang điểm theo trong đề, không phải 100 mặc định") — tổng điểm thật của đề.
+                'meta' => ($sizes[$i] ?? 0).' câu · '.$this->num((float) $a->total_points).' điểm',
             ])->all();
             $perForm = $sizes->min() === $sizes->max() ? (string) $sizes->min() : $sizes->min().'–'.$sizes->max();
         } elseif ($fromBank) {
@@ -437,7 +438,7 @@ class ContestHubService
             $forms = $assessment === null ? [] : array_map(fn (int $no) => [
                 'label' => ContestForms::label($no),
                 'title' => (string) $assessment->title,
-                'meta' => count($questions).' câu · 100 điểm',
+                'meta' => count($questions).' câu · '.$this->num((float) ($assessment->total_points ?: array_sum(array_column($questions, 'points')))).' điểm', // SỬA 27/10 — điểm thật của đề
             ], range(1, $count));
             $perForm = (string) count($questions);
         } else {

@@ -39,7 +39,7 @@
         </div>
     @endif
     @if ($s['ready'])
-        <p class="hub-assessment-note">Mỗi học sinh làm một đề trong bộ đề đã áp dụng; điểm tính trên thang 100.</p>
+        <p class="hub-assessment-note">Mỗi học sinh làm một đề trong bộ đề đã áp dụng; điểm tính theo thang điểm của từng đề.</p>
     @endif
     @if ($s['locked'])
         <p class="hub-assessment-note">Kỳ thi đã có bài làm — giữ nguyên đề để công bằng; vẫn sửa được tên và thời gian của kỳ.</p>

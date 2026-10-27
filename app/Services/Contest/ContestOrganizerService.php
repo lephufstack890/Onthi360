@@ -348,7 +348,7 @@ class ContestOrganizerService
             ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', $bankType)->whereNotIn('id', $paperIds === [] ? [0] : $paperIds))
                 ->orWhereIn('id', $keep === [] ? [0] : $keep))
             ->withCount('items')
-            ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes', 'content_mode']);
+            ->orderBy('title')->limit(800)->get(['id', 'title', 'duration_minutes', 'content_mode', 'total_points']);
 
         // Kỳ (ở mọi cuộc thi) do người xem chủ trì đang dùng từng đề.
         $usage = [];
@@ -371,6 +371,7 @@ class ContestOrganizerService
             'title' => (string) $a->title,
             'duration' => $a->duration_minutes,
             'questions' => (int) $a->items_count,
+            'points' => round((float) $a->total_points, 2), // SỬA 27/10 — tổng điểm thật của đề (không mặc định 100)
             'isPdf' => $a->isPdfMode(),
             'uses' => $usage[(int) $a->id] ?? [],
         ])->all();
