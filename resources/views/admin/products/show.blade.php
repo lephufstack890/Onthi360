@@ -299,8 +299,31 @@
                             .apx-item.is-picked { background: #F5F9FF; }
                         </style>
                         <p class="apx-hint" role="status" style="margin:14px 0 8px" x-text="(counts[exCh] || 0) + ' bài trong {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }} đang chọn ở ô &quot;Thuộc {{ $chapterLabel ? mb_strtolower($chapterLabel) : 'chương' }}&quot; phía trên · tổng {{ count($exercises) }} bài'"></p>
+                        {{-- SỬA 27/10 (khách: "bấm xoá thì phải thông báo xác nhận cho kỹ") — xác nhận 2 bước cho MỌI nút Xoá bài tập:
+                             (1) hộp xác nhận ghi rõ xoá gì, ảnh hưởng tới đâu; (2) gõ chữ XOA mới xoá. Gỡ bài dùng chung không qua đây. --}}
+                        <script>
+                            window.oiConfirmDelete = function (total, linked, usedElsewhere) {
+                                var msg = 'XÁC NHẬN XOÁ ' + total + ' BÀI TẬP\n\n'
+                                    + '- Xoá hẳn bài và toàn bộ tệp đính kèm (PDF đề, lời giải, code mẫu, ảnh / audio).\n'
+                                    + '- Không thể hoàn tác.';
+                                if (linked > 0) {
+                                    msg += '\n\nLƯU Ý: ' + linked + ' bài là bài DÙNG CHUNG — xoá sẽ xoá luôn BÀI GỐC, bài mất ở tài liệu gốc và ở mọi tài liệu đang dùng chung.'
+                                        + '\nChỉ muốn bỏ khỏi tài liệu này thì bấm Huỷ rồi dùng nút "Gỡ".';
+                                }
+                                if (usedElsewhere > 0) {
+                                    msg += '\n\nLƯU Ý: bài này đang được dùng chung ở ' + usedElsewhere + ' tài liệu khác — xoá là mất ở cả các tài liệu đó.';
+                                }
+                                if (! window.confirm(msg)) { return false; }
+                                var typed = window.prompt('Để chắc chắn, gõ chữ XOA rồi bấm OK để xoá ' + total + ' bài:');
+                                if ((typed || '').trim().toUpperCase() !== 'XOA') {
+                                    if (typed !== null) { window.alert('Chưa xoá: gõ chưa đúng chữ XOA.'); }
+                                    return false;
+                                }
+                                return true;
+                            };
+                        </script>
                         <div class="apx-bulkbar" x-show="visibleIds.length" x-cloak>
-                            <label><input type="checkbox" :checked="allOn" @click.prevent="toggleAll()"> Chọn tất cả <span x-text="visibleIds.length"></span> bài đang hiện</label>
+                            <label><input type="checkbox" :checked="allOn" @change="toggleAll(); $nextTick(() => { $el.checked = allOn })"> Chọn tất cả <span x-text="visibleIds.length"></span> bài đang hiện</label>
                             <div style="display:flex;flex-wrap:wrap;gap:8px">
                                 {{-- SỬA 27/10 — bài DÙNG CHUNG đã chọn: Gỡ khỏi tài liệu này (bài gốc ở tài liệu kia giữ nguyên, không xoá tệp). --}}
                                 <form action="{{ route('admin.products.exercises.pick.unlinkMany', $product->id) }}" method="POST" x-show="selLinked.length" x-cloak
@@ -310,12 +333,15 @@
                                     <template x-for="id in selLinked" :key="'l' + id"><input type="hidden" name="ids[]" :value="id"></template>
                                     <button type="submit" class="apx-bulkbar__del" style="border-color:#BAE6FD;background:#F0F9FF;color:#075985"><x-lucide name="x" /> <span x-text="'Gỡ ' + selLinked.length + ' bài dùng chung'"></span></button>
                                 </form>
-                                <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" x-show="selOwn.length" x-cloak
-                                      @submit="if (! confirm('Xoá ' + selOwn.length + ' bài tập đã chọn? Xoá hẳn cả tệp đính kèm, không thể hoàn tác.')) $event.preventDefault()">
+                                {{-- SỬA 27/10 (khách: "gỡ là gỡ ra bài dùng chung, còn xoá là xoá luôn") — Xoá áp cho MỌI bài đã chọn; bài dùng
+                                     chung thì xoá hẳn cả bài gốc (xoa_ca_bai_goc=1), hỏi xác nhận rõ trước. --}}
+                                <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" x-show="sel.length" x-cloak
+                                      @submit="if (! oiConfirmDelete(sel.length, selLinked.length, 0)) $event.preventDefault()">
                                     @csrf
                                     @method('DELETE')
-                                    <template x-for="id in selOwn" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
-                                    <button type="submit" class="apx-bulkbar__del"><x-lucide name="trash-2" /> <span x-text="'Xoá ' + selOwn.length + ' bài đã chọn'"></span></button>
+                                    <input type="hidden" name="xoa_ca_bai_goc" value="1">
+                                    <template x-for="id in sel" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                                    <button type="submit" class="apx-bulkbar__del"><x-lucide name="trash-2" /> <span x-text="'Xoá ' + sel.length + ' bài đã chọn'"></span></button>
                                 </form>
                             </div>
                         </div>
@@ -357,11 +383,19 @@
                                             <form action="{{ route('admin.products.exercises.pick.unlink', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm('Gỡ bài này khỏi tài liệu? Bài gốc ở tài liệu kia vẫn giữ nguyên.');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="acx-link acx-link--del">Gỡ</button>
+                                                <button type="submit" class="acx-link" title="Chỉ bỏ khỏi tài liệu này — bài gốc giữ nguyên">Gỡ</button>
+                                            </form>
+                                            {{-- SỬA 27/10 — Xoá = xoá hẳn bài gốc (mất ở mọi tài liệu đang dùng chung). --}}
+                                            <form action="{{ route('admin.products.exercises.destroyMany', $product->id) }}" method="POST" onsubmit="return oiConfirmDelete(1, 1, 0);">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="xoa_ca_bai_goc" value="1">
+                                                <input type="hidden" name="ids[]" value="{{ (int) $ex['id'] }}">
+                                                <button type="submit" class="acx-link acx-link--del" title="Xoá hẳn bài gốc">Xoá</button>
                                             </form>
                                         @else
                                         <a href="{{ route('admin.products.exercises.edit', [$product->id, $ex['id']]) }}" class="acx-link">Sửa</a>
-                                        <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return confirm({{ \Illuminate\Support\Js::from(($ex['usedByCount'] ?? 0) > 0 ? 'Bài này đang được dùng chung ở '.$ex['usedByCount'].' tài liệu khác — xoá sẽ mất ở cả các tài liệu đó. Xoá bài tập này? Không thể hoàn tác.' : 'Xoá bài tập này? Không thể hoàn tác.') }});">
+                                        <form action="{{ route('admin.products.exercises.destroy', [$product->id, $ex['id']]) }}" method="POST" onsubmit="return oiConfirmDelete(1, 0, {{ (int) ($ex['usedByCount'] ?? 0) }});">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="acx-link acx-link--del">Xoá</button>

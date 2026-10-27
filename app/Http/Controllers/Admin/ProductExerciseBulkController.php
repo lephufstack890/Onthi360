@@ -78,14 +78,34 @@ class ProductExerciseBulkController extends Controller
             $content->productExerciseDestroy($exercise);
         }
 
-        // SỬA 27/10 lần 2 — bài DÙNG KÉ được chọn thì chỉ GỠ khỏi tài liệu này (bài gốc ở tài liệu kia giữ nguyên).
-        $unlinked = \App\Support\ProductExerciseLinks::supported()
-            ? \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $data['ids'])->delete()
-            : 0;
+        // SỬA 27/10 — bài DÙNG CHUNG được chọn:
+        //   · mặc định chỉ GỠ khỏi tài liệu này (bài gốc ở tài liệu kia giữ nguyên);
+        //   · có xoa_ca_bai_goc=1 (khách: "gỡ là gỡ ra bài dùng chung, còn xoá là xoá luôn") → XOÁ HẲN bài gốc + tệp, bài mất ở
+        //     tài liệu gốc và mọi tài liệu đang dùng chung (liên kết tự mất theo). Giao diện đã hỏi xác nhận rõ ràng trước.
+        $unlinked = 0;
+        $deletedOriginals = 0;
+        if (\App\Support\ProductExerciseLinks::supported()) {
+            $linkedIds = \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $data['ids'])
+                ->pluck('question_id')->map(fn ($id) => (int) $id)->all();
+            if ($linkedIds !== [] && $request->boolean('xoa_ca_bai_goc')) {
+                foreach (Question::query()->whereIn('id', $linkedIds)->get() as $original) {
+                    $content->productExerciseDestroy($original);
+                    $deletedOriginals++;
+                }
+            } elseif ($linkedIds !== []) {
+                $unlinked = \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $linkedIds)->delete();
+            }
+        }
+
+        $parts = array_filter([
+            $exercises->count() > 0 ? 'xoá '.$exercises->count().' bài tập' : null,
+            $deletedOriginals > 0 ? 'xoá hẳn '.$deletedOriginals.' bài dùng chung (cả bài gốc)' : null,
+            $unlinked > 0 ? 'gỡ '.$unlinked.' bài dùng chung' : null,
+        ]);
 
         return redirect()->route('admin.products.show', $product->id)
             ->with('status', 'exercises-deleted-many')
-            ->with('statusMessage', 'Đã xoá '.$exercises->count().' bài tập'.($unlinked > 0 ? ', gỡ '.$unlinked.' bài dùng chung' : '').'.');
+            ->with('statusMessage', $parts !== [] ? 'Đã '.implode(', ', $parts).'.' : 'Không có bài nào được xoá.');
     }
 
     /** Xong (hoặc dừng giữa chừng): dọn thư mục tạm. */

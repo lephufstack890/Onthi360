@@ -157,13 +157,13 @@
 
     <div>
         <div class="oi-pk-head" x-show="items.length" x-cloak>
-            <label><input type="checkbox" :checked="allOn" @click.prevent="toggleAll()" style="accent-color:#2563EB"> Chọn tất cả <span x-text="items.length"></span> bài đang hiện</label>
+            <label><input type="checkbox" :checked="allOn" @change="toggleAll(); $nextTick(() => { $el.checked = allOn })" style="accent-color:#2563EB"> Chọn tất cả <span x-text="items.length"></span> bài đang hiện</label>
             <span x-text="(total > items.length ? 'Hiện ' + items.length + ' / ' + total + ' bài — lọc thêm để thu hẹp · ' : '') + 'Đã chọn ' + picked.length + ' bài'"></span>
         </div>
         <ul class="oi-pk-list" x-show="items.length" x-cloak aria-label="Bài có sẵn để chọn">
             <template x-for="it in items" :key="it.id">
                 <li :class="picked.includes(it.id) ? 'is-on' : ''" @click="toggle(it.id)">
-                    <input type="checkbox" :checked="picked.includes(it.id)"  @click.prevent.stop="toggle(it.id)" :aria-label="'Chọn ' + it.code">
+                    <input type="checkbox" :checked="picked.includes(it.id)"  @click.stop @change="toggle(it.id); $nextTick(() => { $el.checked = picked.includes(it.id) })" :aria-label="'Chọn ' + it.code">
                     <span><code x-text="it.code"></code><span x-text="it.title"></span>
                         <small x-text="it.typeLabel + ' · ' + it.points + ' điểm · ' + it.summary + ' · ' + it.product + (it.chapter ? ' › ' + it.chapter : '') + (it.copyOf ? ' · bản sao của ' + it.copyOf : '')"></small></span>
                 </li>
