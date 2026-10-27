@@ -425,7 +425,9 @@
                 {{-- SỬA 14/10 (khách: "bài tập và học liệu hiển thị theo chương") — lưới mã bài theo
                      chương + học liệu theo chương, dựng theo MaterialChapterGrid.jsx của source mới. --}}
                 <aside class="min-w-0 rd-aside-fill">{{-- SỬA 25/10 — cao bằng cột đọc (partials/reader-roomy) --}}
-                    @include('partials.reader-chapter-panel')
+                    {{-- SỬA 27/10 (khách: "chuyển chương thì bài tập cũng phải hiển thị theo chương đã chuyển") — chỉ hiện bài tập
+                         (và học liệu) của CHƯƠNG ĐANG ĐỌC; chọn chương khác ở ô "Chương/phần" là cột này đổi theo. --}}
+                    @include('partials.reader-chapter-panel', ['panelScope' => 'chapter', 'panelLockScope' => true])
                 </aside>
             </div>
         </main>

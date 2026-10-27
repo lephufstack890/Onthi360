@@ -201,7 +201,8 @@
             @foreach ($groups as $g)
                 <div class="rcp-group" x-show="groupVisible({{ $g['id'] }})" x-cloak>
                     <p class="rcp-ghead {{ $g['id'] === $currentChapterId ? 'is-current' : '' }}" x-show="scope === 'all' || lockScope">
-                        <b>{{ $g['label'] }}</b><span title="{{ $g['title'] }}">{{ $g['title'] }}</span><i x-text="groupDone({{ $g['id'] }})"></i>
+                        {{-- SỬA 27/10 (khách: "bỏ chữ Chương 2 đi") — bỏ nhãn số thứ tự chương, chỉ còn tên chương. --}}
+                        <span title="{{ $g['title'] }}">{{ $g['title'] }}</span><i x-text="groupDone({{ $g['id'] }})"></i>
                     </p>
                     <div class="rcp-grid">
                         @foreach ($rcpRows as $r)
@@ -266,7 +267,7 @@
                     @php $items = collect($chapterAttachments)->filter(fn ($a) => $chapterOf($a['chapterId'] ?? null) === $g['id']); @endphp
                     @continue($items->isEmpty())
                     <div x-show="scope === 'all' || current === null || current === {{ $g['id'] }}">
-                        <p class="rcp-ghead {{ $g['id'] === $currentChapterId ? 'is-current' : '' }}" x-show="scope === 'all' || current === null"><b>{{ $g['label'] }}</b><span>{{ $g['title'] }}</span></p>
+                        <p class="rcp-ghead {{ $g['id'] === $currentChapterId ? 'is-current' : '' }}" x-show="scope === 'all' || current === null"><span>{{ $g['title'] }}</span></p>
                         @foreach ($items as $item)
                             <div class="rcp-media">
                                 <div class="rcp-media-row">
