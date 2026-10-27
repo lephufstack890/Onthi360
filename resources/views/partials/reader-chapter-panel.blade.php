@@ -78,6 +78,8 @@
 
 <style>
     .rcp { display: flex; min-height: 0; flex-direction: column; gap: 12px; color: #466278; }
+    .rcp-tabn { display: inline-block; min-width: 20px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: #E2ECF3; font-size: .85em; font-weight: 700; line-height: 1.55; color: #45657D; }
+    .rcp-tabs button.is-on .rcp-tabn { background: #17698A; color: #fff; }
     @media (min-width: 1024px) {
         .rcp { position: sticky; top: 84px; height: calc(100dvh - 104px); max-height: 1100px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
         .rcp.is-focus { top: 16px; height: calc(100dvh - 32px); }
@@ -191,7 +193,8 @@
             </div>
             <div class="rcp-tabs" role="group" aria-label="Lọc trạng thái bài">
                 @foreach ([['all', 'Tất cả'], ['todo', 'Chưa xong'], ['done', 'Đã làm']] as [$fKey, $fLabel])
-                    <button type="button" :class="filter === '{{ $fKey }}' ? 'is-on' : ''" :aria-pressed="filter === '{{ $fKey }}'" @click="filter = '{{ $fKey }}'">{{ $fLabel }}</button>
+                    {{-- SỬA 27/10 (khách: "thêm số bên cạnh: tất cả / chưa xong / đã làm bao nhiêu") — đếm trong chương đang xem + từ khoá đang tìm. --}}
+                    <button type="button" :class="filter === '{{ $fKey }}' ? 'is-on' : ''" :aria-pressed="filter === '{{ $fKey }}'" @click="filter = '{{ $fKey }}'">{{ $fLabel }} <span class="rcp-tabn" x-text="tabCount('{{ $fKey }}')"></span></button>
                 @endforeach
             </div>
             <p class="rcp-status" role="status" x-text="statusLine"></p>
@@ -351,6 +354,14 @@
             groupDone(gid) {
                 const list = this.rows.filter((r) => r.chapter === gid);
                 return list.filter((r) => r.status === 'done').length + '/' + list.length + ' đã làm';
+            },
+            // SỬA 27/10 — số trên 3 nút lọc: trong phạm vi đang xem (chương) và khớp từ khoá tìm, KHÔNG tính nút lọc đang bật.
+            tabCount(key) {
+                const terms = fold(this.q).split(/\s+/).filter(Boolean);
+                const list = this.rows.filter((r) => this.inScope(r) && terms.every((t) => r.search.includes(t)));
+                if (key === 'done') return list.filter((r) => r.status === 'done').length;
+                if (key === 'todo') return list.filter((r) => r.status !== 'done').length;
+                return list.length;
             },
             get visibleCount() { return this.rows.filter((r) => this.inScope(r) && this.passes(r)).length; },
             get statusLine() {

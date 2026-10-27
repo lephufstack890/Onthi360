@@ -36,8 +36,19 @@
       class="oi-add oi-zip"
       @ex-chapter.window="chapter = String($event.detail ?? '')"
       x-data="{ chapter: @js((string) old('material_id', (string) ($exDefaultChapterId ?? ''))), zipName: '', zipSize: '', drag: false, busy: false,
-                pick(e) { const f = e.target.files && e.target.files[0]; this.zipName = f ? f.name : ''; this.zipSize = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; },
-                clear() { this.$refs.zip.value = ''; this.zipName = ''; this.zipSize = ''; } }"
+                dup: '', checking: false, checkUrl: @js(route('admin.products.exercises.checkCode', $product->id)),
+                pick(e) { const f = e.target.files && e.target.files[0]; this.zipName = f ? f.name : ''; this.zipSize = f ? (f.size / 1048576).toFixed(1) + ' MB' : ''; this.dup = ''; if (f) this.check(f.name); },
+                {{-- SỬA 27/10 (khách: "up từng bài thì check luôn, có bài đó rồi thì báo trùng; không trùng mới cho up") --}}
+                async check(name) {
+                    this.checking = true;
+                    try {
+                        const res = await fetch(this.checkUrl + '?file=' + encodeURIComponent(name), { headers: { 'Accept': 'application/json' } });
+                        const data = await res.json();
+                        if (this.zipName === name) this.dup = data.exists ? data.message : '';
+                    } catch (e) { this.dup = ''; }
+                    this.checking = false;
+                },
+                clear() { this.$refs.zip.value = ''; this.zipName = ''; this.zipSize = ''; this.dup = ''; } }"
       @submit="busy = true">
     @csrf
     <input type="hidden" name="_form" value="exercise-zip">
@@ -83,7 +94,8 @@
     </div>
 
     <div class="oi-add__actions">
-        <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm" :disabled="! zipName || busy">
+        <p class="oi-add__err" role="alert" x-show="dup" x-cloak x-text="dup" style="flex-basis:100%"></p>
+        <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm" :disabled="! zipName || busy || checking || dup">
             <x-lucide name="upload" /> <span x-text="busy ? 'Đang đọc gói…' : 'Nhập bài tập'">Nhập bài tập</span>
         </button>
         <button type="button" class="acx-btn acx-btn--sm" x-show="zipName && ! busy" x-cloak @click="clear()">Chọn file khác</button>

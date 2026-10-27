@@ -38,6 +38,14 @@ class ProductExerciseBulkController extends Controller
         ));
     }
 
+    /** SỬA 27/10 — nhập từng bài: chọn file xong kiểm trùng mã (= tên file ZIP) ngay, trước khi tải lên. */
+    public function checkCode(Request $request, Product $product): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'string', 'max:255']]);
+
+        return response()->json($this->bulk->checkFilename((string) $request->query('file')));
+    }
+
     /** Bước 2: nhập 1 bài (trình duyệt gọi lần lượt từng bài để hiện tiến độ, tránh quá giờ máy chủ). */
     public function import(Request $request, Product $product, string $token, int $index): JsonResponse
     {

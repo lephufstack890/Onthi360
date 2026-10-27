@@ -730,6 +730,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('products/{product}/exercises', [AdminProductExerciseController::class, 'store'])->name('products.exercises.store');
         // SỬA 27/10 — nhập HÀNG LOẠT (kiểm trùng trước, rồi nhập lần lượt từng bài). Xem Admin\ProductExerciseBulkController.
         Route::post('products/{product}/exercises/bulk', [AdminProductExerciseBulkController::class, 'prepare'])->name('products.exercises.bulk.prepare');
+        Route::get('products/{product}/exercises/kiem-tra-ma', [AdminProductExerciseBulkController::class, 'checkCode'])->name('products.exercises.checkCode');
         Route::post('products/{product}/exercises/bulk/{token}/{index}', [AdminProductExerciseBulkController::class, 'import'])
             ->where('token', '[A-Za-z0-9]{32}')->whereNumber('index')->name('products.exercises.bulk.import');
         Route::post('products/{product}/exercises/bulk/{token}/xong', [AdminProductExerciseBulkController::class, 'finish'])

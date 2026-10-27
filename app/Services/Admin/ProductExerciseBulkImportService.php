@@ -195,6 +195,24 @@ final class ProductExerciseBulkImportService
         }
     }
 
+    /**
+     * SỬA 27/10 (khách: "up từng bài thì check luôn, có bài đó rồi thì báo trùng; không trùng mới cho up") — kiểm nhanh theo TÊN
+     * file ZIP (mã bài = tên file) ngay khi chọn file, trước khi tải lên. Máy chủ vẫn kiểm lại lúc nhập thật.
+     *
+     * @return array{code: string, exists: bool, message: ?string}
+     */
+    public function checkFilename(string $filename): array
+    {
+        $code = UniqueCodeFromFilename::base(basename($filename));
+        $q = Question::withTrashed()->where('code', $code)->with('product:id,title')->first(['id', 'code', 'title', 'product_id', 'deleted_at']);
+
+        return [
+            'code' => $code,
+            'exists' => $q !== null,
+            'message' => $q !== null ? 'Trùng: bài "'.$code.'" — '.self::whereLabel($q).'. Không nhập được (không ghi đè) — xoá bài cũ trước hoặc chọn file khác.' : null,
+        ];
+    }
+
     /** "Sách X · Bài 1. Nhập xuất #1" — bài trùng mã đang nằm ở đâu. */
     public static function whereLabel(Question $q): string
     {
