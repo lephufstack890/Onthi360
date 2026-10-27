@@ -1619,6 +1619,20 @@ class ContentService
             return $data['file_io'] ?? null;
         }
 
+        // SỬA 27/10 (khách: "tên tệp = mã bài + .INP / .OUT, gắn luôn khỏi phải nhập") — chọn "Tệp có tên" mà để trống ô nào
+        // thì lấy MÃBÀI.INP / MÃBÀI.OUT (mã bài bỏ ký tự không hợp lệ cho tên tệp).
+        if (($data['io_mode'] ?? null) === 'file') {
+            $base = preg_replace('/[^A-Za-z0-9._-]/', '', trim((string) ($data['code'] ?? '')));
+            if ($base !== '') {
+                if (trim((string) ($data['file_io_input'] ?? '')) === '') {
+                    $data['file_io_input'] = $base.'.INP';
+                }
+                if (trim((string) ($data['file_io_output'] ?? '')) === '') {
+                    $data['file_io_output'] = $base.'.OUT';
+                }
+            }
+        }
+
         $io = array_filter([
             'input' => trim((string) ($data['file_io_input'] ?? '')),
             'output' => trim((string) ($data['file_io_output'] ?? '')),

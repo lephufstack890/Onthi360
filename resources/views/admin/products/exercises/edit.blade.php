@@ -237,25 +237,45 @@
                                 </div>
                             </div>
                             <div style="margin-top:12px">@include('partials.coding-checker-fields', ['checker' => $config['checker'] ?? null])</div>
-                            <div x-data="{ ioMode: @js(old('io_mode', $exIoMode)) }" class="ex-io">
+                            {{-- SỬA 27/10 (khách: "nhập bài tập cho sách thì tên tệp = mã bài + .INP / .OUT, gắn luôn khỏi phải nhập") —
+                                 chọn "Tệp có tên" thì tự điền MÃBÀI.INP / MÃBÀI.OUT; đổi mã bài thì 2 ô đổi theo (nếu chưa sửa tay).
+                                 Vẫn sửa tay được; máy chủ cũng tự điền nếu để trống (ContentService::resolveFileIo()). --}}
+                            <div x-data="{
+                                    ioMode: @js(old('io_mode', $exIoMode)),
+                                    fin: @js((string) old('file_io_input', $exFileIoInput)),
+                                    fout: @js((string) old('file_io_output', $exFileIoOutput)),
+                                    code: '',
+                                    base(v) { return String(v || '').trim().replace(/[^A-Za-z0-9._-]/g, ''); },
+                                    fill() { const b = this.base(this.code); if (!b) return; if (!this.fin) this.fin = b + '.INP'; if (!this.fout) this.fout = b + '.OUT'; },
+                                    init() {
+                                        const el = document.getElementById('code');
+                                        this.code = el ? el.value : '';
+                                        if (el) el.addEventListener('input', () => {
+                                            const old = this.base(this.code); this.code = el.value; const b = this.base(this.code);
+                                            if (this.fin === '' || this.fin === old + '.INP') this.fin = b ? b + '.INP' : '';
+                                            if (this.fout === '' || this.fout === old + '.OUT') this.fout = b ? b + '.OUT' : '';
+                                        });
+                                        if (this.ioMode === 'file') this.fill();
+                                    },
+                                 }" class="ex-io">
                                 <label class="ex-lbl" for="io_mode">Đọc / ghi dữ liệu</label>
-                                <select id="io_mode" name="io_mode" x-model="ioMode" class="admin-input" style="max-width:320px">
+                                <select id="io_mode" name="io_mode" x-model="ioMode" @change="if (ioMode === 'file') fill()" class="admin-input" style="max-width:320px">
                                     <option value="std">Bàn phím / màn hình (stdin/stdout)</option>
                                     <option value="file">Tệp có tên</option>
                                 </select>
                                 <div class="ex-grid2" x-show="ioMode === 'file'" x-cloak style="margin-top:10px">
                                     <div>
                                         <label class="ex-lbl" for="file_io_input">Tên tệp vào</label>
-                                        <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ old('file_io_input', $exFileIoInput) }}"
-                                               placeholder="VD: BAI1.INP" :required="ioMode === 'file'" class="admin-input font-mono">
+                                        <input id="file_io_input" name="file_io_input" type="text" maxlength="64" value="{{ old('file_io_input', $exFileIoInput) }}" x-model="fin"
+                                               placeholder="Tự điền: MÃBÀI.INP" :required="ioMode === 'file'" class="admin-input font-mono">
                                     </div>
                                     <div>
                                         <label class="ex-lbl" for="file_io_output">Tên tệp ra</label>
-                                        <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ old('file_io_output', $exFileIoOutput) }}"
-                                               placeholder="VD: BAI1.OUT" :required="ioMode === 'file'" class="admin-input font-mono">
+                                        <input id="file_io_output" name="file_io_output" type="text" maxlength="64" value="{{ old('file_io_output', $exFileIoOutput) }}" x-model="fout"
+                                               placeholder="Tự điền: MÃBÀI.OUT" :required="ioMode === 'file'" class="admin-input font-mono">
                                     </div>
                                 </div>
-                                <p class="ex-note" x-show="ioMode === 'file'" x-cloak>Học sinh <b>bắt buộc</b> đọc/ghi đúng 2 tệp này (C++: <code>freopen</code>; Python: <code>open</code>). Chỉ dùng chữ, số và <code>. _ -</code>.</p>
+                                <p class="ex-note" x-show="ioMode === 'file'" x-cloak>Tên tệp tự lấy theo <b>mã bài</b> (MÃBÀI.INP / MÃBÀI.OUT), sửa tay được. Học sinh <b>bắt buộc</b> đọc/ghi đúng 2 tệp này (C++: <code>freopen</code>; Python: <code>open</code>). Chỉ dùng chữ, số và <code>. _ -</code>.</p>
                             </div>
                         </section>
 

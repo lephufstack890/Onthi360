@@ -52,11 +52,10 @@
     {{-- Loại tài liệu: chip có số đếm, bấm là lọc (đổi loại thì bỏ chọn tài liệu / chương). --}}
     <div class="akx-pad">
         <div class="akx-chips">
-            <a href="{{ $meLink(['loai' => null, 'tai_lieu' => null, 'phan' => null]) }}" class="akx-chip akx-chip--type {{ $f['loai'] === null ? 'is-on' : '' }}">Tất cả tài liệu <small>({{ $meTotalAll }})</small></a>
+            <a href="{{ $meLink(['loai' => null, 'tai_lieu' => null, 'phan' => null]) }}" class="akx-chip akx-chip--type {{ $f['loai'] === null ? 'is-on' : '' }}">Tất cả tài liệu <small>({{ $meTotalAll }} bài)</small></a>
+            {{-- SỬA 27/10 — luôn đủ 3 loại Sách · Chuyên đề · Bộ đề (số trong ngoặc là số bài tập). --}}
             @foreach ($meTypeLabels as $value => $label)
-                @if (($meTypeCounts[$value] ?? 0) > 0 || $f['loai'] === $value)
-                    <a href="{{ $meLink(['loai' => $value, 'tai_lieu' => null, 'phan' => null]) }}" class="akx-chip akx-chip--type {{ $f['loai'] === $value ? 'is-on' : '' }}">{{ $label }} <small>({{ $meTypeCounts[$value] ?? 0 }})</small></a>
-                @endif
+                <a href="{{ $meLink(['loai' => $value, 'tai_lieu' => null, 'phan' => null]) }}" class="akx-chip akx-chip--type {{ $f['loai'] === $value ? 'is-on' : '' }}">{{ $label }} <small>({{ $meTypeCounts[$value] ?? 0 }} bài)</small></a>
             @endforeach
         </div>
     </div>
@@ -69,9 +68,9 @@
                 <label class="akx-lbl" for="mex-doc">Tài liệu</label>
                 {{-- Chọn tài liệu là lọc ngay; đổi tài liệu thì bỏ chọn chương/phần/đề cũ. --}}
                 <x-ws.select id="mex-doc" name="tai_lieu" onchange="if (this.form.phan) this.form.phan.value = ''; this.form.submit()">
-                    <option value="">Tất cả tài liệu ({{ count($meProductOptions) }})</option>
+                    <option value="">{{ $f['loai'] !== null ? 'Tất cả '.\Illuminate\Support\Str::lower($meTypeLabels[$f['loai']]) : 'Tất cả tài liệu' }} ({{ count($meProductOptions) }})</option>
                     @foreach ($meProductOptions as $o)
-                        <option value="{{ $o['id'] }}" @selected($f['tai_lieu'] === $o['id'])>{{ $f['loai'] === null ? $o['typeLabel'].' · ' : '' }}{{ $o['title'] }} ({{ $o['count'] }})</option>
+                        <option value="{{ $o['id'] }}" @selected($f['tai_lieu'] === $o['id'])>{{ $f['loai'] === null ? $o['typeLabel'].' · ' : '' }}{{ $o['title'] }} ({{ $o['count'] }} bài)</option>
                     @endforeach
                 </x-ws.select>
             </div>
@@ -81,7 +80,7 @@
                     <x-ws.select id="mex-part" name="phan" onchange="this.form.submit()">
                         <option value="">Tất cả {{ \Illuminate\Support\Str::lower($mePartWord) }}</option>
                         @foreach ($mePartOptions as $o)
-                            <option value="{{ $o['key'] }}" @selected($f['phan'] === $o['key'])>{{ $o['title'] }} ({{ $o['count'] }})</option>
+                            <option value="{{ $o['key'] }}" @selected($f['phan'] === $o['key'])>{{ $o['title'] }} ({{ $o['count'] }} bài)</option>
                         @endforeach
                     </x-ws.select>
                 </div>

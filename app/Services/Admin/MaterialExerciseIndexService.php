@@ -26,7 +26,8 @@ final class MaterialExerciseIndexService
     public const PER_PAGE = 10;
 
     /** Loại tài liệu → nhãn; thứ tự này cũng là thứ tự sắp xếp danh sách. */
-    public const TYPE_LABELS = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề', 'course' => 'Khoá học'];
+    // SỬA 27/10 (lần 3, khách: "có 3 loại sách, chuyên đề, bộ đề — lọc theo 3 loại này") — luôn hiện đủ 3 loại.
+    public const TYPE_LABELS = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề'];
 
     public const QUESTION_TYPES = ['coding' => 'Lập trình (OJ)', 'mcq' => 'Trắc nghiệm', 'fill_blank' => 'Điền khuyết', 'composite' => 'Nhiều phần'];
 
@@ -64,29 +65,47 @@ final class MaterialExerciseIndexService
         ];
 
         $all = $this->rows();
-        $typeCounts = $all->countBy('productType')->all();
+        $typeCounts = array_map(fn () => 0, self::TYPE_LABELS);
+        foreach ($all->countBy('productType') as $type => $n) {
+            $typeCounts[$type] = $n;
+        }
 
-        // Tài liệu: chỉ những tài liệu đang có bài, theo loại đang chọn.
+        // Tài liệu: MỌI tài liệu thuộc loại đang chọn (kể cả chưa có bài — số trong ngoặc là số bài).
         $byType = $f['loai'] !== null ? $all->where('productType', $f['loai']) : $all;
-        $productOptions = $byType->groupBy('productId')->map(fn (Collection $g) => [
-            'id' => (int) $g->first()['productId'],
-            'title' => $g->first()['productTitle'],
-            'typeLabel' => $g->first()['productTypeLabel'],
-            'count' => $g->count(),
-        ])->sortBy(fn ($o) => Str::lower(Str::ascii($o['title'])))->values()->all();
+        $rowCounts = $byType->countBy('productId');
+        $typeOrder = array_flip(array_keys(self::TYPE_LABELS));
+        $productOptions = Product::query()
+            ->whereIn('type', $f['loai'] !== null ? [$f['loai']] : array_keys(self::TYPE_LABELS))
+            ->get(['id', 'title', 'type'])
+            ->map(function (Product $p) use ($rowCounts) {
+                $type = $p->type instanceof \BackedEnum ? $p->type->value : (string) $p->type;
+
+                return ['id' => (int) $p->id, 'title' => (string) $p->title, 'type' => $type, 'typeLabel' => self::TYPE_LABELS[$type] ?? $type, 'count' => (int) ($rowCounts[$p->id] ?? 0)];
+            })
+            ->sortBy(fn ($o) => [$typeOrder[$o['type']] ?? 9, Str::lower(Str::ascii($o['title']))])
+            ->values()->all();
         if ($f['tai_lieu'] !== null && ! collect($productOptions)->contains('id', $f['tai_lieu'])) {
             $f['tai_lieu'] = null;
         }
 
         // Chương / Phần / Đề của tài liệu đang chọn.
         $byProduct = $f['tai_lieu'] !== null ? $byType->where('productId', $f['tai_lieu']) : $byType;
-        $partWord = $f['tai_lieu'] !== null ? ($byProduct->first()['partWord'] ?? 'Phần') : 'Chương / Phần / Đề';
-        $partOptions = $f['tai_lieu'] === null ? [] : $byProduct->groupBy('partKey')->map(fn (Collection $g) => [
-            'key' => $g->first()['partKey'],
-            'title' => $g->first()['partTitle'] ?? 'Chưa gắn '.Str::lower($partWord),
-            'order' => $g->first()['partOrder'],
-            'count' => $g->count(),
-        ])->sortBy('order')->values()->all();
+        $partWord = 'Chương / Phần / Đề';
+        $partOptions = [];
+        if ($f['tai_lieu'] !== null) {
+            // Mọi chương / phần / đề của tài liệu (kể cả chưa có bài), đúng thứ tự ở trang quản lý tài liệu.
+            $product = Product::query()->find($f['tai_lieu']);
+            $partWord = $product?->chapterLabel() ?? 'Phần';
+            $partCounts = $byProduct->countBy('partKey');
+            $partOptions = \App\Models\Material::query()
+                ->where('product_id', $f['tai_lieu'])->where('type', 'chapter')->whereNull('parent_id')
+                ->orderBy('order')->orderBy('id')->get(['id', 'title'])
+                ->map(fn ($m) => ['key' => 'm'.$m->id, 'title' => (string) $m->title, 'count' => (int) ($partCounts['m'.$m->id] ?? 0)])
+                ->all();
+            if (($partCounts['m0'] ?? 0) > 0) {
+                $partOptions[] = ['key' => 'm0', 'title' => 'Chưa gắn '.Str::lower($partWord), 'count' => (int) $partCounts['m0']];
+            }
+        }
         if ($f['phan'] !== null && ! collect($partOptions)->contains('key', $f['phan'])) {
             $f['phan'] = null;
         }
