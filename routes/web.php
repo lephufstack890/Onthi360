@@ -373,6 +373,11 @@ Route::middleware(['auth'])->group(function () {
             // Student\PracticeByQuestionController::startExercise().
             Route::post('/exercise/{exercise}', [StudentPracticeByQuestionController::class, 'startExercise'])->name('startExercise');
             Route::get('/play', [StudentPracticeByQuestionController::class, 'play'])->name('play');
+            // SỬA 28/10 (khách: "thoát làm bài tập của sách thì đừng tải lại trang, giữ nguyên chương và chỗ đang đọc") — màn
+            // làm bài mở trong khung nổi ngay trên trang đọc; bấm thoát thì khung nạp trang 'dong' này để báo trang đọc đóng
+            // khung (không tải lại). 'trang-thai' trả trạng thái làm bài để cập nhật dấu "đã làm" tại chỗ.
+            Route::get('/dong', [StudentPracticeByQuestionController::class, 'closed'])->name('closed');
+            Route::get('/trang-thai', [StudentPracticeByQuestionController::class, 'statuses'])->name('statuses');
             Route::post('/answer', [StudentPracticeByQuestionController::class, 'answer'])->name('answer');
             // SỬA 18/9 (khách: "chỗ chạy test không được") — chạy thử mã với dữ liệu vào tự gõ
             // ở ô Input, trả JSON cho ô Output. Không chấm điểm, xem

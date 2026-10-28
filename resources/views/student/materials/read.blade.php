@@ -85,6 +85,25 @@
         #reader-scroll-box { overflow-x: auto; }
         .rd-solo { grid-template-columns: minmax(0, 1fr) !important; }
         .reader-page-wrap canvas { display: block; }
+        /* SỬA 28/10 (khách: "thêm nút tìm trong tài liệu vào PDF đọc tài liệu") — nút kính lúp + hộp tìm, ô tô vàng chỗ khớp. */
+        .rd-find-btn { position: absolute; right: 26px; bottom: 46px; z-index: 30; display: grid; width: 52px; height: 52px; place-items: center; border: 0; border-radius: 999px; background: #1F5873; color: #fff; box-shadow: 0 10px 24px rgba(15, 59, 90, .28); cursor: pointer; }
+        .rd-find-btn:hover { background: #17485F; }
+        .rd-find-btn svg { width: 22px; height: 22px; }
+        .rd-find { position: absolute; right: 26px; bottom: 108px; z-index: 31; width: min(380px, calc(100% - 40px)); padding: 14px 16px 12px; border: 1px solid #DDE8EF; border-radius: 16px; background: #fff; box-shadow: 0 18px 40px rgba(15, 59, 90, .18); }
+        .rd-find[hidden] { display: none; }
+        .rd-find__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 14px; font-weight: 800; color: #123B68; }
+        .rd-find__x { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #1F5873; font-size: 20px; line-height: 1; cursor: pointer; }
+        .rd-find__x:hover { background: #EEF5F9; }
+        .rd-find__box { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 2px solid #1F5873; border-radius: 12px; }
+        .rd-find__box svg { flex: none; width: 16px; height: 16px; color: #5B7A90; }
+        .rd-find__box input { flex: 1; min-width: 0; height: 40px; border: 0; outline: 0; background: transparent; font-size: 14px; color: #123B68; }
+        .rd-find__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; color: #5B7A90; }
+        .rd-find__nav { display: flex; gap: 2px; }
+        .rd-find__nav button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #1F5873; cursor: pointer; font-size: 15px; }
+        .rd-find__nav button:hover:not(:disabled) { background: #EEF5F9; }
+        .rd-find__nav button:disabled { opacity: .35; cursor: default; }
+        .rd-hit { position: absolute; z-index: 2; border-radius: 2px; background: rgba(250, 204, 21, .42); mix-blend-mode: multiply; pointer-events: none; }
+        .rd-hit.is-on { background: rgba(249, 115, 22, .55); box-shadow: 0 0 0 2px rgba(249, 115, 22, .65); }
 
         .reader-page-wrap {
             position: relative;
@@ -749,6 +768,8 @@
                         var wrapper = document.createElement('div');
                         wrapper.className = 'reader-page-wrap';
                         wrapper.style.width = viewport.width + 'px';
+                        wrapper.__oiViewport = viewport; // SỬA 28/10 — để tô chỗ khớp khi tìm trong tài liệu
+                        wrapper.__oiPage = pageNum;
                         wrapper.style.animationDelay = (Math.min(pageNum, 6) * 0.03) + 's';
 
                         var canvas = document.createElement('canvas');
@@ -771,6 +792,7 @@
                             centerHorizontally();
                         }
                         page.render({ canvasContext: ctx, viewport: drawViewport }).promise.then(function () {
+                            findPaintPage(pageNum); // SỬA 28/10 — tô lại chỗ khớp (sau khi phóng to / đổi cỡ vẽ lại trang)
                             if (scrollToPage && pageNum === scrollToPage) {
                                 wrapper.scrollIntoView({ block: 'start' });
                             }
@@ -834,6 +856,157 @@
             } else {
                 window.addEventListener('resize', onBoxResize);
             }
+
+            /*
+             * SỬA 28/10 (khách: "thêm nút tìm vào PDF đọc tài liệu để dễ tìm bài hơn") — nút kính lúp góc dưới phải khung đọc:
+             * tìm chữ trên TOÀN BỘ PDF đang mở (không phân biệt hoa/thường, gõ không dấu vẫn ra), tô vàng mọi chỗ khớp, chỗ đang
+             * xem tô cam; ↑ ↓ (hoặc Enter / Shift+Enter) để nhảy. Lấy chữ bằng pdf.js getTextContent (lưu tạm, mỗi trang lấy 1 lần).
+             * PDF dạng ảnh scan (không có lớp chữ) thì không tìm được — báo rõ.
+             */
+            var find = { q: '', hits: [], idx: -1, cache: {}, token: 0 };
+            function foldChar(c) { return c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase(); }
+            function foldText(t) { var o = ''; for (var i = 0; i < t.length; i++) { o += foldChar(t[i]); } return o; }
+            async function findPageText(n) {
+                if (find.cache[n]) { return find.cache[n]; }
+                var page = await pdfDoc.getPage(n);
+                var tc = await page.getTextContent();
+                var norm = '', map = [], items = [];
+                tc.items.forEach(function (it) {
+                    if (typeof it.str !== 'string' || it.str === '') { return; }
+                    for (var i = 0; i < it.str.length; i++) {
+                        var f = foldChar(it.str[i]);
+                        for (var k = 0; k < f.length; k++) { norm += f[k]; map.push([items.length, i]); }
+                    }
+                    items.push(it);
+                    norm += ' '; map.push(null);
+                });
+                return (find.cache[n] = { norm: norm, map: map, items: items });
+            }
+            var findCtx = document.createElement('canvas').getContext('2d');
+            function findMeasure(t) { if (!t) { return 0; } findCtx.font = '100px sans-serif'; return findCtx.measureText(t).width; }
+            function findRects(hit) {
+                var wrapper = pageWrappers[hit.page - 1];
+                var vp = wrapper && wrapper.__oiViewport;
+                if (!vp) { return []; }
+                var rects = [];
+                hit.parts.forEach(function (part) {
+                    var it = part.item;
+                    var tx = pdfjsLib.Util.transform(vp.transform, it.transform);
+                    var h = Math.hypot(tx[2], tx[3]) || 10;
+                    var w = (it.width || 0) * vp.scale;
+                    // Chia bề rộng theo độ rộng ĐO ĐƯỢC của từng đoạn chữ (sát hơn chia đều theo số ký tự).
+                    var all = findMeasure(it.str) || 1;
+                    var x0 = w * findMeasure(it.str.slice(0, part.from)) / all;
+                    var x1 = w * findMeasure(it.str.slice(0, part.to + 1)) / all;
+                    rects.push({ left: tx[4] + x0, top: tx[5] - h * 0.92, width: Math.max(4, x1 - x0), height: h * 1.18 });
+                });
+                return rects;
+            }
+            function findPaintPage(n) {
+                var wrapper = pageWrappers[n - 1];
+                if (!wrapper) { return; }
+                wrapper.querySelectorAll('.rd-hit').forEach(function (el) { el.remove(); });
+                find.hits.forEach(function (hit, i) {
+                    if (hit.page !== n) { return; }
+                    findRects(hit).forEach(function (r) {
+                        var el = document.createElement('div');
+                        el.className = 'rd-hit' + (i === find.idx ? ' is-on' : '');
+                        el.style.left = r.left + 'px'; el.style.top = r.top + 'px'; el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
+                        wrapper.appendChild(el);
+                    });
+                });
+            }
+            function findPaintAll() { for (var n = 1; n <= pageWrappers.length; n++) { findPaintPage(n); } }
+            function findShow() {
+                var hit = find.hits[find.idx];
+                findPaintAll();
+                findUi.count.textContent = find.hits.length ? (find.idx + 1) + ' / ' + find.hits.length + ' kết quả' : (find.q ? 'Không tìm thấy' : 'Tìm trên toàn bộ PDF đang mở');
+                findUi.prev.disabled = findUi.next.disabled = find.hits.length < 2;
+                if (!hit) { return; }
+                var wrapper = pageWrappers[hit.page - 1];
+                if (!wrapper) { goToPage(hit.page); return; }
+                var box = document.getElementById('reader-scroll-box');
+                var r = findRects(hit)[0];
+                if (box && r) {
+                    var top = box.scrollTop + wrapper.getBoundingClientRect().top - box.getBoundingClientRect().top + r.top - box.clientHeight / 3;
+                    box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                } else {
+                    scrollToWrapper(wrapper, true);
+                }
+                currentPage = hit.page;
+                if (pageInputEl) { pageInputEl.value = String(hit.page); }
+                setPageIndicator(hit.page);
+            }
+            async function findRun(q) {
+                var my = ++find.token;
+                find.q = q.trim(); find.hits = []; find.idx = -1;
+                if (!find.q || !pdfDoc) { findShow(); return; }
+                findUi.count.textContent = 'Đang tìm…';
+                var words = foldText(find.q).split(/\s+/).filter(Boolean).map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+                var re = new RegExp(words.join('\\s*'), 'g');
+                var hasText = false;
+                for (var n = 1; n <= pdfDoc.numPages; n++) {
+                    var t = await findPageText(n);
+                    if (my !== find.token) { return; }
+                    if (t.items.length) { hasText = true; }
+                    re.lastIndex = 0;
+                    var m;
+                    while ((m = re.exec(t.norm)) !== null) {
+                        if (m[0].length === 0) { re.lastIndex++; continue; }
+                        var parts = {};
+                        for (var j = m.index; j < m.index + m[0].length; j++) {
+                            var ref = t.map[j];
+                            if (!ref) { continue; }
+                            var p = parts[ref[0]] || (parts[ref[0]] = { item: t.items[ref[0]], from: ref[1], to: ref[1] });
+                            p.from = Math.min(p.from, ref[1]); p.to = Math.max(p.to, ref[1]);
+                        }
+                        find.hits.push({ page: n, parts: Object.keys(parts).map(function (k) { return parts[k]; }) });
+                    }
+                }
+                // Bắt đầu từ chỗ khớp đầu tiên ở trang đang xem trở đi.
+                find.idx = find.hits.length ? Math.max(0, find.hits.findIndex(function (h) { return h.page >= currentPage; })) : -1;
+                findShow();
+                if (!find.hits.length && !hasText) { findUi.count.textContent = 'PDF này dạng ảnh scan — không tìm được chữ'; }
+            }
+            function findStep(d) {
+                if (!find.hits.length) { return; }
+                find.idx = (find.idx + d + find.hits.length) % find.hits.length;
+                findShow();
+            }
+            var findUi = (function () {
+                var host = scrollBox ? scrollBox.parentElement : null;
+                if (!host) { return null; }
+                if (getComputedStyle(host).position === 'static') { host.style.position = 'relative'; }
+                var icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+                var btn = document.createElement('button');
+                btn.type = 'button'; btn.className = 'rd-find-btn'; btn.title = 'Tìm trong tài liệu'; btn.setAttribute('aria-label', 'Tìm trong tài liệu');
+                btn.innerHTML = icon;
+                var panel = document.createElement('div');
+                panel.className = 'rd-find'; panel.hidden = true; panel.setAttribute('role', 'search');
+                panel.innerHTML = '<div class="rd-find__head"><span>Tìm trong tài liệu</span><button type="button" class="rd-find__x" aria-label="Đóng">×</button></div>'
+                    + '<label class="rd-find__box">' + icon + '<input type="search" placeholder="Nhập từ hoặc cụm từ…" aria-label="Tìm trong tài liệu" autocomplete="off"></label>'
+                    + '<div class="rd-find__foot"><span class="rd-find__count" role="status">Tìm trên toàn bộ PDF đang mở</span>'
+                    + '<span class="rd-find__nav"><button type="button" aria-label="Kết quả trước">&#8963;</button><button type="button" aria-label="Kết quả sau">&#8964;</button></span></div>';
+                host.appendChild(panel); host.appendChild(btn);
+                var input = panel.querySelector('input');
+                var navBtns = panel.querySelectorAll('.rd-find__nav button');
+                var timer = null;
+                function open() { panel.hidden = false; input.focus(); input.select(); }
+                function close() { panel.hidden = true; find.token++; find.q = ''; find.hits = []; find.idx = -1; findPaintAll(); input.value = ''; }
+                btn.addEventListener('click', function () { if (panel.hidden) { open(); } else { close(); } });
+                panel.querySelector('.rd-find__x').addEventListener('click', close);
+                input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { findRun(input.value); }, 300); });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') { e.preventDefault(); if (find.q !== input.value.trim()) { clearTimeout(timer); findRun(input.value); } else { findStep(e.shiftKey ? -1 : 1); } }
+                    if (e.key === 'Escape') { e.preventDefault(); close(); }
+                });
+                navBtns[0].addEventListener('click', function () { findStep(-1); });
+                navBtns[1].addEventListener('click', function () { findStep(1); });
+                document.addEventListener('keydown', function (e) {
+                    if ((e.ctrlKey || e.metaKey) && (e.key || '').toLowerCase() === 'f' && document.body.contains(host)) { e.preventDefault(); open(); }
+                });
+                return { count: panel.querySelector('.rd-find__count'), prev: navBtns[0], next: navBtns[1] };
+            })() || { count: document.createElement('span'), prev: document.createElement('button'), next: document.createElement('button') };
 
             fetch(pdfUrl, { credentials: 'same-origin' })
                 .then(function (res) {

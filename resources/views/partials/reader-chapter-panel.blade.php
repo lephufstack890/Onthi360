@@ -74,6 +74,11 @@
         'lockScope' => (bool) ($panelLockScope ?? false),
         'chapterWord' => $chapterWord,
         'attachments' => collect($chapterAttachments)->map(fn ($a, $i) => ['i' => $i, 'chapter' => $chapterOf($a['chapterId'] ?? null)])->all(),
+        // SỬA 28/10 (khách: "thoát làm bài thì đừng tải lại trang, giữ nguyên chương / chỗ đang đọc") — mở bài trong khung nổi;
+        // thoát xong cập nhật dấu đã làm tại chỗ qua route trang-thai (tài liệu đang đọc: bài dùng chung tính riêng từng tài liệu).
+        'statusUrl' => route('student.practiceByQuestion.statuses'),
+        'statusProductId' => collect($exercises)->first(fn ($e) => empty($e['startUrl']) && ! empty($e['productId']))['productId'] ?? null,
+        'statusText' => $statusText,
     ];
 @endphp
 
@@ -125,6 +130,7 @@
     .rcp-tile:hover { border-color: #126F91; background: #F8FBFE; }
     .rcp-tile code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .rcp-tile svg { flex-shrink: 0; width: 12px; height: 12px; }
+    .rcp-tile > span { display: inline-flex; }
     .rcp-tile.is-done { border-color: #CDE7D6; background: #EFF8F2; color: #166534; }
     .rcp-tile.is-done:hover { background: #E2F2E7; }
     .rcp-tile.is-progress { border-color: #F0E1BA; background: #FFFAEB; color: #92400E; }
@@ -173,6 +179,11 @@
     .rcp-media a.rcp-file:hover { border-color: #9DC8D7; color: #126F91; }
     .rcp-media a.rcp-file svg { width: 13px; height: 13px; }
     [x-cloak] { display: none !important; }
+    /* SỬA 28/10 — khung nổi làm bài (thay cho chuyển trang). */
+    .rcp-ov { position: fixed; inset: 0; z-index: 9990; background: rgba(15, 31, 52, .45); }
+    .rcp-ov iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+    .rcp-ov__loading { position: absolute; inset: 0; display: grid; place-items: center; background: #F4F8FB; color: #45657D; font-weight: 700; font-size: 14px; }
+    .rcp-ov__close { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; padding: 8px 16px; border: 1px solid #D3E0EA; border-radius: 999px; background: #fff; color: #17698A; font-weight: 700; font-size: 13px; box-shadow: 0 6px 18px rgba(15, 31, 52, .15); cursor: pointer; }
 </style>
 
 <div class="rcp" :class="focus ? 'is-focus' : ''" x-data="onthiChapterPanel({{ \Illuminate\Support\Js::from($rcpConfig) }})">
@@ -211,19 +222,17 @@
                     <div class="rcp-grid">
                         @foreach ($rcpRows as $r)
                             @continue($r['chapter'] !== $g['id'])
-                            <button type="button" class="rcp-tile is-{{ $r['status'] }}"
+                            <button type="button" class="rcp-tile"
                                     x-show="matches({{ $r['id'] }})"
-                                    :class="selectedId === {{ $r['id'] }} ? 'is-selected' : ''"
+                                    :class="'is-' + statusOf({{ $r['id'] }}) + (selectedId === {{ $r['id'] }} ? ' is-selected' : '')"
                                     :aria-current="selectedId === {{ $r['id'] }} ? 'true' : null"
                                     @click="start({{ $r['id'] }})" :disabled="busy"
                                     title="Làm bài {{ $r['code'] }} · {{ $r['title'] }} · {{ $r['statusLabel'] }}"
                                     aria-label="Làm bài {{ $r['code'] }} · {{ $r['statusLabel'] }}">
                                 <code>{{ $r['code'] }}</code>
-                                @if ($r['status'] === 'done')
-                                    <x-lucide name="check-circle-2" />
-                                @elseif ($r['status'] === 'progress')
-                                    <x-lucide name="clock-3" />
-                                @endif
+                                {{-- SỬA 28/10 — dấu theo trạng thái hiện tại (cập nhật tại chỗ sau khi làm bài trong khung nổi). --}}
+                                <span x-show="statusOf({{ $r['id'] }}) === 'done'" @if ($r['status'] !== 'done') x-cloak @endif><x-lucide name="check-circle-2" /></span>
+                                <span x-show="statusOf({{ $r['id'] }}) === 'progress'" @if ($r['status'] !== 'progress') x-cloak @endif><x-lucide name="clock-3" /></span>
                             </button>
                         @endforeach
                     </div>
@@ -240,9 +249,18 @@
              đây, POST kèm return_url để làm xong bấm Quay lại về đúng trang đọc này). Admin sửa bài ở trang quản lý tài liệu. --}}
         <form method="POST" x-ref="startForm" action="" style="display:none">
             @csrf
-            <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
+            {{-- SỬA 28/10 — thoát làm bài: về trang 'dong' (báo trang đọc đóng khung nổi, không tải lại). --}}
+            <input type="hidden" name="return_url" value="{{ route('student.practiceByQuestion.closed', ['ve' => request()->getRequestUri()], false) }}">
             <input type="hidden" name="back_label" value="Quay lại đọc tài liệu">
         </form>
+        {{-- SỬA 28/10 — khung nổi chứa màn làm bài (đặt thẳng vào body để không bị khung đọc che / cắt). --}}
+        <template x-teleport="body">
+            <div class="rcp-ov" x-show="ovOpen" x-cloak role="dialog" aria-modal="true" aria-label="Làm bài tập">
+                <iframe name="rcp-ex-frame" x-ref="frame" title="Làm bài tập" @load="onFrameLoad()"></iframe>
+                <div class="rcp-ov__loading" x-show="ovLoading"><span>Đang mở bài…</span></div>
+                <button type="button" class="rcp-ov__close" x-show="ovFallback" x-cloak @click="closeOverlay()">× Đóng</button>
+            </div>
+        </template>
         <div class="rcp-detail">
             <p class="rcp-hint" x-show="! busy">Bấm vào ô mã bài để vào làm bài.</p>
             <p class="rcp-hint" x-show="busy" x-cloak><span x-text="'Đang mở bài ' + (selected ? selected.code : '') + '…'"></span></p>
@@ -323,8 +341,17 @@
             selectedId: null,
             busy: false,
 
+            ovOpen: false,
+            ovLoading: false,
+            ovFallback: false,
+
             init() {
                 window.addEventListener('pageshow', () => { this.busy = false; this.selectedId = null; });
+                // SỬA 28/10 — màn làm bài (trong khung nổi) báo đã thoát → đóng khung, giữ nguyên trang đọc.
+                window.addEventListener('message', (e) => {
+                    if (e.origin === window.location.origin && e.data && e.data.type === 'oi-exercise-closed') this.closeOverlay();
+                });
+                window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.ovOpen && this.ovFallback) this.closeOverlay(); });
                 // SỬA 18/10 — màn đọc Bộ đề: cuộn tới đề nào thì cột Bài tập chuyển sang câu của đề đó.
                 window.addEventListener('oi-reader-chapter', (e) => {
                     const id = e.detail ? e.detail.chapterId : null;
@@ -384,8 +411,45 @@
                 this.busy = true;
                 const form = this.$refs.startForm;
                 form.action = row.startUrl;
+                // SỬA 28/10 — mở trong khung nổi thay vì rời trang đọc (thoát ra là về đúng chỗ đang đọc, không tải lại).
+                form.target = 'rcp-ex-frame';
+                this.ovOpen = true; this.ovLoading = true; this.ovFallback = false;
+                document.documentElement.style.overflow = 'hidden';
                 form.submit();
             },
+            onFrameLoad() {
+                if (! this.ovOpen) return;
+                this.ovLoading = false;
+                let doc = null;
+                try { doc = this.$refs.frame.contentDocument; } catch (e) { doc = null; }
+                // Không phải màn làm bài (hết phiên đăng nhập, không có quyền, lỗi…) → hiện nút Đóng của khung.
+                this.ovFallback = ! (doc && doc.getElementById('practice-container'));
+            },
+            closeOverlay() {
+                if (! this.ovOpen) return;
+                this.ovOpen = false; this.ovLoading = false; this.ovFallback = false;
+                document.documentElement.style.overflow = '';
+                this.busy = false; this.selectedId = null;
+                try { this.$refs.frame.src = 'about:blank'; } catch (e) {}
+                this.refreshStatuses();
+            },
+            // Cập nhật dấu "đã làm / đang làm" tại chỗ sau khi làm bài (không tải lại trang).
+            async refreshStatuses() {
+                if (! config.statusUrl || ! this.rows.length) return;
+                const p = new URLSearchParams();
+                this.rows.forEach((r) => p.append('ids[]', r.id));
+                if (config.statusProductId) p.set('san_pham', config.statusProductId);
+                try {
+                    const res = await fetch(config.statusUrl + '?' + p.toString(), { headers: { 'Accept': 'application/json' } });
+                    if (! res.ok) return;
+                    const data = await res.json();
+                    const map = data.statuses || {};
+                    this.rows.forEach((r) => {
+                        if (map[r.id]) { r.status = map[r.id]; r.statusLabel = (config.statusText || {})[r.status] || r.statusLabel; }
+                    });
+                } catch (e) { /* giữ nguyên dấu cũ */ }
+            },
+            statusOf(id) { const r = this.rows.find((x) => x.id === id); return r ? r.status : 'open'; },
             get mediaCount() { return this.attachments.filter((a) => this.scope === 'all' || this.current === null || a.chapter === this.current).length; },
         };
     }

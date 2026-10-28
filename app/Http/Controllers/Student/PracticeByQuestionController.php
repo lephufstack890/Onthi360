@@ -442,4 +442,62 @@ class PracticeByQuestionController extends Controller
             ? redirect()->to($result['returnUrl'])
             : redirect()->route('student.practice.index');
     }
+
+    /**
+     * SỬA 28/10 — trang "đã thoát làm bài" nạp TRONG khung nổi của trang đọc tài liệu: báo trang cha đóng khung (trang đọc
+     * giữ nguyên chương / chỗ đang cuộn, không tải lại). Lỡ mở thẳng (không nằm trong khung) thì quay về trang đọc ?ve=.
+     */
+    public function closed(Request $request): \Illuminate\Http\Response
+    {
+        $back = (string) $request->query('ve', '');
+        if ($back === '' || ! str_starts_with($back, '/') || str_starts_with($back, '//') || preg_match('/[\x00-\x1F\x7F\\\\]/', $back) === 1) {
+            $back = route('student.library.index', absolute: false);
+        }
+        $js = json_encode($back, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+
+        return response('<!doctype html><meta charset="utf-8"><title>Đã thoát làm bài</title>'
+            .'<script>(function(){var back='.$js.';'
+            .'if(window.parent&&window.parent!==window){window.parent.postMessage({type:"oi-exercise-closed"},window.location.origin);}'
+            .'else{window.location.replace(back);}})();</script>')
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * SỬA 28/10 — trạng thái làm bài (done / progress / open) của CHÍNH người đang đăng nhập cho các bài $ids, tính cho tài
+     * liệu ?san_pham= nếu có (bài dùng chung: "bên nào ra bên đó", cùng luật với cột Bài tập). Chỉ đọc bài làm của bản thân.
+     */
+    public function statuses(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'max:2000'],
+            'ids.*' => ['integer'],
+            'san_pham' => ['nullable', 'integer'],
+        ]);
+        $user = Auth::user();
+        $ids = array_values(array_unique(array_map('intval', $data['ids'])));
+        $productId = isset($data['san_pham']) ? (int) $data['san_pham'] : null;
+
+        $query = \App\Models\AttemptAnswer::query()
+            ->selectRaw('question_id, COUNT(*) as mine, SUM(CASE WHEN verdict = ? OR score > 0 THEN 1 ELSE 0 END) as mine_accepted', ['accepted'])
+            ->whereIn('question_id', $ids);
+        if ($productId !== null) {
+            $linked = array_values(array_intersect($ids, \App\Support\ProductExerciseLinks::linkedQuestionIds($productId)));
+            \App\Support\ProductExerciseLinks::answersInProduct($query, (int) $user->id, $productId, $linked);
+        } else {
+            $query->whereHas('attempt', fn ($q) => $q->where('user_id', $user->id));
+        }
+        $rows = $query->groupBy('question_id')->get()->keyBy('question_id');
+
+        $out = [];
+        foreach ($ids as $id) {
+            $row = $rows->get($id);
+            $out[$id] = match (true) {
+                (int) ($row->mine_accepted ?? 0) > 0 => 'done',
+                (int) ($row->mine ?? 0) > 0 => 'progress',
+                default => 'open',
+            };
+        }
+
+        return response()->json(['statuses' => $out]);
+    }
 }
