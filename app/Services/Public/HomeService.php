@@ -442,7 +442,13 @@ class HomeService
             $panels['admin'] = $this->adminPanel();
         }
 
-        // Vai trò khác không có bảng riêng (biên tập...) thì vẫn hiện góc nhìn học sinh như
+        // SỬA 28/10 (khách: "editor thì hiển thị sao cho hợp lý") — biên tập viên có bảng riêng: các mục được cấp quyền
+        // trong khu quản trị, thay vì góc nhìn học sinh "Tiến độ 0%" vô nghĩa. Đứng đầu (như DashboardRoutingService).
+        if ($viewer->hasRole(Role::EDITOR) && ! $viewer->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
+            $panels = ['editor' => $this->editorPanel($viewer)] + $panels;
+        }
+
+        // Vai trò khác không có bảng riêng thì vẫn hiện góc nhìn học sinh như
         // trước đây, để khối không bị trống.
         if ($panels === []) {
             $panels['student'] = $this->studentPanel($viewer);
@@ -523,6 +529,7 @@ class HomeService
         'parent' => ['route' => 'parent.dashboard', 'label' => 'Vào khu phụ huynh'],
         'teacher' => ['route' => 'teacher.dashboard', 'label' => 'Vào khu giáo viên'],
         'admin' => ['route' => 'admin.dashboard', 'label' => 'Vào bảng điều khiển'],
+        'editor' => ['route' => 'dashboard', 'label' => 'Vào khu biên tập'],
     ];
 
     /** Nhãn + biểu tượng của từng tab vai trò — khớp bảng của source (JOURNEY_ROLE_VIEWS). */
@@ -531,7 +538,58 @@ class HomeService
         'parent' => ['label' => 'Phụ huynh', 'icon' => 'heart', 'iconClass' => 'text-[#4C88A1]'],
         'teacher' => ['label' => 'Giáo viên', 'icon' => 'users', 'iconClass' => 'text-[#5B77A8]'],
         'admin' => ['label' => 'Quản trị', 'icon' => 'shield-check', 'iconClass' => 'text-[#8A6A1C]'],
+        'editor' => ['label' => 'Biên tập viên', 'icon' => 'pen-line', 'iconClass' => 'text-[#1F7A5C]'],
     ];
+
+    /**
+     * SỬA 28/10 — góc nhìn BIÊN TẬP VIÊN: các mục khu quản trị được cấp quyền (App\Support\AdminPermissions).
+     * Không có tiến độ % → tắt thanh tiến độ, thay bằng dòng "Mục được cấp quyền".
+     */
+    private function editorPanel(User $viewer): array
+    {
+        $views = $edits = $deletes = 0;
+        $first = null;
+        foreach (\App\Support\AdminPermissions::MODULES as $key => $m) {
+            if (! in_array('view', $m['actions'], true) || ! \App\Support\AdminPermissions::can($viewer, $key, 'view')) {
+                continue;
+            }
+            $views++;
+            $first ??= $m;
+            if (array_filter(['create', 'update'], fn ($a) => in_array($a, $m['actions'], true) && \App\Support\AdminPermissions::can($viewer, $key, $a)) !== []) {
+                $edits++;
+            }
+            if (in_array('delete', $m['actions'], true) && \App\Support\AdminPermissions::can($viewer, $key, 'delete')) {
+                $deletes++;
+            }
+        }
+        $firstHref = ($first !== null && ! empty($first['home']) && Route::has($first['home'])) ? route($first['home']) : route('dashboard');
+
+        return [
+            'roleKey' => 'editor',
+            'roleIcon' => self::ROLE_VIEW_META['editor']['icon'],
+            'roleIconClass' => self::ROLE_VIEW_META['editor']['iconClass'],
+            'roleLabel' => 'Biên tập viên',
+            'contextLabel' => 'Khu biên tập',
+            'contexts' => [],
+            'guest' => false,
+
+            'showProgress' => false,
+            'summaryLabel' => 'Mục được cấp quyền',
+            'summaryValue' => $views > 0 ? $views.' mục' : 'Chưa được cấp',
+            'summaryTone' => $views > 0 ? 'ok' : 'warn',
+
+            'nextLabel' => $views > 0 ? 'Tiếp tục làm việc' : 'Chưa có quyền',
+            'nextTitle' => $first['label'] ?? 'Chưa được cấp mục nào',
+            'nextMeta' => $views > 0 ? 'Mở khu biên tập' : 'Liên hệ quản trị viên để được cấp quyền',
+            'nextHref' => $firstHref,
+
+            'stats' => [
+                ['value' => (string) $views, 'label' => 'Được xem', 'valueClass' => 'text-[#3E79A4]'],
+                ['value' => (string) $edits, 'label' => 'Thêm / sửa', 'valueClass' => 'text-[#3B9374]'],
+                ['value' => (string) $deletes, 'label' => 'Được xoá', 'valueClass' => 'text-[#AF7C32]'],
+            ],
+        ];
+    }
 
     /**
      * Góc nhìn quản trị — HÀNG CHỜ VẬN HÀNH, không phải bài tập.

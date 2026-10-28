@@ -37,10 +37,12 @@
     $headerRoleLabel = 'Khách vãng lai';
     $headerSub = 'Chưa đăng nhập';
     if ($headerUser) {
+        // SỬA 28/10 (khách: "editor thì hiển thị sao cho hợp lý") — thêm nhãn Biên tập viên (trước đây rơi về "Thành viên").
         $headerRoleLabel = $headerUser->hasRole(\App\Models\Role::ADMIN) ? 'Quản trị viên'
+            : ($headerUser->hasRole(\App\Models\Role::EDITOR) ? 'Biên tập viên'
             : ($headerUser->hasRole(\App\Models\Role::TEACHER) ? 'Giáo viên'
             : ($headerUser->hasRole(\App\Models\Role::PARENT) ? 'Phụ huynh'
-            : ($headerUser->hasRole(\App\Models\Role::STUDENT) ? 'Học sinh' : 'Thành viên')));
+            : ($headerUser->hasRole(\App\Models\Role::STUDENT) ? 'Học sinh' : 'Thành viên'))));
         $headerSub = $headerUser->email;
     }
 
@@ -58,6 +60,8 @@
     $roleKey = match (true) {
         ! $headerUser => 'guest',
         (bool) $headerUser->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) => 'admin',
+        // SỬA 28/10 — biên tập viên có biểu tượng / lối vào riêng (cùng thứ tự ưu tiên với DashboardRoutingService).
+        (bool) $headerUser->hasRole(\App\Models\Role::EDITOR) => 'editor',
         (bool) $headerUser->hasRole(\App\Models\Role::TEACHER) => 'teacher',
         (bool) $headerUser->hasRole(\App\Models\Role::PARENT) => 'parent',
         default => 'student',
@@ -66,16 +70,20 @@
         'student' => ['icon' => 'graduation-cap', 'bg' => 'linear-gradient(135deg,#DCEEFF,#BFE0FF)', 'fg' => '#1D6FD1', 'ring' => '#9CCBF5'],
         'teacher' => ['icon' => 'presentation', 'bg' => 'linear-gradient(135deg,#FFEBD0,#FFD7A3)', 'fg' => '#B85C0B', 'ring' => '#F6C27E'],
         'parent' => ['icon' => 'heart', 'bg' => 'linear-gradient(135deg,#FFE6EC,#FFD0DB)', 'fg' => '#D6406A', 'ring' => '#F6B4C5'],
+        'editor' => ['icon' => 'pen-line', 'bg' => 'linear-gradient(135deg,#E6F6F1,#CDEEE3)', 'fg' => '#1F7A5C', 'ring' => '#A8DCC9'],
         'admin' => ['icon' => 'shield-user', 'bg' => 'linear-gradient(135deg,#E5EEFF,#D2E1FF)', 'fg' => '#3558D6', 'ring' => '#B5C8F5'],
         'guest' => ['icon' => 'user-round', 'bg' => 'linear-gradient(135deg,#EEF4FF,#E1ECFF)', 'fg' => '#3B7BEA', 'ring' => '#C3D8F8'],
     ][$roleKey];
     $useRoleBadge = ! $headerUser?->avatarUrl();
-    $profileRoute = ['student' => 'student.profile', 'teacher' => 'teacher.profile.show', 'parent' => 'parent.profile', 'admin' => 'admin.profile.show'][$roleKey] ?? null;
+    $profileRoute = ['student' => 'student.profile', 'teacher' => 'teacher.profile.show', 'parent' => 'parent.profile', 'admin' => 'admin.profile.show', 'editor' => 'admin.profile.show'][$roleKey] ?? null;
     if ($profileRoute && ! \Illuminate\Support\Facades\Route::has($profileRoute)) { $profileRoute = null; }
 
     $headerEntry = match (true) {
         (bool) $headerUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)
             => ['label' => 'Vào trang quản trị', 'icon' => 'layout-dashboard', 'route' => 'admin.dashboard'],
+        // SỬA 28/10 — biên tập viên: /dashboard tự đưa tới mục đầu tiên được cấp quyền trong khu quản trị.
+        $roleKey === 'editor'
+            => ['label' => 'Vào khu biên tập', 'icon' => 'pen-line', 'route' => 'dashboard'],
         (bool) $headerUser?->hasRole(\App\Models\Role::TEACHER)
             => ['label' => 'Vào khu dạy học', 'icon' => 'presentation', 'route' => 'dashboard'],
         (bool) $headerUser?->hasRole(\App\Models\Role::PARENT)
@@ -83,6 +91,11 @@
         default
             => ['label' => 'Vào khu học tập', 'icon' => 'graduation-cap', 'route' => 'dashboard'],
     };
+    // SỬA 28/10 — "Quyền của tôi" / "Nhập mã kích hoạt" là của người học (mở tài liệu, khoá học); biên tập viên thuần
+    // (không kiêm học sinh / giáo viên / phụ huynh) không dùng nên ẩn, giống quản trị viên.
+    $headerShowAccess = $headerUser !== null
+        && ! $headerUser->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN)
+        && ! ($roleKey === 'editor' && ! $headerUser->hasAnyRole(\App\Models\Role::STUDENT, \App\Models\Role::TEACHER, \App\Models\Role::PARENT));
 @endphp
 
 <header x-data="{ mobileNavOpen: false, notificationOpen: false, roleDropdownOpen: false, closeTimer: null,
@@ -235,7 +248,7 @@
                             {{-- SỬA 14/9 (khách yêu cầu) — quản trị viên đã full quyền, không cần
                                  "Quyền của tôi" và "Nhập mã kích hoạt". ẨN CHỨ KHÔNG XOÁ: bỏ
                                  điều kiện là hiện lại y như cũ. --}}
-                            @unless ($headerUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN))
+                            @if ($headerShowAccess)
                                 <a href="{{ route('access.myAccess') }}"
                                    class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
                                     <x-lucide name="shield-check" class="w-4 h-4 text-slate-500" />
@@ -246,7 +259,7 @@
                                     <x-lucide name="key-round" class="w-4 h-4 text-amber-600" />
                                     <span>Nhập mã kích hoạt quyền</span>
                                 </a>
-                            @endunless
+                            @endif
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit"
