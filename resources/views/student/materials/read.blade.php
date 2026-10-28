@@ -990,6 +990,24 @@
                     + '<div class="rd-find__foot"><span class="rd-find__count" role="status">Tìm trên toàn bộ PDF đang mở</span>'
                     + '<span class="rd-find__nav"><button type="button" aria-label="Kết quả trước">&#8963;</button><button type="button" aria-label="Kết quả sau">&#8964;</button></span></div>';
                 host.appendChild(panel); host.appendChild(btn);
+                // SỬA 28/10 (khách: "phải kéo xuống mới thấy nút tìm") — vùng đọc cao hơn màn hình thì góc dưới của nó nằm khuất
+                // dưới mép màn hình. Nút (và khung tìm) giờ bám góc dưới của PHẦN VÙNG ĐỌC ĐANG NHÌN THẤY: luôn thấy mà không
+                // phải kéo trang; vùng đọc nằm gọn trong màn hình thì vẫn ở đúng chỗ cũ.
+                function placeFind() {
+                    var r = host.getBoundingClientRect();
+                    if (!r.height) { return; }
+                    var BTN = btn.offsetHeight || 52, GAP = 46;
+                    var visBottom = Math.min(r.bottom, window.innerHeight) - r.top;
+                    var top = Math.max(12, Math.min(visBottom - GAP - BTN, r.height - GAP - BTN));
+                    btn.style.top = top + 'px'; btn.style.bottom = 'auto';
+                    panel.style.bottom = Math.max(12, r.height - top + 10) + 'px';
+                }
+                var findRaf = 0;
+                function queuePlace() { if (!findRaf) { findRaf = requestAnimationFrame(function () { findRaf = 0; placeFind(); }); } }
+                document.addEventListener('scroll', queuePlace, { passive: true, capture: true });
+                window.addEventListener('resize', queuePlace);
+                if (window.ResizeObserver) { new ResizeObserver(queuePlace).observe(host); }
+                placeFind();
                 var input = panel.querySelector('input');
                 var navBtns = panel.querySelectorAll('.rd-find__nav button');
                 var timer = null;
