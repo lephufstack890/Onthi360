@@ -82,7 +82,34 @@ class AccessService
              */
             'isCourse' => $product->type === \App\Enums\ProductType::Course,
             'courseId' => $this->courseIdForProduct($product->id),
+            // SỬA 28/10 (khách: "mua sách xong đừng đặt đơn nữa, xong là xong") — các phạm vi quyền đang còn hiệu lực.
+            'ownedScopes' => $this->activeScopes($user, $product->id),
         ];
+    }
+
+    /**
+     * SỬA 28/10 — phạm vi quyền (personal_learning / teacher_teaching) người này ĐANG CÒN HIỆU LỰC với tài liệu / khoá.
+     *
+     * @return list<string>
+     */
+    public function activeScopes(User $user, int $productId): array
+    {
+        return $this->accessRights->forUserWithProduct($user->id)
+            ->filter(fn (AccessRight $ar) => (int) $ar->product_id === $productId && $ar->isCurrentlyActive())
+            ->map(fn (AccessRight $ar) => $ar->scope instanceof AccessScope ? $ar->scope->value : (string) $ar->scope)
+            ->unique()->values()->all();
+    }
+
+    /**
+     * SỬA 28/10 — đã mua xong, KHÔNG còn gì để mua nữa: có quyền "Dùng để dạy", hoặc có quyền "Học cá nhân" mà không phải
+     * giáo viên đã duyệt (không mua thêm quyền dạy được). Khi đó trang đặt đơn chuyển thẳng về trang tài liệu / khoá học.
+     *
+     * @param  list<string>  $ownedScopes
+     */
+    public function nothingLeftToBuy(User $user, array $ownedScopes): bool
+    {
+        return in_array(AccessScope::TeacherTeaching->value, $ownedScopes, true)
+            || (in_array(AccessScope::PersonalLearning->value, $ownedScopes, true) && ! $user->isTeacherApproved());
     }
 
     /**

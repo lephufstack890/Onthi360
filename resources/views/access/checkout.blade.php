@@ -26,6 +26,9 @@
     $tokenBalance = (int) ($tokenBalance ?? 0);
     $isCourse = $isCourse ?? false;
     $courseId = $courseId ?? null;
+    // SỬA 28/10 — giáo viên đã có quyền Học cá nhân: chỉ còn mua thêm quyền Dùng để dạy (ô Học cá nhân khoá lại).
+    $ownedScopes = $ownedScopes ?? [];
+    $ownsPersonal = in_array('personal_learning', $ownedScopes, true);
 
     $backHref = $isCourse && $courseId
         ? route('courses.show', $courseId)
@@ -57,7 +60,7 @@
           x-data="{
               {{-- SỬA 25/10 — chọn "Bản mềm + sách in" ở hộp mua tài liệu (?ban-in=1) thì tích sẵn ô Mua kèm bản in. --}}
               includePrint: {{ (! $isCourse && $product->has_print_option && old('include_print', request()->boolean('ban-in'))) ? 'true' : 'false' }},
-              scope: 'personal_learning',
+              scope: '{{ $ownsPersonal && $canTeach ? 'teacher_teaching' : 'personal_learning' }}',
               paymentMethod: 'token',
               priceLearning: {{ (int) $product->price }},
               {{-- SỬA 14/10 — gộp còn MỘT giá: dạy hay học cùng một số. --}}
@@ -78,11 +81,11 @@
             {{-- ══ Phạm vi quyền ══ --}}
             <x-ws.card title="Phạm vi quyền nhận" icon="shield-check">
                 <div class="space-y-2">
-                    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors"
-                           :class="scope === 'personal_learning' ? 'border-blue-300 bg-blue-50' : 'border-sky-100 bg-white hover:bg-sky-50'">
-                        <input type="radio" name="scope" value="personal_learning" x-model="scope" class="mt-0.5 h-4 w-4 text-blue-600">
+                    <label class="flex items-start gap-3 rounded-2xl border p-3 transition-colors {{ $ownsPersonal ? 'cursor-default opacity-60' : 'cursor-pointer' }}"
+                           :class="scope === 'personal_learning' ? 'border-blue-300 bg-blue-50' : 'border-sky-100 bg-white {{ $ownsPersonal ? '' : 'hover:bg-sky-50' }}'">
+                        <input type="radio" name="scope" value="personal_learning" x-model="scope" class="mt-0.5 h-4 w-4 text-blue-600" @disabled($ownsPersonal)>
                         <span class="min-w-0">
-                            <span class="block text-[13px] font-bold text-slate-800">Học cá nhân</span>
+                            <span class="block text-[13px] font-bold text-slate-800">Học cá nhân @if ($ownsPersonal)<span class="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Đã sở hữu</span>@endif</span>
                             <span class="mt-0.5 block text-[11.5px] leading-relaxed text-slate-500">
                                 @if ($isCourse)
                                     Được chọn lớp và vào học khoá này trong thời hạn quyền.
@@ -209,4 +212,10 @@
             </x-ws.card>
         </div>
     </form>
+
+    {{-- SỬA 28/10 — mua xong rồi bấm Back của trình duyệt: trình duyệt hiện lại trang đặt đơn cũ từ bộ nhớ đệm (không hỏi máy
+         chủ). Tải lại để máy chủ chuyển thẳng về trang tài liệu — không đặt đơn lần nữa được. --}}
+    <script>
+        window.addEventListener('pageshow', function (e) { if (e.persisted) { window.location.reload(); } });
+    </script>
 @endsection

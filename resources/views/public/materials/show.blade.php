@@ -34,6 +34,9 @@
     @if (session('status') === 'access-granted')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đặt mua thành công — token đã được trừ và bạn có thể đọc bài ngay bây giờ!'])
     @endif
+    @if (session('status') === 'already-owned')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Bạn đã mua tài liệu này rồi — không cần đặt đơn nữa, bấm "Vào đọc ngay" để đọc.'])
+    @endif
     @if (session('status') === 'order-placed')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo đơn '.session('orderNo').' — chờ admin duyệt, bạn sẽ nhận mã kích hoạt qua email/thông báo.'])
     @endif

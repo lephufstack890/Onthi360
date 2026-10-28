@@ -17,11 +17,20 @@ class AccessController extends Controller
     public function __construct(private AccessService $accessService) {}
 
     /** access.checkout (ACC-03) — 7.4/7.5: checkout theo scope, sách mềm bắt buộc. */
-    public function checkout(Request $request, int $product): View
+    public function checkout(Request $request, int $product): View|RedirectResponse
     {
         $user = Auth::user();
+        $data = $this->accessService->checkoutData($user, $product);
 
-        return view('access.checkout', $this->accessService->checkoutData($user, $product));
+        // SỬA 28/10 (khách: "mua sách xong đừng đặt đơn nữa, xong là xong luôn") — đã mua rồi (không còn quyền nào để mua
+        // thêm) thì không hiện trang đặt đơn nữa: về thẳng trang tài liệu (nút "Vào đọc ngay") / màn chọn lớp của khoá học.
+        if ($this->accessService->nothingLeftToBuy($user, $data['ownedScopes'])) {
+            return $data['isCourse'] && $data['courseId'] !== null
+                ? redirect()->route('access.chooseClass', $data['courseId'])->with('status', 'already-owned')
+                : redirect()->route('materials.show', $product)->with('status', 'already-owned');
+        }
+
+        return view('access.checkout', $data);
     }
 
     /**
