@@ -147,10 +147,17 @@
                         </p>
                     @endif
                 @elseif (auth()->check())
-                    <a href="{{ route('access.checkout', $material->id) }}"
-                       class="flex min-h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-[#126F91] px-4 text-[13px] font-bold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-colors hover:bg-[#0F5F7A]">
-                        <x-lucide name="wallet-cards" class="h-4 w-4" />Đặt đơn / Mua quyền
-                    </a>
+                    {{-- SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn") — bấm là trừ token + có quyền ngay, quay lại
+                         trang này kèm thông báo "Đặt mua thành công" và nút Vào đọc ngay. Thiếu token thì sang trang Ví để nạp. --}}
+                    <form method="POST" action="{{ route('access.checkout.store', $material->id) }}" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;b.style.opacity='.7';">
+                        @csrf
+                        <input type="hidden" name="scope" value="auto">
+                        <input type="hidden" name="payment_method" value="token">
+                        <button type="submit"
+                                class="flex min-h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-[#126F91] px-4 text-[13px] font-bold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-colors hover:bg-[#0F5F7A]">
+                            <x-lucide name="wallet-cards" class="h-4 w-4" />Mua ngay · {{ \App\Support\TokenPrice::priceLabel($material->price) }}
+                        </button>
+                    </form>
                 @else
                     <a href="{{ route('login') }}"
                        class="flex min-h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-[#126F91] px-4 text-[13px] font-bold text-white shadow-[0_5px_12px_rgba(18,111,145,0.18)] transition-colors hover:bg-[#0F5F7A]">

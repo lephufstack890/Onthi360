@@ -501,7 +501,7 @@
                             </button>
                             <button type="button" role="radio" class="mp-opt mp-opt-pick" x-show="selected.pricePrint" :class="buyFormat === 'print' ? 'is-on' : ''"
                                     :aria-checked="buyFormat === 'print' ? 'true' : 'false'" @click="buyFormat = 'print'">
-                                <span>Bản mềm + sách in<small>Giao tận nhà · nhập địa chỉ ở bước thanh toán</small></span>
+                                <span>Bản mềm + sách in<small>Giao tận nhà · bên bán liên hệ xác nhận địa chỉ</small></span>
                                 <strong x-text="selected.pricePrint"></strong>
                             </button>
                         </div>
@@ -520,7 +520,12 @@
                         @if ($role === 'guest')
                             <div class="mp-box is-amber" x-show="!selected.owned"><p>Đăng nhập hoặc đăng ký để mua và kích hoạt tài liệu này.</p></div>
                         @elseif (! $isAdmin)
-                            <div class="mp-box is-sky" x-show="!selected.owned && !selected.expired"><p>Bạn chưa có quyền đọc tài liệu này. Mua quyền học để bắt đầu.</p></div>
+                            <div class="mp-box is-sky" x-show="!selected.owned && !selected.expired && !buyError"><p>Bạn chưa có quyền đọc tài liệu này. Bấm Mua ngay — trừ token trong ví và đọc được luôn.</p></div>
+                            {{-- SỬA 28/10 — lỗi khi mua ngay (thiếu token, đã có quyền…) báo tại chỗ. --}}
+                            <div class="mp-box is-amber" x-show="buyError" x-cloak role="alert">
+                                <p><span x-text="buyError"></span>
+                                    <a x-show="buyNeedTopup" :href="buyWallet" style="margin-left:6px;font-weight:700;color:#126f91;text-decoration:underline">Nạp thêm token →</a></p>
+                            </div>
                         @endif
 
                         <div class="mp-modal-actions">
@@ -531,7 +536,11 @@
                             @if ($canBuy)
                                 {{-- SỬA 25/10 (khách: "mua sách / bộ đề / chuyên đề gì cũng bỏ nút Nhập mã kích hoạt") — TẠM ẨN, không xoá:
                                 <a :href="activateHref" class="mp-primary is-amber">Nhập mã kích hoạt</a> --}}
-                                <a :href="buyHref()" x-show="!selected.owned && selected.inCatalog" class="mp-primary"><x-lucide name="shopping-cart" />Mua quyền học ngay →</a>
+                                {{-- SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn; mua xong popup tắt, báo mua thành công, bấm vào
+                                     đọc luôn") — bấm là trừ token + có quyền ngay (quickBuy() trong materials-page-script). --}}
+                                <button type="button" @click="quickBuy()" x-show="!selected.owned && selected.inCatalog" class="mp-primary" :disabled="buying" :style="buying ? 'opacity:.7;cursor:wait' : ''">
+                                    <x-lucide name="shopping-cart" /><span x-text="buying ? 'Đang mua…' : 'Mua ngay · ' + (buyFormat === 'print' && selected.pricePrint ? selected.pricePrint : selected.priceSoft)">Mua ngay</span>
+                                </button>
                                 <a :href="selected.readHref" x-show="selected.owned && selected.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="selected.bundle ? 'Làm bộ đề →' : 'Vào đọc ngay →'">Vào đọc ngay →</span></a>
                             @endif
                             @if ($scope['canManage'])
@@ -545,6 +554,24 @@
                     </div>
                 </template>
             </div>
+        </div>
+    </div>
+
+    {{-- ══════ SỬA 28/10 — HỘP "MUA THÀNH CÔNG": hộp mua đóng lại, báo đã trừ token, bấm là vào đọc luôn ══════ --}}
+    <div class="mp-modal-back" x-show="bought" x-cloak @keydown.escape.window="if (bought) closeBought()" @click.self="closeBought()">
+        <div class="mp-modal" role="dialog" aria-modal="true" aria-labelledby="mp-bought-title" style="max-width:460px">
+            <template x-if="bought">
+                <div style="padding:28px 24px 24px;text-align:center">
+                    <span style="display:inline-grid;place-items:center;width:56px;height:56px;border-radius:999px;background:#DCFCE7;color:#15803D"><x-lucide name="check-circle-2" style="width:30px;height:30px" /></span>
+                    <h2 id="mp-bought-title" style="margin:14px 0 4px;font-size:20px;font-weight:800;color:#123B68">Mua thành công!</h2>
+                    <p style="margin:0;font-size:14px;font-weight:600;color:#334E68" x-text="bought.title"></p>
+                    <p style="margin:10px 0 0;font-size:13px;color:#5B7A90">Đã trừ <b x-text="bought.paid"></b> · Số dư còn <b x-text="bought.balance"></b></p>
+                    <div class="mp-modal-actions" style="justify-content:center;margin-top:20px">
+                        <button type="button" class="mp-primary is-light" @click="closeBought()">Để sau</button>
+                        <a :href="bought.readHref" class="mp-primary is-green"><x-lucide name="book-open" /><span x-text="bought.isBundle ? 'Làm bộ đề ngay →' : 'Vào đọc ngay →'"></span></a>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 

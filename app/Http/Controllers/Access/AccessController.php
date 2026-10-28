@@ -44,11 +44,13 @@ class AccessController extends Controller
      * - Lỗi validate khác (scope chưa đủ điều kiện, đã có quyền/đơn đang xử lý...) vẫn quay lại
      *   đúng trang checkout để sửa, không văng ra trang lỗi.
      */
-    public function store(Request $request, int $product): RedirectResponse
+    public function store(Request $request, int $product): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $user = Auth::user();
         $data = $request->validate([
-            'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching'],
+            // SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn") — 'auto' = nút Mua ngay ở hộp mua / trang tài liệu:
+            // giáo viên đã duyệt nhận quyền Dùng để dạy (đọc được + gắn lớp, cùng giá), còn lại nhận Học cá nhân.
+            'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching,auto'],
             'include_print' => ['nullable', 'boolean'],
             // SỬA 20/10 (khách: "mua không cần duyệt nữa, duyệt nạp token là đủ — có token mua là trừ luôn, tự có quyền") —
             // chỉ còn trả bằng token (đơn hoàn tất + cấp quyền ngay, AccessService::placeOrder). Bỏ "Chuyển khoản — quản trị
@@ -56,14 +58,40 @@ class AccessController extends Controller
             'payment_method' => ['required', 'string', 'in:token'],
         ]);
 
+        if ($data['scope'] === 'auto') {
+            $data['scope'] = $user->isTeacherApproved() ? 'teacher_teaching' : 'personal_learning';
+        }
+
         try {
             $order = $this->accessService->placeOrder($user, $product, $data);
         } catch (ValidationException $e) {
+            // SỬA 28/10 — mua ngay trong hộp mua (gọi bằng fetch): trả JSON để hộp báo lỗi tại chỗ.
+            if ($request->expectsJson()) {
+                $needTopup = array_key_exists('insufficient_token', $e->errors());
+
+                return response()->json([
+                    'ok' => false,
+                    'needTopup' => $needTopup,
+                    'walletHref' => route('wallet.index'),
+                    'message' => collect($e->errors())->flatten()->first() ?: 'Chưa mua được — vui lòng thử lại.',
+                ], 422);
+            }
             if (array_key_exists('insufficient_token', $e->errors())) {
                 return redirect()->route('wallet.index')->with('status', 'need-topup');
             }
 
             return redirect()->route('access.checkout', $product)->withErrors($e->errors());
+        }
+
+        // SỬA 28/10 — mua ngay trong hộp mua: trừ token + có quyền ngay, trả JSON để hộp đóng lại và báo "Mua thành công".
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => $order->status === OrderStatus::Completed,
+                'orderNo' => $order->order_no,
+                'paid' => \App\Support\TokenPrice::label((int) $order->total_amount),
+                'balance' => \App\Support\TokenPrice::label((int) $user->fresh()->token_balance),
+                'message' => $order->status === OrderStatus::Completed ? 'Mua thành công' : 'Đã tạo đơn, chờ duyệt',
+            ]);
         }
 
         /*
@@ -75,6 +103,11 @@ class AccessController extends Controller
          */
         $status = $order->status === OrderStatus::Completed ? 'access-granted' : 'order-placed';
         $courseId = $this->accessService->courseIdForProduct($product);
+
+        // SỬA 28/10 — bấm "Mua ngay" ở trang bộ đề: mua xong ở lại đúng trang bộ đề (đề trong bộ mở khoá luôn).
+        if ($request->input('quay_lai') === 'bo-de') {
+            return redirect()->route('bundles.show', $product)->with('status', $status);
+        }
 
         if ($courseId !== null) {
             return redirect()->route('access.chooseClass', $courseId)

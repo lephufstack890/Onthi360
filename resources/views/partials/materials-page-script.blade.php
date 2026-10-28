@@ -292,7 +292,41 @@
             },
 
             // ── Hộp chi tiết giá & quyền sử dụng ──
-            openDetail(id) { this.selected = this.byId[id] || null; this.buyFormat = 'soft'; },
+            openDetail(id) { this.selected = this.byId[id] || null; this.buyFormat = 'soft'; this.buyError = ''; this.buyNeedTopup = false; },
+            // SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn; mua xong popup tắt, báo mua thành công, bấm vào đọc
+            // luôn") — gửi thẳng tới access.checkout.store (trả JSON): trừ token + cấp quyền ngay; lỗi báo ngay trong hộp mua.
+            buying: false, buyError: '', buyNeedTopup: false, buyWallet: '', bought: null,
+            quickBuy() {
+                var s = this.selected, self = this;
+                if (!s || this.buying) return;
+                this.buying = true; this.buyError = ''; this.buyNeedTopup = false;
+                var fd = new FormData();
+                fd.append('_token', this.csrf);
+                fd.append('scope', 'auto');
+                fd.append('payment_method', 'token');
+                if (this.buyFormat === 'print' && s.pricePrint) fd.append('include_print', '1');
+                fetch(s.checkoutHref, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) {
+                        return r.json().catch(function () {
+                            return { ok: false, message: r.status === 419 ? 'Phiên làm việc đã hết hạn — tải lại trang rồi bấm Mua lại.' : 'Chưa mua được — vui lòng thử lại.' };
+                        });
+                    })
+                    .then(function (j) {
+                        self.buying = false;
+                        if (!j || !j.ok) {
+                            self.buyError = (j && j.message) || 'Chưa mua được — vui lòng thử lại.';
+                            self.buyNeedTopup = !!(j && j.needTopup);
+                            self.buyWallet = (j && j.walletHref) || '';
+                            return;
+                        }
+                        s.owned = true; s.expired = false; s.accessSource = 'purchase';
+                        self.bought = { title: s.title, paid: j.paid, balance: j.balance, readHref: s.readHref || s.href, isBundle: !!s.bundle };
+                        self.selected = null;
+                    })
+                    .catch(function () { self.buying = false; self.buyError = 'Mất kết nối — vui lòng thử lại.'; });
+            },
+            // "Để sau": tải lại trang cho thẻ tài liệu cập nhật trạng thái "Đã sở hữu" + thời hạn.
+            closeBought() { this.bought = null; window.location.reload(); },
             // SỬA 25/10 — hình thức chọn trong hộp mua: 'soft' (bản mềm) | 'print' (bản mềm + sách in → trang đặt đơn tích sẵn bản in).
             buyFormat: 'soft',
             buyHref() {

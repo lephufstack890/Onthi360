@@ -10,6 +10,10 @@
      · Đã đăng nhập: trạng thái từng đề (Chưa làm / Đang làm / Đã làm + điểm cao nhất) và tiến độ cả bộ.
      CSS tự chứa (tiền tố ebp-) vì máy chủ không build lại Tailwind. --}}
 @section('content')
+{{-- SỬA 28/10 — mua ngay ở trang này xong thì báo thành công ngay tại đây. --}}
+@if (session('status') === 'access-granted')
+    @include('partials.toast-flash', ['type' => 'success', 'message' => 'Mua bộ đề thành công — token đã được trừ, bạn làm được mọi đề trong bộ ngay bây giờ!'])
+@endif
 @php
     $total = count($items);
     $pct = $total > 0 ? (int) round($doneCount / $total * 100) : 0;
@@ -121,7 +125,15 @@
             @else
                 <p class="ebp-price">{{ \App\Support\TokenPrice::priceLabel($product->price) }}</p>
                 @if ($user)
-                    <a href="{{ route('access.checkout', $product->id) }}" class="ebp-btn ebp-btn--buy"><x-lucide name="wallet-cards" /> Mua bộ đề</a>
+                    {{-- SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn") — bấm là trừ token + mở khoá bộ đề ngay,
+                         ở lại trang này. Thiếu token thì sang trang Ví để nạp. --}}
+                    <form id="ebp-buy" method="POST" action="{{ route('access.checkout.store', $product->id) }}" style="margin:0" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;b.style.opacity='.7';">
+                        @csrf
+                        <input type="hidden" name="scope" value="auto">
+                        <input type="hidden" name="payment_method" value="token">
+                        <input type="hidden" name="quay_lai" value="bo-de">
+                        <button type="submit" class="ebp-btn ebp-btn--buy" style="width:100%;border:0;cursor:pointer"><x-lucide name="wallet-cards" /> Mua ngay · {{ \App\Support\TokenPrice::priceLabel($product->price) }}</button>
+                    </form>
                 @else
                     <a href="{{ route('login') }}" class="ebp-btn ebp-btn--buy"><x-lucide name="log-in" /> Đăng nhập để mua</a>
                 @endif
@@ -159,7 +171,7 @@
                         @endif
                     @endif
                     @if ($it['locked'])
-                        <a href="{{ $user ? route('access.checkout', $product->id) : route('login') }}" class="ebp-go ebp-go--lock" title="Mua bộ đề để làm đề này"><x-lucide name="lock" /> Mua để làm</a>
+                        <a href="{{ $user ? '#ebp-buy' : route('login') }}" class="ebp-go ebp-go--lock" title="Mua bộ đề để làm đề này"><x-lucide name="lock" /> Mua để làm</a>
                     @else
                         <a href="{{ $it['href'] }}" class="ebp-go"><x-lucide name="file-text" /> {{ ($user && $it['status'] !== 'todo') ? 'Làm lại' : 'Làm đề' }}</a>
                     @endif
