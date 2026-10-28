@@ -15,7 +15,7 @@
             {{-- [GLOBAL-02B] Logo và giới thiệu nền tảng --}}
             <div class="md:col-span-2">
                 <a href="{{ route('home') }}">
-                    <img src="{{ asset('assets/header-logo.png') }}" alt="Ôn Thi 360"
+                    <img src="{{ asset('assets/header-logo.png') }}" alt="Tin học 360 - Ôn Thi 360"
                          width="640" height="168" loading="lazy" decoding="async"
                          class="h-9 sm:h-10 w-auto object-contain mb-2.5 cursor-pointer">
                 </a>
@@ -23,7 +23,8 @@
                     Học cùng mục tiêu – Vươn xa ước mơ
                 </p>
                 <p class="text-xs sm:text-[13px] font-normal leading-[1.65] text-slate-600 max-w-md">
-                    Nền tảng học tập và đánh giá Tin học hàng đầu cho học sinh 6–12, giáo viên và phụ huynh.
+                    {{-- SỬA 28/10 (khách: "footer thêm các từ Tin học 360 để SEO tốt") — chèn từ khoá tự nhiên, không nhồi. --}}
+                    <strong class="font-semibold text-slate-700">Tin học 360</strong> (Tin học Onthi360) — nền tảng học tập và luyện thi Tin học hàng đầu cho học sinh 6–12, giáo viên và phụ huynh.
                     Tích hợp hệ thống chấm bài trực tuyến Online Judge, ngân hàng học liệu bản quyền và đồng hành minh bạch.
                 </p>
             </div>
@@ -71,7 +72,7 @@
         {{-- [GLOBAL-02F] THANH CUỐI FOOTER — slogan, mạng xã hội và pháp lý trên cùng một hàng --}}
         <div class="flex flex-col items-center gap-3 border-t border-sky-100/70 pt-3.5 text-center lg:flex-row lg:justify-between lg:text-left">
             <p class="text-xs sm:text-[13px] font-bold leading-relaxed text-blue-900 italic tracking-[0.01em]">
-                — Học tốt Tin học – Vững vàng hành trang 6–12 —
+                — Tin học 360: Học tốt Tin học – Vững vàng hành trang 6–12 —
             </p>
 
             <div class="flex items-center gap-2.5">
@@ -93,7 +94,7 @@
                     <a href="{{ route('info.policies.show', 'bao-mat') }}" class="hover:text-blue-600">Chính sách bảo mật</a>
                 </p>
                 <span class="hidden text-slate-300 sm:inline">|</span>
-                <p class="whitespace-nowrap">© {{ date('Y') }} Ôn Thi 360 · Bảo lưu mọi quyền</p>
+                <p class="whitespace-nowrap">© {{ date('Y') }} Tin học 360 · Ôn Thi 360 · Bảo lưu mọi quyền</p>
             </div>
         </div>
     </div>
