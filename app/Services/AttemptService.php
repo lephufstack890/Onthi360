@@ -779,10 +779,80 @@ class AttemptService
                 $answer->save();
             }
 
-            GradeCodingAnswerJob::dispatch($answer->id);
+            // SỬA 28/10 (khách: "khảo sát / cuộc thi chấm chậm lắm — làm như bên luyện tập") — chấm NGAY trong lượt bấm Chấm câu
+            // (như bài tập Luyện tập), không phải chờ hàng đợi nhặt việc. Máy chấm lỗi / không chấm được lúc này thì đẩy về
+            // hàng đợi như trước (tự thử lại), trình duyệt vẫn hỏi lại kết quả như cũ.
+            if (! $this->gradeAnswerNowLocked($answer)) {
+                GradeCodingAnswerJob::dispatch($answer->id);
+            }
         }
 
         return $answer->refresh();
+    }
+
+    /**
+     * SỬA 28/10 — chấm 1 câu lập trình NGAY tại request hiện tại, có khoá để không chấm trùng cùng lúc với việc chạy nền /
+     * request khác. Trả true nếu câu đã được chấm xong (hoặc đang có tiến trình khác chấm), false nếu chấm lỗi (để nơi gọi
+     * đẩy về hàng đợi). Lượt làm đã nộp thì cộng lại tổng điểm ngay.
+     */
+    public function gradeAnswerNowLocked(AttemptAnswer $answer): bool
+    {
+        $lock = \Illuminate\Support\Facades\Cache::lock('oi-grade-answer-'.$answer->id, 300);
+        if (! $lock->get()) {
+            return true; // tiến trình khác đang chấm đúng câu này
+        }
+
+        try {
+            @set_time_limit(300);
+            $fresh = AttemptAnswer::with(['question', 'attempt.assessment.items'])->find($answer->id);
+            if ($fresh === null || $fresh->attempt === null) {
+                return true;
+            }
+            $this->gradeCodingAnswer($fresh);
+            if ($fresh->attempt->submitted_at !== null) {
+                $this->refreshScoreAfterGrading($fresh->attempt);
+            }
+
+            return true;
+        } catch (Throwable $e) {
+            Log::warning('Chấm ngay câu trả lời #'.$answer->id.' không được — chuyển sang hàng đợi', ['exception' => $e->getMessage()]);
+
+            return false;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * SỬA 28/10 — "đẩy" việc chấm của một lượt đã nộp: lúc hộp kết quả hỏi điểm, câu lập trình còn chờ chấm quá vài giây
+     * (hàng đợi chưa kịp nhặt) thì chấm NGAY 1 câu trong request đó. Không phụ thuộc tiến trình chạy nền: mỗi lần hỏi chấm
+     * thêm một câu, điểm nhích dần như cũ. Câu đang được tiến trình khác chấm (có khoá) thì bỏ qua.
+     */
+    public function pumpPendingGrading(Attempt $attempt): void
+    {
+        if ($attempt->submitted_at === null) {
+            return;
+        }
+        $pending = $this->attemptAnswers->query()
+            ->where('attempt_id', $attempt->id)
+            ->whereIn('verdict', [VerdictStatus::Judging->value, VerdictStatus::Queued->value])
+            ->whereNotNull('code_source')
+            ->where('updated_at', '<=', now()->subSeconds(4))
+            ->orderBy('id')
+            ->get();
+        foreach ($pending as $answer) {
+            if ($answer->question?->type !== QuestionType::Coding || blank($answer->code_source)) {
+                continue;
+            }
+            $lock = \Illuminate\Support\Facades\Cache::lock('oi-grade-answer-'.$answer->id, 300);
+            if (! $lock->get()) {
+                continue;
+            }
+            $lock->release();
+            $this->gradeAnswerNowLocked($answer);
+
+            return; // mỗi lần hỏi chỉ chấm 1 câu để request không quá lâu
+        }
     }
 
     /**

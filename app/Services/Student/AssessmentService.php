@@ -680,18 +680,10 @@ class AssessmentService
             return true;
         }
 
-        // SỬA 20/10 (khách: "Đề thi và Luyện tập in đúc 100%, chỉ khác Loại") — Đề thi câu hỏi rời cũng có nút Chấm câu,
-        // TRỪ đề đang dùng cho Cuộc thi (chấm từng câu trong lúc thi là lộ đúng/sai).
-        // SỬA 24/10 (khách: "thiếu nút chấm câu, làm giống UI làm đề ở luyện tập") — đề của KHẢO SÁT thì có Chấm câu
-        // (khảo sát làm lại nhiều lần, giống luyện tập). Đề dùng cho CUỘC THI (xếp hạng, 1 lượt) vẫn không có.
-        if ($assessment->type !== \App\Enums\AssessmentType::Exam) {
-            return false;
-        }
-        $competitionIds = $this->competitionIdsUsing($assessment->id);
-
-        return $competitionIds === []
-            || ! \App\Models\Competition::query()->whereIn('id', $competitionIds)
-                ->where('type', '!=', \App\Enums\CompetitionType::Survey->value)->exists();
+        // SỬA 20/10 (khách: "Đề thi và Luyện tập in đúc 100%, chỉ khác Loại") — Đề thi câu hỏi rời cũng có nút Chấm câu.
+        // SỬA 28/10 (khách: "khảo sát và cuộc thi làm 100% như làm đề luyện tập: chấm câu, nộp thì câu đã chấm cộng điểm luôn,
+        // câu chưa làm bỏ qua, tải file test INP/OUT") — bỏ chặn đề của Cuộc thi: mọi đề câu hỏi rời đều có Chấm câu.
+        return $assessment->type === \App\Enums\AssessmentType::Exam;
     }
 
     /** Các cuộc thi / khảo sát đang dùng đề này (gắn trực tiếp, gắn vào kỳ, hoặc đề sinh từ ma trận của kỳ). */
@@ -748,6 +740,13 @@ class AssessmentService
 
         if ($answer === null) {
             return ['ok' => true, 'questionId' => $questionId, 'state' => 'none'];
+        }
+
+        // SỬA 28/10 — Chấm câu rơi về hàng đợi (máy chấm lỗi lúc bấm) mà quá vài giây chưa ai nhặt → chấm ngay tại đây.
+        if ($answer->verdict === \App\Enums\VerdictStatus::Judging && filled($answer->code_source)
+            && $answer->updated_at !== null && $answer->updated_at->lte(now()->subSeconds(4))) {
+            $this->attemptService->gradeAnswerNowLocked($answer);
+            $answer->refresh();
         }
 
         return ['ok' => true] + $this->questionGradePayload($answer, (float) $item->effectivePoints());

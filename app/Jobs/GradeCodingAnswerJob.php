@@ -33,8 +33,24 @@ class GradeCodingAnswerJob implements ShouldQueue
             return;
         }
 
-        $attempts->gradeCodingAnswer($answer);
-        $attempts->refreshScoreAfterGrading($answer->attempt);
+        // SỬA 28/10 — cùng khoá với lượt chấm ngay (Chấm câu / hộp kết quả hỏi điểm): câu đang được chỗ khác chấm thì thôi,
+        // khỏi chạy máy chấm hai lần. Không có khoá (cache chưa hỗ trợ) thì chấm như cũ.
+        $lock = null;
+        try {
+            $lock = \Illuminate\Support\Facades\Cache::lock('oi-grade-answer-'.$answer->id, 600);
+            if (! $lock->get()) {
+                return;
+            }
+        } catch (Throwable $e) {
+            $lock = null;
+        }
+
+        try {
+            $attempts->gradeCodingAnswer($answer);
+            $attempts->refreshScoreAfterGrading($answer->attempt);
+        } finally {
+            $lock?->release();
+        }
     }
 
     public function failed(?Throwable $e): void

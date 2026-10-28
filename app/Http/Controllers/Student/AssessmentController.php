@@ -211,6 +211,14 @@ class AssessmentController extends Controller
     {
         $attemptModel = $this->assessmentService->attemptForUser($request->user(), $attempt);
 
+        // SỬA 28/10 — câu lập trình còn chờ chấm quá vài giây thì chấm ngay 1 câu (không phải đợi hàng đợi), rồi trả điểm mới.
+        try {
+            app(\App\Services\AttemptService::class)->pumpPendingGrading($attemptModel);
+            $attemptModel = $this->assessmentService->attemptForUser($request->user(), $attempt);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return response()->json(['ok' => true] + $this->attemptSummary($attemptModel));
     }
 
