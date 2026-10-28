@@ -91,6 +91,9 @@
         .rd-find-btn svg { width: 22px; height: 22px; }
         .rd-find { position: absolute; right: 26px; bottom: 108px; z-index: 31; width: min(380px, calc(100% - 40px)); padding: 14px 16px 12px; border: 1px solid #DDE8EF; border-radius: 16px; background: #fff; box-shadow: 0 18px 40px rgba(15, 59, 90, .18); }
         .rd-find[hidden] { display: none; }
+        /* SỬA 28/10 — nút Tìm nằm trên thanh công cụ: khung tìm mở ở góc trên bên phải vùng đọc, không che phần chữ đang đọc ở dưới. */
+        .rd-find.rd-find--top { top: 14px; bottom: auto; right: 22px; }
+        .rd-find-tool.is-on { border-color: #9DC8D7; background: #EAF5F8; color: #126F91; }
         .rd-find__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 14px; font-weight: 800; color: #123B68; }
         .rd-find__x { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #1F5873; font-size: 20px; line-height: 1; cursor: pointer; }
         .rd-find__x:hover { background: #EEF5F9; }
@@ -388,6 +391,13 @@
                              Mức phóng được nhớ trên máy người đọc cho lần sau. --}}
                         {{-- SỬA 16/10 (khách: "bỏ khối đó đi") — bỏ cụm − / % / + / vừa khung; trang luôn hiện ở mức mặc định
                              (ZOOM_DEFAULT trong script cuối tệp), không đọc mức phóng đã lưu nữa. JS tự bỏ qua vì kiểm tra null. --}}
+                        {{-- SỬA 28/10 (khách: "nút tìm kiếm lồi xuống dưới, che chữ, đọc tức mắt") — nút Tìm nằm gọn trên thanh công
+                             cụ cạnh Tập trung, không còn nút tròn nổi đè lên trang PDF; khung tìm mở ở góc TRÊN vùng đọc. --}}
+                        <div class="flex shrink-0 items-center gap-2">
+                        <button type="button" id="reader-find-btn" title="Tìm trong tài liệu (Ctrl+F)" aria-label="Tìm trong tài liệu"
+                                class="rd-find-tool inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
+                            <x-lucide name="search" class="h-3.5 w-3.5" /><span>Tìm</span>
+                        </button>
                         <button type="button" @click="focus = true" x-show="! focus"
                                 class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DDEAF0] bg-[#F8FBFE] px-3 text-[11px] font-semibold text-[#2D7FA3] transition hover:border-[#B8D7E1] hover:bg-[#EAF5F8] hover:text-[#126F91]">
                             <x-lucide name="maximize-2" class="h-3.5 w-3.5" /><span>Tập trung</span>
@@ -396,6 +406,7 @@
                                 class="hidden h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#B7DDCD] bg-[#DFF2E9] px-3 text-[11px] font-semibold text-[#287B5F] transition hover:bg-[#CDEBDD] lg:inline-flex">
                             <x-lucide name="minimize-2" class="h-3.5 w-3.5" /><span>Khôi phục</span>
                         </button>
+                        </div>
                     </div>
 
                     {{-- SỬA 3/10 — nền vùng đọc màu #EAF4F8 và bỏ dòng nhắc "chỉ xem trên web" ở
@@ -510,7 +521,9 @@
              */
             // Mặc định 115%: PDF có lề trắng 2 bên khá rộng, phóng 115% rồi canh GIỮA thì chữ to hơn mà phần chữ vẫn
             // nằm trọn trong khung (chỉ lề trắng bị khuất). Nút ↔ đưa về đúng 100% vừa khung.
-            var ZOOM_MIN = 0.6, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15, ZOOM_DEFAULT = 1.15;
+            // SỬA 28/10 (khách: "đọc đỡ tức mắt") — mặc định VỪA KHUNG (1 = rộng đúng khung đọc): trước là 1.15 nên trang rộng hơn
+            // khung, chữ bên phải bị cắt và phải kéo thanh cuộn ngang. Muốn chữ to hơn chút thì tăng lại số này (vd 1.1).
+            var ZOOM_MIN = 0.6, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15, ZOOM_DEFAULT = 1;
             var zoom = ZOOM_DEFAULT;
             // SỬA 16/10 — đã bỏ nút phóng/thu nên KHÔNG dùng lại mức phóng cũ đã lưu (người đọc không còn nút để chỉnh về).
             var zoomFitBtn = document.getElementById('reader-zoom-fit');
@@ -978,21 +991,27 @@
                 if (!host) { return null; }
                 if (getComputedStyle(host).position === 'static') { host.style.position = 'relative'; }
                 var icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
-                var btn = document.createElement('button');
-                btn.type = 'button'; btn.className = 'rd-find-btn'; btn.title = 'Tìm trong tài liệu'; btn.setAttribute('aria-label', 'Tìm trong tài liệu');
-                btn.innerHTML = icon;
+                // SỬA 28/10 — dùng nút "Tìm" có sẵn trên thanh công cụ; chỉ khi trang không có nút đó mới tạo nút tròn nổi như cũ.
+                var btn = document.getElementById('reader-find-btn');
+                var inToolbar = !!btn;
+                if (!btn) {
+                    btn = document.createElement('button');
+                    btn.type = 'button'; btn.className = 'rd-find-btn'; btn.title = 'Tìm trong tài liệu'; btn.setAttribute('aria-label', 'Tìm trong tài liệu');
+                    btn.innerHTML = icon;
+                }
                 var panel = document.createElement('div');
-                panel.className = 'rd-find'; panel.hidden = true; panel.setAttribute('role', 'search');
+                panel.className = 'rd-find' + (inToolbar ? ' rd-find--top' : ''); panel.hidden = true; panel.setAttribute('role', 'search');
                 panel.innerHTML = '<div class="rd-find__head"><span>Tìm trong tài liệu</span><button type="button" class="rd-find__x" aria-label="Đóng">×</button></div>'
                     + '<label class="rd-find__box">' + icon + '<input type="search" placeholder="Nhập từ hoặc cụm từ…" aria-label="Tìm trong tài liệu" autocomplete="off"></label>'
                     + '<div class="rd-find__foot"><span class="rd-find__count" role="status">Tìm trên toàn bộ PDF đang mở</span>'
                     + '<span class="rd-find__nav"><button type="button" aria-label="Kết quả trước">&#8963;</button><button type="button" aria-label="Kết quả sau">&#8964;</button></span></div>';
-                host.appendChild(panel); host.appendChild(btn);
+                host.appendChild(panel);
+                if (!inToolbar) { host.appendChild(btn); }
                 var input = panel.querySelector('input');
                 var navBtns = panel.querySelectorAll('.rd-find__nav button');
                 var timer = null;
-                function open() { panel.hidden = false; input.focus(); input.select(); }
-                function close() { panel.hidden = true; find.token++; find.q = ''; find.hits = []; find.idx = -1; findPaintAll(); input.value = ''; }
+                function open() { panel.hidden = false; btn.classList.add('is-on'); input.focus(); input.select(); }
+                function close() { panel.hidden = true; btn.classList.remove('is-on'); find.token++; find.q = ''; find.hits = []; find.idx = -1; findPaintAll(); input.value = ''; }
                 btn.addEventListener('click', function () { if (panel.hidden) { open(); } else { close(); } });
                 panel.querySelector('.rd-find__x').addEventListener('click', close);
                 input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { findRun(input.value); }, 300); });
