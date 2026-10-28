@@ -377,7 +377,7 @@
                                              — chỉ còn nút chen câu này lên ngay trước câu phía trên nó; số thứ tự nằm trong
                                              ô ẩn để máy chủ trả số mới về. Dòng đầu trang 1 → "Đang ở đầu". --}}
                                         @if ($isQuestions)
-                                            <span class="oi-ord" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}" data-type="{{ $r['typeValue'] ?? '' }}">
+                                            <span class="oi-ord" data-oi-perm="content.update" data-ord data-href="{{ $r['orderHref'] }}" data-saved="{{ $r['displayOrder'] }}" data-id="{{ $r['id'] }}" data-type="{{ $r['typeValue'] ?? '' }}">
                                                 <input type="hidden" class="oi-ord__in" value="{{ $r['displayOrder'] }}">
                                                 <button type="button" class="oi-ord__top" data-act="up" @if ($loop->first) data-prev="{{ $leadPrevId ?? '' }}" data-prevtype="{{ $leadPrevType ?? '' }}" @endif title="Đưa câu này lên đứng ngay trước câu phía trên nó">Đưa lên trước</button>
                                                 <button type="button" class="oi-ord__top oi-ord__down" data-act="down" @if ($loop->last) data-next="{{ $leadNextId ?? '' }}" data-nexttype="{{ $leadNextType ?? '' }}" @endif title="Đưa câu này xuống đứng ngay sau câu phía dưới nó">Đưa xuống dưới</button>

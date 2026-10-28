@@ -166,6 +166,10 @@
         </main>
     </div>
 
+    {{-- SỬA 28/10 — khu quản trị: ẩn nút Thêm / Sửa / Xoá… mà người đang đăng nhập không có quyền (xem partial). --}}
+    @if ($wsRole === 'admin')
+        @include('partials.admin-perm-ui')
+    @endif
     @stack('scripts')
 
     @include('partials.toast-root')

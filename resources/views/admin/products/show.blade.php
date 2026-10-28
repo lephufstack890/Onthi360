@@ -164,7 +164,7 @@
                             mạch tất cả {{ mb_strtolower($chapterLabel) }} theo thứ tự bên dưới — cần đổi thứ tự thì bấm Sửa.
                         </p>
 
-                        <div class="apx-add">
+                        <div class="apx-add" data-oi-perm="products.create">
                             <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 <input type="text" name="title" required maxlength="255" placeholder="Tên {{ mb_strtolower($chapterLabel) }} mới..."
@@ -213,7 +213,7 @@
                                                     </button>
                                                 </form>
                                             </div>
-                                            <button type="button" @click="editing = {{ $c['id'] }}" class="acx-link">Sửa</button>
+                                            <button type="button" @click="editing = {{ $c['id'] }}" class="acx-link" data-oi-perm="products.update">Sửa</button>
                                             <form action="{{ route('admin.products.chapters.destroy', [$product->id, $c['id']]) }}" method="POST" onsubmit="return confirm('Xoá mục này? Không thể hoàn tác.');">
                                                 @csrf
                                                 @method('DELETE')
@@ -263,7 +263,8 @@
                         $exDefaultChapterId = collect($chapters)->first(fn ($c) => in_array($c['id'], $exChapterIdsWithEx, true))['id']
                             ?? (collect($chapters)->first()['id'] ?? null);
                     @endphp
-                    @include('admin.products.partials.exercise-adder')
+                    {{-- SỬA 28/10 — khối thêm bài chỉ hiện khi có quyền Thêm ở mục Tài liệu. --}}
+                    <div style="display:contents" data-oi-perm="products.create">@include('admin.products.partials.exercise-adder')</div>
 
                     @if (empty($exercises))
                         <x-ws.empty-state title="Chưa có bài tập nào" description="Tải gói ZIP ở khung trên để thêm bài đầu tiên." />
@@ -421,7 +422,7 @@
                             cùng lúc, gắn vào đúng {{ mb_strtolower($chapterLabel) }} để học sinh dễ tìm.
                         </p>
 
-                        @include('admin.products.partials.material-adder')
+                        <div style="display:contents" data-oi-perm="products.create">@include('admin.products.partials.material-adder')</div>
 
                         @if (empty($materialsList))
                             <x-ws.empty-state title="Chưa có học liệu nào" description="Chọn chương, đặt tên và tệp ở khung trên để thêm học liệu đầu tiên." />

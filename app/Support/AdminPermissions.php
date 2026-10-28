@@ -225,6 +225,76 @@ final class AdminPermissions
         return self::can($user, $rule[0], $rule[1]);
     }
 
+    /**
+     * SỬA 28/10 (khách: "không có quyền sửa xoá sao lại được thêm sửa xoá — ẩn đi") — dữ liệu cho lớp ẨN NÚT ở giao diện
+     * (partials/admin-perm-ui): danh sách quyền đang có + mọi route quản trị (phương thức, mẫu đường dẫn, được phép không).
+     * Trình duyệt dò từng link / form trên trang, link / form trỏ tới route không được phép thì ẩn. Đây chỉ là phần hiển thị;
+     * chặn thật vẫn là middleware EnsureAdminPermission. Trả null khi người này có đủ mọi quyền (không cần ẩn gì).
+     *
+     * @return array{a: list<string>, r: list<array{0: string, 1: string, 2: int, 3: int}>}|null
+     */
+    public static function uiPayload(?User $user): ?array
+    {
+        if ($user === null || $user->hasRole(Role::SUPER_ADMIN)) {
+            return null;
+        }
+
+        $allowed = [];
+        $denied = false;
+        foreach (self::MODULES as $key => $m) {
+            foreach ($m['actions'] as $a) {
+                if (self::can($user, $key, $a)) {
+                    $allowed[$key.'.'.$a] = true;
+                } else {
+                    $denied = true;
+                }
+            }
+        }
+        if (! $denied) {
+            return null;
+        }
+
+        $isAdmin = $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN);
+        $base = rtrim((string) parse_url(url('/'), PHP_URL_PATH), '/');
+        $routes = [];
+        foreach (\Illuminate\Support\Facades\Route::getRoutes()->getRoutes() as $route) {
+            $name = $route->getName();
+            if ($name === null || ! str_starts_with($name, 'admin.')) {
+                continue;
+            }
+            $uri = '/'.ltrim($route->uri(), '/');
+            $pattern = self::jsPattern($base.($uri === '/' ? '' : $uri), $route->wheres);
+            $static = str_contains($uri, '{') ? 0 : 1;
+            foreach ($route->methods() as $method) {
+                if ($method === 'HEAD') {
+                    continue;
+                }
+                $rule = self::forRoute($name, $method);
+                $ok = $rule === 'always' ? true : ($rule === null ? $isAdmin : isset($allowed[$rule[0].'.'.$rule[1]]));
+                $routes[] = [$method, $pattern, $ok ? 1 : 0, $static];
+            }
+        }
+
+        return ['a' => array_keys($allowed), 'r' => $routes];
+    }
+
+    /** Mẫu đường dẫn route ('/admin/products/{product}/edit') → biểu thức chính quy dùng được trong JavaScript. */
+    private static function jsPattern(string $uri, array $wheres): string
+    {
+        $out = '';
+        $pos = 0;
+        preg_match_all('/(\/?)\{(\w+)(\?)?\}/', $uri, $mm, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($mm as $m) {
+            $out .= preg_quote(substr($uri, $pos, $m[0][1] - $pos), '/');
+            $param = is_string($wheres[$m[2][0]] ?? null) ? $wheres[$m[2][0]] : '[^/]+';
+            $piece = ($m[1][0] === '/' ? '\/' : '').'(?:'.$param.')';
+            $out .= ($m[3][0] ?? '') === '?' ? '(?:'.$piece.')?' : $piece;
+            $pos = $m[0][1] + strlen($m[0][0]);
+        }
+
+        return $out.preg_quote(substr($uri, $pos), '/');
+    }
+
     /** Trang đầu tiên người này được vào trong khu quản trị (theo thứ tự menu); không có thì trang Tài khoản. */
     public static function firstAllowedRoute(?User $user): string
     {
