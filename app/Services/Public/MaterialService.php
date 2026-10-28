@@ -417,7 +417,10 @@ class MaterialService
             'search' => Str::lower(Str::ascii($title.' '.$author.' '.$tagLabel.' '.$description)),
             'href' => route('materials.show', $product->id),
             'checkoutHref' => route('access.checkout', $product->id),
-            'readHref' => $this->readHrefFor($product, $firstReadableMaterialId, $readRoutePrefix),
+            // SỬA 28/10 (khách: "bộ đề đã mua để nút xanh lá như sách, đổi chữ là Làm bộ đề") — bộ đề không có chương / PDF đọc
+            // liền mạch thì nút "Làm bộ đề" mở trang bộ đề (danh sách đề để làm), thay cho nút "Xem thông tin".
+            'readHref' => $this->readHrefFor($product, $firstReadableMaterialId, $readRoutePrefix)
+                ?? ($typeValue === 'exam' && $readRoutePrefix !== null ? route('bundles.show', $product->id) : null),
         ];
     }
 
