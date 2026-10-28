@@ -233,9 +233,17 @@ class HomeService
             // SỬA 16/10 (khách: "số Bài tập phải khớp với Bài tập chuyên đề của Luyện tập") — Đề thi / Bài tập lấy ĐÚNG số
             // của trang Luyện tập (cùng bản nhớ tạm 60 giây của PracticeService), không nhớ tạm 10 phút như phần còn lại
             // nên thêm / xoá / phát hành câu là trang chủ cập nhật theo ngay.
-            $catalog = app(PracticeService::class);
-            $stats['exams'] = $catalog->catalogExamCount();
-            $stats['exercises'] = $catalog->catalogProblemCount();
+            // SỬA 28/10 (khách: "tự nhiên ẩn mất khối thống kê") — đếm Đề thi / Bài tập lỗi thì vẫn hiện khối thống kê
+            // (2 ô đó tạm ghi 0, lỗi ghi vào nhật ký), không để một phép đếm làm mất cả khối như trước.
+            try {
+                $catalog = app(PracticeService::class);
+                $stats['exams'] = $catalog->catalogExamCount();
+                $stats['exercises'] = $catalog->catalogProblemCount();
+            } catch (\Throwable $e) {
+                report($e);
+                $stats['exams'] = $stats['exams'] ?? 0;
+                $stats['exercises'] = $stats['exercises'] ?? 0;
+            }
 
             return $stats;
         } catch (\Throwable $e) {

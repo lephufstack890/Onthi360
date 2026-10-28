@@ -469,7 +469,17 @@ class PracticeService
      */
     public function catalogProblemCount(): int
     {
-        return count(Cache::remember('practice:problems:'.self::CACHE_VERSION, self::CACHE_TTL, fn () => $this->problemBaseRows()));
+        // SỬA 28/10 — đếm bằng 1 câu COUNT (cùng điều kiện với problemBaseRows()) thay vì dựng cả danh sách bài chỉ để đếm:
+        // trang chủ không còn phải nạp hàng nghìn bài mỗi lần hết bản nhớ tạm.
+        return (int) Cache::remember('practice:problem-count:'.self::CACHE_VERSION, self::CACHE_TTL, fn () => min(
+            self::PROBLEM_LIMIT,
+            PracticeQuestionPool::excludeExamQuestions(
+                Question::query()
+                    ->where('status', 'published')
+                    ->whereNull('product_id')
+                    ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
+            )->count()
+        ));
     }
 
     /** SỬA 16/10 — như catalogProblemCount(), cho số đề ở tab "Đề thi luyện tập". */
