@@ -47,6 +47,7 @@
                 // là mất lọc Tỉnh thành/Năm đang bật (đúng lỗi đã ghi trong ghi chú ngay trên).
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
+                'io' => $filters['io'] ?? null,
                 'tag' => $filters['tag'] ?? null,
                 'q' => $filters['q'] ?? null,
             ], $override);
@@ -322,13 +323,15 @@
             @endif
 
             <div class="acx-scroll" @unless ($isQuestions) data-pg="rows" data-unit="kết quả" @endunless>
-                <table class="acx-table apx-up akx-table {{ $isQuestions ? 'is-q' : '' }}" @if ($isQuestions) style="min-width:900px" @endif>
+                <table class="acx-table apx-up akx-table {{ $isQuestions ? 'is-q' : '' }}" @if ($isQuestions) style="min-width:1040px" @endif>
                     <caption class="acx-sr">Danh sách nội dung</caption>
                     <thead>
                         <tr>
                             <th scope="col">Nội dung / Nguồn</th>
                             <th scope="col">Phân loại</th>
                             @if ($isQuestions)<th scope="col">Độ khó</th>@endif
+                            {{-- SỬA 28/10 — câu Lập trình đọc từ tệp hay bàn phím (partials/question-io-cell). --}}
+                            @if ($isQuestions)<th scope="col">Input/Output</th>@endif
                             <th scope="col">Trạng thái</th>
                             <th scope="col">Thao tác</th>
                         </tr>
@@ -369,6 +372,7 @@
                                             <span class="akx-mute" title="Chưa đặt — hệ thống tự suy theo điểm câu hỏi">{{ $r['difficulty'] }} <span style="font-size:11px">(tự suy)</span></span>
                                         @endif
                                     </td>
+                                    <td>@include('partials.question-io-cell', ['io' => $r['io'] ?? null])</td>
                                 @endif
                                 <td><span class="acx-badge {{ $badgeOf($r['tone'] ?? null) }}">{{ $r['status'] }}</span></td>
                                 <td>

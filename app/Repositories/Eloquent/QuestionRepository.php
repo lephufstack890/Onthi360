@@ -176,6 +176,18 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             $query->where('type', $filters['type']);
         }
 
+        // SỬA 28/10 (khách: "biết bài nào đọc từ tệp, bài nào chưa để còn chỉnh") — lọc câu Lập trình theo cách vào/ra:
+        // 'file' = đề khai tên tệp vào hoặc ra (grading_config.file_io), 'std' = bàn phím / màn hình. Khớp Question::ioInfo().
+        $io = $filters['io'] ?? null;
+        if ($io === 'file' || $io === 'std') {
+            $query->where('type', \App\Enums\QuestionType::Coding->value);
+            $hasFile = function (Builder $w) {
+                $w->where(fn (Builder $x) => $x->whereNotNull('grading_config->file_io->input')->whereNotIn('grading_config->file_io->input', ['', 'null']))
+                    ->orWhere(fn (Builder $x) => $x->whereNotNull('grading_config->file_io->output')->whereNotIn('grading_config->file_io->output', ['', 'null']));
+            };
+            $io === 'file' ? $query->where($hasFile) : $query->whereNot($hasFile);
+        }
+
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }

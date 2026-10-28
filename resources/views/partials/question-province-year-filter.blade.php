@@ -41,3 +41,12 @@
         <option value="none" @selected(($filters['exam_year'] ?? null) === 'none')>Chưa gán năm</option>
     </x-ws.select>
 </div>
+<div class="min-w-[150px]">
+    {{-- SỬA 28/10 (khách: "biết bài nào đọc từ tệp, bài nào chưa để còn chỉnh") — lọc câu Lập trình theo cách vào/ra. --}}
+    <label class="block text-xs font-medium text-slate-500 mb-1" for="filter-io">Input/Output</label>
+    <x-ws.select id="filter-io" name="io">
+        <option value="">Tất cả</option>
+        <option value="file" @selected(($filters['io'] ?? null) === 'file')>Đọc từ tệp</option>
+        <option value="std" @selected(($filters['io'] ?? null) === 'std')>Chưa đọc từ tệp (bàn phím)</option>
+    </x-ws.select>
+</div>

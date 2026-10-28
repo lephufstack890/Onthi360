@@ -108,6 +108,7 @@ class QuestionService
             'type' => $filters['type'] ?? null,
             'province' => $filters['province'] ?? null,
             'exam_year' => $filters['exam_year'] ?? null,
+            'io' => $filters['io'] ?? null,
             'q' => $filters['q'] ?? null,
         ];
 
@@ -132,6 +133,7 @@ class QuestionService
                 'type' => $filters['type'] ?? null,
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
+                'io' => $filters['io'] ?? null,
                 'q' => $filters['q'] ?? null,
             ],
             'isShared' => $isShared,
@@ -165,6 +167,8 @@ class QuestionService
             'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
             // false = chưa ai đặt, đang SUY theo điểm câu hỏi (view hiện mờ đi cho khỏi nhầm).
             'difficultySet' => QuestionDifficulty::stored($q->metadata) !== null,
+            // SỬA 28/10 — cột Input/Output (null = không phải câu Lập trình).
+            'io' => $q->ioInfo(),
             // SỬA 8/9 (4) — 'type' giờ là NHÃN tiếng Việt để hiện thẳng ra bảng; 'typeValue' giữ
             // mã gốc cho phần chọn icon ở view (icon map theo mã, không theo nhãn — đổi chữ nhãn
             // sau này không làm mất icon). Xem App\Enums\QuestionType::label().

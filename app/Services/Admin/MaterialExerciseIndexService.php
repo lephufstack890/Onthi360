@@ -66,6 +66,8 @@ final class MaterialExerciseIndexService
             'phan' => preg_match('/^[am]\d+$/', (string) ($input['phan'] ?? '')) ? (string) $input['phan'] : null,
             'dang' => array_key_exists((string) ($input['dang'] ?? ''), self::QUESTION_TYPES) ? (string) $input['dang'] : null,
             'trang_thai' => array_key_exists((string) ($input['trang_thai'] ?? ''), self::STATUSES) ? (string) $input['trang_thai'] : null,
+            // SỬA 28/10 — lọc bài Lập trình theo cách vào/ra: file (đọc từ tệp) | std (bàn phím / màn hình).
+            'io' => in_array($input['io'] ?? null, ['file', 'std'], true) ? (string) $input['io'] : null,
             'q' => ($q = trim(Str::limit((string) ($input['q'] ?? ''), 100, ''))) !== '' ? $q : null,
         ];
 
@@ -120,6 +122,7 @@ final class MaterialExerciseIndexService
             ->when($f['phan'] !== null, fn ($c) => $c->where('partKey', $f['phan']))
             ->when($f['dang'] !== null, fn ($c) => $c->where('type', $f['dang']))
             ->when($f['trang_thai'] !== null, fn ($c) => $c->where('status', $f['trang_thai']))
+            ->when($f['io'] !== null, fn ($c) => $c->filter(fn ($r) => $r['io'] !== null && $r['io']['file'] === ($f['io'] === 'file')))
             ->when($needle !== null, fn ($c) => $c->filter(fn ($r) => str_contains($r['search'], $needle)))
             ->values();
 
@@ -146,7 +149,7 @@ final class MaterialExerciseIndexService
     public function emptyData(string $message): array
     {
         return [
-            'meFilters' => ['loai' => null, 'tai_lieu' => null, 'phan' => null, 'dang' => null, 'trang_thai' => null, 'q' => null],
+            'meFilters' => ['loai' => null, 'tai_lieu' => null, 'phan' => null, 'dang' => null, 'trang_thai' => null, 'io' => null, 'q' => null],
             'meRows' => [],
             'mePagination' => ['page' => 1, 'perPage' => self::PER_PAGE, 'lastPage' => 1, 'total' => 0],
             'meTotalAll' => 0,
@@ -247,6 +250,8 @@ final class MaterialExerciseIndexService
             'type' => $type,
             'typeLabel' => self::QUESTION_TYPES[$type] ?? $type,
             'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($metadata, (int) $q->points)),
+            // SỬA 28/10 — cột Input/Output (null = không phải bài Lập trình).
+            'io' => $q->ioInfo(),
             'status' => $status,
             'statusLabel' => $statusLabel,
             'statusClass' => $statusClass,

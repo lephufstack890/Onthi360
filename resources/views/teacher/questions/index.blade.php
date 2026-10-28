@@ -44,6 +44,7 @@
                 'type' => $filters['type'] ?? null,
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
+                'io' => $filters['io'] ?? null,
                 'q' => $filters['q'] ?? null,
             ], $override);
 
@@ -171,13 +172,15 @@
             </div>
 
             <div class="acx-scroll" data-pg="rows" data-unit="câu hỏi">
-                <table class="acx-table apx-up akx-table is-q" style="min-width:900px">
+                <table class="acx-table apx-up akx-table is-q" style="min-width:1040px">
                     <caption class="acx-sr">Danh sách câu hỏi</caption>
                     <thead>
                         <tr>
                             <th scope="col">Nội dung / Nguồn</th>
                             <th scope="col">Phân loại</th>
                             <th scope="col">Độ khó</th>
+                            {{-- SỬA 28/10 — câu Lập trình đọc từ tệp hay bàn phím (partials/question-io-cell). --}}
+                            <th scope="col">Input/Output</th>
                             <th scope="col">Trạng thái</th>
                             <th scope="col">Thao tác</th>
                         </tr>
@@ -211,6 +214,7 @@
                                         <span class="akx-mute" title="Chưa đặt — hệ thống tự suy theo điểm câu hỏi">{{ $q['difficulty'] }} <span style="font-size:11px">(tự suy)</span></span>
                                     @endif
                                 </td>
+                                <td>@include('partials.question-io-cell', ['io' => $q['io'] ?? null])</td>
                                 <td><span class="acx-badge {{ $badgeOf($q['tone'] ?? null) }}">{{ $q['status'] }}</span></td>
                                 <td>
                                     <div class="akx-act">

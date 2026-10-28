@@ -9,7 +9,7 @@
         $query = array_merge([
             'tab' => 'material_exercises',
             'loai' => $f['loai'], 'tai_lieu' => $f['tai_lieu'], 'phan' => $f['phan'],
-            'dang' => $f['dang'], 'trang_thai' => $f['trang_thai'], 'q' => $f['q'],
+            'dang' => $f['dang'], 'trang_thai' => $f['trang_thai'], 'io' => $f['io'] ?? null, 'q' => $f['q'],
         ], $override);
 
         return route('admin.content.index', array_filter($query, fn ($v) => $v !== null && $v !== ''));
@@ -103,6 +103,15 @@
                     @endforeach
                 </x-ws.select>
             </div>
+            {{-- SỬA 28/10 — lọc bài Lập trình đọc từ tệp / chưa đọc từ tệp. --}}
+            <div class="min-w-[150px]">
+                <label class="akx-lbl" for="mex-io">Input/Output</label>
+                <x-ws.select id="mex-io" name="io">
+                    <option value="">Tất cả</option>
+                    <option value="file" @selected(($f['io'] ?? null) === 'file')>Đọc từ tệp</option>
+                    <option value="std" @selected(($f['io'] ?? null) === 'std')>Chưa đọc từ tệp (bàn phím)</option>
+                </x-ws.select>
+            </div>
             <div class="akx-grow">
                 <label class="akx-lbl" for="mex-q">Tìm theo tên bài, mã bài hoặc tên tài liệu</label>
                 <div class="acx-search">
@@ -126,13 +135,14 @@
     <p class="mex-note">Bài tập lấy từ chính tài liệu (bài nhập ZIP / tạo ở trang quản lý tài liệu) — cùng danh sách với cột "Bài tập" khi đọc tài liệu. Bấm Sửa để sửa bài; thêm bài mới ở trang quản lý từng tài liệu.</p>
 
     <div class="acx-scroll">
-        <table class="acx-table apx-up akx-table" style="min-width:900px">
+        <table class="acx-table apx-up akx-table" style="min-width:1040px">
             <caption class="acx-sr">Bài tập của sách, chuyên đề, bộ đề</caption>
             <thead>
                 <tr>
                     <th scope="col">Bài tập</th>
                     <th scope="col">Tài liệu / vị trí</th>
                     <th scope="col">Dạng · Độ khó</th>
+                    <th scope="col">Input/Output</th>
                     <th scope="col">Trạng thái</th>
                     <th scope="col">Thao tác</th>
                 </tr>
@@ -168,6 +178,7 @@
                             <div class="akx-k">{{ $r['typeLabel'] }}</div>
                             <div class="akx-k2">{{ $r['difficulty'] }}</div>
                         </td>
+                        <td>@include('partials.question-io-cell', ['io' => $r['io'] ?? null])</td>
                         <td><span class="acx-badge {{ $r['statusClass'] }}">{{ $r['statusLabel'] }}</span></td>
                         <td>
                             <div class="akx-act">

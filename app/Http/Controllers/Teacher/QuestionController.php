@@ -39,6 +39,8 @@ class QuestionController extends Controller
             // QuestionRepository::applyQuestionBankFilters(); 'none' = chưa gán.
             'province' => $request->query('province') ?: null,
             'exam_year' => $request->query('exam_year') ?: null,
+            // SỬA 28/10 — lọc câu Lập trình theo cách vào/ra: 'file' (đọc từ tệp) | 'std' (bàn phím / màn hình).
+            'io' => in_array($request->query('io'), ['file', 'std'], true) ? $request->query('io') : null,
             'q' => $request->query('q') ?: null,
         ];
 

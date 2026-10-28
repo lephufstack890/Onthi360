@@ -48,6 +48,8 @@ class ContentController extends Controller
             'province' => $request->query('province') ?: null,
             'exam_year' => $request->query('exam_year') ?: null,
             'type' => $request->query('type') ?: null,
+            // SỬA 28/10 — lọc câu Lập trình theo cách vào/ra: 'file' (đọc từ tệp) | 'std' (bàn phím / màn hình).
+            'io' => in_array($request->query('io'), ['file', 'std'], true) ? $request->query('io') : null,
             'status' => $request->query('status') ?: null,
             // SỬA 18/9 (khách: "admin thêm lọc theo độ khó nữa nha") — xem
             // QuestionRepository::applyDifficultyFilter(); 'none' = chưa ai đặt độ khó.

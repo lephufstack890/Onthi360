@@ -187,6 +187,23 @@ class Question extends Model
      * bài tập có thể là bất kỳ dạng nào trong 4 dạng ZIP hỗ trợ (xem ContentService::
      * SUPPORTED_ZIP_CONTENT_TYPES).
      */
+    /**
+     * SỬA 28/10 (khách: "thêm cột Input/Output để biết bài nào đang đọc từ tệp, bài nào chưa để còn chỉnh") — cách vào/ra của
+     * câu Lập trình: file = true khi đề khai tên tệp vào hoặc ra (grading_config.file_io), false = bàn phím / màn hình.
+     * null = không phải câu Lập trình (không có khái niệm vào/ra).
+     *
+     * @return array{file: bool, input: ?string, output: ?string}|null
+     */
+    public function ioInfo(): ?array
+    {
+        if ($this->type !== QuestionType::Coding) {
+            return null;
+        }
+        $names = \App\Services\CodeJudgingService::fileIoNames(($this->grading_config ?? [])['file_io'] ?? null);
+
+        return ['file' => $names !== null, 'input' => $names['input'] ?? null, 'output' => $names['output'] ?? null];
+    }
+
     public function exerciseSummaryLabel(): string
     {
         $config = $this->grading_config ?? [];

@@ -342,6 +342,8 @@ class ContentService
                     // 'difficultySet' = false: chưa ai đặt, đang SUY theo điểm (view hiện mờ đi).
                     'difficulty' => QuestionDifficulty::label(QuestionDifficulty::resolve($q->metadata, (int) $q->points)),
                     'difficultySet' => QuestionDifficulty::stored($q->metadata) !== null,
+                    // SỬA 28/10 — cột Input/Output (null = không phải câu Lập trình).
+                    'io' => $q->ioInfo(),
                     'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
                     'status' => $label,
                     'tone' => $tone,
@@ -449,6 +451,7 @@ class ContentService
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'type' => $filters['type'] ?? null,
+                'io' => $filters['io'] ?? null,
                 'status' => $filters['status'] ?? null,
                 // SỬA 18/9 — ô lọc Độ khó mới, xem QuestionRepository::applyDifficultyFilter().
                 'difficulty' => $filters['difficulty'] ?? null,
