@@ -176,6 +176,7 @@ final class MaterialExerciseIndexService
 
         // Bài tập gắn vào tài liệu.
         Question::query()
+            ->listColumns() // SỬA 28/10 — không kéo grading_config (chứa dữ liệu test, rất nặng) của cả nghìn bài.
             ->whereIn('product_id', $products->keys()->all() ?: [0])
             ->with('chapter:id,title,order')
             ->orderBy('id')
@@ -201,7 +202,7 @@ final class MaterialExerciseIndexService
         if (\App\Support\ProductExerciseLinks::supported()) {
             \App\Models\ProductExerciseLink::query()
                 ->whereIn('product_id', $products->keys()->all() ?: [0])
-                ->with(['question', 'chapter:id,title,order'])
+                ->with(['question' => fn ($q) => $q->listColumns(), 'chapter:id,title,order'])
                 ->orderBy('id')
                 ->get()
                 ->each(function ($link) use ($products, $rows) {

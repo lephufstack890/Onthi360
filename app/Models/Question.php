@@ -199,9 +199,39 @@ class Question extends Model
         if ($this->type !== QuestionType::Coding) {
             return null;
         }
-        $names = \App\Services\CodeJudgingService::fileIoNames(($this->grading_config ?? [])['file_io'] ?? null);
+        // SỬA 28/10 — danh sách nạp bằng scopeListColumns() không kéo cả grading_config (rất nặng: chứa test), chỉ lấy sẵn
+        // 2 tên tệp vào/ra (io_in / io_out). 'null' = giá trị JSON null.
+        if (array_key_exists('io_in', $this->attributes) || array_key_exists('io_out', $this->attributes)) {
+            $clean = fn ($v) => $v === null || $v === '' || $v === 'null' ? null : $v;
+            $names = \App\Services\CodeJudgingService::fileIoNames(['input' => $clean($this->attributes['io_in'] ?? null), 'output' => $clean($this->attributes['io_out'] ?? null)]);
+        } else {
+            $names = \App\Services\CodeJudgingService::fileIoNames(($this->grading_config ?? [])['file_io'] ?? null);
+        }
 
         return ['file' => $names !== null, 'input' => $names['input'] ?? null, 'output' => $names['output'] ?? null];
+    }
+
+    /**
+     * SỬA 28/10 (lỗi "Allowed memory size of 536870912 bytes exhausted" ở trang Luyện tập) — grading_config chứa cả dữ liệu
+     * test nên có câu nặng hàng chục MB; nạp cả nghìn câu đầy đủ là tràn bộ nhớ PHP. Các trang DANH SÁCH dùng scope này: chỉ
+     * lấy cột nhẹ + vài giá trị lẻ trích thẳng từ grading_config bằng SQL (giới hạn thời gian / bộ nhớ, tên tệp vào/ra).
+     * KHÔNG dùng cho chỗ cần chấm / sửa bài (những chỗ đó nạp đủ cột như cũ).
+     */
+    public function scopeListColumns($query)
+    {
+        return $query->select([
+            'questions.id', 'questions.code', 'questions.title', 'questions.type', 'questions.points', 'questions.metadata',
+            'questions.status', 'questions.subject', 'questions.grade', 'questions.province', 'questions.exam_year',
+            'questions.source_name', 'questions.created_by', 'questions.product_id', 'questions.material_id',
+            'questions.owner_type', 'questions.owner_id', 'questions.display_order',
+        ])->addSelect([
+            'questions.grading_config->time_limit_ms as cfg_time_ms',
+            'questions.grading_config->memory_limit_mb as cfg_memory_mb',
+            'questions.grading_config->limits->time_ms as cfg_limits_time_ms',
+            'questions.grading_config->limits->memory_mb as cfg_limits_memory_mb',
+            'questions.grading_config->file_io->input as io_in',
+            'questions.grading_config->file_io->output as io_out',
+        ]);
     }
 
     public function exerciseSummaryLabel(): string

@@ -167,6 +167,7 @@ class PracticeService
         if ($missingProblemIds !== []) {
             $extraProblems = $this->mapQuestionRows(
                 Question::query()
+                    ->listColumns() // SỬA 28/10 — không kéo grading_config (nặng) → hết tràn bộ nhớ.
                     ->where('status', 'published')
                     ->whereIn('id', $missingProblemIds)
                     ->with(['tags:id,name', 'creator:id,name'])
@@ -500,6 +501,10 @@ class PracticeService
             // tập chuyên đề") — xem App\Support\PracticeQuestionPool.
             PracticeQuestionPool::excludeExamQuestions(
                 Question::query()
+                    // SỬA 28/10 (lỗi "Allowed memory size … exhausted" ở /student/practice) — trước đây nạp ĐỦ cột của tới
+                    // 5000 câu, gồm grading_config chứa cả dữ liệu test (có câu nặng hàng chục MB) → tràn 512MB. Giờ chỉ lấy
+                    // cột nhẹ + giới hạn thời gian / bộ nhớ trích bằng SQL (Question::scopeListColumns()).
+                    ->listColumns()
                     ->where('status', 'published')
                     ->whereNull('product_id')
                     ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
@@ -546,10 +551,17 @@ class PracticeService
             // giới hạn của câu Lập trình nằm ở grading_config.time_limit_ms / memory_limit_mb (xem
             // Question::hasMinimumGradingConfig(), CodeJudgingService). Trước đây đọc nhầm khoá
             // limits.time_ms / limits.memory_mb nên LUÔN ra "—". Khoá cũ vẫn được đọc làm phương án dự phòng.
-            $cfg = is_array($q->grading_config) ? $q->grading_config : [];
-            $limits = $cfg['limits'] ?? [];
-            $timeMs = $cfg['time_limit_ms'] ?? $limits['time_ms'] ?? null;
-            $memoryMb = $cfg['memory_limit_mb'] ?? $limits['memory_mb'] ?? null;
+            $attrs = $q->getAttributes();
+            if (array_key_exists('cfg_time_ms', $attrs)) {
+                // SỬA 28/10 — nạp bằng listColumns(): giới hạn đã trích sẵn, không có grading_config.
+                $timeMs = $attrs['cfg_time_ms'] ?? $attrs['cfg_limits_time_ms'] ?? null;
+                $memoryMb = $attrs['cfg_memory_mb'] ?? $attrs['cfg_limits_memory_mb'] ?? null;
+            } else {
+                $cfg = is_array($q->grading_config) ? $q->grading_config : [];
+                $limits = $cfg['limits'] ?? [];
+                $timeMs = $cfg['time_limit_ms'] ?? $limits['time_ms'] ?? null;
+                $memoryMb = $cfg['memory_limit_mb'] ?? $limits['memory_mb'] ?? null;
+            }
 
             return [
                 'id' => $q->id,
