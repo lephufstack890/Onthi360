@@ -234,6 +234,29 @@ class Question extends Model
         ]);
     }
 
+    /**
+     * SỬA 28/10 (lỗi MySQL "1038 Out of sort memory") — KHÔNG được ORDER BY trên truy vấn listColumns(): MySQL phải đọc cả
+     * grading_config (vài chục MB) của từng dòng vào bộ nhớ sắp xếp để trích giá trị → tràn. Cách làm: sắp xếp + lọc bằng
+     * truy vấn CHỈ LẤY id (nhẹ), rồi gọi hàm này nạp các dòng nhẹ theo đúng thứ tự id đó (không ORDER BY).
+     *
+     * @param  list<int>  $ids
+     * @param  array<int|string, mixed>  $with
+     * @return \Illuminate\Support\Collection<int, static>
+     */
+    public static function listByIds(array $ids, array $with = []): \Illuminate\Support\Collection
+    {
+        if ($ids === []) {
+            return collect();
+        }
+        $pos = array_flip(array_values(array_map('intval', $ids)));
+        $rows = collect();
+        foreach (array_chunk(array_keys($pos), 1000) as $chunk) {
+            $rows = $rows->concat(static::query()->listColumns()->whereIn('questions.id', $chunk)->with($with)->get());
+        }
+
+        return $rows->sortBy(fn ($q) => $pos[(int) $q->id] ?? PHP_INT_MAX)->values();
+    }
+
     public function exerciseSummaryLabel(): string
     {
         $config = $this->grading_config ?? [];

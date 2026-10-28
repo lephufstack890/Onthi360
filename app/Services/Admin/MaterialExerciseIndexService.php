@@ -179,8 +179,9 @@ final class MaterialExerciseIndexService
             ->listColumns() // SỬA 28/10 — không kéo grading_config (chứa dữ liệu test, rất nặng) của cả nghìn bài.
             ->whereIn('product_id', $products->keys()->all() ?: [0])
             ->with('chapter:id,title,order')
-            ->orderBy('id')
+            // SỬA 28/10 — không ORDER BY trên truy vấn listColumns() (MySQL "Out of sort memory"); xếp theo id ở PHP.
             ->get()
+            ->sortBy('id')
             ->each(function (Question $q) use ($products, $rows) {
                 $p = $products->get($q->product_id);
                 if ($p === null) {

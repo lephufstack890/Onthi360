@@ -506,23 +506,23 @@ class PracticeService
         // tự ưu tiên. Phải dùng chung đúng một thứ tự với hai nút "Bài trước / Bài tiếp theo"
         // ở màn làm bài, nếu không thì danh sách bày ra một kiểu mà bấm "Bài tiếp theo" lại
         // nhảy theo kiểu khác.
-        $questions = QuestionOrder::apply(
+        $ids = QuestionOrder::apply(
             // SỬA 3/10 (khách: "câu được add vô đề thi luyện tập thì không hiển thị bên bài
             // tập chuyên đề") — xem App\Support\PracticeQuestionPool.
             PracticeQuestionPool::excludeExamQuestions(
                 Question::query()
-                    // SỬA 28/10 (lỗi "Allowed memory size … exhausted" ở /student/practice) — trước đây nạp ĐỦ cột của tới
-                    // 5000 câu, gồm grading_config chứa cả dữ liệu test (có câu nặng hàng chục MB) → tràn 512MB. Giờ chỉ lấy
-                    // cột nhẹ + giới hạn thời gian / bộ nhớ trích bằng SQL (Question::scopeListColumns()).
-                    ->listColumns()
+                    // SỬA 28/10 (lỗi "Allowed memory size … exhausted" rồi "1038 Out of sort memory") — trước đây nạp ĐỦ cột
+                    // của tới 5000 câu, gồm grading_config chứa cả dữ liệu test (có câu nặng hàng chục MB). Giờ: bước 1 chỉ lọc +
+                    // xếp thứ tự trên id (nhẹ), bước 2 nạp cột nhẹ theo đúng thứ tự đó (Question::listByIds()).
+                    ->select('questions.id')
                     ->where('status', 'published')
                     ->whereNull('product_id')
                     ->whereIn('type', array_keys(PracticeFilters::TYPE_META))
                     // SỬA 4/10 — nạp gộp người soạn để đổ cột "Tác giả"; chỉ lấy id+name, không
                 // kéo cả hàng users (có email, số điện thoại… không việc gì ra trang công khai).
-                ->with(['tags:id,name', 'creator:id,name'])
             )
-        )->limit(self::PROBLEM_LIMIT)->get();
+        )->limit(self::PROBLEM_LIMIT)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $questions = Question::listByIds($ids, ['tags:id,name', 'creator:id,name']);
 
         return $this->mapQuestionRows($questions);
     }
