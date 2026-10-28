@@ -639,7 +639,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/qr', [WalletController::class, 'qrImage'])->name('qr'); // SỬA 21/10 — ảnh QR ngân hàng
     });
 
-    Route::middleware(['role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {
+    // SỬA 28/10 (khách: "phân quyền từng tính năng sidebar admin") — mở cho cả Editor; chặn THẬT từng mục / thao tác bằng
+    // middleware admin.perm (App\Support\AdminPermissions). Admin mặc định có hết, Editor chỉ có mục được cấp.
+    Route::middleware(['role:admin,super_admin,editor', 'admin.perm'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
@@ -870,7 +872,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    Route::middleware(['role:admin,super_admin,editor'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['role:admin,super_admin,editor', 'admin.perm'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('content', [AdminContentController::class, 'index'])->name('content.index');
 
         Route::get('content/materials/create', [AdminContentController::class, 'materialsCreate'])->name('content.materials.create');

@@ -206,6 +206,58 @@
                     @endforeach
                 </div>
 
+                {{-- SỬA 28/10 (khách: "phân quyền cho các tính năng bên sidebar admin: ai được vào, thêm, sửa, xoá") — QUYỀN KHU
+                     QUẢN TRỊ: mỗi dòng 1 mục menu admin, mỗi cột 1 thao tác. Ô "—" = mục đó không có thao tác này. Tick Thêm/Sửa/
+                     Xoá/Duyệt thì tự tick Xem; bỏ Xem thì bỏ hết dòng. Lưu chung nút "Lưu quyền". Xem App\Support\AdminPermissions. --}}
+                @if (! empty($matrix['adminModules']))
+                    <div class="aum-adm" role="group" aria-label="Quyền khu quản trị">
+                        <div class="aum-adm__head">
+                            <div>
+                                <h3>Quyền khu quản trị (menu Admin)</h3>
+                                <p class="aum-hint">Mục nào không có quyền <b>Xem</b> thì không hiện trên menu và không mở được.</p>
+                            </div>
+                            @unless ($readonlyPerm)
+                                <div class="aum-adm__bulk">
+                                    <button type="button" class="aum-btn" data-admin-all="1">Cấp tất cả</button>
+                                    <button type="button" class="aum-btn" data-admin-all="0">Bỏ hết</button>
+                                </div>
+                            @endunless
+                        </div>
+                        <div class="aum-adm__table">
+                            <div class="aum-adm__row aum-adm__row--head" aria-hidden="true">
+                                <span>Mục quản trị</span>
+                                @foreach (\App\Support\AdminPermissions::ACTIONS as $aLabel)
+                                    <span>{{ $aLabel }}</span>
+                                @endforeach
+                            </div>
+                            @foreach ($matrix['adminModules'] as $am)
+                                <div class="aum-adm__row" data-admin-row>
+                                    <div class="aum-adm__name">
+                                        <b>{{ $am['label'] }}</b>
+                                        @if ($am['hint'] !== '')<small>{{ $am['hint'] }}</small>@endif
+                                    </div>
+                                    @foreach ($am['cells'] as $aKey => $cell)
+                                        @if ($cell === null)
+                                            <span class="aum-adm__na" aria-hidden="true">—</span>
+                                        @else
+                                            <div class="aum-adm__cell" data-perm data-admin data-action="{{ $aKey }}" data-slug="{{ $cell['slug'] }}" data-on="{{ $cell['on'] ? 1 : 0 }}" data-scope="own">
+                                                <label title="{{ $cell['label'] }}">
+                                                    <input type="checkbox" @checked($cell['on']) @disabled($readonlyPerm) aria-label="{{ $cell['label'] }}">
+                                                    <span class="aum-adm__lbl">{{ \App\Support\AdminPermissions::ACTIONS[$aKey] }}</span>
+                                                </label>
+                                                <select hidden aria-hidden="true" tabindex="-1"><option value="own" selected>own</option></select>
+                                                @if (isset($tagText[$cell['state']]))
+                                                    <em class="aum-tag aum-tag--{{ $cell['state'] }}">{{ $tagText[$cell['state']] }}</em>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <p class="aum-msg" data-msg="perms" role="status"></p>
                 <span class="aum-err" data-err="permissions"></span>
                 @unless ($readonlyPerm)

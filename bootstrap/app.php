@@ -35,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureHasRole::class,
             'permission' => \App\Http\Middleware\EnsureHasPermission::class,
             'teacher.approved' => \App\Http\Middleware\EnsureTeacherApproved::class,
+            // SỬA 28/10 — phân quyền từng mục / thao tác khu quản trị (App\Support\AdminPermissions).
+            'admin.perm' => \App\Http\Middleware\EnsureAdminPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -234,6 +234,12 @@ class User extends Authenticatable // implements MustVerifyEmail
             return true;
         }
 
+        // SỬA 28/10 — quyền khu quản trị (slug "admin.", App\Support\AdminPermissions): Admin mặc định có hết; Editor chỉ có
+        // khi được cấp riêng (đã xét ở phần ghi đè phía trên).
+        if (str_starts_with($slug, 'admin.')) {
+            return $this->hasRole(Role::ADMIN);
+        }
+
         $roles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->with('permissions')->get();
 
         $acting = $this->actingRole();

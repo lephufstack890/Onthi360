@@ -19,7 +19,8 @@ class DashboardController extends Controller
 
         return match ($this->dashboardRoutingService->primaryDashboardFor($user)) {
             DashboardRoutingService::ADMIN => redirect()->route('admin.dashboard'),
-            DashboardRoutingService::EDITOR => redirect()->route('admin.content.index'),
+            // SỬA 28/10 — biên tập viên vào mục đầu tiên được cấp quyền (không còn mặc định Kho bài tập).
+            DashboardRoutingService::EDITOR => redirect()->route(\App\Support\AdminPermissions::firstAllowedRoute($user)),
             DashboardRoutingService::TEACHER => redirect()->route('teacher.dashboard'),
             DashboardRoutingService::PARENT => redirect()->route('parent.dashboard'),
             default => app(\App\Http\Controllers\Student\DashboardController::class)->index($request),

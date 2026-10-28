@@ -51,10 +51,12 @@
     $isSuperAdmin = $currentUser?->hasRole(\App\Models\Role::SUPER_ADMIN) ?? false;
     $isPureEditor = ($currentUser?->hasRole(\App\Models\Role::EDITOR) ?? false)
         && ! ($currentUser?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) ?? false);
+    // SỬA 28/10 (khách: "phân quyền từng tính năng sidebar admin") — mục nào người này không có quyền XEM thì ẩn
+    // (App\Support\AdminPermissions; Admin mặc định có hết, Editor chỉ thấy mục được cấp). Tài khoản / Đổi mật khẩu luôn hiện.
     $items = array_values(array_filter(
         $items,
         fn ($item) => (! ($item['superAdminOnly'] ?? false) || $isSuperAdmin)
-            && (! $isPureEditor || ($item['editorOk'] ?? false))
+            && \App\Support\AdminPermissions::allowsRoute($currentUser, $item['route'])
     ));
 
     /*

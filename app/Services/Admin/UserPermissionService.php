@@ -80,6 +80,48 @@ class UserPermissionService
             $base['note'] = 'Tài khoản này không phải giáo viên nên mặc định chưa có chức năng nào. Chọn để cấp thêm riêng cho người này.';
         }
 
+        // SỬA 28/10 — QUYỀN KHU QUẢN TRỊ (menu trái admin) cho Admin / Editor: bảng mục × thao tác (Xem/Thêm/Sửa/Xoá/Duyệt).
+        // Admin mặc định có hết (bỏ tick = thu hồi), Editor mặc định không có gì (tick = cấp). Xem App\Support\AdminPermissions.
+        $isAdminRole = in_array(Role::ADMIN, $roleNames, true);
+        $adminArea = $isSuper || $isAdminRole || in_array(Role::EDITOR, $roleNames, true);
+        $adminModules = [];
+        if ($adminArea) {
+            $adminDefault = $isSuper || $isAdminRole;
+            foreach (\App\Support\AdminPermissions::MODULES as $mKey => $m) {
+                $cells = [];
+                foreach (array_keys(\App\Support\AdminPermissions::ACTIONS) as $action) {
+                    if (! in_array($action, $m['actions'], true)) {
+                        $cells[$action] = null;
+
+                        continue;
+                    }
+                    $slug = \App\Support\AdminPermissions::slug($mKey, $action);
+                    $ov = $overrides[$slug] ?? null;
+                    $on = $isSuper ? true : ($ov ? $ov['effect'] === 'grant' : $adminDefault);
+                    $cells[$action] = [
+                        'slug' => $slug,
+                        'label' => \App\Support\AdminPermissions::label($mKey, $action),
+                        'action' => $action,
+                        'on' => $on,
+                        'scope' => 'own',
+                        'state' => match (true) {
+                            $isSuper => 'role',
+                            $ov && $ov['effect'] === 'revoke' => 'revoked',
+                            $ov && $ov['effect'] === 'grant' && ! $adminDefault => 'extra',
+                            default => 'role',
+                        },
+                        'role_default' => $adminDefault,
+                    ];
+                }
+                $adminModules[] = ['key' => $mKey, 'label' => $m['label'], 'hint' => $m['hint'] ?? '', 'cells' => $cells];
+            }
+            if (! $isSuper && ! ($actor && $actor->id === $target->id)) {
+                $base['note'] = $isAdminRole
+                    ? 'Admin mặc định có đủ mọi quyền quản trị bên dưới. Bỏ chọn để thu hồi riêng cho người này.'
+                    : 'Biên tập viên (Editor) mặc định CHƯA có quyền quản trị nào — tick đúng mục / thao tác cần cấp. Mục nào không có quyền "Xem" thì không hiện trên menu và không mở được.';
+            }
+        }
+
         $groups = [];
         foreach ($perms as $p) {
             $roleDefault = $isTeacher || $isSuper;
@@ -117,7 +159,16 @@ class UserPermissionService
             }
         }
 
-        return array_merge($base, ['groups' => $out, 'total' => $total, 'granted' => $granted]);
+        foreach ($adminModules as $am) {
+            foreach ($am['cells'] as $cell) {
+                if ($cell !== null) {
+                    $total++;
+                    $granted += $cell['on'] ? 1 : 0;
+                }
+            }
+        }
+
+        return array_merge($base, ['groups' => $out, 'adminModules' => $adminModules, 'total' => $total, 'granted' => $granted]);
     }
 
     /**
@@ -143,25 +194,41 @@ class UserPermissionService
         }
 
         $isTeacher = $target->hasRole(self::DEFAULT_ON_ROLE);
-        $permIds = Permission::query()->where('slug', 'like', 'teacher.%')->pluck('id', 'slug');
+        $isAdminRole = $target->hasRole(Role::ADMIN); // SỬA 28/10 — mặc định quyền khu quản trị
+        $permIds = Permission::query()->where(fn ($q) => $q->where('slug', 'like', 'teacher.%')->orWhere('slug', 'like', 'admin.%'))->pluck('id', 'slug');
+
+        // Gộp quyền giáo viên + quyền khu quản trị thành một danh sách để lưu chung một vòng.
+        $items = [];
+        foreach ($before['groups'] as $group) {
+            foreach ($group['items'] as $item) {
+                $items[] = $item + ['admin' => false];
+            }
+        }
+        foreach ($before['adminModules'] ?? [] as $am) {
+            foreach ($am['cells'] as $cell) {
+                if ($cell !== null) {
+                    $items[] = $cell + ['admin' => true];
+                }
+            }
+        }
 
         $beforeText = [];
         $afterText = [];
         $changed = 0;
 
-        DB::transaction(function () use ($actor, $target, $input, $before, $isTeacher, $permIds, &$beforeText, &$afterText, &$changed) {
-            foreach ($before['groups'] as $group) {
-                foreach ($group['items'] as $item) {
+        DB::transaction(function () use ($actor, $target, $input, $items, $isTeacher, $isAdminRole, $permIds, &$beforeText, &$afterText, &$changed) {
+            foreach ([$items] as $groupItems) {
+                foreach ($groupItems as $item) {
                     $slug = $item['slug'];
                     $row = $input[$slug] ?? [];
                     $wantOn = filter_var($row['on'] ?? false, FILTER_VALIDATE_BOOLEAN);
                     $scope = (string) ($row['scope'] ?? 'own');
-                    if (! array_key_exists($scope, self::SCOPES)) {
-                        $scope = 'own';
+                    if (! array_key_exists($scope, self::SCOPES) || $item['admin']) {
+                        $scope = 'own'; // quyền khu quản trị không có phạm vi
                     }
 
-                    $oldText = $this->describe($item['on'], $item['scope']);
-                    $newText = $this->describe($wantOn, $wantOn ? $scope : 'own');
+                    $oldText = $item['admin'] ? ($item['on'] ? 'Bật' : 'Tắt') : $this->describe($item['on'], $item['scope']);
+                    $newText = $item['admin'] ? ($wantOn ? 'Bật' : 'Tắt') : $this->describe($wantOn, $wantOn ? $scope : 'own');
                     if ($oldText === $newText) {
                         continue;
                     }
@@ -172,7 +239,7 @@ class UserPermissionService
                     }
 
                     $where = ['user_id' => $target->id, 'permission_id' => $permId];
-                    $roleDefault = $isTeacher;
+                    $roleDefault = $item['admin'] ? $isAdminRole : $isTeacher;
 
                     if ($wantOn && $roleDefault && $scope === 'own') {
                         // Trùng mặc định vai trò -> xóa phần chênh lệch.

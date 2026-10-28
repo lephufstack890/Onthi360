@@ -107,6 +107,25 @@
     .aum-tag{padding:2px 8px;border-radius:7px;font-size:11px;font-style:normal;font-weight:700}
     .aum-tag--revoked{background:#fdf1d8;color:#8a5f10}
     .aum-tag--extra{background:#e6effc;color:#2554a3}
+    /* SỬA 28/10 — bảng quyền khu quản trị (mục × Xem/Thêm/Sửa/Xoá/Duyệt) */
+    .aum-adm{margin-top:18px}
+    .aum-adm__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+    .aum-adm__head h3{margin:0 0 3px;font-size:15px;font-weight:800;color:#1e3a5f}
+    .aum-adm__bulk{display:flex;gap:6px;flex:none}
+    .aum-adm__table{border:1px solid #d7e3f0;border-radius:14px;overflow:hidden;background:#fff}
+    .aum-adm__row{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,68px);align-items:center;gap:4px;padding:8px 14px;border-top:1px solid #edf2f8}
+    .aum-adm__row:first-child{border-top:0}
+    .aum-adm__row--head{background:#f3f8fd;font-size:12px;font-weight:700;color:#587089;text-transform:uppercase;letter-spacing:.03em}
+    .aum-adm__row--head span:not(:first-child){text-align:center}
+    .aum-adm__name b{display:block;font-size:14px;color:#1e3a5f}
+    .aum-adm__name small{display:block;margin-top:2px;font-size:12px;line-height:1.4;color:#7a90a6}
+    .aum-adm__cell{display:flex;flex-direction:column;align-items:center;gap:2px}
+    .aum-adm__cell.is-changed{background:#f3f8ff;border-radius:8px}
+    .aum-adm__cell label{display:flex;align-items:center;justify-content:center;min-height:34px;cursor:pointer}
+    .aum-adm__cell input{width:18px;height:18px;accent-color:#2563eb}
+    .aum-adm__lbl{display:none}
+    .aum-adm__cell .aum-tag{font-size:10px}
+    .aum-adm__na{text-align:center;color:#c3d0dd}
     .aum-permfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
     .aum-permstate{font-size:12.5px;color:#637b92}
     .aum-permstate.is-dirty{color:#2554a3;font-weight:700}
@@ -161,6 +180,12 @@
         .aum-perm{grid-template-columns:1fr;gap:4px;padding:8px 14px}
         .aum-perm select{margin:0 0 6px 29px;width:calc(100% - 29px)}
         .aum-permhead{flex-direction:column}
+        .aum-adm__head{flex-direction:column}
+        .aum-adm__row--head{display:none}
+        .aum-adm__row{grid-template-columns:repeat(5,minmax(0,1fr));padding:10px 12px}
+        .aum-adm__name{grid-column:1/-1}
+        .aum-adm__lbl{display:inline;margin-left:5px;font-size:12.5px;color:#1e3a5f}
+        .aum-adm__na{display:none}
         .aum-actions .aum-btn{flex:1 1 auto}
     }
 </style>
@@ -400,6 +425,24 @@
                 if (stateEl) { stateEl.textContent = dirty ? dirty + ' thay đổi chưa lưu' : 'Không có thay đổi mới'; stateEl.classList.toggle('is-dirty', dirty > 0); }
                 if (save) { save.disabled = readonly || !dirty; reset.disabled = readonly || !dirty; }
             }
+            // SỬA 28/10 — quyền khu quản trị: tick Thêm/Sửa/Xoá/Duyệt thì tự tick Xem; bỏ Xem thì bỏ cả dòng (chạy trước refresh).
+            form.addEventListener('change', function (e) {
+                var cb = e.target;
+                if (!cb || cb.type !== 'checkbox') return;
+                var cell = cb.closest('[data-admin]'); if (!cell) return;
+                var row = cell.closest('[data-admin-row]'); if (!row) return;
+                var viewCb = row.querySelector('[data-action="view"] input[type=checkbox]');
+                if (cell.dataset.action !== 'view' && cb.checked && viewCb) viewCb.checked = true;
+                if (cell.dataset.action === 'view' && !cb.checked) row.querySelectorAll('[data-admin] input[type=checkbox]').forEach(function (x) { x.checked = false; });
+            }, true);
+            qsa('[data-admin-all]', form).forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (readonly) return;
+                    var on = btn.dataset.adminAll === '1';
+                    qsa('[data-admin] input[type=checkbox]', form).forEach(function (x) { x.checked = on; });
+                    refresh();
+                });
+            });
             form.addEventListener('change', refresh);
             if (reset) reset.addEventListener('click', function () {
                 rows.forEach(function (r) { r.querySelector('input[type=checkbox]').checked = r.dataset.on === '1'; r.querySelector('select').value = r.dataset.scope; });
