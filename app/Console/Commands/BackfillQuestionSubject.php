@@ -38,7 +38,6 @@ class BackfillQuestionSubject extends Command
         $skipped = 0;
         $bySubject = [];
 
-        // chunkById: kho câu hỏi có thể rất lớn, không nạp hết vào bộ nhớ một lần.
         $query->orderBy('id')->chunkById(200, function ($questions) use (&$fromTaxonomy, &$fromCode, &$skipped, &$bySubject, $dryRun) {
             foreach ($questions as $question) {
                 $taxonomy = $question->metadata['taxonomy'] ?? null;

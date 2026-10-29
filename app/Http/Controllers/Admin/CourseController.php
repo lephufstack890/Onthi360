@@ -39,31 +39,18 @@ class CourseController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            // SỬA 1/10 — "Giới thiệu khoá học": bài giới thiệu đầy đủ do CKEditor soạn, khác
-            // 'description' (tóm tắt 1-2 câu). Trần rộng hơn nhiều vì là HTML có thẻ, danh sách,
-            // đôi khi cả ảnh — xem migration add_intro_to_courses_table.
             'intro' => ['nullable', 'string', 'max:200000'],
             'subject' => ['nullable', 'string', 'max:60'],
-            // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
-            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.
             'grades' => ['nullable', 'array', 'max:12'],
             'grades.*' => ['string', 'max:20'],
             'grade' => ['nullable', 'string', 'max:120'],
             'status' => ['required', 'string', 'in:draft,published'],
-            // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
             'level_code' => ['nullable', 'string', 'max:60'],
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
-            // SỬA 30/9 (khách: "số buổi nó kiểu 33-50 buổi") — cận trên của khoảng số buổi.
-            // gte:session_count để không ai nhập ngược thành "50 đến 33".
             'session_count_max' => ['nullable', 'integer', 'min:1', 'max:999', 'gte:session_count'],
-            // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
-            // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
-            // SỬA 15/9 (khách: "thêm field thumbnail") — ảnh đại diện khoá học. 4MB đủ cho ảnh
-            // ngang 16:9; giới hạn định dạng để không ai tải lên .heic của iPhone rồi trình
-            // duyệt không hiện được.
             'cover' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
             'remove_cover' => ['nullable', 'boolean'],
         ], [
@@ -86,31 +73,18 @@ class CourseController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            // SỬA 1/10 — "Giới thiệu khoá học": bài giới thiệu đầy đủ do CKEditor soạn, khác
-            // 'description' (tóm tắt 1-2 câu). Trần rộng hơn nhiều vì là HTML có thẻ, danh sách,
-            // đôi khi cả ảnh — xem migration add_intro_to_courses_table.
             'intro' => ['nullable', 'string', 'max:200000'],
             'subject' => ['nullable', 'string', 'max:60'],
-            // SỬA 30/9 (khách: "chỗ chọn khối và lớp thì cho chọn nhiều") — ô "Khối lớp" giờ là
-            // các ô tick, gửi lên mảng 'grades'. Vẫn nhận 'grade' (1 chuỗi) cho các chỗ gọi cũ.
             'grades' => ['nullable', 'array', 'max:12'],
             'grades.*' => ['string', 'max:20'],
             'grade' => ['nullable', 'string', 'max:120'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
-            // SỬA 15/9 (A10) — bốn trường "bậc" khi khoá học nằm trong một lộ trình.
             'level_code' => ['nullable', 'string', 'max:60'],
             'level_subtitle' => ['nullable', 'string', 'max:60'],
             'outcome' => ['nullable', 'string', 'max:160'],
             'session_count' => ['nullable', 'integer', 'min:1', 'max:999'],
-            // SỬA 30/9 (khách: "số buổi nó kiểu 33-50 buổi") — cận trên của khoảng số buổi.
-            // gte:session_count để không ai nhập ngược thành "50 đến 33".
             'session_count_max' => ['nullable', 'integer', 'min:1', 'max:999', 'gte:session_count'],
-            // C1 — sản phẩm bán khoá này. Bắt buộc phải là sản phẩm loại 'course': gắn nhầm
-            // sang sách thì người mua trả tiền sách mà lại được vào lớp.
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('type', ProductType::Course->value)],
-            // SỬA 15/9 (khách: "thêm field thumbnail") — ảnh đại diện khoá học. 4MB đủ cho ảnh
-            // ngang 16:9; giới hạn định dạng để không ai tải lên .heic của iPhone rồi trình
-            // duyệt không hiện được.
             'cover' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
             'remove_cover' => ['nullable', 'boolean'],
         ], [
@@ -128,11 +102,6 @@ class CourseController extends Controller
         return redirect()->route('admin.courses.show', $course->id)->with('status', 'course-updated');
     }
 
-    /**
-     * SỬA 7/10 (khách: "xoá khoá học là toàn bộ file, lớp, bất cứ gì liên quan đều xoá hết") — xoá
-     * VĨNH VIỄN kèm mọi dữ liệu liên quan, xem CourseService::destroy(). Lý do giờ là tuỳ chọn:
-     * nút Xoá ở danh sách Khóa & Lớp không có ô nhập lý do.
-     */
     public function destroy(Request $request, Course $course): RedirectResponse
     {
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
@@ -159,7 +128,6 @@ class CourseController extends Controller
             'schedule_note' => ['nullable', 'string', 'max:500'],
             'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['required', 'string', 'in:active,archived'],
-            // SỬA 16/9 — 4 trường mô tả lớp in ra thẻ lớp ngoài trang công khai.
             'location' => ['nullable', 'string', 'max:60'],
             'address' => ['nullable', 'string', 'max:160'],
             'format' => ['nullable', 'string', 'max:60'],
@@ -184,7 +152,6 @@ class CourseController extends Controller
             'schedule_note' => ['nullable', 'string', 'max:500'],
             'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['required', 'string', 'in:active,archived'],
-            // SỬA 16/9 — 4 trường mô tả lớp in ra thẻ lớp ngoài trang công khai.
             'location' => ['nullable', 'string', 'max:60'],
             'address' => ['nullable', 'string', 'max:160'],
             'format' => ['nullable', 'string', 'max:60'],
@@ -196,11 +163,6 @@ class CourseController extends Controller
         return redirect()->route('admin.classes.edit', $classRoom->id)->with('status', 'class-updated');
     }
 
-    /**
-     * SỬA 7/10 — xoá VĨNH VIỄN lớp kèm mọi dữ liệu của lớp, xem CourseService::destroyClass().
-     * 'return' = 'index' khi bấm từ danh sách Khóa & Lớp (quay về đúng tab Lớp học); mặc định quay
-     * về trang chi tiết khoá như cũ.
-     */
     public function classesDestroy(Request $request, ClassRoom $classRoom): RedirectResponse
     {
         $data = $request->validate([

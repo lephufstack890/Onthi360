@@ -2,14 +2,6 @@
 
 namespace App\Enums;
 
-/**
- * Trạng thái một yêu cầu hỗ trợ.
- *
- * SỬA 13/9 — thêm InProgress và Spam. Trước đây chỉ có new/resolved nên hai quản trị viên
- * cùng mở một phiếu là cùng trả lời một người, còn phiếu rác thì buộc phải đánh dấu "đã xử
- * lý" mới cho khuất mắt, làm sai luôn con số đã xử lý. Hai giá trị cũ giữ nguyên chuỗi lưu
- * trong CSDL nên dữ liệu đang có không phải chuyển đổi.
- */
 enum ContactMessageStatus: string
 {
     case New = 'new';

@@ -10,16 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/**
- * wallet.* — "Nộp tiền thành token" + QR ngân hàng (note họp 13/8, mục 7-8): nạp tiền một
- * lần thành số dư token dùng chung cho nhiều lần thanh toán sau này, thay vì phải chuyển
- * khoản riêng lẻ theo từng đơn.
- */
 class WalletController extends Controller
 {
     public function __construct(private readonly WalletService $walletService) {}
 
-    /** wallet.index — số dư, lịch sử nạp, và QR/mã chuyển khoản nếu còn 1 yêu cầu đang chờ duyệt. */
     public function index(Request $request): View
     {
         $user = Auth::user();
@@ -34,10 +28,6 @@ class WalletController extends Controller
         ]);
     }
 
-    /**
-     * SỬA 21/10 — wallet.qr: ảnh QR ngân hàng admin tải lên (Cấu hình hệ thống). Đọc từ đĩa local nên không cần
-     * storage:link; chỉ người đã đăng nhập xem được (cùng nhóm route Ví token).
-     */
     public function qrImage(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $path = $this->walletService->qrImagePath();
@@ -48,7 +38,6 @@ class WalletController extends Controller
         ]);
     }
 
-    /** wallet.request — tạo yêu cầu nạp token, sinh mã chuyển khoản riêng để đối soát (7.4). */
     public function requestTopup(Request $request): RedirectResponse
     {
         $data = $request->validate([

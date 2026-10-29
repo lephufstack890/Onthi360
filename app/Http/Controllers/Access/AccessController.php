@@ -16,14 +16,11 @@ class AccessController extends Controller
 {
     public function __construct(private AccessService $accessService) {}
 
-    /** access.checkout (ACC-03) — 7.4/7.5: checkout theo scope, sách mềm bắt buộc. */
     public function checkout(Request $request, int $product): View|RedirectResponse
     {
         $user = Auth::user();
         $data = $this->accessService->checkoutData($user, $product);
 
-        // SỬA 28/10 (khách: "mua sách xong đừng đặt đơn nữa, xong là xong luôn") — đã mua rồi (không còn quyền nào để mua
-        // thêm) thì không hiện trang đặt đơn nữa: về thẳng trang tài liệu (nút "Vào đọc ngay") / màn chọn lớp của khoá học.
         if ($this->accessService->nothingLeftToBuy($user, $data['ownedScopes'])) {
             return $data['isCourse'] && $data['courseId'] !== null
                 ? redirect()->route('access.chooseClass', $data['courseId'])->with('status', 'already-owned')
@@ -33,28 +30,12 @@ class AccessController extends Controller
         return view('access.checkout', $data);
     }
 
-    /**
-     * access.checkout.store (25/8, SỬA 25/8 (2)) — nút "Đặt đơn" tạo Order thật (xem
-     * AccessService::placeOrder()). SỬA 25/8 (2):
-     * - Thêm payment_method thật (offline/token) — trước chỉ có offline cứng.
-     * - "đặt xong thì chuyển qua trang tài liệu luôn": thành công KHÔNG quay lại trang đặt đơn
-     *   nữa mà chuyển thẳng sang materials.show (mục lục đã mở khoá ngay nếu trả bằng token).
-     * - Thiếu token (lỗi riêng key 'insufficient_token' từ placeOrder()): chuyển hẳn sang trang
-     *   Ví (wallet.index) để nạp thêm — không quay lại trang đặt đơn như các lỗi validate khác.
-     * - Lỗi validate khác (scope chưa đủ điều kiện, đã có quyền/đơn đang xử lý...) vẫn quay lại
-     *   đúng trang checkout để sửa, không văng ra trang lỗi.
-     */
     public function store(Request $request, int $product): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $user = Auth::user();
         $data = $request->validate([
-            // SỬA 28/10 (khách: "mua là trừ tiền luôn, không qua màn đặt đơn") — 'auto' = nút Mua ngay ở hộp mua / trang tài liệu:
-            // giáo viên đã duyệt nhận quyền Dùng để dạy (đọc được + gắn lớp, cùng giá), còn lại nhận Học cá nhân.
             'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching,auto'],
             'include_print' => ['nullable', 'boolean'],
-            // SỬA 20/10 (khách: "mua không cần duyệt nữa, duyệt nạp token là đủ — có token mua là trừ luôn, tự có quyền") —
-            // chỉ còn trả bằng token (đơn hoàn tất + cấp quyền ngay, AccessService::placeOrder). Bỏ "Chuyển khoản — quản trị
-            // duyệt" khỏi màn đặt đơn; đơn chuyển khoản cũ đang chờ vẫn duyệt / từ chối được ở admin như trước.
             'payment_method' => ['required', 'string', 'in:token'],
         ]);
 
@@ -65,7 +46,6 @@ class AccessController extends Controller
         try {
             $order = $this->accessService->placeOrder($user, $product, $data);
         } catch (ValidationException $e) {
-            // SỬA 28/10 — mua ngay trong hộp mua (gọi bằng fetch): trả JSON để hộp báo lỗi tại chỗ.
             if ($request->expectsJson()) {
                 $needTopup = array_key_exists('insufficient_token', $e->errors());
 
@@ -94,17 +74,9 @@ class AccessController extends Controller
             ]);
         }
 
-        /*
-         * C2 (15/9) — đi đâu sau khi đặt đơn phụ thuộc loại sản phẩm:
-         *   · Khóa học  -> màn chọn lớp (mua khoá xong việc tiếp theo là vào lớp nào).
-         *   · Còn lại   -> trang tài liệu như cũ.
-         * Trước đây mọi đơn đều đổ về materials.show, nên mua khoá học sẽ rơi vào một trang
-         * tài liệu trống trơn.
-         */
         $status = $order->status === OrderStatus::Completed ? 'access-granted' : 'order-placed';
         $courseId = $this->accessService->courseIdForProduct($product);
 
-        // SỬA 28/10 — bấm "Mua ngay" ở trang bộ đề: mua xong ở lại đúng trang bộ đề (đề trong bộ mở khoá luôn).
         if ($request->input('quay_lai') === 'bo-de') {
             return redirect()->route('bundles.show', $product)->with('status', $status);
         }
@@ -120,10 +92,6 @@ class AccessController extends Controller
             ->with('orderNo', $order->order_no);
     }
 
-    /**
-     * access.history (mới 25/8 (2)) — "lưu lại lịch sử đặt mua có học sinh luôn": liệt kê Order
-     * thô của CHÍNH user đang đăng nhập, khác access.myAccess (chỉ hiện AccessRight).
-     */
     public function history(Request $request): View
     {
         $user = Auth::user();
@@ -131,9 +99,6 @@ class AccessController extends Controller
         return view('access.history', $this->accessService->purchaseHistoryData($user));
     }
 
-    /**
-     * access.activate (ACC-02).
-     */
     public function activate(Request $request): View
     {
         $user = Auth::user();
@@ -142,11 +107,6 @@ class AccessController extends Controller
         return view('access.activate', $this->accessService->activationLookup($user, $code));
     }
 
-    /**
-     * access.activate.store (25/8) — SỬA: form "Kích hoạt" giờ submit thật (trước đây chưa nối
-     * gì cả, xem ghi chú cũ ở AccessService::activateCode()). Lỗi (mã không tồn tại/sai
-     * phạm vi/đã dùng) quay lại đúng trang kích hoạt, giữ nguyên mã đã gõ qua old('code').
-     */
     public function activateStore(Request $request): RedirectResponse
     {
         $user = Auth::user();
@@ -161,7 +121,6 @@ class AccessController extends Controller
         return redirect()->route('access.myAccess')->with('status', 'code-activated');
     }
 
-    /** access.myAccess (ACC-07) — 7.3: Đang có quyền / Sắp hết hạn / Đã hết hạn. */
     public function myAccess(Request $request): View
     {
         $user = Auth::user();
@@ -178,20 +137,11 @@ class AccessController extends Controller
         return view('access.blocked', $this->accessService->blockedGates($user, $material, $classRoomId));
     }
 
-    /**
-     * access.resource (mới 27/8, "4 file đính kèm sản phẩm") — tải/xem PDF hướng dẫn/ZIP bài
-     * tập/học liệu media của 1 sản phẩm. {kind} giới hạn bằng route whereIn (xem routes/web.php)
-     * — logic quyền/tìm file THẬT nằm hết ở AccessService::downloadResource().
-     */
     public function resource(Request $request, int $product, string $kind): StreamedResponse
     {
         return $this->accessService->downloadResource(Auth::user(), $product, $kind);
     }
 
-    /**
-     * access.resource.exerciseAttachment (31/8, "ZIP bài tập" gắn vào sản phẩm) — đề bài/lời
-     * giải/code mẫu của 1 bài tập cụ thể — xem AccessService::downloadExerciseAttachment().
-     */
     public function exerciseAttachment(Request $request, int $product, int $exercise, string $kind): StreamedResponse
     {
         return $this->accessService->downloadExerciseAttachment(Auth::user(), $product, $exercise, $kind);

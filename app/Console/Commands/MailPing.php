@@ -27,7 +27,6 @@ class MailPing extends Command
             return self::FAILURE;
         }
 
-        // 'smtp_auto' là chuỗi dự phòng (465 -> 587), xem config/mail.php. Soi TỪNG đường một.
         $chain = (array) (config("mail.mailers.{$default}.mailers") ?: [$default]);
         $reachable = [];
 

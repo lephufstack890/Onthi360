@@ -10,12 +10,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/**
- * C3 — Chọn lớp sau khi đã mua khoá học.
- *
- * Controller mỏng: mọi luật (có quyền chưa, lớp có thuộc khoá không, đã ở trong lớp chưa)
- * nằm ở App\Services\Access\CourseEnrollmentService.
- */
 class CourseEnrollmentController extends Controller
 {
     public function __construct(private readonly CourseEnrollmentService $enrollment) {}
@@ -37,8 +31,6 @@ class CourseEnrollmentController extends Controller
             return redirect()->route('access.chooseClass', $course)->withErrors($e->errors());
         }
 
-        // Học sinh vào thẳng lớp vừa chọn; vai trò khác (giáo viên mua để dạy) không có màn
-        // lớp của học sinh nên quay về "Quyền của tôi".
         if (Auth::user()?->hasRole(\App\Models\Role::STUDENT)) {
             return redirect()->route('student.classes.show', $classRoom->id)->with('status', 'joined-class');
         }

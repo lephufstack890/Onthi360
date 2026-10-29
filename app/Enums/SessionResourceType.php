@@ -2,10 +2,6 @@
 
 namespace App\Enums;
 
-/**
- * Loại tài nguyên gắn vào 1 buổi học cụ thể (note họp 13/8, mục 3): tài liệu/câu hỏi/đề thi
- * tham chiếu bản ghi có sẵn (đã được teacher tạo/gắn lớp từ trước); video/link/note nhập tay.
- */
 enum SessionResourceType: string
 {
     case Material = 'material';
@@ -27,7 +23,6 @@ enum SessionResourceType: string
         };
     }
 
-    /** true nếu loại này tham chiếu 1 bản ghi có sẵn (material/question/assessment) thay vì nhập tay (video/link/note). */
     public function isCatalogReference(): bool
     {
         return match ($this) {

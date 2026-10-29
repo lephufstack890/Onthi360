@@ -10,16 +10,6 @@ use App\Services\AttemptService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * SỬA 30/9 (khách: "trang luyện tập click Bắt đầu làm đề nó không cho làm") — lệnh CHỈ ĐỌC,
- * dò đúng lý do vì sao bấm vào 1 đề ở trang Luyện tập mà không vào được màn làm bài.
- *
- * Dò theo ĐÚNG thứ tự các cửa mà luồng thật đi qua (App\Services\AttemptService::startOrResume()
- * -> Student\AssessmentService::buildTakeData() -> Student\AssessmentController::take()), nhưng
- * KHÔNG tạo lượt làm bài nào — chạy bao nhiêu lần cũng không đụng dữ liệu.
- *
- * Dùng: php artisan practice:diagnose {email tài khoản đang bấm thử}
- */
 class PracticeDiagnose extends Command
 {
     protected $signature = 'practice:diagnose {email? : Email tài khoản đang bấm thử (bỏ trống = chỉ soi dữ liệu đề)}';
@@ -56,7 +46,6 @@ class PracticeDiagnose extends Command
             $this->newLine();
         }
 
-        // Đúng tập đề mà trang Luyện tập công khai liệt kê: type=practice + đã phát hành.
         $assessments = Assessment::query()
             ->where('type', 'practice')
             ->where('status', 'published')

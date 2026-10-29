@@ -9,14 +9,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/**
- * SỬA 9/10 (khách: "màn đổi mật khẩu tách riêng ra màn mới") — một màn Đổi mật khẩu riêng cho cả
- * 4 khu. Trước đây chỉ giáo viên/admin có form đổi mật khẩu và nằm lẫn trong trang hồ sơ; học sinh
- * và phụ huynh không có chỗ nào để đổi.
- *
- * Khu (admin/teacher/parent/student) suy ra từ tên route (admin.password.edit...) nên khung trang
- * và menu trái luôn đúng khu đang đứng, dù một tài khoản có nhiều vai trò.
- */
 class PasswordController extends Controller
 {
     /** khu => [layout, route hồ sơ] */
@@ -53,12 +45,10 @@ class PasswordController extends Controller
 
         $user = $request->user();
 
-        // Luôn đòi đúng mật khẩu hiện tại — không tin chỉ vì đã đăng nhập (giống updatePassword() của hồ sơ).
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages(['current_password' => 'Mật khẩu hiện tại không đúng.']);
         }
 
-        // Cast 'hashed' của User tự băm.
         $user->update(['password' => $data['password']]);
 
         return redirect()->route($area.'.password.edit')->with('status', 'password-updated');

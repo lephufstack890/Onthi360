@@ -15,17 +15,6 @@ class AssessmentRecalcPoints extends Command
 
     protected $description = 'Chốt điểm từng câu trong đề và tính lại tổng điểm của đề.';
 
-    /**
-     * SỬA 11/10 — LƯU Ý: từ hôm nay điểm từng câu lại do người ra đề NHẬP TAY ở màn chọn câu
-     * (có thể là số thập phân); lệnh này chỉ còn để điền câu THIẾU điểm. Cờ --theo-do-kho GHI ĐÈ
-     * điểm đã nhập — đừng chạy nếu không chủ ý.
-     *
-     * (Ghi chú cũ) SỬA 1/10 (khách: "đừng cho nhập nhé mà tự động active điểm của các câu theo độ khó của câu
-     * đó") — từ hôm nay màn chọn câu KHÔNG còn ô nhập điểm, điểm tính từ độ khó. Đề ĐÃ TẠO TRƯỚC
-     * ĐÓ vẫn giữ nguyên điểm cũ đã chốt (cố ý: đổi điểm một đề học sinh đã làm là đổi kết quả
-     * của họ). Cờ --theo-do-kho là lối để chốt lại hàng loạt khi khách muốn, chạy kèm --dry-run
-     * để xem trước rồi mới ghi thật.
-     */
     public function handle(): int
     {
         $dry = (bool) $this->option('dry-run');
@@ -49,8 +38,6 @@ class AssessmentRecalcPoints extends Command
 
                 $filled = 0;
                 foreach ($assessment->items as $item) {
-                    // Mặc định chỉ đụng tới câu CHƯA có điểm riêng. Có --theo-do-kho thì ghi đè
-                    // mọi câu theo độ khó (xem docblock ở handle()).
                     if ($item->points_override !== null && ! $theoDoKho) {
                         continue;
                     }
@@ -81,7 +68,6 @@ class AssessmentRecalcPoints extends Command
                     ));
                 }
 
-                // SỬA 11/10 — điểm có thể là số thập phân: cộng float, so sánh theo sai số 0.005.
                 $derived = \App\Support\AssessmentPoints::sum(
                     $assessment->items->map(fn ($item) => $item->points_override ?? $item->question?->points ?? 0)
                 );

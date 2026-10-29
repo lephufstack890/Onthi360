@@ -51,13 +51,6 @@ class QueueDiagnose extends Command
                 $this->warn('  ⚠ Có việc chờ nhưng KHÔNG máy nào đang chạy — tiến trình chấm nền không hoạt động.');
             }
 
-            /*
-             * SỬA 24/9 (khách: "chấm đề hơn 1 phút") — đo luôn KHOẢNG CHẾT CHỜ NHẬN VIỆC.
-             *
-             * Chấm 1 câu chỉ ~3 giây, nhưng nếu hàng đợi do cron gọi mỗi phút thì việc nằm im
-             * trung bình 30 giây trước khi có ai ngó tới — nhiều hơn cả thời gian chấm thật.
-             * Việc cũ nhất mà chờ lâu bất thường chính là dấu hiệu đó.
-             */
             if ($oldest !== null) {
                 $waited = $now - (int) $oldest->created_at;
 
@@ -107,10 +100,6 @@ class QueueDiagnose extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Gọi thử máy chấm 1 phát để biết nó CÒN SỐNG hay không, và trả lời nhanh cỡ nào — câu
-     * kẹt "Đang chấm" mà Judge0 không trả lời thì khỏi phải đoán thêm.
-     */
     private function judge0Health(): string
     {
         $baseUrl = rtrim((string) config('judge0.base_url'), '/');

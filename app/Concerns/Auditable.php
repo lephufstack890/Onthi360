@@ -18,8 +18,6 @@ trait Auditable
     {
         $changes = $action === 'updated' ? $this->getChanges() : null;
 
-        // created()/deleted() không có "changes" hữu ích ngoài toàn bộ attributes;
-        // với updated() chỉ ghi field thực sự đổi, tránh log rác.
         if ($action === 'updated' && empty($changes)) {
             return;
         }

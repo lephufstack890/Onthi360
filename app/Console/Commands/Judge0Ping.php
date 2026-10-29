@@ -77,7 +77,6 @@ class Judge0Ping extends Command
             }
         }
 
-        // ── Bước 3: chạy thử thật ─────────────────────────────────────────────────────────
         $source = "#include <iostream>\nint main(){ int a,b; std::cin>>a>>b; std::cout<<a+b; return 0; }";
 
         try {

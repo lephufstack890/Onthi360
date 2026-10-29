@@ -12,12 +12,7 @@ use App\Models\User;
 use App\Support\AccessDecision;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Cài đúng bảng 7.2 "Điều kiện khi giáo viên thêm học liệu vào lớp". Đây là
- * hành động nhạy cảm nhất trong toàn hệ thống (nếu sai, học sinh có thể đọc
- * được nội dung riêng tư mà không ai có quyền) nên được tách thành 1 Action
- * độc lập, có test riêng, không lồng trong controller.
- */
+
 class TeacherAttachMaterialAction
 {
     public function authorize(User $teacher, Material $material, ClassRoom $classRoom): AccessDecision
@@ -81,8 +76,6 @@ class TeacherAttachMaterialAction
         }
 
         return DB::transaction(function () use ($teacher, $material, $classRoom) {
-            // updateOrCreate: gắn lại học liệu đã "Đã gỡ" trước đó sẽ tái dùng bản ghi cũ
-            // thay vì tạo link mới — giữ nguyên lịch sử OJ/version (nguyên tắc 2.2 mục 3).
             return ClassMaterial::query()->updateOrCreate(
                 ['class_room_id' => $classRoom->id, 'material_id' => $material->id],
                 [
@@ -97,7 +90,6 @@ class TeacherAttachMaterialAction
         });
     }
 
-    /** Gỡ học liệu KHÔNG xóa lịch sử — chỉ đổi trạng thái (8.2). */
     public function detach(ClassMaterial $classMaterial): void
     {
         $classMaterial->update([

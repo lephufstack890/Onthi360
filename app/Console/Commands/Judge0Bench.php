@@ -20,8 +20,6 @@ class Judge0Bench extends Command
         $header = $light ? '#include <iostream>' : '#include <bits/stdc++.h>';
         $source = $header."\nusing namespace std;\nint main(){ios_base::sync_with_stdio(false);cin.tie(nullptr);long long a,b;cin>>a>>b;cout<<a+b<<\"\\n\";return 0;}\n";
 
-        // Lấy ĐÚNG mã ngôn ngữ mà CodeJudgingService đang gửi, không gán cứng — cài lại Judge0
-        // bằng ảnh khác là số này đổi (xem config/judge0.php).
         $languageId = \App\Services\CodeJudgingService::languageId('cpp');
 
         if ($languageId === null) {

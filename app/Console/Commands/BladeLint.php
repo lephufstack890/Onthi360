@@ -4,32 +4,12 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 
-/**
- * SỬA 30/9 (9) — DÒ DIRECTIVE BLADE BỊ DÍNH NGAY SAU MỘT CHỮ.
- *
- * Hôm nay trang "Làm bài" lỗi 500 vì đúng một dòng:
- *
- *     ... test đúng@endif</span>
- *
- * Blade nhận directive bằng biểu thức có \B đứng trước @, nghĩa là ký tự ngay trước @
- * KHÔNG được là chữ cái/chữ số. "đúng@endif" dính sau chữ "g" nên Blade KHÔNG coi đó là
- * directive: nó in ra nguyên văn "@endif", còn @if ở phía trên thì mất lệnh đóng — PHP
- * biên dịch ra "unexpected end of file, expecting endif" và cả trang chết.
- *
- * Đếm @if/@endif bằng mắt KHÔNG bắt được lỗi này, vì số lượng vẫn cân bằng — cái sai nằm ở
- * chỗ Blade có CHỊU nhận directive đó hay không.
- *
- * Dùng:  php artisan blade:lint
- * Nên chạy kèm "php artisan view:cache" trước mỗi lần deploy: lệnh đó biên dịch mọi view
- * nên bắt được lỗi cấu trúc, còn lệnh này bắt được directive bị nuốt mà vẫn biên dịch trót lọt.
- */
 class BladeLint extends Command
 {
     protected $signature = 'blade:lint {--path= : Thư mục cần soi (mặc định resources/views)}';
 
     protected $description = 'Dò directive Blade bị dính ngay sau một chữ (Blade sẽ không nhận ra).';
 
-    /** Các directive hay bị dính nhất — đều là loại làm vỡ trang nếu bị nuốt. */
     private const DIRECTIVES = [
         'if', 'endif', 'else', 'elseif', 'unless', 'endunless',
         'foreach', 'endforeach', 'forelse', 'empty', 'endforelse',
@@ -63,7 +43,6 @@ class BladeLint extends Command
             $seen++;
             $source = (string) file_get_contents($file->getPathname());
 
-            // Bỏ chú thích Blade nhưng GIỮ NGUYÊN số dòng, để chỗ báo lỗi trỏ đúng dòng.
             $clean = preg_replace_callback('/\{\{--.*?--\}\}/s', fn ($m) => preg_replace('/[^\n]/', ' ', $m[0]), $source);
 
             if (! preg_match_all($pattern, $clean, $matches, PREG_OFFSET_CAPTURE)) {

@@ -19,7 +19,6 @@ class ActivationCodeController extends Controller
         return view('admin.activation-codes.index', $this->activationCodeService->indexData());
     }
 
-    /** admin.activation-codes.create — biểu mẫu cấp tay 1 mã cho đúng 1 tài khoản (SỬA 18/9). */
     public function create(Request $request): View
     {
         return view('admin.activation-codes.create', $this->activationCodeService->createFormData());

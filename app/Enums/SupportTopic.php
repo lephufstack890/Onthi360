@@ -2,13 +2,6 @@
 
 namespace App\Enums;
 
-/**
- * Loại yêu cầu hỗ trợ gửi từ trang Thông tin công khai.
- *
- * Danh sách bám đúng những việc hệ thống này thật sự làm (chấm bài Online Judge, mã kích hoạt,
- * lớp học, tài khoản) chứ không phải danh mục chung chung — người gửi chọn đúng thì quản trị
- * viên lọc được ngay, đỡ phải đọc hết mới biết chuyển cho ai.
- */
 enum SupportTopic: string
 {
     case Learning = 'learning';

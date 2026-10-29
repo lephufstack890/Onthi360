@@ -9,11 +9,7 @@ use App\Services\ExamBundle\ExamBundleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-/**
- * SỬA 18/10 — thao tác BỘ ĐỀ của admin (khối "Đề trong bộ đề" ở trang chi tiết tài liệu loại Bộ đề, và ô "Bộ đề" ở trang
- * chi tiết đề luyện tập). Controller mỏng: kiểm tra đầu vào rồi gọi ExamBundleService — logic nằm hết ở service.
- * Routes: admin.products.bundle.* và admin.content.assessments.bundle.* (routes/web.php, nhóm admin).
- */
+
 class ExamBundleController extends Controller
 {
     public function __construct(private readonly ExamBundleService $bundles) {}
@@ -86,7 +82,6 @@ class ExamBundleController extends Controller
         return $this->back($product, 'Đã về thứ tự mặc định (năm học mới trước, tỉnh A–Z).');
     }
 
-    /** Ô "Chỉ trong bộ đề" ở trang chi tiết đề luyện tập. */
     public function assessmentVisibility(Request $request, Assessment $assessment): RedirectResponse
     {
         abort_unless(ExamBundleService::ready(), 404);
@@ -98,7 +93,6 @@ class ExamBundleController extends Controller
             : 'Đề đã công khai lại ở trang Luyện tập (làm miễn phí).');
     }
 
-    /** Nút "Thêm vào bộ đề…" ở trang chi tiết đề luyện tập. */
     public function assessmentAttach(Request $request, Assessment $assessment): RedirectResponse
     {
         abort_unless(ExamBundleService::ready(), 404);
