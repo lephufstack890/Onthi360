@@ -104,18 +104,18 @@ class LibraryService
         // giờ lọt ra đây, dù có lỡ chưa kịp bị discardAbandonedDraftsFor() quét dọn). 1 câu
         // truy vấn cho cả trang, cùng cách tránh N+1 với $materialsByProduct ở trên.
         $exercisesByProduct = Question::query()
+            // SỬA 29/10 (tràn bộ nhớ với tài liệu có test lớn) — chỉ cột nhẹ + số test đếm bằng SQL (đủ cho
+            // exerciseSummaryLabel()), không kéo grading_config; xếp "mới trước" ở PHP (ORDER BY kèm JSON dễ "Out of sort memory").
+            ->listColumns()->withSummaryCounts()
             ->whereIn('product_id', $productsForTab->pluck('id')->all())
             ->where('status', ContentStatus::Published->value)
-            ->orderByDesc('id')
-            // SỬA 31/8 (2) — thêm cột 'type' vào select: exercisesFor() bên dưới giờ gọi
-            // Question::exerciseSummaryLabel() (match theo $this->type) thay vì luôn đọc
-            // 'test_cases' cứng — thiếu cột này match() sẽ luôn nhận giá trị cast mặc định sai.
-            ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config'])
+            ->get()
+            ->sortByDesc('id')->values()
             ->groupBy('product_id');
         // SỬA 27/10 lần 2 — thêm bài DÙNG KÉ từ tài liệu khác (App\Support\ProductExerciseLinks).
         if (\App\Support\ProductExerciseLinks::supported()) {
             foreach ($productsForTab as $tabProduct) {
-                $exercisesByProduct->put($tabProduct->id, \App\Support\ProductExerciseLinks::withLinked((int) $tabProduct->id, $exercisesByProduct->get($tabProduct->id, collect()), [], ['id', 'product_id', 'title', 'points', 'type', 'grading_config']));
+                $exercisesByProduct->put($tabProduct->id, \App\Support\ProductExerciseLinks::withLinked((int) $tabProduct->id, $exercisesByProduct->get($tabProduct->id, collect()), [], ['*'], true, fn ($q) => $q->listColumns()->withSummaryCounts()));
             }
         }
 
@@ -203,12 +203,14 @@ class LibraryService
      */
     public function productCard(Product $product, string $readPrefix = 'student'): array
     {
+        // SỬA 29/10 — cột nhẹ + số test đếm bằng SQL (không kéo grading_config nặng), xếp "mới trước" ở PHP.
         $exercises = Question::query()
+            ->listColumns()->withSummaryCounts()
             ->where('product_id', $product->id)
             ->where('status', ContentStatus::Published->value)
-            ->orderByDesc('id')
-            ->get(['id', 'product_id', 'title', 'points', 'type', 'grading_config']);
-        $exercises = \App\Support\ProductExerciseLinks::withLinked((int) $product->id, $exercises, [], ['id', 'product_id', 'title', 'points', 'type', 'grading_config']); // SỬA 27/10 lần 2 — bài dùng ké
+            ->get()
+            ->sortByDesc('id')->values();
+        $exercises = \App\Support\ProductExerciseLinks::withLinked((int) $product->id, $exercises, [], ['*'], true, fn ($q) => $q->listColumns()->withSummaryCounts()); // SỬA 27/10 lần 2 — bài dùng ké
 
         return [
             'id' => $product->id,

@@ -223,7 +223,7 @@ class Question extends Model
             'questions.id', 'questions.code', 'questions.title', 'questions.type', 'questions.points', 'questions.metadata',
             'questions.status', 'questions.subject', 'questions.grade', 'questions.province', 'questions.exam_year',
             'questions.source_name', 'questions.created_by', 'questions.product_id', 'questions.material_id',
-            'questions.owner_type', 'questions.owner_id', 'questions.display_order',
+            'questions.owner_type', 'questions.owner_id', 'questions.display_order', 'questions.created_at', 'questions.updated_at',
         ])->addSelect([
             'questions.grading_config->time_limit_ms as cfg_time_ms',
             'questions.grading_config->memory_limit_mb as cfg_memory_mb',
@@ -232,6 +232,20 @@ class Question extends Model
             'questions.grading_config->file_io->input as io_in',
             'questions.grading_config->file_io->output as io_out',
         ]);
+    }
+
+    /**
+     * SỬA 29/10 (lỗi 500 "Allowed memory size" khi mở bộ đề) — kèm số test / phương án / đáp án / phần đếm thẳng bằng SQL, để
+     * exerciseSummaryLabel() dùng được mà KHÔNG kéo cả grading_config. Gọi SAU listColumns().
+     */
+    public function scopeWithSummaryCounts($query)
+    {
+        $fn = $query->getConnection()->getDriverName() === 'sqlite' ? 'json_array_length' : 'JSON_LENGTH';
+        foreach (['test_cases' => 'cnt_tests', 'options' => 'cnt_options', 'accepted_answers' => 'cnt_answers', 'parts' => 'cnt_parts'] as $key => $alias) {
+            $query->selectRaw($fn.'(questions.grading_config, \'$.'.$key.'\') as '.$alias);
+        }
+
+        return $query;
     }
 
     /**
@@ -259,6 +273,18 @@ class Question extends Model
 
     public function exerciseSummaryLabel(): string
     {
+        // SỬA 29/10 — nạp bằng listColumns()->withSummaryCounts(): đã có sẵn số đếm, không có grading_config.
+        if (array_key_exists('cnt_tests', $this->attributes)) {
+            $n = fn (string $k) => (int) ($this->attributes[$k] ?? 0);
+
+            return match ($this->type) {
+                QuestionType::Coding => $n('cnt_tests').' test case',
+                QuestionType::Mcq => $n('cnt_options').' phương án',
+                QuestionType::FillBlank => $n('cnt_answers').' đáp án chấp nhận',
+                QuestionType::Composite => $n('cnt_parts').' phần',
+            };
+        }
+
         $config = $this->grading_config ?? [];
 
         return match ($this->type) {

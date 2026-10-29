@@ -2219,7 +2219,9 @@ class ContentService
         // SỬA 27/10 lần 2 (khách: "dùng chung, không lưu thêm") — gộp thêm bài DÙNG KÉ từ tài liệu khác (kể cả bài gốc đang
         // nháp, để admin còn thấy mà gỡ). Bài dùng ké: Sửa = sửa bài gốc, nút "Gỡ" thay cho "Xoá". Xem App\Support\ProductExerciseLinks.
         $exLinks = \App\Support\ProductExerciseLinks::class;
-        $exList = $exLinks::withLinked((int) $product->id, $product->exercises()->with(['tags', 'chapter'])->get(), ['tags', 'product:id,title'], ['*'], false);
+        // SỬA 29/10 (tràn bộ nhớ với tài liệu có test lớn) — chỉ cột nhẹ + số test đếm bằng SQL, không kéo grading_config;
+        // bỏ ORDER BY của quan hệ (thứ tự do sortMaterialExercises() xếp ở dưới).
+        $exList = $exLinks::withLinked((int) $product->id, $product->exercises()->reorder()->listColumns()->withSummaryCounts()->with(['tags', 'chapter'])->get(), ['tags', 'product:id,title'], ['*'], false, fn ($q) => $q->listColumns()->withSummaryCounts());
         $exUsedBy = $exLinks::supported() && $exList->isNotEmpty()
             ? \App\Models\ProductExerciseLink::query()->whereIn('question_id', $exList->pluck('id')->all())->where('product_id', '!=', $product->id)
                 ->selectRaw('question_id, COUNT(*) as n')->groupBy('question_id')->pluck('n', 'question_id')->all()

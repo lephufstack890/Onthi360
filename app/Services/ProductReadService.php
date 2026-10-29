@@ -261,12 +261,15 @@ class ProductReadService
         // sẽ nhảy sang một bài không nằm ngay dưới trong danh sách này.
         // SỬA 27/10 — theo chương rồi mã bài (QuestionOrder::sortMaterialExercises), không gom theo dạng.
         // SỬA 27/10 lần 2 — gộp thêm bài DÙNG KÉ từ tài liệu khác (App\Support\ProductExerciseLinks), gắn đúng chương bên tài liệu này.
-        $questions = QuestionOrder::sortMaterialExercises(\App\Support\ProductExerciseLinks::withLinked((int) $product->id, QuestionOrder::apply(
+        // SỬA 29/10 (lỗi 500 "Allowed memory size" khi mở bộ đề / sách có test lớn) — chỉ lấy cột nhẹ (listColumns), không
+        // ORDER BY trong SQL (MySQL "Out of sort memory"); thứ tự do sortMaterialExercises() xếp lại ở PHP như cũ.
+        $questions = QuestionOrder::sortMaterialExercises(\App\Support\ProductExerciseLinks::withLinked((int) $product->id,
             Question::query()
+                ->listColumns()
                 ->where('product_id', $product->id)
                 ->where('status', ContentStatus::Published->value)
                 ->with(['tags:id,name'])
-        )->get(), ['tags:id,name']));
+                ->get(), ['tags:id,name'], ['*'], true, fn ($q) => $q->listColumns()));
 
         if ($questions->isEmpty()) {
             return [];

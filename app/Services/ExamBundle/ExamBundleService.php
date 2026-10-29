@@ -462,7 +462,9 @@ class ExamBundleService
         if ($exams->isEmpty()) {
             return null;
         }
-        (new \Illuminate\Database\Eloquent\Collection($exams->all()))->load(['items' => fn ($q) => $q->orderBy('order'), 'items.question.tags:id,name']);
+        // SỬA 29/10 (lỗi 500 "Allowed memory size" khi bấm Làm bộ đề) — câu của các đề chỉ lấy cột nhẹ (listColumns), không kéo
+        // grading_config chứa cả dữ liệu test (bộ đề có test lớn là tràn bộ nhớ PHP).
+        (new \Illuminate\Database\Eloquent\Collection($exams->all()))->load(['items' => fn ($q) => $q->orderBy('order'), 'items.question' => fn ($q) => $q->listColumns(), 'items.question.tags:id,name']);
 
         $questionIds = $exams->flatMap(fn (Assessment $a) => $a->items->pluck('question_id'))->filter()->unique()->values()->all();
         $mine = $questionIds === [] ? collect() : \App\Models\AttemptAnswer::query()

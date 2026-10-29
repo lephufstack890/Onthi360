@@ -98,7 +98,7 @@ final class ProductExerciseLinks
      * @param  array<int|string, mixed>  $with
      * @param  array<int, string>  $columns
      */
-    public static function linkedQuestions(int $productId, array $with = [], array $columns = ['*'], bool $publishedOnly = true): Collection
+    public static function linkedQuestions(int $productId, array $with = [], array $columns = ['*'], bool $publishedOnly = true, ?\Closure $scope = null): Collection
     {
         $map = self::chapterMap($productId);
         if ($map === []) {
@@ -108,6 +108,11 @@ final class ProductExerciseLinks
         $query = Question::query()->whereIn('id', array_keys($map))
             ->whereNotNull('product_id')->where('product_id', '!=', $productId)
             ->with($with);
+        // SỬA 29/10 — danh sách nhẹ (vd fn ($q) => $q->listColumns()): không kéo grading_config nặng của bài dùng ké.
+        if ($scope !== null) {
+            $scope($query);
+            $columns = ['*'];
+        }
         if ($publishedOnly) {
             $query->where('status', ContentStatus::Published->value);
         }
@@ -122,9 +127,9 @@ final class ProductExerciseLinks
     }
 
     /** Gộp bài dùng ké vào danh sách bài của tài liệu (bài đã có trong $own thì bỏ qua). */
-    public static function withLinked(int $productId, Collection $own, array $with = [], array $columns = ['*'], bool $publishedOnly = true): Collection
+    public static function withLinked(int $productId, Collection $own, array $with = [], array $columns = ['*'], bool $publishedOnly = true, ?\Closure $scope = null): Collection
     {
-        $linked = self::linkedQuestions($productId, $with, $columns, $publishedOnly);
+        $linked = self::linkedQuestions($productId, $with, $columns, $publishedOnly, $scope);
         if ($linked->isEmpty()) {
             return $own;
         }
