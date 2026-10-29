@@ -42,10 +42,12 @@
     @endif
 
     {{-- ══════ 1. ĐƯỜNG DẪN QUAY LẠI ══════ --}}
-    <a href="{{ route('materials.index') }}"
+    <a href="{{ route('materials.index') }}" data-oi-back="materials"
        class="inline-flex w-fit items-center gap-1.5 rounded-xl border border-sky-100 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-2xs transition-colors hover:border-sky-200 hover:text-blue-700">
         <x-lucide name="arrow-left" class="h-3.5 w-3.5" />Quay lại Tài liệu
     </a>
+    {{-- SỬA 29/10 — về đúng trang danh sách vừa xem (giữ lọc + trang). --}}
+    @include('partials.list-memo-script')
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5 2xl:grid-cols-[minmax(0,1fr)_380px]">
 

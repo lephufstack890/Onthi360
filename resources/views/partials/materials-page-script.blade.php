@@ -63,6 +63,9 @@
                 if (this.categories.some(function (c) { return c.id === config.category; })) { this.category = config.category; }
                 if (config.scope_tab) { this.scopeTab = config.scope_tab; }
                 this.scopeTab = this.activeScope;
+                // SỬA 29/10 (khách: "quay lại là về trang 1, mất hết lọc + phân trang") — khôi phục từ khoá, bộ lọc, số trang
+                // từ URL (syncUrl() ghi lên) TRƯỚC khi gắn $watch bên dưới (gắn sau thì $watch đẩy về trang 1).
+                this.restoreFromUrl();
 
                 // Bản mẫu quay về trang 1 mỗi khi đổi bộ lọc / từ khoá / tab.
                 this.$watch('category', function (v) { if (v !== 'exams') { self.province = 'all'; } });
@@ -71,6 +74,21 @@
                 });
                 // "Hạn đọc gần nhất" chỉ có ở các danh sách lượt giao; rời khỏi đó thì về sắp xếp mặc định.
                 this.$watch('scopeTab', function () { if (!self.isAssignmentView && self.sort === 'deadline') { self.sort = 'default'; } });
+                this.$watch('pageIndex', function () { self.syncUrl(); });
+                this.syncUrl();
+            },
+
+            // SỬA 29/10 — đọc lại từ khoá / bộ lọc / số trang từ URL. Giá trị lạ thì bỏ qua; số trang quá lớn tự kẹp về trang cuối.
+            restoreFromUrl() {
+                try {
+                    var q = new URL(window.location.href).searchParams, self = this;
+                    var keys = { q: 'query', diff: 'difficulty', price: 'price', access: 'access', status: 'status', sort: 'sort', prov: 'province' };
+                    Object.keys(keys).forEach(function (k) { var v = q.get(k); if (v !== null && v !== '') { self[keys[k]] = v; } });
+                    var pg = parseInt(q.get('pg') || '', 10);
+                    if (pg >= 1) { this.pageIndex = pg; }
+                    // Có lọc phụ đang bật thì mở sẵn khung lọc để người xem thấy mình đang lọc gì.
+                    if (this.difficulty !== 'all' || this.price !== 'all' || this.access !== 'all' || this.status !== 'all' || this.sort !== 'default') { this.moreFilters = true; }
+                } catch (e) { /* bỏ qua */ }
             },
 
             // ── Quyền theo vai trò ──
@@ -287,7 +305,19 @@
                     ['tab', 'scope', 'category'].forEach(function (k) { url.searchParams.delete(k); });
                     if (this.activeScope !== 'catalog') { url.searchParams.set('scope', this.activeScope); }
                     if (this.category !== 'all') { url.searchParams.set('category', this.category); }
+                    // SỬA 29/10 — ghi thêm từ khoá, bộ lọc, số trang (giá trị mặc định thì bỏ cho gọn) và nhớ địa chỉ này để nút
+                    // Quay lại ở màn đọc / trang tài liệu về đúng chỗ (partials/list-memo-script).
+                    var put = function (k, v, def) { if (v !== undefined && v !== null && String(v) !== '' && String(v) !== String(def)) { url.searchParams.set(k, v); } else { url.searchParams.delete(k); } };
+                    put('q', (this.query || '').trim(), '');
+                    put('diff', this.difficulty, 'all');
+                    put('price', this.price, 'all');
+                    put('access', this.access, 'all');
+                    put('status', this.status, 'all');
+                    put('sort', this.sort, 'default');
+                    put('prov', this.province, 'all');
+                    put('pg', this.page, 1);
                     window.history.replaceState(null, '', url.toString());
+                    try { window.sessionStorage.setItem('oi.list.materials', url.pathname + url.search); } catch (e) { /* bỏ qua */ }
                 } catch (e) { /* bỏ qua */ }
             },
 

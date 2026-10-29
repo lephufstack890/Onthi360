@@ -196,10 +196,12 @@
     <header class="sticky top-0 z-30 border-b border-[#DDEAF0] bg-white/95 backdrop-blur-xl">
         <div class="w-full px-4 py-2.5 sm:px-6 lg:px-8">
             <div class="flex items-center gap-2.5">
-                <a href="{{ $backHref }}" aria-label="Quay lại danh sách đề"
+                {{-- SỬA 29/10 — về đúng trang danh sách đề vừa xem (giữ lọc + trang), xem partials/list-memo-script. --}}
+                <a href="{{ $backHref }}" data-oi-back="practice" aria-label="Quay lại danh sách đề"
                    class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[#DCE7EC] bg-white px-2.5 text-[12px] font-semibold text-[#45657D] transition hover:border-[#9DC8D7] hover:bg-[#EAF5F8]">
                     <x-lucide name="arrow-left" class="h-4 w-4" /><span class="hidden sm:inline">Danh sách đề</span>
                 </a>
+                @include('partials.list-memo-script')
                 <div class="hidden h-6 w-px bg-slate-200 sm:block"></div>
 
                 @if ($coverUrl)

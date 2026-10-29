@@ -71,8 +71,10 @@
                 this.$watch('examSort', () => { this.examPageIndex = 1; });
 
                 // Mọi thay đổi trang/bộ lọc đều ghi lên URL (replaceState — không thêm mục vào lịch sử).
-                ['problemPageIndex', 'examPageIndex', 'activeTab', 'selectedTopic', 'selectedDifficulty', 'selectedExamType', 'selectedExamLevel', 'onlyUndone', 'searchQuery']
+                ['problemPageIndex', 'examPageIndex', 'activeTab', 'selectedTopic', 'selectedDifficulty', 'selectedExamType', 'selectedExamLevel', 'onlyUndone', 'searchQuery', 'selectedExamProvince', 'examSort']
                     .forEach((key) => this.$watch(key, () => this.syncUrl()));
+                // SỬA 29/10 — nhớ ngay địa chỉ đang xem (để nút Quay lại ở trang đề / lịch sử nộp về đúng chỗ).
+                this.syncUrl();
             },
 
             // Đọc lại trạng thái trang từ URL (số trang, bộ lọc). Giá trị lạ/hỏng thì bỏ qua; số trang vượt quá thì
@@ -85,6 +87,9 @@
                     if (this.practiceMode === 'exams') {
                         const t = q.get('etype'); if (t) { this.selectedExamType = t; }
                         const lv = q.get('elevel'); if (lv) { this.selectedExamLevel = lv; }
+                        // SỬA 29/10 — giữ cả tỉnh/thành + cách sắp xếp đề.
+                        const pv = q.get('eprov'); if (pv) { this.selectedExamProvince = pv; }
+                        const so = q.get('esort'); if (so) { this.examSort = so; }
                         const p = num('pg'); if (p) { this.examPageIndex = p; }
                     } else {
                         const t = q.get('type'); if (t) { this.activeTab = t; }
@@ -164,8 +169,12 @@
                     put('undone', !exams && this.onlyUndone ? '1' : '', '');
                     put('etype', exams ? this.selectedExamType : '', 'all');
                     put('elevel', exams ? this.selectedExamLevel : '', 'all');
+                    put('eprov', exams ? this.selectedExamProvince : '', 'all');
+                    put('esort', exams ? this.examSort : '', 'default');
                     put('q', this.searchQuery.trim(), '');
                     window.history.replaceState({}, '', url.toString());
+                    // SỬA 29/10 — nhớ địa chỉ (đủ lọc + trang) cho nút Quay lại ở trang đề / lịch sử nộp (partials/list-memo-script).
+                    try { window.sessionStorage.setItem('oi.list.practice', url.pathname + url.search); } catch (e) { /* bỏ qua */ }
                 } catch (e) { /* bỏ qua */ }
             },
 

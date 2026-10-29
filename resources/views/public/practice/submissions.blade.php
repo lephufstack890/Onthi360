@@ -158,7 +158,8 @@
     {{-- ═══ Hero ═══ --}}
     <section class="shx-hero">
         <div style="position:relative;z-index:1">
-            <a class="shx-back" href="{{ route('practice.index', $isProblems ? [] : ['tab' => 'de-thi']) }}"><x-lucide name="arrow-left" /> Quay lại Luyện tập</a>
+            <a class="shx-back" data-oi-back="practice" href="{{ route('practice.index', $isProblems ? [] : ['tab' => 'de-thi']) }}"><x-lucide name="arrow-left" /> Quay lại Luyện tập</a>
+            @include('partials.list-memo-script')
             <h1 class="shx-title"><span class="shx-title-ic"><x-lucide name="history" /></span>{{ $pageTitle }}</h1>
             <p class="shx-sub">
                 @if ($filters['all'])
