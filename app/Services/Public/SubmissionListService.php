@@ -218,6 +218,7 @@ class SubmissionListService
         $base = Attempt::query()
             ->whereNotNull('submitted_at')
             ->whereNull('competition_id')
+            ->where('source', '!=', 'staff_test') // SỬA 30/10 — bỏ lượt LÀM THỬ của ban tổ chức (ContestTestRunController)
             ->whereIn('assessment_id', $practiceExamIds->select('id'))
             ->when($scope !== null, fn ($w) => $w->whereIn('user_id', $scope));
 

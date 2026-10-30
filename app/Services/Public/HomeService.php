@@ -214,6 +214,7 @@ class HomeService
                     $examAttempts = \App\Models\Attempt::query()
                         ->whereNotNull('assessment_id')
                         ->whereNotNull('submitted_at')
+                        ->where('source', '!=', 'staff_test') // SỬA 30/10 — bỏ lượt LÀM THỬ của ban tổ chức (ContestTestRunController)
                         ->whereBetween('submitted_at', [$from, $to])
                         ->whereHas('assessment', fn ($q) => $q->where('type', 'practice'))
                         ->count();

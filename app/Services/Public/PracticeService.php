@@ -924,6 +924,7 @@ class PracticeService
         return \App\Models\Attempt::query()
             ->whereIn('assessment_id', $assessmentIds)
             ->whereNotNull('submitted_at')
+            ->where('source', '!=', 'staff_test') // SỬA 30/10 — bỏ lượt LÀM THỬ của ban tổ chức (ContestTestRunController)
             ->selectRaw('assessment_id, COUNT(*) as aggregate')
             ->groupBy('assessment_id')
             ->pluck('aggregate', 'assessment_id')

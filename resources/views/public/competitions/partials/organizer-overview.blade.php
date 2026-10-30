@@ -18,6 +18,38 @@
         <button type="button" @click="showTab('{{ $rankTab }}')"><x-lucide name="list-checks" /><span>Bài nộp<strong>{{ $o['records'] }} lượt đã nộp</strong><small>{{ $o['submitters'] }} học sinh đã nộp bài</small></span><x-lucide name="arrow-right" /></button>
     </div>
 
+    {{-- SỬA 30/10 (khách: "admin, giáo viên làm thử đề lúc nào cũng được — kể cả kỳ sắp diễn ra — để kiểm tra chấm") — chỉ ban
+         tổ chức thấy. Lượt làm thử không tính vào bảng xếp hạng, người tham gia, bài nộp, nhật ký của kỳ. --}}
+    @if (! empty($testRun))
+        <form method="POST" action="{{ $testRun['url'] }}" target="_blank"
+              style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:14px 0 4px;padding:12px 14px;border:1px dashed #9cc7d8;border-radius:12px;background:#f3f9fc">
+            @csrf
+            <span style="display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e0f0f6;color:#126f91;flex:none"><x-lucide name="play-circle" style="width:18px;height:18px" /></span>
+            <span style="flex:1 1 260px;min-width:0">
+                <b style="display:block;font-size:13px;color:#123b68">Làm thử đề (dành cho ban tổ chức)</b>
+                <span style="display:block;margin-top:2px;font-size:12px;line-height:1.5;color:#61798b">
+                    @if ($testRun['options'] === [])
+                        Chưa có đề để làm thử — chọn / chốt đề ở tab {{ $s['tabLabel'] }} trước.
+                    @else
+                        Vào làm như học sinh để kiểm tra đề và máy chấm, lúc nào cũng được. Không cần mật khẩu; bài làm thử không tính vào bảng xếp hạng, người tham gia hay nhật ký của kỳ.
+                    @endif
+                </span>
+            </span>
+            @if (count($testRun['options']) > 1)
+                <select name="assessment_id" aria-label="Chọn đề làm thử" style="height:36px;max-width:260px;border:1px solid #d6e3ec;border-radius:9px;padding:0 10px;font-size:12px;color:#123b68;background:#fff">
+                    @foreach ($testRun['options'] as $tid => $tlabel)
+                        <option value="{{ $tid }}">{{ $tlabel }}</option>
+                    @endforeach
+                </select>
+            @elseif (count($testRun['options']) === 1)
+                <input type="hidden" name="assessment_id" value="{{ array_key_first($testRun['options']) }}">
+            @endif
+            <button type="submit" class="hub-primary-action" @disabled($testRun['options'] === []) style="display:inline-flex;align-items:center;gap:6px">
+                <x-lucide name="play-circle" style="width:15px;height:15px" />Làm thử đề
+            </button>
+        </form>
+    @endif
+
     <div class="hub-preparation">
         <h4>{{ $ended ? 'Cấu hình của kỳ' : 'Trước khi học sinh bắt đầu' }}</h4>
         <div data-ready="{{ $s['ready'] ? 'true' : 'false' }}">

@@ -369,6 +369,11 @@ class ContestHubService
                     ? route('competitions.manage.papers', ['competition' => $c->id, 'exam' => $exam->id]) : null,
             ],
             'setup' => $setup,
+            // SỬA 30/10 (khách: "admin, giáo viên làm thử đề lúc nào cũng được để kiểm tra chấm") — đề làm thử được của kỳ.
+            'testRun' => $manager ? [
+                'url' => route('competitions.manage.test', ['competition' => $c->id, 'exam' => $exam->id]),
+                'options' => app(\App\Http\Controllers\ContestTestRunController::class)->testableAssessments($exam),
+            ] : null,
             'organizerOverview' => $participants !== null ? [
                 // SỬA 30/10 (khách: "kỳ khảo sát thứ 2 chưa ai tham gia mà vẫn hiện 7 như kỳ đầu") — KHẢO SÁT: chỉ tính học sinh đã
                 // nhập mật khẩu VÀO LÀM ĐÚNG KỲ NÀY (có lượt làm bài ở kỳ này: đang làm hoặc đã nộp). Danh sách đăng ký là của cả
