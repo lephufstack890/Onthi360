@@ -209,6 +209,10 @@
                         @if (! $round['hasAssessment'] && ! $manager)
                             <p class="contest-error" role="alert">{{ $survey ? 'Kỳ khảo sát này đang được chuẩn bị đề.' : 'Kỳ thi này chưa được ban tổ chức gắn đề.' }}</p>
                         @endif
+                        {{-- SỬA 30/10 — tab Nhật ký (ban tổ chức: mọi học sinh · học sinh: của mình), dữ liệu tải khi mở tab. --}}
+                        @if (in_array('activity', array_column($tabs ?? [], 'id'), true) && ! empty($round['activityUrl']))
+                            <div x-show="tab === 'activity'" x-cloak>@include('public.competitions.partials.activity-log')</div>
+                        @endif
                         <div x-show="tab === 'overview'">
                             @if ($manager)
                                 @include('public.competitions.partials.organizer-overview')

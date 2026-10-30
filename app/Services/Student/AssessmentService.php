@@ -396,6 +396,9 @@ class AssessmentService
 
         $attempt = $this->ownedAttemptOrFail($user, $attemptId);
 
+        // SỬA 30/10 — lưu NGUYÊN nhật ký cả lượt (tab Nhật ký của cuộc thi / khảo sát), trước khi khoá lượt.
+        $this->storeAttemptActivityLog($attempt, $activityLog);
+
         if ($attempt->assessment->isPdfMode()) {
             return $this->pdfAttemptService->submit($attempt);
         }
@@ -416,6 +419,28 @@ class AssessmentService
      *  · Chỉ trừ MỘT lần: câu nào đã có activity_log thì bỏ qua (nộp đồng thời hai request không trừ chồng).
      *  · Chỉ áp dụng khi trình duyệt gửi nhật ký kèm lúc nộp. Người tắt JavaScript / xoá nhật ký thì không bị bắt.
      */
+    /**
+     * SỬA 30/10 (khách: "tab Nhật ký cho khảo sát / cuộc thi") — lưu NGUYÊN nhật ký làm đề của cả lượt vào attempts.activity_log
+     * (đã làm sạch: PracticeActivityLog::clean). Khác applyActivityPenalty(): giữ cả dòng gắn với câu chưa trả lời. Lượt đã nộp
+     * trước đó / không gửi nhật ký / chưa chạy migration 001340 thì bỏ qua. Lỗi ở đây KHÔNG được chặn việc nộp bài.
+     */
+    private function storeAttemptActivityLog(Attempt $attempt, ?string $rawLog): void
+    {
+        try {
+            if (! Attempt::supportsActivityLog() || $attempt->submitted_at !== null) {
+                return;
+            }
+            $events = \App\Support\PracticeActivityLog::clean($rawLog);
+            if ($events === null || $events === []) {
+                return;
+            }
+            $attempt->activity_log = \App\Support\PracticeActivityLog::merge(is_array($attempt->activity_log) ? $attempt->activity_log : null, $events);
+            $attempt->save();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     private function applyActivityPenalty(Attempt $attempt, ?string $rawLog): void
     {
         if (! \App\Models\AttemptAnswer::supportsActivityLog()) {

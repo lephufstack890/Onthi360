@@ -181,6 +181,9 @@ Route::middleware('auth')->group(function () {
     // SỬA 25/10 — tab "Lấy đề có sẵn": chọn đề trong ngân hàng cho kỳ.
     Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/de-co-san', [\App\Http\Controllers\ContestManageController::class, 'setRoundExam'])
         ->whereNumber(['competition', 'exam'])->name('competitions.manage.rounds.exam');
+    // SỬA 30/10 — tab "Nhật ký" của kỳ (JSON): ban tổ chức xem mọi lượt, người khác chỉ lượt của mình (ContestActivityLogService).
+    Route::get('/cuoc-thi/{competition}/vong/{exam}/nhat-ky', \App\Http\Controllers\ContestActivityLogController::class)
+        ->whereNumber(['competition', 'exam'])->name('competitions.activity');
     // SỬA 24/10 — tab "Thiết lập đề" (API JSON), xem ContestPaperController.
     Route::prefix('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/de')->whereNumber(['competition', 'exam'])->group(function () {
         Route::get('/', [\App\Http\Controllers\ContestPaperController::class, 'state'])->name('competitions.manage.papers');

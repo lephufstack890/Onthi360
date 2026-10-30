@@ -26,7 +26,17 @@ class Attempt extends Model
         'started_at' => 'datetime',
         'submitted_at' => 'datetime',
         'is_provisional' => 'boolean',
+        // SỬA 30/10 — nhật ký làm đề của cả lượt (migration 001340), xem supportsActivityLog().
+        'activity_log' => 'array',
     ];
+
+    /** SỬA 30/10 — máy chủ đã chạy migration 001340 (attempts.activity_log) chưa. Chưa chạy thì mọi chỗ bỏ qua cột này. */
+    public static function supportsActivityLog(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('attempts', 'activity_log');
+    }
 
     public function user(): BelongsTo
     {

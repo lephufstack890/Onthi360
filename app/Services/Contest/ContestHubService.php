@@ -320,12 +320,16 @@ class ContestHubService
                 ['id' => 'paper', 'icon' => 'file-text', 'label' => $setup['tabLabel'], 'count' => null],
                 $survey ? null : ['id' => 'registrations', 'icon' => 'user-check', 'label' => 'Học sinh', 'count' => $participants !== null ? ($participants['pending'] ?: count($participants['rows'])) : null],
                 ['id' => $rankTab, 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null],
+                // SỬA 30/10 (khách: "thêm tab Nhật ký — admin, giáo viên xem toàn bộ") — nhật ký làm đề của mọi học sinh.
+                ['id' => 'activity', 'icon' => 'history', 'label' => 'Nhật ký', 'count' => null],
             ]))
             : array_values(array_filter([
                 ['id' => 'overview', 'icon' => 'list-checks', 'label' => $survey ? 'Thông tin kỳ khảo sát' : 'Thông tin kỳ thi', 'count' => null],
                 $viewer !== null ? ['id' => 'submissions', 'icon' => 'file-text', 'label' => 'Bài nộp của tôi', 'count' => count($attemptRows)] : null,
                 ['id' => 'results', 'icon' => $survey ? 'bar-chart-3' : 'trophy', 'label' => $survey ? 'Kết quả năng lực' : 'Bảng xếp hạng', 'count' => null],
                 $survey ? ['id' => 'ranking', 'icon' => 'trophy', 'label' => 'Bảng xếp hạng', 'count' => null] : null,
+                // SỬA 30/10 — học sinh (hoặc ai đã có lượt làm ở kỳ này): CHỈ xem nhật ký của chính mình.
+                ($viewer !== null && ($isStudent || $mine->isNotEmpty())) ? ['id' => 'activity', 'icon' => 'history', 'label' => 'Nhật ký của tôi', 'count' => null] : null,
             ]));
         $tabIds = array_column($tabs, 'id');
 
@@ -355,6 +359,8 @@ class ContestHubService
                 'assignmentMode' => $exam->assignmentMode(),
                 'formCount' => $formCount,
                 'enterUrl' => route('student.competitions.enter', ['competition' => $c->id, 'exam' => $exam->id]),
+                // SỬA 30/10 — dữ liệu tab Nhật ký (JSON, tải khi mở tab).
+                'activityUrl' => $viewer !== null ? route('competitions.activity', ['competition' => $c->id, 'exam' => $exam->id]) : null,
                 'needsPassword' => $survey && $c->hasEntryPassword(),
                 'paperCount' => $papers->count(),
                 'bankCount' => $bank->count(), // SỬA 25/10 — kỳ nhiều đề ngân hàng
