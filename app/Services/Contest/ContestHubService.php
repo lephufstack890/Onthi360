@@ -58,6 +58,11 @@ class ContestHubService
 
         // SỬA 25/10 (khách: "cho thấy hết, chưa có kỳ vẫn hiển thị") — học sinh / khách thấy mọi sự kiện như ban tổ chức
         // (bỏ lọc "chưa có kỳ / khoá học chưa phát hành"). Sự kiện chưa có kỳ: nhãn "Sắp mở · Chưa có kỳ" (xem card()).
+        // SỬA 30/10 (khách: "vai trò học sinh: cuộc thi / khảo sát nào CÓ KỲ thì mới hiển thị") — HỌC SINH chỉ thấy sự kiện đã có
+        // ít nhất một kỳ. Ban tổ chức (admin / giáo viên) vẫn thấy hết để chuẩn bị; khách, phụ huynh giữ như 25/10.
+        if ($viewer !== null && $viewer->hasRole(Role::STUDENT) && ! $this->organizers->canCreateRound($viewer)) {
+            $competitions = $competitions->filter(fn (Competition $c) => $c->examSittings->isNotEmpty())->values();
+        }
 
         $statuses = ($viewer !== null && CompetitionRegistration::supported() && $competitions->isNotEmpty())
             ? CompetitionRegistration::query()
