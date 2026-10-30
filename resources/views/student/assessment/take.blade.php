@@ -307,7 +307,7 @@
                         {{-- SỬA 11/10 — nhắc luật trừ điểm theo nhật ký (tính theo CÂU đang làm) + huy hiệu % đã bị trừ của câu này. --}}
                         <span class="oi-penalty-warn" role="note">
                             <x-lucide name="alert-triangle" class="h-3.5 w-3.5 shrink-0" />
-                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm của câu đang làm.</span>
+                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm của câu đang làm (mỗi tab chỉ trừ lần mở đầu).</span>
                             <b data-penalty-badge class="oi-penalty-badge"></b>
                         </span>
                     </div>

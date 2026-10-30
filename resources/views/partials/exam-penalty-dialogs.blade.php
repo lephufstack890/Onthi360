@@ -70,8 +70,8 @@
         <h3 id="oi-confirm-title" class="oi-confirm-title">Xem <span x-text="penaltyAsk.label"></span> sẽ bị trừ điểm</h3>
         <div class="oi-confirm-pct">−<span x-text="penaltyAsk.pct"></span>% điểm câu này</div>
         <p id="oi-confirm-desc" class="oi-confirm-desc">
-            Mỗi lần mở tab <b x-text="penaltyAsk.label"></b> được ghi vào Nhật ký làm bài và bị trừ
-            <b><span x-text="penaltyAsk.pct"></span>%</b> điểm của câu đang làm. Bạn có chắc muốn xem không?
+            Mở tab <b x-text="penaltyAsk.label"></b> được ghi vào Nhật ký làm bài và bị trừ
+            <b><span x-text="penaltyAsk.pct"></span>%</b> điểm của câu đang làm (chỉ trừ một lần — mở lại sau đó không trừ thêm). Bạn có chắc muốn xem không?
         </p>
         <div class="oi-confirm-actions">
             <button type="button" class="oi-confirm-btn oi-confirm-btn-ghost" data-oi-confirm-cancel @click="penaltyCancel()">Không xem</button>

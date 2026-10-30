@@ -490,7 +490,9 @@
 
                 // ── SỬA 11/10 — TRỪ ĐIỂM KHI MỞ HƯỚNG DẪN / BÀI MẪU (làm đề) ──
                 askTab(id) {
-                    if ((id === 'guide' || id === 'sample') && this.activeTab !== id) {
+                    // SỬA 30/10 — câu đang xem đã mở tab này trong lượt làm này rồi thì mở lại luôn, không hỏi (không trừ thêm).
+                    var seen = window.oiWorkLog && typeof window.oiWorkLog.opened === 'function' && window.oiWorkLog.opened(id);
+                    if ((id === 'guide' || id === 'sample') && this.activeTab !== id && !seen) {
                         var pct = (window.oiPenaltyRules && window.oiPenaltyRules.guide) || 0;
                         if (pct > 0) {
                             this.penaltyAsk = { open: true, id: id, label: id === 'guide' ? 'Hướng dẫn' : 'Bài mẫu', pct: pct };

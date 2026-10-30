@@ -68,10 +68,7 @@
                 // SỬA 10/10 — % điểm đã bị trừ theo nhật ký (chỉ màn Luyện tập có window.oiPenaltyRules). Máy chủ tính lại khi nộp.
                 var rules = window.oiPenaltyRules;
                 if (rules) {
-                    var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
-                    var pct = 0;
-                    scoped().forEach(function (e) { var g = groupOf[e.eventType]; if (g) pct += (rules[g] || 0); });
-                    pct = Math.min(100, pct);
+                    var pct = penaltyTotal();
                     document.querySelectorAll('[data-penalty-badge]').forEach(function (el) {
                         el.textContent = pct > 0 ? 'Đã bị trừ ' + pct + '%' : '';
                         el.setAttribute('data-on', pct > 0 ? '1' : '0');
@@ -140,12 +137,19 @@
              * hiện gì lúc đang bị ẩn, nên: (1) lúc rời đi đổi tiêu đề tab trình duyệt thành lời nhắc; (2) lúc quay
              * lại bật hộp cảnh báo "bị trừ X% — tổng đã trừ Y%". Hộp do exercise-play lắng nghe sự kiện bên dưới.
              */
+            // SỬA 30/10 — cùng luật với máy chủ (PracticeActivityLog::penalty): chụp màn hình trừ mỗi lần; Hướng dẫn / Bài mẫu mỗi tab
+            // chỉ trừ LẦN MỞ ĐẦU TIÊN trong lần làm này (câu đang xem, nếu là làm đề).
             function penaltyTotal() {
                 var rules = window.oiPenaltyRules;
                 if (!rules) return 0;
                 var groupOf = { screenshot_key: 'screenshot', screen_capture_requested: 'screenshot', solution_guide_opened: 'guide', sample_opened: 'guide' };
-                var t = 0;
-                scoped().forEach(function (e) { var g = groupOf[e.eventType]; if (g) t += (rules[g] || 0); });
+                var t = 0, seen = {};
+                scoped().forEach(function (e) {
+                    var g = groupOf[e.eventType];
+                    if (!g) return;
+                    if (g === 'guide') { if (seen[e.eventType]) return; seen[e.eventType] = true; }
+                    t += (rules[g] || 0);
+                });
                 return Math.min(100, t);
             }
 
@@ -190,6 +194,14 @@
                 },
                 /** Vẽ lại (đổi câu đang xem thì % đã bị trừ của câu đó đổi theo). */
                 refresh: function () { render(); },
+                /**
+                 * SỬA 30/10 — tab 'guide' / 'sample' đã mở trong lần làm này chưa (câu đang xem, nếu là làm đề). Đã mở rồi thì mở lại
+                 * KHÔNG hỏi / KHÔNG trừ điểm nữa. Thoát ra vào làm lại là nhật ký mới -> lại hỏi và trừ ở lần mở đầu tiên.
+                 */
+                opened: function (tab) {
+                    var type = tab === 'guide' ? 'solution_guide_opened' : (tab === 'sample' ? 'sample_opened' : tab);
+                    return scoped().some(function (e) { return e.eventType === type; });
+                },
                 tabChanged: function (tab) {
                     // CHỈ hai tab này. Đề bài / Làm bài / Nhật ký là chỗ phải qua lại liên tục
                     // trong lúc làm, ghi vào thì nhật ký thành một dải vô nghĩa.

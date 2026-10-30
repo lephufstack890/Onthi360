@@ -118,7 +118,9 @@
              {{-- SỬA 11/10 — thay hộp confirm() mặc định của trình duyệt bằng hộp cảnh báo riêng (oi-confirm). --}}
              penaltyAsk: { open: false, id: null, label: '', pct: 0 },
              askTab(id) {
-                 if ((id === 'guide' || id === 'sample') && this.tab !== id) {
+                 {{-- SỬA 30/10 — đã mở tab này trong lần làm này thì mở lại luôn, không hỏi (không trừ thêm). --}}
+                 var seen = window.oiWorkLog && typeof window.oiWorkLog.opened === 'function' && window.oiWorkLog.opened(id);
+                 if ((id === 'guide' || id === 'sample') && this.tab !== id && !seen) {
                      var pct = (window.oiPenaltyRules && window.oiPenaltyRules.guide) || 0;
                      if (pct > 0) {
                          this.penaltyAsk = { open: true, id: id, label: id === 'guide' ? 'Hướng dẫn' : 'Bài mẫu', pct: pct };
@@ -183,8 +185,8 @@
                 <h3 id="oi-confirm-title" class="oi-confirm-title">Xem <span x-text="penaltyAsk.label"></span> sẽ bị trừ điểm</h3>
                 <div class="oi-confirm-pct">−<span x-text="penaltyAsk.pct"></span>% điểm bài</div>
                 <p id="oi-confirm-desc" class="oi-confirm-desc">
-                    Mỗi lần mở tab <b x-text="penaltyAsk.label"></b> được ghi vào Nhật ký làm bài và bị trừ
-                    <b><span x-text="penaltyAsk.pct"></span>%</b> điểm của bài này. Bạn có chắc muốn xem không?
+                    Mở tab <b x-text="penaltyAsk.label"></b> được ghi vào Nhật ký làm bài và bị trừ
+                    <b><span x-text="penaltyAsk.pct"></span>%</b> điểm của bài này (chỉ trừ một lần — mở lại sau đó không trừ thêm). Bạn có chắc muốn xem không?
                 </p>
                 <div class="oi-confirm-actions">
                     <button type="button" class="oi-confirm-btn oi-confirm-btn-ghost" data-oi-confirm-cancel @click="penaltyCancel()">Không xem</button>
@@ -275,7 +277,7 @@
                         {{-- SỬA 10/10 — cảnh báo TRƯỚC: các hành vi bị ghi nhật ký sẽ bị trừ điểm bài. Số % lấy từ PracticeActivityLog::PENALTY_PERCENT. --}}
                         <span class="oi-penalty-warn" role="note">
                             <x-lucide name="alert-triangle" class="h-3.5 w-3.5 shrink-0" />
-                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm bài.</span>
+                            <span>Lưu ý: mỗi lần chụp màn hình trừ {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['screenshot'] }}%, xem Hướng dẫn/Bài mẫu {{ \App\Support\PracticeActivityLog::PENALTY_PERCENT['guide'] }}% điểm bài (mỗi tab chỉ trừ lần mở đầu).</span>
                             <b data-penalty-badge class="oi-penalty-badge"></b>
                         </span>
                     </div>

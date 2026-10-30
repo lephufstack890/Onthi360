@@ -154,11 +154,22 @@ final class PracticeActivityLog
     public static function penalty(?array $events): array
     {
         $counts = ['screenshot' => 0, 'guide' => 0];
+        $guideSeen = [];
 
         foreach ($events ?? [] as $event) {
             $type = is_array($event) ? ($event['eventType'] ?? null) : null;
 
             if (is_string($type) && isset(self::PENALTY_TYPES[$type])) {
+                // SỬA 30/10 (khách: "xem Hướng dẫn / Bài mẫu lần 1 trừ điểm là đúng, xem lại lần 2 vẫn trừ là sai — chỉ trừ 1 lần;
+                // thoát ra vào làm lại thì tính lại từ đầu") — Hướng dẫn và Bài mẫu: mỗi tab chỉ trừ LẦN MỞ ĐẦU TIÊN trong cùng
+                // một nhật ký (một lần làm bài tập / một câu của một lượt làm đề). Mở lại vẫn ghi nhật ký nhưng không trừ thêm.
+                // Lần làm mới (thoát ra vào lại) là nhật ký mới nên mở lại lần đầu vẫn bị trừ. Chụp màn hình: vẫn trừ mỗi lần.
+                if (self::PENALTY_TYPES[$type] === 'guide') {
+                    if (isset($guideSeen[$type])) {
+                        continue;
+                    }
+                    $guideSeen[$type] = true;
+                }
                 $counts[self::PENALTY_TYPES[$type]]++;
             }
         }
