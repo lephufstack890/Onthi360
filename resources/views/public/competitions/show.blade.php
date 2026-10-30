@@ -257,6 +257,10 @@
         @endif
         @if ($manager)
             @include('public.competitions.partials.exam-picker')
+            {{-- SỬA 30/10 — hộp "In bảng điểm & xếp giải" (kỳ đã kết thúc, chỉ ban tổ chức) — mở bằng sự kiện 'oi-score-sheet'. --}}
+            @if (($round['state'] ?? null) === 'completed')
+                @include('public.competitions.partials.score-sheet')
+            @endif
             @if ($participants !== null)
                 @include('public.competitions.partials.add-students-dialog')
                 @include('public.competitions.partials.ranking-print')

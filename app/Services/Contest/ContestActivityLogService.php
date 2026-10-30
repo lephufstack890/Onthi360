@@ -170,7 +170,7 @@ class ContestActivityLogService
      * @param  \Illuminate\Support\Collection<int, Attempt>  $attempts
      * @return array<int, list<array<string, mixed>>>
      */
-    private function logsFor($attempts): array
+    public function logsFor($attempts): array
     {
         $out = [];
         if ($attempts->isEmpty()) {

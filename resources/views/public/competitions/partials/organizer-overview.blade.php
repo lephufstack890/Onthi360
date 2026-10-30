@@ -18,6 +18,18 @@
         <button type="button" @click="showTab('{{ $rankTab }}')"><x-lucide name="list-checks" /><span>Bài nộp<strong>{{ $o['records'] }} lượt đã nộp</strong><small>{{ $o['submitters'] }} học sinh đã nộp bài</small></span><x-lucide name="arrow-right" /></button>
     </div>
 
+    {{-- SỬA 30/10 — kỳ đã kết thúc: in Bảng tổng hợp điểm và xếp giải (partials/score-sheet). --}}
+    @if ($ended)
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:14px 0 4px;padding:12px 14px;border:1px solid #cfe3ec;border-radius:12px;background:#f7fbfd">
+            <span style="display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e0f0f6;color:#126f91;flex:none"><x-lucide name="printer" style="width:18px;height:18px" /></span>
+            <span style="flex:1 1 260px;min-width:0">
+                <b style="display:block;font-size:13px;color:#123b68">In bảng tổng hợp điểm và xếp giải</b>
+                <span style="display:block;margin-top:2px;font-size:12px;line-height:1.5;color:#61798b">Chọn học sinh, lượt nộp được tính, bạn không xét giải (kèm ghi chú), cơ cấu giải rồi in theo mẫu khổ A4 ngang.</span>
+            </span>
+            <button type="button" class="hub-primary-action" @click="$dispatch('oi-score-sheet')" style="display:inline-flex;align-items:center;gap:6px"><x-lucide name="printer" style="width:15px;height:15px" />In bảng điểm</button>
+        </div>
+    @endif
+
     {{-- SỬA 30/10 (khách: "admin, giáo viên làm thử đề lúc nào cũng được — kể cả kỳ sắp diễn ra — để kiểm tra chấm") — chỉ ban
          tổ chức thấy. Lượt làm thử không tính vào bảng xếp hạng, người tham gia, bài nộp, nhật ký của kỳ. --}}
     @if (! empty($testRun))

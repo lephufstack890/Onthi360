@@ -3,7 +3,13 @@
 <div class="hub-content-heading hub-ranking-heading">
     <div><h3>Bảng xếp hạng</h3><p>{{ $round['label'] }} · {{ count($rankings) }} học sinh có điểm</p></div>
     @if ($manager)
-        <button type="button" class="contest-btn secondary hub-print-ranking" @disabled(! count($rankings)) onclick="window.print()"><x-lucide name="printer" />In bảng xếp hạng</button>
+        <span style="display:inline-flex;flex-wrap:wrap;gap:8px">
+            {{-- SỬA 30/10 — kỳ đã kết thúc: in Bảng tổng hợp điểm và xếp giải theo mẫu (partials/score-sheet). --}}
+            @if (($round['state'] ?? null) === 'completed')
+                <button type="button" class="contest-btn primary" @click="$dispatch('oi-score-sheet')"><x-lucide name="printer" />In bảng điểm &amp; xếp giải</button>
+            @endif
+            <button type="button" class="contest-btn secondary hub-print-ranking" @disabled(! count($rankings)) onclick="window.print()"><x-lucide name="printer" />In bảng xếp hạng</button>
+        </span>
     @else
         <x-lucide name="trophy" />
     @endif

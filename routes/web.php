@@ -186,6 +186,9 @@ Route::middleware('auth')->group(function () {
         ->whereNumber(['competition', 'exam'])->name('competitions.manage.test');
     Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/lam-thu/{assessment}', [\App\Http\Controllers\ContestTestRunController::class, 'take'])
         ->whereNumber(['competition', 'exam', 'assessment'])->name('competitions.manage.test.take');
+    // SỬA 30/10 — dữ liệu hộp "In bảng điểm & xếp giải" (JSON, chỉ ban tổ chức) — ContestScoreSheetService.
+    Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/bang-diem', \App\Http\Controllers\ContestScoreSheetController::class)
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.scoreSheet');
     // SỬA 30/10 — tab "Nhật ký" của kỳ (JSON): ban tổ chức xem mọi lượt, người khác chỉ lượt của mình (ContestActivityLogService).
     Route::get('/cuoc-thi/{competition}/vong/{exam}/nhat-ky', \App\Http\Controllers\ContestActivityLogController::class)
         ->whereNumber(['competition', 'exam'])->name('competitions.activity');
