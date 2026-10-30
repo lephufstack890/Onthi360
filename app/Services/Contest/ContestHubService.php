@@ -370,7 +370,12 @@ class ContestHubService
             ],
             'setup' => $setup,
             'organizerOverview' => $participants !== null ? [
-                'participants' => count($participants['rows']),
+                // SỬA 30/10 (khách: "kỳ khảo sát thứ 2 chưa ai tham gia mà vẫn hiện 7 như kỳ đầu") — KHẢO SÁT: chỉ tính học sinh đã
+                // nhập mật khẩu VÀO LÀM ĐÚNG KỲ NÀY (có lượt làm bài ở kỳ này: đang làm hoặc đã nộp). Danh sách đăng ký là của cả
+                // cuộc khảo sát (dùng chung mọi kỳ) nên không dùng để đếm. Cuộc thi: vẫn đếm học sinh trong danh sách như cũ.
+                'participants' => $survey
+                    ? Attempt::query()->where('competition_exam_id', $exam->id)->distinct()->count('user_id')
+                    : count($participants['rows']),
                 'pending' => $participants['pending'],
                 'records' => $participants['records'],
                 'submitters' => $participants['submitted'],
