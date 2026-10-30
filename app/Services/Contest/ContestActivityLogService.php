@@ -43,12 +43,12 @@ class ContestActivityLogService
         $manager = $this->organizers->canCreateRound($viewer) && $this->organizers->canManageRound($viewer, $competition, $exam);
 
         $attempts = Attempt::query()
-            ->with(['user:id,name,email,phone', 'assessment:id,title,total_points'])
+            ->with(['user:id,name,email,phone', 'assessment:id,title,total_points,duration_minutes'])
             ->where('competition_exam_id', $exam->id)
             ->where(fn ($q) => $q->whereNotNull('submitted_at')->orWhere('status', AttemptStatus::InProgress->value))
             ->when(! $manager, fn ($q) => $q->where('user_id', $viewer->id))
-            ->orderByRaw('submitted_at IS NULL DESC') // lượt đang làm lên đầu
-            ->orderByDesc('submitted_at')
+            // SỬA 30/10 (khách: "dữ liệu mới nhất đưa lên trên cùng") — theo mốc gần nhất của lượt: giờ nộp, chưa nộp thì giờ bắt đầu.
+            ->orderByRaw('COALESCE(submitted_at, started_at, created_at) DESC')
             ->orderByDesc('id')
             ->limit(self::LIMIT)
             ->get();
@@ -66,12 +66,24 @@ class ContestActivityLogService
         $titles = $questionIds === [] ? [] : Question::query()->whereIn('id', array_keys($questionIds))->pluck('title', 'id')->all();
 
         $tz = config('app.timezone');
-        $rows = $attempts->map(function (Attempt $a) use ($viewer, $manager, $logs, $titles, $tz) {
+        $now = now();
+        $rows = $attempts->map(function (Attempt $a) use ($viewer, $manager, $logs, $titles, $tz, $exam, $competition, $now) {
             $log = $logs[$a->id] ?? [];
             $user = $a->user;
             $mine = (int) $a->user_id === (int) $viewer->id;
             $account = (string) ($user?->email ?: ($user?->phone ?: ''));
             $done = $a->submitted_at !== null;
+            // SỬA 30/10 (khách: "kết thúc rồi thì không hiển thị kiểu Đang làm") — lượt chưa nộp mà đã quá hạn (hết thời lượng
+            // làm bài hoặc kỳ đã đóng) là "Không nộp bài", chỉ lượt còn trong hạn mới là "Đang làm". Hạn = cùng cách tính với
+            // AttemptService::deadlineFor(): giờ bắt đầu + thời lượng đề, không muộn hơn giờ đóng kỳ.
+            $deadline = ($a->started_at !== null && $a->assessment?->duration_minutes)
+                ? $a->started_at->copy()->addMinutes((int) $a->assessment->duration_minutes) : null;
+            foreach ([$exam->ends_at, $competition->ends_at] as $endsAt) {
+                if ($endsAt !== null) {
+                    $deadline = $deadline === null ? $endsAt->copy() : $deadline->min($endsAt)->copy();
+                }
+            }
+            $expired = ! $done && $deadline !== null && $now->gt($deadline);
             $seconds = ($a->started_at !== null && $done) ? max(0, (int) $a->submitted_at->diffInSeconds($a->started_at, true)) : null;
             $pending = $done && ($a->is_provisional || $a->total_score === null || $a->status === AttemptStatus::Grading);
 
@@ -125,10 +137,12 @@ class ContestActivityLogService
                 // Ban tổ chức thấy đủ tài khoản; người khác chỉ thấy lượt của mình nên cũng là tài khoản của mình.
                 'account' => ($manager || $mine) ? $account : '',
                 'paper' => (string) ($a->assessment?->title ?? ''),
-                'state' => $done ? 'done' : 'doing',
+                'state' => $done ? 'done' : ($expired ? 'expired' : 'doing'),
+                'deadlineAt' => (! $done && $deadline !== null) ? $deadline->copy()->setTimezone($tz)->format('H:i d/m/Y') : null,
                 'startedAt' => $a->started_at?->format('H:i d/m/Y'),
                 'submittedAt' => $a->submitted_at?->format('H:i d/m/Y'),
                 'submittedTs' => $a->submitted_at?->getTimestamp() ?? 0,
+                'latestTs' => ($a->submitted_at ?? $a->started_at ?? $a->created_at)?->getTimestamp() ?? 0,
                 'duration' => $seconds !== null ? intdiv($seconds, 60).' phút '.($seconds % 60).' giây' : null,
                 'score' => ($done && ! $pending && $a->total_score !== null) ? (float) $a->total_score : null,
                 'maxScore' => (float) ($a->assessment?->total_points ?: 0),

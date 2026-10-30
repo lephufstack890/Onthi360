@@ -42,6 +42,7 @@
     .cal-sub { margin-top: 2px; font-size: 11px; color: #7e93a3; overflow-wrap: anywhere; }
     .cal-me { display: inline-block; margin-left: 5px; padding: 1px 7px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 10px; font-weight: 700; vertical-align: 1px; }
     .cal-doing { display: inline-block; padding: 1px 7px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; }
+    .cal-doing.is-expired { background: #f1f5f9; color: #64748b; }
     .cal-chips { display: flex; flex-wrap: wrap; gap: 4px; }
     .cal-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 650; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; white-space: nowrap; }
     .cal-chip svg { width: 12px; height: 12px; }
@@ -120,7 +121,8 @@
                 @foreach ($calGroups as $key => [$label, $icon])
                     <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
-                <option value="doing">Đang làm (chưa nộp)</option>
+                <option value="doing">Đang làm (còn hạn)</option>
+                <option value="expired">Không nộp bài (hết giờ)</option>
             </select>
             <select x-model="sort" aria-label="Sắp xếp">
                 <option value="recent">Mới nộp trước</option>
@@ -159,12 +161,14 @@
                                 <td><div x-text="r.paper || '—'"></div></td>
                                 <td>
                                     <template x-if="r.state === 'doing'"><span class="cal-doing">Đang làm</span></template>
+                                    <template x-if="r.state === 'expired'"><span class="cal-doing is-expired">Không nộp bài</span></template>
                                     <div class="cal-sub" x-show="r.startedAt">Bắt đầu: <span x-text="r.startedAt"></span></div>
+                                    <div class="cal-sub" x-show="r.state === 'expired' && r.deadlineAt">Hết giờ: <span x-text="r.deadlineAt"></span></div>
                                     <div class="cal-sub" x-show="r.submittedAt">Nộp: <span x-text="r.submittedAt"></span></div>
                                     <div class="cal-sub" x-show="r.duration">Làm trong <span x-text="r.duration"></span></div>
                                 </td>
                                 <td>
-                                    <div class="cal-name" x-text="r.state === 'doing' ? '—' : (r.pending ? 'Đang chấm' : fmt(r.score) + (r.maxScore ? ' / ' + fmt(r.maxScore) : ''))"></div>
+                                    <div class="cal-name" x-text="r.state !== 'done' ? '—' : (r.pending ? 'Đang chấm' : fmt(r.score) + (r.maxScore ? ' / ' + fmt(r.maxScore) : ''))"></div>
                                     <div class="cal-pen" x-show="r.penaltyPercent > 0" title="Chụp màn hình trừ 30%, xem Hướng dẫn / Bài mẫu trừ 20% điểm của câu đang làm lúc đó">Đã trừ điểm theo nhật ký</div>
                                 </td>
                                 <td>
@@ -173,8 +177,9 @@
                                             <span class="cal-chip {{ in_array($key, ['guideOpen', 'sampleOpen'], true) ? 'is-guide' : ($key === 'screenshot' ? 'is-shot' : '') }}" x-show="r.signals['{{ $key }}']"><x-lucide :name="$icon" />{{ $label }} <b x-text="r.signals['{{ $key }}']"></b></span>
                                         @endforeach
                                     </div>
-                                    <span class="cal-clean" x-show="!r.signalTotal && r.state !== 'doing'"><x-lucide name="check" />Không có dấu hiệu</span>
+                                    <span class="cal-clean" x-show="!r.signalTotal && r.state === 'done'"><x-lucide name="check" />Không có dấu hiệu</span>
                                     <span class="cal-sub" x-show="r.state === 'doing'">Nhật ký gửi lên khi nộp bài</span>
+                                    <span class="cal-sub" x-show="r.state === 'expired' && !r.eventCount">Không có nhật ký (không bấm nộp bài)</span>
                                 </td>
                                 <td style="text-align:right">
                                     <button type="button" class="cal-open" x-show="r.eventCount" @click="toggle(r.id)" :aria-expanded="openId === r.id ? 'true' : 'false'">
@@ -220,7 +225,7 @@
         </div>
 
         <p class="cal-note">
-            Nhật ký do trình duyệt ghi trong lúc làm bài và gửi lên khi nộp bài, nên lượt đang làm chưa có nhật ký. Đề dạng PDF chưa ghi nhật ký.
+            Nhật ký do trình duyệt ghi trong lúc làm bài và gửi lên khi nộp bài, nên lượt đang làm (hoặc hết giờ mà không bấm nộp) chưa có nhật ký. Đề dạng PDF chưa ghi nhật ký.
             <span x-show="truncated">Chỉ hiện 500 lượt mới nhất.</span>
         </p>
     </div>
@@ -256,12 +261,13 @@
                     switch (this.filter) {
                         case 'all': return true;
                         case 'flagged': return r.signalTotal > 0;
-                        case 'clean': return r.signalTotal === 0 && r.state !== 'doing';
+                        case 'clean': return r.signalTotal === 0 && r.state === 'done';
                         case 'doing': return r.state === 'doing';
+                        case 'expired': return r.state === 'expired';
                         default: return (r.signals[this.filter] || 0) > 0;
                     }
                 });
-                if (this.sort === 'signals') list = list.slice().sort((a, b) => (b.signalTotal - a.signalTotal) || (b.submittedTs - a.submittedTs));
+                if (this.sort === 'signals') list = list.slice().sort((a, b) => (b.signalTotal - a.signalTotal) || (b.latestTs - a.latestTs));
                 if (this.sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'vi'));
                 return list;
             },
