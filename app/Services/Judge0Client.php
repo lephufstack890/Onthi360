@@ -116,7 +116,54 @@ class Judge0Client
         }
     }
 
+    /**
+     * SỬA 31/10 (lỗi 500 "Allowed memory size … exhausted" ở Guzzle khi đông học sinh bấm Chấm câu) — trước đây MỌI test của một
+     * bài (dữ liệu vào + đáp án, mã base64) được gửi trong MỘT yêu cầu batch: bài có bộ test lớn tạo ra thân yêu cầu ~88MB, PHP
+     * phải giữ nhiều bản sao (mảng, base64, JSON, Guzzle) nên tràn 512MB. Giờ chia thành nhiều batch nhỏ (≤ BATCH_MAX_ITEMS bài
+     * nộp và ≤ BATCH_MAX_BYTES dữ liệu mỗi batch), chấm lần lượt, ghép kết quả ĐÚNG thứ tự test như cũ. Bài test nhỏ (đa số)
+     * vẫn đi 1 batch như trước. Một test đơn lẻ vượt ngưỡng thì đi một mình (không cắt test).
+     *
+     * @param  list<array<string, mixed>>  $submissions
+     * @return list<array<string, mixed>>
+     */
     public function runBatch(array $submissions): array
+    {
+        $chunks = [];
+        $current = [];
+        $bytes = 0;
+        foreach (array_values($submissions) as $s) {
+            $size = strlen((string) ($s['stdin'] ?? '')) + strlen((string) ($s['expected_output'] ?? '')) + strlen((string) ($s['source_code'] ?? ''));
+            if ($current !== [] && (count($current) >= self::BATCH_MAX_ITEMS || $bytes + $size > self::BATCH_MAX_BYTES)) {
+                $chunks[] = $current;
+                $current = [];
+                $bytes = 0;
+            }
+            $current[] = $s;
+            $bytes += $size;
+        }
+        if ($current !== []) {
+            $chunks[] = $current;
+        }
+
+        $results = [];
+        foreach ($chunks as $chunk) {
+            foreach ($this->runBatchChunk($chunk) as $r) {
+                $results[] = $r;
+            }
+            unset($chunk);
+        }
+
+        return $results;
+    }
+
+    /** Số bài nộp tối đa mỗi batch gửi Judge0 (mặc định của Judge0 là 20). */
+    private const BATCH_MAX_ITEMS = 20;
+
+    /** Dung lượng dữ liệu thô (vào + đáp án + mã) tối đa mỗi batch — giữ bộ nhớ PHP mỗi lần gửi ở mức vài chục MB. */
+    private const BATCH_MAX_BYTES = 6 * 1024 * 1024;
+
+    /** Một batch (đã chia nhỏ ở runBatch()): tạo bài nộp rồi chờ đủ kết quả. */
+    private function runBatchChunk(array $submissions): array
     {
         if ($submissions === []) {
             return [];
