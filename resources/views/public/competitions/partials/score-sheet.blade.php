@@ -102,7 +102,7 @@
                                     <thead>
                                         <tr>
                                             <th><label class="ssm-check"><input type="checkbox" :checked="includedCount === data.students.length" @change="toggleAll($event.target.checked)"> In</label></th>
-                                            <th>Học sinh</th>
+                                            <th>Học sinh · tên in ra (sửa được)</th>
                                             <th>Lượt nộp được tính</th>
                                             <th>Kiểm tra thao tác (lượt đã chọn)</th>
                                             <th>Không xét giải (gian lận…)</th>
@@ -113,8 +113,15 @@
                                             <tr :class="{ 'is-off': !pick[st.userId].include, 'is-cheat': pick[st.userId].cheat }">
                                                 <td><input type="checkbox" x-model="pick[st.userId].include" :aria-label="'In ' + st.name"></td>
                                                 <td>
-                                                    <div style="font-weight:700" x-text="st.name"></div>
-                                                    <div class="ssm-sub" x-text="[st.className, st.account].filter(Boolean).join(' · ')"></div>
+                                                    {{-- SỬA 01/11 (khách: "sửa được tên trước khi in — có bạn đặt biệt danh, in gửi phụ huynh không ổn") —
+                                                         tên IN RA sửa ngay tại đây (chỉ dùng cho bản in, không đổi tên tài khoản); nhớ trên máy cho lần in sau. --}}
+                                                    <input type="text" x-model="pick[st.userId].printName" :placeholder="st.name" :aria-label="'Tên in ra của ' + st.name"
+                                                           style="font-weight:700;min-width:190px" :style="pick[st.userId].printName.trim() !== st.name ? 'border-color:#f59e0b;background:#fffbeb' : ''">
+                                                    <div class="ssm-sub" style="margin-top:3px">
+                                                        <span x-text="'Tài khoản: ' + [st.name, st.className, st.account].filter(Boolean).join(' · ')"></span>
+                                                        <button type="button" x-show="pick[st.userId].printName.trim() !== st.name" @click="pick[st.userId].printName = st.name"
+                                                                style="margin-left:6px;border:0;background:none;color:#126f91;font-weight:700;cursor:pointer;padding:0;font-size:11px">Dùng lại tên gốc</button>
+                                                    </div>
                                                 </td>
                                                 <td style="min-width:260px">
                                                     <select x-model.number="pick[st.userId].attemptId" :disabled="!pick[st.userId].include">
@@ -169,6 +176,7 @@
     // SỬA 30/10 — hộp "In bảng tổng hợp điểm và xếp giải" (in đúc mẫu khách chốt). Tính hạng / giải / ghi chú ngay ở trình duyệt.
     function contestScoreSheet(cfg) {
         const KEY = 'oi.scoresheet.settings';
+        const NAMES_KEY = 'oi.scoresheet.names';
         const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
         return {
             show: false, loading: false, error: '', data: null, pick: {},
@@ -182,7 +190,13 @@
                     .then((r) => r.ok ? r.json() : Promise.reject(r.status))
                     .then((j) => {
                         const pick = {};
-                        (j.students || []).forEach((st) => { pick[st.userId] = { include: true, attemptId: st.defaultAttemptId, cheat: false, note: '' }; });
+                        // SỬA 01/11 — tên in ra đã sửa ở lần in trước (nhớ trên máy này, theo từng học sinh).
+                        let savedNames = {};
+                        try { savedNames = JSON.parse(window.localStorage.getItem(NAMES_KEY) || '{}') || {}; } catch (e) { savedNames = {}; }
+                        (j.students || []).forEach((st) => {
+                            const saved = typeof savedNames[st.userId] === 'string' && savedNames[st.userId].trim() ? savedNames[st.userId] : null;
+                            pick[st.userId] = { include: true, attemptId: st.defaultAttemptId, cheat: false, note: '', printName: saved || st.name };
+                        });
                         this.pick = pick;
                         this.s.subheading = cfg.survey ? 'KHẢO SÁT MÔN TIN HỌC' : ((j.defaults && j.defaults.subheading) || '');
                         this.s.footer = cfg.survey ? 'Bảng tổng hợp kết quả khảo sát môn Tin học' : 'Bảng tổng hợp kết quả kỳ thi môn Tin học';
@@ -217,9 +231,9 @@
                 if (!this.data) return [];
                 const list = this.data.students.filter((st) => this.pick[st.userId] && this.pick[st.userId].include).map((st) => {
                     const p = this.pick[st.userId], a = this.chosen(st);
-                    return { st, a, cheat: !!p.cheat, note: (p.note || '').trim(), score: a.pending ? null : Number(a.score) };
+                    return { st, a, pn: String(p.printName || '').trim() || st.name, cheat: !!p.cheat, note: (p.note || '').trim(), score: a.pending ? null : Number(a.score) };
                 });
-                const byName = (x, y) => x.st.name.localeCompare(y.st.name, 'vi');
+                const byName = (x, y) => x.pn.localeCompare(y.pn, 'vi');
                 const ranked = list.filter((r) => !r.cheat && r.score !== null).sort((x, y) => (y.score - x.score) || byName(x, y));
                 const q = [this.s.q1, this.s.q2, this.s.q3, this.s.q4].map((v) => Math.max(0, parseInt(v, 10) || 0));
                 const cut = [q[0], q[0] + q[1], q[0] + q[1] + q[2], q[0] + q[1] + q[2] + q[3]];
@@ -238,14 +252,14 @@
                 const parts = [[q[0], 'Nhất'], [q[1], 'Nhì'], [q[2], 'Ba'], [q[3], 'Khuyến khích']].filter((x) => x[0] > 0).map((x) => x[0] + ' ' + x[1]);
                 const out = ['Danh sách xếp theo tổng điểm giảm dần; học sinh bằng điểm cùng hạng, cùng giải.' + (parts.length ? ' Cơ cấu: ' + parts.join(', ') + '.' : '')];
                 const multi = rows.filter((r) => r.st.attempts.length > 1);
-                if (multi.length) out.push('Học sinh nộp nhiều lần — lượt được tính: ' + multi.map((r) => this.nm(r.st.name) + ' (lần ' + r.a.no + '/' + r.st.attempts.length + ', nộp ' + r.a.submittedAt + ')').join('; ') + '.');
+                if (multi.length) out.push('Học sinh nộp nhiều lần — lượt được tính: ' + multi.map((r) => this.nm(r.pn) + ' (lần ' + r.a.no + '/' + r.st.attempts.length + ', nộp ' + r.a.submittedAt + ')').join('; ') + '.');
                 const cheats = rows.filter((r) => r.cheat);
-                if (cheats.length) out.push('Không xét giải do vi phạm quy chế: ' + cheats.map((r) => this.nm(r.st.name) + (r.note ? ' (' + r.note + ')' : '')).join('; ') + '.');
+                if (cheats.length) out.push('Không xét giải do vi phạm quy chế: ' + cheats.map((r) => this.nm(r.pn) + (r.note ? ' (' + r.note + ')' : '')).join('; ') + '.');
                 const pend = rows.filter((r) => r.award === 'Chờ chấm');
-                if (pend.length) out.push('Bài chưa chấm xong, chưa xếp hạng: ' + pend.map((r) => this.nm(r.st.name)).join('; ') + '.');
+                if (pend.length) out.push('Bài chưa chấm xong, chưa xếp hạng: ' + pend.map((r) => this.nm(r.pn)).join('; ') + '.');
                 const flagged = rows.filter((r) => this.sigList(r.a).length);
                 out.push('Kiểm tra thao tác làm bài (hệ thống ghi nhận rời tab / cửa sổ, chụp màn hình, mở Hướng dẫn / Bài mẫu trong lúc làm bài): '
-                    + (flagged.length ? flagged.map((r) => this.nm(r.st.name) + ' — ' + this.sigList(r.a).join(', ')).join('; ') + '.' : 'không phát hiện bất thường.'));
+                    + (flagged.length ? flagged.map((r) => this.nm(r.pn) + ' — ' + this.sigList(r.a).join(', ')).join('; ') + '.' : 'không phát hiện bất thường.'));
                 String(this.s.extra || '').split('\n').map((t) => t.trim()).filter(Boolean).forEach((t) => out.push(t));
                 return out;
             },
@@ -276,7 +290,7 @@
                         return '<td>' + this.num(v === undefined || v === null ? 0 : v) + '</td>';
                     }).join('');
                     const sig = this.sigList(r.a);
-                    return '<tr><td>' + e(r.rank) + '</td><td class="nm">' + e(this.nm(r.st.name)) + '</td>' + cells
+                    return '<tr><td>' + e(r.rank) + '</td><td class="nm">' + e(this.nm(r.pn)) + '</td>' + cells
                         + '<td class="tot">' + (r.score === null ? '' : this.num(r.score)) + '</td><td class="aw">' + e(r.award) + '</td>'
                         + (act ? '<td class="ac">' + e(!r.a.hasLog ? 'Không có dữ liệu' : (sig.length ? sig.join('; ') : 'Bình thường')) + '</td>' : '') + '</tr>';
                 }).join('');
@@ -310,6 +324,15 @@
                     + '</body></html>';
             },
             print() {
+                // SỬA 01/11 — nhớ tên in ra đã sửa (chỉ những tên khác tên tài khoản) cho lần in sau.
+                try {
+                    const names = JSON.parse(window.localStorage.getItem(NAMES_KEY) || '{}') || {};
+                    (this.data ? this.data.students : []).forEach((st) => {
+                        const v = String((this.pick[st.userId] || {}).printName || '').trim();
+                        if (v && v !== st.name) { names[st.userId] = v; } else { delete names[st.userId]; }
+                    });
+                    window.localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+                } catch (e) {}
                 try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper })); } catch (e) {}
                 const w = window.open('', '_blank');
                 if (!w) { alert('Trình duyệt đã chặn cửa sổ in — cho phép cửa sổ bật lên (pop-up) cho trang này rồi bấm In lại.'); return; }
