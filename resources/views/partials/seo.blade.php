@@ -22,11 +22,15 @@
 
     $seoPageTitle = $seoDecode(trim((string) $__env->yieldContent('title')));
     // SỬA 27/10 — tiêu đề đã có sẵn tên thương hiệu "Onthi360" (trang chủ) thì giữ nguyên, không gắn thêm đuôi.
-    $seoTitle = ($seoPageTitle !== '' && $seoPageTitle !== $seoSite)
-        ? (str_contains(mb_strtolower($seoPageTitle), 'onthi360') ? $seoPageTitle : $seoPageTitle.' — '.$seoSite)
-        : $seoSite.' — Học và luyện thi trực tuyến';
     // SỬA 27/10 — tên hiển thị khi chia sẻ link (Zalo / Facebook) và tên tổ chức trong dữ liệu Google.
     $seoBrand = 'Tin học Onthi360';
+    // SỬA 1/11 (SEO: khách tìm "onthi360" trên Google không thấy) — đuôi tiêu đề các trang dùng đúng tên thương hiệu
+    // "Tin học Onthi360" (trước là "Ôn Thi 360" — không chứa chữ "onthi360" người ta gõ tìm).
+    // Trang tự ghi đuôi cũ "— Ôn Thi 360" (vd Lộ trình học) → bỏ đuôi đó để khỏi thành 2 tên thương hiệu.
+    $seoPageTitle = trim((string) preg_replace('/\s*[—|-]\s*Ôn Thi 360\s*$/u', '', $seoPageTitle));
+    $seoTitle = ($seoPageTitle !== '' && $seoPageTitle !== $seoSite)
+        ? (str_contains(mb_strtolower($seoPageTitle), 'onthi360') ? $seoPageTitle : $seoPageTitle.' | '.$seoBrand)
+        : $seoBrand.' — Học và luyện thi Tin học trực tuyến';
     $seoIsHome = request()->routeIs('home');
 
     $seoDescription = $seoDecode(trim((string) $__env->yieldContent('meta-description')));
@@ -38,11 +42,30 @@
         $seoDescription = rtrim(mb_substr($seoDescription, 0, 162), " \t\n\r\0\x0B.,;:-").'…';
     }
 
+    /*
+     * SỬA 1/11 (SEO) — địa chỉ chuẩn (canonical) LUÔN theo tên miền trong APP_URL (https://tinhoc.onthi360.vn), không theo
+     * người gọi. Trước đây lấy url()->current(): bot vào bằng IP máy chủ (https://36.50.177.27/...) thì trang tự khai
+     * canonical là IP → Google thấy 2 bản trùng (IP và tên miền) và có thể chọn nhầm bản IP / bỏ qua tên miền.
+     * Ai vào bằng địa chỉ khác tên miền chính (IP, tên miền phụ) → noindex, để Google chỉ giữ bản tên miền.
+     */
+    $seoRoot = rtrim((string) config('app.url'), '/');
+    $seoRootHost = (string) parse_url($seoRoot, PHP_URL_HOST);
+    if (! preg_match('#^https?://#i', $seoRoot) || $seoRootHost === '' || filter_var($seoRootHost, FILTER_VALIDATE_IP) || $seoRootHost === 'localhost') {
+        $seoRoot = rtrim(url('/'), '/');
+        $seoRootHost = '';
+    }
+    $seoPath = trim(request()->path(), '/');
+    $seoUrl = $seoRoot.($seoPath === '' ? '/' : '/'.$seoPath);
+    $seoWrongHost = $seoRootHost !== '' && strcasecmp(request()->getHost(), $seoRootHost) !== 0;
+
     $seoRobots = trim((string) $__env->yieldContent('meta-robots'));
     if ($seoPrivate) {
         $seoRobots = 'noindex, nofollow';
     } elseif ($seoRobots === '') {
         $seoRobots = 'index, follow, max-image-preview:large, max-snippet:-1';
+    }
+    if (! $seoPrivate && $seoWrongHost) {
+        $seoRobots = 'noindex, follow';
     }
 
     // SỬA 27/10 — gắn ?v= theo thời điểm sửa ảnh: Zalo / Facebook nhớ ảnh xem trước theo đường dẫn, đổi ảnh là đổi đường dẫn.
@@ -50,7 +73,6 @@
     // Sau này đổi ảnh chia sẻ: đặt file với tên mới khác (vd og-tinhoc-onthi360-2.png) rồi sửa tên ở dòng dưới.
     $seoOgFile = 'og-tinhoc-onthi360-v2.png'; // v2: logo + màu thương hiệu (xanh #0057F5, cam 360)
     $seoImage = trim((string) $__env->yieldContent('meta-image')) ?: asset($seoOgFile).'?v='.(@filemtime(public_path($seoOgFile)) ?: '1');
-    $seoUrl = url()->current();
 @endphp
     <title>{{ $seoTitle }}</title>
     <meta name="robots" content="{{ $seoRobots }}">
@@ -101,7 +123,7 @@
          vào trong chú thích Blade: chú thích bị gỡ SAU khi directive đã được biên dịch, nên
          một chữ như vậy nằm trong chú thích vẫn bị dịch thành mã PHP và làm vỡ trang. --}}
     @php
-        $seoHome = url('/');
+        $seoHome = $seoRoot.'/';
         $seoJsonLd = [
             '@context' => 'https://schema.org',
             '@graph' => [
@@ -109,7 +131,7 @@
                     '@type' => 'EducationalOrganization',
                     '@id' => $seoHome.'#to-chuc',
                     'name' => $seoBrand,
-                    'alternateName' => [$seoSite, 'Onthi360'],
+                    'alternateName' => ['Onthi360', 'Tin học 360', $seoSite, 'onthi360.vn'],
                     'url' => $seoHome,
                     'logo' => asset('icon-512.png'),
                     'description' => $seoDescription,
@@ -119,7 +141,7 @@
                     '@id' => $seoHome.'#website',
                     'url' => $seoHome,
                     'name' => $seoBrand,
-                    'alternateName' => $seoSite,
+                    'alternateName' => ['Onthi360', 'Tin học 360', $seoSite],
                     'inLanguage' => 'vi-VN',
                     'publisher' => ['@id' => $seoHome.'#to-chuc'],
                 ],
