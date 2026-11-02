@@ -210,10 +210,12 @@
      Padding DỌC (py) giữ nguyên — đó là khoảng thở giữa các khối, không phải lề trang. --}}
 <div class="classroom-ui bg-[#F7F9FB] text-[#466278]">
     {{-- ══════ THANH ĐẦU TRANG ══════ --}}
-    <header class="sticky top-0 z-30 border-b border-[#DDEAF0] bg-white/95 backdrop-blur-xl">
+    {{-- SỬA 3/11 (khách: "chữ Danh sách lớp bị dính") — bỏ "sticky top-0": thanh này dính lại khi cuộn, chồng lên thanh trên
+         cùng của khu học tập. Giờ cuộn trôi theo trang như bình thường. --}}
+    <header class="relative z-10 border-b border-[#DDEAF0] bg-white">
         <div class="flex items-center gap-2.5 py-2.5">
             <a href="{{ route('student.courses.index') }}"
-               class="classroom-back-button inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold">
+               class="classroom-back-button inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold" style="white-space:nowrap">
                 <x-lucide name="arrow-left" class="h-4 w-4" />Danh sách lớp
             </a>
             <div class="hidden h-6 w-px bg-slate-200 sm:block"></div>
@@ -316,6 +318,8 @@
                 <h2 class="mb-2 flex items-center gap-2 text-[14px] font-semibold text-[#123B68]"><x-lucide name="book-open" class="h-4 w-4 text-[#2D7FA3]" />Trong lớp học</h2>
                 <div class="space-y-1">
                     @foreach ($tabsData as $navItem)
+                        {{-- SỬA 3/11 (khách: "bỏ tab Đánh giá") — ẩn mục Đánh giá ở cột "Trong lớp học" (muốn hiện lại: bỏ dòng continue). --}}
+                        @continue(($navItem['label'] ?? '') === 'Đánh giá')
                         @php $navActive = $navItem['active'] ?? false; @endphp
                         <a href="{{ $navItem['href'] }}" @if ($navActive) aria-current="page" @endif
                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium transition {{ $navActive ? 'bg-[#EAF5F8] font-semibold text-[#126F91]' : 'text-[#466278] hover:bg-[#F4F9FC]' }}">
@@ -531,83 +535,76 @@
              phẩm đã mua từ mọi lớp/tự mua — 2 trang cố ý KHÔNG liên quan nhau). Bố cục thẻ
              tài nguyên/bài tập y hệt student/materials/mine.blade.php để học sinh quen mắt,
              không phải học 2 cách trình bày khác nhau cho cùng 1 loại dữ liệu. --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {{-- SỬA 3/11 (khách: "không cần hiển thị bài tập, hiển thị sao cho đẹp") — mỗi tài liệu là 1 thẻ gọn: bìa, tên, nhãn,
+             số bài tập (chỉ đếm — bài tập làm ngay trong màn đọc), nút Đọc tài liệu và tài nguyên đính kèm (nếu có). CSS tiền tố scm-. --}}
+        <style>
+            .scm-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+            @media (min-width: 900px) { .scm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            .scm-card { display: flex; gap: 16px; padding: 16px; border: 1px solid #E3ECF5; border-radius: 20px; background: #fff; box-shadow: 0 6px 18px rgba(15, 42, 74, .05); transition: box-shadow .15s, transform .15s; }
+            .scm-card:hover { box-shadow: 0 12px 26px rgba(15, 42, 74, .09); transform: translateY(-1px); }
+            .scm-cover { width: 92px; height: 122px; flex: none; border-radius: 14px; overflow: hidden; background: linear-gradient(135deg, #DBEAFE, #EFF6FF); display: grid; place-items: center; color: #2563EB; box-shadow: 0 6px 14px rgba(30, 64, 175, .12); }
+            .scm-cover img { width: 100%; height: 100%; object-fit: cover; }
+            .scm-cover svg { width: 30px; height: 30px; }
+            .scm-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+            .scm-body h3 { margin: 0; font-size: 15.5px; line-height: 1.35; font-weight: 800; color: #0F2A4A; }
+            .scm-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+            .scm-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+            .scm-tag svg { width: 13px; height: 13px; }
+            .scm-tag.is-use { background: #E3F6EC; color: #15803D; }
+            .scm-tag.is-ex { background: #EEF4FF; color: #1D4ED8; }
+            .scm-tag.is-part { background: #F1F5F9; color: #475569; }
+            .scm-note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: #64748B; }
+            .scm-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; }
+            .scm-read { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 12px; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #fff !important; font-size: 13px; font-weight: 800; box-shadow: 0 6px 16px rgba(37, 99, 235, .25); text-decoration: none; }
+            .scm-read:hover { filter: brightness(1.05); }
+            .scm-read svg { width: 16px; height: 16px; }
+            .scm-res { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid #DCE6F2; border-radius: 11px; background: #fff; color: #475569 !important; font-size: 12px; font-weight: 700; text-decoration: none; }
+            .scm-res:hover { border-color: #93C5FD; color: #1D4ED8 !important; }
+            .scm-muted { font-size: 12px; color: #94A3B8; }
+            @media (max-width: 480px) { .scm-card { padding: 12px; gap: 12px; } .scm-cover { width: 72px; height: 96px; } }
+        </style>
+        <div class="scm-grid">
             @forelse ($materials as $p)
-                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-                    <div class="flex items-start gap-3">
-                        <div class="w-12 h-14 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-sky-100 to-blue-50 flex items-center justify-center">
-                            @if ($p['coverPath'])
-                                <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" class="w-full h-full object-cover">
-                            @else
-                                <span class="text-lg"><x-lucide name="book-open" class="h-4 w-4" /></span>
+                @php $scmEx = count($p['exercises'] ?? []); @endphp
+                <article class="scm-card">
+                    <div class="scm-cover">
+                        @if ($p['coverPath'])
+                            <img src="{{ \App\Support\ProductCover::url($p['coverPath']) }}" alt="Bìa {{ $p['title'] }}" loading="lazy">
+                        @else
+                            <x-lucide name="book-open" />
+                        @endif
+                    </div>
+                    <div class="scm-body">
+                        <h3>{{ $p['title'] }}</h3>
+                        <div class="scm-tags">
+                            <span class="scm-tag is-use"><x-lucide name="check-circle-2" />Đang dùng ở lớp này</span>
+                            @if (($p['lessonCount'] ?? 0) > 0)
+                                <span class="scm-tag is-part"><x-lucide name="file-text" />{{ $p['lessonCount'] }} {{ $p['lessonWord'] ?? 'phần' }}</span>
+                            @endif
+                            @if ($scmEx > 0)
+                                <span class="scm-tag is-ex"><x-lucide name="layers" />{{ $scmEx }} bài tập</span>
                             @endif
                         </div>
-                        <div class="min-w-0">
-                            <h3 class="font-medium text-slate-800 leading-snug">{{ $p['title'] }}</h3>
-                            <span class="inline-flex mt-1"><x-ws.badge tone="success">Đang dùng ở lớp này</x-ws.badge></span>
+                        @if ($scmEx > 0)
+                            <p class="scm-note">Mở tài liệu để đọc và làm bài tập ngay bên cạnh.</p>
+                        @endif
+                        <div class="scm-acts">
+                            {{-- SỬA 29/9 — vào thẳng trang đọc của tài liệu (logic giữ nguyên). --}}
+                            @if ($p['readHref'] ?? null)
+                                <a href="{{ $p['readHref'] }}" class="scm-read"><x-lucide name="book-open" />Đọc tài liệu</a>
+                            @else
+                                <span class="scm-muted">Tài liệu này chưa có nội dung đọc.</span>
+                            @endif
+                            @foreach ($p['resources'] as $res)
+                                <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener" class="scm-res">
+                                    <span>{{ $res['icon'] }}</span>{{ $res['label'] }}
+                                </a>
+                            @endforeach
                         </div>
                     </div>
-
-                    {{-- SỬA 29/9 (khách chốt: "giáo viên gắn vào lớp học thì từng file pdf sẽ ghép dài
-                         để lướt lên lướt xuống đọc") — vào thẳng trang đọc liền mạch của sản phẩm.
-                         Trước đây tab này chỉ có link tải tệp PDF tổng ở mục Tài nguyên. --}}
-                    @if ($p['readHref'] ?? null)
-                        <a href="{{ $p['readHref'] }}"
-                           class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-white text-[13px] font-medium">
-                            <x-lucide name="book-open" class="h-3.5 w-3.5" /> Đọc tài liệu
-                        </a>
-                    @else
-                        <p class="mt-4 text-xs text-slate-400">Tài liệu này chưa có nội dung đọc.</p>
-                    @endif
-
-                    @if (count($p['resources']) > 0)
-                        <div class="mt-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Tài nguyên đính kèm</p>
-                            <div class="space-y-2">
-                                @foreach ($p['resources'] as $res)
-                                    <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener"
-                                       class="flex items-center gap-2 px-3 py-2 rounded-xl border border-sky-100 text-[13px] text-slate-600 hover:border-blue-200 hover:text-blue-600 transition">
-                                        <span>{{ $res['icon'] }}</span> {{ $res['label'] }}
-                                    </a>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-
-                    @if (count($p['exercises']) > 0)
-                        <div class="mt-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"><x-lucide name="layers" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> Bài tập</p>
-                            <div class="space-y-2">
-                                @foreach ($p['exercises'] as $ex)
-                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-sky-100">
-                                        <div class="min-w-0">
-                                            <p class="text-[13px] text-slate-700 truncate">{{ $ex['title'] }}</p>
-                                            <p class="text-xs text-slate-400">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
-                                        </div>
-                                        <form action="{{ route('student.practiceByQuestion.startExercise', $ex['id']) }}" method="POST" class="shrink-0">
-                                            @csrf
-                                            {{-- Xem ghi chú đầy đủ ở student/materials/mine.blade.php: url()->full() là
-                                                 URL TUYỆT ĐỐI nên bị PracticeByQuestionController::startExercise() coi
-                                                 là không hợp lệ (chỉ nhận path bắt đầu bằng 1 dấu '/'), khiến sau khi
-                                                 làm xong LUÔN quay về "Tài liệu của tôi" dù đang bấm từ tab Học liệu
-                                                 của lớp này — request()->getRequestUri() mới là path+query tương đối
-                                                 đúng, quay lại ĐÚNG tab Học liệu của ĐÚNG lớp này. --}}
-                                            <input type="hidden" name="return_url" value="{{ request()->getRequestUri() }}">
-                                            <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 hover:bg-blue-700 transition">Làm bài ›</button>
-                                        </form>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <p class="text-xs text-slate-400 mt-2">Bài tập chưa có chấm tự động — bài làm sẽ được ghi nhận, chưa báo đúng/sai ngay.</p>
-                        </div>
-                    @endif
-
-                    @if (count($p['resources']) === 0 && count($p['exercises']) === 0)
-                        <p class="text-[13px] text-slate-400 mt-4">Chưa có tài nguyên/bài tập nào cho học liệu này.</p>
-                    @endif
-                </div>
+                </article>
             @empty
-                <div class="col-span-full"><x-ws.empty-state title="Lớp chưa gắn học liệu nào" description="Giáo viên sẽ gắn sách/chuyên đề/bộ đề vào lớp khi cần — mục này sẽ hiện ra ngay khi có." /></div>
+                <div style="grid-column:1/-1"><x-ws.empty-state title="Lớp chưa gắn tài liệu nào" description="Giáo viên sẽ gắn sách / chuyên đề / bộ đề vào lớp khi cần — mục này sẽ hiện ra ngay khi có." /></div>
             @endforelse
         </div>
     @elseif ($tab === 'reviews')

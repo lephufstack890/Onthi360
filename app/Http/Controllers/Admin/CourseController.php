@@ -141,7 +141,29 @@ class CourseController extends Controller
 
     public function classesEdit(int $classRoom): View
     {
-        return view('admin.classes.edit', $this->courseService->classEditFormData($classRoom));
+        $data = $this->courseService->classEditFormData($classRoom);
+        // SỬA 3/11 — khối "Học liệu của lớp" (admin thêm hộ giáo viên). $classRoom ở đây là id → dùng model đã nạp sẵn.
+        $data['classMaterials'] = app(\App\Services\Admin\ClassMaterialAdminService::class)->panel($data['classRoom']);
+
+        return view('admin.classes.edit', $data);
+    }
+
+    /** SỬA 3/11 — admin thêm nguyên 1 sản phẩm (sách / chuyên đề / bộ đề) vào lớp, không cần giáo viên đã mua. */
+    public function classMaterialAttach(Request $request, int $classRoom): RedirectResponse
+    {
+        $data = $request->validate(['product_id' => ['required', 'integer']], ['product_id.required' => 'Chọn tài liệu cần thêm.']);
+        $room = ClassRoom::query()->findOrFail($classRoom);
+        $title = app(\App\Services\Admin\ClassMaterialAdminService::class)->attach(Auth::user(), $room, (int) $data['product_id']);
+
+        return redirect()->to(route('admin.classes.edit', $room->id).'#hoc-lieu-lop')->with('status', 'class-material-added')->with('class_material_title', $title);
+    }
+
+    public function classMaterialDetach(int $classRoom, int $classMaterial): RedirectResponse
+    {
+        $room = ClassRoom::query()->findOrFail($classRoom);
+        $title = app(\App\Services\Admin\ClassMaterialAdminService::class)->detach($room, $classMaterial);
+
+        return redirect()->to(route('admin.classes.edit', $room->id).'#hoc-lieu-lop')->with('status', 'class-material-removed')->with('class_material_title', $title);
     }
 
     public function classesUpdate(Request $request, ClassRoom $classRoom): RedirectResponse

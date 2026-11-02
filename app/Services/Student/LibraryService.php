@@ -228,7 +228,10 @@ class LibraryService
              */
             'readHref' => match (true) {
                 // SỬA 18/10 — MODULE BỘ ĐỀ: Bộ đề mở trang danh sách đề.
-                $product->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready() => route('bundles.show', $product->id),
+                // SỬA 3/11 (khách: "bên học sinh bấm Đọc tài liệu thì bộ đề cũng sang đọc như đọc sách luôn") — thẻ tài liệu
+                // trong LỚP (chỉ ClassRoomService gọi hàm này) mở thẳng MÀN ĐỌC BỘ ĐỀ (đề nối đề + câu hỏi theo đề —
+                // ExamBundleService::readerData() qua products.read), không qua trang danh sách đề.
+                $product->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready() => route($readPrefix.'.products.read', $product->id),
                 ($firstPartId = $this->productRead->firstReadableMaterialId($product)) !== null
                     => route($readPrefix.'.materials.read', $firstPartId),
                 filled($product->content_pdf_path) => route($readPrefix.'.products.read', $product->id),

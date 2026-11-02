@@ -717,6 +717,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('classes/{classRoom}/edit', [AdminCourseController::class, 'classesEdit'])->name('classes.edit');
         Route::put('classes/{classRoom}', [AdminCourseController::class, 'classesUpdate'])->name('classes.update');
         Route::delete('classes/{classRoom}', [AdminCourseController::class, 'classesDestroy'])->name('classes.destroy');
+        // SỬA 3/11 (khách: "admin add tài liệu vào lớp giùm giáo viên nếu giáo viên chưa mua") — học liệu của lớp.
+        Route::post('classes/{classRoom}/materials', [AdminCourseController::class, 'classMaterialAttach'])->whereNumber('classRoom')->name('classes.materials.attach');
+        Route::delete('classes/{classRoom}/materials/{classMaterial}', [AdminCourseController::class, 'classMaterialDetach'])
+            ->whereNumber(['classRoom', 'classMaterial'])->name('classes.materials.detach');
 
         Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
         Route::get('products/create', [AdminProductController::class, 'create'])->name('products.create');

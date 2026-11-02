@@ -32,11 +32,15 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi.'])
     @endif
 
+    @if (in_array(session('status'), ['class-material-added', 'class-material-removed'], true))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => (session('status') === 'class-material-added' ? 'Đã thêm tài liệu "' : 'Đã gỡ tài liệu "').session('class_material_title').(session('status') === 'class-material-added' ? '" vào lớp.' : '" khỏi lớp.')])
+    @endif
+
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
-    <div class="acx-grid acx-grid--main">
+    <div class="acx-grid">
         <div class="acx-card acx-card--white">
             <h2><x-lucide name="graduation-cap" /> Thông tin lớp học</h2>
             <form method="POST" action="{{ route('admin.classes.update', $classRoom->id) }}" class="acx-form">
@@ -92,22 +96,10 @@
             </form>
         </div>
 
-        <div class="acx-danger" x-data="{ open: false, reason: '' }">
-            <h3><x-lucide name="alert-triangle" /> Xóa lớp học</h3>
-            <p>Xóa VĨNH VIỄN lớp cùng mọi dữ liệu của lớp (học viên ghi danh, buổi học, điểm danh, bài giao, bài làm của học sinh, đánh giá). Không thể khôi phục. Lý do là tùy chọn, nếu nhập sẽ được ghi vào nhật ký hệ thống.</p>
-
-            <button type="button" @click="open = !open" class="acx-danger__toggle" x-text="open ? 'Đóng' : 'Tôi muốn xóa lớp này'"></button>
-
-            <form x-show="open" x-cloak method="POST" action="{{ route('admin.classes.destroy', $classRoom->id) }}" class="" onsubmit="return confirm('Xóa VĨNH VIỄN lớp này cùng mọi dữ liệu của lớp? Không thể khôi phục.');">
-                @csrf
-                @method('DELETE')
-                <div>
-                    <label style="display:block;font-size:13px;color:#475569">Lý do xóa (không bắt buộc)</label>
-                    <textarea name="reason" x-model="reason" rows="3" class="admin-input" placeholder="Nêu lý do nếu cần..."></textarea>
-                </div>
-                <button type="submit" class="acx-btn acx-btn--danger" style="width:100%;margin-top:10px">Xác nhận xóa</button>
-            </form>
-        </div>
+        {{-- SỬA 3/11 (khách: "bỏ cái này đi") — bỏ khối "Xóa lớp học" khỏi trang sửa lớp (route admin.classes.destroy vẫn giữ). --}}
     </div>
+
+    {{-- SỬA 3/11 (khách: "admin có thể add tài liệu vào lớp giùm giáo viên nếu giáo viên chưa mua") — partials/class-documents. --}}
+    @include('admin.classes.partials.class-documents', ['cmx' => $classMaterials ?? null])
     </div>
 @endsection

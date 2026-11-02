@@ -379,18 +379,22 @@
                          nhất để nhảy chương. --}}
                     {{-- SỬA 25/10 (khách: "cột Bài tập phải bằng khung đọc") — màn đọc bộ đề: cột Bài tập cao đúng bằng cột đọc bên trái
                          (trước đây cao theo màn hình nên lệch đáy). Chỉ áp cho bộ đề, màn đọc sách giữ nguyên. --}}
-                    <aside class="flex h-full flex-col lg:sticky {{ ($bundleMode ?? false) ? 'rd-aside-fill' : '' }}" :class="focus ? 'lg:top-4' : 'lg:top-[76px]'">
-                        @if ($bundleMode ?? false)
-                            {{-- SỬA 18/10 — MODULE BỘ ĐỀ: cột Bài tập = câu hỏi của từng đề, cùng khung ô mã bài với trang đọc sách
-                                 (partials/reader-chapter-panel); bấm ô là vào làm câu đó. --}}
-                            @include('partials.reader-chapter-panel', ['chapters' => $chapters ?? [], 'currentChapterId' => $chapters[0]['id'] ?? null, 'readerRole' => $readerRole ?? 'student', 'chapterWord' => 'Đề', 'attachments' => [], 'panelScope' => 'chapter', 'panelLockScope' => true])
-                        @else
-                            @include('partials.reader-exercise-panel')
-                        @endif
+                    {{-- SỬA 3/11 (khách: "UI đọc bộ đề của giáo viên sai, phải giống UI đọc mới") — MỌI trường hợp của màn này (bộ đề
+                         có đề / sách hoặc bộ đề chỉ có 1 tệp PDF tổng) đều dùng CÙNG cột phải với màn đọc mới của học sinh
+                         (partials/reader-chapter-panel: lưới ô mã bài + học liệu). Tài liệu không chia chương thì coi cả tài liệu là
+                         1 phần (id -1). Bỏ khung Bài tập kiểu cũ (lọc Tất cả / Chưa xong / Đã xong + phân trang) và khối Mục lục. --}}
+                    @php
+                        $rcpBundle = (bool) ($bundleMode ?? false);
+                        $rcpChapters = $rcpBundle ? ($chapters ?? []) : [['id' => -1, 'no' => 1, 'title' => $product->title]];
+                        $rcpExercises = $rcpBundle ? ($exercises ?? []) : array_map(fn ($e) => ($e['chapterId'] ?? null) === null ? ['chapterId' => -1] + $e : $e, $exercises ?? []);
+                        $rcpAttachments = $rcpBundle ? [] : array_map(fn ($a) => ($a['kind'] ?? '') !== 'file' && ($a['chapterId'] ?? null) === null ? ['chapterId' => -1] + $a : $a, $attachments ?? []);
+                    @endphp
+                    <aside class="flex h-full flex-col lg:sticky rd-aside-fill" :class="focus ? 'lg:top-4' : 'lg:top-[76px]'">
+                        @include('partials.reader-chapter-panel', ['chapters' => $rcpChapters, 'currentChapterId' => $rcpChapters[0]['id'] ?? null, 'exercises' => $rcpExercises, 'readerRole' => $readerRole ?? ($isTeacherView ?? false ? 'teacher' : 'student'), 'chapterWord' => $rcpBundle ? 'Đề' : ($chapterWord ?? 'Phần'), 'attachments' => $rcpAttachments, 'panelScope' => $rcpBundle ? 'chapter' : 'all', 'panelLockScope' => $rcpBundle])
 
                         {{-- SỬA 18/10 (khách: "bỏ khối Mục lục ở màn đọc bộ đề") — ẩn bằng display:none chứ KHÔNG bỏ khỏi trang: ô chọn
                              "Đề" trên thanh công cụ nhảy tới đề bằng cách bấm hộ nút trong mục lục này. --}}
-                        <section x-data="{ open: true }" @if ($bundleMode ?? false) style="display:none" aria-hidden="true" @endif
+                        <section x-data="{ open: true }" style="display:none" aria-hidden="true"
                                  class="mt-3 overflow-hidden rounded-[28px] border border-[#DDEAF0] bg-white shadow-[0_7px_26px_rgba(45,96,145,0.055)]">
                             <button type="button" @click="open = ! open" :aria-expanded="open"
                                     class="flex w-full items-center justify-between gap-3 px-3 py-3 text-left sm:px-4">
@@ -418,9 +422,7 @@
                             </div>
                         </section>
 
-                        @unless ($bundleMode ?? false)
-                            @include('partials.reader-attachments')
-                        @endunless
+                        {{-- SỬA 3/11 — học liệu đã nằm trong cột phải (reader-chapter-panel) như màn đọc mới, không lặp khối riêng. --}}
                     </aside>
                 </div>
             @endif

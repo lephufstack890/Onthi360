@@ -3,6 +3,13 @@
 @section('title', 'Chi tiết lớp')
 @section('page-title', 'Chi tiết lớp')
 
+{{--
+    SỬA 3/11 (khách: "làm lại toàn bộ trang chi tiết lớp của giáo viên theo phong cách hiện đại này, logic giữ nguyên") — CHỈ ĐỔI
+    GIAO DIỆN: thẻ đầu trang (ảnh khoá học, tên lớp, số học sinh, buổi tới, % hoàn thành), dải tab có biểu tượng, tab Tài liệu
+    (tìm kiếm + lọc loại ngay trên trang, thẻ tài liệu có màu theo loại, nút Xem trước / Gỡ khỏi lớp, khối Thêm tài liệu), tab Tổng
+    quan. Mọi biến, form, route, luật vẫn như cũ (Teacher\ClassRoomService::showForTeacher()). CSS riêng tiền tố tcx- (Tailwind
+    không build lại trên máy chủ). Bản cũ: _to_delete_claude/before-teacher-class-ui/show.blade.php.
+--}}
 @section('content')
     @php
         $tab = $tab ?? 'overview';
@@ -14,44 +21,234 @@
         $nextSessionLabel = isset($nextSession) && $nextSession ? 'Buổi tới: '.$nextSession->starts_at->format('d/m H:i') : 'Chưa có buổi học sắp tới';
         $ratingAverage = $ratingSummary->avg_rating ?? 0;
         $ratingCount = $ratingSummary->review_count ?? 0;
+        $tcxCover = method_exists($classRoom->course ?? null, 'coverUrl') ? $classRoom->course->coverUrl() : null;
+        $tcxCompletion = (int) ($completion ?? 0);
+        $tcxTabIcons = ['Tổng quan' => 'home', 'Tài liệu' => 'file-text', 'Học liệu' => 'file-text', 'Buổi học' => 'play-circle', 'Giao đề' => 'clipboard-list', 'Kết quả' => 'bar-chart-3', 'Thành viên' => 'users'];
+        // Loại tài liệu suy từ nhãn có sẵn ("📘 Sách" / "🗂️ Chuyên đề" / "📝 Bộ đề") — không đổi dữ liệu của service.
+        $tcxType = function (?string $label): string {
+            $l = mb_strtolower((string) $label);
+            return str_contains($l, 'chuyên đề') ? 'topic' : (str_contains($l, 'bộ đề') ? 'exam' : 'book');
+        };
+        $tcxTypeIcon = ['book' => 'book-open', 'topic' => 'layers', 'exam' => 'clipboard-list'];
+        $tcxTypeName = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề'];
+        $tcxClean = fn (?string $label) => trim(preg_replace('/^[^\p{L}]+/u', '', (string) $label));
     @endphp
 
-    <a href="{{ route('teacher.classes.index') }}" class="text-[13px] text-slate-500 mb-4 inline-flex items-center gap-1 hover:text-blue-600">‹ Quay lại Lớp học</a>
+    <style>
+        .tcx [hidden] { display: none !important; }
+        .tcx { --tcx-ink: #0F2A4A; --tcx-muted: #5B7189; --tcx-line: #E3ECF5; }
+        .tcx a { text-decoration: none; }
+        .tcx-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 12.5px; font-weight: 600; color: #475569; }
+        .tcx-back:hover { color: #1D4ED8; }
+        .tcx-back svg { width: 15px; height: 15px; }
+        .tcx-hero { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 16px 20px; border: 1px solid #E0ECF9; border-radius: 22px; overflow: hidden;
+            background: radial-gradient(120% 140% at 85% 0%, #E6EEFF 0%, rgba(230, 238, 255, 0) 55%), linear-gradient(120deg, #FFFFFF 0%, #F6F9FF 55%, #EEF4FF 100%); box-shadow: 0 10px 30px rgba(30, 64, 175, .07); margin-bottom: 16px; }
+        .tcx-media { position: relative; width: 84px; height: 84px; flex: none; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #DBEAFE, #E0F2FE); display: grid; place-items: center; font-size: 40px; box-shadow: 0 6px 16px rgba(30, 64, 175, .12); }
+        .tcx-media img { width: 100%; height: 100%; object-fit: cover; }
+        .tcx-main { flex: 1 1 320px; min-width: 0; }
+        .tcx-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #E8F0FF; color: #1D4ED8; font-size: 12px; font-weight: 700; }
+        .tcx-pill svg { width: 14px; height: 14px; }
+        .tcx-title { margin: 6px 0 0; font-size: 22px; line-height: 1.2; font-weight: 800; color: var(--tcx-ink); letter-spacing: -.01em; }
+        .tcx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: #475569; }
+        .tcx-meta span { display: inline-flex; align-items: center; gap: 7px; }
+        .tcx-meta svg { width: 15px; height: 15px; color: #64748B; }
+        .tcx-meta i { width: 1px; height: 14px; background: #CBD5E1; }
+        .tcx-prog { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid #DCE6F2; }
+        .tcx-prog-txt small { display: block; max-width: 180px; font-size: 12px; line-height: 1.45; font-weight: 600; color: #475569; }
+        .tcx-prog-txt b { display: block; margin-top: 3px; font-size: 22px; line-height: 1; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-bar { width: 170px; height: 6px; margin-top: 8px; border-radius: 999px; background: #E2E8F0; overflow: hidden; }
+        .tcx-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3B82F6, #2563EB); }
+        .tcx-prog-txt em { display: block; margin-top: 5px; font-style: normal; font-size: 11.5px; color: #94A3B8; }
+        .tcx-target { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #93C5FD, #2563EB 70%); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, .28); flex: none; }
+        .tcx-target svg { width: 26px; height: 26px; }
+        @media (max-width: 820px) { .tcx-prog { padding-left: 0; border-left: 0; width: 100%; } .tcx-target { display: none; } .tcx-title { font-size: 20px; } .tcx-media { width: 68px; height: 68px; font-size: 32px; } }
+        .tcx-tabs { display: flex; gap: 4px; overflow-x: auto; padding: 6px 8px 0; border: 1px solid var(--tcx-line); border-bottom: 0; border-radius: 18px 18px 0 0; background: #fff; width: fit-content; max-width: 100%; scrollbar-width: none; }
+        .tcx-tab { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px 12px; font-size: 13px; font-weight: 700; color: #334155; white-space: nowrap; }
+        .tcx-tab svg { width: 16px; height: 16px; color: #64748B; }
+        .tcx-tab:hover { color: #1D4ED8; }
+        .tcx-tab.is-on { color: #1D4ED8; }
+        .tcx-tab.is-on svg { color: #2563EB; }
+        .tcx-tab.is-on::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: #2563EB; }
+        .tcx-tab sup { top: 0; padding: 1px 7px; border-radius: 999px; background: #FEE2E2; color: #B91C1C; font-size: 11px; font-weight: 800; }
+        .tcx-panel { padding: 16px; border: 1px solid var(--tcx-line); border-radius: 0 18px 18px 18px; background: linear-gradient(180deg, #FBFDFF, #F6F9FD); box-shadow: 0 10px 30px rgba(15, 42, 74, .05); }
+        @media (max-width: 640px) { .tcx-panel { padding: 14px; border-radius: 0 0 22px 22px; } .tcx-tabs { border-radius: 18px 18px 0 0; } }
+        /* Tab Tài liệu */
+        .tcx-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
+        .tcx-search { position: relative; flex: 0 1 240px; min-width: 180px; }
+        .tcx-search svg { position: absolute; left: 12px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: #64748B; }
+        .tcx-search input { box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px 0 34px; border: 1px solid #DCE6F2; border-radius: 999px; background: #fff; font-size: 12.5px; color: var(--tcx-ink); }
+        .tcx-search input:focus, .tcx-filter select:focus { outline: 0; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+        .tcx-filter { position: relative; }
+        .tcx-filter svg { position: absolute; left: 12px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); color: #334155; pointer-events: none; }
+        .tcx-filter select { box-sizing: border-box; height: 36px; padding: 0 12px 0 32px; border: 1px solid #DCE6F2; border-radius: 999px; background: #fff; font-size: 12.5px; font-weight: 700; color: #334155; appearance: none; cursor: pointer; }
+        .tcx-docs { display: grid; gap: 10px; }
+        .tcx-doc { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 11px 14px 11px 18px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); overflow: hidden; transition: box-shadow .15s, transform .15s; }
+        .tcx-doc:hover { box-shadow: 0 10px 24px rgba(15, 42, 74, .08); transform: translateY(-1px); }
+        .tcx-doc::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #60A5FA; }
+        .tcx-doc.t-topic::before { background: #A78BFA; } .tcx-doc.t-exam::before { background: #C084FC; }
+        .tcx-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; flex: none; background: #E0EDFF; color: #2563EB; }
+        .tcx-ic svg { width: 20px; height: 20px; }
+        .tcx-doc.t-topic .tcx-ic { background: #EDE7FE; color: #7C3AED; } .tcx-doc.t-exam .tcx-ic { background: #F3E8FF; color: #9333EA; }
+        .tcx-doc-txt { flex: 1 1 200px; min-width: 0; }
+        .tcx-doc-txt b { display: block; font-size: 14px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-doc-txt small { display: block; margin-top: 2px; font-size: 12px; color: #64748B; }
+        .tcx-use { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: #E3F6EC; color: #15803D; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+        .tcx-use svg { width: 13px; height: 13px; }
+        .tcx-acts { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .tcx-btn { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border: 0; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .tcx-btn svg { width: 14px; height: 14px; }
+        .tcx-btn.is-view { background: #EEF4FF; color: #1D4ED8; } .tcx-btn.is-view:hover { background: #E0EAFF; }
+        .tcx-btn.is-del { background: #FEECEC; color: #DC2626; } .tcx-btn.is-del:hover { background: #FDDCDC; }
+        .tcx-btn.is-primary { background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #fff; box-shadow: 0 6px 16px rgba(37, 99, 235, .25); }
+        .tcx-sep { width: 1px; height: 22px; background: #E2E8F0; }
+        .tcx-empty, .tcx-nomatch { padding: 20px 14px; border: 1.5px dashed #D6E3EF; border-radius: 18px; background: #fff; text-align: center; font-size: 12.5px; color: #64748B; }
+        .tcx-add { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 12px; padding: 14px; border: 1.5px dashed #BFD4F1; border-radius: 18px; background: #fff; }
+        @media (min-width: 900px) { .tcx-add { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; } }
+        .tcx-add-intro { display: flex; align-items: center; gap: 14px; }
+        .tcx-folder { position: relative; display: grid; place-items: center; width: 72px; height: 62px; flex: none; border-radius: 16px; background: linear-gradient(135deg, #BFDBFE, #60A5FA); color: #fff; box-shadow: 0 12px 24px rgba(37, 99, 235, .2); }
+        .tcx-folder svg { width: 30px; height: 30px; }
+        .tcx-folder span { position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #2563EB; box-shadow: 0 6px 14px rgba(15, 42, 74, .15); }
+        .tcx-folder span svg { width: 14px; height: 14px; }
+        .tcx-add h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-add p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: #64748B; }
+        .tcx-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .tcx-type { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid #DCE6F2; border-radius: 11px; background: #fff; font-size: 12.5px; font-weight: 700; color: #1E3A5F; cursor: pointer; box-shadow: 0 2px 6px rgba(15, 42, 74, .05); }
+        .tcx-type svg { width: 15px; height: 15px; }
+        .tcx-type .c-book { color: #2563EB; } .tcx-type .c-topic { color: #7C3AED; } .tcx-type .c-exam { color: #EA580C; }
+        .tcx-type em { font-style: normal; padding: 0 6px; border-radius: 999px; background: #EEF2F7; font-size: 11px; color: #475569; }
+        .tcx-type.is-on { border-color: #2563EB; background: #EEF4FF; color: #1D4ED8; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+        .tcx-pick { min-height: 120px; padding: 10px; border: 1px solid #E3ECF5; border-radius: 14px; background: #F8FBFE; }
+        .tcx-pick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 10px; border-radius: 12px; background: #fff; border: 1px solid #E6EEF6; }
+        .tcx-pick-row + .tcx-pick-row { margin-top: 8px; }
+        .tcx-pick-row b { display: block; font-size: 13px; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-pick-row small { display: block; margin-top: 2px; font-size: 12px; color: #94A3B8; }
+        .tcx-pick-empty { display: grid; place-items: center; min-height: 100px; text-align: center; font-size: 12.5px; color: #94A3B8; }
+        /* Tab Tổng quan */
+        .tcx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .tcx-stat { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
+        .tcx-stat .tcx-ic { width: 40px; height: 40px; border-radius: 12px; }
+        .tcx-stat .tcx-ic svg { width: 19px; height: 19px; }
+        .tcx-stat small { display: block; font-size: 12px; font-weight: 600; color: #64748B; }
+        .tcx-stat b { display: block; margin-top: 1px; font-size: 17px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-ic.g { background: #E3F6EC; color: #15803D; } .tcx-ic.a { background: #FFF1D6; color: #B45309; } .tcx-ic.v { background: #EDE7FE; color: #7C3AED; }
+        .tcx-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
+        @media (min-width: 900px) { .tcx-cards { grid-template-columns: 1fr 1fr; } }
+        .tcx-card { padding: 14px 16px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
+        .tcx-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-card h3 .tcx-ic { width: 32px; height: 32px; border-radius: 10px; } .tcx-card h3 .tcx-ic svg { width: 16px; height: 16px; }
+        .tcx-card p { margin: 0; font-size: 13px; color: #475569; }
+        /* SỬA 3/11 (khách: "tab Buổi học, Kết quả, Thành viên cũng thiết kế lại hiện đại") */
+        .tcx-sec { padding: 14px 16px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
+        .tcx-sec + .tcx-sec { margin-top: 12px; }
+        .tcx-sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 12px; }
+        .tcx-sec-head h3 { margin: 0; font-size: 14.5px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-sec-head p { margin: 2px 0 0; font-size: 12px; color: #64748B; }
+        .tcx-sec-head .tcx-ic { width: 36px; height: 36px; border-radius: 11px; } .tcx-sec-head .tcx-ic svg { width: 18px; height: 18px; }
+        .tcx-count { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: #EEF4FF; color: #1D4ED8; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+        .tcx-count.is-amber { background: #FFF1D6; color: #B45309; }
+        .tcx-form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+        @media (min-width: 640px) { .tcx-form-grid { grid-template-columns: 1fr 1fr; } }
+        .tcx-label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: #475569; }
+        .tcx-sess { display: grid; gap: 8px; }
+        .tcx-ses { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 12px; border: 1px solid #E6EEF6; border-radius: 14px; background: #fff; transition: box-shadow .15s; }
+        .tcx-ses:hover { box-shadow: 0 8px 18px rgba(15, 42, 74, .06); }
+        .tcx-date { display: grid; place-items: center; width: 52px; flex: none; padding: 6px 0; border-radius: 12px; background: #EEF4FF; color: #1D4ED8; line-height: 1.1; text-align: center; }
+        .tcx-date b { font-size: 18px; font-weight: 800; } .tcx-date small { font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+        .tcx-ses-txt { flex: 1 1 220px; min-width: 0; }
+        .tcx-ses-txt b { display: block; font-size: 13.5px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-ses-txt span { display: inline-flex; align-items: center; gap: 4px; margin: 3px 12px 0 0; font-size: 12px; color: #64748B; }
+        .tcx-ses-txt span svg { width: 13px; height: 13px; }
+        .tcx-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; background: #F1F5F9; color: #475569; }
+        .tcx-chip.t-success { background: #E3F6EC; color: #15803D; } .tcx-chip.t-warning { background: #FFF1D6; color: #B45309; }
+        .tcx-chip.t-info, .tcx-chip.t-brand { background: #E0EDFF; color: #1D4ED8; } .tcx-chip.t-danger { background: #FEE2E2; color: #B91C1C; }
+        .tcx-btn.is-green { background: #16A34A; color: #fff; } .tcx-btn.is-green:hover { background: #15803D; }
+        .tcx-btn.is-ghost { background: #fff; color: #475569; border: 1px solid #DCE6F2; }
+        .tcx-btn.is-ghost:hover { border-color: #FCA5A5; color: #DC2626; background: #FFF5F5; }
+        .tcx-btn.is-red { background: #DC2626; color: #fff; }
+        .tcx-input { box-sizing: border-box; height: 32px; padding: 0 10px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font-size: 12px; color: var(--tcx-ink); }
+        .tcx-input:focus { outline: 0; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+        .tcx-people { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+        @media (min-width: 900px) { .tcx-people { grid-template-columns: 1fr 1fr; } }
+        .tcx-person { padding: 10px 12px; border: 1px solid #E6EEF6; border-radius: 14px; background: #fff; }
+        .tcx-person.is-confirm { border-color: #FECACA; background: #FFF7F7; }
+        .tcx-person-row { display: flex; align-items: center; gap: 10px; }
+        .tcx-person-txt { flex: 1; min-width: 0; }
+        .tcx-person-txt b { display: block; font-size: 13px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-person-txt small { display: block; margin-top: 1px; font-size: 11.5px; color: #64748B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-person form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+        .tcx-person form .tcx-input { flex: 1 1 160px; }
+        .tcx-req { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid #FDE7C2; border-radius: 14px; background: #FFFCF5; }
+        .tcx-req + .tcx-req { margin-top: 8px; }
+        .tcx-req-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+        .tcx-req-acts form { display: flex; align-items: center; gap: 6px; }
+        .tcx-alert { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #FECACA; border-radius: 12px; background: #FFF5F5; font-size: 12.5px; font-weight: 600; color: #991B1B; }
+        .tcx-alert svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+        .tcx-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+        @media (min-width: 900px) { .tcx-results { grid-template-columns: 1.4fr 1fr; } }
+        .tcx-res-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: linear-gradient(120deg, #EEF4FF, #F5F9FF 60%, #fff); border: 1px solid #DCE8FA; }
+        .tcx-res-hero .tcx-ic { width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(135deg, #3B82F6, #1D4ED8); color: #fff; }
+        .tcx-res-hero .tcx-ic svg { width: 24px; height: 24px; }
+        .tcx-res-hero h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-res-hero p { margin: 3px 0 0; font-size: 12.5px; color: #475569; }
+        .tcx-res-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        .tcx-res-list li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #475569; }
+        .tcx-res-list li svg { width: 15px; height: 15px; color: #16A34A; flex: none; }
+    </style>
+
+    <div class="tcx">
+    <a href="{{ route('teacher.classes.index') }}" class="tcx-back"><x-lucide name="arrow-left" />Quay lại lớp học</a>
 
     @if (session('status') === 'class-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo lớp thành công — bạn là giáo viên chính của lớp này.'])
     @endif
 
-    <div class="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 shadow-[0_2px_8px_rgba(0,90,180,.04)] p-5 lg:p-6 mb-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex items-start gap-4">
-                <div class="w-14 h-14 rounded-3xl bg-white flex items-center justify-center text-3xl shrink-0 shadow-sm">🏫</div>
-                <div>
-                    <p class="text-xs font-medium text-sky-600 uppercase tracking-wide">{{ $courseTitle }}</p>
-                    <h1 class="text-xl lg:text-2xl font-semibold text-slate-800 mt-1">{{ $className }}</h1>
-                    <p class="text-[13px] text-slate-500 mt-1"><x-lucide name="users" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $studentsCount }} học sinh · <x-lucide name="calendar-days" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $nextSessionLabel }}</p>
-                </div>
-            </div>
-            <div class="w-40">
-                <x-ws.progress-bar :percent="$completion ?? 0" label="Hoàn thành chung (theo buổi học)" tone="info" />
-                @if (($completionTotalSessions ?? 0) > 0)
-                    <p class="text-[11px] text-slate-400 mt-1">{{ $completionEndedSessions }}/{{ $completionTotalSessions }} buổi đã học</p>
-                @endif
+    <section class="tcx-hero">
+        <div class="tcx-media">
+            @if ($tcxCover)
+                <img src="{{ $tcxCover }}" alt="{{ $courseTitle }}">
+            @else
+                <span aria-hidden="true">🏫</span>
+            @endif
+        </div>
+        <div class="tcx-main">
+            @if ($courseTitle !== '')
+                <span class="tcx-pill"><x-lucide name="graduation-cap" />{{ $courseTitle }}</span>
+            @endif
+            <h1 class="tcx-title">{{ $className }}</h1>
+            <div class="tcx-meta">
+                <span><x-lucide name="users" />{{ $studentsCount }} học sinh</span>
+                <i aria-hidden="true"></i>
+                <span><x-lucide name="calendar-days" />{{ $nextSessionLabel }}</span>
             </div>
         </div>
-    </div>
+        <div class="tcx-prog">
+            <div class="tcx-prog-txt">
+                <small>Hoàn thành chung (theo buổi học)</small>
+                <b>{{ $tcxCompletion }}%</b>
+                <div class="tcx-bar"><span style="width: {{ max(0, min(100, $tcxCompletion)) }}%"></span></div>
+                @if (($completionTotalSessions ?? 0) > 0)
+                    <em>{{ $completionEndedSessions }}/{{ $completionTotalSessions }} buổi đã học</em>
+                @endif
+            </div>
+            <span class="tcx-target" aria-hidden="true"><x-lucide name="target" /></span>
+        </div>
+    </section>
 
-    <x-ws.tabs :tabs="$tabsData" />
+    <nav class="tcx-tabs" aria-label="Các mục của lớp">
+        @foreach ($tabsData as $t)
+            {{-- SỬA 3/11 (khách: "tạm thời ẩn tab Kết quả") — chỉ ẩn nút tab; muốn hiện lại thì bỏ dòng continue ngay dưới. --}}
+            @continue($t['label'] === 'Kết quả')
+            <a href="{{ $t['href'] }}" class="tcx-tab {{ ($t['active'] ?? false) ? 'is-on' : '' }}" @if ($t['active'] ?? false) aria-current="page" @endif>
+                <x-lucide :name="$tcxTabIcons[$t['label']] ?? 'file-text'" />{{ $t['label'] }}
+                @isset($t['count'])<sup>{{ $t['count'] }}</sup>@endisset
+            </a>
+        @endforeach
+    </nav>
 
+    <div class="tcx-panel">
     @if ($tab === 'materials')
-        {{-- SỬA 31/8 (khách yêu cầu — "thêm học liệu thì thêm cả cuốn sách/chuyên đề/bộ đề,
-             có 3 loại để chọn, chọn xong list ra để giáo viên chọn"): mỗi lần "Thêm vào lớp"
-             giờ gắn NGUYÊN 1 sản phẩm (không còn gắn 1 chương/mục lẻ như trước) — dữ liệu
-             $attachableProducts đã nhóm sẵn theo 3 loại ở
-             Teacher\ClassRoomService::attachableProducts(). Bước chọn: bấm loại (Alpine
-             x-data, không cần route/logic mới) rồi chọn đúng sản phẩm trong danh sách hiện
-             ra, y hệt cách "Tài liệu của tôi" đã làm cho lưới thẻ (không phải điều hướng
-             trang khác). --}}
+        {{-- Tab Tài liệu — logic như cũ (gắn NGUYÊN 1 sản phẩm, chỉ hiện sách/chuyên đề/bộ đề còn quyền dạy, Gỡ = "Đã gỡ").
+             Tìm kiếm + lọc loại chạy ngay trên trang (JS ở cuối), không gọi máy chủ. --}}
         @php
             $attachableProducts = $attachableProducts ?? [];
             $hasAnyAttachable = collect($attachableProducts)->sum(fn ($g) => count($g['products'])) > 0;
@@ -63,92 +260,125 @@
         @endphp
 
         @if (session('status') === 'material-attached')
-            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm học liệu vào lớp — học sinh trong lớp xem được ngay, không cần tự mua riêng.'])
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm tài liệu vào lớp — học sinh trong lớp xem được ngay, không cần tự mua riêng.'])
         @elseif (session('status') === 'material-detached')
-            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ học liệu — lịch sử bài làm cũ vẫn giữ nguyên (8.2).'])
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ tài liệu — lịch sử bài làm cũ vẫn giữ nguyên.'])
         @endif
         @if ($errors->any())
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
-        <div class="space-y-3">
-            @forelse ($materials as $m)
-                <div class="bg-white rounded-3xl border border-sky-100 p-4 flex items-center justify-between flex-wrap gap-3">
-                    <div class="flex items-center gap-3">
-                        <x-ws.icon-tile icon="book-open" tone="sky" />
-                        <div>
-                            <p class="font-medium text-slate-700">{{ $m['title'] }}</p>
-                            <p class="text-xs mt-1 flex items-center gap-2">
-                                @if ($m['typeLabel'])
-                                    <span class="text-slate-400">{{ $m['typeLabel'] }}</span>
-                                @endif
-                                <x-ws.badge :tone="$m['tone']">{{ $m['scope'] }}</x-ws.badge>
-                            </p>
+        <div data-tcx-docs>
+            @if (count($materials) > 0)
+                <div class="tcx-toolbar">
+                    <label class="tcx-search"><x-lucide name="search" /><input type="search" placeholder="Tìm kiếm tài liệu…" aria-label="Tìm kiếm tài liệu" data-tcx-q></label>
+                    <label class="tcx-filter"><x-lucide name="filter" />
+                        <select aria-label="Lọc theo loại" data-tcx-type>
+                            <option value="">Bộ lọc: Tất cả</option>
+                            <option value="book">Sách</option>
+                            <option value="topic">Chuyên đề</option>
+                            <option value="exam">Bộ đề</option>
+                        </select>
+                    </label>
+                </div>
+            @endif
+
+            <div class="tcx-docs">
+                @forelse ($materials as $m)
+                    @php $mt = $tcxType($m['typeLabel'] ?? ''); @endphp
+                    <div class="tcx-doc t-{{ $mt }}" data-tcx-row data-type="{{ $mt }}" data-k="{{ mb_strtolower($m['title'].' '.$tcxClean($m['typeLabel'] ?? '')) }}">
+                        <span class="tcx-ic"><x-lucide :name="$tcxTypeIcon[$mt]" /></span>
+                        <div class="tcx-doc-txt">
+                            <b title="{{ $m['title'] }}">{{ $m['title'] }}</b>
+                            <small>{{ $tcxClean($m['typeLabel'] ?? '') ?: $tcxTypeName[$mt] }}</small>
+                        </div>
+                        <span class="tcx-use"><x-lucide name="check-circle-2" />{{ $m['scope'] }}</span>
+                        <div class="tcx-acts">
+                            @if ($m['readHref'] ?? null)
+                                <a href="{{ $m['readHref'] }}" target="_blank" rel="noopener" class="tcx-btn is-view"><x-lucide name="eye" />Xem trước</a>
+                                <span class="tcx-sep" aria-hidden="true"></span>
+                            @endif
+                            <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}"
+                                  onsubmit="return confirm('Gỡ tài liệu này khỏi lớp? Lịch sử bài làm cũ vẫn giữ nguyên.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="tcx-btn is-del"><x-lucide name="trash-2" />Gỡ khỏi lớp</button>
+                            </form>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 text-[13px]">
-                        <x-ws.badge tone="success">{{ $m['linkedStatus'] }}</x-ws.badge>
-                        {{-- SỬA 29/9 (khách chốt: "bỏ file pdf sách đi, mỗi chương 1 file pdf") —
-                             trước đây link này mở tệp PDF TỔNG của sản phẩm (access.resource,
-                             kind=content), giờ tệp tổng đã bỏ nên mở TRANG ĐỌC LIỀN MẠCH: PDF của
-                             từng chương/phần/đề nối thành một dải cuộn (teacher.products.read).
-                             Mở tab mới cùng kiểu "Xem đề bài ↗" ở mục Bài tập bên dưới. --}}
-                        @if ($m['readHref'] ?? null)
-                            <a href="{{ $m['readHref'] }}" target="_blank" rel="noopener" class="text-blue-600 font-medium">Đọc ↗</a>
-                        @endif
-                        <form method="POST" action="{{ route('teacher.classes.materials.detach', ['class' => $classRoom->id, 'classMaterial' => $m['id']]) }}" class="inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-blue-500">Gỡ</button>
-                        </form>
+                @empty
+                    <div class="tcx-empty">Lớp chưa gắn tài liệu nào — chọn tài liệu ở khung bên dưới để thêm.</div>
+                @endforelse
+                <div class="tcx-nomatch" data-tcx-nomatch hidden>Không có tài liệu nào khớp tìm kiếm / bộ lọc.</div>
+            </div>
+        </div>
+
+        <div class="tcx-add" x-data="{ type: '{{ $defaultType }}' }">
+            <div>
+                <div class="tcx-add-intro">
+                    <span class="tcx-folder" aria-hidden="true"><x-lucide name="book-open" /><span><x-lucide name="plus" /></span></span>
+                    <div>
+                        <h3>Thêm tài liệu vào lớp</h3>
+                        <p>Chọn loại tài liệu rồi chọn đúng cuốn. Chỉ hiện sách, chuyên đề, bộ đề bạn còn quyền dạy (còn hạn).</p>
                     </div>
                 </div>
-            @empty
-                <x-ws.empty-state title="Lớp chưa gắn học liệu nào" />
-            @endforelse
-
-            @if (empty($attachableProducts))
-                <div class="rounded-3xl border-2 border-dashed border-sky-100 text-slate-400 text-[13px] py-4 text-center">
-                    Không có sách/chuyên đề/bộ đề nào bạn còn quyền dạy để thêm — quyền dạy (teacher_teaching) đã hết hạn hoặc chưa được cấp (7.2).
-                </div>
-            @else
-                <div class="rounded-3xl border-2 border-dashed border-sky-100 p-4" x-data="{ type: '{{ $defaultType }}' }">
-                    <p class="text-[13px] text-slate-600 mb-3">+ Thêm học liệu vào lớp — chọn loại rồi chọn đúng cuốn (chỉ hiện sách/chuyên đề/bộ đề bạn còn quyền dạy còn hạn, 8.2):</p>
-
-                    <div class="flex flex-wrap gap-2 mb-3">
+                @if (! empty($attachableProducts))
+                    <div class="tcx-types">
                         @foreach ($attachableProducts as $typeKey => $group)
-                            <button type="button" @click="type = '{{ $typeKey }}'"
-                                    :class="type === '{{ $typeKey }}' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-sky-100'"
-                                    class="px-3 py-1.5 rounded-xl text-[13px] font-medium transition">
-                                {{ $group['label'] }} ({{ count($group['products']) }})
+                            <button type="button" class="tcx-type" :class="type === '{{ $typeKey }}' && 'is-on'" @click="type = '{{ $typeKey }}'">
+                                <x-lucide :name="$tcxTypeIcon[$typeKey] ?? 'book-open'" class="c-{{ $typeKey }}" />{{ $tcxClean($group['label']) }}<em>{{ count($group['products']) }}</em>
                             </button>
                         @endforeach
                     </div>
+                @endif
+            </div>
 
-                    @if (! $hasAnyAttachable)
-                        <p class="text-[13px] text-slate-400 text-center py-3">Mọi sách/chuyên đề/bộ đề bạn còn quyền dạy đã gắn hết vào lớp này rồi.</p>
-                    @endif
-
+            <div class="tcx-pick">
+                @if (empty($attachableProducts))
+                    <div class="tcx-pick-empty">Không có sách / chuyên đề / bộ đề nào bạn còn quyền dạy để thêm — quyền dạy đã hết hạn hoặc chưa được cấp.</div>
+                @elseif (! $hasAnyAttachable)
+                    <div class="tcx-pick-empty">Mọi sách / chuyên đề / bộ đề bạn còn quyền dạy đã gắn hết vào lớp này rồi.</div>
+                @else
                     @foreach ($attachableProducts as $typeKey => $group)
-                        <div x-show="type === '{{ $typeKey }}'" x-cloak class="space-y-2">
+                        <div x-show="type === '{{ $typeKey }}'" x-cloak>
                             @forelse ($group['products'] as $p)
-                                <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 py-2">
+                                <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="tcx-pick-row">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $p['id'] }}">
-                                    <div class="min-w-0">
-                                        <p class="text-[13px] text-slate-700 truncate">{{ $p['title'] }}</p>
-                                        <p class="text-xs text-slate-400">Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] }}</p>
+                                    <span class="tcx-ic" style="width:34px;height:34px;border-radius:10px"><x-lucide :name="$tcxTypeIcon[$typeKey] ?? 'book-open'" style="width:17px;height:17px" /></span>
+                                    <div style="flex:1 1 180px;min-width:0">
+                                        <b title="{{ $p['title'] }}">{{ $p['title'] }}</b>
+                                        <small>Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] ?? '—' }}</small>
                                     </div>
-                                    <button type="submit" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 shrink-0">Thêm vào lớp</button>
+                                    <button type="submit" class="tcx-btn is-primary"><x-lucide name="plus" />Thêm vào lớp</button>
                                 </form>
                             @empty
-                                <p class="text-[13px] text-slate-400 text-center py-3">Không còn {{ mb_strtolower($group['label']) }} nào để thêm.</p>
+                                <div class="tcx-pick-empty">Không còn {{ mb_strtolower($tcxClean($group['label'])) }} nào để thêm.</div>
                             @endforelse
                         </div>
                     @endforeach
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
+
+        <script>
+        (() => {
+            const box = document.querySelector('[data-tcx-docs]');
+            if (!box) return;
+            const q = box.querySelector('[data-tcx-q]'), type = box.querySelector('[data-tcx-type]'), none = box.querySelector('[data-tcx-nomatch]');
+            const rows = [...box.querySelectorAll('[data-tcx-row]')];
+            const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+            rows.forEach((r) => { r.dataset.f = fold(r.dataset.k); });
+            const apply = () => {
+                const k = fold(q ? q.value.trim() : ''), t = type ? type.value : '';
+                let shown = 0;
+                rows.forEach((r) => { const ok = (!t || r.dataset.type === t) && (!k || r.dataset.f.includes(k)); r.hidden = !ok; if (ok) shown++; });
+                if (none) none.hidden = rows.length === 0 || shown > 0;
+            };
+            if (q) q.addEventListener('input', apply);
+            if (type) type.addEventListener('change', apply);
+        })();
+        </script>
     @elseif ($tab === 'schedule')
         @php $sessions = $sessions ?? []; @endphp
 
@@ -159,46 +389,67 @@
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
-        <div class="bg-white rounded-3xl border border-sky-100 p-5 mb-4">
-            <p class="text-[13px] font-medium text-slate-600 mb-3">+ Tạo buổi học mới</p>
-            <form method="POST" action="{{ route('teacher.schedule.store') }}" x-data="{ startsDate: '{{ old('starts_date', '') }}', endsDate: '{{ old('ends_date', '') }}' }" class="space-y-4">
+        <section class="tcx-sec" x-data="{ openForm: {{ $errors->any() || count($sessions) === 0 ? 'true' : 'false' }} }">
+            <div class="tcx-sec-head" style="margin-bottom:0">
+                <span class="tcx-ic"><x-lucide name="plus" /></span>
+                <div style="flex:1 1 220px;min-width:0"><h3>Tạo buổi học mới</h3><p>Chủ đề, địa điểm / link và thời gian bắt đầu – kết thúc.</p></div>
+                <button type="button" class="tcx-btn is-view" @click="openForm = ! openForm"><x-lucide name="plus" /><span x-text="openForm ? 'Thu gọn' : 'Tạo buổi học'">Tạo buổi học</span></button>
+            </div>
+            <form method="POST" action="{{ route('teacher.schedule.store') }}" x-show="openForm" x-cloak x-data="{ startsDate: '{{ old('starts_date', '') }}', endsDate: '{{ old('ends_date', '') }}' }" style="display:grid;gap:12px;margin-top:12px">
                 @csrf
                 <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
                 <input type="hidden" name="back_to_class" value="1">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="tcx-form-grid">
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1" for="topic">Chủ đề buổi học</label>
+                        <label class="tcx-label" for="topic">Chủ đề buổi học</label>
                         <input id="topic" type="text" name="topic" maxlength="255" value="{{ old('topic') }}" placeholder="Ví dụ: Ôn tập chương 3" class="admin-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1" for="location">Địa điểm/link</label>
+                        <label class="tcx-label" for="location">Địa điểm / link</label>
                         <input id="location" type="text" name="location" maxlength="255" value="{{ old('location') }}" placeholder="Phòng học hoặc link online" class="admin-input">
                     </div>
                 </div>
 
                 @include('partials.session-datetime-fields')
 
-                <div>
-                    <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700">Tạo buổi học</button>
-                </div>
+                <div><button type="submit" class="tcx-btn is-primary"><x-lucide name="calendar-days" />Tạo buổi học</button></div>
             </form>
-        </div>
+        </section>
 
-        <x-ws.table :columns="['Thời gian (bắt đầu - kết thúc)', 'Chủ đề', 'Địa điểm', 'Trạng thái', 'Điểm danh', '']">
-            @forelse ($sessions as $s)
-                <tr class="hover:bg-slate-50">
-                    <td class="px-4 py-3 text-slate-700">{{ $s['timeRangeLabel'] }}</td>
-                    <td class="px-4 py-3 text-slate-600">{{ $s['topic'] ?? '—' }}</td>
-                    <td class="px-4 py-3 text-slate-400">{{ $s['location'] ?? '—' }}</td>
-                    <td class="px-4 py-3"><x-ws.badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-ws.badge></td>
-                    <td class="px-4 py-3"><x-ws.badge :tone="$s['attendanceTaken'] ? 'success' : 'warning'">{{ $s['attendanceSummary'] }}</x-ws.badge></td>
-                    <td class="px-4 py-3 text-right"><a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="text-blue-600 font-medium">Điểm danh</a></td>
-                </tr>
-            @empty
-                <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Lớp chưa có buổi học nào — tạo buổi học đầu tiên ở trên.</td></tr>
-            @endforelse
-        </x-ws.table>
+        <section class="tcx-sec">
+            <div class="tcx-sec-head">
+                <span class="tcx-ic v"><x-lucide name="calendar-days" /></span>
+                <div><h3>Lịch buổi học</h3><p>Mới nhất ở trên — bấm Điểm danh để ghi nhận học sinh có mặt.</p></div>
+                <span class="tcx-count">{{ count($sessions) }} buổi</span>
+            </div>
+            @if (count($sessions) === 0)
+                <div class="tcx-empty">Lớp chưa có buổi học nào — bấm "Tạo buổi học" ở trên để thêm buổi đầu tiên.</div>
+            @else
+                <div class="tcx-sess">
+                    @foreach ($sessions as $s)
+                        @php $sd = $s['startsAt'] ?? null; @endphp
+                        <div class="tcx-ses">
+                            <span class="tcx-date">
+                                @if ($sd)
+                                    <small>Th {{ $sd->format('m') }}</small><b>{{ $sd->format('d') }}</b><small>{{ $sd->format('Y') }}</small>
+                                @else
+                                    <x-lucide name="calendar-days" />
+                                @endif
+                            </span>
+                            <div class="tcx-ses-txt">
+                                <b>{{ $s['topic'] ?: 'Buổi học' }}</b>
+                                <span><x-lucide name="clock-3" />{{ $s['timeRangeLabel'] }}</span>
+                                @if ($s['location'])<span><x-lucide name="home" />{{ $s['location'] }}</span>@endif
+                            </div>
+                            <span class="tcx-chip t-{{ $s['timeStatusTone'] }}">{{ $s['timeStatusLabel'] }}</span>
+                            <span class="tcx-chip t-{{ $s['attendanceTaken'] ? 'success' : 'warning' }}">{{ $s['attendanceSummary'] }}</span>
+                            <a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="tcx-btn is-view" style="margin-left:auto"><x-lucide name="check" />Điểm danh</a>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </section>
     @elseif ($tab === 'assign')
         @php
             $assignments = $assignments ?? [];
@@ -272,29 +523,27 @@
             @endforelse
         </x-ws.table>
     @elseif ($tab === 'results')
-        <div class="bg-white rounded-3xl border border-sky-100 p-6 flex items-start gap-4">
-            <x-ws.icon-tile icon="trending-up" tone="emerald" />
-            <a href="{{ route('teacher.results.index') }}" class="text-[13px] text-blue-600 font-medium self-center">Xem kết quả chi tiết theo lớp này ›</a>
+        <div class="tcx-results">
+            <div class="tcx-res-hero">
+                <span class="tcx-ic"><x-lucide name="bar-chart-3" /></span>
+                <div style="flex:1 1 240px;min-width:0">
+                    <h3>Kết quả học tập của lớp</h3>
+                    <p>Xem điểm, bài nộp và tiến độ chi tiết của từng học sinh trong lớp.</p>
+                </div>
+                <a href="{{ route('teacher.results.index') }}" class="tcx-btn is-primary"><x-lucide name="trending-up" />Xem kết quả chi tiết</a>
+            </div>
+            <div class="tcx-sec">
+                <div class="tcx-sec-head" style="margin-bottom:10px"><span class="tcx-ic g"><x-lucide name="check-circle-2" /></span><div><h3>Trong trang kết quả</h3></div></div>
+                <ul class="tcx-res-list">
+                    <li><x-lucide name="check" />Điểm từng bài giao, từng học sinh</li>
+                    <li><x-lucide name="check" />Bài đã nộp / chưa nộp</li>
+                    <li><x-lucide name="check" />Tiến độ học tập của lớp</li>
+                </ul>
+            </div>
         </div>
     @elseif ($tab === 'members')
-        {{-- ẨN 16/9 (khách yêu cầu: "bỏ chỗ nhập mã lớp tham gia lớp đi") — dải chia sẻ mã lớp.
-             ẨN CHỨ KHÔNG XOÁ: bật App\Services\Student\ClassRoomService::JOIN_BY_CODE_ENABLED
-             rồi bỏ dấu chú thích quanh khối này là hiện lại.
-        <div class="rounded-3xl bg-sky-50/60 border border-blue-100 p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
-            <div>
-                <p class="text-[13px] font-medium text-slate-700">Mã lớp để học sinh tự tham gia</p>
-                <p class="text-xs text-slate-400 mt-0.5">Chia sẻ mã này cho học sinh — các em tự nhập ở trang Khóa học của tôi để vào lớp.</p>
-            </div>
-            <span class="text-base font-mono font-semibold px-3 py-1.5 rounded-xl bg-white border border-blue-200 text-blue-600 shrink-0">{{ $classRoom->code }}</span>
-        </div>
-        --}}
-
-        {{-- ═══════════ YÊU CẦU ĐĂNG KÝ CHỜ DUYỆT ═══════════
-             SỬA 16/9 (khách yêu cầu: "học sinh bấm đăng ký học thì giáo viên duyệt và học sinh
-             được vào học"). Học sinh bấm "Đăng ký học" ở trang Lớp học công khai -> dòng
-             class_enrollments trạng thái 'pending'. Duyệt ở đây là đổi sang 'active' — đúng thứ
-             AccessGateService::canAccessClassRoom() đòi, nên em vào học được NGAY.
-             Xem App\Services\Teacher\ClassRoomService::approveJoinRequest()/rejectJoinRequest(). --}}
+        {{-- Giữ nguyên luồng: duyệt / từ chối yêu cầu vào lớp (approveJoinRequest / rejectJoinRequest), gỡ học sinh khỏi lớp
+             (removeStudent — chuyển 'left', không xoá dữ liệu). Chỉ đổi giao diện; ô tìm học sinh lọc ngay trên trang. --}}
         @php $pendingRequests = $pendingRequests ?? collect(); @endphp
 
         @if (session('status') === 'join-request-approved')
@@ -306,148 +555,101 @@
         @endif
 
         @if ($errors->any())
-            <div class="mb-4 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
-                <x-lucide name="alert-triangle" class="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-                <div class="min-w-0 text-[13px] font-semibold leading-relaxed text-rose-800">
-                    @foreach ($errors->all() as $message)
-                        <p>{{ $message }}</p>
-                    @endforeach
-                </div>
-            </div>
+            <div class="tcx-alert"><x-lucide name="alert-triangle" /><div>@foreach ($errors->all() as $message)<p style="margin:0">{{ $message }}</p>@endforeach</div></div>
         @endif
 
-        <div class="mb-4 rounded-3xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2.5">
-                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-amber-600">
-                        <x-lucide name="user-plus" class="h-4 w-4" />
-                    </span>
-                    <div>
-                        <p class="text-[13px] font-bold text-slate-800">Yêu cầu vào lớp chờ duyệt</p>
-                        <p class="mt-0.5 text-xs text-slate-500">Học sinh bấm "Đăng ký học" ở trang Lớp học — duyệt là các em vào học được ngay.</p>
-                    </div>
-                </div>
-                <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">{{ $pendingRequests->count() }} yêu cầu</span>
+        <section class="tcx-sec">
+            <div class="tcx-sec-head">
+                <span class="tcx-ic a"><x-lucide name="user-plus" /></span>
+                <div style="flex:1 1 220px;min-width:0"><h3>Yêu cầu vào lớp chờ duyệt</h3><p>Học sinh bấm "Đăng ký học" ở trang Lớp học — duyệt là các em vào học được ngay.</p></div>
+                <span class="tcx-count is-amber">{{ $pendingRequests->count() }} yêu cầu</span>
             </div>
-
             @if ($pendingRequests->isEmpty())
-                <p class="mt-3 rounded-2xl bg-white/70 px-3.5 py-3 text-[13px] text-slate-500">Hiện chưa có yêu cầu nào chờ duyệt.</p>
+                <div class="tcx-empty" style="padding:14px">Hiện chưa có yêu cầu nào chờ duyệt.</div>
             @else
-                <div class="mt-3 space-y-2">
-                    @foreach ($pendingRequests as $req)
-                        <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white px-3.5 py-3">
-                            <x-ws.avatar :name="$req->student->name ?? 'Học sinh'" size="sm" />
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-[13px] font-bold text-slate-700">{{ $req->student->name ?? 'Học sinh đã bị xoá' }}</p>
-                                <p class="truncate text-xs text-slate-400">
-                                    {{ $req->student->email ?? '' }}
-                                    @if ($req->requested_at)
-                                        · xin vào lúc {{ $req->requested_at->format('H:i d/m/Y') }}
-                                    @endif
-                                </p>
+                @foreach ($pendingRequests as $req)
+                    <div class="tcx-req">
+                        <x-ws.avatar :name="$req->student->name ?? 'Học sinh'" size="md" />
+                        <div class="tcx-person-txt" style="flex:1 1 200px">
+                            <b>{{ $req->student->name ?? 'Học sinh đã bị xoá' }}</b>
+                            <small>{{ $req->student->email ?? '' }}@if ($req->requested_at) · xin vào lúc {{ $req->requested_at->format('H:i d/m/Y') }}@endif</small>
+                        </div>
+                        <div class="tcx-req-acts">
+                            <form method="POST" action="{{ route('teacher.classes.requests.approve', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}">
+                                @csrf
+                                <button type="submit" class="tcx-btn is-green"><x-lucide name="check" />Duyệt</button>
+                            </form>
+                            <form method="POST" action="{{ route('teacher.classes.requests.reject', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}">
+                                @csrf
+                                <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)" class="tcx-input" style="width:170px">
+                                <button type="submit" class="tcx-btn is-del"><x-lucide name="x" />Từ chối</button>
+                            </form>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
+        </section>
+
+        <section class="tcx-sec" x-data="{ q: '' }">
+            <div class="tcx-sec-head">
+                <span class="tcx-ic"><x-lucide name="users" /></span>
+                <div><h3>Học sinh đang học</h3><p>Gỡ khỏi lớp: em mất quyền vào lớp ngay; bài làm, điểm danh cũ vẫn giữ nguyên.</p></div>
+                <span class="tcx-count">{{ $members->count() }} học sinh</span>
+            </div>
+            @if ($members->count() > 6)
+                <label class="tcx-search" style="display:block;max-width:320px;margin-bottom:10px"><x-lucide name="search" /><input type="search" placeholder="Tìm tên hoặc email học sinh…" x-model="q" aria-label="Tìm học sinh"></label>
+            @endif
+            @if ($members->isEmpty())
+                <div class="tcx-empty">Lớp chưa có học sinh nào. Các em đăng ký ở trang Lớp học, duyệt ở khối phía trên là vào lớp.</div>
+            @else
+                <div class="tcx-people">
+                    @foreach ($members as $m)
+                        <div x-data="{ confirming: false }" class="tcx-person" :class="confirming && 'is-confirm'"
+                             data-k="{{ mb_strtolower($m->name.' '.($m->email ?? '')) }}" x-show="q === '' || $el.dataset.k.includes(q.toLowerCase())">
+                            <div class="tcx-person-row">
+                                <x-ws.avatar :name="$m->name" size="md" />
+                                <div class="tcx-person-txt">
+                                    <b>{{ $m->name }}</b>
+                                    @if ($m->email)<small>{{ $m->email }}</small>@endif
+                                </div>
+                                <button type="button" x-show="! confirming" x-on:click="confirming = true" class="tcx-btn is-ghost"><x-lucide name="log-out" />Gỡ khỏi lớp</button>
                             </div>
-                            <div class="flex shrink-0 items-center gap-2">
-                                <form method="POST" action="{{ route('teacher.classes.requests.approve', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}">
-                                    @csrf
-                                    <button type="submit"
-                                            class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700">
-                                        <x-lucide name="check" class="h-3.5 w-3.5" />Duyệt
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('teacher.classes.requests.reject', ['class' => $classRoom->id, 'enrollment' => $req->id]) }}"
-                                      class="flex items-center gap-2">
-                                    @csrf
-                                    <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)"
-                                           class="w-40 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs">
-                                    <button type="submit"
-                                            class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-50">
-                                        <x-lucide name="x" class="h-3.5 w-3.5" />Từ chối
-                                    </button>
-                                </form>
-                            </div>
+                            {{-- Không nhúng TÊN học sinh vào chuỗi confirm (dấu nháy trong tên làm vỡ JS). --}}
+                            <form x-show="confirming" x-cloak method="POST"
+                                  action="{{ route('teacher.classes.members.remove', ['class' => $classRoom->id, 'student' => $m->id]) }}"
+                                  onsubmit="return confirm('Gỡ học sinh này khỏi lớp? Em sẽ không vào lớp được nữa cho tới khi đăng ký lại và được duyệt.');">
+                                @csrf
+                                <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)" class="tcx-input">
+                                <button type="submit" class="tcx-btn is-red"><x-lucide name="log-out" />Xác nhận gỡ</button>
+                                <button type="button" x-on:click="confirming = false" class="tcx-btn is-ghost">Huỷ</button>
+                            </form>
                         </div>
                     @endforeach
                 </div>
             @endif
-        </div>
-        {{-- ═══════════ DANH SÁCH ĐANG HỌC ═══════════
-             SỬA 16/9 (khách yêu cầu: "duyệt xong rồi nếu giáo viên muốn kick học sinh ra khỏi lớp
-             thì vẫn kick được") — thêm nút gỡ từng em. Gỡ = chuyển dòng ghi danh sang 'left'
-             (KHÔNG xoá dữ liệu, bài làm/điểm danh cũ giữ nguyên), em mất quyền vào lớp ngay và
-             nhận thông báo; muốn học lại thì đăng ký lại ở trang Lớp học.
-             Xem App\Services\Teacher\ClassRoomService::removeStudent(). --}}
-        <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
-            <p class="text-xs text-slate-400 mb-3">{{ $members->count() }} học sinh đang học</p>
-            <div class="space-y-1.5 max-h-96 overflow-y-auto">
-                @forelse ($members as $m)
-                    <div x-data="{ confirming: false }" class="rounded-2xl px-2 py-1.5 transition-colors"
-                         :class="confirming ? 'bg-rose-50' : ''">
-                        <div class="flex flex-wrap items-center gap-3">
-                            <x-ws.avatar :name="$m->name" size="sm" />
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-[13px] font-medium text-slate-700">{{ $m->name }}</p>
-                                @if ($m->email)
-                                    <p class="truncate text-xs text-slate-400">{{ $m->email }}</p>
-                                @endif
-                            </div>
-                            <button type="button" x-show="! confirming" x-on:click="confirming = true"
-                                    class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
-                                <x-lucide name="log-out" class="h-3.5 w-3.5" />Gỡ khỏi lớp
-                            </button>
-                        </div>
-
-                        {{-- Bước xác nhận: hiện ngay dưới đúng em đó, kèm ô lý do (không bắt buộc)
-                             để học sinh nhận được thông báo có lý do thay vì mất quyền không hiểu vì sao. --}}
-                        <form x-show="confirming" x-cloak method="POST"
-                              action="{{ route('teacher.classes.members.remove', ['class' => $classRoom->id, 'student' => $m->id]) }}"
-                              {{-- Không nhúng TÊN học sinh vào chuỗi JS này: Blade escape dấu nháy
-                                   thành &#039;, trình duyệt giải mã lại trước khi JS chạy -> tên kiểu
-                                   "Nguyễn D'Anh" sẽ làm vỡ câu lệnh và nút bấm không chạy nữa. --}}
-                              onsubmit="return confirm('Gỡ học sinh này khỏi lớp? Em sẽ không vào lớp được nữa cho tới khi đăng ký lại và được duyệt.');"
-                              class="mt-2 flex flex-wrap items-center gap-2 pl-1">
-                            @csrf
-                            <input type="text" name="reason" maxlength="255" placeholder="Lý do (không bắt buộc)"
-                                   class="min-w-0 flex-1 rounded-xl border border-rose-200 px-2.5 py-1.5 text-xs">
-                            <button type="submit"
-                                    class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700">
-                                <x-lucide name="log-out" class="h-3.5 w-3.5" />Xác nhận gỡ
-                            </button>
-                            <button type="button" x-on:click="confirming = false"
-                                    class="inline-flex min-h-8 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-50">
-                                Huỷ
-                            </button>
-                        </form>
-                    </div>
-                @empty
-                    <p class="rounded-2xl bg-slate-50 px-3.5 py-3 text-[13px] text-slate-500">
-                        Lớp chưa có học sinh nào. Các em đăng ký ở trang Lớp học, duyệt ở khối phía trên là vào lớp.
-                    </p>
-                @endforelse
-            </div>
-        </div>
+        </section>
     @else
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white rounded-3xl border border-sky-100 p-5 flex items-start gap-3">
-                <x-ws.icon-tile icon="star" tone="amber" />
-                <div>
-                    <h3 class="font-medium text-slate-700 mb-2">Rating summary nội bộ</h3>
-                    <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
-                </div>
+        <div class="tcx-stats">
+            <div class="tcx-stat"><span class="tcx-ic"><x-lucide name="users" /></span><div><small>Học sinh đang học</small><b>{{ $studentsCount }}</b></div></div>
+            <div class="tcx-stat"><span class="tcx-ic v"><x-lucide name="calendar-days" /></span><div><small>Buổi đã học</small><b>{{ ($completionTotalSessions ?? 0) > 0 ? $completionEndedSessions.'/'.$completionTotalSessions : '—' }}</b></div></div>
+            <div class="tcx-stat"><span class="tcx-ic g"><x-lucide name="target" /></span><div><small>Hoàn thành chung</small><b>{{ $tcxCompletion }}%</b></div></div>
+        </div>
+        <div class="tcx-cards">
+            <div class="tcx-card">
+                <h3><span class="tcx-ic a"><x-lucide name="star" /></span>Đánh giá nội bộ</h3>
+                <x-rating-summary :average="$ratingAverage" :count="$ratingCount" />
             </div>
-            <div class="bg-white rounded-3xl border border-sky-100 p-5 flex items-start gap-3">
-                <x-ws.icon-tile icon="calendar-days" tone="sky" />
-                <div>
-                    <h3 class="font-medium text-slate-700 mb-2">Buổi học gần nhất</h3>
-                    <p class="text-[13px] text-slate-500">{{ $nextSessionLabel }}</p>
-                </div>
+            <div class="tcx-card">
+                <h3><span class="tcx-ic"><x-lucide name="calendar-days" /></span>Buổi học gần nhất</h3>
+                <p>{{ $nextSessionLabel }}</p>
             </div>
         </div>
     @endif
+    </div>{{-- /.tcx-panel --}}
+    </div>{{-- /.tcx --}}
 
     @push('scripts')
-        {{-- SỬA 31/8 — cần cho x-show/x-cloak ở khối "chọn loại rồi chọn sản phẩm" (tab
-             "Học liệu") phía trên: ẩn nội dung Alpine ngay từ đầu (trước khi Alpine kịp
-             chạy), tránh chớp nháy hiện cả 3 loại cùng lúc rồi mới ẩn 2 loại còn lại. --}}
+        {{-- x-cloak cho khối chọn loại tài liệu (Alpine) — tránh chớp nháy hiện cả 3 loại cùng lúc. --}}
         <style>
             [x-cloak] { display: none !important; }
         </style>

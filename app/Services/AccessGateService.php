@@ -74,6 +74,11 @@ class AccessGateService
             return AccessDecision::allow();
         }
 
+        // SỬA 3/11 — giáo viên dạy lớp đang gắn sản phẩm (kể cả do ADMIN thêm hộ khi giáo viên chưa mua).
+        if ($this->hasActiveTeacherClassAccess($user, $product->id)) {
+            return AccessDecision::allow();
+        }
+
         return AccessDecision::deny(
             reasonCode: 'need_personal_access',
             message: 'Bạn cần quyền học liệu để tải/xem tài nguyên này.',
@@ -86,6 +91,13 @@ class AccessGateService
     private function canAccessViaPersonalEntitlement(User $user, Material $material): AccessDecision
     {
         if ($this->hasActivePersonalAccess($user, $material->product_id)) {
+            return AccessDecision::allow();
+        }
+
+        // SỬA 3/11 (khách: "admin add tài liệu vào lớp hộ giáo viên chưa mua") — mở từng chương (màn đọc mới) cũng nhận 2 cửa
+        // của canAccessProduct(): học sinh trong lớp đang gắn nguyên sản phẩm, giáo viên dạy lớp đó.
+        if ($material->product_id !== null
+            && ($this->hasActiveClassGrantedAccess($user, (int) $material->product_id) || $this->hasActiveTeacherClassAccess($user, (int) $material->product_id))) {
             return AccessDecision::allow();
         }
 
@@ -220,6 +232,20 @@ class AccessGateService
             ->where('product_id', $productId)
             ->where('status', ClassMaterialStatus::Active)
             ->whereHas('classRoom.students', fn ($q) => $q->where('users.id', $user->id))
+            ->exists();
+    }
+
+    /**
+     * SỬA 3/11 (khách: "admin có thể add tài liệu vào lớp giùm giáo viên nếu giáo viên chưa mua") — true nếu $user là GIÁO
+     * VIÊN của một lớp đang gắn (active) NGUYÊN sản phẩm này: giáo viên đọc / dạy được tài liệu của lớp mình dù chưa mua.
+     */
+    public function hasActiveTeacherClassAccess(User $user, int $productId): bool
+    {
+        return ClassMaterial::query()
+            ->whereNull('material_id')
+            ->where('product_id', $productId)
+            ->where('status', ClassMaterialStatus::Active)
+            ->whereHas('classRoom.teachers', fn ($q) => $q->where('users.id', $user->id))
             ->exists();
     }
 

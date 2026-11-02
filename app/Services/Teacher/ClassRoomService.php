@@ -230,9 +230,18 @@ class ClassRoomService
                     // 'hasContent' cũ chỉ xét tệp PDF TỔNG của sản phẩm nên sách đã chia chương
                     // sẽ không hiện link nào. Thay bằng link thẳng vào trang đọc liền mạch, có
                     // khi và chỉ khi sản phẩm thực sự có tệp để đọc (ProductReadService).
-                    'readHref' => $cm->product !== null && $this->productRead->hasReadableParts($cm->product)
-                        ? route('teacher.products.read', $cm->product_id)
-                        : null,
+                    // SỬA 3/11 (khách: "đọc tài liệu của giáo viên phải giống UI mới của học sinh") — cùng luật với
+                    // Student\LibraryService::readHref: Bộ đề → trang bộ đề; có chương đọc được → màn đọc mới
+                    // (teacher.materials.read, giống học sinh); chỉ có PDF tổng kiểu cũ → màn đọc sản phẩm như trước.
+                    // SỬA 3/11 (khách: "chỗ đọc bộ đề cũng như đọc sách") — Bộ đề mở MÀN ĐỌC BỘ ĐỀ giống đọc sách (đề nối đề, cột
+                    // bài tập theo từng đề — ExamBundleService::readerData() qua teacher.products.read), không mở trang danh sách đề.
+                    'readHref' => match (true) {
+                        $cm->product === null => null,
+                        $cm->product->type === \App\Enums\ProductType::Exam && \App\Services\ExamBundle\ExamBundleService::ready() => route('teacher.products.read', $cm->product_id),
+                        ($firstPartId = $this->productRead->firstReadableMaterialId($cm->product)) !== null => route('teacher.materials.read', $firstPartId),
+                        $this->productRead->hasReadableParts($cm->product) => route('teacher.products.read', $cm->product_id),
+                        default => null,
+                    },
                     'title' => $cm->product->title ?? 'Học liệu',
                     'typeLabel' => self::TYPE_LABELS[$cm->product?->type?->value] ?? '',
                     'scope' => 'Đang dùng ở lớp này',

@@ -88,37 +88,14 @@
 
                         <div class="tw-actions">
                             <a class="tw-button" href="{{ route('teacher.classes.show', $c['id']) }}">Vào lớp</a>
-                            <button type="button" class="tw-secondary" @click="select({{ $c['id'] }})" :aria-pressed="current === {{ $c['id'] }} ? 'true' : 'false'">Danh sách học sinh</button>
+                            <a class="tw-secondary" href="{{ route('teacher.classes.show', ['class' => $c['id'], 'tab' => 'members']) }}">Danh sách học sinh</a>
                         </div>
                     </article>
                 @endforeach
             </div>
 
-            <section class="tw-card" data-roster>
-                <div class="tw-heading">
-                    <div>
-                        <h2><x-lucide name="users" />Học sinh · <span x-text="currentName"></span></h2>
-                        <p>Theo dõi đúng học sinh trong lớp phụ trách.</p>
-                    </div>
-                    <input type="search" aria-label="Tìm học sinh" placeholder="Tên hoặc tài khoản học sinh" x-model="query" @input="page = 1">
-                </div>
-
-                <template x-for="s in visible" :key="s.id">
-                    <article class="tw-task">
-                        <div><h3 x-text="s.name"></h3><p x-text="s.account + ' · Đang học'"></p></div>
-                        <span class="tw-tag" x-text="s.assigned + ' lượt giao · ' + s.submitted + ' đã nộp'"></span>
-                    </article>
-                </template>
-                <p class="tw-empty" x-show="total === 0" x-cloak x-text="rosterOfCurrent.length ? 'Không có học sinh phù hợp.' : 'Lớp này chưa có học sinh đang học.'"></p>
-
-                @include('student._pager')
-
-                <div class="tw-actions">
-                    <a class="tw-button" href="{{ route('teacher.schedule.index') }}">Lịch &amp; điểm danh</a>
-                    <a class="tw-button" href="{{ route('teacher.work.index', ['assign' => 1]) }}">Giao bài / đề</a>
-                    <a class="tw-secondary" :href="'{{ route('teacher.notifications.index', ['tab' => 'compose']) }}&class=' + current">Soạn thông báo lớp</a>
-                </div>
-            </section>
+            {{-- SỬA 3/11 (khách: "bỏ đi") — bỏ khối "Học sinh · <lớp>" (danh sách học sinh + Lịch & điểm danh / Giao bài / Soạn thông
+                 báo lớp) ở trang Lớp học. Xem học sinh của lớp ở tab Thành viên trong trang chi tiết lớp. --}}
         @endif
     </div>
 

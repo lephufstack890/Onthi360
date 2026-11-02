@@ -408,7 +408,9 @@ class ExamBundleService
 
         return $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)
             || $this->accessGate->hasActivePersonalAccess($user, $product->id)
-            || $this->accessGate->hasActiveClassGrantedAccess($user, $product->id);
+            || $this->accessGate->hasActiveClassGrantedAccess($user, $product->id)
+            // SỬA 3/11 — giáo viên dạy lớp đang gắn bộ đề (kể cả admin thêm hộ).
+            || $this->accessGate->hasActiveTeacherClassAccess($user, $product->id);
     }
 
     /** Làm được đề này không: đề công khai luôn được; đề "Chỉ trong bộ đề" cần quyền một bộ đề chứa nó (hoặc được giao). */

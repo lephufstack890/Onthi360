@@ -129,45 +129,10 @@
                                         @if ($canAssign)
                                             <button type="button" class="tw-button" @click="openAssign({{ $p['id'] }})">Giao tài liệu</button>
                                         @endif
-                                        @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
-                                            <button type="button" class="sw-act" @click="open = ! open" :aria-expanded="open ? 'true' : 'false'">
-                                                <span x-text="open ? 'Thu gọn' : 'Tài nguyên'"></span>
-                                                <svg class="sw-chev" :class="{ up: open }" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                            </button>
-                                        @endif
+                                        {{-- SỬA 3/11 (khách: "bỏ nút Tài nguyên đi") — bỏ nút + ngăn "Tài nguyên"; tài nguyên / bài tập xem trong màn đọc. --}}
                                     </div>
                                 </div>
 
-                                @if (count($p['resources']) > 0 || count($p['exercises']) > 0)
-                                    <div x-show="open" x-cloak style="width:100%;border-radius:12px;border-top:1px solid #e9f1f5;background:#f8fbfc;padding:12px">
-                                        @if (count($p['resources']) > 0)
-                                            <p class="tw-muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">Tài nguyên đính kèm</p>
-                                            <div style="display:grid;gap:6px;margin:6px 0 10px">
-                                                @foreach ($p['resources'] as $res)
-                                                    <a href="{{ route('access.resource', ['product' => $p['id'], 'kind' => $res['kind']]) }}" target="_blank" rel="noopener"
-                                                       style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #ddeaf0;border-radius:10px;background:#fff;color:#466278;font-size:12px;font-weight:500">
-                                                        <span>{{ $res['icon'] }}</span>{{ $res['label'] }}
-                                                    </a>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                        @if (count($p['exercises']) > 0)
-                                            <p class="tw-muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">Bài tập</p>
-                                            <div style="display:grid;gap:6px;margin-top:6px">
-                                                @foreach ($p['exercises'] as $ex)
-                                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #ddeaf0;border-radius:10px;background:#fff">
-                                                        <div style="min-width:0">
-                                                            <p style="margin:0;color:#123b68;font-size:12px;font-weight:600;overflow-wrap:anywhere">{{ $ex['title'] }}</p>
-                                                            <p class="tw-muted" style="margin:2px 0 0">{{ $ex['points'] }} điểm · {{ $ex['summary'] }}</p>
-                                                        </div>
-                                                        <a href="{{ route('access.resource.exerciseAttachment', [$p['id'], $ex['id'], 'statement']) }}" target="_blank" rel="noopener" style="flex-shrink:0;color:#176b50;font-size:11px;font-weight:700">Xem đề bài ↗</a>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                            <p class="tw-muted" style="margin-top:8px">Học sinh làm bài trực tiếp (kiểu thi online) ở trang "Tài liệu của tôi" của các em.</p>
-                                        @endif
-                                    </div>
-                                @endif
                             </article>
                         @endforeach
                     </div>

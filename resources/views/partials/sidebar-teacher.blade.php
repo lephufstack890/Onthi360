@@ -20,7 +20,7 @@
             // giờ là tab "Đề/bộ bài" trong màn này; các route con (trang quản lý/tạo đề PDF) cũng làm sáng mục này.
             ['Kho bài tập / câu hỏi và đề', 'teacher.questions.index', 'library', ['teacher.papers.*', 'teacher.questions.*']],
             ['Cuộc thi', 'teacher.competitions.index', 'trophy', ['teacher.competitions.*']],
-            ['Học liệu', 'teacher.library.index', 'book-open', ['teacher.library.*', 'teacher.materials.*', 'teacher.products.*']],
+            ['Tài liệu', 'teacher.library.index', 'book-open', ['teacher.library.*', 'teacher.materials.*', 'teacher.products.*']],
             ['Lịch & điểm danh', 'teacher.schedule.index', 'calendar-days', ['teacher.schedule.*']],
             ['Kết quả & nhận xét', 'teacher.results.index', 'trending-up', ['teacher.results.*']],
         ])),
