@@ -12,6 +12,8 @@
         'url' => route('competitions.manage.scoreSheet', ['competition' => $contest['id'], 'exam' => $round['id']]),
         'competitionId' => $contest['id'],
         'survey' => (bool) $survey,
+        // SỬA 3/11 (khách: "khi in chèn thêm logo hệ thống cho uy tín") — địa chỉ tuyệt đối để cửa sổ in / khung xem trước tải được.
+        'logo' => asset('assets/header-logo.png'),
     ];
 @endphp
 <style>
@@ -89,6 +91,7 @@
                                 <label class="ssm-check"><input type="checkbox" x-model="s.needScore"> Chỉ xét giải khi tổng điểm lớn hơn 0</label>
                                 <label class="ssm-check"><input type="checkbox" x-model="s.showActivity"> In cột "Kiểm tra thao tác"</label>
                                 <label class="ssm-check"><input type="checkbox" x-model="s.upper"> Viết hoa họ tên</label>
+                                <label class="ssm-check"><input type="checkbox" x-model="s.logo"> In logo hệ thống</label>
                             </div>
                             <p class="ssm-sub" style="margin:6px 0 0">Bằng điểm thì cùng hạng, cùng giải (vd hai bạn cùng hạng 4 đều được Khuyến khích nếu còn suất).</p>
                         </section>
@@ -181,7 +184,7 @@
         return {
             show: false, loading: false, error: '', data: null, pick: {},
             s: { heading: 'BẢNG TỔNG HỢP ĐIỂM VÀ XẾP GIẢI', subheading: '', unit: '', date: today(), footer: '',
-                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, extra: '' },
+                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, logo: true, extra: '' },
             open() {
                 this.show = true;
                 if (this.data || this.loading) return;
@@ -204,7 +207,7 @@
                         try {
                             const saved = JSON.parse(window.localStorage.getItem(KEY) || 'null');
                             if (saved && typeof saved === 'object') {
-                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
+                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper', 'logo'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
                             }
                         } catch (e) {}
                         this.data = j;
@@ -304,6 +307,7 @@
                     + '@bottom-right{content:"Trang " counter(page) " / " counter(pages);font:italic 9pt "Times New Roman",Times,serif;color:#333;border-top:.6pt solid #999;vertical-align:top;padding-top:2mm}}'
                     + 'html,body{margin:0;background:#fff;color:#000;font-family:"Times New Roman",Times,serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
                     + 'body{padding:0}@media screen{body{padding:14px 18px;font-size:12px}}'
+                    + 'body{position:relative}.logo{position:absolute;left:0;top:0;height:13mm;width:auto}@media screen{.logo{left:18px;top:14px}}'
                     + '.h1{text-align:center;font-size:19pt;font-weight:bold;margin:0;letter-spacing:.2pt}'
                     + '.h2{text-align:center;font-size:13pt;font-weight:bold;margin:5pt 0 0}'
                     + '.h3{text-align:center;font-size:14pt;font-weight:bold;margin:5pt 0 0}'
@@ -315,6 +319,8 @@
                     + 'td.nm{text-align:left;padding-left:10pt}td.tot{background:#f3f3f3;font-weight:bold}th.tot{background:#efefef}td.aw{font-weight:bold;white-space:nowrap}td.aw .rs{display:block;margin-top:2pt;font-weight:normal;font-style:italic;font-size:9.5pt;white-space:normal;line-height:1.3}td.ac{font-size:9.5pt;text-align:left}'
                     + 'tr{page-break-inside:avoid}.notes{margin-top:10pt;font-size:10.5pt;line-height:1.55}.notes p{margin:0 0 3pt}'
                     + '</style></head><body>'
+                    // SỬA 3/11 — logo hệ thống góc trên bên trái, tiêu đề vẫn căn giữa trang.
+                    + (this.s.logo && cfg.logo ? '<img class="logo" src="' + e(cfg.logo) + '" alt="Ôn Thi 360">' : '')
                     + '<p class="h1">' + e(this.s.heading) + '</p>'
                     + (this.s.subheading ? '<p class="h2">' + e(this.s.subheading) + '</p>' : '')
                     + (this.s.unit ? '<p class="h3">' + e(this.s.unit) + '</p>' : '')
@@ -335,7 +341,7 @@
                     });
                     window.localStorage.setItem(NAMES_KEY, JSON.stringify(names));
                 } catch (e) {}
-                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper })); } catch (e) {}
+                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo })); } catch (e) {}
                 const w = window.open('', '_blank');
                 if (!w) { alert('Trình duyệt đã chặn cửa sổ in — cho phép cửa sổ bật lên (pop-up) cho trang này rồi bấm In lại.'); return; }
                 w.document.open(); w.document.write(this.html(true)); w.document.close();
