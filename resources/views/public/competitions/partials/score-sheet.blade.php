@@ -291,7 +291,9 @@
                     }).join('');
                     const sig = this.sigList(r.a);
                     return '<tr><td>' + e(r.rank) + '</td><td class="nm">' + e(this.nm(r.pn)) + '</td>' + cells
-                        + '<td class="tot">' + (r.score === null ? '' : this.num(r.score)) + '</td><td class="aw">' + e(r.award) + '</td>'
+                        + '<td class="tot">' + (r.score === null ? '' : this.num(r.score)) + '</td><td class="aw">' + e(r.award)
+                        // SỬA 2/11 (khách: "nhập lý do rồi mà in ra không hiện") — lý do không xét giải in ngay dưới chữ "Không xét" trong dòng.
+                        + (r.cheat && r.note ? '<span class="rs">(' + e(r.note) + ')</span>' : '') + '</td>'
                         + (act ? '<td class="ac">' + e(!r.a.hasLog ? 'Không có dữ liệu' : (sig.length ? sig.join('; ') : 'Bình thường')) + '</td>' : '') + '</tr>';
                 }).join('');
                 const notes = this.notes(rows).map((t, i) => '<p>' + (i === 0 ? '<b>Ghi chú:</b> ' : '') + e(t) + '</p>').join('');
@@ -310,7 +312,7 @@
                     + 'table{width:100%;border-collapse:collapse;border:1pt solid #000;font-size:12pt}'
                     + 'th,td{border:.6pt solid #666;padding:6pt 6pt;text-align:center;vertical-align:middle}'
                     + 'th{background:#efefef;font-weight:bold;font-size:10.5pt;line-height:1.25}thead tr{border-bottom:1.2pt solid #000}'
-                    + 'td.nm{text-align:left;padding-left:10pt}td.tot{background:#f3f3f3;font-weight:bold}th.tot{background:#efefef}td.aw{font-weight:bold;white-space:nowrap}td.ac{font-size:9.5pt;text-align:left}'
+                    + 'td.nm{text-align:left;padding-left:10pt}td.tot{background:#f3f3f3;font-weight:bold}th.tot{background:#efefef}td.aw{font-weight:bold;white-space:nowrap}td.aw .rs{display:block;margin-top:2pt;font-weight:normal;font-style:italic;font-size:9.5pt;white-space:normal;line-height:1.3}td.ac{font-size:9.5pt;text-align:left}'
                     + 'tr{page-break-inside:avoid}.notes{margin-top:10pt;font-size:10.5pt;line-height:1.55}.notes p{margin:0 0 3pt}'
                     + '</style></head><body>'
                     + '<p class="h1">' + e(this.s.heading) + '</p>'
