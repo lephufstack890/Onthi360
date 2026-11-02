@@ -3,8 +3,6 @@
 namespace App\Services\Contest;
 
 use App\Models\Attempt;
-use App\Models\ClassEnrollment;
-use App\Models\ClassRoom;
 use App\Models\Competition;
 use App\Models\CompetitionExam;
 use App\Models\CompetitionExamMakeup;
@@ -25,13 +23,13 @@ use Illuminate\Validation\ValidationException;
  *
  *  2) LÀM BÙ (khách: "kỳ kết thúc mà học sinh quên làm / chưa làm thì người tổ chức hoặc admin add vào làm rồi xếp hạng như
  *     bình thường"). Chỉ khi kỳ đã kết thúc; ai quản lý được kỳ (canManageRound()) đều thêm được. Học sinh đã nộp bài ở kỳ
- *     thì không thêm (tránh làm lại lấy điểm cao hơn). Cuộc thi: học sinh làm bù được duyệt luôn vào danh sách cuộc thi.
+ *     thì không thêm (tránh làm lại lấy điểm cao hơn). Cuộc thi: học sinh làm bù được duyệt luôn vào danh sách cuộc thi. Chọn được mọi học sinh đang hoạt động.
  *     Khảo sát: học sinh làm bù vào thẳng, không phải nhập mật khẩu.
  */
 class ContestRoundTeamService
 {
-    /** Số học sinh tối đa liệt kê sẵn để tick chọn làm bù. */
-    private const CANDIDATE_LIMIT = 400;
+    /** Số học sinh tối đa đổ sẵn vào ô chọn làm bù (SỬA 2/11 — khách: "đổ hết toàn bộ danh sách học sinh"). */
+    private const CANDIDATE_LIMIT = 5000;
 
     public function __construct(private readonly ContestOrganizerService $organizers) {}
 
@@ -166,23 +164,17 @@ class ContestRoundTeamService
             throw ValidationException::withMessages(['makeup' => $skipped !== [] ? implode('; ', $skipped).'.' : 'Chọn ít nhất một học sinh.']);
         }
 
-        // Phạm vi: admin — mọi học sinh đang hoạt động; giáo viên — học sinh trong danh sách cuộc thi hoặc lớp mình dạy.
+        // SỬA 2/11 (khách: "đổ hết toàn bộ danh sách học sinh") — ban tổ chức kỳ cho làm bù được mọi học sinh đang hoạt động.
         $students = $this->activeStudents()->whereIn('users.id', $ids)->get(['users.id', 'users.name'])->keyBy('id');
-        $allowed = $this->organizers->isAdmin($actor) ? null : array_flip($this->scopeIds($actor, $c));
         $submitted = array_flip($this->submittedIds($exam));
 
         $added = 0;
         $updated = 0;
-        DB::transaction(function () use ($ids, $students, $allowed, $submitted, $exam, $c, $actor, $until, &$skipped, &$added, &$updated) {
+        DB::transaction(function () use ($ids, $students, $submitted, $exam, $c, $actor, $until, &$skipped, &$added, &$updated) {
             foreach ($ids as $id) {
                 $s = $students->get($id);
                 if ($s === null) {
                     $skipped[] = 'Tài khoản #'.$id.': không phải học sinh đang hoạt động';
-
-                    continue;
-                }
-                if ($allowed !== null && ! isset($allowed[$id])) {
-                    $skipped[] = $s->name.': không thuộc lớp bạn dạy / danh sách cuộc thi';
 
                     continue;
                 }
@@ -279,25 +271,20 @@ class ContestRoundTeamService
             ];
         })->values()->all();
 
+        // SỬA 2/11 (khách: "đổ hết toàn bộ danh sách học sinh") — mọi học sinh đang hoạt động, trừ người đã nộp bài kỳ này
+        // và người đã có trong danh sách làm bù.
         $candidates = [];
         if ($ended) {
-            $skip = array_flip(array_merge($userIds, $this->submittedIds($exam)));
-            $registered = array_flip($this->registrantIds($c));
-            $pool = array_values(array_filter($this->scopeIds($viewer, $c), fn ($id) => ! isset($skip[$id])));
-            if ($pool !== []) {
-                $classNames = $this->organizers->classNamesFor($pool);
-                $candidates = $this->activeStudents()->whereIn('users.id', $pool)->orderBy('name')->limit(self::CANDIDATE_LIMIT)
-                    ->get(['users.id', 'users.name', 'users.email', 'users.phone'])
-                    ->map(fn (User $u) => [
-                        'id' => (int) $u->id,
-                        'name' => (string) $u->name,
-                        'account' => (string) ($u->email ?: $u->phone ?: ''),
-                        'className' => $classNames[(int) $u->id] ?? '',
-                        'registered' => isset($registered[(int) $u->id]),
-                    ])
-                    // Học sinh có trong danh sách cuộc thi (đã đăng ký / từng vào khảo sát) lên trước.
-                    ->sortBy(fn ($r) => [$r['registered'] ? 0 : 1, mb_strtolower($r['name'])])->values()->all();
-            }
+            $skip = array_values(array_unique(array_merge($userIds, $this->submittedIds($exam))));
+            $students = $this->activeStudents()->whereNotIn('users.id', $skip === [] ? [0] : $skip)
+                ->orderBy('name')->limit(self::CANDIDATE_LIMIT)->get(['users.id', 'users.name', 'users.email', 'users.phone']);
+            $classNames = $this->organizers->classNamesFor($students->pluck('id')->map(fn ($v) => (int) $v)->all());
+            $candidates = $students->map(fn (User $u) => [
+                'id' => (int) $u->id,
+                'name' => (string) $u->name,
+                'account' => (string) ($u->email ?: $u->phone ?: ''),
+                'className' => $classNames[(int) $u->id] ?? '',
+            ])->values()->all();
         }
 
         return [
@@ -309,32 +296,6 @@ class ContestRoundTeamService
             'defaultDeadline' => now()->addDay()->setTime(23, 59)->format('Y-m-d\\TH:i'),
             'minDeadline' => now()->addMinutes(10)->format('Y-m-d\\TH:i'),
         ];
-    }
-
-    /** Học sinh người xem được cho làm bù: học sinh trong danh sách cuộc thi (đã duyệt) + học sinh lớp mình dạy (giáo viên). */
-    private function scopeIds(User $viewer, Competition $c): array
-    {
-        $ids = $this->registrantIds($c);
-        if (! $this->organizers->isAdmin($viewer)) {
-            $classIds = ClassRoom::query()->whereHas('teachers', fn ($q) => $q->where('users.id', $viewer->id))->pluck('id')->all();
-            if ($classIds !== []) {
-                $ids = array_merge($ids, ClassEnrollment::query()->whereIn('class_room_id', $classIds)
-                    ->where('status', ClassEnrollment::STATUS_ACTIVE)->pluck('student_id')->map(fn ($v) => (int) $v)->all());
-            }
-        }
-
-        return array_values(array_unique($ids));
-    }
-
-    private function registrantIds(Competition $c): array
-    {
-        if (! CompetitionRegistration::supported()) {
-            return [];
-        }
-
-        return CompetitionRegistration::query()->where('competition_id', $c->id)
-            ->where('status', CompetitionRegistration::STATUS_APPROVED)
-            ->pluck('student_id')->map(fn ($v) => (int) $v)->all();
     }
 
     private function submittedIds(CompetitionExam $exam): array
