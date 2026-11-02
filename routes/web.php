@@ -227,7 +227,9 @@ Route::get('/thong-tin/chinh-sach/{slug}', [PublicInfoController::class, 'policy
 Route::middleware(['guest'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     // Giới hạn số lần thử đăng nhập theo IP — chống dò mật khẩu bằng máy.
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    // SỬA 2/11 — nới 10 → 60 lượt/phút/IP: cả phòng máy dùng chung 1 IP, 10 lượt là cả lớp bị chặn chung. Sai mật khẩu
+    // nhiều lần thì khoá riêng từng tài khoản 5 phút (AuthController::login()).
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:60,1');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 

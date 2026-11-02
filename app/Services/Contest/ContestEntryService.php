@@ -28,8 +28,14 @@ use Illuminate\Validation\ValidationException;
  */
 class ContestEntryService
 {
-    /** Nhập sai mật khẩu tối đa bấy nhiêu lần / 10 phút cho một cuộc thi. */
-    private const PASSWORD_TRIES = 8;
+    /**
+     * SỬA 2/11 (khách: "nhập sai mật khẩu bị khoá lâu quá, khoá 5 phút thôi") — nhập sai mật khẩu khảo sát PASSWORD_TRIES
+     * lần liên tiếp thì tạm khoá nhập mật khẩu khảo sát đó PASSWORD_LOCK_SECONDS giây (đúng 5 phút tính từ lần sai cuối).
+     * Trước đây: 8 lần / 10 phút. Chỉ khoá đúng học sinh đó ở đúng cuộc khảo sát đó; nhập đúng là xoá đếm.
+     */
+    private const PASSWORD_TRIES = 5;
+
+    private const PASSWORD_LOCK_SECONDS = 300;
 
     public function registrationFor(?User $user, int $competitionId): ?CompetitionRegistration
     {
@@ -246,16 +252,33 @@ class ContestEntryService
         }
 
         $key = 'contest-entry:'.$user->id.':'.$competition->id;
-        if (RateLimiter::tooManyAttempts($key, self::PASSWORD_TRIES)) {
-            $this->fail('Bạn nhập sai quá nhiều lần. Thử lại sau '.max(1, (int) ceil(RateLimiter::availableIn($key) / 60)).' phút.');
-        }
+        $this->failIfPasswordLocked($key);
 
         if (! $competition->checkEntryPassword($password)) {
-            RateLimiter::hit($key, 600);
-            $this->fail('Mật khẩu chưa đúng. Hãy kiểm tra lại hoặc liên hệ giáo viên.');
+            RateLimiter::hit($key, self::PASSWORD_LOCK_SECONDS);
+            $left = self::PASSWORD_TRIES - RateLimiter::attempts($key);
+            if ($left <= 0) {
+                \Illuminate\Support\Facades\Cache::put($key.':lock', now()->addSeconds(self::PASSWORD_LOCK_SECONDS)->getTimestamp(), self::PASSWORD_LOCK_SECONDS);
+                RateLimiter::clear($key);
+                $this->failIfPasswordLocked($key);
+            }
+            $this->fail('Mật khẩu chưa đúng. Hãy kiểm tra lại hoặc liên hệ giáo viên.'
+                .($left <= 2 ? ' Còn '.$left.' lần thử, nhập sai nữa sẽ tạm khoá '.intdiv(self::PASSWORD_LOCK_SECONDS, 60).' phút.' : ''));
         }
 
         RateLimiter::clear($key);
+        \Illuminate\Support\Facades\Cache::forget($key.':lock');
+    }
+
+    /** SỬA 2/11 — đang tạm khoá do nhập sai mật khẩu nhiều lần → báo còn bao lâu. */
+    private function failIfPasswordLocked(string $key): void
+    {
+        $seconds = (int) \Illuminate\Support\Facades\Cache::get($key.':lock', 0) - now()->getTimestamp();
+        if ($seconds <= 0) {
+            return;
+        }
+        $wait = $seconds >= 60 ? intdiv($seconds, 60).' phút'.($seconds % 60 ? ' '.($seconds % 60).' giây' : '') : $seconds.' giây';
+        $this->fail('Bạn đã nhập sai mật khẩu '.self::PASSWORD_TRIES.' lần nên tạm khoá. Vui lòng thử lại sau '.$wait.' hoặc hỏi lại mật khẩu giáo viên.');
     }
 
     /** @return array{0: Competition, 1: CompetitionExam} */

@@ -8,6 +8,9 @@ use App\Services\Auth\RegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -27,6 +30,16 @@ class AuthController extends Controller
 {
     /** Khoá session lưu trang cần quay lại sau khi đăng nhập — xem rememberPreviousPage(). */
     private const ONTHI360_BACK_KEY = 'onthi360.login_back_to';
+
+    /**
+     * SỬA 2/11 (khách: "học sinh nhập sai mật khẩu nhiều lần bị khoá lâu quá, khoá 5 phút thôi") — nhập sai mật khẩu
+     * LOGIN_MAX_TRIES lần liên tiếp (cùng tài khoản, cùng máy/mạng) thì khoá đăng nhập tài khoản đó LOGIN_LOCK_SECONDS giây,
+     * tính từ lần sai cuối. Đăng nhập đúng là xoá đếm. Chỉ khoá đúng tài khoản gõ sai — bạn khác cùng phòng máy (chung IP)
+     * vẫn đăng nhập bình thường.
+     */
+    private const LOGIN_MAX_TRIES = 5;
+
+    private const LOGIN_LOCK_SECONDS = 300;
 
     /** Các trang KHÔNG dùng làm đích quay lại sau khi đăng nhập. */
     private const SKIP_RETURN_PATHS = [
@@ -101,6 +114,22 @@ class AuthController extends Controller
         );
     }
 
+    /** SỬA 2/11 — đang trong thời gian tạm khoá do nhập sai nhiều lần → báo còn bao lâu (phút giây). */
+    private function ensureNotLockedOut(string $key): void
+    {
+        $until = (int) Cache::get($key.':lock', 0);
+        $seconds = $until - now()->getTimestamp();
+        if ($seconds <= 0) {
+            return;
+        }
+        $wait = $seconds >= 60 ? intdiv($seconds, 60).' phút'.($seconds % 60 ? ' '.($seconds % 60).' giây' : '') : $seconds.' giây';
+
+        throw ValidationException::withMessages([
+            'identifier' => 'Bạn đã nhập sai mật khẩu '.self::LOGIN_MAX_TRIES.' lần nên tài khoản tạm khoá đăng nhập. Vui lòng thử lại sau '.$wait
+                .' hoặc bấm "Quên mật khẩu" để đặt lại.',
+        ]);
+    }
+
     public function login(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -112,11 +141,26 @@ class AuthController extends Controller
             'identifier' => 'email hoặc số điện thoại',
         ]);
 
+        $throttleKey = 'login:'.sha1(Str::lower(trim($data['identifier'])).'|'.$request->ip());
+        $this->ensureNotLockedOut($throttleKey);
+
         if (! $this->authService->attemptByIdentifier($data['identifier'], $data['password'], $request->boolean('remember'))) {
+            RateLimiter::hit($throttleKey, self::LOGIN_LOCK_SECONDS);
+            $left = self::LOGIN_MAX_TRIES - RateLimiter::attempts($throttleKey);
+            if ($left <= 0) {
+                // Đủ số lần sai → khoá đúng 5 phút kể từ lần sai này.
+                Cache::put($throttleKey.':lock', now()->addSeconds(self::LOGIN_LOCK_SECONDS)->getTimestamp(), self::LOGIN_LOCK_SECONDS);
+                RateLimiter::clear($throttleKey);
+                $this->ensureNotLockedOut($throttleKey);
+            }
+
             throw ValidationException::withMessages([
-                'identifier' => 'Email/số điện thoại hoặc mật khẩu không đúng.',
+                'identifier' => 'Email/số điện thoại hoặc mật khẩu không đúng.'
+                    .($left <= 2 ? ' Còn '.$left.' lần thử, nhập sai nữa sẽ bị tạm khoá đăng nhập '.intdiv(self::LOGIN_LOCK_SECONDS, 60).' phút.' : ''),
             ]);
         }
+        RateLimiter::clear($throttleKey);
+        Cache::forget($throttleKey.':lock');
 
         $user = $request->user();
 

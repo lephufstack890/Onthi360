@@ -48,6 +48,11 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->routeIs('info.contact.store')) {
                 return redirect(route('info.index').'#lien-he')->with('status', 'contact-throttled');
             }
+            // SỬA 2/11 — quá nhiều lượt đăng nhập từ cùng mạng: quay lại form đăng nhập kèm lời nhắn, không hiện trang 429 trắng.
+            if ($request->isMethod('post') && $request->is('login')) {
+                return redirect()->route('login')->withInput($request->only('identifier'))
+                    ->withErrors(['identifier' => 'Có quá nhiều lượt đăng nhập từ mạng này. Vui lòng đợi khoảng 1 phút rồi thử lại.']);
+            }
 
             return null;
         });
