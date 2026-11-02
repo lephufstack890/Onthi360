@@ -11,6 +11,14 @@
 @section('meta-description', 'Danh sách lớp học Tin học của Ôn Thi 360 — lọc theo khối lớp và khóa học, xem mã lớp, sĩ số, giáo viên phụ trách và đánh giá của học viên.')
 
 @section('content')
+    {{-- SỬA 3/11 (khách: thẻ lớp bị xô chữ khi tên lớp 1 dòng) — CSS thường, tiền tố pcl- (máy chủ không build lại Tailwind).
+         Tên lớp + mô tả giữ chỗ cố định 2 dòng; khối giáo viên luôn nằm sát đáy phần thông tin nên các thẻ cùng hàng thẳng nhau. --}}
+    <style>
+        .pcl-top, .pcl-body { display: flex; flex-direction: column; flex: 1 1 auto; }
+        .pcl-title { min-height: 2.5rem; min-height: 2lh; }
+        .pcl-sub { min-height: 3em; min-height: 2lh; }
+        .pcl-teacher { margin-top: auto; }
+    </style>
 {{-- ═══════════════ [COURSES] MÀN LỚP HỌC ═══════════════
      SỬA 11/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
      education-main/src/components/CoursesPage.jsx (COURSES-01 … COURSES-05).
@@ -267,7 +275,7 @@
             <div x-show="visibleIds.includes({{ $cl['id'] }})" x-cloak
                  :style="{ order: visibleIds.indexOf({{ $cl['id'] }}) }"
                  class="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-[#DDEAF0] bg-white shadow-[0_4px_16px_rgba(28,91,121,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#C9DFE8] hover:shadow-[0_12px_28px_rgba(28,91,121,0.1)]">
-                <div>
+                <div class="pcl-top">
                     {{-- Ảnh thẻ — ảnh của KHOÁ chứa lớp, lớp không có ảnh riêng. --}}
                     <div class="relative h-44 overflow-hidden bg-[#F5F8FA] sm:h-48">
                         <div class="absolute inset-x-0 top-0 z-10 h-1 {{ $featured ? 'bg-gradient-to-r from-[#F6C453] via-[#F9D778] to-[#2D7FA3]' : 'bg-gradient-to-r from-[#78C7D5] to-[#B7E5E7]' }}"></div>
@@ -298,7 +306,7 @@
                     </div>
 
                     {{-- Thông tin lớp --}}
-                    <div class="p-4 sm:p-5">
+                    <div class="pcl-body p-4 sm:p-5">
                         <div class="mb-2 flex items-center justify-between gap-2">
                             <span class="inline-flex items-center gap-1.5 rounded-lg border border-[#C9DFE8] bg-[#EAF5F8] px-2 py-1 text-[11px] font-extrabold text-[#216F8E]">
                                 <x-lucide name="graduation-cap" class="h-3.5 w-3.5 text-[#2D7FA3]" />
@@ -327,11 +335,10 @@
 
                         <p class="mb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[#8A9BAD]">Mã lớp · {{ $cl['code'] }}</p>
 
-                        <h3 class="mb-1.5 line-clamp-2 text-sm font-extrabold leading-5 text-[#123B68] transition-colors group-hover:text-[#126F91] sm:text-[15px]">{{ $cl['name'] }}</h3>
+                        <h3 class="pcl-title mb-1.5 line-clamp-2 text-sm font-extrabold leading-5 text-[#123B68] transition-colors group-hover:text-[#126F91] sm:text-[15px]">{{ $cl['name'] }}</h3>
 
-                        @if ($cl['subtitle'])
-                            <p class="type-body mb-3 line-clamp-2">{{ $cl['subtitle'] }}</p>
-                        @endif
+                        {{-- SỬA 3/11 — tên lớp và mô tả luôn chiếm đủ 2 dòng (kể cả khi ngắn / không có) để các thẻ cùng hàng thẳng nhau. --}}
+                        <p class="pcl-sub type-body mb-3 line-clamp-2" @if (! $cl['subtitle']) aria-hidden="true" @endif>{{ $cl['subtitle'] }}</p>
 
                         {{-- [COURSES-04A] THÔNG TIN LỚP — nơi học, hình thức, địa chỉ, lịch học, sĩ số.
                              Dòng nào chưa có dữ liệu thì bỏ hẳn dòng đó, không in ô rỗng cho đủ mẫu. --}}
@@ -391,7 +398,7 @@
                         {{-- Khối giáo viên. Bản mẫu dùng ảnh thật của giáo viên; hệ thống chưa lưu
                              ảnh giáo viên nên vẽ chữ cái đầu bằng x-ws.avatar ngay tại chỗ —
                              KHÔNG gọi dịch vụ ảnh ngoài, tránh gửi họ tên thật ra máy chủ lạ. --}}
-                        <div class="flex items-center gap-2.5 rounded-2xl border border-[#DDEAF0] bg-[#F8FAFB] p-2.5">
+                        <div class="pcl-teacher flex items-center gap-2.5 rounded-2xl border border-[#DDEAF0] bg-[#F8FAFB] p-2.5">
                             <x-ws.avatar :name="$cl['teacherName'] ?: 'Chưa phân công'" size="sm" />
                             <div class="overflow-hidden">
                                 <p class="truncate text-[11px] font-bold text-slate-800">{{ $cl['teacherName'] ?: 'Chưa phân công' }}</p>

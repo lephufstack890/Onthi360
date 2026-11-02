@@ -1040,7 +1040,7 @@
                                     <x-lucide name="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200"
                                               ::class="openFaq === {{ $i }} ? 'rotate-180 text-blue-600' : ''" />
                                 </button>
-                                <div x-show="openFaq === {{ $i }}" x-cloak
+                                <div x-show="openFaq === {{ $i }}" x-cloak data-faq-answer
                                      class="type-body px-4 pb-3 text-slate-600 bg-sky-50/40 border-t border-sky-50">{{ $faq['a'] }}</div>
                             </div>
                         @endforeach
@@ -1104,6 +1104,27 @@
                 </div>
             </section>
         </div>
+        {{-- SỬA 3/11 (khách: bấm câu hỏi bên trái thì ảnh "Cần hỗ trợ?" bên phải bị phóng to) — trên màn rộng, khung hỗ trợ
+             cố định bằng chiều cao khối Câu hỏi khi ĐÓNG hết; mở câu trả lời thì chỉ khối câu hỏi dài ra, ảnh bên phải đứng yên. --}}
+        <script>
+            (function () {
+                var row = document.getElementById('support');
+                if (!row) return;
+                var faq = row.querySelector('[data-section="HOME-11A-FAQ"]');
+                var box = row.querySelector('[data-section="HOME-11B-CONTACT-SUPPORT"]');
+                if (!faq || !box) return;
+                function lock() {
+                    if (window.innerWidth < 1024) { row.style.alignItems = ''; box.style.height = ''; return; }
+                    var h = faq.offsetHeight;
+                    faq.querySelectorAll('[data-faq-answer]').forEach(function (a) { h -= a.offsetHeight; });
+                    row.style.alignItems = 'start';
+                    box.style.height = Math.max(h, 300) + 'px';
+                }
+                window.addEventListener('load', lock);
+                window.addEventListener('resize', lock);
+                document.addEventListener('DOMContentLoaded', lock);
+            })();
+        </script>
     </div>
 </div>
 </div>
