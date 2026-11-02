@@ -62,7 +62,7 @@
 
 <div id="lam-bu" style="{{ $box }}">
     <div style="display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap">
-        <span style="{{ $ico }};background:#fff4e0;color:#9a6200"><x-lucide name="calendar-clock" style="width:18px;height:18px" /></span>
+        <span style="{{ $ico }};background:#fff4e0;color:#9a6200"><x-lucide name="clock-3" style="width:18px;height:18px" /></span>
         <span style="flex:1 1 260px;min-width:0">
             <b style="display:block;font-size:13px;color:#123b68">Cho học sinh làm bù</b>
             <span style="display:block;margin-top:2px;{{ $muted }}">
@@ -109,48 +109,53 @@
         @endif
 
         @if ($mk['ended'])
+            {{-- SỬA 2/11 (khách: "cho chọn học sinh đơn giản thôi với thời gian bù là được") — tìm tên → tick → chọn hạn → Cho làm bù. --}}
             <form method="POST" action="{{ $mk['addUrl'] }}" style="margin-top:12px;display:grid;gap:10px" x-data="{ q: '' }">
                 @csrf
                 @if ($mk['candidates'] !== [])
-                    <div>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">
-                            <input type="search" x-model="q" placeholder="Tìm tên, tài khoản, lớp…" aria-label="Tìm học sinh" style="{{ $input }};flex:1 1 220px;max-width:320px">
-                            <button type="button" style="{{ $btnSm }};border-color:#cfe3ec;color:#126f91"
-                                    @click="$root.querySelectorAll('[data-mk-row]').forEach((el) => { if (el.style.display !== 'none') el.querySelector('input').checked = true; })">Chọn tất cả đang hiện</button>
-                            <span style="{{ $muted }}">Học sinh trong danh sách {{ $survey ? 'khảo sát' : 'cuộc thi' }}{{ ($viewer['isAdmin'] ?? false) ? '' : ' và lớp bạn dạy' }}, chưa nộp bài kỳ này.</span>
-                        </div>
-                        <div style="max-height:260px;overflow:auto;border:1px solid #e5edf3;border-radius:10px">
-                            @foreach ($mk['candidates'] as $cnd)
-                                <label data-mk-row data-k="{{ mb_strtolower($cnd['name'].' '.$cnd['account'].' '.$cnd['className']) }}"
-                                       x-show="q === '' || $el.dataset.k.includes(q.toLowerCase())"
-                                       style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f0f4f7;font-size:12px;color:#123b68;cursor:pointer">
+                    <input type="search" x-model="q" placeholder="Tìm tên học sinh…" aria-label="Tìm tên học sinh" style="{{ $input }};width:100%;max-width:360px">
+                    <div style="max-height:240px;overflow:auto;border:1px solid #e5edf3;border-radius:10px">
+                        @foreach ($mk['candidates'] as $cnd)
+                            <div data-k="{{ mb_strtolower($cnd['name'].' '.$cnd['account'].' '.$cnd['className']) }}" x-show="q === '' || $el.dataset.k.includes(q.toLowerCase())" style="border-bottom:1px solid #f0f4f7">
+                                <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;color:#123b68;cursor:pointer">
                                     <input type="checkbox" name="student_ids[]" value="{{ $cnd['id'] }}" @checked(in_array((string) $cnd['id'], (array) old('student_ids', []), true))>
-                                    <b>{{ $cnd['name'] }}</b>
-                                    @if ($cnd['account'] !== '')<span style="color:#61798b">{{ $cnd['account'] }}</span>@endif
-                                    @if ($cnd['className'] !== '')<span style="color:#61798b">· {{ $cnd['className'] }}</span>@endif
-                                    @if ($cnd['registered'])<span style="margin-left:auto;padding:1px 7px;border-radius:999px;background:#eef6ee;color:#1b7a43;font-size:11px">Trong danh sách</span>@endif
+                                    <span><b>{{ $cnd['name'] }}</b>@if ($cnd['className'] !== '' || $cnd['account'] !== '') <small style="color:#8597a6">· {{ $cnd['className'] !== '' ? $cnd['className'] : $cnd['account'] }}</small>@endif</span>
                                 </label>
-                            @endforeach
-                        </div>
+                            </div>
+                        @endforeach
                     </div>
                 @else
-                    <p style="margin:0;{{ $muted }}">Không còn học sinh nào trong danh sách {{ $survey ? 'khảo sát' : 'cuộc thi' }}{{ ($viewer['isAdmin'] ?? false) ? '' : ' / lớp bạn dạy' }} mà chưa nộp bài — có thể nhập tài khoản ở ô dưới.</p>
+                    <p style="margin:0;{{ $muted }}">Không còn học sinh nào chưa nộp bài để cho làm bù.</p>
                 @endif
-
-                <label style="display:grid;gap:4px;font-size:12px;color:#123b68">
-                    <span>Hoặc nhập tài khoản học sinh (email / số điện thoại), mỗi dòng một tài khoản</span>
-                    <textarea name="accounts" rows="2" maxlength="10000" style="border:1px solid #d6e3ec;border-radius:9px;padding:8px 10px;font-size:12px;color:#123b68;resize:vertical">{{ old('accounts') }}</textarea>
-                </label>
 
                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
                     <label style="display:grid;gap:4px;font-size:12px;color:#123b68">
-                        <span>Hạn làm bù (phải nộp trước)</span>
+                        <span>Thời gian làm bù đến</span>
                         <input type="datetime-local" name="deadline_at" required value="{{ old('deadline_at', $mk['defaultDeadline']) }}" min="{{ $mk['minDeadline'] }}" style="{{ $input }}">
                     </label>
-                    <button type="submit" class="hub-primary-action" style="display:inline-flex;align-items:center;gap:6px"><x-lucide name="calendar-clock" style="width:15px;height:15px" />Cho làm bù</button>
+                    <button type="submit" class="hub-primary-action" @disabled($mk['candidates'] === []) style="display:inline-flex;align-items:center;gap:6px"><x-lucide name="clock-3" style="width:15px;height:15px" />Cho làm bù</button>
                 </div>
-                <p style="margin:0;{{ $muted }}">Học sinh đã nộp bài kỳ này sẽ được bỏ qua.{{ $survey ? '' : ' Học sinh chưa có trong danh sách cuộc thi được duyệt vào luôn.' }} Thêm lại học sinh đã có thì chỉ cập nhật hạn.</p>
             </form>
+            <script>
+                window.makeupPicker = window.makeupPicker || function (cfg) {
+                    return {
+                        q: '', hits: [], picked: [], loading: false, seq: 0,
+                        async search() {
+                            const q = this.q.trim(); if (q === '') { this.hits = []; return; }
+                            const my = ++this.seq; this.loading = true;
+                            try {
+                                const r = await fetch(cfg.url + '?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                                const data = r.ok ? await r.json() : { students: [] };
+                                if (my !== this.seq) return;
+                                this.hits = (data.students || []).filter((s) => !this.picked.some((p) => p.id === s.id));
+                            } catch (e) { if (my === this.seq) this.hits = []; }
+                            if (my === this.seq) this.loading = false;
+                        },
+                        add(s) { if (!this.picked.some((p) => p.id === s.id)) this.picked.push(s); this.q = ''; this.hits = []; },
+                        remove(id) { this.picked = this.picked.filter((p) => p.id !== id); },
+                    };
+                };
+            </script>
         @endif
     @endif
 </div>
