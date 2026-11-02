@@ -973,6 +973,51 @@
 
         </div>
 
+        {{-- SỬA 3/11 (SEO — khách: "search Google không thấy web") — đoạn giới thiệu bằng chữ cho Google hiểu web nói về gì: luyện thi
+             Tin học, HSG Tin học, Chuyên Tin, tốt nghiệp THPT môn Tin học, lập trình C++ / Python. CSS riêng tiền tố oi-about
+             (Tailwind không build lại trên máy chủ). --}}
+        <style>
+            .oi-about { grid-column: 1 / -1; background: #fff; border: 1px solid #E0F2FE; border-radius: 24px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0, 100, 220, .04); }
+            .oi-about h2 { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.35; color: #0F3A7A; }
+            .oi-about > p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.7; color: #475569; }
+            .oi-about-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+            @media (min-width: 640px) { .oi-about-grid { grid-template-columns: 1fr 1fr; } }
+            @media (min-width: 1100px) { .oi-about-grid { grid-template-columns: repeat(4, 1fr); } }
+            .oi-about-item { padding: 12px 14px; border: 1px solid #E3EEF5; border-radius: 16px; background: #F8FBFE; }
+            .oi-about-item h3 { margin: 0; font-size: 14px; font-weight: 800; color: #123B68; }
+            .oi-about-item p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.6; color: #5B7189; }
+            html.theme-dark .oi-about { background: #12283A; border-color: #25445C; }
+            html.theme-dark .oi-about-item { background: #15304A; border-color: #25445C; }
+            html.theme-dark .oi-about h2, html.theme-dark .oi-about-item h3 { color: #E2ECF5; }
+            html.theme-dark .oi-about > p, html.theme-dark .oi-about-item p { color: #A9C0D2; }
+        </style>
+        <section id="gioi-thieu" data-section="HOME-10C-ABOUT" class="oi-about" aria-labelledby="oi-about-title">
+            <h2 id="oi-about-title">Tin học Onthi360 – nền tảng luyện thi Tin học trực tuyến</h2>
+            <p>Tin học Onthi360 là nơi học sinh THCS, THPT học và luyện thi môn Tin học, cùng giáo viên và phụ huynh theo dõi tiến bộ.
+                Hệ thống tập trung vào các mục tiêu: thi học sinh giỏi (HSG) Tin học lớp 9 và lớp 12, thi vào lớp 10 Chuyên Tin, thi tốt nghiệp
+                THPT môn Tin học và lập trình thi đấu.</p>
+            <div class="oi-about-grid">
+                <div class="oi-about-item">
+                    <h3>Luyện thi HSG Tin học</h3>
+                    <p>Bài tập thuật toán theo chuyên đề, từ cơ bản đến nâng cao, lọc đề theo tỉnh và năm; bài code chấm tự động bằng bộ test như kỳ thi thật.</p>
+                </div>
+                <div class="oi-about-item">
+                    <h3>Ôn thi vào lớp 10 Chuyên Tin</h3>
+                    <p>Lộ trình theo trường mục tiêu, kho đề tuyển sinh Chuyên Tin, luyện kỹ năng làm bài có giới hạn thời gian.</p>
+                </div>
+                <div class="oi-about-item">
+                    <h3>Ôn thi tốt nghiệp THPT môn Tin học</h3>
+                    <p>Câu hỏi trắc nghiệm và đề luyện tập theo cấu trúc đề thi tốt nghiệp, biết đúng sai và điểm ngay sau khi làm.</p>
+                </div>
+                <div class="oi-about-item">
+                    <h3>Lập trình C++ và Python</h3>
+                    <p>Viết code ngay trên web, hệ thống chấm bài (Online Judge) báo kết quả từng test, lưu lịch sử nộp bài để ôn lại.</p>
+                </div>
+            </div>
+            <p>Bên cạnh kho bài tập, Onthi360 có thư viện tài liệu, sách và bộ đề Tin học; các cuộc thi, kỳ khảo sát năng lực có bảng xếp hạng;
+                lớp học trực tuyến để giáo viên giao bài, theo dõi điểm và nhật ký làm bài của học sinh, phụ huynh nắm được kết quả học tập của con.</p>
+        </section>
+
         <div id="support" data-section="HOME-11-SUPPORT-ROW" class="col-span-full grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
             <section data-section="HOME-11A-FAQ" class="h-full bg-white rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between">
                 <div>
@@ -1000,6 +1045,21 @@
                             </div>
                         @endforeach
                     </div>
+                    {{-- SỬA 3/11 (SEO) — khai báo FAQPage cho Google: đúng các câu hỏi đang hiện ở khối này. --}}
+                    @if ($faqs !== [])
+                        @php
+                            $faqJsonLd = [
+                                '@context' => 'https://schema.org',
+                                '@type' => 'FAQPage',
+                                'mainEntity' => array_map(fn ($f) => [
+                                    '@type' => 'Question',
+                                    'name' => $f['q'],
+                                    'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f['a']],
+                                ], array_values($faqs)),
+                            ];
+                        @endphp
+                        <script type="application/ld+json">{!! json_encode($faqJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
+                    @endif
                 </div>
             </section>
 

@@ -118,26 +118,6 @@ class HomeService
         ];
     }
 
-    /**
-     * 4 số liệu ở hero (12.1) — TÍNH TRỰC TIẾP từ dữ liệu thật, thay cho 4 chuỗi cố định
-     * ('12.000+', '350+', '120+', '4.8/5') trong bản cũ.
-     *
-     * - "Học sinh đang học": đếm SỐ HỌC SINH KHÁC NHAU đang có ít nhất 1 ghi danh active
-     *   (distinct student_id) — không đếm theo tổng số tài khoản role=student, vì một tài
-     *   khoản có thể chưa từng vào lớp nào.
-     * - "Giáo viên đã duyệt": TeacherProfileRepositoryInterface::countApproved() — đúng bằng
-     *   con số đã hiển thị ở admin.featured-teachers.index nên không lệch số giữa 2 màn.
-     * - "Khóa học & lớp": Course đã phát hành (status=published) + ClassRoom đang hoạt động
-     *   (status=active) — gộp lại vì trang chủ chỉ cần 1 con số chung, không tách 2 khối.
-     * - "Đánh giá trung bình": trung bình CÓ TRỌNG SỐ theo review_count trên TOÀN BỘ
-     *   RatingSummary (mọi loại đối tượng: material/class_room/teacher/competition), cùng
-     *   công thức aggregate() đã dùng ở CourseService — chỉ khác là tính cho CẢ nền tảng
-     *   thay vì 1 khóa/lớp cụ thể.
-     *
-     * Để PUBLIC (không private) vì App\Services\Public\InfoService (trang Thông tin) dùng
-     * lại ĐÚNG 4 số liệu này ở mục "Giới thiệu" — 1 nguồn tính duy nhất, tránh 2 trang hiện
-     * 2 con số lệch nhau cho cùng một nền tảng.
-     */
     public function buildStats(): array
     {
         $activeStudents = $this->classEnrollments->query()
@@ -166,20 +146,6 @@ class HomeService
     }
 
     /**
-     * SỬA 12/10 (khách: "dựa vào source mới update lại UI trang chủ, đổ dữ liệu từ database ra") — số liệu cho khối
-     * [HOME-09A] "Thống kê hệ thống". Bản mẫu education-main/HomeSystemStats.jsx dùng số minh hoạ cứng
-     * (PREVIEW_STATS), ghi chú sẵn "thay bằng số liệu tổng hợp từ máy chủ khi có" — đây là phần đó.
-     *
-     *  · students / parents / teachers : số tài khoản đang hoạt động (status = active) có vai trò tương ứng
-     *    (một người nhiều vai trò thì tính ở từng vai trò; "thành viên" là số tài khoản khác nhau, không cộng lặp).
-     *  · exams     : đề LUYỆN TẬP đã phát hành (đúng số đề ở trang Luyện tập › Đề thi).
-     *  · exercises : bài tập đã phát hành trong kho luyện tập (cùng bể câu với nút "Làm bài ngay").
-     *  · dailyAttempts : lượt làm bài 7 ngày gần nhất (cũ → mới, phần tử cuối là HÔM NAY theo giờ Việt Nam) =
-     *    bài tập tự luyện đã nộp + lượt nộp đề luyện tập, cùng cách đếm với khối "Luyện tập hôm nay".
-     *
-     * Lưu nhớ tạm 10 phút (trang chủ công khai, tránh đếm lại mỗi lượt xem). Lỗi truy vấn (vd. chưa migrate) thì trả
-     * null để trang chủ chỉ ẩn khối này, không hỏng cả trang.
-     *
      * @return array{members: int, students: int, parents: int, teachers: int, exams: int, exercises: int, dailyAttempts: list<int>}|null
      */
     public function systemStats(): ?array
@@ -231,11 +197,6 @@ class HomeService
                 ];
             });
 
-            // SỬA 16/10 (khách: "số Bài tập phải khớp với Bài tập chuyên đề của Luyện tập") — Đề thi / Bài tập lấy ĐÚNG số
-            // của trang Luyện tập (cùng bản nhớ tạm 60 giây của PracticeService), không nhớ tạm 10 phút như phần còn lại
-            // nên thêm / xoá / phát hành câu là trang chủ cập nhật theo ngay.
-            // SỬA 28/10 (khách: "tự nhiên ẩn mất khối thống kê") — đếm Đề thi / Bài tập lỗi thì vẫn hiện khối thống kê
-            // (2 ô đó tạm ghi 0, lỗi ghi vào nhật ký), không để một phép đếm làm mất cả khối như trước.
             try {
                 $catalog = app(PracticeService::class);
                 $stats['exams'] = $catalog->catalogExamCount();
@@ -255,11 +216,6 @@ class HomeService
     }
 
     /**
-     * [HOME-01] Thanh thông báo hệ thống — bản mẫu React để 3 tin cứng; ở đây lấy đúng 3
-     * "tin đáng chú ý" từ dữ liệu thật: cuộc thi sắp diễn ra gần nhất, tài liệu mới phát
-     * hành nhất, khoá học mới phát hành nhất. Thiếu nguồn nào thì bỏ tin đó, hết sạch thì
-     * trả về 1 tin giới thiệu trung tính (thanh vẫn cân đối, không hiện khung trống).
-     *
      * @return array<int, array{category:string,message:string,surfaceClass:string,borderClass:string,accentClass:string,categoryClass:string,iconClass:string,href:string}>
      */
     private function systemNotices(): array
@@ -338,11 +294,6 @@ class HomeService
     }
 
     /**
-     * [HOME-07] "Top xuất sắc" — lấy từ bảng xếp hạng THẬT của cuộc thi đã công bố gần nhất.
-     * Tên người học được ẩn danh y hệt App\Services\Public\LeaderboardService (bảo vệ dữ liệu
-     * trẻ em: chưa có cột "đồng ý hiển thị công khai" nên áp dụng cho mọi người, không ngoại
-     * lệ) — trang chủ KHÔNG được lộ nhiều hơn trang Bảng xếp hạng.
-     *
      * @return array{title:?string, rows: array<int, array{rank:int,name:string,score:float}>}
      */
     /**
@@ -357,13 +308,6 @@ class HomeService
      */
     private function testimonials(): array
     {
-        /*
-         * Chặn lỗi lúc TRIỂN KHAI: mã nguồn mới lên máy chủ trước, `php artisan migrate` chạy
-         * sau — trong khoảng giữa đó bảng testimonials chưa tồn tại. Không có lớp chặn này thì
-         * TRANG CHỦ CÔNG KHAI sẽ lỗi 500 cho mọi khách vào xem. Chưa có bảng thì coi như chưa
-         * có câu chuyện nào, view tự lùi về 3 câu mẫu của bộ giao diện.
-         * Kết quả được nhớ trong 1 lần chạy để không hỏi lược đồ CSDL nhiều lần mỗi trang.
-         */
         static $tableExists = null;
 
         if ($tableExists === null) {
@@ -391,8 +335,6 @@ class HomeService
 
     private function topStudents(): array
     {
-        // SỬA 8/10 (khách: "Top xuất sắc ngoài trang chủ chỉ hiển thị 5 bạn từ hạng 1 đến hạng 5"): lấy thẳng
-        // top 5 bảng Toàn thời gian của trang Bảng xếp hạng (tên thật) thay cho bảng của 1 cuộc thi như trước.
         try {
             return app(LeaderboardService::class)->topStudents(5);
         } catch (\Throwable $e) {
@@ -403,27 +345,12 @@ class HomeService
         }
     }
 
-    /**
-     * [HOME-06] "Không gian học tập" — bản mẫu React để số liệu cứng theo 3 vai trò; ở đây
-     * tính từ dữ liệu thật của CHÍNH người đang đăng nhập. Khách chưa đăng nhập trả về
-     * ['guest' => true] để view hiện đúng khối mời đăng nhập của bản mẫu.
-     *
-     * Mọi con số đều đếm trực tiếp, không ước lượng: không có dữ liệu thì hiện 0 chứ không
-     * bịa ra một tỉ lệ đẹp.
-     */
     private function learningSpace(?User $viewer): array
     {
         if ($viewer === null) {
             return ['guest' => true];
         }
 
-        /*
-         * SỬA 12/9 — source mới thêm dải chọn vai trò [HOME-06A] ngay trên thanh tiến độ
-         * (bản mẫu cho đổi tuỳ ý vì là demo). Trên web thật KHÔNG thể cho xem số liệu của vai
-         * trò mình không có, nên dải này CHỈ hiện khi người đang đăng nhập thật sự giữ từ 2
-         * vai trò trở lên (ví dụ vừa là giáo viên vừa là phụ huynh) — mỗi tab là số liệu thật
-         * của đúng vai trò đó. Giữ 1 vai trò thì vẫn hiện đúng một nhãn như trước.
-         */
         $panels = [];
 
         if ($viewer->hasRole(Role::STUDENT)) {
@@ -438,48 +365,22 @@ class HomeService
             $panels['teacher'] = $this->teacherPanel($viewer);
         }
 
-        /*
-         * SỬA 15/9 — QUẢN TRỊ có bảng riêng.
-         *
-         * Trước đây quản trị rơi vào nhánh dự phòng và bị hiện góc nhìn HỌC SINH: "Tiến độ
-         * tổng thể 0%", "Chưa có bài nào sắp đến hạn", ba ô 0/0/0. Đúng về kỹ thuật (quản trị
-         * không ghi danh lớp nào nên số nào cũng bằng 0) nhưng vô nghĩa với người xem, lại
-         * trông như hệ thống hỏng. Quản trị quan tâm HÀNG CHỜ VẬN HÀNH: đơn chờ duyệt, phiếu
-         * hỗ trợ mới, giáo viên chờ duyệt, đánh giá chờ kiểm.
-         */
         if ($viewer->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
             $panels['admin'] = $this->adminPanel();
         }
 
-        // SỬA 28/10 (khách: "editor thì hiển thị sao cho hợp lý") — biên tập viên có bảng riêng: các mục được cấp quyền
-        // trong khu quản trị, thay vì góc nhìn học sinh "Tiến độ 0%" vô nghĩa. Đứng đầu (như DashboardRoutingService).
         if ($viewer->hasRole(Role::EDITOR) && ! $viewer->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
             $panels = ['editor' => $this->editorPanel($viewer)] + $panels;
         }
 
-        // Vai trò khác không có bảng riêng thì vẫn hiện góc nhìn học sinh như
-        // trước đây, để khối không bị trống.
         if ($panels === []) {
             $panels['student'] = $this->studentPanel($viewer);
         }
 
-        /*
-         * Quản trị mà kiêm cả vai trò khác thì để bảng quản trị lên trước: đăng nhập bằng tài
-         * khoản quản trị thì việc cần làm là việc vận hành, không phải bài tập của chính mình.
-         */
         if (isset($panels['admin']) && count($panels) > 1) {
             $panels = ['admin' => $panels['admin']] + $panels;
         }
 
-        /*
-         * Mỗi bảng phải có ĐỦ bộ khoá giao diện đọc tới.
-         *
-         * Giao diện đang che bằng một câu @if: bảng nào tắt thanh tiến độ thì đọc nhóm khoá
-         * 'summary*', bảng nào bật thì đọc 'progress*'. Đúng, nhưng chỉ cần một bảng mới sau
-         * này quên một khoá là trang chủ vỡ ngay lúc chạy — mà trang chủ là trang ai cũng
-         * thấy. Trám sẵn giá trị mặc định ở đây thì thiếu khoá chỉ còn là hiển thị chưa đẹp,
-         * không phải lỗi trắng trang.
-         */
         $defaults = [
             'workspaceHref' => null,
             'workspaceLabel' => '',
@@ -494,22 +395,10 @@ class HomeService
             'stats' => [],
         ];
 
-        /*
-         * SỬA 24/9 (khách: "thêm cho tôi cái button, học sinh thì vào không gian học tập,
-         * giáo viên/phụ huynh/quản trị tương tự") — mỗi bảng có một nút đi thẳng vào khu làm
-         * việc của ĐÚNG vai trò đó.
-         *
-         * Thẻ "Tiếp tục học" phía trên chỉ trỏ tới MỘT việc cụ thể (bài sắp đến hạn, hàng chờ
-         * đông nhất...); người dùng nhìn khối này lại hay muốn vào thẳng khu của mình chứ
-         * không phải một bài lẻ. Nút lấy theo roleKey nên thêm vai trò mới chỉ cần khai thêm
-         * một dòng ở ROLE_WORKSPACE.
-         */
         foreach ($panels as $key => $panel) {
             $workspace = self::ROLE_WORKSPACE[$key] ?? null;
 
             $panels[$key] = $panel + [
-                // Route::has() để một khu chưa dựng xong không làm vỡ trang chủ — trang này ai
-                // cũng thấy, thà thiếu nút còn hơn lỗi trắng trang.
                 'workspaceHref' => ($workspace !== null && Route::has($workspace['route']))
                     ? route($workspace['route'])
                     : null,
@@ -528,11 +417,6 @@ class HomeService
         ];
     }
 
-    /**
-     * SỬA 24/9 — khu làm việc của từng vai trò, cho nút "vào khu của tôi" ở khối [HOME-06].
-     * Nhãn cố ý nói đúng tên khu mà vai trò đó thấy trong thanh điều hướng, không dùng chung
-     * một chữ "Vào khu làm việc" chung chung.
-     */
     private const ROLE_WORKSPACE = [
         'student' => ['route' => 'student.dashboard', 'label' => 'Vào không gian học tập'],
         'parent' => ['route' => 'parent.dashboard', 'label' => 'Vào khu phụ huynh'],
@@ -541,7 +425,6 @@ class HomeService
         'editor' => ['route' => 'dashboard', 'label' => 'Vào khu biên tập'],
     ];
 
-    /** Nhãn + biểu tượng của từng tab vai trò — khớp bảng của source (JOURNEY_ROLE_VIEWS). */
     private const ROLE_VIEW_META = [
         'student' => ['label' => 'Học sinh', 'icon' => 'graduation-cap', 'iconClass' => 'text-[#2D7FA3]'],
         'parent' => ['label' => 'Phụ huynh', 'icon' => 'heart', 'iconClass' => 'text-[#4C88A1]'],
@@ -550,10 +433,6 @@ class HomeService
         'editor' => ['label' => 'Biên tập viên', 'icon' => 'pen-line', 'iconClass' => 'text-[#1F7A5C]'],
     ];
 
-    /**
-     * SỬA 28/10 — góc nhìn BIÊN TẬP VIÊN: các mục khu quản trị được cấp quyền (App\Support\AdminPermissions).
-     * Không có tiến độ % → tắt thanh tiến độ, thay bằng dòng "Mục được cấp quyền".
-     */
     private function editorPanel(User $viewer): array
     {
         $views = $edits = $deletes = 0;
@@ -600,22 +479,11 @@ class HomeService
         ];
     }
 
-    /**
-     * Góc nhìn quản trị — HÀNG CHỜ VẬN HÀNH, không phải bài tập.
-     *
-     * Không có "tiến độ %" nào có nghĩa với quản trị (tiến độ của cái gì?), nên bảng này tắt
-     * hẳn thanh tiến độ bằng cờ 'showProgress' => false và thay bằng một dòng đếm việc tồn.
-     * Thà bỏ trống một ô còn hơn bịa ra một phần trăm không ai giải thích được.
-     */
     private function adminPanel(): array
     {
         $pending = $this->adminDashboard->pendingCounts();
         $total = array_sum($pending);
 
-        /*
-         * Thẻ hành động trỏ vào hàng chờ ĐANG ĐÔNG NHẤT — việc nào tồn nhiều nhất thì nhắc
-         * việc đó, thay vì luôn luôn nhắc một mục cố định.
-         */
         $queues = [
             'orders' => ['label' => 'đơn hàng chờ duyệt', 'route' => 'admin.orders.index'],
             'support' => ['label' => 'yêu cầu hỗ trợ mới', 'route' => 'admin.contact-messages.index'],
@@ -639,7 +507,6 @@ class HomeService
             'contexts' => [],
             'guest' => false,
 
-            // Tắt thanh tiến độ, thay bằng một dòng tóm tắt việc tồn.
             'showProgress' => false,
             'summaryLabel' => 'Việc đang chờ xử lý',
             'summaryValue' => $total > 0 ? $total.' việc' : 'Đã xử lý hết',
@@ -732,7 +599,6 @@ class HomeService
                 ->where('submitted_at', '>=', now()->subDays(7))
                 ->count();
 
-            // Tổng số bài đã giao cho các lớp mà con đang học — mẫu số của thanh tiến độ.
             $childClassRoomIds = $this->classEnrollments->query()
                 ->whereIn('student_id', $childIds)
                 ->where('status', 'active')
@@ -743,14 +609,10 @@ class HomeService
                 ->where('status', 'published')
                 ->count();
 
-            // Tên các con — đọc thẳng từ bảng users theo đúng danh sách đã liên kết & xác minh
-            // ở trên (HomeService chưa có repo người dùng riêng, và đây là truy vấn đọc đơn giản).
             $childContexts = \App\Models\User::query()
                 ->whereIn('id', $childIds)
                 ->orderBy('name')
                 ->get(['id', 'name'])
-                // SỬA 15/9 — trước mọi con đều trỏ về /dashboard chung, chọn con nào cũng ra
-                // một chỗ. Giờ vào thẳng trang của đúng đứa con đã chọn.
                 ->map(fn ($child) => ['label' => $child->name, 'href' => route('parent.children.show', $child->id)])
                 ->all();
 
@@ -875,6 +737,15 @@ class HomeService
     private function faqs(): array
     {
         return [
+            // SỬA 3/11 (SEO — khách: "search Google không thấy web") — câu hỏi có từ khoá người ta hay tìm (luyện thi Tin học,
+            // HSG Tin học, Chuyên Tin, tốt nghiệp THPT môn Tin học, lập trình C++ / Python). Nội dung nằm sẵn trong HTML nên
+            // Google đọc được; còn khai báo FAQPage ở welcome.blade.php. 4 câu cũ giữ nguyên ở dưới.
+            ['q' => 'Tin học Onthi360 là gì?', 'a' => 'Tin học Onthi360 (tinhoc.onthi360.vn) là nền tảng học và luyện thi môn Tin học trực tuyến: bài tập lập trình chấm tự động, tài liệu và bộ đề, cuộc thi – khảo sát năng lực, lớp học cho giáo viên và học sinh.'],
+            ['q' => 'Có luyện thi HSG Tin học lớp 9, lớp 12 không?', 'a' => 'Có. Kho bài tập thuật toán chia theo chuyên đề và độ khó, lọc đề theo tỉnh và năm; bài lập trình được chấm bằng bộ test giống kỳ thi học sinh giỏi Tin học thật.'],
+            ['q' => 'Ôn thi vào lớp 10 Chuyên Tin trên Onthi360 thế nào?', 'a' => 'Chọn lộ trình theo trường mục tiêu (Chuyên KHTN, Chuyên Sư phạm, Chuyên Amsterdam…), luyện đề tuyển sinh và bài tập thuật toán theo từng giai đoạn, làm bài có giới hạn thời gian như phòng thi.'],
+            ['q' => 'Có ôn thi tốt nghiệp THPT môn Tin học không?', 'a' => 'Có. Câu hỏi trắc nghiệm và đề luyện tập theo cấu trúc đề thi tốt nghiệp THPT môn Tin học; làm xong biết ngay đúng sai và điểm số để ôn lại phần còn yếu.'],
+            ['q' => 'Học lập trình C++, Python trên web được không?', 'a' => 'Được. Viết và chạy code ngay trên trình duyệt, nộp bài để hệ thống chấm tự động theo từng test, xem lại lịch sử nộp bài. Hệ thống hỗ trợ C++ và Python.'],
+            ['q' => 'Giáo viên dùng Onthi360 để làm gì?', 'a' => 'Tạo lớp và giao bài, tổ chức cuộc thi, kỳ khảo sát năng lực, theo dõi điểm và nhật ký làm bài của học sinh, in bảng tổng hợp điểm và xếp giải.'],
             ['q' => 'Bài công khai có cần đăng nhập không?', 'a' => 'Khách xem được; cần đăng nhập để bắt đầu, nộp bài và lưu kết quả.'],
             ['q' => 'Quyền học và quyền dạy khác nhau thế nào?', 'a' => 'Quyền dạy của giáo viên không tự cấp quyền học cho học sinh, và ngược lại — mỗi quyền có phạm vi và thời hạn riêng, luôn hiển thị rõ trên từng học liệu.'],
             ['q' => 'Vì sao một bài học lại bị khóa?', 'a' => 'Hệ thống luôn nêu đúng lý do: thiếu quyền học liệu, giáo viên chưa mở theo tiến độ lớp, hoặc quyền đã hết hạn — không khóa mà không giải thích.'],
