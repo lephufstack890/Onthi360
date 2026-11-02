@@ -41,7 +41,13 @@ class WalletController extends Controller
     public function requestTopup(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'amount' => ['required', 'integer', 'min:10000', 'max:50000000'],
+            // SỬA 2/11 — tối đa 500.000đ / lần (WalletService::MAX_TOPUP_AMOUNT).
+            'amount' => ['required', 'integer', 'min:10000', 'max:'.\App\Services\WalletService::MAX_TOPUP_AMOUNT],
+        ], [
+            'amount.required' => 'Nhập số tiền muốn nạp.',
+            'amount.integer' => 'Số tiền phải là số nguyên.',
+            'amount.min' => 'Số tiền nạp tối thiểu là 10.000đ.',
+            'amount.max' => 'Mỗi lần nạp tối đa 500.000đ.',
         ]);
 
         try {

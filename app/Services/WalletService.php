@@ -27,6 +27,9 @@ class WalletService
 {
     private const MIN_TOPUP_AMOUNT = 10000;
 
+    /** SỬA 2/11 (khách: "mỗi lần nạp tối đa chỉ 500k thôi") — số tiền tối đa của MỘT yêu cầu nạp. */
+    public const MAX_TOPUP_AMOUNT = 500000;
+
     /** SỬA 21/10 — khoá cấu hình chứa đường dẫn ảnh QR ngân hàng (đĩa local), admin tải ở Cấu hình hệ thống. */
     public const QR_SETTING = 'wallet.bank_qr_image';
 
@@ -74,6 +77,12 @@ class WalletService
         if ($amount < self::MIN_TOPUP_AMOUNT) {
             throw ValidationException::withMessages([
                 'amount' => 'Số tiền nạp tối thiểu là '.number_format(self::MIN_TOPUP_AMOUNT).'đ.',
+            ]);
+        }
+
+        if ($amount > self::MAX_TOPUP_AMOUNT) {
+            throw ValidationException::withMessages([
+                'amount' => 'Mỗi lần nạp tối đa '.number_format(self::MAX_TOPUP_AMOUNT, 0, ',', '.').'đ. Cần nhiều hơn thì nạp thêm lần sau khi lần này được duyệt.',
             ]);
         }
 
