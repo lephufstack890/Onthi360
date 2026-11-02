@@ -72,12 +72,21 @@ class CompetitionService
     {
         $this->assertAdvisor($competition, $teacherId);
 
-        return $this->adminCompetitionService->storeExam($competition, $data);
+        $exam = $this->adminCompetitionService->storeExam($competition, $data);
+        // SỬA 2/11 — giáo viên tạo kỳ ở trang này cũng là NGƯỜI CHỦ TRÌ kỳ (giống tạo kỳ trong phòng thi), để chỉ người đó
+        // (và admin, người được thêm vào cùng tổ chức) sửa được kỳ.
+        if (CompetitionExam::supportsRoundSetup() && $exam->organizer_id === null) {
+            $exam->forceFill(['organizer_id' => $teacherId])->save();
+        }
+
+        return $exam;
     }
 
     public function updateExam(CompetitionExam $exam, int $teacherId, array $data): CompetitionExam
     {
         $this->assertAdvisor($exam->competition, $teacherId);
+        // SỬA 2/11 (khách: "ai tổ chức kỳ thì chỉ người đó sửa được, trừ admin") — kỳ của giáo viên khác: phải được thêm vào.
+        $this->assertRound($exam, $teacherId, false);
 
         return $this->adminCompetitionService->updateExam($exam, $data);
     }
@@ -85,8 +94,23 @@ class CompetitionService
     public function deleteExam(CompetitionExam $exam, int $teacherId): void
     {
         $this->assertAdvisor($exam->competition, $teacherId);
+        $this->assertRound($exam, $teacherId, true);
 
         $this->adminCompetitionService->deleteExam($exam);
+    }
+
+    /** SỬA 2/11 — sửa: người quản lý kỳ (chủ trì / cùng tổ chức); xoá: chỉ chủ của kỳ. Luật: ContestOrganizerService. */
+    private function assertRound(CompetitionExam $exam, int $teacherId, bool $delete): void
+    {
+        $user = \App\Models\User::query()->find($teacherId);
+        $organizers = app(\App\Services\Contest\ContestOrganizerService::class);
+        $ok = $delete
+            ? $organizers->canOwnRound($user, $exam->competition, $exam)
+            : $organizers->canManageRound($user, $exam->competition, $exam);
+
+        abort_unless($ok, 403, $delete
+            ? 'Chỉ người chủ trì kỳ này (hoặc admin) được xoá kỳ.'
+            : 'Kỳ này do giáo viên khác chủ trì — bạn cần được người chủ trì thêm vào "Cùng tổ chức" mới sửa được.');
     }
 
     /** Chặn giáo viên thao tác lên cuộc thi/kỳ thi mà mình không phải cố vấn (403). */

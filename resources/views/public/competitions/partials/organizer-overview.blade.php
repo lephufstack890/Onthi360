@@ -62,6 +62,11 @@
         </form>
     @endif
 
+    {{-- SỬA 2/11 — giáo viên cùng tổ chức + cho học sinh làm bù (partials/round-team). --}}
+    @if (! empty($roundTeam))
+        @include('public.competitions.partials.round-team')
+    @endif
+
     <div class="hub-preparation">
         <h4>{{ $ended ? 'Cấu hình của kỳ' : 'Trước khi học sinh bắt đầu' }}</h4>
         <div data-ready="{{ $s['ready'] ? 'true' : 'false' }}">

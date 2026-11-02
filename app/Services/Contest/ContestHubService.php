@@ -139,6 +139,7 @@ class ContestHubService
             ->with(array_merge(
                 ['examSittings.assessment', 'advisors:id,name'],
                 CompetitionExam::supportsRoundSetup() ? ['examSittings.organizer:id,name'] : [],
+                CompetitionExam::supportsManagers() ? ['examSittings.managers'] : [], // SỬA 2/11 — giáo viên cùng tổ chức kỳ
                 Competition::supportsCourse() ? ['course:id,title'] : [],
             ))
             ->findOrFail($competitionId);
@@ -312,10 +313,20 @@ class ContestHubService
 
         // Khảo sát: lượt dở không "tiếp tục" được — bắt đầu lại là lượt mới (xem ContestEntryService::enter()).
         $resume = $inProgress !== null && ! $survey;
-        $access = $this->access($survey, $period, $isStudent, $assessment !== null, $latest !== null, $registration?->status);
+        // SỬA 2/11 — học sinh được ban tổ chức cho LÀM BÙ kỳ đã kết thúc (còn hạn): vào làm như kỳ đang mở.
+        $makeup = ($isStudent && $viewer !== null && $period === 'completed')
+            ? \App\Models\CompetitionExamMakeup::openFor((int) $viewer->id, $exam) : null;
+        $entryPeriod = $makeup !== null ? 'current' : $period;
+        $access = $this->access($survey, $entryPeriod, $isStudent, $assessment !== null, $latest !== null, $registration?->status);
         $action = $manager
             ? $this->managerAction($survey, $period, $setup['ready'], (int) ($participants['pending'] ?? 0))
-            : $this->action($c, $survey, $period, $closed, false, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
+            : $this->action($c, $survey, $entryPeriod, $makeup !== null ? false : $closed, false, $viewer, $isStudent, $registration?->status, $latest !== null, $access, $resume);
+        if ($makeup !== null && ($action['kind'] ?? '') === 'enter') {
+            $action['label'] = $resume ? 'Tiếp tục làm bù' : 'Làm bù';
+            $action['title'] = $resume ? 'Bài làm bù đang chờ bạn' : 'Bạn được cho làm bù';
+            $action['text'] = 'Ban tổ chức cho bạn làm bù kỳ này đến '.$makeup->deadline_at->format('H:i d/m/Y')
+                .'. Bài làm bù được chấm và xếp hạng như bài làm đúng giờ.';
+        }
 
         $rankTab = $survey ? 'ranking' : 'results';
         // SỬA 25/10 (khách: "khảo sát ẩn tab Học sinh, không cần add; chỉ cuộc thi mới cần") — khảo sát vào bằng mật khẩu.
@@ -338,11 +349,16 @@ class ContestHubService
             ]));
         $tabIds = array_column($tabs, 'id');
 
-        $countdownTarget = match ($period) {
-            'upcoming' => $exam->starts_at,
-            'current' => $exam->ends_at,
+        $countdownTarget = match (true) {
+            $makeup !== null => $makeup->deadline_at, // SỬA 2/11 — đếm ngược tới hạn làm bù
+            $period === 'upcoming' => $exam->starts_at,
+            $period === 'current' => $exam->ends_at,
             default => null,
         };
+        $deadlineInfo = $this->deadlineText($makeup !== null ? 'current' : $period, $countdownTarget);
+        if ($makeup !== null && $deadlineInfo !== null) {
+            $deadlineInfo['prefix'] = 'Hạn làm bù còn';
+        }
 
         return [
             'round' => [
@@ -353,9 +369,10 @@ class ContestHubService
                 'stateLabel' => self::STATE_LABELS[$period],
                 'timeFrom' => $exam->starts_at?->format('H:i d/m/Y') ?? 'Chưa xếp lịch',
                 'timeTo' => $exam->ends_at?->format('H:i d/m/Y') ?? 'Không giới hạn',
-                'countdownLabel' => $period === 'upcoming' ? 'Mở kỳ thi sau' : ($period === 'current' ? 'Đóng kỳ thi sau' : 'Đã đóng kỳ thi'),
+                'countdownLabel' => $makeup !== null ? 'Hạn làm bù' : ($period === 'upcoming' ? 'Mở kỳ thi sau' : ($period === 'current' ? 'Đóng kỳ thi sau' : 'Đã đóng kỳ thi')),
                 'countdownTargetMs' => $countdownTarget !== null ? $countdownTarget->getTimestamp() * 1000 : null,
-                'deadline' => $this->deadlineText($period, $countdownTarget),
+                'deadline' => $deadlineInfo,
+                'makeupUntil' => $makeup?->deadline_at?->format('H:i d/m/Y'), // SỬA 2/11
                 'duration' => $duration,
                 'questionCount' => count($questions),
                 'totalPoints' => $this->num($totalPoints),
@@ -366,7 +383,7 @@ class ContestHubService
                 'enterUrl' => route('student.competitions.enter', ['competition' => $c->id, 'exam' => $exam->id]),
                 // SỬA 30/10 — dữ liệu tab Nhật ký (JSON, tải khi mở tab).
                 'activityUrl' => $viewer !== null ? route('competitions.activity', ['competition' => $c->id, 'exam' => $exam->id]) : null,
-                'needsPassword' => $survey && $c->hasEntryPassword(),
+                'needsPassword' => $survey && $c->hasEntryPassword() && $makeup === null, // SỬA 2/11 — làm bù: không cần mật khẩu
                 'paperCount' => $papers->count(),
                 'bankCount' => $bank->count(), // SỬA 25/10 — kỳ nhiều đề ngân hàng
                 'myPaperLabel' => $myPaper?->label,
@@ -379,6 +396,8 @@ class ContestHubService
                 'url' => route('competitions.manage.test', ['competition' => $c->id, 'exam' => $exam->id]),
                 'options' => app(\App\Http\Controllers\ContestTestRunController::class)->testableAssessments($exam),
             ] : null,
+            // SỬA 2/11 — giáo viên cùng tổ chức + cho học sinh làm bù (partials/round-team).
+            'roundTeam' => ($manager && $viewer !== null) ? app(ContestRoundTeamService::class)->panel($viewer, $c, $exam) : null,
             'organizerOverview' => $participants !== null ? [
                 // SỬA 30/10 (khách: "kỳ khảo sát thứ 2 chưa ai tham gia mà vẫn hiện 7 như kỳ đầu") — KHẢO SÁT: chỉ tính học sinh đã
                 // nhập mật khẩu VÀO LÀM ĐÚNG KỲ NÀY (có lượt làm bài ở kỳ này: đang làm hoặc đã nộp). Danh sách đăng ký là của cả

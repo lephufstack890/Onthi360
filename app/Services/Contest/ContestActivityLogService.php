@@ -67,7 +67,11 @@ class ContestActivityLogService
 
         $tz = config('app.timezone');
         $now = now();
-        $rows = $attempts->map(function (Attempt $a) use ($viewer, $manager, $logs, $titles, $tz, $exam, $competition, $now) {
+        // SỬA 2/11 — hạn làm bù của học sinh (lượt bắt đầu sau giờ đóng kỳ dùng hạn này thay cho giờ đóng kỳ).
+        $makeups = \App\Models\CompetitionExamMakeup::supported()
+            ? \App\Models\CompetitionExamMakeup::query()->where('competition_exam_id', $exam->id)->pluck('deadline_at', 'student_id')->all()
+            : [];
+        $rows = $attempts->map(function (Attempt $a) use ($viewer, $manager, $logs, $titles, $tz, $exam, $competition, $now, $makeups) {
             $log = $logs[$a->id] ?? [];
             $user = $a->user;
             $mine = (int) $a->user_id === (int) $viewer->id;
@@ -78,7 +82,8 @@ class ContestActivityLogService
             // AttemptService::deadlineFor(): giờ bắt đầu + thời lượng đề, không muộn hơn giờ đóng kỳ.
             $deadline = ($a->started_at !== null && $a->assessment?->duration_minutes)
                 ? $a->started_at->copy()->addMinutes((int) $a->assessment->duration_minutes) : null;
-            foreach ([$exam->ends_at, $competition->ends_at] as $endsAt) {
+            $isMakeup = $exam->ends_at !== null && $a->started_at !== null && $a->started_at->gt($exam->ends_at) && isset($makeups[$a->user_id]);
+            foreach ($isMakeup ? [\Illuminate\Support\Carbon::parse($makeups[$a->user_id])] : [$exam->ends_at, $competition->ends_at] as $endsAt) {
                 if ($endsAt !== null) {
                     $deadline = $deadline === null ? $endsAt->copy() : $deadline->min($endsAt)->copy();
                 }

@@ -350,6 +350,8 @@ class CompetitionService
         }
 
         $examStatus = $exam->computedStatus();   // upcoming | ongoing | ended
+        // SỬA 2/11 — học sinh đang được làm bù kỳ đã kết thúc: đầu trang ghi "Làm bù" + hạn làm bù.
+        $makeup = $examStatus === 'ended' ? \App\Models\CompetitionExamMakeup::openFor((int) $user->id, $exam) : null;
 
         return [
             'assessmentId' => $assessmentId,
@@ -360,13 +362,13 @@ class CompetitionService
             // SỬA 24/10 — tên đề được giao khi kỳ có nhiều đề (Đề 1, Đề 2 …).
             'contestPaperLabel' => app(\App\Services\Contest\ContestPaperService::class)->paperFor($user, $exam)?->label,
             'contestRoundShort' => $exam->title ?: 'Vòng thi',
-            'contestStatusLabel' => match ($examStatus) {
+            'contestStatusLabel' => $makeup !== null ? 'Làm bù' : match ($examStatus) {
                 'ongoing' => 'Đang diễn ra',
                 'ended' => 'Đã kết thúc',
                 default => 'Chưa mở',
             },
             'contestTimeRange' => $this->timeRangeLabel($exam),
-            'contestEndsAtLabel' => $exam->ends_at?->format('H:i d/m/Y'),
+            'contestEndsAtLabel' => $makeup !== null ? $makeup->deadline_at->format('H:i d/m/Y') : $exam->ends_at?->format('H:i d/m/Y'),
             // Thể lệ do admin nhập; rỗng thì view tự ẩn mục "Thể lệ" thay vì in ô trống.
             'contestRules' => trim((string) ($competition->rules ?? '')) ?: null,
             'contestRoomUrl' => route('student.competitions.room', ['competition' => $competition->id, 'vong' => $exam->id]),

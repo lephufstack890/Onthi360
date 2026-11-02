@@ -479,7 +479,8 @@ class AttemptService
             // Public\CompetitionService::showData() (2 nơi PHẢI luôn khớp nhau). Muốn khoá 1
             // kỳ thi cụ thể (đã công bố kết quả, hoặc muốn đóng sớm) thì sửa ends_at của ĐÚNG
             // kỳ thi đó, không dùng trạng thái/thời hạn cấp cuộc thi để khoá gián tiếp nữa.
-            if ($exam->isOngoing()) {
+            // SỬA 2/11 — hoặc kỳ đã kết thúc nhưng học sinh được ban tổ chức cho LÀM BÙ (còn hạn, CompetitionExamMakeup).
+            if ($exam->isOngoing() || \App\Models\CompetitionExamMakeup::openFor((int) $user->id, $exam) !== null) {
                 // SỬA 19/9 — duyệt tính ở CẤP CUỘC THI (một đơn dùng cho mọi vòng), không bắt
                 // học sinh đăng ký lại từng vòng: thi nhiều vòng vẫn là một cuộc thi.
                 if (! $this->isApprovedForCompetition($user, $competition->id)) {
@@ -620,7 +621,14 @@ class AttemptService
          * (startOrResume), nên lượt nào không thuộc cuộc thi thì cả hai đều null và khối này
          * không đụng gì tới $deadline — đề Tự luyện/Bài giao giữ NGUYÊN hành vi cũ.
          */
-        foreach ([$attempt->competitionExam?->ends_at, $attempt->competition?->ends_at] as $endsAt) {
+        // SỬA 2/11 — lượt LÀM BÙ (bắt đầu sau giờ đóng kỳ, học sinh có quyền làm bù): hạn là hạn làm bù ban tổ chức đặt,
+        // thay cho giờ đóng kỳ / cuộc thi (đã qua). Bị huỷ quyền làm bù giữa chừng → về lại giờ đóng kỳ → nộp ngay.
+        $makeupEnd = $this->makeupDeadlineFor($attempt);
+        if ($makeupEnd !== null) {
+            $deadline = $deadline === null ? $makeupEnd->copy() : $deadline->min($makeupEnd)->copy();
+        }
+
+        foreach ($makeupEnd !== null ? [] : [$attempt->competitionExam?->ends_at, $attempt->competition?->ends_at] as $endsAt) {
             if ($endsAt !== null) {
                 // ->copy() ở cả hai nhánh: Carbon::min() trả về CHÍNH đối tượng nhỏ hơn, có thể
                 // là ends_at của model. Trả thẳng ra ngoài thì nơi gọi lỡ tay sửa mốc giờ sẽ
@@ -630,6 +638,18 @@ class AttemptService
         }
 
         return $deadline;
+    }
+
+    /** SỬA 2/11 — hạn làm bù của lượt bắt đầu SAU giờ đóng kỳ (null = không phải lượt làm bù). */
+    private function makeupDeadlineFor(Attempt $attempt): ?Carbon
+    {
+        $exam = $attempt->competition_exam_id !== null ? $attempt->competitionExam : null;
+        if ($exam === null || $exam->ends_at === null || $attempt->started_at === null || ! $attempt->started_at->gt($exam->ends_at)) {
+            return null;
+        }
+        $row = \App\Models\CompetitionExamMakeup::rowFor((int) $attempt->user_id, (int) $exam->id);
+
+        return $row?->deadline_at !== null ? Carbon::parse($row->deadline_at) : null;
     }
 
     /** true nếu lượt làm bài này đã quá hạn nộp thật (deadlineFor()) tại thời điểm gọi. */

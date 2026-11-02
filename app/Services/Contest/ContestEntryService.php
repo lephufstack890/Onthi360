@@ -64,7 +64,9 @@ class ContestEntryService
     {
         [$competition, $exam] = $this->load($competitionId, $examId);
 
-        if ($exam->computedStatus() !== 'ongoing') {
+        // SỬA 2/11 — kỳ đã kết thúc nhưng học sinh được ban tổ chức cho LÀM BÙ (còn hạn) thì vào như kỳ đang mở.
+        $makeup = \App\Models\CompetitionExamMakeup::openFor((int) $user->id, $exam);
+        if ($exam->computedStatus() !== 'ongoing' && $makeup === null) {
             $this->fail($exam->computedStatus() === 'upcoming' ? 'Kỳ thi chưa đến giờ mở.' : 'Kỳ thi đã kết thúc.');
         }
 
@@ -81,7 +83,10 @@ class ContestEntryService
         if ($competition->isSurvey()) {
             // SỬA 25/10 (khách: "khảo sát không cần add học sinh, chỉ cần biết mật khẩu là vào làm được; chỉ cuộc thi mới cần
             // add") — đúng mật khẩu là vào: tự ghi học sinh vào danh sách (đã duyệt) để các bước kiểm tra sau nhận ra.
-            $this->checkSurveyPassword($user, $competition, (string) $password);
+            // SỬA 2/11 — học sinh được cho làm bù: ban tổ chức đã chỉ định đích danh, không cần nhập mật khẩu.
+            if ($makeup === null) {
+                $this->checkSurveyPassword($user, $competition, (string) $password);
+            }
 
             if ($registration === null || ! $registration->isApproved()) {
                 $values = [

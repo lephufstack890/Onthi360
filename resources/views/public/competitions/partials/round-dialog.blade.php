@@ -59,7 +59,7 @@
         </div>
 
         <footer>
-            <button type="submit" class="contest-btn secondary crd-delete" x-show="roundForm.id && !roundForm.locked" x-cloak formnovalidate
+            <button type="submit" class="contest-btn secondary crd-delete" x-show="roundForm.id && !roundForm.locked && roundForm.canDelete" x-cloak formnovalidate
                     :formaction="roundForm.deleteUrl" onclick="return confirm('Xoá {{ $word }} này? Các đề sinh từ ma trận của kỳ (chưa ai làm) cũng bị xoá.');">
                 <x-lucide name="trash-2" />Xoá kỳ
             </button>

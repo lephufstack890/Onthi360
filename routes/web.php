@@ -187,6 +187,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/lam-thu/{assessment}', [\App\Http\Controllers\ContestTestRunController::class, 'take'])
         ->whereNumber(['competition', 'exam', 'assessment'])->name('competitions.manage.test.take');
     // SỬA 30/10 — dữ liệu hộp "In bảng điểm & xếp giải" (JSON, chỉ ban tổ chức) — ContestScoreSheetService.
+    // SỬA 2/11 — giáo viên cùng tổ chức kỳ (chỉ chủ kỳ / admin thêm, gỡ) + cho học sinh làm bù kỳ đã kết thúc.
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/cung-to-chuc', [\App\Http\Controllers\ContestRoundTeamController::class, 'addManager'])
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.team.add');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/cung-to-chuc/{user}/go', [\App\Http\Controllers\ContestRoundTeamController::class, 'removeManager'])
+        ->whereNumber(['competition', 'exam', 'user'])->name('competitions.manage.team.remove');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/lam-bu', [\App\Http\Controllers\ContestRoundTeamController::class, 'addMakeup'])
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.makeup.add');
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/lam-bu/{makeup}/xoa', [\App\Http\Controllers\ContestRoundTeamController::class, 'removeMakeup'])
+        ->whereNumber(['competition', 'exam', 'makeup'])->name('competitions.manage.makeup.remove');
+
     Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/bang-diem', \App\Http\Controllers\ContestScoreSheetController::class)
         ->whereNumber(['competition', 'exam'])->name('competitions.manage.scoreSheet');
     // SỬA 30/10 — tab "Nhật ký" của kỳ (JSON): ban tổ chức xem mọi lượt, người khác chỉ lượt của mình (ContestActivityLogService).

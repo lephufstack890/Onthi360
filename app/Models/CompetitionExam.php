@@ -85,6 +85,23 @@ class CompetitionExam extends Model
         return $this->belongsTo(User::class, 'organizer_id');
     }
 
+    /**
+     * SỬA 2/11 (khách: "giáo viên khác muốn can thiệp kỳ thi / khảo sát phải được người tạo add vào") — giáo viên CÙNG TỔ
+     * CHỨC kỳ này (bảng competition_exam_managers, migration 001350). Quyền: ContestOrganizerService::canManageRound().
+     */
+    public function managers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'competition_exam_managers')->withPivot('added_by')->withTimestamps();
+    }
+
+    /** SỬA 2/11 — đã chạy migration 001350 chưa. */
+    public static function supportsManagers(): bool
+    {
+        static $has = null;
+
+        return $has ??= Schema::hasTable('competition_exam_managers');
+    }
+
     /** SỬA 25/10 — đã chạy migration 001290 (organizer_id, source_type) chưa. */
     public static function supportsRoundSetup(): bool
     {

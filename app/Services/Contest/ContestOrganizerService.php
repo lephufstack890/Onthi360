@@ -46,7 +46,8 @@ class ContestOrganizerService
 
         // SỬA 25/10 — giáo viên tổ chức của cuộc thi, HOẶC giáo viên chủ trì ít nhất 1 kỳ trong cuộc thi (quản lý danh
         // sách học sinh, duyệt đăng ký của cả cuộc thi).
-        return $this->isAdvisor($user, $competition) || $this->organizesRound($user, $competition);
+        // SỬA 2/11 — + giáo viên được người chủ trì thêm vào CÙNG TỔ CHỨC một kỳ của cuộc thi này.
+        return $this->isAdvisor($user, $competition) || $this->organizesRound($user, $competition) || $this->comanagesRound($user, $competition);
     }
 
     /**
@@ -76,7 +77,62 @@ class ContestOrganizerService
 
         $organizerId = CompetitionExam::supportsRoundSetup() ? $exam->organizer_id : null;
 
+        // SỬA 2/11 (khách: "ai tổ chức kỳ thì chỉ người đó sửa được, trừ admin; giáo viên khác phải được người tạo add vào") —
+        // người chủ trì kỳ + giáo viên được thêm vào "Cùng tổ chức" (competition_exam_managers). Giáo viên khác: không.
+        if ($organizerId !== null && (int) $organizerId === (int) $user->id) {
+            return true;
+        }
+        if ($this->isRoundManager($user, $exam)) {
+            return true;
+        }
+
+        return $organizerId === null && $this->isAdvisor($user, $competition);
+    }
+
+    /**
+     * SỬA 2/11 — CHỦ của kỳ: admin, người chủ trì (người tạo kỳ); kỳ cũ chưa có người chủ trì thì giáo viên tổ chức cuộc thi.
+     * Chỉ chủ của kỳ mới thêm / gỡ giáo viên cùng tổ chức và xoá kỳ; người cùng tổ chức làm được mọi việc khác.
+     */
+    public function canOwnRound(?User $user, Competition $competition, CompetitionExam $exam): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+        if (! $user->hasRole(Role::TEACHER)) {
+            return false;
+        }
+        $organizerId = CompetitionExam::supportsRoundSetup() ? $exam->organizer_id : null;
+
         return $organizerId !== null ? (int) $organizerId === (int) $user->id : $this->isAdvisor($user, $competition);
+    }
+
+    /** SỬA 2/11 — giáo viên có trong danh sách "Cùng tổ chức" của kỳ. */
+    public function isRoundManager(User $user, CompetitionExam $exam): bool
+    {
+        if (! CompetitionExam::supportsManagers() || $exam->id === null) {
+            return false;
+        }
+
+        return $exam->relationLoaded('managers')
+            ? $exam->managers->contains('id', $user->id)
+            : $exam->managers()->where('users.id', $user->id)->exists();
+    }
+
+    /** SỬA 2/11 — giáo viên cùng tổ chức ít nhất 1 kỳ trong cuộc thi (để thao tác danh sách học sinh của cuộc thi). */
+    private function comanagesRound(User $user, Competition $competition): bool
+    {
+        if (! CompetitionExam::supportsManagers()) {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('competition_exam_managers')
+            ->join('competition_exams', 'competition_exams.id', '=', 'competition_exam_managers.competition_exam_id')
+            ->where('competition_exams.competition_id', $competition->id)
+            ->where('competition_exam_managers.user_id', $user->id)
+            ->exists();
     }
 
     private function isAdvisor(User $user, Competition $competition): bool
@@ -274,7 +330,8 @@ class ContestOrganizerService
     public function roundEditor(Competition $competition, User $viewer): array
     {
         $exams = CompetitionExam::query()->where('competition_id', $competition->id)
-            ->with(CompetitionExam::supportsRoundSetup() ? ['organizer:id,name'] : [])->orderBy('order')->get();
+            ->with(array_merge(CompetitionExam::supportsRoundSetup() ? ['organizer:id,name'] : [], CompetitionExam::supportsManagers() ? ['managers'] : []))
+            ->orderBy('order')->get();
         $fallbackHost = $this->organizerLabel($competition);
         $mine = $exams->filter(fn (CompetitionExam $e) => $this->canManageRound($viewer, $competition, $e))->values();
 
@@ -303,6 +360,7 @@ class ContestOrganizerService
                 'assignmentMode' => $e->assignmentMode(),
                 'formCount' => $e->formCount(),
                 'locked' => in_array((int) $e->id, $attempted, true),
+                'canDelete' => $this->canOwnRound($viewer, $competition, $e), // SỬA 2/11 — chỉ chủ của kỳ / admin xoá được kỳ
                 'updateUrl' => route('competitions.manage.rounds.update', ['competition' => $competition->id, 'exam' => $e->id]),
                 'deleteUrl' => route('competitions.manage.rounds.destroy', ['competition' => $competition->id, 'exam' => $e->id]),
                 'examUrl' => route('competitions.manage.rounds.exam', ['competition' => $competition->id, 'exam' => $e->id]),
@@ -490,7 +548,8 @@ class ContestOrganizerService
     /** Xoá kỳ chưa có bài làm (kèm đề sinh từ ma trận của kỳ). */
     public function deleteRound(User $user, Competition $competition, CompetitionExam $exam): void
     {
-        $this->assertCanManageRound($user, $competition, $exam);
+        // SỬA 2/11 — xoá kỳ: chỉ người chủ trì (hoặc admin), giáo viên cùng tổ chức không xoá được.
+        abort_unless($this->canOwnRound($user, $competition, $exam), 403, 'Chỉ người chủ trì kỳ này (hoặc admin) được xoá kỳ.');
 
         if (\App\Models\Attempt::query()->where('competition_exam_id', $exam->id)->exists()) {
             throw ValidationException::withMessages(['exam' => 'Kỳ thi đã có bài làm của học sinh — không xoá được.']);

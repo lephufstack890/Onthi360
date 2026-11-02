@@ -332,7 +332,7 @@
             closeEntry() { const d = this.$refs.entryDialog; if (d && d.open) d.close(); },
 
             // ── Hộp thoại Thêm / Sửa kỳ (bản mẫu: ContestRoundDialog.jsx) ──
-            roundForm: { id: null, url: '', deleteUrl: '', title: '', startsAt: '', endsAt: '', source: 'exam', host: '', locked: false },
+            roundForm: { id: null, url: '', deleteUrl: '', title: '', startsAt: '', endsAt: '', source: 'exam', host: '', locked: false, canDelete: false },
             openRound(id, old) {
                 const ed = cfg.roundEditor; if (!ed) return;
                 const r = id ? ed.rounds[id] : null;
@@ -343,6 +343,7 @@
                     title: v.title ?? (r ? r.title : ''), startsAt: v.startsAt ?? (r ? r.startsAt : ''), endsAt: v.endsAt ?? (r ? r.endsAt : ''),
                     source: ed.isSurvey ? (v.source || (r ? r.source : 'questions')) : 'exam',
                     host: r ? r.host : ed.organizerName, locked: !!(r && r.locked),
+                    canDelete: !!(r && r.canDelete !== false), // SỬA 2/11 — chỉ chủ của kỳ / admin xoá được kỳ
                 };
                 this.$nextTick(() => { const d = this.$refs.roundDialog; if (d && !d.open) d.showModal(); });
             },
