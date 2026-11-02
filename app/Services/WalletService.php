@@ -134,7 +134,46 @@ class WalletService
     {
         $path = $this->qrImagePath();
 
-        return $path !== null ? route('wallet.qr', ['v' => substr(md5($path), 0, 10)]) : null;
+        // SỬA 3/11 — thêm hậu tố "c1" (ảnh đã cắt lấy thẻ QR) để trình duyệt tải bản mới thay vì ảnh cũ đã nhớ.
+        return $path !== null ? route('wallet.qr', ['v' => substr(md5($path.'|c1'), 0, 10)]) : null;
+    }
+
+    /**
+     * SỬA 3/11 (khách: "ảnh QR nhỏ quá, bỏ khung xung quanh, chỉ lấy thẻ ở giữa") — ảnh đem HIỂN THỊ: thẻ trắng chứa mã QR
+     * cắt tự động từ ảnh admin tải lên (App\Support\QrCardCropper), lưu sẵn 1 lần cạnh ảnh gốc. Không cắt được thì dùng ảnh
+     * gốc. Ảnh gốc vẫn giữ nguyên, admin thay ảnh là tự cắt lại.
+     */
+    public function qrDisplayPath(): ?string
+    {
+        $path = $this->qrImagePath();
+        if ($path === null) {
+            return null;
+        }
+        $disk = Storage::disk('local');
+        try {
+            $key = 'wallet/qr-card-'.md5($path.'|'.$disk->size($path).'|'.$disk->lastModified($path).'|c1');
+        } catch (\Throwable) {
+            return $path;
+        }
+        if ($disk->exists($key.'.png')) {
+            return $key.'.png';
+        }
+        if ($disk->exists($key.'.none')) {
+            return $path; // đã thử, ảnh này không cắt được
+        }
+        try {
+            $png = \App\Support\QrCardCropper::crop((string) $disk->get($path));
+        } catch (\Throwable) {
+            $png = null;
+        }
+        if ($png === null) {
+            $disk->put($key.'.none', '');
+
+            return $path;
+        }
+        $disk->put($key.'.png', $png);
+
+        return $key.'.png';
     }
 
     /**

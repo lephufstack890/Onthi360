@@ -81,11 +81,12 @@
         .wp-note { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: #FFF8E8; border: 1px solid #F6E2B3; font-size: 13px; line-height: 1.5; color: #8A5A00; }
         .wp-note svg { width: 18px; height: 18px; flex: none; color: #D99A1E; }
         .wp-grid { display: grid; gap: 16px; margin-top: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-        @container (min-width: 600px) { .wp-grid { grid-template-columns: 200px minmax(0, 1fr); gap: 20px; } }
+        @container (min-width: 600px) { .wp-grid { grid-template-columns: 260px minmax(0, 1fr); gap: 22px; } }
         .wp-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .wp-qr-box { position: relative; display: block; width: 200px; height: 240px; padding: 6px; border: 1px solid #DDEAF0; border-radius: 16px; background: #fff; cursor: zoom-in; overflow: hidden; }
-        .wp-qr-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
-        .wp-qr-zoom { position: absolute; right: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(15, 39, 68, .78); color: #fff; font-size: 11px; font-weight: 700; }
+        /* SỬA 3/11 (khách: "QR to ra, bỏ khung xung quanh") — ảnh là thẻ QR đã cắt sẵn (WalletService::qrDisplayPath), hiện to, không viền. */
+        .wp-qr-box { position: relative; display: block; width: 260px; max-width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+        .wp-qr-box img { display: block; width: 100%; height: auto; max-height: 460px; object-fit: contain; border-radius: 18px; box-shadow: 0 6px 22px rgba(15, 39, 68, .12); }
+        .wp-qr-zoom { position: absolute; right: 10px; top: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(15, 39, 68, .78); color: #fff; font-size: 11px; font-weight: 700; }
         .wp-qr-zoom svg { width: 12px; height: 12px; }
         .wp-qr-dl { font-size: 12px; font-weight: 700; color: #0F5E86; }
         .wp-qr-dl:hover { text-decoration: underline; }
@@ -105,7 +106,7 @@
         .wp-copy.is-done { border-color: #A7E3C4; background: #ECFBF3; color: #047857; }
         .wp-row.is-code .wp-copy { border-color: #FBCFD6; color: #BE123C; }
         .wp-foot { margin: 10px 2px 0; font-size: 12px; line-height: 1.5; color: #64748B; }
-        @container (max-width: 599px) { .wp-qr { margin: 0 auto; } }
+        @container (max-width: 599px) { .wp-qr { margin: 0 auto; } .wp-qr-box { width: 290px; } }
         @container (max-width: 420px) { .wp-row { flex-wrap: wrap; } .wp-row-l { width: 100%; } }
         .wp-modal[x-cloak] { display: none; }
         .wp-modal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .8); }

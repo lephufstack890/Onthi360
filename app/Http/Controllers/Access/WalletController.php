@@ -30,7 +30,8 @@ class WalletController extends Controller
 
     public function qrImage(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $path = $this->walletService->qrImagePath();
+        // SỬA 3/11 — ảnh đã cắt lấy thẻ QR (bỏ khung nền xung quanh); không cắt được thì là ảnh gốc.
+        $path = $this->walletService->qrDisplayPath();
         abort_if($path === null, 404);
 
         return \Illuminate\Support\Facades\Storage::disk('local')->response($path, 'qr-ngan-hang.'.pathinfo($path, PATHINFO_EXTENSION), [
