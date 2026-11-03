@@ -77,6 +77,9 @@ class InfoService
             'title' => $policy['title'],
             'desc' => $policy['desc'],
             'sections' => $sections,
+            // SỬA 3/11 — ngày cập nhật hiện dưới tiêu đề (giao diện mới của trang chính sách).
+            'updated' => $policy['updated'] ?? null,
+            'slug' => $slug,
         ];
     }
 
@@ -127,7 +130,7 @@ class InfoService
     {
         return [
             ['slug' => 'bao-mat', 'title' => 'Chính sách bảo mật', 'desc' => 'Cách thu thập, sử dụng và bảo vệ dữ liệu cá nhân, đặc biệt với học sinh dưới 18 tuổi.'],
-            ['slug' => 'dieu-khoan', 'title' => 'Điều khoản sử dụng', 'desc' => 'Quy định quyền và trách nhiệm khi sử dụng Ôn Thi 360 cho từng vai trò.'],
+            ['slug' => 'dieu-khoan', 'title' => 'Điều khoản sử dụng', 'desc' => 'Quy định quyền và trách nhiệm khi sử dụng Ôn Thi 360 cho từng vai trò.', 'updated' => '03/11/2026'],
             ['slug' => 'hoan-tien', 'title' => 'Chính sách hoàn tiền', 'desc' => 'Điều kiện và quy trình hoàn tiền cho đơn hàng sản phẩm/khóa học (7.4).'],
         ];
     }
@@ -150,12 +153,35 @@ class InfoService
                 ['heading' => 'Chia sẻ với bên thứ ba', 'body' => 'Chỉ chia sẻ trong phạm vi cần thiết để vận hành (ví dụ dịch vụ hạ tầng lưu trữ), không bán hoặc cho thuê dữ liệu cá nhân cho mục đích quảng cáo.'],
                 ['heading' => 'Quyền của người dùng', 'body' => 'Người dùng có thể yêu cầu xem, chỉnh sửa hoặc xoá dữ liệu cá nhân của mình bằng cách liên hệ qua mục Liên hệ ở trang này.'],
             ],
+            // SỬA 3/11 (khách: "làm lại UI trang Điều khoản sử dụng như mẫu") — sắp lại theo đúng bố cục mẫu: Giới thiệu / Phạm vi /
+            // Quyền & nghĩa vụ người dùng (2 thẻ) / Quyền & nghĩa vụ Ôn Thi 360 (danh sách) / Tài khoản & vai trò / Điều khoản khác.
+            // Giữ nguyên các ý nghiệp vụ cũ (duyệt giáo viên, nêu rõ lý do khoá nội dung, kiểm duyệt đánh giá, hành vi cấm, thay
+            // đổi điều khoản). Khoá tuỳ chọn mỗi mục: body (đoạn văn) · intro + items (danh sách tick) · split (2 thẻ trái/phải).
             'dieu-khoan' => [
-                ['heading' => 'Phạm vi áp dụng', 'body' => 'Áp dụng cho học sinh, giáo viên, phụ huynh đã đăng ký tài khoản, và khách vãng lai truy cập nội dung luyện tập/tài liệu công khai.'],
-                ['heading' => 'Tài khoản và vai trò', 'body' => 'Giáo viên cần được Admin duyệt hồ sơ trước khi mở lớp. Học sinh cần có quyền học còn hiệu lực để truy cập nội dung giới hạn — hệ thống luôn nêu rõ lý do khi một nội dung bị khoá (thiếu quyền, giáo viên chưa mở theo tiến độ lớp, hoặc quyền đã hết hạn), không khoá mà không giải thích.'],
-                ['heading' => 'Nội dung do người dùng đăng', 'body' => 'Đánh giá/nhận xét được kiểm duyệt trước khi công khai. Chúng tôi chỉ xử lý nội dung vi phạm (spam, xúc phạm, quảng cáo, lộ thông tin cá nhân) — không ẩn hoặc xoá đánh giá chỉ vì nội dung tiêu cực nhưng hợp lệ.'],
-                ['heading' => 'Hành vi không được phép', 'body' => 'Gian lận khi làm bài/thi, chia sẻ tài khoản cho người khác sử dụng, đăng nội dung vi phạm pháp luật hoặc thuần phong mỹ tục, spam quảng cáo trong đánh giá hoặc tin nhắn liên hệ.'],
-                ['heading' => 'Thay đổi điều khoản', 'body' => 'Điều khoản có thể được cập nhật khi hệ thống có tính năng mới. Việc tiếp tục sử dụng sau khi cập nhật được xem là đã đồng ý với điều khoản mới.'],
+                ['heading' => 'Giới thiệu', 'body' => 'Ôn Thi 360 (onthi360.vn) là nền tảng học tập trực tuyến, cung cấp khóa học, tài liệu, kho bài luyện tập, đề thi và cuộc thi, giúp người dùng ôn luyện, chuẩn bị tốt nhất cho các kỳ thi và nâng cao kiến thức.'],
+                ['heading' => 'Phạm vi áp dụng', 'body' => 'Điều khoản này áp dụng cho tất cả người truy cập và sử dụng dịch vụ trên Ôn Thi 360: học sinh, giáo viên, phụ huynh đã đăng ký tài khoản, khách vãng lai truy cập nội dung luyện tập/tài liệu công khai và các đối tác liên quan.'],
+                ['heading' => 'Quyền và nghĩa vụ của người dùng', 'split' => [
+                    ['title' => 'Quyền của người dùng', 'tone' => 'ok', 'items' => [
+                        'Được truy cập, sử dụng các dịch vụ của Ôn Thi 360 theo quyền học/dạy đang có.',
+                        'Được biết rõ lý do khi một nội dung bị khoá (thiếu quyền, giáo viên chưa mở theo tiến độ lớp, hoặc quyền đã hết hạn).',
+                        'Được hỗ trợ, giải đáp thắc mắc qua các kênh chính thức.',
+                        'Được bảo vệ thông tin cá nhân theo Chính sách bảo mật.',
+                    ]],
+                    ['title' => 'Nghĩa vụ của người dùng', 'tone' => 'warn', 'items' => [
+                        'Tuân thủ các điều khoản, quy định của website.',
+                        'Không gian lận khi làm bài/thi, không chia sẻ tài khoản cho người khác sử dụng.',
+                        'Không đăng nội dung vi phạm pháp luật, thuần phong mỹ tục hoặc spam quảng cáo trong đánh giá, tin nhắn liên hệ.',
+                        'Không chia sẻ tài khoản, thông tin cá nhân cho bên thứ ba.',
+                    ]],
+                ]],
+                ['heading' => 'Quyền và nghĩa vụ của Ôn Thi 360', 'intro' => 'Ôn Thi 360 có quyền và trách nhiệm:', 'items' => [
+                    'Cung cấp, thay đổi hoặc ngừng một phần hay toàn bộ dịch vụ khi cần nâng cấp, bảo trì hoặc điều chỉnh tính năng.',
+                    'Từ chối hoặc khoá tài khoản vi phạm điều khoản.',
+                    'Kiểm duyệt đánh giá/nhận xét trước khi công khai — chỉ xử lý nội dung vi phạm (spam, xúc phạm, quảng cáo, lộ thông tin cá nhân), không ẩn đánh giá chỉ vì tiêu cực nhưng hợp lệ.',
+                    'Bảo mật thông tin người dùng theo Chính sách bảo mật.',
+                ]],
+                ['heading' => 'Tài khoản và vai trò', 'body' => 'Giáo viên cần được Admin duyệt hồ sơ trước khi mở lớp. Học sinh cần có quyền học còn hiệu lực để truy cập nội dung giới hạn — hệ thống luôn nêu rõ lý do khi một nội dung bị khoá, không khoá mà không giải thích.'],
+                ['heading' => 'Điều khoản khác', 'body' => 'Các điều khoản khác như giới hạn trách nhiệm, giải quyết tranh chấp và các quy định liên quan được nêu chi tiết trong các chính sách riêng của website. Điều khoản có thể được cập nhật khi hệ thống có tính năng mới; việc tiếp tục sử dụng sau khi cập nhật được xem là đã đồng ý với điều khoản mới.'],
             ],
             'hoan-tien' => [
                 ['heading' => 'Phạm vi áp dụng', 'body' => 'Áp dụng cho đơn hàng mua quyền học/dạy, khóa học hoặc gói token đã đặt qua hệ thống (7.4).'],
