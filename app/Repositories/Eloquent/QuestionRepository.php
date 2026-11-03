@@ -68,8 +68,17 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
         // (Question::scopeListColumns), KHÔNG kéo grading_config — cột này chứa cả bộ test, có câu nặng hàng chục MB, trước đây mỗi
         // lần chuyển trang phải tải về + giải mã JSON của 12 câu như vậy chỉ để in 1 dòng danh sách. Mặc định false = như cũ.
         if ($listColumnsOnly) {
-            return QuestionOrder::apply($this->applyQuestionBankFilters($this->query()->listColumns()->with('owner'), $filters))
-                ->offset($offset)->limit($limit)->get();
+            // Làm 2 bước (lỗi MySQL "1038 Out of sort memory" khi sắp xếp kèm các cột trích từ JSON): (1) chỉ lấy ID đã lọc +
+            // sắp xếp + cắt trang — câu sắp xếp chỉ mang cột id nên rất nhẹ; (2) nạp cột nhẹ cho đúng các ID đó rồi xếp lại
+            // theo thứ tự bước (1). Kết quả y hệt cách cũ (cùng QuestionOrder::apply(), cùng bộ lọc).
+            $ids = QuestionOrder::apply($this->applyQuestionBankFilters($this->query()->select('questions.id'), $filters))
+                ->offset($offset)->limit($limit)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if ($ids === []) {
+                return new Collection();
+            }
+            $byId = $this->query()->listColumns()->with('owner')->whereIn('questions.id', $ids)->get()->keyBy(fn ($q) => (int) $q->id);
+
+            return new Collection(array_values(array_filter(array_map(fn ($id) => $byId->get($id), $ids))));
         }
 
         // SỬA 10/10 (khách: "thứ tự các câu ở danh sách admin phải trùng trang luyện tập public để
