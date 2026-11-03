@@ -127,7 +127,8 @@
                @click="if (grading()) { $event.preventDefault(); askExit($el.href); }{{ empty($exitWarning) ? '' : ' else if (! confirm('.e(json_encode($exitWarning, JSON_UNESCAPED_UNICODE)).')) { $event.preventDefault(); }' }}"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
-            <div class="min-w-0 flex-1">
+            {{-- SỬA 3/11 (khách: "dải số câu dài quá làm vỡ tên đề") — chừa tối thiểu 220px cho tên đề. --}}
+            <div class="min-w-0 flex-1" style="min-width: 220px">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-[#126F91]">
                     @if ($examCode){{ $examCode }} · @endif{{ $totalPoints }} điểm
                 </p>
@@ -146,7 +147,10 @@
 
             {{-- Dải số câu: xanh đậm = đang xem, xanh lá = đã trả lời, trắng = chưa --}}
             @if (count($questions) > 1)
-                <div class="hidden min-w-0 max-w-full items-center gap-1 rounded-xl bg-[#F4F8FB] px-1.5 py-1.5 md:flex" aria-label="Tiến độ câu hỏi">
+                {{-- SỬA 3/11 (khách: "dải số câu cho ngắn lại, click qua lại được nên không sợ") — dải chỉ rộng tối đa ~40% màn
+                     (≤ 460px, khoảng 10 số), phần còn lại cuộn ngang / bấm mũi tên; tên đề không còn bị ép vỡ chữ. --}}
+                <div class="hidden min-w-0 max-w-full items-center gap-1 rounded-xl bg-[#F4F8FB] px-1.5 py-1.5 md:flex" aria-label="Tiến độ câu hỏi"
+                     style="flex: 0 1 auto; max-width: min(40vw, 460px)">
                     {{-- SỬA 18/9 (khách: "bấm 2 nút mũi tên không được") — LỖI CŨ: hai nút này chỉ
                          CUỘN dải số câu theo chiều ngang. Đề ít câu thì dải không hề tràn, cuộn
                          không đi đâu cả -> bấm y như không có gì xảy ra, dù tooltip vẫn ghi
