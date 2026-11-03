@@ -195,6 +195,9 @@
                             </div>
                             <div class="hub-desktop-action">@include('public.competitions.partials.action-button')</div>
                         </section>
+                        @if (! empty($contestReview))
+                            @include('public.competitions.partials.review-practice')
+                        @endif
                     </div>
 
                     <div x-ref="tabs" role="tablist" aria-label="Nội dung {{ $kindLabel }}" class="hub-tabs">

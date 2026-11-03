@@ -58,7 +58,12 @@
                     <td class="px-4 py-3 font-medium text-slate-700">{{ $t['user'] }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $t['amount'] }}</td>
                     <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{ $t['transferCode'] }}</td>
-                    <td class="px-4 py-3"><x-ws.badge :tone="$t['tone']">{{ $t['status'] }}</x-ws.badge></td>
+                    <td class="px-4 py-3"><x-ws.badge :tone="$t['tone']">{{ $t['status'] }}</x-ws.badge>
+                        {{-- SỬA 3/11 — "Chờ chuyển khoản" = người nạp chưa bấm "Tôi đã chuyển khoản"; vẫn duyệt được nếu sao kê đã có tiền. --}}
+                        @if ($t['isPending'] && ! empty($t['transferConfirmedAt']))
+                            <span class="mt-1 block text-[10px] text-slate-400">Báo đã CK lúc {{ $t['transferConfirmedAt']->format('H:i d/m') }}</span>
+                        @endif
+                    </td>
                     <td class="px-4 py-3 text-right">
                         @if ($t['isPending'])
                             <div x-data="{ open: false }" class="inline-block text-left">

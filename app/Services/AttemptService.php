@@ -86,6 +86,13 @@ class AttemptService
                 ->latest('started_at')->first()
             : $this->attempts->inProgressForUserAndAssessment($user->id, $assessment->id);
 
+        // SỬA 3/11 — lượt LÀM THỬ / LUYỆN LẠI (source staff_test, không gắn kỳ — ContestTestRunController / ContestReviewService)
+        // không bao giờ được "nhặt" làm lượt thi THẬT khi vào từ phòng thi: bỏ lượt nháp đó, mở lượt thật như bình thường.
+        if ($existing !== null && $competitionExamId !== null && $existing->source === AttemptSource::StaffTest) {
+            \App\Services\Contest\ContestReviewService::discardDrafts((int) $user->id, (int) $assessment->id);
+            $existing = null;
+        }
+
         if ($existing !== null) {
             return $existing;
         }

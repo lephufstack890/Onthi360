@@ -186,6 +186,11 @@ Route::middleware('auth')->group(function () {
         ->whereNumber(['competition', 'exam'])->name('competitions.manage.test');
     Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/lam-thu/{assessment}', [\App\Http\Controllers\ContestTestRunController::class, 'take'])
         ->whereNumber(['competition', 'exam', 'assessment'])->name('competitions.manage.test.take');
+    // SỬA 3/11 — LUYỆN LẠI đề của kỳ đã kết thúc (học sinh đã tham gia): không tính điểm / xếp hạng — ContestReviewController.
+    Route::post('/cuoc-thi/{competition}/vong/{exam}/luyen-lai', [\App\Http\Controllers\ContestReviewController::class, 'start'])
+        ->middleware('throttle:20,1')->whereNumber(['competition', 'exam'])->name('competitions.review');
+    Route::get('/cuoc-thi/{competition}/vong/{exam}/luyen-lai/{assessment}', [\App\Http\Controllers\ContestReviewController::class, 'take'])
+        ->whereNumber(['competition', 'exam', 'assessment'])->name('competitions.review.take');
     // SỬA 30/10 — dữ liệu hộp "In bảng điểm & xếp giải" (JSON, chỉ ban tổ chức) — ContestScoreSheetService.
     // SỬA 2/11 — giáo viên cùng tổ chức kỳ (chỉ chủ kỳ / admin thêm, gỡ) + cho học sinh làm bù kỳ đã kết thúc.
     Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/cung-to-chuc', [\App\Http\Controllers\ContestRoundTeamController::class, 'addManager'])
@@ -659,6 +664,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('vi')->name('wallet.')->group(function () {
         Route::get('/', [WalletController::class, 'index'])->name('index');
         Route::post('/nap', [WalletController::class, 'requestTopup'])->name('request');
+        // SỬA 3/11 — "Tôi đã chuyển khoản" → Chờ duyệt + báo admin.
+        Route::post('/nap/{tokenTopup}/da-chuyen-khoan', [WalletController::class, 'confirmTransfer'])->middleware('throttle:10,1')->name('confirm');
         Route::get('/qr', [WalletController::class, 'qrImage'])->name('qr'); // SỬA 21/10 — ảnh QR ngân hàng
     });
 

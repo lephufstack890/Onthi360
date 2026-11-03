@@ -25,6 +25,8 @@ class WalletController extends Controller
             'bankInfo' => $this->walletService->bankInfo(),
             'pendingTopup' => $pendingTopup,
             'pendingQrUrl' => $pendingTopup !== null ? $this->walletService->qrUrl($pendingTopup) : null,
+            // SỬA 3/11 — null = chưa bấm "Tôi đã chuyển khoản" (đang chờ chuyển khoản), có giá trị = đã báo, chờ admin duyệt.
+            'pendingConfirmedAt' => $pendingTopup !== null ? $this->walletService->transferConfirmedAt($pendingTopup) : null,
         ]);
     }
 
@@ -58,5 +60,17 @@ class WalletController extends Controller
         }
 
         return redirect()->route('wallet.index')->with('status', 'topup-requested');
+    }
+
+    /** SỬA 3/11 — người nạp bấm "Tôi đã chuyển khoản" → chuyển sang Chờ duyệt + báo quản trị viên. */
+    public function confirmTransfer(\App\Models\TokenTopup $tokenTopup): RedirectResponse
+    {
+        try {
+            $this->walletService->confirmTransfer(Auth::user(), $tokenTopup);
+        } catch (ValidationException $e) {
+            return redirect()->route('wallet.index')->withErrors($e->errors());
+        }
+
+        return redirect()->route('wallet.index')->with('status', 'topup-confirmed');
     }
 }

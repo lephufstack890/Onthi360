@@ -121,7 +121,7 @@ class PracticeService
                         'type' => $attempt->assessment?->type?->value ?? '',
                         'typeLabel' => $attempt->assessment?->type?->label() ?? ($isSelfPractice ? 'Luyện theo câu' : ''),
                         'typeIcon' => $attempt->assessment?->type?->icon() ?? '📝',
-                        'source' => $isSelfPractice ? 'Tự luyện' : ucfirst($attempt->source?->value ?? ''),
+                        'source' => $isSelfPractice ? 'Tự luyện' : ($attempt->source === \App\Enums\AttemptSource::StaffTest ? 'Luyện lại đề kỳ thi' : ucfirst($attempt->source?->value ?? '')), // SỬA 3/11
                         'difficulty' => '',
                         // SỬA 23/9 — bài lập trình giờ chấm chạy nền: có điểm rồi nhưng vẫn
                         // còn câu đang chấm thì phải nói là TẠM TÍNH, không để học sinh tưởng

@@ -12,11 +12,13 @@ class TokenTopup extends Model
     protected $fillable = [
         'user_id', 'amount', 'transfer_code', 'status',
         'reviewed_by', 'reviewed_at', 'reject_reason',
+        'transfer_confirmed_at', // SỬA 3/11 — lúc người nạp bấm "Tôi đã chuyển khoản"
     ];
 
     protected $casts = [
         'status' => TokenTopupStatus::class,
         'reviewed_at' => 'datetime',
+        'transfer_confirmed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

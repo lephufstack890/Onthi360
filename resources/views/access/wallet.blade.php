@@ -35,11 +35,15 @@
         $bankInfo = $bankInfo ?? [];
         $pendingTopup = $pendingTopup ?? null;
         $pendingQrUrl = $pendingQrUrl ?? null;
+        $pendingConfirmedAt = $pendingConfirmedAt ?? null;
         $bankReady = ($bankInfo['bankName'] ?? '') !== '' && ($bankInfo['accountNo'] ?? '') !== '';
     @endphp
 
     @if (session('status') === 'topup-requested')
-        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo yêu cầu nạp token — chuyển khoản đúng nội dung bên dưới rồi chờ Admin duyệt.'])
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo yêu cầu nạp token — chuyển khoản đúng nội dung bên dưới, xong bấm "Tôi đã chuyển khoản".'])
+    @endif
+    @if (session('status') === 'topup-confirmed')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã báo Admin — yêu cầu chuyển sang Chờ duyệt. Token sẽ tự cộng vào ví ngay khi Admin đối soát xong.'])
     @endif
     {{-- SỬA 25/8 (2): "nếu không đủ token thì chuyển sang trang bắt học sinh phải nạp" —
          AccessController::store() chuyển hẳn về đây khi placeOrder() báo thiếu token. --}}
@@ -63,9 +67,9 @@
         {{-- SỬA 18/10 (khách: "nạp 100.000đ được 100 token") — số dư / số nạp hiện bằng token (App\Support\TokenPrice). --}}
         <x-ws.stat label="Số dư hiện có" :value="\App\Support\TokenPrice::label($balance)" tone="emerald" icon="wallet-cards"
                    :hint="'1 token = '.\App\Support\TokenPrice::vnd(\App\Support\TokenPrice::rate())" />
-        <x-ws.stat label="Đang chờ duyệt" :value="$pendingTopup ? \App\Support\TokenPrice::label($pendingTopup->amount) : '—'"
+        <x-ws.stat :label="$pendingTopup && ! $pendingConfirmedAt ? 'Chờ chuyển khoản' : 'Đang chờ duyệt'" :value="$pendingTopup ? \App\Support\TokenPrice::label($pendingTopup->amount) : '—'"
                    :tone="$pendingTopup ? 'amber' : 'neutral'" icon="clock-3"
-                   :hint="$pendingTopup ? 'Chuyển khoản xong chờ Admin đối soát' : 'Không có yêu cầu nào đang chờ'" />
+                   :hint="$pendingTopup ? ($pendingConfirmedAt ? 'Đã báo chuyển khoản — Admin đang đối soát' : 'Chuyển khoản xong bấm “Tôi đã chuyển khoản”') : 'Không có yêu cầu nào đang chờ'" />
         <x-ws.stat label="Số lần đã nạp" :value="count($history)" tone="blue" icon="history"
                    hint="Tính cả yêu cầu bị từ chối" />
     </div>
@@ -139,6 +143,23 @@
         html.theme-dark .wp-row.is-code { background: #2A1620; }
         html.theme-dark .wp-steps { background: #15304A; color: #A9C0D2; }
         html.theme-dark .wp-note { background: #2B2410; border-color: #5A4A1E; color: #F2D28A; }
+        .wp-note.is-sent { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; } .wp-note.is-sent svg { color: #059669; }
+        .wp-done { margin-top: 12px; }
+        .wp-done-txt { display: flex; align-items: center; gap: 6px; margin: 0 0 8px 2px; font-size: 12.5px; color: #64748B; } .wp-done-txt svg { width: 15px; height: 15px; flex: none; color: #3B82F6; }
+        .wp-done-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: #fff;
+            background: linear-gradient(135deg, #10B981 0%, #059669 55%, #047857 100%); box-shadow: 0 10px 22px rgba(5, 150, 105, .28); transition: transform .15s, box-shadow .15s, filter .15s; }
+        .wp-done-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(5, 150, 105, .34); filter: brightness(1.03); }
+        .wp-done-btn:disabled { opacity: .7; cursor: wait; transform: none; }
+        .wp-done-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: rgba(255, 255, 255, .2); } .wp-done-ic svg { width: 22px; height: 22px; }
+        .wp-done-lb { flex: 1; min-width: 0; } .wp-done-lb b { display: block; font-size: 15.5px; font-weight: 900; letter-spacing: -.01em; }
+        .wp-done-lb small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wp-done-go { width: 20px; height: 20px; flex: none; transition: transform .15s; } .wp-done-btn:hover .wp-done-go { transform: translateX(3px); }
+        .wp-sent { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid #FDE68A; background: linear-gradient(135deg, #FFFBEB, #FEF3C7); }
+        .wp-sent-ic { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: #fff; color: #D97706; box-shadow: 0 2px 6px rgba(217, 119, 6, .15); } .wp-sent-ic svg { width: 19px; height: 19px; }
+        .wp-sent b { color: #92400E; } .wp-sent > div > b { display: block; font-size: 14px; font-weight: 800; }
+        .wp-sent span { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.5; color: #A16207; }
+        html.theme-dark .wp-note.is-sent { background: #0F2E24; border-color: #1F5A45; color: #A7F3D0; }
+        html.theme-dark .wp-sent { background: #2B2410; border-color: #5A4A1E; } html.theme-dark .wp-sent span { color: #F2D28A; }
         html.theme-dark .wp-copy { background: #173246; border-color: #2B4E68; color: #9BD4F5; }
     </style>
 
@@ -151,7 +172,11 @@
     @if ($pendingTopup)
         <x-ws.card title="Chuyển khoản để hoàn tất" icon="qr-code">
             <div class="wp">
-                <div class="wp-note"><x-lucide name="clock-3" /><span>Yêu cầu nạp <b>{{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</b> đang chờ chuyển khoản. Ghi <b>đúng nội dung CK</b> để Admin duyệt nhanh — sai nội dung có thể bị từ chối.</span></div>
+                @if ($pendingConfirmedAt)
+                    <div class="wp-note is-sent"><x-lucide name="badge-check" /><span>Bạn đã báo chuyển khoản <b>{{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</b> lúc {{ $pendingConfirmedAt->format('H:i d/m/Y') }}. Admin đang đối soát sao kê — duyệt xong token tự cộng vào ví.</span></div>
+                @else
+                    <div class="wp-note"><x-lucide name="clock-3" /><span>Yêu cầu nạp <b>{{ \App\Support\TokenPrice::label($pendingTopup->amount) }}</b> đang chờ chuyển khoản. Ghi <b>đúng nội dung CK</b> để Admin duyệt nhanh — sai nội dung có thể bị từ chối.</span></div>
+                @endif
 
                 <div class="wp-grid">
                     @if ($pendingQrUrl)
@@ -198,7 +223,28 @@
                                 <span class="wp-row-v">{{ $bankInfo['accountName'] ?: '—' }}</span>
                             </div>
                         </div>
-                        <p class="wp-foot">Chuyển khoản xong chỉ cần chờ — Admin đối soát sao kê rồi duyệt, token tự cộng vào ví.</p>
+                        {{-- SỬA 3/11 (khách: "chuyển khoản xong bấm nút thì báo admin, lúc đó mới chuyển sang Chờ duyệt") --}}
+                        @if ($pendingConfirmedAt)
+                            <div class="wp-sent">
+                                <span class="wp-sent-ic"><x-lucide name="clock-3" /></span>
+                                <div>
+                                    <b>Đang chờ Admin duyệt</b>
+                                    <span>Đã gửi thông báo cho Admin, Admin sẽ duyệt sớm nhất có thể. Lâu chưa thấy token, liên hệ hỗ trợ kèm mã <b>{{ $pendingTopup->transfer_code }}</b>.</span>
+                                </div>
+                            </div>
+                        @else
+                            <form method="POST" action="{{ route('wallet.confirm', $pendingTopup->id) }}" class="wp-done"
+                                  x-data="{ busy: false }"
+                                  @submit="if (! confirm({{ \Illuminate\Support\Js::from('Xác nhận bạn đã chuyển '.\App\Support\TokenPrice::vnd($pendingTopup->amount).' với nội dung '.$pendingTopup->transfer_code.'?') }})) { $event.preventDefault(); return; } busy = true">
+                                @csrf
+                                <p class="wp-done-txt"><x-lucide name="info" />Chuyển khoản xong, bấm nút bên dưới để báo Admin đối soát và cộng token.</p>
+                                <button type="submit" class="wp-done-btn" :disabled="busy">
+                                    <span class="wp-done-ic"><x-lucide name="check-circle-2" /></span>
+                                    <span class="wp-done-lb"><b x-text="busy ? 'Đang gửi…' : 'Tôi đã chuyển khoản'">Tôi đã chuyển khoản</b><small>Báo Admin duyệt · {{ \App\Support\TokenPrice::vnd($pendingTopup->amount) }} · {{ $pendingTopup->transfer_code }}</small></span>
+                                    <x-lucide name="arrow-right" class="wp-done-go" />
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             </div>

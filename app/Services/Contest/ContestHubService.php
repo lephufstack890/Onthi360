@@ -392,6 +392,9 @@ class ContestHubService
             ],
             'setup' => $setup,
             // SỬA 30/10 (khách: "admin, giáo viên làm thử đề lúc nào cũng được để kiểm tra chấm") — đề làm thử được của kỳ.
+            // SỬA 3/11 (khách: "kỳ đã kết thúc cho học sinh làm lại, không lưu điểm / bảng xếp hạng, làm đi làm lại") — khối Luyện lại.
+            'contestReview' => (! $manager && $isStudent && $period === 'completed' && $makeup === null)
+                ? app(ContestReviewService::class)->panel($viewer, $c, $exam) : null,
             'testRun' => $manager ? [
                 'url' => route('competitions.manage.test', ['competition' => $c->id, 'exam' => $exam->id]),
                 'options' => app(\App\Http\Controllers\ContestTestRunController::class)->testableAssessments($exam),

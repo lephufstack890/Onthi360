@@ -50,8 +50,8 @@ class WalletService
             'id' => $t->id,
             'amount' => $t->amount,
             'transferCode' => $t->transfer_code,
-            'status' => $this->statusLabel($t->status),
-            'tone' => $this->statusTone($t->status),
+            'status' => $this->statusLabel($t),
+            'tone' => $this->statusTone($t),
             'rejectReason' => $t->reject_reason,
             'createdAt' => $t->created_at,
         ])->all();
@@ -236,7 +236,85 @@ class WalletService
      */
     public function pendingTopupCount(): int
     {
-        return $this->topups->countPending();
+        // SỬA 3/11 — chỉ đếm yêu cầu người nạp ĐÃ BÁO chuyển khoản (việc admin cần làm ngay); yêu cầu mới tạo mà
+        // chưa chuyển vẫn hiện trong danh sách với nhãn "Chờ chuyển khoản". Chưa chạy migrate thì đếm như cũ.
+        if (! self::hasConfirmColumn()) {
+            return $this->topups->countPending();
+        }
+
+        return $this->topups->query()
+            ->where('status', TokenTopupStatus::Pending->value)
+            ->whereNotNull('transfer_confirmed_at')
+            ->count();
+    }
+
+    /**
+     * SỬA 3/11 (khách: "chuyển khoản xong bấm nút thì báo admin, lúc đó mới chuyển sang Chờ duyệt") — người nạp bấm
+     * "Tôi đã chuyển khoản": ghi lúc báo + gửi thông báo cho quản trị viên có quyền duyệt. Chỉ chủ yêu cầu, chỉ khi còn
+     * chờ, chỉ MỘT lần (bấm lại không gửi thông báo lặp).
+     *
+     * @throws ValidationException
+     */
+    public function confirmTransfer(User $user, TokenTopup $topup): TokenTopup
+    {
+        if ((int) $topup->user_id !== (int) $user->id) {
+            abort(404);
+        }
+        if ($topup->status !== TokenTopupStatus::Pending) {
+            throw ValidationException::withMessages(['topup' => 'Yêu cầu nạp này đã được xử lý.']);
+        }
+        if (! self::hasConfirmColumn()) {
+            throw ValidationException::withMessages(['topup' => 'Hệ thống đang cập nhật — vui lòng thử lại sau ít phút.']);
+        }
+        if ($topup->transfer_confirmed_at !== null) {
+            return $topup;
+        }
+
+        $topup->forceFill(['transfer_confirmed_at' => now()])->save();
+
+        try {
+            $topup->loadMissing('user');
+            $recipients = $this->topupReviewers();
+            if ($recipients->isNotEmpty()) {
+                \Illuminate\Support\Facades\Notification::send($recipients, new \App\Notifications\TokenTopupTransferConfirmed($topup));
+            }
+        } catch (\Throwable $e) {
+            // Gửi thông báo lỗi không được làm hỏng việc báo chuyển khoản — admin vẫn thấy ở danh sách + số đỏ.
+            \Illuminate\Support\Facades\Log::warning('Không gửi được thông báo nạp token: '.$e->getMessage(), ['topup' => $topup->id]);
+        }
+
+        return $topup;
+    }
+
+    /** Người nhận thông báo "đã chuyển khoản": admin, super admin và biên tập viên được cấp quyền duyệt đơn hàng. */
+    private function topupReviewers(): \Illuminate\Support\Collection
+    {
+        return User::query()
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', [\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN, \App\Models\Role::EDITOR]))
+            ->with('roles')
+            ->get()
+            ->filter(fn (User $u) => $u->roles->contains(fn ($r) => in_array($r->name, [\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN], true))
+                || \App\Support\AdminPermissions::can($u, 'orders', 'approve'))
+            ->values();
+    }
+
+    /** Cột token_topups.transfer_confirmed_at đã có chưa (migration 2025_01_01_001360) — chưa có thì mọi thứ chạy như cũ. */
+    public static function hasConfirmColumn(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('token_topups', 'transfer_confirmed_at');
+    }
+
+    /** Lúc người nạp báo đã chuyển khoản (null = chưa báo). Trước khi có cột: coi như đã báo, giữ nhãn "Chờ duyệt" như cũ. */
+    public function transferConfirmedAt(TokenTopup $topup): ?\DateTimeInterface
+    {
+        if (! self::hasConfirmColumn()) {
+            return $topup->created_at;
+        }
+        $v = $topup->transfer_confirmed_at;
+
+        return $v === null ? null : \Illuminate\Support\Carbon::parse($v);
     }
 
     public function pendingAndRecentForAdmin(int $limit = 20): array
@@ -246,26 +324,27 @@ class WalletService
             'user' => $t->user->name ?? '',
             'amount' => \App\Support\TokenPrice::vnd($t->amount).' → '.\App\Support\TokenPrice::label($t->amount), // SỬA 18/10
             'transferCode' => $t->transfer_code,
-            'status' => $this->statusLabel($t->status),
-            'tone' => $this->statusTone($t->status),
+            'status' => $this->statusLabel($t),
+            'tone' => $this->statusTone($t),
             'isPending' => $t->status === TokenTopupStatus::Pending,
+            'transferConfirmedAt' => $this->transferConfirmedAt($t),
             'createdAt' => $t->created_at,
         ])->all();
     }
 
-    private function statusLabel(TokenTopupStatus $status): string
+    private function statusLabel(TokenTopup $topup): string
     {
-        return match ($status) {
-            TokenTopupStatus::Pending => 'Chờ duyệt',
+        return match ($topup->status) {
+            TokenTopupStatus::Pending => $this->transferConfirmedAt($topup) === null ? 'Chờ chuyển khoản' : 'Chờ duyệt',
             TokenTopupStatus::Approved => 'Đã cộng token',
             TokenTopupStatus::Rejected => 'Từ chối',
         };
     }
 
-    private function statusTone(TokenTopupStatus $status): string
+    private function statusTone(TokenTopup $topup): string
     {
-        return match ($status) {
-            TokenTopupStatus::Pending => 'warning',
+        return match ($topup->status) {
+            TokenTopupStatus::Pending => $this->transferConfirmedAt($topup) === null ? 'neutral' : 'warning',
             TokenTopupStatus::Approved => 'success',
             TokenTopupStatus::Rejected => 'danger',
         };
