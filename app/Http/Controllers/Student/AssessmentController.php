@@ -52,7 +52,8 @@ class AssessmentController extends Controller
         // SỬA 3/11 (khách: "bài phổ thông: làm xong / đóng thì quay lại trang Luyện tập, tab Bài tập, giữ nguyên lọc và trang")
         // — nhớ địa chỉ trang Luyện tập gửi kèm (?return_url, chỉ nhận /luyen-tap…) cho nút Thoát và nút quay lại ở trang kết quả.
         if (($data['assessmentModel'] ?? null)?->isGeneralSet()) {
-            $back = \App\Support\PracticeReturnUrl::clean($request->query('return_url'));
+            $back = \App\Support\PracticeReturnUrl::clean($request->query('return_url'))
+                ?? self::practiceRefererPath($request); // SỬA 3/11 — không có ?return_url thì lấy trang Luyện tập vừa bấm sang
             if ($back !== null) {
                 $request->session()->put(self::generalSetReturnKey($assessment), $back);
             }
@@ -71,7 +72,25 @@ class AssessmentController extends Controller
     /** SỬA 3/11 — địa chỉ quay lại trang Luyện tập (đúng tab Bài tập + lọc Phổ thông + trang đang xem). */
     public static function generalSetReturnUrl(int $assessmentId): string
     {
-        return (string) (session(self::generalSetReturnKey($assessmentId)) ?: route('practice.index', ['type' => 'general'], false));
+        $saved = \App\Support\PracticeReturnUrl::clean(session(self::generalSetReturnKey($assessmentId)));
+
+        // Bài phổ thông nằm ở tab Bài tập — không bao giờ quay về tab Đề thi.
+        if ($saved !== null && preg_match('/[?&]tab=(de-thi|exams)(&|#|$)/', $saved) !== 1) {
+            return $saved;
+        }
+
+        return route('practice.index', ['type' => 'general'], false);
+    }
+
+    /** SỬA 3/11 — trang Luyện tập (cùng site) mà học sinh vừa bấm "Làm bài" — dự phòng khi link thiếu ?return_url. */
+    private static function practiceRefererPath(Request $request): ?string
+    {
+        $parts = parse_url((string) $request->headers->get('referer', ''));
+        if (! is_array($parts) || ! isset($parts['path']) || (isset($parts['host']) && strcasecmp($parts['host'], $request->getHost()) !== 0)) {
+            return null;
+        }
+
+        return \App\Support\PracticeReturnUrl::clean($parts['path'].(isset($parts['query']) ? '?'.$parts['query'] : ''));
     }
 
     /**

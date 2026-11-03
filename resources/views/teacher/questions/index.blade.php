@@ -173,6 +173,8 @@
         @if ($tab === 'unused' && ($filters['type'] ?? null) === 'general' /* SỬA 3/11 — chỉ hiện khi lọc Phổ thông */)
             @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => $akxGsb ?? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
         @endif
+        {{-- SỬA 3/11 (khách: "lọc Phổ thông thì bỏ bảng này đi") — chỉ còn khối Bài phổ thông; nếu có câu trắc nghiệm lẻ thì bảng vẫn hiện. --}}
+        @if (! (($filters['type'] ?? null) === 'general' && (int) $total === 0))
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách câu hỏi">
             <div class="akx-sub">
                 <span><b>{{ $total }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
@@ -268,6 +270,7 @@
             {{-- SỬA 8/10 (khách: "quá 10 item thì phân trang") — chia trang 10 dòng/trang ngay trên các dòng đã có. --}}
             <div class="akx-pg" data-pg-nav="rows" hidden></div>
         </section>
+        @endif{{-- /SỬA 3/11 ẩn bảng câu lẻ khi lọc Phổ thông --}}
     @else
         {{-- Tab Đề/bộ bài — thay cho trang "Đề PDF của tôi" cũ (đề PDF riêng tư của giáo viên, chờ Admin duyệt đưa ra kho chung). --}}
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách đề">

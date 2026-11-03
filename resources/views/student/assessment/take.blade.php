@@ -27,6 +27,8 @@
         // SỬA 3/11 — "Bài phổ thông": nút là "Nộp bài", bấm được ở mọi tab (đọc đề ở tab Đề bài PDF xong nộp luôn).
         $isGeneralSet = (bool) (($assessmentModel ?? null)?->isGeneralSet());
         $submitWord = $isGeneralSet ? 'Nộp bài' : 'Nộp đề';
+        // SỬA 3/11 — bài phổ thông: nút X và nút "Đóng kết quả" đều về đúng trang Luyện tập vừa rời (tab Bài tập, giữ lọc + trang).
+        $gsExitUrl = $isGeneralSet ? \App\Http\Controllers\Student\AssessmentController::generalSetReturnUrl((int) $assessmentModel->id) : null;
     @endphp
 
     {{-- Giữ lại đường báo lỗi của bản cũ (vd nộp bài bị server từ chối rồi quay lại). --}}
@@ -121,7 +123,7 @@
                  trong khung workspace theo VAI TRÒ của người đang đăng nhập, nên admin/giáo viên
                  bấm Thoát là rơi vào giao diện quản trị. Trang /luyen-tap công khai không có
                  khung đó, ai vào cũng ra đúng một trang. --}}
-            <a href="{{ $exitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="{{ empty($exitWarning) ? 'Thoát (bài làm đã tự lưu)' : 'Thoát (lượt đang làm sẽ bị huỷ)' }}"
+            <a href="{{ $gsExitUrl ?? $exitUrl ?? route('practice.index', ['tab' => 'de-thi']) }}" aria-label="Thoát phòng thi" title="{{ empty($exitWarning) ? 'Thoát (bài làm đã tự lưu)' : 'Thoát (lượt đang làm sẽ bị huỷ)' }}"
                @click="if (grading()) { $event.preventDefault(); askExit($el.href); }{{ empty($exitWarning) ? '' : ' else if (! confirm('.e(json_encode($exitWarning, JSON_UNESCAPED_UNICODE)).')) { $event.preventDefault(); }' }}"
                class="rounded-xl p-2 text-[#607A90] transition hover:bg-[#F4F9FB]"><x-lucide name="x" class="h-5 w-5" /></a>
 
@@ -701,6 +703,7 @@
         @include('partials.exam-penalty-dialogs')
         @include('partials.grading-overlay', [
             'overlayMode' => 'alpine-result',
+            'overlayExitUrl' => $gsExitUrl,
             'overlayTitle' => 'Đang nộp và chấm bài…',
             'overlayText' => 'Các câu lập trình được máy chấm chạy qua từng bộ test. Đừng đóng cửa sổ này nhé — điểm sẽ hiện ngay khi xong.',
         ])

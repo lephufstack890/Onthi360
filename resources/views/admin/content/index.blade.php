@@ -321,6 +321,8 @@
         @if ($isQuestions && ($filters['in_exam'] ?? 'unused') === 'unused' && (int) request('page', 1) <= 1 && ($filters['type'] ?? null) === 'general' /* SỬA 3/11 — chỉ hiện khi lọc Phổ thông */)
             @include('partials.general-set-bank', ['gsbMode' => 'admin', 'gsbRows' => $akxGsb ?? app(\App\Services\GeneralSetBankService::class)->rows(null, $filters['q'] ?? null)])
         @endif
+        {{-- SỬA 3/11 (khách: "lọc Phổ thông thì bỏ bảng này đi") — chỉ còn khối Bài phổ thông; nếu có câu trắc nghiệm lẻ thì bảng vẫn hiện. --}}
+        @if (! ($isQuestions && ($filters['type'] ?? null) === 'general' && (int) $resultTotal === 0))
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách nội dung">
             <div class="akx-sub">
                 <span><b>{{ $resultTotal }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
@@ -501,6 +503,7 @@
                 <div class="akx-pg" data-pg-nav="rows" hidden></div>
             @endif
         </section>
+        @endif{{-- /SỬA 3/11 ẩn bảng câu lẻ khi lọc Phổ thông --}}
     @endif
 
     @if ($isQuestions)
