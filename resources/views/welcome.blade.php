@@ -1106,27 +1106,8 @@
                 </div>
             </section>
         </div>
-        {{-- SỬA 3/11 (khách: bấm câu hỏi bên trái thì ảnh "Cần hỗ trợ?" bên phải bị phóng to) — trên màn rộng, khung hỗ trợ
-             cố định bằng chiều cao khối Câu hỏi khi ĐÓNG hết; mở câu trả lời thì chỉ khối câu hỏi dài ra, ảnh bên phải đứng yên. --}}
-        <script>
-            (function () {
-                var row = document.getElementById('support');
-                if (!row) return;
-                var faq = row.querySelector('[data-section="HOME-11A-FAQ"]');
-                var box = row.querySelector('[data-section="HOME-11B-CONTACT-SUPPORT"]');
-                if (!faq || !box) return;
-                function lock() {
-                    if (window.innerWidth < 1024) { row.style.alignItems = ''; box.style.height = ''; return; }
-                    var h = faq.offsetHeight;
-                    faq.querySelectorAll('[data-faq-answer]').forEach(function (a) { h -= a.offsetHeight; });
-                    row.style.alignItems = 'start';
-                    box.style.height = Math.max(h, 300) + 'px';
-                }
-                window.addEventListener('load', lock);
-                window.addEventListener('resize', lock);
-                document.addEventListener('DOMContentLoaded', lock);
-            })();
-        </script>
+        {{-- SỬA 3/11 — bỏ đoạn script khoá chiều cao khối "Cần hỗ trợ?" theo khối Câu hỏi: khối hỗ trợ giờ có tỉ lệ cố định
+             (CSS .oi-sup-* ở @push('scripts')), mở câu hỏi bên trái không làm ảnh bên phải thay đổi. --}}
     </div>
 </div>
 </div>
@@ -1134,14 +1115,22 @@
 
 @push('scripts')
     <style>
-        /* SỬA 3/11 — khối "Cần hỗ trợ?" khi khung hẹp (điện thoại, và màn rộng lúc khối chỉ chiếm nửa hàng cạnh Câu hỏi
-           thường gặp): chữ + nút dồn xuống dưới (ngang ngực), không đè lên mặt. Khoảng 640–1023px khối trải cả hàng, ảnh
-           nằm bên phải chữ nên giữ nguyên. */
-        @media (max-width: 639px), (min-width: 1024px) {
+        /* SỬA 3/11 (khách: "chữ đè lên mặt cô gái xấu" — bản mẫu: chữ bên trái, cô gái bên phải) — khối "Cần hỗ trợ?":
+           · màn ≥ 640px: khung có tỉ lệ cố định ~2.1:1 (không kéo cao theo khối Câu hỏi thường gặp nữa) + ảnh neo phải
+             → cô gái luôn nằm nửa phải, chữ ở nửa trái không che mặt; mở câu hỏi bên trái cũng không làm ảnh phóng to;
+           · điện thoại (< 640px, khung quá hẹp để chữ và người nằm cạnh nhau): ảnh neo trên, chữ + nút dồn xuống dưới. */
+        @media (min-width: 640px) {
+            .home-typography [data-section='HOME-11B-CONTACT-SUPPORT'] { height: auto !important; min-height: 300px !important; aspect-ratio: 2.1 / 1; }
+            .oi-sup-img { object-position: right center !important; }
+            .oi-sup-copy { max-width: 52% !important; }
+        }
+        @media (min-width: 1024px) {
+            .home-typography #support { align-items: start !important; }
+        }
+        @media (max-width: 639px) {
             .home-typography [data-section='HOME-11B-CONTACT-SUPPORT'] { min-height: 470px; }
-            .oi-sup-copy { max-width: none !important; }
+            .oi-sup-copy { max-width: none !important; justify-content: flex-end !important; }
             .oi-sup-img { object-position: 70% 0 !important; }
-            .oi-sup-copy { justify-content: flex-end !important; }
             .oi-sup-copy > div:first-child { margin-top: auto; }
             .oi-sup-shade { background: linear-gradient(to top, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 42%, rgba(255, 255, 255, .35) 62%, rgba(255, 255, 255, 0) 75%) !important; }
         }
