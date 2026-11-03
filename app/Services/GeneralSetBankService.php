@@ -35,6 +35,7 @@ class GeneralSetBankService
             ->when($teacherId !== null, fn ($q) => $q->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacherId))
             ->when(filled($search), fn ($q) => $q->where(fn ($w) => $w->where('title', 'like', '%'.$search.'%')->orWhere('exam_code', 'like', '%'.$search.'%')))
             ->with(['items.question', 'creator'])
+            ->withCount('attempts') // SỬA 3/11 — để hộp xác nhận Xoá báo số lượt làm sẽ mất
             ->latest()
             ->limit(200)
             ->get();
@@ -72,6 +73,7 @@ class GeneralSetBankService
                 'owner' => $isTeacher ? 'GV '.($a->creator->name ?? '') : 'Kho chung',
                 'hasStatement' => filled($a->preview_pdf_path),
                 'createdAt' => $a->created_at?->format('d/m/Y'),
+                'attemptCount' => (int) ($a->attempts_count ?? 0),
             ];
         })->values()->all();
     }
@@ -163,6 +165,14 @@ class GeneralSetBankService
     {
         abort_unless($set->isGeneralSet(), 404);
         $questionIds = $set->items()->pluck('question_id')->all();
+
+        // SỬA 3/11 (khách: "bài phổ thông đã có lượt làm vẫn cho xoá luôn") — CHỈ với Bài phổ thông: xoá trước các lượt làm
+        // (bài làm, chấm bài… rơi theo nhờ cascadeOnDelete) để assessmentDestroy() không chặn. Đề thi thường giữ nguyên luật cũ.
+        $attemptCount = $set->attempts()->count();
+        if ($attemptCount > 0) {
+            DB::table('attempts')->where('assessment_id', $set->id)->delete();
+        }
+
         [$ok, $message] = $this->content->assessmentDestroy($set);
         if (! $ok) {
             return [false, $message];
@@ -173,7 +183,7 @@ class GeneralSetBankService
             }
         }
 
-        return [true, 'Đã xoá bài phổ thông và '.count($questionIds).' câu bên trong.'];
+        return [true, 'Đã xoá bài phổ thông và '.count($questionIds).' câu bên trong'.($attemptCount > 0 ? ' (kèm '.$attemptCount.' lượt làm của học sinh).' : '.')];
     }
 
     /** Giáo viên xoá bài phổ thông CỦA MÌNH (chưa có lượt làm, chưa giao cho lớp). */

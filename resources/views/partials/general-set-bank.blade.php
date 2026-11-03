@@ -77,8 +77,13 @@
                         <form method="POST" action="{{ route('admin.content.generalSets.publish', $g['id']) }}">@csrf
                             <button type="submit" class="gsb-btn is-green"><x-lucide name="check-circle-2" />Phát hành</button></form>
                     @endif
+                    @php
+                        // SỬA 3/11 — bài đã có lượt làm vẫn xoá được, nhưng báo rõ kết quả của học sinh sẽ mất.
+                        $gsbAsk = 'Xoá bài "'.$g['title'].'" cùng '.$g['count'].' câu bên trong?'
+                            .(($g['attemptCount'] ?? 0) > 0 ? "\n\nBài đã có ".$g['attemptCount'].' lượt làm — xoá sẽ xoá luôn toàn bộ kết quả của học sinh, không khôi phục được.' : '');
+                    @endphp
                     <form method="POST" action="{{ route('admin.content.generalSets.destroy', $g['id']) }}"
-                          onsubmit="return confirm('Xoá bài &quot;{{ addslashes($g['title']) }}&quot; cùng {{ $g['count'] }} câu bên trong?');">@csrf @method('DELETE')
+                          onsubmit="return confirm({{ json_encode($gsbAsk, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) }});">@csrf @method('DELETE')
                         <button type="submit" class="gsb-btn is-red"><x-lucide name="trash-2" />Xoá</button></form>
                 @else
                     @if ($g['hasStatement'])
