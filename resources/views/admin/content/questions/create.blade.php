@@ -387,12 +387,13 @@
                         </div>
 
                         <div class="rounded-xl bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
-                            Câu hỏi luôn tạo ở trạng thái <span class="font-medium">Nháp</span> — vào trang chi tiết để phát hành sau khi đủ điều kiện (6.2).
+                            {{-- SỬA 3/11 (khách: "tạo là phát hành luôn") --}}
+                            Bấm tạo là câu hỏi <span class="font-medium">được phát hành luôn</span>. Chưa đủ điều kiện (vd bài lập trình chưa có bộ test) thì câu được lưu Nháp và báo rõ thiếu gì.
                         </div>
                     </div>
                     <div class="qe-aside-actions">
                         <button type="submit" class="qe-btn qe-btn--primary" style="width:100%;min-height:42px;">
-                            <x-lucide name="save" class="h-4 w-4" /> Tạo câu hỏi (Nháp)
+                            <x-lucide name="save" class="h-4 w-4" /> Tạo &amp; phát hành
                         </button>
                         <small>Ctrl/⌘ + S để lưu nhanh</small>
                     </div>

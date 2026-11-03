@@ -451,7 +451,15 @@ class ContentController extends Controller
 
         $question = $this->contentService->questionStore(Auth::user(), $data);
 
-        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])->with('status', 'question-created');
+        // SỬA 3/11 (khách: "tạo câu hỏi là tạo và phát hành luôn") — tạo xong phát hành ngay, vẫn qua QuestionPublishGuard như nút
+        // Phát hành. Chưa đủ điều kiện (vd bài lập trình chưa có bộ test) thì câu vẫn được tạo (Nháp) và báo rõ lý do.
+        $result = $this->contentService->questionPublish($question->refresh());
+
+        return redirect()->route('admin.content.show', ['content' => $question->id, 'kind' => 'question'])
+            ->with('status', $result['ok'] ? 'question-saved-published' : 'question-saved-not-published')
+            ->with('statusMessage', $result['ok']
+                ? 'Đã tạo và phát hành câu hỏi '.$question->code.'.'
+                : 'Đã tạo câu hỏi '.$question->code.' (Nháp) nhưng CHƯA phát hành được: '.($result['message'] ?? 'chưa đủ điều kiện.'));
     }
 
     public function questionsEdit(Request $request, int $question): View
@@ -501,7 +509,9 @@ class ContentController extends Controller
         $status = 'question-updated';
         $statusMessage = 'Đã lưu câu hỏi '.$question->code.'.';
         $question->refresh();
-        if ($request->boolean('publish_after_save') && $question->status === \App\Enums\ContentStatus::Draft) {
+        // SỬA 3/11 (khách: "chỉnh sửa cũng lưu cái là phát hành luôn") — mọi câu chưa phát hành (Nháp / Chờ duyệt) lưu xong là phát
+        // hành luôn (trước đây chỉ câu vừa nhập ZIP). Câu đã Lưu trữ thì giữ nguyên, không tự mở lại.
+        if (in_array($question->status, [\App\Enums\ContentStatus::Draft, \App\Enums\ContentStatus::PendingReview], true)) {
             $result = $this->contentService->questionPublish($question);
             $status = $result['ok'] ? 'question-saved-published' : 'question-saved-not-published';
             $statusMessage = $result['ok']
@@ -549,7 +559,14 @@ class ContentController extends Controller
 
         $newQuestion = $this->contentService->questionCreateNewVersion($question, $data);
 
-        return redirect()->route('admin.content.show', ['content' => $newQuestion->id, 'kind' => 'question'])->with('status', 'question-versioned');
+        // SỬA 3/11 (khách: "chỉnh sửa lưu cái là phát hành luôn") — phiên bản mới cũng phát hành luôn (câu gốc giữ nguyên như cũ).
+        $result = $this->contentService->questionPublish($newQuestion->refresh());
+
+        return redirect()->route('admin.content.show', ['content' => $newQuestion->id, 'kind' => 'question'])
+            ->with('status', $result['ok'] ? 'question-saved-published' : 'question-saved-not-published')
+            ->with('statusMessage', $result['ok']
+                ? 'Đã tạo và phát hành phiên bản mới của câu hỏi '.$newQuestion->code.' (câu gốc giữ nguyên).'
+                : 'Đã tạo phiên bản mới (Nháp) nhưng CHƯA phát hành được: '.($result['message'] ?? 'chưa đủ điều kiện.'));
     }
 
     public function questionsPublish(Question $question): RedirectResponse

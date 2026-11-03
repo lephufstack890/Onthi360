@@ -371,7 +371,7 @@
                     </div>
                     <div class="qe-aside-actions">
                         <button type="submit" class="qe-btn qe-btn--primary" style="width:100%;min-height:42px;">
-                            <x-lucide name="save" class="h-4 w-4" /> {{ $hasBeenAttempted ? 'Tạo phiên bản mới' : ($publishAfterSave ? 'Lưu & phát hành' : 'Lưu thay đổi') }}
+                            <x-lucide name="save" class="h-4 w-4" /> {{-- SỬA 3/11 — lưu là phát hành luôn (câu đang Lưu trữ thì chỉ lưu) --}}{{ $hasBeenAttempted ? 'Tạo phiên bản mới & phát hành' : (($publishAfterSave || in_array($question->status, [\App\Enums\ContentStatus::Draft, \App\Enums\ContentStatus::PendingReview], true)) ? 'Lưu & phát hành' : 'Lưu thay đổi') }}
                         </button>
                         <small>Ctrl/⌘ + S để lưu nhanh</small>
                     </div>

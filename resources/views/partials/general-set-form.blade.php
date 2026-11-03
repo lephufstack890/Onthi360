@@ -8,7 +8,8 @@
     Tham số: $gsfAction (route nhận form), $gsfNote (bài tạo ra nằm ở đâu). CSS tiền tố gsf-.
 --}}
 @php
-    $gsfSubjects = \App\Support\SubjectCatalog::SUBJECTS;
+    // SỬA 3/11 (khách: "mặc định Tin học, bỏ hết các môn khác — sau này có môn mới thì thêm") — thêm môn: thêm mã vào mảng dưới.
+    $gsfSubjects = array_intersect_key(\App\Support\SubjectCatalog::SUBJECTS, array_flip(['TIN'])) ?: ['TIN' => 'Tin học'];
     $gsfProvinceGroups = \App\Support\ProvinceCatalog::groups();
     $gsfScopes = \App\Support\ProvinceCatalog::QUESTION_SCOPES;
     $gsfYears = \App\Support\ProvinceCatalog::years();
@@ -25,13 +26,18 @@
     .gsf-h svg { width: 18px; height: 18px; color: #6366F1; }
     .gsf-input > svg { width: 16px; height: 16px; flex: none; color: #6366F1; }
     .gsf-h small { margin-left: auto; font-size: 12px; font-weight: 600; color: #64748B; }
-    .gsf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+    .gsf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; align-items: start; }
     @media (max-width: 700px) { .gsf-grid2 { grid-template-columns: 1fr; } }
     .gsf-field { display: grid; gap: 5px; min-width: 0; }
     .gsf-field > label, .gsf-lbl { font-size: 13px; font-weight: 700; color: #334155; }
     .gsf-field small, .gsf-hint { font-size: 11.5px; line-height: 1.5; color: #7A8EA3; }
     .gsf-req { color: #DC2626; }
-    .gsf-input, .gsf-select, .gsf-area { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid #D6E2EE; border-radius: 12px; background: #fff; font-size: 13.5px; color: #1E293B; }
+    .gsf-input, .gsf-select, .gsf-area { box-sizing: border-box; font-family: inherit; width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid #D6E2EE; border-radius: 12px; background: #fff; font-size: 13.5px; color: #1E293B; }
+    /* SỬA 3/11 (khách: "select to và xấu") — ô chọn gọn 40px, mũi tên riêng, không kéo giãn theo cột bên cạnh. */
+    .gsf-select { -webkit-appearance: none; appearance: none; height: 40px; min-height: 0; padding: 0 36px 0 12px; line-height: 38px; cursor: pointer;
+        background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px; }
+    .gsf-select:hover { border-color: #B9C8DA; }
+    .gsf-qtype, .gsf-part-head .gsf-select, .gsf-box .gsf-select { height: 34px; line-height: 32px; }
     .gsf-area { min-height: 64px; resize: vertical; line-height: 1.5; }
     .gsf-input:focus, .gsf-select:focus, .gsf-area:focus { outline: none; border-color: #818CF8; box-shadow: 0 0 0 3px rgba(99, 102, 241, .14); }
     .gsf-grades { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -42,7 +48,7 @@
     .gsf-q + .gsf-q { margin-top: 12px; }
     .gsf-qhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
     .gsf-qno { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 9px; background: #6366F1; color: #fff; font-size: 13px; font-weight: 800; }
-    .gsf-qtype { width: auto; min-width: 170px; min-height: 34px; padding: 4px 10px; font-weight: 700; }
+    .gsf-qtype { width: auto; min-width: 170px; font-weight: 700; }
     .gsf-qpts { font-size: 12px; font-weight: 700; color: #4338CA; }
     .gsf-qtools { display: inline-flex; gap: 4px; margin-left: auto; }
     .gsf-ib { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid #DCE6F0; border-radius: 9px; background: #fff; color: #475569; cursor: pointer; }
@@ -73,7 +79,8 @@
     .gsf-more { margin-top: 10px; }
     .gsf-more summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: #4338CA; }
     .gsf-more[open] summary { margin-bottom: 8px; }
-    .gsf-aside { position: sticky; top: 16px; display: grid; gap: 16px; }
+    .gsf-aside { display: grid; gap: 16px; }
+    @media (min-width: 1101px) { .gsf-aside { position: sticky; top: 16px; } }
     .gsf-file { display: grid; gap: 4px; padding: 10px 12px; border: 1px dashed #C7D2FE; border-radius: 12px; background: #F8F9FF; }
     .gsf-file input { font-size: 12.5px; }
     .gsf-sum { padding: 12px; border-radius: 14px; background: #EEF2FF; font-size: 12.5px; line-height: 1.6; color: #3730A3; }
@@ -129,9 +136,8 @@
                     <div class="gsf-field">
                         <label for="gsf-subject">Môn học</label>
                         <select id="gsf-subject" name="subject" class="gsf-select">
-                            <option value="">— Chưa phân loại —</option>
                             @foreach ($gsfSubjects as $code => $label)
-                                <option value="{{ $code }}" @selected(old('subject', \App\Support\SubjectCatalog::DEFAULT_QUESTION_SUBJECT) === $code)>{{ $label }}</option>
+                                <option value="{{ $code }}" @selected(old('subject', 'TIN') === $code)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -238,7 +244,7 @@
                                 <div class="gsf-part">
                                     <div class="gsf-part-head">
                                         <span class="gsf-part-code" x-text="'Ý ' + partCode(pi) + ')'"></span>
-                                        <select class="gsf-select" style="width:auto;min-height:32px;padding:2px 8px" x-model="p.type" aria-label="Kiểu trả lời của ý">
+                                        <select class="gsf-select" style="width:auto;padding:0 30px 0 10px" x-model="p.type" aria-label="Kiểu trả lời của ý">
                                             <option value="true_false">Đúng / Sai</option>
                                             <option value="short_answer">Điền từ</option>
                                             <option value="single_choice">Trắc nghiệm</option>
@@ -253,11 +259,11 @@
                                     <input class="gsf-input" style="min-height:34px" x-show="p.type === 'short_answer'" x-model="p.answers" placeholder="Đáp án chấp nhận, cách nhau dấu ; (vd: 2; hai)">
                                     <div x-show="p.type === 'single_choice'" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
                                         <span class="gsf-hint">Số phương án</span>
-                                        <select class="gsf-select" style="width:auto;min-height:32px;padding:2px 8px" x-model.number="p.nChoices">
+                                        <select class="gsf-select" style="width:auto;padding:0 30px 0 10px" x-model.number="p.nChoices">
                                             <template x-for="n in [2,3,4,5,6]" :key="n"><option :value="n" x-text="n" :selected="p.nChoices === n"></option></template>
                                         </select>
                                         <span class="gsf-hint">Đáp án đúng</span>
-                                        <select class="gsf-select" style="width:auto;min-height:32px;padding:2px 8px" x-model="p.correct">
+                                        <select class="gsf-select" style="width:auto;padding:0 30px 0 10px" x-model="p.correct">
                                             <template x-for="l in letters(p.nChoices)" :key="l"><option :value="l" x-text="l" :selected="p.correct === l"></option></template>
                                         </select>
                                     </div>
