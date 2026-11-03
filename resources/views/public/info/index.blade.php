@@ -115,7 +115,7 @@
                 </div>
                 <div>
                     <h3 class="text-sm font-bold text-[#0B3C78]">Gửi yêu cầu hỗ trợ</h3>
-                    <p class="text-[11px] text-slate-500">Đội ngũ kỹ thuật sẽ phản hồi trong thời gian sớm nhất</p>
+                    <p class="text-[11px] text-slate-500">Chọn đúng người cần hỏi — bấm gửi là mở Zalo trò chuyện ngay</p>
                 </div>
             </div>
 
@@ -138,57 +138,111 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('info.contact.store') }}"
+            {{-- SỬA 3/11 (khách: "chọn xong bấm Yêu cầu hỗ trợ thì nhảy ra Zalo tương ứng") — chọn NGƯỜI hỗ trợ (4 thẻ), gửi:
+                 · máy chủ lưu phiếu như cũ (admin xem ở mục Liên hệ) rồi chuyển sang zalo.me/<số của người đó> (ContactController);
+                 · form mở ở TAB MỚI (target=_blank) nên trang này giữ nguyên, hiện lời nhắc; nội dung đã được chép sẵn để dán vào Zalo.
+                 Danh sách người hỗ trợ: App\Services\Public\InfoService::supportTeam(). CSS riêng tiền tố spz-. --}}
+            @php $spzTeam = \App\Services\Public\InfoService::supportTeam(); @endphp
+            <style>
+                .spz-team { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+                .spz-person { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid #DCE9F5; border-radius: 14px; background: #F8FBFE; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+                .spz-person:hover { border-color: #9CC9F5; background: #F1F8FF; }
+                .spz-person input { position: absolute; opacity: 0; pointer-events: none; }
+                .spz-person.is-on { border-color: #0068FF; background: #EEF5FF; box-shadow: 0 0 0 3px rgba(0, 104, 255, .12); }
+                .spz-ava { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: #E3EEFF; color: #0068FF; }
+                .spz-ava svg { width: 18px; height: 18px; }
+                .spz-person.is-on .spz-ava { background: #0068FF; color: #fff; }
+                .spz-role { display: block; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #0068FF; }
+                .spz-name { display: block; margin-top: 1px; font-size: 12.5px; font-weight: 800; color: #0F2744; }
+                .spz-hint { display: block; margin-top: 1px; font-size: 11px; color: #64748B; line-height: 1.35; }
+                .spz-tick { position: absolute; top: 8px; right: 8px; display: none; width: 18px; height: 18px; border-radius: 50%; background: #0068FF; color: #fff; place-items: center; }
+                .spz-tick svg { width: 12px; height: 12px; }
+                .spz-person.is-on .spz-tick { display: grid; }
+                .spz-btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 16px; border: 0; border-radius: 14px; cursor: pointer;
+                    font-size: 13px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0A7CFF, #0068FF 60%, #0052CC); box-shadow: 0 10px 22px rgba(0, 104, 255, .28); transition: transform .15s, filter .15s; }
+                .spz-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+                .spz-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+                .spz-btn .zl { display: grid; place-items: center; height: 22px; padding: 0 6px; border-radius: 7px; background: #fff; color: #0068FF; font-size: 11px; font-weight: 900; letter-spacing: .02em; }
+                .spz-done { display: flex; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid #BFDBFE; background: #EFF6FF; font-size: 12px; line-height: 1.5; color: #1E3A8A; }
+                .spz-done svg { width: 20px; height: 20px; flex: none; color: #0068FF; }
+                @media (max-width: 480px) { .spz-team { grid-template-columns: minmax(0, 1fr); } }
+            </style>
+
+            <form method="POST" action="{{ route('info.contact.store') }}" target="_blank"
                   class="flex flex-col gap-3 text-xs"
+                  x-data="{
+                      to: @js(old('to', '')), name: @js(old('name', auth()->user()->name ?? '')), msg: @js(old('message', '')), sent: null, copied: false,
+                      team: @js($spzTeam),
+                      ready() { return this.to !== '' && this.name.trim() !== '' && this.msg.trim() !== ''; },
+                      send(e) {
+                          if (! this.ready()) { e.preventDefault(); return; }
+                          const p = this.team[this.to];
+                          const text = 'Chào ' + p.name + ', em là ' + this.name.trim() + '. Em cần hỗ trợ: ' + this.msg.trim();
+                          this.copied = false;
+                          try { navigator.clipboard.writeText(text).then(() => this.copied = true).catch(() => {}); } catch (err) {}
+                          this.sent = p;
+                      },
+                  }"
+                  @submit="send($event)"
                   @if (session('status') === 'contact-sent') x-show="resend" x-cloak @endif>
                 @csrf
 
-                <div>
-                    <label for="contact-name" class="mb-1 block text-[11px] font-bold text-slate-700">Họ và tên của bạn</label>
-                    <input id="contact-name" name="name" type="text" required maxlength="150"
-                           value="{{ old('name', auth()->user()->name ?? '') }}" placeholder="Nguyễn Văn A"
-                           class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('name') ? 'border-rose-300' : 'border-sky-200' }}">
-                    @error('name') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                <div x-show="sent" x-cloak class="spz-done" role="status">
+                    <x-lucide name="check-circle-2" />
+                    <div>
+                        <b x-text="sent ? 'Đã mở Zalo của ' + sent.name + ' (' + sent.role + ')' : ''"></b><br>
+                        <span x-show="copied">Nội dung đã được chép sẵn — vào khung chat Zalo bấm <b>Dán</b> rồi gửi.</span>
+                        <span x-show="!copied">Nhắn nội dung bạn vừa viết vào khung chat Zalo để được hỗ trợ.</span>
+                        <span>Không thấy Zalo mở? <a :href="sent ? 'https://zalo.me/' + sent.phone : '#'" target="_blank" rel="noopener" class="font-bold underline">Bấm vào đây</a>.</span>
+                    </div>
                 </div>
 
                 <div>
-                    <label for="contact-email" class="mb-1 block text-[11px] font-bold text-slate-700">Email liên hệ</label>
-                    <input id="contact-email" name="email" type="email" required maxlength="255"
-                           value="{{ old('email', auth()->user()->email ?? '') }}" placeholder="email@example.com"
-                           class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('email') ? 'border-rose-300' : 'border-sky-200' }}">
-                    @error('email') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
-                </div>
-
-                {{-- SỬA 13/9 — thêm số điện thoại và loại yêu cầu. Phụ huynh phần lớn chỉ tiện
-                     nghe máy, còn loại yêu cầu giúp bộ phận hỗ trợ lọc và chuyển đúng người
-                     thay vì phải đọc hết mới biết việc của ai. --}}
-                <div>
-                    <label for="contact-phone" class="mb-1 block text-[11px] font-bold text-slate-700">
-                        Số điện thoại <span class="font-medium text-slate-400">(không bắt buộc)</span>
-                    </label>
-                    <input id="contact-phone" name="phone" type="tel" maxlength="30" inputmode="tel"
-                           value="{{ old('phone') }}" placeholder="09xx xxx xxx"
-                           class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('phone') ? 'border-rose-300' : 'border-sky-200' }}">
-                    @error('phone') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label for="contact-topic" class="mb-1 block text-[11px] font-bold text-slate-700">Loại yêu cầu</label>
-                    <select id="contact-topic" name="topic"
-                            class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('topic') ? 'border-rose-300' : 'border-sky-200' }}">
-                        <option value="">— Chọn để chúng tôi chuyển đúng bộ phận —</option>
-                        @foreach (\App\Enums\SupportTopic::options() as $topicValue => $topicLabel)
-                            <option value="{{ $topicValue }}" @selected(old('topic') === $topicValue)>{{ $topicLabel }}</option>
+                    <span class="mb-1.5 block text-[11px] font-bold text-slate-700">Bạn cần ai hỗ trợ?</span>
+                    <div class="spz-team" role="radiogroup" aria-label="Chọn người hỗ trợ">
+                        @foreach ($spzTeam as $key => $person)
+                            <label class="spz-person" :class="to === '{{ $key }}' && 'is-on'">
+                                <input type="radio" name="to" value="{{ $key }}" x-model="to" required>
+                                <span class="spz-ava"><x-lucide :name="$person['icon']" /></span>
+                                <span class="min-w-0">
+                                    <span class="spz-role">{{ $person['role'] }}</span>
+                                    <span class="spz-name">{{ $person['name'] }}</span>
+                                    <span class="spz-hint">{{ $person['hint'] }}</span>
+                                </span>
+                                <span class="spz-tick"><x-lucide name="check" /></span>
+                            </label>
                         @endforeach
-                    </select>
-                    @error('topic') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    @error('to') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
                 </div>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="contact-name" class="mb-1 block text-[11px] font-bold text-slate-700">Họ và tên của bạn</label>
+                        <input id="contact-name" name="name" type="text" required maxlength="150" x-model="name" placeholder="Nguyễn Văn A"
+                               class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('name') ? 'border-rose-300' : 'border-sky-200' }}">
+                        @error('name') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="contact-phone" class="mb-1 block text-[11px] font-bold text-slate-700">
+                            Số điện thoại <span class="font-medium text-slate-400">(không bắt buộc)</span>
+                        </label>
+                        <input id="contact-phone" name="phone" type="tel" maxlength="30" inputmode="tel"
+                               value="{{ old('phone') }}" placeholder="09xx xxx xxx"
+                               class="h-10 w-full rounded-xl border bg-[#F0F6FC] px-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('phone') ? 'border-rose-300' : 'border-sky-200' }}">
+                        @error('phone') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                {{-- Email: đăng nhập rồi thì gửi kèm email tài khoản (không hiện ô) — admin vẫn liên lạc lại được. --}}
+                @if (auth()->user()?->email)
+                    <input type="hidden" name="email" value="{{ auth()->user()->email }}">
+                @endif
 
                 <div>
                     <label for="contact-message" class="mb-1 block text-[11px] font-bold text-slate-700">Nội dung cần hỗ trợ</label>
-                    <textarea id="contact-message" name="message" rows="3" required maxlength="2000"
-                              placeholder="Mô tả chi tiết vấn đề bạn gặp phải (lỗi nộp bài, kích hoạt mã...)"
-                              class="w-full resize-y rounded-xl border bg-[#F0F6FC] p-3 text-xs leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('message') ? 'border-rose-300' : 'border-sky-200' }}">{{ old('message') }}</textarea>
+                    <textarea id="contact-message" name="message" rows="3" required maxlength="2000" x-model="msg"
+                              placeholder="Mô tả ngắn vấn đề bạn gặp phải (lỗi nộp bài, kích hoạt mã, hỏi về lớp học...)"
+                              class="w-full resize-y rounded-xl border bg-[#F0F6FC] p-3 text-xs leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 {{ $errors->has('message') ? 'border-rose-300' : 'border-sky-200' }}"></textarea>
                     @error('message') <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
@@ -200,15 +254,15 @@
                     <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off" value="">
                 </div>
 
-                <button type="submit"
-                        class="flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-[11px] font-bold text-white shadow-sm transition-colors hover:bg-[#0F5F7A]">
-                    <x-lucide name="send" class="w-3.5 h-3.5" />
-                    <span>Gửi yêu cầu hỗ trợ</span>
+                <button type="submit" class="spz-btn" :disabled="! ready()">
+                    <span class="zl">Zalo</span>
+                    <span x-text="to ? 'Yêu cầu hỗ trợ — nhắn Zalo ' + team[to].name : 'Yêu cầu hỗ trợ qua Zalo'">Yêu cầu hỗ trợ qua Zalo</span>
+                    <x-lucide name="arrow-right" class="h-4 w-4" />
                 </button>
 
                 <p class="text-[10px] leading-relaxed text-slate-400">
-                    Thông tin bạn gửi chỉ dùng để liên hệ hỗ trợ và <strong class="font-bold">chỉ quản trị viên đọc được</strong>,
-                    không hiển thị ở bất kỳ trang công khai nào.
+                    Bấm gửi sẽ mở Zalo của người bạn chọn (nội dung được chép sẵn để dán). Yêu cầu cũng được lưu lại để
+                    <strong class="font-bold">chỉ quản trị viên đọc được</strong>, không hiển thị ở bất kỳ trang công khai nào.
                 </p>
             </form>
 
@@ -235,7 +289,7 @@
                     </a>
                 @endif
                 @if ($contact['facebook'] ?? null)
-                    <a href="https://{{ $contact['facebook'] }}" target="_blank" rel="noopener"
+                    <a href="{{ $contact['facebookUrl'] ?? 'https://'.$contact['facebook'] }}" target="_blank" rel="noopener"
                        class="flex items-center gap-2.5 rounded-xl border border-sky-100 bg-[#F8FBFE] p-2.5 transition-colors hover:border-sky-200 hover:bg-sky-50">
                         <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-700"><x-lucide name="facebook" class="h-4 w-4" /></span>
                         <span class="min-w-0">

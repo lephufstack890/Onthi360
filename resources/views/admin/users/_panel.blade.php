@@ -83,17 +83,41 @@
                 </form>
 
                 <form class="aum-card" id="aumPwForm" method="POST" action="{{ route('admin.users.password.update', $u->id) }}" novalidate>
+                    {{-- SỬA 3/11 (khách: "mật khẩu đặt lại phải hiện ra luôn, thêm icon con mắt để ẩn / hiện tuỳ ý") — 2 ô mặc định HIỆN chữ
+                         (admin nhìn thấy đúng mật khẩu mình vừa gõ để báo lại cho người dùng); bấm con mắt để ẩn / hiện. Chỉ là mật khẩu
+                         MỚI admin đang gõ — mật khẩu cũ của người dùng vẫn được băm, không ai xem được. --}}
+                    <style>
+                        .aum-pwbox { position: relative; }
+                        .aum-pwbox input { width: 100%; padding-right: 40px !important; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .02em; }
+                        .aum-pweye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #64748B; cursor: pointer; }
+                        .aum-pweye:hover { background: #EEF4FB; color: #1D4ED8; }
+                        .aum-pweye svg { width: 17px; height: 17px; }
+                        .aum-pweye .on { display: none; } .aum-pweye .off { display: grid; }
+                        .aum-pweye.is-hidden .on { display: grid; } .aum-pweye.is-hidden .off { display: none; }
+                    </style>
                     <h3>Đặt lại mật khẩu</h3>
                     <p class="aum-hint">Đặt mật khẩu mới trực tiếp cho người dùng này (dùng khi họ không tự đổi được). Mật khẩu không được ghi vào lịch sử.</p>
                     <div class="aum-row2">
                         <div class="aum-field">
                             <label for="aumPw">Mật khẩu mới</label>
-                            <input id="aumPw" name="password" type="password" minlength="8" autocomplete="new-password">
+                            <div class="aum-pwbox">
+                                <input id="aumPw" name="password" type="text" minlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
+                                <button type="button" class="aum-pweye" aria-label="Ẩn / hiện mật khẩu mới" title="Ẩn / hiện mật khẩu" aria-pressed="true"
+                                        onclick="var i=this.previousElementSibling,s=i.type==='password';i.type=s?'text':'password';i.setAttribute('autocomplete',s?'off':'new-password');this.setAttribute('aria-pressed',s?'true':'false');this.classList.toggle('is-hidden',!s);">
+                                    <span class="on"><x-lucide name="eye" /></span><span class="off"><x-lucide name="eye-off" /></span>
+                                </button>
+                            </div>
                             <span class="aum-err" data-err="password"></span>
                         </div>
                         <div class="aum-field">
                             <label for="aumPw2">Xác nhận mật khẩu</label>
-                            <input id="aumPw2" name="password_confirmation" type="password" minlength="8" autocomplete="new-password">
+                            <div class="aum-pwbox">
+                                <input id="aumPw2" name="password_confirmation" type="text" minlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
+                                <button type="button" class="aum-pweye" aria-label="Ẩn / hiện mật khẩu xác nhận" title="Ẩn / hiện mật khẩu" aria-pressed="true"
+                                        onclick="var i=this.previousElementSibling,s=i.type==='password';i.type=s?'text':'password';i.setAttribute('autocomplete',s?'off':'new-password');this.setAttribute('aria-pressed',s?'true':'false');this.classList.toggle('is-hidden',!s);">
+                                    <span class="on"><x-lucide name="eye" /></span><span class="off"><x-lucide name="eye-off" /></span>
+                                </button>
+                            </div>
                             <span class="aum-err" data-err="password_confirmation"></span>
                         </div>
                     </div>

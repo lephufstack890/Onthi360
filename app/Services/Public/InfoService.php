@@ -199,15 +199,38 @@ class InfoService
         ];
     }
 
+    /**
+     * SỬA 3/11 (khách: "chọn người hỗ trợ xong bấm Yêu cầu hỗ trợ thì nhảy sang Zalo tương ứng") — đội hỗ trợ. Form
+     * "Gửi yêu cầu hỗ trợ" cho chọn 1 người; gửi xong lưu phiếu (admin vẫn xem ở Liên hệ) rồi mở Zalo đúng số người đó.
+     * topic = loại yêu cầu ghi vào phiếu (App\Enums\SupportTopic) để bộ lọc ở trang admin vẫn dùng được.
+     *
+     * @return array<string, array{role: string, name: string, phone: string, hint: string, icon: string, topic: string}>
+     */
+    public static function supportTeam(): array
+    {
+        return [
+            'admin' => ['role' => 'Admin tối cao', 'name' => 'Thầy Nguyễn Tiến Thành', 'phone' => '0978729962',
+                'hint' => 'Khoá học, hợp tác, các việc chung', 'icon' => 'shield-check', 'topic' => 'other'],
+            'quan_sinh' => ['role' => 'Quản sinh', 'name' => 'Cô Lê Thị Tươi', 'phone' => '0988670222',
+                'hint' => 'Lớp học, học sinh, phụ huynh', 'icon' => 'users', 'topic' => 'learning'],
+            'tro_giang' => ['role' => 'Trợ giảng', 'name' => 'Thầy Lê Trung Anh', 'phone' => '0373199558',
+                'hint' => 'Bài tập, đề thi, kiến thức', 'icon' => 'book-open', 'topic' => 'learning'],
+            'ky_thuat' => ['role' => 'Kỹ thuật', 'name' => 'Anh Lê Phú', 'phone' => '0916743545',
+                'hint' => 'Lỗi web, đăng nhập, nạp token', 'icon' => 'settings', 'topic' => 'technical'],
+        ];
+    }
+
     private function contact(): array
     {
         return [
-            'hotline' => '0978 729 962',
+            // SỬA 3/11 (khách) — hotline / Zalo chung 0344 082 787, nhóm Facebook của trung tâm.
+            'hotline' => '0344 082 787',
             // SỬA 23/9 — tên miền chính thức là onthi360.vn (web chạy ở tinhoc.onthi360.vn), hộp thư
             // hỗ trợ là hotro@onthi360.vn đã tạo trên cPanel. Địa chỉ .edu.vn cũ không tồn tại.
             'email' => 'hotro@onthi360.vn',
-            'facebook' => 'facebook.com/onthi360',
-            'zalo' => 'zalo.me/onthi360',
+            'facebook' => 'facebook.com/groups/1506090357815287',
+            'facebookUrl' => 'https://www.facebook.com/groups/1506090357815287?locale=vi_VN',
+            'zalo' => 'zalo.me/0344082787',
             // Chưa có địa chỉ văn phòng chính thức để công bố — không bịa 1 địa chỉ giả.
             'address' => null,
         ];
