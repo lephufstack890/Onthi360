@@ -77,6 +77,42 @@ class GeneralSetBankService
     }
 
     /** Admin "Phát hành" cả bài: phát hành các câu con còn nháp rồi phát hành bài. */
+    /**
+     * SỬA 3/11 (khách: "tổng số câu phải là 367 — tính cả bài phổ thông") — số "Bài phổ thông" theo môn (môn lấy theo câu con,
+     * chưa gán môn thì khoá ''), mỗi bài tính 1. $teacherId = null: toàn hệ thống (admin); có id: chỉ bài của giáo viên đó.
+     *
+     * @return array<string, int>
+     */
+    public static function countsBySubject(?int $teacherId = null): array
+    {
+        if (! Assessment::supportsPracticeKind()) {
+            return [];
+        }
+
+        $out = [];
+        Assessment::query()
+            ->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
+            ->when($teacherId !== null, fn ($q) => $q->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacherId))
+            ->with('items.question')
+            ->get()
+            ->each(function (Assessment $a) use (&$out) {
+                $subject = (string) ($a->items->pluck('question')->filter()->map(fn ($q) => $q->subject)->filter()->first() ?? '');
+                $out[$subject] = ($out[$subject] ?? 0) + 1;
+            });
+
+        return $out;
+    }
+
+    /** SỬA 3/11 — cộng số bài phổ thông (theo môn) vào bảng đếm câu theo môn. */
+    public static function addSubjectCounts(array $counts, array $generalSets): array
+    {
+        foreach ($generalSets as $subject => $n) {
+            $counts[(string) $subject] = (int) ($counts[(string) $subject] ?? 0) + (int) $n;
+        }
+
+        return $counts;
+    }
+
     public function publishForAdmin(Assessment $set): array
     {
         abort_unless($set->isGeneralSet(), 404);

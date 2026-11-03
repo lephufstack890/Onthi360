@@ -200,7 +200,8 @@ class HomeService
             try {
                 $catalog = app(PracticeService::class);
                 $stats['exams'] = $catalog->catalogExamCount();
-                $stats['exercises'] = $catalog->catalogProblemCount();
+                // SỬA 3/11 — tổng bài tập tính cả "Bài phổ thông" (mỗi bài = 1).
+                $stats['exercises'] = $catalog->catalogProblemCount() + GeneralSetCatalogService::publishedCount();
             } catch (\Throwable $e) {
                 report($e);
                 $stats['exams'] = $stats['exams'] ?? 0;

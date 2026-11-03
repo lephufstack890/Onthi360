@@ -278,7 +278,10 @@ class ContentService
         // SỬA 9/10 (khách: "chuyển tab Bài chung lên đầu") — tab đầu tiên là "Bài chung" nên đây cũng là mặc định.
         $inExamTab = ($filters['in_exam'] ?? 'unused') === 'used' ? 'used' : 'unused';
         $usedCount = $this->questions->countAllFiltered(['in_exam' => 'used']);
-        $unusedCount = $this->questions->countAllFiltered(['in_exam' => 'unused']);
+        // SỬA 3/11 (khách: "Bài chung phải là 367") — tính cả "Bài phổ thông" (mỗi bài = 1) vào tab Bài chung.
+        $generalSetSubjects = \App\Services\GeneralSetBankService::countsBySubject();
+        $generalSetTotal = array_sum($generalSetSubjects);
+        $unusedCount = $this->questions->countAllFiltered(['in_exam' => 'unused']) + $generalSetTotal;
         $tabs = [
             ['label' => 'Bài chung', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'unused']), 'active' => $tab === 'questions' && $inExamTab === 'unused', 'count' => $unusedCount],
             ['label' => 'Bài của đề', 'href' => route('admin.content.index', ['tab' => 'questions', 'in_exam' => 'used']), 'active' => $tab === 'questions' && $inExamTab === 'used', 'count' => $usedCount],
@@ -485,7 +488,11 @@ class ContentService
                 'used' => 'Đã dùng trong đề',
                 'unused' => 'Chưa dùng trong đề',
             ] : [],
-            'subjectCounts' => $tab === 'questions' ? $this->questions->countsBySubject(['in_exam' => $inExamTab]) : [],
+            'subjectCounts' => $tab === 'questions'
+                ? \App\Services\GeneralSetBankService::addSubjectCounts($this->questions->countsBySubject(['in_exam' => $inExamTab]), $inExamTab === 'unused' ? $generalSetSubjects : [])
+                : [],
+            // SỬA 3/11 — số "Bài phổ thông" cộng vào chip "Tất cả dạng" / "Phổ thông" (chỉ tab Bài chung).
+            'generalSetCount' => $tab === 'questions' && $inExamTab === 'unused' ? $generalSetTotal : 0,
             // SỬA 30/9 — dữ liệu cho 2 thứ mới ở thanh lọc: dải TAB theo dạng câu (kèm số
             // lượng từng dạng) và ô lọc Chuyên đề.
             'typeCounts' => $tab === 'questions' ? $this->questions->countsByType(['in_exam' => $inExamTab]) : [],

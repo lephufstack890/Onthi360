@@ -128,9 +128,10 @@
                     @php
                         $akxGsb = ($tab === 'unused') ? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q')) : [];
                         $akxCoding = (int) ($typeCounts['coding'] ?? 0);
-                        $akxGeneral = array_sum($typeCounts) - $akxCoding + count($akxGsb);
+                        $akxGsTotal = (int) ($generalSetCount ?? count($akxGsb)); // SỬA 3/11 — tổng bài phổ thông (không phụ thuộc ô tìm)
+                        $akxGeneral = array_sum($typeCounts) - $akxCoding + $akxGsTotal;
                     @endphp
-                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) }})</small></a>
+                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) + $akxGsTotal }})</small></a>
                     <a href="{{ $filterLink(['type' => 'coding']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'coding' ? 'is-on' : '' }}">{{ $questionTypeOptions['coding'] ?? 'Lập trình' }} <small>({{ $akxCoding }})</small></a>
                     <a href="{{ $filterLink(['type' => 'general']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'general' ? 'is-on' : '' }}">Phổ thông <small>({{ $akxGeneral }})</small></a>
                 </div>

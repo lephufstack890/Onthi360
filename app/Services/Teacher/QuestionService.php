@@ -90,6 +90,10 @@ class QuestionService
             'unused' => $this->questions->countAllFiltered(['owner_id' => $user->id, 'in_exam' => 'unused']),
             'shared' => $this->questions->countShared(),
         ];
+        // SỬA 3/11 — "Bài phổ thông" của giáo viên (mỗi bài = 1) tính vào tab Bài chung, chip môn và chip dạng.
+        $generalSetSubjects = \App\Services\GeneralSetBankService::countsBySubject((int) $user->id);
+        $generalSetTotal = array_sum($generalSetSubjects);
+        $counts['unused'] += $generalSetTotal;
 
         $tabs = [
             ['label' => 'Bài chung', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
@@ -143,7 +147,10 @@ class QuestionService
             // Chia <optgroup> (hiện hành / tên cũ trước sáp nhập 2025) cho danh sách khỏi rối mắt.
             'provinceGroups' => ProvinceCatalog::groups(),
             'examYearOptions' => ProvinceCatalog::years(),
-            'subjectCounts' => $isQuestionTab ? $this->questions->countsBySubject($scope) : [],
+            'subjectCounts' => $isQuestionTab
+                ? \App\Services\GeneralSetBankService::addSubjectCounts($this->questions->countsBySubject($scope), $activeTab === 'unused' ? $generalSetSubjects : [])
+                : [],
+            'generalSetCount' => $activeTab === 'unused' ? $generalSetTotal : 0,
             // Dải TAB theo dạng câu kèm số lượng, như admin.
             'typeCounts' => $isQuestionTab ? $this->questions->countsByType($scope) : [],
         ];

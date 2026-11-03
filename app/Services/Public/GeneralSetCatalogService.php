@@ -18,6 +18,21 @@ class GeneralSetCatalogService
     private const LIMIT = 300;
 
     /** @return list<array<string, mixed>> */
+    /** SỬA 3/11 (khách: "tổng số bài ngoài Luyện tập / trang chủ phải tính cả bài phổ thông") — số bài đang hiện ở trang Luyện tập. */
+    public static function publishedCount(): int
+    {
+        if (! Assessment::supportsPracticeKind()) {
+            return 0;
+        }
+
+        return min(self::LIMIT, Assessment::query()
+            ->where('type', 'practice')
+            ->where('status', 'published')
+            ->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
+            ->when(\App\Services\ExamBundle\ExamBundleService::ready(), fn ($q) => $q->where('bundle_only', false))
+            ->count());
+    }
+
     public function rows(?User $viewer): array
     {
         if (! Assessment::supportsPracticeKind()) {

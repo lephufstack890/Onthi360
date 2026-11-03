@@ -216,11 +216,19 @@ class PracticeService
             // RIÊNG của người đang xem (lượt nộp hôm nay + mức dấu hiệu từ nhật ký) nên KHÔNG nhớ tạm.
             'dailyStats' => app(PracticeDailyStatsService::class)->forViewer($viewer),
             // Danh sách chuyên đề/dạng câu cũng như nhau với mọi khách.
-        ], Cache::remember(
+        ], self::withGeneralSets(Cache::remember(
             'practice:filters:'.self::CACHE_VERSION,
             self::CACHE_TTL,
             fn () => PracticeFilters::options($this->tags)
-        ));
+        )));
+    }
+
+    /** SỬA 3/11 (khách: "tổng số bài phải tính cả bài phổ thông") — cộng số "Bài phổ thông" vào tổng ở đầu trang Luyện tập. */
+    private static function withGeneralSets(array $filters): array
+    {
+        $filters['practiceTotal'] = (int) ($filters['practiceTotal'] ?? 0) + (int) rescue(fn () => GeneralSetCatalogService::publishedCount(), 0, false);
+
+        return $filters;
     }
 
     /**
