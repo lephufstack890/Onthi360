@@ -16,8 +16,12 @@
          chính sách (Điều khoản / Bảo mật / Hoàn tiền). Mỗi mục có số thứ tự; mục có 'split' → 2 thẻ Quyền / Nghĩa vụ, mục có 'items'
          → danh sách tick, còn lại là đoạn văn. Màu theo hệ thống (xanh #126F91, chữ #123B68). CSS thường, tiền tố pol-. --}}
     <style>
-        .pol-wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 56px; } /* SỬA 3/11 — rộng hơn (khách: "cho to ra") */
-        @media (min-width: 1024px) { .pol-wrap { padding: 36px 24px 72px; } }
+        /* SỬA 3/11 (khách: "cho vừa khung, thẳng hàng") — trải hết bề ngang, lề trái/phải ĐÚNG bằng lề thanh menu trên cùng
+           (partials/nav-public: px-3 / sm:px-5 / lg:px-4 / 2xl:px-8) nên mép khung thẳng hàng với logo và ảnh đại diện. */
+        .pol-wrap { width: 100%; margin: 0; padding: 16px 12px 56px; }
+        @media (min-width: 640px) { .pol-wrap { padding: 20px 20px 64px; } }
+        @media (min-width: 1024px) { .pol-wrap { padding: 20px 16px 72px; } }
+        @media (min-width: 1536px) { .pol-wrap { padding: 24px 32px 72px; } }
         .pol-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #607A90; text-decoration: none; }
         .pol-back:hover { color: #126F91; }
         .pol-card { border: 1px solid #DCE9F1; border-radius: 24px; background: #fff; box-shadow: 0 10px 34px rgba(18, 59, 104, .06); overflow: hidden; }
@@ -29,7 +33,7 @@
         .pol-badge svg { width: 13px; height: 13px; }
         .pol-title { margin: 14px 0 0; font-size: 26px; line-height: 1.25; font-weight: 800; letter-spacing: -.01em; color: #123B68; }
         @media (min-width: 768px) { .pol-title { font-size: 38px; } }
-        .pol-desc { margin: 10px 0 0; max-width: 820px; font-size: 16px; line-height: 1.6; color: #52687B; }
+        .pol-desc { margin: 10px 0 0; max-width: 960px; font-size: 16px; line-height: 1.6; color: #52687B; }
         .pol-date { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 13.5px; font-weight: 600; color: #7B8EA0; }
         .pol-date svg { width: 14px; height: 14px; }
 
