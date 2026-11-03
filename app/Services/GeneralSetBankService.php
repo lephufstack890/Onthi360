@@ -80,12 +80,39 @@ class GeneralSetBankService
     public function publishForAdmin(Assessment $set): array
     {
         abort_unless($set->isGeneralSet(), 404);
+        self::fixZeroPoints($set);
         $res = $this->content->assessmentPublishAllQuestions($set);
         if ($res['failed'] !== []) {
             return ['ok' => false, 'message' => 'Chưa phát hành được: '.implode(' ', $res['failed'])];
         }
 
         return $this->content->assessmentPublish($set->fresh());
+    }
+
+    /**
+     * SỬA 3/11 (lỗi "phát hành không được") — câu con nhập từ gói ghi điểm lẻ (0,25…) bị lưu điểm gốc 0 nên khâu phát hành
+     * chặn. Điểm thật trong bài là points_override; đặt điểm gốc = 1 cho các câu con đang 0 điểm (sửa luôn bài đã nhập trước đó).
+     */
+    public static function fixZeroPoints(Assessment $set): int
+    {
+        if (! $set->isGeneralSet()) {
+            return 0;
+        }
+        $ids = $set->items()->pluck('question_id')->all();
+
+        return $ids === [] ? 0 : Question::query()->whereIn('id', $ids)->where('points', '<', 1)->update(['points' => 1]);
+    }
+
+    /** SỬA 3/11 — như fixZeroPoints() nhưng cho 1 câu (nút "Phát hành" từng câu): chỉ đụng câu con của "Bài phổ thông". */
+    public static function fixQuestionZeroPoints(Question $question): void
+    {
+        if ((int) $question->points >= 1 || ! Assessment::supportsPracticeKind()) {
+            return;
+        }
+        $inSet = $question->assessmentItems()->whereHas('assessment', fn ($a) => $a->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL))->exists();
+        if ($inSet) {
+            $question->forceFill(['points' => 1])->save();
+        }
     }
 
     /** Admin "Ngừng phát hành": bài về Nháp (học sinh không thấy nữa), các câu con giữ nguyên. */

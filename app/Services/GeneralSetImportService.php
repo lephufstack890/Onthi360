@@ -174,6 +174,12 @@ class GeneralSetImportService
     private function applyExtras(Question $question, array $q): void
     {
         $changes = [];
+        // SỬA 3/11 (lỗi "phát hành không được") — điểm GỐC của câu là số nguyên (cột questions.points); gói ghi điểm lẻ (vd 0,25)
+        // thì bị làm tròn thành 0 và khâu phát hành chặn ("Thiếu đáp án hoặc điểm"). Điểm thật của câu trong bài là
+        // points_override (chia đều tổng 10), nên điểm gốc chỉ cần ≥ 1.
+        if ((int) $question->points < 1) {
+            $changes['points'] = 1;
+        }
         if (! empty($q['prompt'])) {
             $paragraphs = preg_split('/\n{2,}/', trim((string) $q['prompt'])) ?: [];
             $changes['body'] = collect($paragraphs)->map(fn ($x) => trim($x))->filter()->map(fn ($x) => '<p>'.nl2br(e($x)).'</p>')->implode('');

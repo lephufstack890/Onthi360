@@ -123,10 +123,16 @@
             {{-- Dạng câu là dải TAB kèm số câu từng dạng, như admin. --}}
             <div class="akx-pad">
                 <div class="akx-chips">
-                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) }})</small></a>
-                    @foreach ($questionTypeOptions as $value => $label)
-                        <a href="{{ $filterLink(['type' => $value]) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === $value ? 'is-on' : '' }}">{{ $label }} <small>({{ $typeCounts[$value] ?? 0 }})</small></a>
-                    @endforeach
+                    {{-- SỬA 3/11 (khách: "bỏ Trắc nghiệm / Điền khuyết / Nhiều phần, để 1 tab Phổ thông") — chỉ còn Lập trình và Phổ thông
+                         (Phổ thông = mọi dạng không phải lập trình + các "Bài phổ thông", mỗi bài tính 1). --}}
+                    @php
+                        $akxGsb = ($tab === 'unused') ? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q')) : [];
+                        $akxCoding = (int) ($typeCounts['coding'] ?? 0);
+                        $akxGeneral = array_sum($typeCounts) - $akxCoding + count($akxGsb);
+                    @endphp
+                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) + count($akxGsb) }})</small></a>
+                    <a href="{{ $filterLink(['type' => 'coding']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'coding' ? 'is-on' : '' }}">{{ $questionTypeOptions['coding'] ?? 'Lập trình' }} <small>({{ $akxCoding }})</small></a>
+                    <a href="{{ $filterLink(['type' => 'general']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'general' ? 'is-on' : '' }}">Phổ thông <small>({{ $akxGeneral }})</small></a>
                 </div>
             </div>
 
@@ -164,8 +170,8 @@
         </section>
 
         {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài. --}}
-        @if ($tab === 'unused')
-            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
+        @if ($tab === 'unused' && in_array($filters['type'] ?? null, [null, 'general'], true))
+            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => $akxGsb ?? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
         @endif
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách câu hỏi">
             <div class="akx-sub">

@@ -554,6 +554,7 @@ class ContentController extends Controller
 
     public function questionsPublish(Question $question): RedirectResponse
     {
+        \App\Services\GeneralSetBankService::fixQuestionZeroPoints($question); // SỬA 3/11 — chỉ tác dụng với câu con "Bài phổ thông"
         $result = $this->contentService->questionPublish($question);
 
         if (! $result['ok']) {
@@ -850,6 +851,7 @@ class ContentController extends Controller
     /** SỬA 16/10 — phát hành MỘT LẦN mọi câu còn Nháp trong đề (câu chưa đủ điều kiện thì báo lại, không chặn các câu khác). */
     public function assessmentsItemsPublishAll(Assessment $assessment): RedirectResponse
     {
+        \App\Services\GeneralSetBankService::fixZeroPoints($assessment); // SỬA 3/11 — chỉ tác dụng với "Bài phổ thông"
         $result = $this->contentService->assessmentPublishAllQuestions($assessment);
         $back = redirect()->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
             ->with('status', 'assessment-items-published')

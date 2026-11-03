@@ -174,7 +174,10 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             $query->where('exam_year', (int) $examYear);
         }
 
-        if (! empty($filters['type'])) {
+        if (($filters['type'] ?? null) === 'general') {
+            // SỬA 3/11 — tab "Phổ thông" ở Kho bài tập = mọi dạng KHÔNG phải lập trình (trắc nghiệm, điền khuyết, nhiều phần).
+            $query->where('type', '!=', 'coding');
+        } elseif (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
