@@ -101,18 +101,39 @@
                       :title="$filters['q'] || $filters['topic'] || $filters['status'] ? 'Không có phiếu nào khớp bộ lọc' : 'Chưa có yêu cầu hỗ trợ nào'"
                       description="Phiếu sẽ tự hiện ở đây ngay khi có người gửi từ trang Thông tin công khai." />
 @else
-    <x-ws.table :columns="['Mã phiếu', 'Người gửi', 'Nội dung', 'Thời gian', 'Trạng thái', '']" min-width="min-w-[1080px]">
+    {{-- SỬA 3/11 (khách: "bỏ cột Mã phiếu cho gọn, ghép Trạng thái vào chỗ khác, Xem đầy đủ thì mở modal") —
+         mã phiếu + trạng thái + loại gom thành 1 dòng nhãn nhỏ trên Nội dung; "Xem chi tiết" mở hộp thoại (nội dung đủ, ghi chú
+         nội bộ, các nút xử lý). Form / route / dữ liệu giữ nguyên như cũ. --}}
+    <style>
+        .cmx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px; }
+        .cmx-ticket { display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; color: #64748b; }
+        .cmx-ticket svg { width: 11px; height: 11px; }
+        .cmx-more { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0; border: 0; background: none; font-size: 11px; font-weight: 700; color: #2563eb; cursor: pointer; }
+        .cmx-more:hover { text-decoration: underline; }
+        .cmx-more svg { width: 12px; height: 12px; }
+        .cmx-handled { margin-top: 6px; font-size: 11px; line-height: 1.45; color: #94a3b8; }
+        .cmx-back { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 35, 60, .45); backdrop-filter: blur(2px); }
+        .cmx-dlg { width: min(640px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; overflow: hidden; border-radius: 20px; background: #fff; box-shadow: 0 24px 60px rgba(11, 45, 90, .28); }
+        .cmx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid #e8f0f7; }
+        .cmx-head h3 { margin: 6px 0 0; font-size: 16px; font-weight: 800; color: #1e3a5f; }
+        .cmx-x { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #64748b; cursor: pointer; }
+        .cmx-x:hover { background: #f1f5f9; }
+        .cmx-x svg { width: 16px; height: 16px; }
+        .cmx-body { flex: 1 1 auto; overflow-y: auto; padding: 14px 20px; display: grid; gap: 12px; }
+        .cmx-who { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 16px; padding: 10px 12px; border: 1px solid #e8f0f7; border-radius: 14px; background: #f8fbfe; font-size: 12px; color: #475569; }
+        .cmx-who b { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+        .cmx-who a { color: #2563eb; text-decoration: none; }
+        .cmx-who a:hover { text-decoration: underline; }
+        .cmx-msg { margin: 0; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid #e2e8f0; white-space: pre-line; font-size: 13.5px; line-height: 1.65; color: #334155; }
+        .cmx-label { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 11.5px; font-weight: 700; color: #475569; }
+        .cmx-label svg { width: 14px; height: 14px; color: #94a3b8; }
+        .cmx-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid #e8f0f7; background: #fff; }
+        .cmx-foot form { margin: 0; }
+    </style>
+
+    <x-ws.table :columns="['Người gửi', 'Nội dung', 'Thời gian', '']" min-width="min-w-[900px]">
         @foreach ($messages as $m)
             <tr x-data="{ open: false }" class="align-top">
-                <td class="px-4 py-3">
-                    <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-black tracking-wide text-slate-600">
-                        <x-lucide name="ticket" class="h-3 w-3" />{{ $m['ticket'] ?? '—' }}
-                    </span>
-                    <div class="mt-1.5">
-                        <x-ws.badge :tone="$m['topicTone']">{{ $m['topic'] }}</x-ws.badge>
-                    </div>
-                </td>
-
                 <td class="px-4 py-3">
                     <p class="text-[13px] font-bold text-slate-700">{{ $m['name'] }}</p>
                     <a href="mailto:{{ $m['email'] }}" class="block truncate text-[11px] text-blue-600 hover:underline">{{ $m['email'] }}</a>
@@ -132,43 +153,116 @@
                 </td>
 
                 <td class="max-w-md px-4 py-3">
-                    <p class="whitespace-pre-line text-[13px] leading-relaxed text-slate-600" :class="open ? '' : 'line-clamp-2'">{{ $m['message'] }}</p>
-                    <button type="button" @click="open = !open" class="mt-1 text-[11px] font-bold text-blue-600 hover:underline"
-                            x-text="open ? 'Thu gọn' : @js($schemaReady ? 'Xem đầy đủ & ghi chú' : 'Xem đầy đủ')"></button>
-
-                    @if ($schemaReady)
-                    <div x-show="open" x-cloak class="mt-2.5 rounded-2xl border border-sky-100 bg-[#F8FBFE] p-3">
-                        <form method="POST" action="{{ route('admin.contact-messages.note', $m['id']) }}" class="space-y-2">
-                            @csrf
-                            <label for="note-{{ $m['id'] }}" class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                                <x-lucide name="sticky-note" class="h-3.5 w-3.5 text-slate-400" />
-                                Ghi chú nội bộ — chỉ quản trị viên đọc, không gửi cho người gửi phiếu
-                            </label>
-                            <textarea id="note-{{ $m['id'] }}" name="admin_note" rows="2" maxlength="2000" class="admin-input"
-                                      placeholder="Đã gọi lúc 9h, hẹn gửi lại ảnh màn hình...">{{ $m['note'] }}</textarea>
-                            <x-ws.btn type="submit" size="sm" variant="ghost" icon="save">Lưu ghi chú</x-ws.btn>
-                        </form>
+                    <div class="cmx-meta">
+                        <x-ws.badge :tone="$m['statusTone']">
+                            <x-lucide :name="$m['statusIcon']" class="h-3 w-3" />{{ $m['statusLabel'] }}
+                        </x-ws.badge>
+                        <x-ws.badge :tone="$m['topicTone']">{{ $m['topic'] }}</x-ws.badge>
+                        @if ($m['ticket'] ?? null)
+                            <span class="cmx-ticket"><x-lucide name="ticket" />{{ $m['ticket'] }}</span>
+                        @endif
                     </div>
-                    @endif
-
+                    <p class="line-clamp-2 whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{{ $m['message'] }}</p>
+                    <button type="button" @click="open = true" class="cmx-more">
+                        <x-lucide name="maximize-2" />{{ $schemaReady ? 'Xem chi tiết & ghi chú' : 'Xem chi tiết' }}
+                    </button>
                     @if ($m['note'])
-                        <p x-show="!open" class="mt-1.5 inline-flex items-start gap-1 text-[11px] italic text-slate-400">
+                        <p class="mt-1.5 flex items-start gap-1 text-[11px] italic text-slate-400">
                             <x-lucide name="sticky-note" class="mt-0.5 h-3 w-3 shrink-0" />{{ \Illuminate\Support\Str::limit($m['note'], 60) }}
                         </p>
                     @endif
+
+                    <template x-teleport="body">
+                        <div class="cmx-back" x-show="open" x-cloak x-transition.opacity.duration.150ms
+                             @click.self="open = false" @keydown.escape.window="open = false">
+                            <section class="cmx-dlg" role="dialog" aria-modal="true" aria-labelledby="cmx-title-{{ $m['id'] }}">
+                                <header class="cmx-head">
+                                    <div>
+                                        <div class="cmx-meta" style="margin:0">
+                                            <x-ws.badge :tone="$m['statusTone']">
+                                                <x-lucide :name="$m['statusIcon']" class="h-3 w-3" />{{ $m['statusLabel'] }}
+                                            </x-ws.badge>
+                                            <x-ws.badge :tone="$m['topicTone']">{{ $m['topic'] }}</x-ws.badge>
+                                        </div>
+                                        <h3 id="cmx-title-{{ $m['id'] }}">Phiếu {{ $m['ticket'] ?? '#'.$m['id'] }}</h3>
+                                    </div>
+                                    <button type="button" class="cmx-x" @click="open = false" aria-label="Đóng"><x-lucide name="x" /></button>
+                                </header>
+
+                                <div class="cmx-body">
+                                    <div class="cmx-who">
+                                        <div><b>Người gửi</b>{{ $m['name'] }}</div>
+                                        <div><b>Email</b><a href="mailto:{{ $m['email'] }}">{{ $m['email'] }}</a></div>
+                                        @if ($m['phone'])
+                                            <div><b>Điện thoại</b><a href="tel:{{ preg_replace('/[^0-9+]/', '', $m['phone']) }}">{{ $m['phone'] }}</a></div>
+                                        @endif
+                                        <div><b>Tài khoản</b>
+                                            @if ($m['accountUrl'])<a href="{{ $m['accountUrl'] }}">{{ $m['accountName'] }}</a>@else Khách chưa đăng nhập @endif
+                                        </div>
+                                        <div><b>Gửi lúc</b>{{ $m['createdAt'] }} · {{ $m['createdAgo'] }}</div>
+                                        @if ($m['handledBy'])
+                                            <div><b>Người xử lý</b>{{ $m['handledBy'] }} · {{ $m['handledAt'] }}</div>
+                                        @endif
+                                    </div>
+
+                                    <div>
+                                        <p class="cmx-label"><x-lucide name="mail" />Nội dung</p>
+                                        <p class="cmx-msg">{{ $m['message'] }}</p>
+                                    </div>
+
+                                    @if ($schemaReady)
+                                        <form method="POST" action="{{ route('admin.contact-messages.note', $m['id']) }}" class="space-y-2">
+                                            @csrf
+                                            <label for="note-{{ $m['id'] }}" class="cmx-label">
+                                                <x-lucide name="sticky-note" />Ghi chú nội bộ — chỉ quản trị viên đọc, không gửi cho người gửi phiếu
+                                            </label>
+                                            <textarea id="note-{{ $m['id'] }}" name="admin_note" rows="3" maxlength="2000" class="admin-input"
+                                                      placeholder="Đã gọi lúc 9h, hẹn gửi lại ảnh màn hình...">{{ $m['note'] }}</textarea>
+                                            <x-ws.btn type="submit" size="sm" variant="ghost" icon="save">Lưu ghi chú</x-ws.btn>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                <footer class="cmx-foot">
+                                    <x-ws.btn :href="$m['mailto']" size="sm" variant="soft" icon="send">Trả lời qua email</x-ws.btn>
+                                    @if ($m['status'] === 'new')
+                                        <form method="POST" action="{{ route('admin.contact-messages.status', $m['id']) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="in_progress">
+                                            <x-ws.btn type="submit" size="sm" variant="ghost" icon="clock-3">Nhận xử lý</x-ws.btn>
+                                        </form>
+                                    @endif
+                                    @unless ($m['resolved'])
+                                        <form method="POST" action="{{ route('admin.contact-messages.status', $m['id']) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="resolved">
+                                            <x-ws.btn type="submit" size="sm" variant="success" icon="check-circle-2">Đã xử lý</x-ws.btn>
+                                        </form>
+                                    @endunless
+                                    @if ($m['open'])
+                                        <form method="POST" action="{{ route('admin.contact-messages.status', $m['id']) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="spam">
+                                            <x-ws.btn type="submit" size="sm" variant="danger" icon="ban">Đánh dấu rác</x-ws.btn>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.contact-messages.status', $m['id']) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="new">
+                                            <x-ws.btn type="submit" size="sm" variant="ghost" icon="rotate-ccw">Mở lại</x-ws.btn>
+                                        </form>
+                                    @endif
+                                </footer>
+                            </section>
+                        </div>
+                    </template>
                 </td>
 
                 <td class="px-4 py-3">
                     <p class="text-[12px] font-medium text-slate-600">{{ $m['createdAt'] }}</p>
                     <p class="text-[11px] text-slate-400">{{ $m['createdAgo'] }}</p>
-                </td>
-
-                <td class="px-4 py-3">
-                    <x-ws.badge :tone="$m['statusTone']">
-                        <x-lucide :name="$m['statusIcon']" class="h-3 w-3" />{{ $m['statusLabel'] }}
-                    </x-ws.badge>
                     @if ($m['handledBy'])
-                        <p class="mt-1 text-[11px] text-slate-400">{{ $m['handledBy'] }}<br>{{ $m['handledAt'] }}</p>
+                        <p class="cmx-handled">Xử lý: {{ $m['handledBy'] }}<br>{{ $m['handledAt'] }}</p>
                     @endif
                 </td>
 
