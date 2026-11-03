@@ -238,6 +238,8 @@ class PracticeService
             ->where('status', 'published')
             // SỬA 18/10 — MODULE BỘ ĐỀ: đề "Chỉ trong bộ đề" không hiện ở trang Luyện tập (chỉ người mua bộ đề làm được).
             ->when(\App\Services\ExamBundle\ExamBundleService::ready(), fn ($q) => $q->where('bundle_only', false))
+            // SỬA 3/11 — "Bài phổ thông" (practice_kind = general) hiện ở tab Bài tập > Phổ thông, không lẫn vào Đề thi luyện tập.
+            ->when(Assessment::supportsPracticeKind(), fn ($q) => $q->where(fn ($w) => $w->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL)))
             ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
             ->limit(self::EXAM_LIMIT)

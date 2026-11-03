@@ -23,6 +23,9 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu nháp đề.'])
     @elseif (session('status') === 'assessment-published')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã phát hành đề.'])
+    @elseif (session('status') === 'general-set-imported')
+        {{-- SỬA 3/11 — vừa nhập "Bài phổ thông" từ gói ZIP (GeneralSetController::teacherImport). --}}
+        @include('partials.toast-flash', ['type' => 'success', 'message' => (string) session('generalSetNotice')])
     @endif
     @if ($errors->any())
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])

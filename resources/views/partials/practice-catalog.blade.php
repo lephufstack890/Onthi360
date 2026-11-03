@@ -459,7 +459,7 @@
                 @endauth
 
                 <span x-show="problemScope !== 'managed'" class="hidden text-[11px] font-medium text-[#607A90] sm:inline">
-                    Hiển thị <strong x-text="filteredProblems.length"></strong> bài tập
+                    Hiển thị <strong x-text="(activeTab === 'general' && problemScope !== 'assigned') ? ($store.oiGeneralSets ? $store.oiGeneralSets.count : 0) : filteredProblems.length"></strong> bài tập
                 </span>
                 </div>
             </div>
@@ -611,6 +611,10 @@
         @endauth
         @endif
 
+        {{-- SỬA 3/11 — chọn dạng "Phổ thông" thì hiện danh sách BÀI phổ thông (mỗi bài nhiều câu, partials/practice-general-sets)
+             thay cho danh sách bài từng câu bên dưới; "Lập trình" và mục "Bài được giao" giữ nguyên như cũ. --}}
+        @include('partials.practice-general-sets')
+        <div x-show="!(activeTab === 'general' && problemScope !== 'assigned')">
         {{-- SỬA 8/10 — thanh sắp xếp cho mobile (lg:hidden), như "Sắp xếp danh sách" của PracticePage.jsx. --}}
         <div class="oi-sort-bar"><span>Sắp xếp danh sách</span><div><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'topic' }" :aria-pressed="problemSort.key === 'topic' ? 'true' : 'false'" title="Sắp xếp theo Chuyên đề" @click="toggleProblemSort('topic')"><span>Chuyên đề</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'topic'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'topic' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'topic' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'year' }" :aria-pressed="problemSort.key === 'year' ? 'true' : 'false'" title="Sắp xếp theo Năm" @click="toggleProblemSort('year')"><span>Năm</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'year'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'year' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'year' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'difficulty' }" :aria-pressed="problemSort.key === 'difficulty' ? 'true' : 'false'" title="Sắp xếp theo Độ khó" @click="toggleProblemSort('difficulty')"><span>Độ khó</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'difficulty'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'difficulty' && problemSort.direction === 'desc'" x-cloak /></button><button type="button" class="oi-sort-btn oi-sort-btn--compact" :class="{ 'is-active': problemSort.key === 'acRate' }" :aria-pressed="problemSort.key === 'acRate' ? 'true' : 'false'" title="Sắp xếp theo Tỷ lệ AC" @click="toggleProblemSort('acRate')"><span>Tỷ lệ AC</span><x-lucide name="arrow-up-down" x-show="problemSort.key !== 'acRate'" /><x-lucide name="chevron-up" x-show="problemSort.key === 'acRate' && problemSort.direction === 'asc'" x-cloak /><x-lucide name="chevron-down" x-show="problemSort.key === 'acRate' && problemSort.direction === 'desc'" x-cloak /></button></div></div>
         <div class="divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
@@ -894,6 +898,7 @@
             <p class="mt-1 text-xs text-[#607A90]" x-text="problemScope === 'assigned' ? 'Chưa có bài được giao phù hợp. Thử đổi trạng thái, chuyên đề, độ khó hoặc từ khóa tìm kiếm.' : 'Hãy đổi chuyên đề hoặc mức độ để xem kho bài khác.'">Hãy đổi chuyên đề hoặc mức độ để xem kho bài khác.</p>
             <button type="button" @click="resetProblemFilters()" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
         </div>
+        </div>{{-- /SỬA 3/11: danh sách bài từng câu (ẩn khi chọn Phổ thông) --}}
         </div>{{-- /problemScope !== 'managed' --}}
 
         @if ($assignScope['canManage'])

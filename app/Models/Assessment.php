@@ -42,6 +42,8 @@ class Assessment extends Model
         // SỬA 7/10 (khách: "số sao đánh giá cho nhập tay") — điểm sao + số lượt do admin/giáo viên nhập
         // tay; gộp với lượt chấm thật của học sinh khi hiển thị, xem PracticeService::combinedRating().
         'rating_score', 'rating_count',
+        // SỬA 3/11 — 'general' = Bài phổ thông (1 bài nhiều câu, nhập bằng gói ZIP), xem migration add_practice_kind_to_assessments.
+        'practice_kind',
     ];
 
     protected $casts = [
@@ -187,5 +189,22 @@ class Assessment extends Model
     public function isPdfMode(): bool
     {
         return $this->content_mode === AssessmentContentMode::PdfAnswerSheet;
+    }
+
+    /** SỬA 3/11 — giá trị practice_kind của "Bài phổ thông" (1 bài nhiều câu trắc nghiệm / điền từ…). */
+    public const PRACTICE_KIND_GENERAL = 'general';
+
+    /** SỬA 3/11 — máy chủ đã chạy migration add_practice_kind_to_assessments chưa (chưa thì mọi thứ chạy như cũ). */
+    public static function supportsPracticeKind(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('assessments', 'practice_kind');
+    }
+
+    /** SỬA 3/11 — đề này là "Bài phổ thông". */
+    public function isGeneralSet(): bool
+    {
+        return self::supportsPracticeKind() && ($this->getAttribute('practice_kind') === self::PRACTICE_KIND_GENERAL);
     }
 }

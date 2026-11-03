@@ -161,7 +161,11 @@ class AssessmentService
                 $assessmentModel->preview_pdf_path !== null
                 && $assessmentModel->type?->value === 'practice'
                 && $assessmentModel->status?->value === 'published'
-            ) ? route('practice.exam.preview', $assessmentModel->id) : null,
+            ) ? route('practice.exam.preview', $assessmentModel->id) : (
+                // SỬA 3/11 — "Bài phổ thông" (đề nháp đang thử, hoặc bài giáo viên giao) cũng hiện đề cả bài ở tab này.
+                $assessmentModel->preview_pdf_path !== null && $assessmentModel->isGeneralSet()
+                    ? route('general-sets.file', ['assessment' => $assessmentModel->id, 'which' => 'statement']) : null
+            ),
             // SỬA 11/10 — PDF Hướng dẫn / Bài mẫu do người ra đề tải lên (tab Hướng dẫn, Bài mẫu). Đi qua
             // streamPdfFile() — chỉ người đã có lượt làm đề mới mở được. Không có tệp = null, tab giữ nội dung mặc định.
             'guidePdfUrl' => $assessmentModel->guide_pdf_path !== null
@@ -698,6 +702,11 @@ class AssessmentService
     public function canGradeQuestions(Assessment $assessment): bool
     {
         if ($assessment->isPdfMode()) {
+            return false;
+        }
+
+        // SỬA 3/11 (khách: "Bài phổ thông — nộp cả bài mới chấm") — bài phổ thông không có nút chấm từng câu.
+        if ($assessment->isGeneralSet()) {
             return false;
         }
 

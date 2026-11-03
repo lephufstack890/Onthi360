@@ -200,6 +200,11 @@
         </div>
     </section>
 
+    {{-- SỬA 3/11 — "Bài phổ thông": đáp án + lời giải từng câu sau khi nộp (đề khác không hiện gì). --}}
+    @if (isset($attemptModel) && $attemptModel->assessment?->isGeneralSet() && $attemptModel->submitted_at !== null)
+        @include('partials.general-set-review')
+    @endif
+
     {{-- ══════ LỐI ĐI TIẾP ══════ --}}
     <div class="mt-3 flex flex-wrap gap-2">
         <a href="{{ route('student.practice.index') }}"

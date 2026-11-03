@@ -38,7 +38,23 @@
         .qz-tpl:hover { background:#eff6ff; }
         .qz-tpl svg { width:13px; height:13px; }
     </style>
-            <div class="qe-hero-gap">
+            {{-- SỬA 3/11 (khách: "chỗ up ZIP đổi thành 2 dạng Lập trình / Phổ thông") — 2 tab: "Lập trình / câu lẻ" = ô ZIP CŨ giữ
+                 nguyên; "Phổ thông" = nhập 1 bài nhiều câu (partials/general-zip-upload). --}}
+            <style>
+    .gz-tabs { display: inline-flex; gap: 4px; margin-bottom: 10px; padding: 4px; border-radius: 14px; background: #EEF4FA; }
+    .gz-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 11px; background: transparent; font-size: 13px; font-weight: 800; color: #45657D; cursor: pointer; }
+    .gz-tab svg { width: 15px; height: 15px; }
+    .gz-tab.is-on { background: #fff; color: #123B68; box-shadow: 0 2px 8px rgba(28, 91, 121, .12); }
+</style>
+            <div class="qe-hero-gap" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') ? 'general' : 'code') }">
+                <div class="gz-tabs" role="tablist" aria-label="Loại bài nhập từ ZIP">
+                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
+                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
+                </div>
+                <div x-show="zk === 'general'" x-cloak>
+                    @include('partials.general-zip-upload', ['gzAction' => route('admin.content.generalSets.zipImport'), 'gzNote' => 'Bài tạo ra là đề Luyện tập (Nháp) — kiểm tra, phát hành các câu rồi phát hành bài là hiện ở Luyện tập > Phổ thông.'])
+                </div>
+                <div x-show="zk === 'code'">
                 <form method="POST" action="{{ route('admin.content.questions.zipImport') }}" enctype="multipart/form-data"
                       x-data="{ submitting: false, drag: false }"
                       class="qe-zip" :class="drag && 'is-drag'"
@@ -75,6 +91,7 @@
                         <span x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'">Nhập từ ZIP</span>
                     </label>
                 </form>
+                </div>{{-- /SỬA 3/11 tab Lập trình / câu lẻ --}}
             </div>
 
             <form method="POST" action="{{ route('admin.content.questions.store') }}" enctype="multipart/form-data" id="qe-form"

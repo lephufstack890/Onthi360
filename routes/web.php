@@ -273,6 +273,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // SỬA 3/11 — đề cả bài / lời giải cả bài của "Bài phổ thông" (GeneralSetController::file tự kiểm tra quyền xem).
+    Route::get('/bai-pho-thong/{assessment}/{which}', [\App\Http\Controllers\GeneralSetController::class, 'file'])
+        ->whereNumber('assessment')->whereIn('which', ['statement', 'solution'])->name('general-sets.file');
+
     // SỬA 15/10 — admin chuyển qua lại giao diện Giáo viên (xem ActingRoleController). Không đặt trong nhóm role:admin
     // vì lúc đang xem như Giáo viên thì vai trò admin bị che — controller tự kiểm tra admin thật trong CSDL.
     Route::post('/che-do-xem/giao-vien', [\App\Http\Controllers\ActingRoleController::class, 'startTeacher'])
@@ -523,6 +527,8 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
         // Teacher\QuestionService::storeFromZipPackage() + attachmentInfo().
         Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.zipImport');
+        // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
+        Route::post('questions/general-zip-import', [\App\Http\Controllers\GeneralSetController::class, 'teacherImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.generalImport');
         Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
 
         // SỬA 24/8 — khách yêu cầu: giáo viên (cố vấn/đồng hành) chỉ được THÊM/SỬA kỳ thi
@@ -943,6 +949,8 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 24/8 — "Nhập từ gói ZIP" (OT360-QPACK) cho câu hỏi lập trình: xem
         // Admin\ContentService::questionStoreFromZipPackage() + questionAttachmentInfo().
         Route::post('content/questions/zip-import', [AdminContentController::class, 'questionsZipImportStore'])->name('content.questions.zipImport');
+        // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
+        Route::post('content/general-sets/zip-import', [\App\Http\Controllers\GeneralSetController::class, 'adminImport'])->name('content.generalSets.zipImport');
         Route::get('content/questions/{question}/attachment/{kind}', [AdminContentController::class, 'questionsAttachmentDownload'])->name('content.questions.attachment');
 
         Route::get('content/questions/import', [AdminContentController::class, 'questionsImport'])->name('content.questions.import');

@@ -80,6 +80,23 @@
         .qz-tpl:hover { background:#eff6ff; }
         .qz-tpl svg { width:13px; height:13px; }
     </style>
+    {{-- SỬA 3/11 (khách: "chỗ up ZIP đổi thành 2 dạng Lập trình / Phổ thông") — tab "Lập trình / câu lẻ" = ô ZIP CŨ giữ nguyên;
+         "Phổ thông" = nhập 1 bài nhiều câu (partials/general-zip-upload). --}}
+    <style>
+    .gz-tabs { display: inline-flex; gap: 4px; margin-bottom: 10px; padding: 4px; border-radius: 14px; background: #EEF4FA; }
+    .gz-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 11px; background: transparent; font-size: 13px; font-weight: 800; color: #45657D; cursor: pointer; }
+    .gz-tab svg { width: 15px; height: 15px; }
+    .gz-tab.is-on { background: #fff; color: #123B68; box-shadow: 0 2px 8px rgba(28, 91, 121, .12); }
+</style>
+    <div class="mb-6" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') ? 'general' : 'code') }">
+        <div class="gz-tabs" role="tablist" aria-label="Loại bài nhập từ ZIP">
+                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
+                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
+                </div>
+        <div x-show="zk === 'general'" x-cloak>
+            @include('partials.general-zip-upload', ['gzAction' => route('teacher.questions.generalImport'), 'gzNote' => 'Bài tạo ra nằm trong "Đề của tôi" — bấm Giao để giao cho lớp.'])
+        </div>
+        <div x-show="zk === 'code'">
         <form method="POST" action="{{ route('teacher.questions.zipImport') }}" enctype="multipart/form-data"
               x-data="{ submitting: false }"
               class="mb-6 bg-indigo-50 border border-indigo-100 rounded-3xl p-4 flex flex-wrap items-end gap-3">
@@ -105,6 +122,8 @@
             <button type="submit" :disabled="submitting" x-text="submitting ? 'Đang xử lý…' : 'Nhập từ ZIP'"
                     class="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-medium shrink-0 disabled:opacity-60">Nhập từ ZIP</button>
         </form>
+        </div>{{-- /SỬA 3/11 tab Lập trình / câu lẻ --}}
+    </div>
     @endif
     {{-- SỬA 1/10 — dải "Tệp đính kèm (nhập từ gói ZIP)" chỉ-để-tải ở đây đã chuyển XUỐNG TRONG
          form (mục "Tệp đính kèm"), nhờ vậy thay/bỏ được tệp chứ không chỉ tải về. --}}
