@@ -356,6 +356,16 @@
                                 <td>
                                     {{-- SỬA 23/9 — kèm 'kind' để mở ĐÚNG loại nội dung, tránh trùng id giữa 3 bảng. --}}
                                     <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => $r['kind'] ?? null]) }}" class="akx-title">{{ $r['title'] }}</a>
+                                    {{-- SỬA 3/11 — nhóm mã đề: đề gốc gắn nhãn "N mã đề" (bấm vào mở ô Mã đề để xem / sửa từng mã). --}}
+                                    @if (($r['variantCount'] ?? 0) > 1)
+                                        <a href="{{ route('admin.content.show', ['content' => $r['id'], 'kind' => 'assessment']) }}#exam-variant-box"
+                                           style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 9px;border-radius:999px;background:#E0F2FE;color:#0369A1;font-size:11.5px;font-weight:800;text-decoration:none;vertical-align:middle"
+                                           title="Xem / sửa các mã đề">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>{{ $r['variantCount'] }} mã đề
+                                        </a>
+                                    @elseif (! empty($r['variantOf']))
+                                        <span style="display:inline-flex;margin-left:6px;padding:2px 9px;border-radius:999px;background:#F1F5F9;color:#475569;font-size:11.5px;font-weight:700;vertical-align:middle">Mã {{ $r['variantCode'] ?: 'con' }} của nhóm</span>
+                                    @endif
                                     @if ($isQuestions)
                                         <div class="akx-meta">
                                             @if (! empty($r['code']))<code>{{ $r['code'] }}</code>@endif

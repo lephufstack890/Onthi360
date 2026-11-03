@@ -40,6 +40,21 @@
         .vxb-btn--go:hover { background: #1d4ed8; }
         .vxb-btn--red { border-color: #fecaca; color: #b91c1c; }
         .vxb-btn--red:hover { background: #fef2f2; }
+        /* SỬA 3/11 (khách: "mỗi mã có nút Xem, nút Sửa, thiết kế cho đẹp") */
+        .vxb-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px 14px; align-items: center; }
+        @media (max-width: 900px) { .vxb-item { grid-template-columns: 1fr; } }
+        .vxb-code { display: inline-flex; align-items: center; gap: 6px; }
+        .vxb-acts { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .vxb-ib { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 11px; border-radius: 9px; border: 1px solid #d6e4f0; background: #fff; font-size: 12px; font-weight: 700; color: #35506a; text-decoration: none; cursor: pointer; }
+        .vxb-ib svg { width: 14px; height: 14px; }
+        .vxb-ib:hover { background: #f1f7fd; }
+        .vxb-ib--view { border-color: #bfdbfe; color: #1d4ed8; }
+        .vxb-ib--view:hover { background: #eff6ff; }
+        .vxb-ib--edit { border-color: #bbf7d0; color: #15803d; }
+        .vxb-ib--edit:hover { background: #f0fdf4; }
+        .vxb-ib--red { border-color: #fecaca; color: #b91c1c; }
+        .vxb-ib--red:hover { background: #fef2f2; }
+        .vxb-tag--me { background: #dbeafe; color: #1e40af; }
         .vxb-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border: 1px dashed #bcd3ea; border-radius: 12px; background: #fff; }
         .vxb-add label { font-size: 12px; font-weight: 700; color: #35506a; }
     </style>
@@ -53,23 +68,35 @@
                 </p>
                 <ul class="vxb-list">
                     @foreach ($vxMembers as $i => $m)
-                        <li class="vxb-item {{ (int) $m->id === (int) $assessment->id ? 'is-me' : '' }}">
+                        @php $vxMe = (int) $m->id === (int) $assessment->id; @endphp
+                        <li class="vxb-item {{ $vxMe ? 'is-me' : '' }}">
                             <span class="vxb-title">
                                 <a href="{{ route('admin.content.show', ['content' => $m->id, 'kind' => 'assessment']) }}#exam-variant-box">{{ $m->title }}</a>
                                 @if ((int) $m->id === $vxRootId)<span class="vxb-tag vxb-tag--root">Đề gốc</span>@endif
+                                @if ($vxMe)<span class="vxb-tag vxb-tag--me">Đang xem</span>@endif
                                 @unless ($vxStatus($m))<span class="vxb-tag vxb-tag--draft">Chưa phát hành — học sinh chưa thấy mã này</span>@endunless
                                 <small>{{ $m->exam_code ?: '#'.$m->id }} · {{ $m->items_count > 0 ? $m->items_count : (int) ($m->answer_keys_count ?? 0) }} câu</small>
                             </span>
-                            <form method="POST" action="{{ route('admin.content.assessments.variants.code', $m->id) }}">
+                            <form method="POST" action="{{ route('admin.content.assessments.variants.code', $m->id) }}" class="vxb-code">
                                 @csrf
                                 <input class="vxb-input" name="code" value="{{ $m->variant_code }}" maxlength="30" placeholder="{{ \App\Services\ExamVariantService::label($m, $i) }}" aria-label="Tên mã đề">
                                 <button type="submit" class="vxb-btn">Lưu tên mã</button>
                             </form>
-                            <form method="POST" action="{{ route('admin.content.assessments.variants.detach', $m->id) }}"
-                                  onsubmit="return confirm({{ json_encode('Gỡ "'.$m->title.'" khỏi nhóm mã đề? Đề sẽ hiện lại như một đề lẻ, không mất lượt làm nào.', JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) }});">
-                                @csrf
-                                <button type="submit" class="vxb-btn vxb-btn--red">Gỡ khỏi nhóm</button>
-                            </form>
+                            <span class="vxb-acts">
+                                @unless ($vxMe)
+                                    <a href="{{ route('admin.content.show', ['content' => $m->id, 'kind' => 'assessment']) }}" class="vxb-ib vxb-ib--view" title="Xem đề {{ $m->variant_code ?: '' }}">
+                                        <x-lucide name="eye" /> Xem
+                                    </a>
+                                    <a href="{{ $m->isPdfMode() ? route('admin.content.assessments.pdf.edit', $m->id) : route('admin.content.assessments.edit', $m->id) }}" class="vxb-ib vxb-ib--edit" title="Sửa đề {{ $m->variant_code ?: '' }}">
+                                        <x-lucide name="pencil" /> Sửa
+                                    </a>
+                                @endunless
+                                <form method="POST" action="{{ route('admin.content.assessments.variants.detach', $m->id) }}" style="margin:0"
+                                      onsubmit="return confirm({{ json_encode('Gỡ "'.$m->title.'" khỏi nhóm mã đề? Đề sẽ hiện lại ở danh sách như một đề lẻ bình thường, không mất lượt làm nào.', JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) }});">
+                                    @csrf
+                                    <button type="submit" class="vxb-ib vxb-ib--red"><x-lucide name="x" /> Gỡ khỏi nhóm</button>
+                                </form>
+                            </span>
                         </li>
                     @endforeach
                 </ul>

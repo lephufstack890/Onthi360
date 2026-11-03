@@ -261,7 +261,10 @@ class ContentService
             'questions' => $this->questions->query()->whereNull('product_id')->count(),
             // SỬA 3/11 — "Bài phổ thông" hiện ở tab Bài chung (1 dòng / bài), không đếm vào tab Đề thi.
             'assessments' => Assessment::supportsPracticeKind()
-                ? Assessment::query()->where(fn ($q) => $q->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL))->count()
+                ? Assessment::query()->where(fn ($q) => $q->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL))
+                    // SỬA 3/11 — nhóm mã đề chỉ đếm ĐỀ GỐC (các mã con hiện trong ô "Mã đề" của đề gốc).
+                    ->when(\App\Services\ExamVariantService::ready(), fn ($q) => $q->whereNull('variant_of_id'))
+                    ->count()
                 : $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
             // SỬA 19/8 (Giai đoạn 6): xem nhánh $tab === 'tags' bên dưới.
@@ -379,7 +382,12 @@ class ContentService
         } elseif ($tab === 'assessments') {
             // SỬA 8/10 (khách: "phân trang đầy đủ cho từng tab, quá 10 item thì phân trang") — nâng giới hạn cứng 50 -> 500
             // để tab Đề thi có đủ dòng cho phần chia trang (10 đề/trang, chia ngay trên view). Không đổi thứ tự/nội dung dòng.
-            $rows = $this->assessments->latestWithCreator(500)->reject(fn ($a) => $a->isGeneralSet())->values()->map(function ($a) { // SỬA 3/11 — bỏ "Bài phổ thông"
+            // SỬA 3/11 (khách: "danh sách ngoài chỉ hiện 1 đề gốc, các mã gắn vào thì xem/sửa trong ô Mã đề") — số mã của từng đề gốc.
+            $vxReady = \App\Services\ExamVariantService::ready();
+            $vxCounts = $vxReady
+                ? Assessment::query()->whereNotNull('variant_of_id')->groupBy('variant_of_id')->selectRaw('variant_of_id, COUNT(*) as n')->pluck('n', 'variant_of_id')->all()
+                : [];
+            $rows = $this->assessments->latestWithCreator(500)->reject(fn ($a) => $a->isGeneralSet())->values()->map(function ($a) use ($vxReady, $vxCounts) { // SỬA 3/11 — bỏ "Bài phổ thông"
                 [$label, $tone] = $this->statusLabel($a->status);
                 $isTeacherOwned = $a->owner_type !== OwnerType::Shared;
 
@@ -396,6 +404,10 @@ class ContentService
                     'editHref' => route('admin.content.assessments.edit', $a->id),
                     'canDelete' => true,
                     'deleteHref' => route('admin.content.assessments.destroy', $a->id),
+                    // SỬA 3/11 — nhóm mã đề: số mã của đề gốc (0 = đề lẻ) / đề này là mã con của đề gốc nào.
+                    'variantCount' => isset($vxCounts[$a->id]) ? (int) $vxCounts[$a->id] + 1 : 0,
+                    'variantOf' => $vxReady && $a->variant_of_id ? (int) $a->variant_of_id : null,
+                    'variantCode' => $vxReady ? $a->variant_code : null,
                     // SỬA 3/11 (khách: "xoá đề là xoá luôn câu hỏi trong đề và mọi file") — xem assessmentDestroyWithContent().
                     'deleteLabel' => 'Xoá vĩnh viễn đề này cùng TOÀN BỘ câu hỏi trong đề (kèm đề bài, lời giải, ảnh, bộ test), file PDF, ảnh bìa và mọi lượt làm của học sinh? Câu nào còn nằm trong đề khác thì giữ lại. Không thể khôi phục.',
                 ];
@@ -405,6 +417,9 @@ class ContentService
             // có dấu/không dấu ("hung yen" vẫn ra "HƯNG YÊN"). Lọc trên danh sách đã lấy (tối đa 500 đề) nên không đổi truy vấn.
             if (($kw = self::searchKey((string) ($filters['q'] ?? ''))) !== '') {
                 $rows = array_values(array_filter($rows, fn ($r) => str_contains(self::searchKey((string) $r['title']), $kw)));
+            } else {
+                // SỬA 3/11 — không tìm kiếm thì chỉ hiện ĐỀ GỐC của mỗi nhóm mã đề (tìm theo tên thì vẫn ra cả mã con).
+                $rows = array_values(array_filter($rows, fn ($r) => empty($r['variantOf'])));
             }
         } elseif ($tab === 'drafts') {
             $documents = $this->pendingDocuments();
