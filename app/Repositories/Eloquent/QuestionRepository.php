@@ -62,8 +62,16 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
      * Giữ nguyên 2 ràng buộc gốc của Kho câu hỏi (whereNull('product_id') — bài tập riêng của
      * sản phẩm quản lý ở trang Sản phẩm; sắp xếp mới nhất trước), chỉ chồng thêm điều kiện lọc.
      */
-    public function allWithOwnerFiltered(array $filters, int $limit = 50, int $offset = 0): Collection
+    public function allWithOwnerFiltered(array $filters, int $limit = 50, int $offset = 0, bool $listColumnsOnly = false): Collection
     {
+        // SỬA 3/11 (khách: "trang Kho bài tập admin bấm trang / lọc chậm lắm") — $listColumnsOnly = true: chỉ lấy cột nhẹ
+        // (Question::scopeListColumns), KHÔNG kéo grading_config — cột này chứa cả bộ test, có câu nặng hàng chục MB, trước đây mỗi
+        // lần chuyển trang phải tải về + giải mã JSON của 12 câu như vậy chỉ để in 1 dòng danh sách. Mặc định false = như cũ.
+        if ($listColumnsOnly) {
+            return QuestionOrder::apply($this->applyQuestionBankFilters($this->query()->listColumns()->with('owner'), $filters))
+                ->offset($offset)->limit($limit)->get();
+        }
+
         // SỬA 10/10 (khách: "thứ tự các câu ở danh sách admin phải trùng trang luyện tập public để
         // người ta đưa lên trước theo dõi cho dễ") — dùng CHUNG QuestionOrder::apply() với trang
         // Luyện tập: gom theo dạng bài → thứ tự hiển thị giảm dần → id tăng dần. Trước đây admin xếp

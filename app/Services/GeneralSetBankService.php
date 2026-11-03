@@ -95,8 +95,8 @@ class GeneralSetBankService
         Assessment::query()
             ->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
             ->when($teacherId !== null, fn ($q) => $q->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacherId))
-            ->with('items.question')
-            ->get()
+            ->with(['items:id,assessment_id,question_id', 'items.question:id,subject']) // chỉ cột cần đếm (nhẹ)
+            ->get(['id'])
             ->each(function (Assessment $a) use (&$out) {
                 $subject = (string) ($a->items->pluck('question')->filter()->map(fn ($q) => $q->subject)->filter()->first() ?? '');
                 $out[$subject] = ($out[$subject] ?? 0) + 1;

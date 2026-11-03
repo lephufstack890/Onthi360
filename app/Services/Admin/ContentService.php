@@ -319,19 +319,20 @@ class ContentService
             // SỬA 7/10 — câu đứng NGAY TRƯỚC câu đầu trang này (ở trang trước), để nút "Đưa lên
             // trước" của dòng đầu trang 2+ biết phải chen lên trước câu nào.
             $leadPrev = $page > 1
-                ? $this->questions->allWithOwnerFiltered($filters, 1, ($page - 1) * $perPage - 1)->first()
+                ? $this->questions->allWithOwnerFiltered($filters, 1, ($page - 1) * $perPage - 1, true)->first()
                 : null;
             $leadPrevId = $leadPrev?->id;
             $leadPrevType = $leadPrev?->type->value;
 
             // SỬA 10/10 — câu đứng NGAY SAU câu cuối trang này (ở trang sau), để nút "Đưa xuống dưới" của dòng cuối trang biết đảo với câu nào.
             $leadNext = $page < $lastPage
-                ? $this->questions->allWithOwnerFiltered($filters, 1, $page * $perPage)->first()
+                ? $this->questions->allWithOwnerFiltered($filters, 1, $page * $perPage, true)->first()
                 : null;
             $leadNextId = $leadNext?->id;
             $leadNextType = $leadNext?->type->value;
 
-            $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage)->map(function ($q) {
+            // SỬA 3/11 (khách: "chuyển trang / lọc chậm") — chỉ nạp cột nhẹ (không kéo grading_config chứa bộ test), xem QuestionRepository.
+            $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage, true)->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
                 return [

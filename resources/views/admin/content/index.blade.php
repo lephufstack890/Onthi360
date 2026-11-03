@@ -181,7 +181,8 @@
                     {{-- SỬA 3/11 (khách: "bỏ Trắc nghiệm / Điền khuyết / Nhiều phần, để 1 tab Phổ thông") — chỉ còn Lập trình và Phổ thông
                          (Phổ thông = mọi dạng không phải lập trình + các "Bài phổ thông", mỗi bài tính 1). --}}
                     @php
-                        $akxGsb = (($filters['in_exam'] ?? 'unused') === 'unused') ? app(\App\Services\GeneralSetBankService::class)->rows(null, $filters['q'] ?? null) : [];
+                        // SỬA 3/11 (tốc độ) — chỉ dựng danh sách "Bài phổ thông" khi đang lọc Phổ thông; số trên chip lấy $generalSetCount (đã đếm sẵn).
+                        $akxGsb = (($filters['in_exam'] ?? 'unused') === 'unused' && ($filters['type'] ?? null) === 'general') ? app(\App\Services\GeneralSetBankService::class)->rows(null, $filters['q'] ?? null) : [];
                         $akxCoding = (int) ($typeCounts['coding'] ?? 0);
                         $akxGsTotal = (int) ($generalSetCount ?? count($akxGsb)); // SỬA 3/11 — tổng bài phổ thông (không phụ thuộc ô tìm)
                         $akxGeneral = array_sum($typeCounts) - $akxCoding + $akxGsTotal;
