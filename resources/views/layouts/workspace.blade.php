@@ -67,9 +67,27 @@
          khoảng cách to đều nhau nên bố cục không vỡ. Chỉ áp từ màn 1024px trở lên (điện thoại đã tự phóng theo máy).
          KHÔNG áp cho khu Quản trị, và tắt ở trang có ô soạn code (@section('ws-no-zoom')) để con trỏ soạn code
          không bị lệch trên trình duyệt cũ. Muốn chỉnh mức to: sửa 2 con số zoom dưới đây. --}}
+    {{-- SỬA 3/11 (khách: "cỡ chữ ở bảng điều khiển admin / giáo viên / học sinh đồng bộ với trang chính") — TẮT phóng 110%/115%
+         để mọi vai trò hiện cùng một cỡ như trang công khai. Muốn bật lại: bỏ dấu chú thích Blade quanh khối <style> zoom này.
     <style>
         @media (min-width: 1024px) { body.ws-roomy { zoom: 1.1; } }
         @media (min-width: 1536px) { body.ws-roomy { zoom: 1.15; } }
+    </style>
+    --}}
+    {{-- SỬA 3/11 (cùng yêu cầu) — trả các bậc chữ nhỏ trong khu làm việc về ĐÚNG cỡ như trang chính (khối "CỠ CHỮ KHU LÀM VIỆC"
+         trong resources/css/app.css từng nâng mỗi bậc thêm 1px chỉ riêng khu này). Đặt sau @vite nên đè được; muốn quay lại
+         như cũ chỉ cần xoá khối <style> dưới đây. --}}
+    <style>
+        .admin-typography [class~="text-[9px]"] { font-size: 9px; }
+        .admin-typography [class~="text-[10px]"] { font-size: 10px; }
+        .admin-typography [class~="text-[10.5px]"] { font-size: 10.5px; }
+        .admin-typography [class~="text-[11px]"] { font-size: 11px; }
+        .admin-typography [class~="text-[11.5px]"] { font-size: 11.5px; }
+        .admin-typography [class~="text-[12px]"] { font-size: 12px; }
+        .admin-typography [class~="text-[13px]"] { font-size: 13px; }
+        .admin-typography [class~="text-[13.5px]"] { font-size: 13.5px; }
+        .admin-typography [class~="text-xs"] { font-size: 0.75rem; line-height: 1rem; }
+        .admin-typography [class~="text-sm"] { font-size: 0.875rem; line-height: 1.25rem; }
     </style>
     <script>window.__flashToasts = window.__flashToasts || [];</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
