@@ -1065,14 +1065,16 @@
 
             <section data-section="HOME-11B-CONTACT-SUPPORT" class="h-full relative overflow-hidden rounded-3xl p-4 sm:p-5 border border-sky-100 shadow-[0_2px_10px_rgba(0,100,220,0.04)] flex flex-col justify-between min-h-[300px] sm:min-h-[320px]">
                 <img src="{{ asset('assets/support-banner-bg.jpg') }}" alt="Cần hỗ trợ?"
-                     class="absolute inset-0 w-full h-full object-cover object-[80%_center] sm:object-right pointer-events-none select-none z-0">
-                <div class="absolute inset-0 bg-gradient-to-r from-white/95 via-white/85 to-white/40 sm:from-white/80 sm:via-white/50 sm:to-transparent z-0 pointer-events-none"></div>
+                     class="oi-sup-img absolute inset-0 w-full h-full object-cover object-[80%_center] sm:object-right pointer-events-none select-none z-0">
+                <div class="oi-sup-shade absolute inset-0 bg-gradient-to-r from-white/95 via-white/85 to-white/40 sm:from-white/80 sm:via-white/50 sm:to-transparent z-0 pointer-events-none"></div>
 
                 <div class="absolute top-4 right-4 sm:right-6 bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-sky-200 shadow-xs text-[11px] font-semibold text-sky-800 leading-tight text-center pointer-events-none z-10 hidden sm:block">
                     Chúng tôi<br>luôn ở đây<br>cùng bạn!
                 </div>
 
-                <div class="relative z-10 w-full sm:max-w-[58%] flex flex-col justify-between h-full">
+                {{-- SỬA 3/11 (khách: "chữ đè lên mặt cô gái xấu, cho xuống ngực") — điện thoại: khung cao hơn, ảnh neo phía trên,
+                     cả khối chữ + nút dồn xuống nửa dưới (CSS .oi-sup-* trong @push('scripts') bên dưới). Màn rộng giữ nguyên. --}}
+                <div class="oi-sup-copy relative z-10 w-full sm:max-w-[58%] flex flex-col justify-between h-full">
                     <div>
                         <div class="flex items-center gap-2.5 mb-2">
                             <div class="w-8.5 h-8.5 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm shadow-2xs shrink-0">
@@ -1131,6 +1133,19 @@
 @endsection
 
 @push('scripts')
+    <style>
+        /* SỬA 3/11 — khối "Cần hỗ trợ?" khi khung hẹp (điện thoại, và màn rộng lúc khối chỉ chiếm nửa hàng cạnh Câu hỏi
+           thường gặp): chữ + nút dồn xuống dưới (ngang ngực), không đè lên mặt. Khoảng 640–1023px khối trải cả hàng, ảnh
+           nằm bên phải chữ nên giữ nguyên. */
+        @media (max-width: 639px), (min-width: 1024px) {
+            .home-typography [data-section='HOME-11B-CONTACT-SUPPORT'] { min-height: 470px; }
+            .oi-sup-copy { max-width: none !important; }
+            .oi-sup-img { object-position: 70% 0 !important; }
+            .oi-sup-copy { justify-content: flex-end !important; }
+            .oi-sup-copy > div:first-child { margin-top: auto; }
+            .oi-sup-shade { background: linear-gradient(to top, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 42%, rgba(255, 255, 255, .35) 62%, rgba(255, 255, 255, 0) 75%) !important; }
+        }
+    </style>
     {{-- SỬA 30/9 (2) — CSS của hai bảng chọn thả xuống ở [HOME-04].
          Viết CSS thường chứ không dùng class Tailwind mới: máy chủ KHÔNG chạy được vite nên
          class nào chưa có sẵn trong public/build/assets/app-*.css sẽ không có tác dụng. --}}

@@ -631,7 +631,7 @@ class ClassRoomService
     /** Kiểm tra quyền: giáo viên đứng lớp (main/co_teacher) hoặc admin/super_admin (7.2). */
     public function ensureTeaches(ClassRoom $classRoom, User $user): void
     {
-        abort_unless($classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN), 403);
+        abort_unless($classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $user->isRealAdmin(), 403); // SỬA 3/11 — admin thật (kể cả đang xem như Giáo viên) quản lý được mọi lớp
     }
 
     /** teacher.classes.create — danh sách khóa học để chọn khi tạo lớp mới. */

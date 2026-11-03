@@ -55,6 +55,10 @@
     // bấm vào ra chi tiết lớp") — chỉ với lớp mình dạy (trang chi tiết lớp của giáo viên chặn lớp không dạy).
     $pclViewer = auth()->user();
     $pclTeacherId = ($pclViewer !== null && $pclViewer->hasRole(\App\Models\Role::TEACHER)) ? (int) $pclViewer->id : null;
+    // SỬA 3/11 (khách: "riêng admin quản lý được toàn bộ lớp") — admin thật thấy "Quản lý lớp" ở MỌI lớp: đang xem như Giáo viên
+    // thì mở trang lớp bên giáo viên, còn ở giao diện Quản trị thì mở trang sửa lớp của khu quản trị.
+    $pclAdmin = $pclViewer !== null && $pclViewer->isRealAdmin();
+    $pclAdminActing = $pclAdmin && $pclViewer->actingRole() !== null;
 
     /*
      * Dải chip MÔN HỌC (khối [COURSES-03]) đang ẨN: khách chốt trang chỉ cần hai bộ lọc
@@ -443,9 +447,14 @@
                 <div class="p-4 pt-0">
                     <div class="flex items-center justify-between gap-3 border-t border-[#DDEAF0] pt-3">
                         <div class="min-w-0">
-                            @php $pclManage = $pclTeacherId !== null && in_array($pclTeacherId, $cl['teacherIds'] ?? [], true); @endphp
+                            @php
+                                $pclManage = $pclAdmin || ($pclTeacherId !== null && in_array($pclTeacherId, $cl['teacherIds'] ?? [], true));
+                                $pclManageUrl = ($pclAdmin && ! $pclAdminActing && ! in_array((int) $pclViewer->id, $cl['teacherIds'] ?? [], true))
+                                    ? route('admin.classes.edit', $cl['id'])
+                                    : (($pclTeacherId !== null || $pclAdminActing) ? route('teacher.classes.show', $cl['id']) : route('admin.classes.edit', $cl['id']));
+                            @endphp
                             @if ($pclManage)
-                                <a href="{{ route('teacher.classes.show', $cl['id']) }}"
+                                <a href="{{ $pclManageUrl }}"
                                    class="pcl-manage">
                                     <x-lucide name="settings" class="h-3.5 w-3.5" />
                                     <span>Quản lý lớp</span>
@@ -463,7 +472,7 @@
                             @php
                                 // SỬA 16/9 — không còn lối vào bằng mã lớp; 3 trạng thái thật:
                                 // đang học / đã gửi yêu cầu chờ duyệt / chưa đăng ký.
-                                $joinHint = $pclManage ? 'Bạn là giáo viên của lớp này' : ($cl['isMember']
+                                $joinHint = $pclManage ? (in_array((int) ($pclViewer?->id ?? 0), $cl['teacherIds'] ?? [], true) ? 'Bạn là giáo viên của lớp này' : 'Bạn là quản trị viên') : ($cl['isMember']
                                     ? 'Bạn đang học lớp này'
                                     : ($cl['isPending']
                                         ? 'Đang chờ giáo viên duyệt'

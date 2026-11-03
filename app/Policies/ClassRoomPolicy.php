@@ -16,12 +16,12 @@ class ClassRoomPolicy
 
     public function update(User $user, ClassRoom $classRoom): bool
     {
-        return $classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN);
+        return $classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $user->isRealAdmin(); // SỬA 3/11 — admin thật (kể cả đang xem như Giáo viên) quản lý được mọi lớp
     }
 
     public function view(User $user, ClassRoom $classRoom): bool
     {
-        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $classRoom->isTaughtBy($user)) {
+        if ($user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $user->isRealAdmin() || $classRoom->isTaughtBy($user)) { // SỬA 3/11 — admin thật (kể cả đang xem như Giáo viên) quản lý được mọi lớp
             return true;
         }
 
