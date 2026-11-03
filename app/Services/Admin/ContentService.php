@@ -259,7 +259,10 @@ class ContentService
             // loại các câu hỏi là "bài tập đính kèm sản phẩm" (product_id khác null, quản lý
             // riêng ở trang Sản phẩm), khớp với allLatestWithOwner() bên dưới.
             'questions' => $this->questions->query()->whereNull('product_id')->count(),
-            'assessments' => $this->assessments->count(),
+            // SỬA 3/11 — "Bài phổ thông" hiện ở tab Bài chung (1 dòng / bài), không đếm vào tab Đề thi.
+            'assessments' => Assessment::supportsPracticeKind()
+                ? Assessment::query()->where(fn ($q) => $q->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL))->count()
+                : $this->assessments->count(),
             'drafts' => $this->draftQuestions->countPendingReview(),
             // SỬA 19/8 (Giai đoạn 6): xem nhánh $tab === 'tags' bên dưới.
             'tags' => $this->tags->count(),
@@ -372,7 +375,7 @@ class ContentService
         } elseif ($tab === 'assessments') {
             // SỬA 8/10 (khách: "phân trang đầy đủ cho từng tab, quá 10 item thì phân trang") — nâng giới hạn cứng 50 -> 500
             // để tab Đề thi có đủ dòng cho phần chia trang (10 đề/trang, chia ngay trên view). Không đổi thứ tự/nội dung dòng.
-            $rows = $this->assessments->latestWithCreator(500)->map(function ($a) {
+            $rows = $this->assessments->latestWithCreator(500)->reject(fn ($a) => $a->isGeneralSet())->values()->map(function ($a) { // SỬA 3/11 — bỏ "Bài phổ thông"
                 [$label, $tone] = $this->statusLabel($a->status);
                 $isTeacherOwned = $a->owner_type !== OwnerType::Shared;
 

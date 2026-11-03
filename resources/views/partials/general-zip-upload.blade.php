@@ -34,7 +34,7 @@
     <div class="gz-body">
         <strong>Nhập BÀI PHỔ THÔNG từ gói ZIP — 1 bài nhiều câu</strong>
         <p>Đúng khuôn gói mẫu cũ (question.json + statement.pdf + solution.pdf), chỉ khác <code>"type": "general"</code> và danh sách câu
-            <code>"questions"</code>. Mỗi câu tự khai dạng. Học sinh làm cả bài, <b>nộp mới chấm</b>, xong xem đáp án + lời giải. {{ $gzNote ?? '' }}</p>
+            <code>"questions"</code>. Mỗi câu tự khai dạng. <b>Điểm tự chia đều, tổng 10</b> (ví dụ 20 câu = 0,5 điểm/câu). Học sinh làm cả bài, <b>nộp mới chấm</b>, xong xem đáp án + lời giải. {{ $gzNote ?? '' }}</p>
         <div class="gz-types">
             <span class="gz-type"><x-lucide name="list-checks" /> Trắc nghiệm</span>
             <span class="gz-type"><x-lucide name="check-circle-2" /> Đúng / Sai</span>
@@ -46,7 +46,7 @@
             <summary>Cách soạn gói</summary>
             <p>Tên file ZIP = mã bài. <code>statement.pdf</code> = đề cả bài (học sinh xem ở tab "Đề bài PDF"), <code>solution.pdf</code> = lời giải
                 cả bài (hiện sau khi nộp, không bắt buộc). Mỗi câu trong <code>questions</code>: <code>no</code>, <code>type</code>
-                (single_choice / true_false / short_answer / composite), <code>points</code>, <code>grading</code> (y hệt gói 1 câu), tuỳ chọn
+                (single_choice / true_false / short_answer / composite), <code>grading</code> (y hệt gói 1 câu), tuỳ chọn
                 <code>prompt</code> (nội dung câu bằng chữ), <code>explanation</code> (lời giải ngắn), <code>assets</code> (ảnh). Gói 1 câu cũ nhập ở đây
                 thành bài 1 câu. Bài lập trình nhập ở mục "Lập trình / câu lẻ". Xem HUONG-DAN.txt trong file mẫu.</p>
         </details>

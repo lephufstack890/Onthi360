@@ -163,6 +163,10 @@
             </div>
         </section>
 
+        {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài. --}}
+        @if ($tab === 'unused')
+            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
+        @endif
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách câu hỏi">
             <div class="akx-sub">
                 <span><b>{{ $total }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>

@@ -529,6 +529,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.zipImport');
         // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
         Route::post('questions/general-zip-import', [\App\Http\Controllers\GeneralSetController::class, 'teacherImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.generalImport');
+        Route::delete('questions/general-sets/{assessment}', [\App\Http\Controllers\GeneralSetController::class, 'teacherDestroy'])->whereNumber('assessment')->name('questions.generalSets.destroy');
         Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
 
         // SỬA 24/8 — khách yêu cầu: giáo viên (cố vấn/đồng hành) chỉ được THÊM/SỬA kỳ thi
@@ -951,6 +952,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/zip-import', [AdminContentController::class, 'questionsZipImportStore'])->name('content.questions.zipImport');
         // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
         Route::post('content/general-sets/zip-import', [\App\Http\Controllers\GeneralSetController::class, 'adminImport'])->name('content.generalSets.zipImport');
+        Route::post('content/general-sets/{assessment}/publish', [\App\Http\Controllers\GeneralSetController::class, 'adminPublish'])->whereNumber('assessment')->name('content.generalSets.publish');
+        Route::post('content/general-sets/{assessment}/unpublish', [\App\Http\Controllers\GeneralSetController::class, 'adminUnpublish'])->whereNumber('assessment')->name('content.generalSets.unpublish');
+        Route::delete('content/general-sets/{assessment}', [\App\Http\Controllers\GeneralSetController::class, 'adminDestroy'])->whereNumber('assessment')->name('content.generalSets.destroy');
         Route::get('content/questions/{question}/attachment/{kind}', [AdminContentController::class, 'questionsAttachmentDownload'])->name('content.questions.attachment');
 
         Route::get('content/questions/import', [AdminContentController::class, 'questionsImport'])->name('content.questions.import');

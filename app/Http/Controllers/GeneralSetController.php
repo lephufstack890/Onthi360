@@ -82,6 +82,40 @@ class GeneralSetController extends Controller
         return Storage::disk('local')->response($path, ($which === 'solution' ? 'loi-giai' : 'de-bai').'.pdf');
     }
 
+    // ───── SỬA 3/11 — "Bài phổ thông" là 1 dòng ở tab Bài chung: Phát hành / Ngừng phát hành / Xoá CẢ bài ─────
+
+    /** admin.content.generalSets.publish */
+    public function adminPublish(Assessment $assessment): RedirectResponse
+    {
+        $r = app(\App\Services\GeneralSetBankService::class)->publishForAdmin($assessment);
+
+        return back()->with('generalSetFlash', $r['ok'] ? ['success', 'Đã phát hành bài "'.$assessment->title.'" — học sinh thấy ở Luyện tập > Phổ thông.'] : ['error', (string) $r['message']]);
+    }
+
+    /** admin.content.generalSets.unpublish */
+    public function adminUnpublish(Assessment $assessment): RedirectResponse
+    {
+        app(\App\Services\GeneralSetBankService::class)->unpublishForAdmin($assessment);
+
+        return back()->with('generalSetFlash', ['success', 'Đã ngừng phát hành bài "'.$assessment->title.'" — học sinh không thấy nữa.']);
+    }
+
+    /** admin.content.generalSets.destroy */
+    public function adminDestroy(Assessment $assessment): RedirectResponse
+    {
+        [$ok, $msg] = app(\App\Services\GeneralSetBankService::class)->destroyForAdmin($assessment);
+
+        return back()->with('generalSetFlash', [$ok ? 'success' : 'error', $msg]);
+    }
+
+    /** teacher.questions.generalSets.destroy */
+    public function teacherDestroy(Request $request, Assessment $assessment): RedirectResponse
+    {
+        [$ok, $msg] = app(\App\Services\GeneralSetBankService::class)->destroyForTeacher($request->user(), $assessment);
+
+        return back()->with('generalSetFlash', [$ok ? 'success' : 'error', $msg]);
+    }
+
     private function validateZip(Request $request): void
     {
         $request->validate([

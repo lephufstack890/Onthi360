@@ -311,6 +311,10 @@
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm Môn/Khối (và mã câu hỏi dưới tên) để nhìn bảng là biết
              ngay câu nào chưa phân loại; SỬA 1/10 — thêm Tỉnh thành/Năm. SỬA 8/10: các thông tin này giờ gộp
              vào cùng ô theo bản mẫu (Nội dung/Nguồn, Phân loại) — không bỏ thông tin nào. --}}
+        {{-- SỬA 3/11 — tab "Bài chung": mỗi "Bài phổ thông" (1 bài nhiều câu) hiện 1 dòng ở đầu danh sách. --}}
+        @if ($isQuestions && ($filters['in_exam'] ?? 'unused') === 'unused' && (int) request('page', 1) <= 1)
+            @include('partials.general-set-bank', ['gsbMode' => 'admin', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows(null, $filters['q'] ?? null)])
+        @endif
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách nội dung">
             <div class="akx-sub">
                 <span><b>{{ $resultTotal }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>

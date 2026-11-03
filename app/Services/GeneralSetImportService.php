@@ -44,6 +44,7 @@ class GeneralSetImportService
     {
         $this->assertReady();
         $p = GeneralSetZipPackage::parse($zip);
+        $p['questions'] = self::spreadTotal($p['questions']);
 
         try {
             $assessment = DB::transaction(function () use ($admin, $p) {
@@ -97,6 +98,7 @@ class GeneralSetImportService
     {
         $this->assertReady();
         $p = GeneralSetZipPackage::parse($zip);
+        $p['questions'] = self::spreadTotal($p['questions']);
 
         try {
             $assessment = DB::transaction(function () use ($teacher, $p) {
@@ -140,6 +142,32 @@ class GeneralSetImportService
         }
 
         return ['assessment' => $assessment, 'summary' => GeneralSetZipPackage::summaryText($p['summary'])];
+    }
+
+    /** SỬA 3/11 (khách: "điểm bài phổ thông chia đều theo tổng 10") — tổng điểm của bài luôn là 10. */
+    public const TOTAL_POINTS = 10;
+
+    /**
+     * Chia đều TOTAL_POINTS cho các câu (bỏ qua "points" ghi trong gói). Điểm lưu 2 chữ số thập phân nên phần lẻ được dồn
+     * 0,01 cho các câu đầu để tổng ĐÚNG 10 — vd 24 câu: 16 câu 0,42 + 8 câu 0,41 = 10; 20 câu: mỗi câu 0,5.
+     *
+     * @param  list<array<string, mixed>>  $questions
+     * @return list<array<string, mixed>>
+     */
+    public static function spreadTotal(array $questions): array
+    {
+        $n = count($questions);
+        if ($n === 0) {
+            return $questions;
+        }
+        $cents = self::TOTAL_POINTS * 100;
+        $base = intdiv($cents, $n);
+        $extra = $cents - $base * $n;
+        foreach (array_values($questions) as $i => $q) {
+            $questions[$i]['points'] = round(($base + ($i < $extra ? 1 : 0)) / 100, 2);
+        }
+
+        return array_values($questions);
     }
 
     /** Nội dung câu (prompt) + lời giải ngắn (explanation) khai trong gói — chỉ ghi lên câu VỪA tạo. */

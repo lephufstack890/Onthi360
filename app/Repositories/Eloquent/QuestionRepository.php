@@ -85,6 +85,7 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     {
         return $this->query()
             ->whereNull('product_id')
+            ->where(fn (Builder $q) => self::hideGeneralSetChildren($q)) // SỬA 3/11 — câu con của "Bài phổ thông"
             // SỬA 18/9 — $scope = ['owner_id' => …] hoặc ['owner_type' => 'shared'] để chip đếm
             // theo môn ở trang giáo viên chỉ đếm ĐÚNG kho đang xem. Admin gọi không tham số ->
             // đếm toàn bộ như trước, không đổi hành vi cũ.
@@ -108,6 +109,7 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     private function applyQuestionBankFilters(Builder $query, array $filters): Builder
     {
         $query->whereNull('product_id');
+        self::hideGeneralSetChildren($query); // SỬA 3/11 — câu con của "Bài phổ thông" không hiện thành bài lẻ
 
         // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như
         // admin") — 2 khoá PHẠM VI để giáo viên dùng LẠI đúng hàm lọc này thay vì viết bản thứ
@@ -251,6 +253,7 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
     {
         return $this->query()
             ->whereNull('product_id')
+            ->where(fn (Builder $q) => self::hideGeneralSetChildren($q)) // SỬA 3/11 — câu con của "Bài phổ thông"
             ->when(! empty($scope['owner_id']), fn (Builder $q) => $q->where('owner_id', (int) $scope['owner_id']))
             ->when(! empty($scope['owner_type']), fn (Builder $q) => $q->where('owner_type', $scope['owner_type']))
             // SỬA 7/10 — tab "Đã dùng / Chưa dùng trong đề" của admin: số đếm theo môn/dạng phải
@@ -349,5 +352,19 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
             ->when($tagIds !== [], fn (Builder $q) => $q->whereHas('tags', fn (Builder $qq) => $qq->whereIn('tags.id', $tagIds)))
             ->pluck('id')
             ->all();
+    }
+
+    /**
+     * SỬA 3/11 (khách: "bài phổ thông vẫn thuộc Bài chung nhưng 1 bài có nhiều câu") — các câu CON của "Bài phổ thông"
+     * (đề practice_kind = general) không hiện thành từng bài lẻ trong Kho bài tập; cả bài hiện 1 dòng riêng
+     * (App\Services\GeneralSetBankService). Chưa chạy migration thì không lọc gì (như cũ).
+     */
+    public static function hideGeneralSetChildren(Builder $query): Builder
+    {
+        if (\App\Models\Assessment::supportsPracticeKind()) {
+            $query->whereDoesntHave('assessmentItems.assessment', fn (Builder $a) => $a->where('practice_kind', \App\Models\Assessment::PRACTICE_KIND_GENERAL));
+        }
+
+        return $query;
     }
 }
