@@ -758,6 +758,10 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::post('content/assessments/{assessment}/bundle-only', [\App\Http\Controllers\Admin\ExamBundleController::class, 'assessmentVisibility'])->name('content.assessments.bundle.visibility');
         Route::post('content/assessments/{assessment}/bundles', [\App\Http\Controllers\Admin\ExamBundleController::class, 'assessmentAttach'])->name('content.assessments.bundle.attach');
+        // SỬA 3/11 — NHÓM MÃ ĐỀ (xem App\Services\ExamVariantService): gắn / đổi tên mã / gỡ khỏi nhóm.
+        Route::post('content/assessments/{assessment}/variants', [\App\Http\Controllers\Admin\ExamVariantController::class, 'attach'])->name('content.assessments.variants.attach');
+        Route::post('content/assessments/{assessment}/variant-code', [\App\Http\Controllers\Admin\ExamVariantController::class, 'code'])->name('content.assessments.variants.code');
+        Route::post('content/assessments/{assessment}/variant-detach', [\App\Http\Controllers\Admin\ExamVariantController::class, 'detach'])->name('content.assessments.variants.detach');
 
         // SỬA 14/10 (khách: "admin đọc được tất cả tài liệu, không cần mua") — màn đọc tài liệu cho
         // admin, dùng chung bộ đọc với học sinh/giáo viên. Xem Admin\MaterialReadController.

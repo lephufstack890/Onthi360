@@ -202,6 +202,14 @@ class Assessment extends Model
         return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('assessments', 'practice_kind');
     }
 
+    /** SỬA 3/11 — NHÓM MÃ ĐỀ: máy chủ đã chạy migration add_variant_to_assessments chưa (chưa thì mọi thứ chạy như cũ). */
+    public static function supportsVariants(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('assessments', 'variant_of_id');
+    }
+
     /** SỬA 3/11 — đề này là "Bài phổ thông". */
     public function isGeneralSet(): bool
     {

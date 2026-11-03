@@ -191,6 +191,11 @@
         'csrf' => csrf_token(),
     ] : null;
 @endphp
+@php
+    // SỬA 3/11 — NHÓM MÃ ĐỀ: đề có từ 2 mã trở lên + đã đăng nhập thì "Bắt đầu làm bài" mở popup chọn mã (partials/exam-variant-picker).
+    $variants = $variants ?? [];
+    $evOpen = count($variants) > 1 && $canTakeDirectly;
+@endphp
 <div class="min-h-screen bg-[#F7F9FB] text-[#466278]"
      @if ($canAssign) x-data="onthiExamAssign({{ Js::from($assignConfig) }})" @endif>
     <header class="sticky top-0 z-30 border-b border-[#DDEAF0] bg-white/95 backdrop-blur-xl">
@@ -233,13 +238,13 @@
                     </button>
                 @endif
 
-                <a href="{{ $takeHref }}"
+                <a href="{{ $takeHref }}" @if ($evOpen) data-ev-open @endif
                    class="hidden min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 text-[12px] font-semibold text-white transition hover:bg-[#0D5B77] sm:inline-flex">
                     <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
                 </a>
             </div>
 
-            <a href="{{ $takeHref }}"
+            <a href="{{ $takeHref }}" @if ($evOpen) data-ev-open @endif
                class="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-3 text-[12px] font-semibold text-white transition hover:bg-[#0D5B77] sm:hidden">
                 <x-lucide name="play" class="h-3.5 w-3.5" />{{ $canTakeDirectly ? ($attemptCount > 0 ? 'Làm đề' : 'Bắt đầu làm bài') : 'Đăng nhập để làm' }}
             </a>
@@ -267,6 +272,7 @@
                  nên ĐỨNG NGOÀI luồng tính chiều cao: tệp PDF dài tới đâu cũng không đẩy được ô
                  lưới, chỉ cuộn bên trong. Kết quả: hai cột luôn bằng nhau đúng chiều cao của cột
                  phải, đề dài thì cuộn trong khung. --}}
+            @include('partials.exam-variant-picker', ['evPart' => 'bar'])
             <div class="relative min-h-[60dvh] flex-1 lg:min-h-[360px]">
                 <div class="absolute inset-0 overflow-y-auto rounded-xl border border-[#DDEAF0] bg-[#E9F0F4] p-2 sm:p-4">
                 @if ($previewUrl)
@@ -372,6 +378,7 @@
                         <x-lucide name="list-checks" class="h-3.5 w-3.5 text-[#A87530]" />
                         <span>Số câu: <strong class="font-semibold text-[#123B68]">{{ $itemsCount }}</strong></span>
                     </p>
+                    @include('partials.exam-variant-picker', ['evPart' => 'fact'])
                     <p class="flex items-center gap-2">
                         <x-lucide name="award" class="h-3.5 w-3.5 text-[#A87530]" />
                         <span>Tổng điểm: <strong class="font-semibold text-[#123B68]">{{ $fmt($totalPoints) }}</strong></span>
@@ -396,6 +403,7 @@
                     @if ($latestSubmittedAt)
                         <p class="mt-2 text-[11px] text-[#61798B]">Nộp lúc {{ $latestSubmittedAt->format('H:i d/m/Y') }}</p>
                     @endif
+                    @include('partials.exam-variant-picker', ['evPart' => 'mine'])
                     @if ($canRate)
                         {{-- SỬA 7/10 — học sinh đã nộp đề chấm sao cho đề (1-5). Chấm lại thì ghi đè lượt cũ. --}}
                         <div class="oi-ed-rate" x-data="onthiExamRate({{ Js::from(['url' => $rateUrl, 'csrf' => csrf_token(), 'mine' => $myRating, 'avg' => $rating, 'count' => $reviewCount]) }})">
@@ -452,6 +460,7 @@
     @if ($canAssign)
         @include('partials.practice-assign-modal')
     @endif
+    @include('partials.exam-variant-picker', ['evPart' => 'dialog'])
 </div>
 @endsection
 

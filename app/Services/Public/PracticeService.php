@@ -248,6 +248,11 @@ class PracticeService
             ->when(\App\Services\ExamBundle\ExamBundleService::ready(), fn ($q) => $q->where('bundle_only', false))
             // SỬA 3/11 — "Bài phổ thông" (practice_kind = general) hiện ở tab Bài tập > Phổ thông, không lẫn vào Đề thi luyện tập.
             ->when(Assessment::supportsPracticeKind(), fn ($q) => $q->where(fn ($w) => $w->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL)))
+            // SỬA 3/11 — NHÓM MÃ ĐỀ: mỗi nhóm chỉ hiện ĐỀ GỐC (1 thẻ). Mã đề con chỉ ẩn khi đề gốc đang hiện (đã phát hành).
+            ->when(\App\Services\ExamVariantService::ready(), fn ($q) => $q->where(fn ($w) => $w->whereNull('variant_of_id')
+                ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('assessments as vr')
+                    ->whereColumn('vr.id', 'assessments.variant_of_id')
+                    ->where('vr.type', 'practice')->where('vr.status', 'published')->whereNull('vr.deleted_at'))))
             ->withCount(['items', 'answerKeys', 'codingItems'])
             ->latest()
             ->limit(self::EXAM_LIMIT)
@@ -273,6 +278,7 @@ class PracticeService
         // để con số minh hoạ ("1,240 lượt làm") và tự ghi chú là dữ liệu minh hoạ — ở đây có dữ
         // liệu thật thì dùng thật, đề chưa ai làm hiện 0 chứ không bịa.
         $attemptCounts = $this->attemptCountsByAssessment($assessmentIds);
+        $variantCounts = \App\Services\ExamVariantService::publicCounts($assessmentIds); // SỬA 3/11 — huy hiệu "N mã đề"
         $ratings = $this->ratingSummaries($assessmentIds);
         $combinedRatings = [];
         foreach ($assessments as $a) {
@@ -316,6 +322,8 @@ class PracticeService
             // Nút chính của thẻ đề giờ dẫn sang MÀN CHI TIẾT ĐỀ (bản mẫu: "Xem chi tiết đề"),
             // chỗ bấm "Bắt đầu làm bài" mới mở modal làm đề.
             'detailHref' => route('practice.exam.show', $a->id),
+            // SỬA 3/11 — số mã đề của nhóm (0 = đề không có mã đề).
+            'variantCount' => (int) ($variantCounts[$a->id] ?? 0),
         ])->all();
 
         return [
@@ -808,7 +816,15 @@ class PracticeService
             'canTakeDirectly' => $viewer !== null,
             'takeHref' => $viewer !== null ? route('student.assessment.take', $exam->id) : route('login'),
             'backHref' => route('practice.index', ['tab' => 'de-thi']),
+            // SỬA 3/11 — NHÓM MÃ ĐỀ: [] = đề không có mã đề (trang hiện như cũ). Xem App\Services\ExamVariantService.
+            'variants' => \App\Services\ExamVariantService::forViewer($exam, $viewer),
         ];
+    }
+
+    /** SỬA 3/11 — xoá bản nhớ tạm danh sách đề (gắn / gỡ mã đề thì danh sách đổi ngay). */
+    public static function forgetExamListCache(): void
+    {
+        Cache::forget('practice:exams:'.self::CACHE_VERSION);
     }
 
     /**

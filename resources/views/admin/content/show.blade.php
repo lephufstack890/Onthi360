@@ -182,6 +182,9 @@
                     {{-- SỬA 18/10 — MODULE BỘ ĐỀ: "Chỉ trong bộ đề" + đề thuộc bộ đề nào (chỉ đề Luyện tập). --}}
                     @include('admin.content.partials.assessment-bundle-box', ['assessment' => $model])
 
+                    {{-- SỬA 3/11 — NHÓM MÃ ĐỀ: gắn các đề khác làm mã đề của đề này (chỉ đề Luyện tập). --}}
+                    @include('admin.content.partials.assessment-variant-box', ['assessment' => $model])
+
                     {{-- SỬA 18/8: trước đây chỗ này chỉ có 1 dòng TODO, click "Xem" không thấy câu hỏi
                          nào trong đề — nay hiện đúng danh sách câu hỏi thật ($model->items, đã eager-load
                          items.question ở ContentService::showData()) + nút sang màn "Chọn câu hỏi". --}}

@@ -1132,6 +1132,14 @@
                         @endif
                         <span class="absolute left-3 top-3 rounded-lg border px-2 py-1 text-[11px] font-bold {{ $tone['badge'] }}">{{ $tone['label'] }}</span>
                         <span class="absolute bottom-2 left-3 rounded-md bg-white/90 px-2 py-1 font-mono text-[10px] font-bold text-[#45657D]">{{ $exam['examCode'] ?: '#'.$exam['id'] }}</span>
+                        {{-- SỬA 3/11 — NHÓM MÃ ĐỀ: đề có nhiều mã thì gắn huy hiệu "N mã đề" (chọn mã khi bấm Bắt đầu làm bài). --}}
+                        @if (($exam['variantCount'] ?? 0) > 1)
+                            <span title="Đề có {{ $exam['variantCount'] }} mã đề — chọn mã khi bắt đầu làm bài"
+                                  style="position:absolute;right:12px;bottom:8px;display:inline-flex;align-items:center;gap:4px;border-radius:6px;background:#126F91;color:#fff;padding:4px 8px;font-size:10px;font-weight:700;line-height:1;box-shadow:0 2px 6px rgba(18,111,145,.25)">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>
+                                {{ $exam['variantCount'] }} mã đề
+                            </span>
+                        @endif
                     </div>
 
                     <div class="flex min-h-0 flex-1 flex-col p-3">
