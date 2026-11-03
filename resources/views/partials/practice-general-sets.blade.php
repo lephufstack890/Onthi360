@@ -1,114 +1,196 @@
 {{--
-    SỬA 3/11 (khách: "dạng PHỔ THÔNG — mỗi bài nhiều câu trắc nghiệm / điền từ…; lập trình mỗi bài 1 câu giữ nguyên") —
-    danh sách "Bài phổ thông" hiện ở Luyện tập > Bài tập khi ô dạng bài chọn "Phổ thông" (partials/practice-catalog).
-    Dữ liệu: App\Services\Public\GeneralSetCatalogService. Dùng chung ô tìm kiếm / chuyên đề / độ khó / "Chưa làm" của trang.
-    Nút "Làm bài" mở trang chi tiết bài (practice.exam.show) — chỗ bấm "Bắt đầu làm bài" như mọi đề luyện tập. CSS tiền tố gst-.
+    SỬA 3/11 (khách: "dạng PHỔ THÔNG — mỗi bài nhiều câu…"; rồi: "UI in đúc dạng lập trình, chỉ khác dạng; bấm Làm bài là vô làm
+    luôn") — danh sách "Bài phổ thông" khi ô dạng bài chọn "Phổ thông" (partials/practice-catalog). Dùng ĐÚNG bộ khung / class của
+    hàng bài lập trình (oi-prob-grid, oi-code-line, oi-topics…) nên nhìn y hệt; chỉ khác: nhãn dạng "Phổ thông · N câu", cột kết quả
+    là điểm trung bình, nút "Làm bài" mở thẳng màn làm bài (student.assessment.take).
+    Dữ liệu: App\Services\Public\GeneralSetCatalogService. Lọc theo ô tìm kiếm / chuyên đề / độ khó / "Chưa làm" của trang.
 --}}
-@php $gstRows = app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user()); @endphp
-<style>
-    .gst-list { overflow: hidden; border: 1px solid #DDEAF0; border-radius: 16px; background: #fff; box-shadow: 0 2px 10px rgba(28, 91, 121, .05); }
-    .gst-head, .gst-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px 150px 130px; gap: 14px; align-items: center; padding: 12px 16px; }
-    .gst-head { background: #F4F8FB; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #365B7A; }
-    .gst-row + .gst-row { border-top: 1px solid #E7EFF3; }
-    .gst-row:nth-child(even) { background: #F9FCFD; }
-    .gst-row:hover { background: #F2F9FC; }
-    .gst-title { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-    .gst-ic { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: #EEF2FF; color: #4F46E5; }
-    .gst-ic.is-done { background: #2F8A6B; color: #fff; }
-    .gst-ic svg { width: 17px; height: 17px; }
-    .gst-title b { display: block; font-size: 15px; font-weight: 800; color: #123B68; line-height: 1.35; }
-    .gst-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-top: 5px; font-size: 11.5px; color: #607A90; }
-    .gst-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid #DDE7F3; background: #fff; font-size: 11px; font-weight: 700; color: #365B7A; }
-    .gst-chip.is-q { border-color: #C7D2FE; background: #EEF2FF; color: #4338CA; }
-    .gst-chip.is-done { border-color: #BBE5D2; background: #EAF7F0; color: #2F8A6B; }
-    .gst-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #64748B; }
-    .gst-topics { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-    .gst-topic { padding: 3px 9px; border-radius: 8px; border: 1px solid #D6E3EF; background: #F7FAFD; font-size: 12px; font-weight: 700; color: #345B78; }
-    .gst-stars { display: flex; gap: 1px; color: #CBD5E1; } .gst-stars svg { width: 14px; height: 14px; } .gst-stars .on { color: #F59E0B; }
-    .gst-diff small { display: block; margin-top: 2px; font-size: 11.5px; color: #607A90; }
-    .gst-stat b { display: block; font-size: 15px; font-weight: 900; color: #123B68; }
-    .gst-stat small { display: block; font-size: 11px; color: #607A90; }
-    .gst-stat .me { color: #2F8A6B; font-weight: 700; }
-    .gst-bar { height: 5px; margin: 4px 0; border-radius: 99px; background: #E2E8F0; overflow: hidden; } .gst-bar i { display: block; height: 100%; background: #2F8A6B; }
-    .gst-go { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border-radius: 10px; background: #2F8A6B; color: #fff !important; font-size: 13px; font-weight: 800; text-decoration: none; }
-    .gst-go:hover { background: #28795E; } .gst-go svg { width: 15px; height: 15px; }
-    .gst-more { display: block; width: 100%; padding: 10px; border: 0; border-top: 1px solid #E7EFF3; background: #F4F8FB; font-size: 12px; font-weight: 800; color: #126F91; cursor: pointer; }
-    .gst-empty { padding: 40px 16px; border: 1px dashed #C9DFE8; border-radius: 24px; background: #fff; text-align: center; }
-    @media (max-width: 1023px) {
-        .gst-head { display: none; }
-        .gst-row { grid-template-columns: minmax(0, 1fr) auto; }
-        .gst-title, .gst-topics { grid-column: 1 / -1; }
-        .gst-topics { flex-direction: row; flex-wrap: wrap; }
-        .gst-diff, .gst-stat { grid-column: span 1; }
-        .gst-go { grid-column: 1 / -1; }
-    }
-</style>
+@php
+    $gstRows = app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user());
+    $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => $r['search'], 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
+@endphp
 <script>
     // Số bài đang hiện — để dòng "Hiển thị N bài tập" ở đầu trang đếm đúng khi chọn Phổ thông.
     (function () {
         const reg = () => { try { if (! Alpine.store('oiGeneralSets')) Alpine.store('oiGeneralSets', { count: 0 }); } catch (e) {} };
         if (window.Alpine && typeof Alpine.store === 'function') reg(); else document.addEventListener('alpine:init', reg);
     })();
-    window.oiGeneralSetList = window.oiGeneralSetList || function (rows) {
+    window.oiGeneralSetList = function (rows) {
         return {
             gstRows: rows,
             gstShow: 20,
-            get gstFiltered() {
+            get gstVisibleIds() {
                 const q = (this.searchQuery || '').trim().toLowerCase();
                 const topic = this.selectedTopic, diff = this.selectedDifficulty;
-                const list = this.gstRows.filter((r) =>
+                return this.gstRows.filter((r) =>
                     (!q || r.search.includes(q))
                     && (topic === 'all' || topic === undefined || r.tagIds.includes(Number(topic)))
                     && (diff === 'all' || diff === undefined || r.difficulty === diff)
-                    && (!this.onlyUndone || r.myAttempts === 0));
-                return list;
+                    && (!this.onlyUndone || !r.done)).map((r) => r.id);
             },
+            gstPos(id) { const i = this.gstVisibleIds.indexOf(id); return i >= 0 && i < this.gstShow ? i : -1; },
         };
     };
 </script>
-<div x-show="activeTab === 'general' && problemScope !== 'assigned'" x-cloak x-data="oiGeneralSetList(@js($gstRows))"
-     x-effect="if ($store.oiGeneralSets) $store.oiGeneralSets.count = gstFiltered.length">
-    <template x-if="gstFiltered.length > 0">
-        <div class="gst-list">
-            <div class="gst-head"><span>Tên bài &amp; Mã</span><span>Chuyên đề</span><span>Độ khó</span><span>Kết quả</span><span style="text-align:right">Hành động</span></div>
-            <template x-for="r in gstFiltered.slice(0, gstShow)" :key="r.id">
-                <div class="gst-row">
-                    <div class="gst-title">
-                        <span class="gst-ic" :class="r.myAttempts > 0 && 'is-done'"><x-lucide name="list-checks" /></span>
-                        <div class="min-w-0">
-                            <b x-text="r.title"></b>
-                            <div class="gst-meta">
-                                <span class="gst-chip is-q"><x-lucide name="file-text" class="h-3 w-3" /><span x-text="r.questionCount + ' câu · ' + r.totalPoints + ' điểm'"></span></span>
-                                <span x-show="r.typeSummary" x-text="r.typeSummary"></span>
-                                <span x-show="r.myAttempts > 0" class="gst-chip is-done" x-text="'Đã làm ' + r.myAttempts + ' lần'"></span>
-                            </div>
-                            <div class="gst-meta"><span class="gst-code" x-show="r.code" x-text="'Mã: ' + r.code"></span><span>Phổ thông · Không giới hạn thời gian</span></div>
+<div x-show="activeTab === 'general' && problemScope !== 'assigned'" x-cloak x-data="oiGeneralSetList(@js($gstMatchData))"
+     x-effect="if ($store.oiGeneralSets) $store.oiGeneralSets.count = gstVisibleIds.length">
+    <div x-show="gstVisibleIds.length > 0" class="flex flex-col divide-y divide-[#E7EFF3] overflow-hidden rounded-2xl border border-[#DDEAF0] bg-white shadow-[0_2px_10px_rgba(28,91,121,0.05)]">
+        <div class="hidden bg-[#F4F8FB] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-[#365B7A] lg:grid oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }}">
+            <span>Tên bài tập &amp; Mã</span>
+            <span>Chuyên đề</span>
+            @if ($showProblemProvinceAuthor)<span>Tỉnh thành</span>@endif
+            <span>Năm</span>
+            @if ($showProblemProvinceAuthor)<span class="oi-prob-author">Tác giả</span>@endif
+            <span>Độ khó</span>
+            <span>Điểm TB</span>
+            <span class="text-right">Hành động</span>
+        </div>
+
+        @foreach ($gstRows as $set)
+            @php
+                $gstHref = $canTakeDirectly ? route('student.assessment.take', $set['id']) : route('login');
+                $gstTopics = array_values(array_filter($set['topicLabels'] ?? []));
+                $gstTopicSubs = array_slice($gstTopics, 1, 2);
+                $gstTopicMore = array_slice($gstTopics, 3);
+                $gstAvg = (int) ($set['avgPercent'] ?? 0);
+            @endphp
+            <div x-show="gstPos({{ $set['id'] }}) >= 0" :style="{ order: gstPos({{ $set['id'] }}) }"
+                 :class="gstPos({{ $set['id'] }}) % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]'"
+                 class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }} lg:items-center lg:gap-2.5">
+
+                {{-- Tên bài --}}
+                <div class="min-w-0">
+                    <div class="flex min-w-0 items-center gap-2">
+                        @if ($set['myAttempts'] > 0)
+                            <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#237052] text-white shadow-[0_3px_8px_rgba(35,112,82,0.2)]" title="Đã làm" aria-label="Đã làm">
+                                {{ $oiIcon('check-circle-2', 'h-4 w-4') }}
+                            </span>
+                        @endif
+                        <a href="{{ $gstHref }}" title="{{ $set['title'] }}" @click="withReturn($event)"
+                           class="min-w-0 flex-1 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $set['title'] }}</a>
+                        <span class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $set['myAttempts'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
+                            {{ $set['myAttempts'] > 0 ? 'Đã làm '.$set['myAttempts'].' lần' : 'Chưa làm' }}
+                        </span>
+                    </div>
+
+                    <div class="mt-1.5">
+                        @include('partials.practice-content-location', ['province' => $set['provinceLabel'], 'region' => $set['regionLabel']])
+                    </div>
+
+                    <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
+                        @if ($assignScope['canAssignExam'] ?? $assignScope['canAssign'])
+                            <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $set['title'] }}"
+                                    @click.stop="openAssign('exam', {{ $set['id'] }}, @js($set['title']), @js($set['code'] ?: '#'.$set['id']))">
+                                {{ $oiIcon('send') }}Giao bài
+                            </button>
+                        @endif
+                        @auth
+                            <a href="{{ route('practice.history.exam', $set['id']) }}" title="Nhật ký nộp bài"
+                               class="oi-log-link inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-1 text-[10px] font-bold text-[#365B7A] shadow-[0_2px_6px_rgba(18,59,104,0.08)]">
+                                {{ $oiIcon('clipboard-list', 'h-3 w-3') }}Nhật ký nộp bài
+                            </a>
+                        @endauth
+                        <span class="flex min-w-0 items-center gap-1 truncate">
+                            {{ $oiIcon('sparkles', 'h-3 w-3 shrink-0 text-[#3B9374]') }}
+                            <span class="truncate">Nguồn: Kho luyện tập Ôn Thi 360</span>
+                        </span>
+                    </p>
+
+                    <div class="oi-code-line">
+                        <span class="oi-mono">Mã: {{ $set['code'] ?: '#'.$set['id'] }}</span>
+                        <span class="oi-type-chip" aria-label="Dạng bài: Phổ thông">Phổ thông</span>
+                        <span class="oi-mono" style="display:inline-flex;align-items:center;gap:.5rem"><span aria-hidden="true">•</span><span>{{ $set['questionCount'] }} câu / {{ $set['totalPoints'] }} điểm</span></span>
+                    </div>
+                </div>
+
+                <div class="col-span-1 grid grid-cols-2 gap-2 lg:contents">
+                    <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
+                        <div class="oi-topics" title="{{ $gstTopics ? implode(', ', $gstTopics) : $set['topicLabel'] }}">
+                            <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $set['topicLabel'] }}</span>
+                            @if ($gstTopicSubs)
+                                <span class="oi-topic-subs">
+                                    @foreach ($gstTopicSubs as $gstTopic)
+                                        <span class="oi-topic-sub">{{ $gstTopic }}</span>
+                                    @endforeach
+                                    @if ($gstTopicMore)
+                                        <span class="oi-topic-more">+{{ count($gstTopicMore) }}</span>
+                                    @endif
+                                </span>
+                            @endif
                         </div>
                     </div>
-                    <div class="gst-topics">
-                        <template x-for="t in r.topicLabels" :key="t"><span class="gst-topic" x-text="t"></span></template>
-                        <span x-show="r.topicLabels.length === 0" class="gst-code">Chưa gắn chuyên đề</span>
+
+                    @if ($showProblemProvinceAuthor)
+                    <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tỉnh thành</span>
+                        <span class="block truncate text-[12px] font-semibold text-[#365B7A]">{{ $set['provinceLabel'] }}</span>
                     </div>
-                    <div class="gst-diff">
-                        <span class="gst-stars"><template x-for="i in 5" :key="i"><span :class="i <= r.difficultyStars && 'on'"><x-lucide name="star" /></span></template></span>
-                        <small x-text="r.difficultyLabel"></small>
+                    @endif
+
+                    <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Năm</span>
+                        <span class="block text-[12px] font-semibold text-[#365B7A]">{{ $set['yearLabel'] }}</span>
                     </div>
-                    <div class="gst-stat">
-                        <b x-text="r.avgPercent === null ? '—' : r.avgPercent + '%'"></b>
-                        <div class="gst-bar"><i :style="'width:' + (r.avgPercent || 0) + '%'"></i></div>
-                        <small x-text="'Điểm TB · ' + r.attemptCount + ' lượt làm'"></small>
-                        <small class="me" x-show="r.myBest" x-text="'Bạn: cao nhất ' + r.myBest"></small>
+
+                    @if ($showProblemProvinceAuthor)
+                    <div class="oi-prob-author min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Tác giả</span>
+                        <span class="block truncate text-[12px] font-semibold text-[#365B7A]" title="{{ $set['authorName'] ?: '—' }}">{{ $set['authorName'] ?: '—' }}</span>
                     </div>
-                    <a :href="r.href" class="gst-go"><x-lucide name="play" /><span x-text="r.myAttempts > 0 ? 'Làm lại' : 'Làm bài'"></span></a>
+                    @endif
+
+                    <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Độ khó</span>
+                        <div class="flex flex-col items-start gap-0.5">
+                            <div class="inline-flex items-center gap-0.5" role="img" aria-label="Độ khó {{ $set['difficultyStars'] }} trên 5 sao">
+                                @for ($star = 0; $star < 5; $star++)
+                                    {{ $oiIcon('star', 'h-3.5 w-3.5 '.($star < $set['difficultyStars'] ? 'fill-amber-400 text-amber-500' : 'text-slate-200')) }}
+                                @endfor
+                            </div>
+                            <span class="text-[11px] font-semibold text-[#607A90]">{{ $set['difficultyLabel'] }}</span>
+                        </div>
+                    </div>
+
+                    <div class="col-span-2 min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:col-span-1 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                        <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Điểm TB</span>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-black text-[#123B68]">{{ $set['avgPercent'] === null ? '—' : $set['avgPercent'].'%' }}</span>
+                            <span class="text-[9px] font-bold uppercase tracking-wide text-[#6B8295]">ĐIỂM</span>
+                        </div>
+                        <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EAF0F3]" aria-label="Điểm trung bình {{ $gstAvg }}%">
+                            <div class="h-full rounded-full bg-[#2F8A6B] transition-all" style="width: {{ $gstAvg }}%"></div>
+                        </div>
+                        <p class="mt-1 text-[9px] text-[#6B8295]">{{ number_format($set['attemptCount']) }} lượt làm toàn hệ thống</p>
+                        @if ($set['myBest'])
+                            <p class="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#2F8A6B]">
+                                {{ $oiIcon('user-check', 'h-3 w-3 shrink-0') }}
+                                Bạn: cao nhất {{ $set['myBest'] }} điểm
+                            </p>
+                        @endif
+                    </div>
                 </div>
-            </template>
-            <button type="button" class="gst-more" x-show="gstFiltered.length > gstShow" @click="gstShow += 20"
-                    x-text="'Xem thêm (' + (gstFiltered.length - gstShow) + ' bài)'"></button>
-        </div>
-    </template>
-    <div x-show="gstFiltered.length === 0" class="gst-empty">
+
+                {{-- Hành động — bấm là vào làm bài ngay (chưa đăng nhập thì sang đăng nhập, như bài lập trình). --}}
+                <div class="col-span-1 flex items-center justify-end gap-2 border-t border-[#E7EFF3] pt-2 lg:col-auto lg:flex-col lg:items-stretch lg:gap-1 lg:border-t-0 lg:pt-0">
+                    <a href="{{ $gstHref }}" @click="withReturn($event)"
+                       class="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-bold text-white shadow-none transition-colors active:scale-[.98] lg:w-full bg-[#2F8A6B] hover:bg-[#28795E]">
+                        {{ $oiIcon('play', 'h-3.5 w-3.5') }}
+                        <span>Làm bài</span>
+                    </a>
+                </div>
+            </div>
+        @endforeach
+
+        <button type="button" x-show="gstVisibleIds.length > gstShow" @click="gstShow += 20"
+                class="w-full border-t border-[#E7EFF3] bg-[#F4F8FB] py-2.5 text-[12px] font-bold text-[#126F91]" style="order: 99999"
+                x-text="'Xem thêm (' + (gstVisibleIds.length - gstShow) + ' bài)'"></button>
+    </div>
+
+    <div x-show="gstVisibleIds.length === 0" class="rounded-3xl border border-dashed border-[#C9DFE8] bg-white p-10 text-center">
         <x-lucide name="search" class="mx-auto h-9 w-9 text-[#9DC8D7]" />
-        <h2 class="mt-3 text-sm font-black text-[#123B68]" x-text="gstRows.length === 0 ? 'Chưa có bài phổ thông nào' : 'Không có bài phổ thông phù hợp'"></h2>
-        <p class="mt-1 text-xs text-[#607A90]" x-text="gstRows.length === 0 ? 'Các bài trắc nghiệm, điền từ… nhiều câu sẽ hiện ở đây khi được phát hành.' : 'Thử đổi chuyên đề, độ khó hoặc từ khoá tìm kiếm.'"></p>
+        <h2 class="mt-3 text-sm font-black text-[#123B68]">{{ $gstRows === [] ? 'Chưa có bài phổ thông nào' : 'Không có bài phổ thông phù hợp' }}</h2>
+        <p class="mt-1 text-xs text-[#607A90]">{{ $gstRows === [] ? 'Các bài trắc nghiệm, điền từ… nhiều câu sẽ hiện ở đây khi được phát hành.' : 'Thử đổi chuyên đề, độ khó hoặc từ khoá tìm kiếm.' }}</p>
+        <button type="button" @click="resetProblemFilters(); activeTab = 'general'" class="mt-4 text-[11px] font-bold text-[#126F91] hover:underline">Xóa bộ lọc</button>
     </div>
 </div>

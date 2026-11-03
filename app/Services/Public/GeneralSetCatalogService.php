@@ -29,7 +29,7 @@ class GeneralSetCatalogService
             ->where('status', 'published')
             ->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
             ->when(\App\Services\ExamBundle\ExamBundleService::ready(), fn ($q) => $q->where('bundle_only', false))
-            ->with(['items.question.tags'])
+            ->with(['items.question.tags', 'creator:id,name'])
             ->latest()
             ->limit(self::LIMIT)
             ->get();
@@ -90,7 +90,14 @@ class GeneralSetCatalogService
                 'totalPoints' => $num($total),
                 'typeSummary' => implode(' · ', array_map(fn ($l, $n) => $n.' '.$l, array_keys($types), $types)),
                 'tagIds' => $tags->pluck('id')->map(fn ($id) => (int) $id)->all(),
-                'topicLabels' => $tags->pluck('name')->take(3)->values()->all(),
+                'topicLabels' => $tags->pluck('name')->values()->all(),
+                // SỬA 3/11 (khách: "hiển thị in đúc dạng lập trình") — các ô giống hàng bài lập trình.
+                'topicLabel' => $tags->first()?->name ?? 'Chưa gắn chuyên đề',
+                'provinceLabel' => $a->provinceLabel() ?? 'Toàn quốc',
+                'regionLabel' => $a->regionLabel() ?? 'Tất cả các miền',
+                'yearLabel' => filled($a->academic_year) ? (string) $a->academic_year : (string) ($a->created_at?->format('Y') ?? '—'),
+                'yearNum' => (int) preg_replace('/\D+/', '', (string) ($a->academic_year ?: $a->created_at?->format('Y'))),
+                'authorName' => (string) ($a->author ?: ($a->creator->name ?? '')),
                 'difficulty' => $diffKey,
                 'difficultyStars' => $stars ?? 0,
                 'difficultyLabel' => $a->difficultyLabel() ?? 'Chưa xếp',

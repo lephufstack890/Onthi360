@@ -130,7 +130,7 @@
                         $akxCoding = (int) ($typeCounts['coding'] ?? 0);
                         $akxGeneral = array_sum($typeCounts) - $akxCoding + count($akxGsb);
                     @endphp
-                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) + count($akxGsb) }})</small></a>
+                    <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) }})</small></a>
                     <a href="{{ $filterLink(['type' => 'coding']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'coding' ? 'is-on' : '' }}">{{ $questionTypeOptions['coding'] ?? 'Lập trình' }} <small>({{ $akxCoding }})</small></a>
                     <a href="{{ $filterLink(['type' => 'general']) }}" class="akx-chip akx-chip--type {{ ($filters['type'] ?? null) === 'general' ? 'is-on' : '' }}">Phổ thông <small>({{ $akxGeneral }})</small></a>
                 </div>
@@ -170,7 +170,7 @@
         </section>
 
         {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài. --}}
-        @if ($tab === 'unused' && in_array($filters['type'] ?? null, [null, 'general'], true))
+        @if ($tab === 'unused' && ($filters['type'] ?? null) === 'general' /* SỬA 3/11 — chỉ hiện khi lọc Phổ thông */)
             @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => $akxGsb ?? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
         @endif
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách câu hỏi">
