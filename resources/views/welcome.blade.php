@@ -1124,8 +1124,13 @@
             .oi-sup-img { object-position: right center !important; }
             .oi-sup-copy { max-width: 52% !important; }
         }
+        /* SỬA 3/11 (khách: "phải bằng nhau") — màn rộng: khối cao BẰNG khối Câu hỏi thường gặp. Ảnh không phủ cả khung nữa mà là
+           một dải tỉ lệ 2.1:1 bám đáy khung (cô gái vẫn ở nửa phải, không bị phóng to), phần trên nối bằng màu trời cùng tông ảnh.
+           Mở câu hỏi bên trái → khung cao thêm, chỉ phần trời dài ra, ảnh giữ nguyên. */
         @media (min-width: 1024px) {
-            .home-typography #support { align-items: start !important; }
+            .home-typography [data-section='HOME-11B-CONTACT-SUPPORT'] { aspect-ratio: auto; height: 100% !important; background-color: #DEF1FE; }
+            .oi-sup-img { inset: auto 0 0 auto !important; width: 100% !important; height: auto !important; aspect-ratio: 2.1 / 1;
+                object-position: right bottom !important; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%); mask-image: linear-gradient(to bottom, transparent 0, #000 14%); }
         }
         @media (max-width: 639px) {
             .home-typography [data-section='HOME-11B-CONTACT-SUPPORT'] { min-height: 470px; }
