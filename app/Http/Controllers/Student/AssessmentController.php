@@ -49,7 +49,29 @@ class AssessmentController extends Controller
         // content_mode của đề — xem App\Services\Student\AssessmentService::buildTakeData().
         $view = $data['isPdfMode'] ? 'student.assessment.take-pdf' : 'student.assessment.take';
 
+        // SỬA 3/11 (khách: "bài phổ thông: làm xong / đóng thì quay lại trang Luyện tập, tab Bài tập, giữ nguyên lọc và trang")
+        // — nhớ địa chỉ trang Luyện tập gửi kèm (?return_url, chỉ nhận /luyen-tap…) cho nút Thoát và nút quay lại ở trang kết quả.
+        if (($data['assessmentModel'] ?? null)?->isGeneralSet()) {
+            $back = \App\Support\PracticeReturnUrl::clean($request->query('return_url'));
+            if ($back !== null) {
+                $request->session()->put(self::generalSetReturnKey($assessment), $back);
+            }
+            $data['exitUrl'] = self::generalSetReturnUrl($assessment);
+        }
+
         return view($view, $data);
+    }
+
+    /** SỬA 3/11 — khoá session lưu địa chỉ trang Luyện tập của "Bài phổ thông". */
+    public static function generalSetReturnKey(int $assessmentId): string
+    {
+        return 'general_set_return.'.$assessmentId;
+    }
+
+    /** SỬA 3/11 — địa chỉ quay lại trang Luyện tập (đúng tab Bài tập + lọc Phổ thông + trang đang xem). */
+    public static function generalSetReturnUrl(int $assessmentId): string
+    {
+        return (string) (session(self::generalSetReturnKey($assessmentId)) ?: route('practice.index', ['type' => 'general'], false));
     }
 
     /**

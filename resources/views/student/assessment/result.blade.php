@@ -207,7 +207,8 @@
 
     {{-- ══════ LỐI ĐI TIẾP ══════ --}}
     <div class="mt-3 flex flex-wrap gap-2">
-        <a href="{{ route('student.practice.index') }}"
+        {{-- SỬA 3/11 — "Bài phổ thông": quay lại ĐÚNG trang Luyện tập đang xem lúc bấm Làm bài (tab Bài tập, lọc Phổ thông, trang cũ). --}}
+        <a href="{{ (isset($attemptModel) && $attemptModel->assessment?->isGeneralSet()) ? \App\Http\Controllers\Student\AssessmentController::generalSetReturnUrl((int) $attemptModel->assessment_id) : route('student.practice.index') }}"
            class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#126F91] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0F5E7B]">
             <x-lucide name="chevron-left" class="h-3.5 w-3.5" />Quay lại Luyện tập
         </a>

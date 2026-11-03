@@ -24,6 +24,9 @@
 
         // SỬA 14/10 — nút "Chấm câu" (chỉ đề luyện tập, xem Student\AssessmentService::canGradeQuestions()).
         $canGrade = (bool) ($canGradeQuestions ?? false);
+        // SỬA 3/11 — "Bài phổ thông": nút là "Nộp bài", bấm được ở mọi tab (đọc đề ở tab Đề bài PDF xong nộp luôn).
+        $isGeneralSet = (bool) (($assessmentModel ?? null)?->isGeneralSet());
+        $submitWord = $isGeneralSet ? 'Nộp bài' : 'Nộp đề';
     @endphp
 
     {{-- Giữ lại đường báo lỗi của bản cũ (vd nộp bài bị server từ chối rồi quay lại). --}}
@@ -94,7 +97,7 @@
         <div x-cloak x-show="confirmOpen" x-transition.opacity @keydown.escape.window="confirmOpen = false"
              class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4">
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-                <h2 class="text-base font-extrabold text-[#123B68]">{{ $canGrade ? 'Nộp & tổng kết?' : 'Nộp đề ngay?' }}</h2>
+                <h2 class="text-base font-extrabold text-[#123B68]">{{ $canGrade ? 'Nộp & tổng kết?' : $submitWord.' ngay?' }}</h2>
                 <p class="mt-2 text-[12px] leading-5 text-[#607A90]">
                     Bạn đã trả lời <span class="font-bold text-[#126F91]" x-text="answeredCount()"></span>/{{ count($questions) }} câu{!! $canGrade ? ', đã chấm <span class="font-bold text-[#2F8A6B]" x-text="gradedQuestionCount()"></span> câu' : '' !!}.
                     <span x-show="answeredCount() < {{ count($questions) }}" class="font-bold text-[#A4621B]">Vẫn còn câu chưa trả lời.</span>
@@ -105,7 +108,7 @@
                 </p>
                 <div class="mt-5 flex gap-2">
                     <button type="button" @click="confirmOpen = false" class="flex-1 rounded-xl border border-[#DDEAF0] bg-white px-4 py-2.5 text-[12px] font-bold text-[#45657D] transition hover:bg-[#F4F9FB]">Làm tiếp</button>
-                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}</button>
+                    <button type="button" @click="confirmOpen = false; doSubmit()" class="flex-1 rounded-xl bg-[#126F91] px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#0D5B77]">{{ $canGrade ? 'Nộp & tổng kết' : $submitWord }}</button>
                 </div>
             </div>
         </div>
@@ -622,7 +625,9 @@
                 </p>
                                 <p class="hidden text-[12px] text-[#607A90] sm:block" x-show="currentKind() !== 'code'"
                    {{-- SỬA 1/10 — ở tab khác thì nút nộp bị khoá, câu nhắc phải nói rõ lý do. --}}
-                   @if ($canGrade)
+                   @if ($isGeneralSet)
+                   x-text="answeredCount() + '/{{ count($questions) }} câu đã trả lời — bài làm tự lưu, bấm Nộp bài khi xong.'"
+                   @elseif ($canGrade)
                    x-text="activeTab === 'work' ? (answeredCount() + '/{{ count($questions) }} câu đã trả lời · ' + gradedQuestionCount() + ' câu đã chấm') : 'Chuyển sang tab Làm bài để nộp đề.'"
                    @else
                    x-text="activeTab === 'work' ? 'Bài làm tự lưu — bấm Nộp đề khi xong.' : 'Chuyển sang tab Làm bài để nộp đề.'"
@@ -659,10 +664,10 @@
                 {{-- SỬA 14/10 — đề luyện tập: "Nộp & tổng kết" (câu đã Chấm câu giữ điểm, chỉ chấm câu còn lại); đang chấm một
                      câu thì khoá nút như bản mẫu, chấm xong mở lại. --}}
                 <button type="button" @click="confirmOpen = true"
-                        :disabled="expired || submitting || activeTab !== 'work'{{ $canGrade ? ' || gradingId !== null' : '' }}"
-                        :title="activeTab !== 'work' ? 'Chuyển sang tab Làm bài để nộp đề' : {{ $canGrade ? "(gradingId !== null ? 'Đợi chấm xong câu đang chấm' : 'Chấm các câu chưa có điểm và tổng hợp kết quả cả đề')" : 'null' }}"
+                        :disabled="expired || submitting{{ $isGeneralSet ? '' : " || activeTab !== 'work'" }}{{ $canGrade ? ' || gradingId !== null' : '' }}"
+                        :title="{{ $isGeneralSet ? "'Nộp cả bài để chấm điểm'" : "activeTab !== 'work' ? 'Chuyển sang tab Làm bài để nộp đề' : ".($canGrade ? "(gradingId !== null ? 'Đợi chấm xong câu đang chấm' : 'Chấm các câu chưa có điểm và tổng hợp kết quả cả đề')" : 'null') }}"
                         class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#126F91] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0D5B77] disabled:cursor-wait disabled:opacity-60 sm:px-4">
-                    <x-lucide name="send" class="h-4 w-4" /><span x-text="grading() ? 'Đang chấm…' : '{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}'">{{ $canGrade ? 'Nộp & tổng kết' : 'Nộp đề' }}</span>
+                    <x-lucide name="send" class="h-4 w-4" /><span x-text="grading() ? 'Đang chấm…' : '{{ $canGrade ? 'Nộp & tổng kết' : $submitWord }}'">{{ $canGrade ? 'Nộp & tổng kết' : $submitWord }}</span>
                 </button>
             </div>
         </footer>
