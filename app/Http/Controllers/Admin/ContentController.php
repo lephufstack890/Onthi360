@@ -257,7 +257,8 @@ class ContentController extends Controller
     /** SỬA 4/10 — xoá đề thi + 4 tệp của nó (đề, lời giải, bản xem trước, ảnh bìa). */
     public function assessmentsDestroy(Assessment $assessment): RedirectResponse
     {
-        [$ok, $message] = $this->contentService->assessmentDestroy($assessment);
+        // SỬA 3/11 (khách: "xoá đề là xoá luôn câu hỏi trong đề và mọi file") — xem ContentService::assessmentDestroyWithContent().
+        [$ok, $message] = $this->contentService->assessmentDestroyWithContent($assessment);
 
         return $ok
             ? back()->with('status', 'assessment-deleted')->with('statusMessage', $message)
@@ -572,6 +573,7 @@ class ContentController extends Controller
     public function questionsPublish(Question $question): RedirectResponse
     {
         \App\Services\GeneralSetBankService::fixQuestionZeroPoints($question); // SỬA 3/11 — chỉ tác dụng với câu con "Bài phổ thông"
+        \App\Support\ExamItemPoints::fixForQuestion($question); // SỬA 3/11 — câu của đề có điểm lẻ < 1 (vd 0,25) bị làm tròn 0
         $result = $this->contentService->questionPublish($question);
 
         if (! $result['ok']) {
@@ -857,7 +859,8 @@ class ContentController extends Controller
         abort_unless((int) $item->assessment_id === (int) $assessment->id, 404);
         abort_if($item->question === null, 404);
 
-        $result = $this->contentService->questionPublish($item->question);
+        \App\Support\ExamItemPoints::fixForQuestion($item->question); // SỬA 3/11 — điểm lẻ < 1 bị làm tròn 0
+        $result = $this->contentService->questionPublish($item->question->refresh());
         $back = redirect()->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items');
 
         return $result['ok']
@@ -869,6 +872,7 @@ class ContentController extends Controller
     public function assessmentsItemsPublishAll(Assessment $assessment): RedirectResponse
     {
         \App\Services\GeneralSetBankService::fixZeroPoints($assessment); // SỬA 3/11 — chỉ tác dụng với "Bài phổ thông"
+        \App\Support\ExamItemPoints::fixForAssessment($assessment); // SỬA 3/11 — câu của đề có điểm lẻ < 1 (vd 0,25) bị làm tròn 0
         $result = $this->contentService->assessmentPublishAllQuestions($assessment);
         $back = redirect()->to(route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items')
             ->with('status', 'assessment-items-published')

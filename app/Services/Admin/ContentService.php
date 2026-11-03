@@ -396,7 +396,8 @@ class ContentService
                     'editHref' => route('admin.content.assessments.edit', $a->id),
                     'canDelete' => true,
                     'deleteHref' => route('admin.content.assessments.destroy', $a->id),
-                    'deleteLabel' => 'Xoá vĩnh viễn đề này cùng file PDF đề, lời giải, bản xem trước và ảnh bìa? Không thể khôi phục.',
+                    // SỬA 3/11 (khách: "xoá đề là xoá luôn câu hỏi trong đề và mọi file") — xem assessmentDestroyWithContent().
+                    'deleteLabel' => 'Xoá vĩnh viễn đề này cùng TOÀN BỘ câu hỏi trong đề (kèm đề bài, lời giải, ảnh, bộ test), file PDF, ảnh bìa và mọi lượt làm của học sinh? Câu nào còn nằm trong đề khác thì giữ lại. Không thể khôi phục.',
                 ];
             })->all();
 
@@ -3062,6 +3063,52 @@ class ContentService
      *
      * @return array{0:bool, 1:string}
      */
+    /**
+     * SỬA 3/11 (khách: "khi xoá đề là xoá luôn, câu hỏi nào trong đề đó hay file gì cũng xoá hết") — XOÁ ĐỀ KÈM NỘI DUNG:
+     *   1. vẫn chặn như cũ khi đề đang giao cho lớp / đang gắn vào cuộc thi (xoá là hỏng lớp / cuộc thi đó);
+     *   2. xoá các lượt làm của đề (bài làm, chấm bài rơi theo cascade) — trước đây có lượt làm là từ chối;
+     *   3. xoá đề + mọi tệp của đề bằng ĐÚNG assessmentDestroy() bên dưới;
+     *   4. xoá từng câu hỏi của đề bằng ĐÚNG questionDestroy() (đề bài, lời giải, ảnh/âm thanh, bộ test, bài mẫu…) — trừ câu còn
+     *      nằm trong đề khác (giữ lại để không làm hỏng đề kia).
+     *
+     * @return array{0:bool, 1:string}
+     */
+    public function assessmentDestroyWithContent(Assessment $assessment): array
+    {
+        if ($assessment->assignments()->count() > 0) {
+            return [false, 'Không xoá được: đề đang được giao cho lớp. Gỡ bài giao trước rồi hãy xoá.'];
+        }
+        if (DB::table('competition_exams')->where('assessment_id', $assessment->id)->exists()) {
+            return [false, 'Không xoá được: đề đang gắn vào một cuộc thi. Gỡ khỏi cuộc thi trước rồi hãy xoá.'];
+        }
+
+        $questionIds = $assessment->items()->pluck('question_id')->unique()->values()->all();
+        $attemptCount = $assessment->attempts()->count();
+        if ($attemptCount > 0) {
+            DB::table('attempts')->where('assessment_id', $assessment->id)->delete();
+        }
+
+        [$ok, $message] = $this->assessmentDestroy($assessment);
+        if (! $ok) {
+            return [false, $message];
+        }
+
+        $deleted = 0;
+        $kept = 0;
+        foreach (Question::query()->whereIn('id', $questionIds)->get() as $q) {
+            if ($q->assessmentItems()->exists()) {
+                $kept++;
+                continue;
+            }
+            $this->questionDestroy($q);
+            $deleted++;
+        }
+
+        return [true, 'Đã xoá đề, toàn bộ tệp đính kèm và '.$deleted.' câu hỏi trong đề'
+            .($kept > 0 ? ' (giữ lại '.$kept.' câu vì còn nằm trong đề khác)' : '')
+            .($attemptCount > 0 ? ', kèm '.$attemptCount.' lượt làm.' : '.')];
+    }
+
     public function assessmentDestroy(Assessment $assessment): array
     {
         $attemptCount = $assessment->attempts()->count();

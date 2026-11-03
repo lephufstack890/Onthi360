@@ -102,6 +102,10 @@ class ExamZipImportService
                 $total = 0.0;
                 foreach ($p['questions'] as $order => $q) {
                     $question = $this->content->questionStoreFromZipPackage($admin, $q['zip']);
+                    // SỬA 3/11 — điểm khai < 1 (vd 0,25) bị làm tròn 0 ở điểm gốc → khâu phát hành chặn. Điểm thật nằm ở points_override.
+                    if ((float) $question->points < 1 && (float) $q['points'] > 0) {
+                        $question->forceFill(['points' => 1])->save();
+                    }
                     AssessmentItem::create([
                         'assessment_id' => $assessment->id,
                         'question_id' => $question->id,
