@@ -42,7 +42,9 @@
             // partials/practice-catalog), không đọc URL ở đây nữa: quyết ở máy chủ thì HTML trả
             // về đã đúng tab, không phụ thuộc lúc Alpine khởi tạo.
             practiceMode: config.initialMode || 'problems',
-            activeTab: 'all',          // 'all' hoặc mã dạng câu (mcq/fill_blank/coding/composite)
+            // SỬA 3/11 (khách: "ô dạng bài chỉ 2 lựa chọn Lập trình / Phổ thông, mặc định Lập trình") —
+            // 'coding' = bài lập trình; 'general' = Phổ thông (mọi dạng KHÔNG phải lập trình: trắc nghiệm, điền đáp án, nhiều phần…).
+            activeTab: 'coding',
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
             selectedDifficulty: 'all',
             selectedExamType: 'all',
@@ -92,7 +94,8 @@
                         const so = q.get('esort'); if (so) { this.examSort = so; }
                         const p = num('pg'); if (p) { this.examPageIndex = p; }
                     } else {
-                        const t = q.get('type'); if (t) { this.activeTab = t; }
+                        // SỬA 3/11 — link cũ ?type=mcq / fill_blank / composite … đều quy về Phổ thông.
+                        const t = q.get('type'); if (t) { this.activeTab = t === 'coding' ? 'coding' : 'general'; }
                         const tp = q.get('topic'); if (tp) { this.selectedTopic = tp; }
                         const df = q.get('diff'); if (df) { this.selectedDifficulty = df; }
                         if (q.get('undone') === '1') { this.onlyUndone = true; }
@@ -127,7 +130,7 @@
                     this.selectedExamType = 'all';
                     this.selectedExamLevel = 'all';
                 } else {
-                    this.activeTab = 'all';
+                    this.activeTab = 'coding';
                     this.selectedTopic = 'all';
                     this.selectedDifficulty = 'all';
                 }
@@ -163,7 +166,7 @@
                     const put = (k, v, def) => { if (v !== undefined && v !== null && String(v) !== '' && String(v) !== String(def)) { url.searchParams.set(k, v); } else { url.searchParams.delete(k); } };
                     const exams = this.practiceMode === 'exams';
                     put('pg', exams ? this.examPage : this.problemPage, 1);
-                    put('type', exams ? '' : this.activeTab, 'all');
+                    put('type', exams ? '' : this.activeTab, 'coding');
                     put('topic', exams ? '' : this.selectedTopic, 'all');
                     put('diff', exams ? '' : this.selectedDifficulty, 'all');
                     put('undone', !exams && this.onlyUndone ? '1' : '', '');
@@ -273,7 +276,7 @@
             resetProblemFilters() {
                 this.problemAssignStatus = 'all';
                 this.onlyUndone = false;
-                this.activeTab = 'all';
+                this.activeTab = 'coding';
                 this.selectedTopic = 'all';
                 this.selectedDifficulty = 'all';
                 this.searchQuery = '';
@@ -306,7 +309,10 @@
                     // hiện ở "Bài được giao".
                     const matchScope = assignedView ? p.assigned : p.inCatalog;
                     const matchAssign = !assignedView || this.problemAssignStatus === 'all' || p.assignStatus === this.problemAssignStatus;
-                    const matchTab = this.activeTab === 'all' || p.type === this.activeTab;
+                    // SỬA 3/11 — Lập trình / Phổ thông (mọi dạng còn lại). "Bài được giao" không lọc theo dạng — bài thầy cô
+                    // giao dạng nào cũng phải thấy (ô chọn dạng bài cũng ẩn ở mục đó).
+                    const matchTab = assignedView || this.activeTab === 'all'
+                        || (this.activeTab === 'general' ? p.type !== 'coding' : p.type === this.activeTab);
                     const matchTopic = this.selectedTopic === 'all' || p.tagIds.includes(this.selectedTopic);
                     const matchDiff = this.selectedDifficulty === 'all' || p.difficulty === this.selectedDifficulty;
                     const matchSearch = !q || p.search.includes(q);

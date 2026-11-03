@@ -479,13 +479,13 @@
 
                 {{-- SỬA 7/10 — dải tab theo DẠNG CÂU (trắc nghiệm/điền đáp án/lập trình…) nhường chỗ
                      cho thanh phạm vi theo bản mẫu mới; bộ lọc dạng câu vẫn còn, thu gọn thành ô chọn. --}}
+                {{-- SỬA 3/11 (khách) — chỉ 2 lựa chọn: Lập trình (mặc định) / Phổ thông = mọi dạng không phải lập trình
+                     (trắc nghiệm, điền đáp án, câu nhiều phần…). Lọc ở partials/practice-page-script (activeTab). --}}
                 @if (count($practiceTypes) > 0)
-                    <select aria-label="Lọc theo dạng bài" x-model="activeTab" @change="problemPageIndex = 1"
+                    <select aria-label="Lọc theo dạng bài" x-model="activeTab" @change="problemPageIndex = 1" x-show="problemScope !== 'assigned'"
                             class="oi-select shrink-0 md:w-44" style="width:auto;min-height:44px">
-                        <option value="all">Mọi dạng bài</option>
-                        @foreach ($practiceTypes as $t)
-                            <option value="{{ $t['value'] }}">{{ $t['label'] }}</option>
-                        @endforeach
+                        <option value="coding">Lập trình</option>
+                        <option value="general">Phổ thông</option>
                     </select>
                 @endif
 
