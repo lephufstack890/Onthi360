@@ -179,20 +179,42 @@ class ExamVariantService
             return [false, 'Chỉ gắn được đề Luyện tập (không phải Bài phổ thông).'];
         }
 
+        if (($dup = self::duplicateCode($exam, $code, null)) !== null) {
+            return [false, $dup];
+        }
+
         $child->forceFill(['variant_of_id' => $rootId, 'variant_code' => self::cleanCode($code)])->save();
         self::forgetListCache();
 
         return [true, 'Đã gắn "'.$child->title.'" làm một mã đề của nhóm.'];
     }
 
-    /** Đặt / đổi tên mã của một đề. */
-    public static function setCode(Assessment $exam, ?string $code): void
+    /** Đặt / đổi tên mã của một đề. Trả về câu báo lỗi (trùng tên mã trong nhóm) hoặc null khi đã lưu. */
+    public static function setCode(Assessment $exam, ?string $code): ?string
     {
         if (! self::ready()) {
-            return;
+            return null;
+        }
+        if (($dup = self::duplicateCode($exam, $code, (int) $exam->id)) !== null) {
+            return $dup;
         }
         $exam->forceFill(['variant_code' => self::cleanCode($code)])->save();
         self::forgetListCache();
+
+        return null;
+    }
+
+    /** SỬA 3/11 — 2 mã trong cùng nhóm không được trùng tên (vd cả hai đều "0502" thì học sinh không phân biệt được). */
+    private static function duplicateCode(Assessment $exam, ?string $code, ?int $exceptId): ?string
+    {
+        $clean = self::cleanCode($code);
+        if ($clean === null) {
+            return null;
+        }
+        $taken = self::members($exam)->first(fn (Assessment $m) => (int) $m->id !== (int) $exceptId
+            && mb_strtolower(trim((string) $m->variant_code)) === mb_strtolower($clean));
+
+        return $taken ? 'Tên mã "'.$clean.'" đã dùng cho đề "'.$taken->title.'" trong cùng nhóm — mỗi mã phải có tên khác nhau.' : null;
     }
 
     /** Gỡ $exam khỏi nhóm — đề trở lại thành đề lẻ bình thường, KHÔNG mất lượt làm nào. @return array{0: bool, 1: string} */

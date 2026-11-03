@@ -24,11 +24,18 @@ class ExamVariantController extends Controller
         ], [], ['child_id' => 'Đề cần gắn', 'child_code' => 'Tên mã', 'own_code' => 'Tên mã của đề này']);
 
         $child = Assessment::query()->findOrFail((int) $data['child_id']);
+        if (filled($data['own_code'] ?? null) && filled($data['child_code'] ?? null)
+            && mb_strtolower(trim($data['own_code'])) === mb_strtolower(trim($data['child_code']))) {
+            return $this->back(false, 'Mã của đề này và mã của đề được gắn đang trùng nhau ("'.trim($data['child_code']).'") — đặt 2 tên khác nhau.');
+        }
         [$ok, $msg] = ExamVariantService::attach($assessment, $child, $data['child_code'] ?? null);
 
         // Đề đang mở chưa đặt tên mã thì đặt luôn (ô "Mã của đề này" chỉ hiện khi đề chưa có mã).
         if ($ok && $request->filled('own_code') && trim((string) $assessment->variant_code) === '') {
-            ExamVariantService::setCode($assessment, $data['own_code']);
+            $err = ExamVariantService::setCode($assessment, $data['own_code']);
+            if ($err !== null) {
+                return $this->back(false, $msg.' Nhưng chưa đặt được tên mã của đề này: '.$err);
+            }
         }
 
         return $this->back($ok, $msg);
@@ -38,9 +45,9 @@ class ExamVariantController extends Controller
     public function code(Request $request, Assessment $assessment): RedirectResponse
     {
         $data = $request->validate(['code' => ['nullable', 'string', 'max:30']], [], ['code' => 'Tên mã']);
-        ExamVariantService::setCode($assessment, $data['code'] ?? null);
+        $err = ExamVariantService::setCode($assessment, $data['code'] ?? null);
 
-        return $this->back(true, 'Đã lưu tên mã đề.');
+        return $err === null ? $this->back(true, 'Đã lưu tên mã đề.') : $this->back(false, $err);
     }
 
     /** admin.content.assessments.variants.detach — gỡ một đề khỏi nhóm (đề thành đề lẻ, không mất lượt làm). */

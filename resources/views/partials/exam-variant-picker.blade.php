@@ -23,7 +23,7 @@
         </nav>
     @elseif (($evPart ?? '') === 'fact')
         <p class="flex items-start gap-2">
-            <svg class="h-3.5 w-3.5 shrink-0" style="margin-top:2px;color:#A87530" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>
+            <svg width="14" height="14" class="h-3.5 w-3.5 shrink-0" style="flex:none;margin-top:2px;color:#A87530" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>
             <span>Mã đề: <strong class="font-semibold text-[#123B68]">{{ collect($evList)->pluck('label')->implode(' · ') }}</strong>
                 <span class="text-[11px] text-[#7B6D50]">(chọn mã khi bấm Bắt đầu làm bài)</span></span>
         </p>
@@ -51,7 +51,8 @@
             .evx-mine-code { font-weight: 700; color: #123B68; }
             .evx-mine .is-done { font-weight: 600; color: #2F8A6B; }
 
-            .evx-dlg { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 0; border-radius: 18px; background: #fff; color: #466278; box-shadow: 0 24px 60px rgba(11, 60, 120, .25); }
+            /* SỬA 3/11 (khách: "popup cho vô giữa") — CSS nền của site đặt margin: 0 cho mọi phần tử nên <dialog> mất căn giữa mặc định; trả lại. */
+            .evx-dlg { position: fixed; inset: 0; margin: auto; height: fit-content; width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 0; border: 0; border-radius: 18px; background: #fff; color: #466278; box-shadow: 0 24px 60px rgba(11, 60, 120, .25); }
             .evx-dlg::backdrop { background: rgba(15, 35, 55, .45); backdrop-filter: blur(2px); }
             .evx-head { padding: 18px 20px 12px; border-bottom: 1px solid #E6EEF2; }
             .evx-head h2 { margin: 0; font-size: 17px; font-weight: 800; color: #123B68; }
