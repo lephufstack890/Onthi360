@@ -140,7 +140,17 @@
             <span><b>{{ number_format($practiceTotal) }}</b> câu</span>
         </div>
         <div class="pds-types">
-            @foreach (array_slice($practiceTypes, 0, 3) as $t)
+            {{-- SỬA 3/11 (khách: "bỏ Trắc nghiệm, Điền đáp án — thay bằng Phổ thông, đổ dữ liệu cho đúng") — 2 dòng như ô chọn dạng:
+                 Phổ thông = mọi câu không phải lập trình + các "Bài phổ thông" (mỗi bài = 1, đã cộng sẵn vào $practiceTotal);
+                 Lập trình = số câu lập trình. Hai dòng cộng lại đúng bằng tổng ở đầu ô. --}}
+            @php
+                $pdsCoding = (int) (collect($practiceTypes)->firstWhere('value', 'coding')['count'] ?? 0);
+                $pdsRows = [
+                    ['label' => 'Phổ thông', 'count' => max(0, (int) $practiceTotal - $pdsCoding)],
+                    ['label' => 'Lập trình', 'count' => $pdsCoding],
+                ];
+            @endphp
+            @foreach ($pdsRows as $t)
                 @php $pct = $practiceTotal > 0 ? round($t['count'] / $practiceTotal * 100) : 0; @endphp
                 <div>
                     <div class="pds-types__row">
