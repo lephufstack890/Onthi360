@@ -245,6 +245,27 @@
                                     <span>Thông tin cá nhân</span>
                                 </a>
                             @endif
+                            {{-- SỬA 3/11 (khách: "thêm nút chuyển sang giáo viên ở menu tài khoản ngoài trang chủ") — cùng route / luật với
+                                 menu tài khoản khu quản trị (partials/admin-profile-menu): chỉ admin thật mới thấy; ActingRoleController tự kiểm tra lại. --}}
+                            @if ($headerUser->actingRole() !== null)
+                                <form method="POST" action="{{ route('acting.stop') }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                        <x-lucide name="arrow-left-right" class="w-4 h-4 shrink-0 text-amber-600" />
+                                        <span>Chuyển về Quản trị</span>
+                                    </button>
+                                </form>
+                            @elseif ($headerUser->isRealAdmin())
+                                <form method="POST" action="{{ route('acting.teacher.start') }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                        <x-lucide name="arrow-left-right" class="w-4 h-4 shrink-0 text-amber-600" />
+                                        <span>Chuyển sang Giáo viên</span>
+                                    </button>
+                                </form>
+                            @endif
                             {{-- SỬA 14/9 (khách yêu cầu) — quản trị viên đã full quyền, không cần
                                  "Quyền của tôi" và "Nhập mã kích hoạt". ẨN CHỨ KHÔNG XOÁ: bỏ
                                  điều kiện là hiện lại y như cũ. --}}

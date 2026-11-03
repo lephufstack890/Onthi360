@@ -18,6 +18,9 @@
         .pcl-title { min-height: 2.5rem; min-height: 2lh; }
         .pcl-sub { min-height: 3em; min-height: 2lh; }
         .pcl-teacher { margin-top: auto; }
+        .pcl-manage { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 8px 14px; border-radius: 12px; font-size: 11.5px; font-weight: 800; color: #fff !important;
+            background: linear-gradient(135deg, #2D7FA3, #126F91); box-shadow: 0 6px 14px rgba(18, 111, 145, .25); text-decoration: none; transition: transform .15s, filter .15s; }
+        .pcl-manage:hover { filter: brightness(1.08); transform: translateY(-1px); } .pcl-manage svg { width: 14px; height: 14px; }
     </style>
 {{-- ═══════════════ [COURSES] MÀN LỚP HỌC ═══════════════
      SỬA 11/9 — dựng lại theo ĐÚNG source giao diện khách gửi:
@@ -48,6 +51,10 @@
     // SỬA 16/9 — trạng thái người đang xem, quyết định nút ở chân mỗi thẻ lớp.
     $canRequestJoin = $canRequestJoin ?? false;
     $isGuest = $isGuest ?? true;
+    // SỬA 3/11 (khách: "đăng nhập vai trò giáo viên hoặc chuyển qua giáo viên thì nút Liên hệ quản lý lớp thành Quản lý lớp,
+    // bấm vào ra chi tiết lớp") — chỉ với lớp mình dạy (trang chi tiết lớp của giáo viên chặn lớp không dạy).
+    $pclViewer = auth()->user();
+    $pclTeacherId = ($pclViewer !== null && $pclViewer->hasRole(\App\Models\Role::TEACHER)) ? (int) $pclViewer->id : null;
 
     /*
      * Dải chip MÔN HỌC (khối [COURSES-03]) đang ẨN: khách chốt trang chỉ cần hai bộ lọc
@@ -436,7 +443,14 @@
                 <div class="p-4 pt-0">
                     <div class="flex items-center justify-between gap-3 border-t border-[#DDEAF0] pt-3">
                         <div class="min-w-0">
-                            @if ($cl['priceLabel'])
+                            @php $pclManage = $pclTeacherId !== null && in_array($pclTeacherId, $cl['teacherIds'] ?? [], true); @endphp
+                            @if ($pclManage)
+                                <a href="{{ route('teacher.classes.show', $cl['id']) }}"
+                                   class="pcl-manage">
+                                    <x-lucide name="settings" class="h-3.5 w-3.5" />
+                                    <span>Quản lý lớp</span>
+                                </a>
+                            @elseif ($cl['priceLabel'])
                                 <p class="type-meta">Học phí trọn khóa</p>
                                 <p class="text-sm font-black text-[#126F91]">{{ $cl['priceLabel'] }}</p>
                             @else
@@ -449,11 +463,11 @@
                             @php
                                 // SỬA 16/9 — không còn lối vào bằng mã lớp; 3 trạng thái thật:
                                 // đang học / đã gửi yêu cầu chờ duyệt / chưa đăng ký.
-                                $joinHint = $cl['isMember']
+                                $joinHint = $pclManage ? 'Bạn là giáo viên của lớp này' : ($cl['isMember']
                                     ? 'Bạn đang học lớp này'
                                     : ($cl['isPending']
                                         ? 'Đang chờ giáo viên duyệt'
-                                        : ($isGuest ? 'Đăng nhập để đăng ký lớp' : 'Đăng ký, giáo viên duyệt là vào học'));
+                                        : ($isGuest ? 'Đăng nhập để đăng ký lớp' : 'Đăng ký, giáo viên duyệt là vào học')));
                             @endphp
                             <p class="type-meta mt-0.5 max-w-[150px] truncate" title="{{ $joinHint }}">{{ $joinHint }}</p>
                         </div>

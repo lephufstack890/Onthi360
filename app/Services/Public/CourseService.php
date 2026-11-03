@@ -269,6 +269,8 @@ class CourseService
             'sessionsCount' => (int) $classRoom->sessions_count,
             'teacherName' => $teachers->first()?->name,
             'assistantNames' => $teachers->skip(1)->pluck('name')->values()->all(),
+            // SỬA 3/11 — id giáo viên dạy lớp: giáo viên (hoặc admin đang xem như giáo viên) dạy lớp này thấy nút "Quản lý lớp".
+            'teacherIds' => $teachers->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'average' => ($summary !== null && (int) $summary->review_count > 0)
                 ? round((float) $summary->avg_rating, 1)
                 : null,
