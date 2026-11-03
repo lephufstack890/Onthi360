@@ -57,7 +57,7 @@ class QuestionController extends Controller
 
     public function create(Request $request): View
     {
-        $type = $request->query('type', 'mcq');
+        $type = $request->query('type', 'coding'); // SỬA 3/11 (khách) — form tạo câu hỏi mặc định loại Lập trình
 
         return view('teacher.questions.create', ['type' => $type, 'question' => null, 'allTags' => $this->questionService->allTags(), 'subjects' => \App\Support\SubjectCatalog::SUBJECTS, 'grades' => \App\Support\SubjectCatalog::GRADES]);
     }

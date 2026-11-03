@@ -529,6 +529,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('questions/zip-import', [TeacherQuestionController::class, 'zipImportStore'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.zipImport');
         // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
         Route::post('questions/general-zip-import', [\App\Http\Controllers\GeneralSetController::class, 'teacherImport'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.generalImport');
+        // SỬA 3/11 — form nhập tay "Bài phổ thông".
+        Route::post('questions/general-form', [\App\Http\Controllers\GeneralSetController::class, 'teacherForm'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.generalForm');
         Route::delete('questions/general-sets/{assessment}', [\App\Http\Controllers\GeneralSetController::class, 'teacherDestroy'])->whereNumber('assessment')->name('questions.generalSets.destroy');
         Route::get('questions/{question}/attachment/{kind}', [TeacherQuestionController::class, 'attachmentDownload'])->name('questions.attachment');
 
@@ -956,6 +958,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('content/questions/zip-import', [AdminContentController::class, 'questionsZipImportStore'])->name('content.questions.zipImport');
         // SỬA 3/11 — nhập "Bài phổ thông" (1 bài nhiều câu) từ gói ZIP — App\Http\Controllers\GeneralSetController.
         Route::post('content/general-sets/zip-import', [\App\Http\Controllers\GeneralSetController::class, 'adminImport'])->name('content.generalSets.zipImport');
+        // SỬA 3/11 — form nhập tay "Bài phổ thông" (đóng thành gói ZIP rồi nhập như trên).
+        Route::post('content/general-sets/form', [\App\Http\Controllers\GeneralSetController::class, 'adminForm'])->name('content.generalSets.formStore');
         Route::post('content/general-sets/{assessment}/publish', [\App\Http\Controllers\GeneralSetController::class, 'adminPublish'])->whereNumber('assessment')->name('content.generalSets.publish');
         Route::post('content/general-sets/{assessment}/unpublish', [\App\Http\Controllers\GeneralSetController::class, 'adminUnpublish'])->whereNumber('assessment')->name('content.generalSets.unpublish');
         Route::delete('content/general-sets/{assessment}', [\App\Http\Controllers\GeneralSetController::class, 'adminDestroy'])->whereNumber('assessment')->name('content.generalSets.destroy');

@@ -23,7 +23,8 @@
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
-        <div x-data="{ type: '{{ old('type', 'mcq') }}' }">
+        {{-- SỬA 3/11 (khách: "tab Lập trình thì form lập trình, loại mặc định Lập trình") — loại mặc định của form tạo mới là Lập trình. --}}
+        <div x-data="{ type: 'coding' }">
             {{-- SỬA 16/10 (khách: "giao diện giữ nguyên, chỗ up file ZIP là up được full dạng") — ô ZIP KHÔNG còn phụ thuộc
                  ô "Loại câu hỏi" nữa: luôn hiện, 1 gói theo mẫu chung (public/templates/mau-cau-hoi.zip) nhập được cả
                  Trắc nghiệm / Đúng-Sai / Điền từ / Lập trình — dạng lấy theo content.type trong question.json
@@ -46,10 +47,10 @@
     .gz-tab svg { width: 15px; height: 15px; }
     .gz-tab.is-on { background: #fff; color: #123B68; box-shadow: 0 2px 8px rgba(28, 91, 121, .12); }
 </style>
-            <div class="qe-hero-gap" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') ? 'general' : 'code') }">
+            <div class="qe-hero-gap" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code') }">
                 <div class="gz-tabs" role="tablist" aria-label="Loại bài nhập từ ZIP">
-                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
-                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
+                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'; $dispatch('gz-tab', 'code')"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
+                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'; $dispatch('gz-tab', 'general')"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
                 </div>
                 <div x-show="zk === 'general'" x-cloak>
                     @include('partials.general-zip-upload', ['gzAction' => route('admin.content.generalSets.zipImport'), 'gzNote' => 'Bài tạo ra là đề Luyện tập (Nháp) — kiểm tra, phát hành các câu rồi phát hành bài là hiện ở Luyện tập > Phổ thông.'])
@@ -94,6 +95,9 @@
                 </div>{{-- /SỬA 3/11 tab Lập trình / câu lẻ --}}
             </div>
 
+            {{-- SỬA 3/11 (khách: "tab Lập trình thì form lập trình, tab Phổ thông thì form Phổ thông") — form nhập tay cũ chỉ hiện ở tab
+                 Lập trình / câu lẻ; tab Phổ thông hiện form Phổ thông (partials/general-set-form) ngay bên dưới. --}}
+            <div x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code') }" @gz-tab.window="zk = $event.detail" x-show="zk === 'code'">
             <form method="POST" action="{{ route('admin.content.questions.store') }}" enctype="multipart/form-data" id="qe-form"
                   class="qe-layout">
                 @csrf
@@ -110,12 +114,15 @@
                                            class="admin-input">
                                 </div>
                                 <div class="qe-field">
-                                    <label for="type">Loại câu hỏi</label>
-                                    <x-ws.select id="type" name="type" x-model="type" required>
-                                        @foreach ($types as $value => $label)
-                                            <option value="{{ $value }}" @selected(old('type', 'mcq') === $value)>{{ $label }}</option>
-                                        @endforeach
-                                    </x-ws.select>
+                                    <label>Loại câu hỏi</label>
+                                    {{-- SỬA 3/11 (khách: "tab Lập trình thì loại cố định Lập trình, không cho chọn nữa") — Trắc nghiệm / Đúng-Sai /
+                                         Điền từ… tạo ở tab Phổ thông. Form Sửa câu hỏi KHÔNG đổi. --}}
+                                    <input type="hidden" name="type" value="coding">
+                                    <div class="admin-input" aria-readonly="true"
+                                         style="display:flex;align-items:center;gap:8px;background:#F1F5F9;color:#334155;font-weight:600;cursor:default">
+                                        <x-lucide name="code-2" class="h-4 w-4" /> {{ $types['coding'] ?? 'Lập trình' }}
+                                        <span style="margin-left:auto;font-size:11px;font-weight:500;color:#94A3B8">cố định ở tab này</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -391,6 +398,11 @@
                     </div>
                 </aside>
             </form>
+            </div>{{-- /SỬA 3/11 form tab Lập trình --}}
+
+            <div x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code') }" @gz-tab.window="zk = $event.detail" x-show="zk === 'general'" x-cloak>
+                @include('partials.general-set-form', ['gsfAction' => route('admin.content.generalSets.formStore'), 'gsfNote' => 'Bài tạo ra là đề Luyện tập (Nháp) — phát hành ở tab Bài chung > Phổ thông.'])
+            </div>
         </div>
     </div>
 

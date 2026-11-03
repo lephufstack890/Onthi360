@@ -7,7 +7,9 @@
     @php
         $question = $question ?? null;
         $allTags = $allTags ?? collect();
-        $type = old('type', $question->type->value ?? ($type ?? request('type', 'mcq')));
+        // SỬA 3/11 (khách: "tab Lập trình thì loại cố định Lập trình, không cho chọn") — TẠO MỚI luôn là Lập trình (Trắc nghiệm / Điền…
+        // tạo ở tab Phổ thông); SỬA câu hỏi giữ đúng loại của câu như cũ.
+        $type = $question ? old('type', $question->type->value) : 'coding';
         $types = [
             ['key' => 'mcq', 'label' => 'Trắc nghiệm', 'icon' => 'text-cursor-input'],
             ['key' => 'fill_blank', 'label' => 'Điền đáp án', 'icon' => 'pencil'],
@@ -88,10 +90,10 @@
     .gz-tab svg { width: 15px; height: 15px; }
     .gz-tab.is-on { background: #fff; color: #123B68; box-shadow: 0 2px 8px rgba(28, 91, 121, .12); }
 </style>
-    <div class="mb-6" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') ? 'general' : 'code') }">
+    <div class="mb-6" x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code') }">
         <div class="gz-tabs" role="tablist" aria-label="Loại bài nhập từ ZIP">
-                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
-                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
+                    <button type="button" class="gz-tab" :class="zk === 'code' && 'is-on'" @click="zk = 'code'; $dispatch('gz-tab', 'code')"><x-lucide name="code-2" /> Lập trình / câu lẻ</button>
+                    <button type="button" class="gz-tab" :class="zk === 'general' && 'is-on'" @click="zk = 'general'; $dispatch('gz-tab', 'general')"><x-lucide name="list-checks" /> Phổ thông (1 bài nhiều câu)</button>
                 </div>
         <div x-show="zk === 'general'" x-cloak>
             @include('partials.general-zip-upload', ['gzAction' => route('teacher.questions.generalImport'), 'gzNote' => 'Bài tạo ra nằm trong "Đề của tôi" — bấm Giao để giao cho lớp.'])
@@ -128,10 +130,12 @@
     {{-- SỬA 1/10 — dải "Tệp đính kèm (nhập từ gói ZIP)" chỉ-để-tải ở đây đã chuyển XUỐNG TRONG
          form (mục "Tệp đính kèm"), nhờ vậy thay/bỏ được tệp chứ không chỉ tải về. --}}
 
+    {{-- SỬA 3/11 (khách: "tab Lập trình thì form lập trình, tab Phổ thông thì form Phổ thông") — form cũ chỉ hiện ở tab Lập trình / câu lẻ. --}}
+    <div x-data="{ zk: @js($question ? 'code' : (request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code')) }" @gz-tab.window="zk = $event.detail" x-show="zk === 'code'">
     <div class="flex gap-3 mb-6">
-        @foreach ($types as $t)
+        @foreach ($question ? $types : array_values(array_filter($types, fn ($t) => $t['key'] === 'coding')) as $t)
             <a href="{{ $question ? '#' : route('teacher.questions.create', ['type' => $t['key']]) }}"
-               class="flex-1 flex items-center gap-2 justify-center px-4 py-3 rounded-xl text-[13px] font-medium border transition {{ $type === $t['key'] ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-sky-100 text-slate-600 hover:border-blue-200' }} {{ $question ? 'pointer-events-none opacity-60' : '' }}">
+               class="flex-1 flex items-center gap-2 justify-center px-4 py-3 rounded-xl text-[13px] font-medium border transition {{ $type === $t['key'] ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-sky-100 text-slate-600 hover:border-blue-200' }} {{ $question ? 'pointer-events-none opacity-60' : 'pointer-events-none' }}">
                 <span class="text-base"><x-lucide :name="$t['icon']" class="h-4 w-4" /></span> {{ $t['label'] }}
             </a>
         @endforeach
@@ -428,6 +432,13 @@
             </div>
         </div>
     </form>
+    </div>{{-- /SỬA 3/11 form tab Lập trình --}}
+
+    @unless ($question)
+        <div x-data="{ zk: @js(request('nhap') === 'pho-thong' || $errors->has('general_zip') || $errors->has('general_form') ? 'general' : 'code') }" @gz-tab.window="zk = $event.detail" x-show="zk === 'general'" x-cloak>
+            @include('partials.general-set-form', ['gsfAction' => route('teacher.questions.generalForm'), 'gsfNote' => 'Bài tạo ra nằm trong "Đề của tôi" — bấm Giao để giao cho lớp.'])
+        </div>
+    @endunless
 
     @push('scripts')
         @include('partials.rich-editor-assets')
