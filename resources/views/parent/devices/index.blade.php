@@ -25,7 +25,7 @@
         .cd-check input { margin-top: 2px; width: 16px; height: 16px; flex: none; }
         .cd-check b { display: block; font-weight: 700; }
         .cd-check small { display: block; color: #64748b; }
-        .cd-code { font: 800 34px/1.2 ui-monospace, Consolas, monospace; letter-spacing: .25em; color: #1d4ed8; margin: 8px 0 0; }
+        .pw-ok .cd-code, .cd-code { font: 800 34px/1.2 ui-monospace, Consolas, monospace; letter-spacing: .25em; color: #1d4ed8; margin: 8px 0 0; }
         .cd-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .cd-actions .pw-btn { margin-top: 0; }
         .pw-btn--danger { background: #dc2626; box-shadow: none; } .pw-btn--danger:hover { background: #b91c1c; }
@@ -53,7 +53,7 @@
         @include('parent._hero', [
             'title' => 'Máy tính của con',
             'desc' => 'Quản lý máy tính khi con học online: giờ học, giờ chơi, trang web được vào, khóa máy từ xa.',
-            'cta' => ['label' => 'Tải Chocon Desktop', 'href' => route('chocon.download'), 'icon' => 'download'],
+            'cta' => ['label' => 'Tải Chocon Desktop', 'href' => route('chocon.download.file'), 'icon' => 'download'],
         ])
 
         @if ($statusText)
@@ -133,7 +133,7 @@
                             @csrf <input type="hidden" name="child" value="{{ $selectedId }}">
                             <button class="pw-btn" type="submit"><x-lucide name="key-round" />Lấy mã ghép</button>
                         </form>
-                        <a class="pw-btn pw-btn--ghost" href="{{ route('chocon.download') }}"><x-lucide name="download" />Tải phần mềm</a>
+                        <a class="pw-btn pw-btn--ghost" href="{{ route('chocon.download.file') }}"><x-lucide name="download" />Tải phần mềm</a>
                     </div>
                 </section>
 

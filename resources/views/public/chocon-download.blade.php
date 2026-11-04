@@ -14,7 +14,7 @@
     .cdl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; padding: 14px 28px; border-radius: 14px; background: #4a8a83; color: #fff; font-weight: 700; text-decoration: none; }
     .cdl-btn:hover { background: #3d7570; }
     .cdl-btn svg { width: 18px; height: 18px; }
-    .cdl ol { margin: 0; padding-left: 20px; } .cdl li { margin: 6px 0; }
+    .cdl ol { margin: 0; padding-left: 22px; list-style: decimal; } .cdl li { margin: 6px 0; display: list-item; }
     .cdl-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
     @media (min-width: 720px) { .cdl-grid { grid-template-columns: repeat(3, 1fr); } }
     .cdl-f { border-radius: 16px; background: #f7fbfd; padding: 14px; font-size: 13px; color: #475569; }
