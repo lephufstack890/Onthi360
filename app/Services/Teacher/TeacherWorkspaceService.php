@@ -384,9 +384,12 @@ class TeacherWorkspaceService
             throw ValidationException::withMessages(['class_room_id' => 'Bạn không phụ trách lớp này.']);
         }
 
-        $audience = $data['audience'] === ClassAnnouncement::AUDIENCE_FAMILIES
-            ? ClassAnnouncement::AUDIENCE_FAMILIES
-            : ClassAnnouncement::AUDIENCE_STUDENTS;
+        // SỬA 4/11 — thêm lựa chọn "Chỉ phụ huynh" (AUDIENCE_PARENTS); hai lựa chọn cũ giữ nguyên.
+        $audience = match ($data['audience'] ?? '') {
+            ClassAnnouncement::AUDIENCE_FAMILIES => ClassAnnouncement::AUDIENCE_FAMILIES,
+            ClassAnnouncement::AUDIENCE_PARENTS => ClassAnnouncement::AUDIENCE_PARENTS,
+            default => ClassAnnouncement::AUDIENCE_STUDENTS,
+        };
 
         $title = trim((string) ($data['title'] ?? ''));
         $body = trim((string) ($data['body'] ?? ''));
@@ -434,22 +437,29 @@ class TeacherWorkspaceService
                 throw ValidationException::withMessages(['class_room_id' => 'Lớp này chưa có học sinh đang học để nhận thông báo.']);
             }
 
-            $parentIds = $audience === ClassAnnouncement::AUDIENCE_FAMILIES
+            $parentIds = in_array($audience, [ClassAnnouncement::AUDIENCE_FAMILIES, ClassAnnouncement::AUDIENCE_PARENTS], true)
                 ? ParentLink::query()->whereIn('student_user_id', $studentIds->all())
                     ->where('status', ParentLinkStatus::Verified->value)->pluck('parent_user_id')->unique()->values()
                 : collect();
 
+            $parentsOnly = $audience === ClassAnnouncement::AUDIENCE_PARENTS;
+            if ($parentsOnly && $parentIds->isEmpty()) {
+                throw ValidationException::withMessages(['audience' => 'Lớp này chưa có phụ huynh nào đã liên kết tài khoản để nhận thông báo.']);
+            }
+
             $announcement->fill([
                 'state' => ClassAnnouncement::STATE_PUBLISHED,
-                'student_count' => $studentIds->count(),
+                'student_count' => $parentsOnly ? 0 : $studentIds->count(),
                 'parent_count' => $parentIds->count(),
                 'published_at' => now(),
             ])->save();
 
-            Notification::send(
-                User::query()->whereIn('id', $studentIds->all())->get(),
-                new ClassAnnouncementPublished($announcement, $classRoom, $teacher),
-            );
+            if (! $parentsOnly) {
+                Notification::send(
+                    User::query()->whereIn('id', $studentIds->all())->get(),
+                    new ClassAnnouncementPublished($announcement, $classRoom, $teacher),
+                );
+            }
 
             if ($parentIds->isNotEmpty()) {
                 Notification::send(

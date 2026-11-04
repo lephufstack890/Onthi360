@@ -223,6 +223,21 @@ class HomeService
     {
         $notices = [];
 
+        // SỬA 4/11 — thông báo Quản trị đang GHIM (mục Thông báo khu quản trị) đứng đầu thanh "Thông báo hệ thống".
+        foreach (\App\Services\Admin\SystemAnnouncementService::pinnedForHome(3) as $pa) {
+            $imp = $pa->level === 'important';
+            $notices[] = [
+                'category' => $imp ? 'Quan trọng' : 'Thông báo',
+                'message' => trim((string) $pa->title) !== '' ? (string) $pa->title : \Illuminate\Support\Str::limit((string) $pa->body, 120),
+                'surfaceClass' => 'from-[#FFF9E6] via-[#FCFBF5] to-[#F1F7FC]',
+                'borderClass' => 'border-amber-200/80',
+                'accentClass' => 'bg-amber-300',
+                'categoryClass' => 'border-amber-200 bg-amber-50 text-amber-800',
+                'iconClass' => 'text-amber-500',
+                'href' => route('announcements.public', $pa->id),
+            ];
+        }
+
         $competition = $this->competitionsRepo->query()
             ->where('status', '!=', \App\Enums\CompetitionStatus::Archived->value)
             ->whereNotNull('starts_at')

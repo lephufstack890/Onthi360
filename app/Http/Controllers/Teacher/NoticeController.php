@@ -24,7 +24,7 @@ class NoticeController extends Controller
         $data = $request->validate([
             'id' => ['nullable', 'integer'],
             'class_room_id' => ['required', 'integer'],
-            'audience' => ['required', 'in:students,families'],
+            'audience' => ['required', 'in:students,families,parents'], // SỬA 4/11 — thêm 'parents' (chỉ phụ huynh)
             'title' => ['nullable', 'string', 'max:120'],
             'body' => ['nullable', 'string', 'max:3000'],
             'action' => ['required', 'in:draft,publish'],

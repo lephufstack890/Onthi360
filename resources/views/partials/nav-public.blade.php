@@ -173,8 +173,10 @@
                                 <p class="type-card-title flex items-center gap-1.5">
                                     <span class="shrink-0">{{ $n['icon'] ?? '🔔' }}</span>{{ $n['title'] }}
                                 </p>
-                                @if (!empty($n['body']))
-                                    <p class="type-body mt-0.5 text-slate-600">{{ $n['body'] }}</p>
+                                {{-- SỬA 4/11 — NotificationService trả 'text' (không có 'body') nên trước đây mô tả không bao giờ hiện. --}}
+                                @php $nBody = $n['body'] ?? (($n['text'] ?? '') !== ($n['title'] ?? '') ? ($n['text'] ?? '') : ''); @endphp
+                                @if ($nBody !== '')
+                                    <p class="type-body mt-0.5 text-slate-600">{{ \Illuminate\Support\Str::limit($nBody, 110) }}</p>
                                 @endif
                                 <span class="type-meta mt-1 block text-slate-400">{{ $n['time'] ?? '' }}</span>
                             </a>

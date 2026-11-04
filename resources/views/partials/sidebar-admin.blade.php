@@ -28,6 +28,8 @@
         // trong màn "Đánh giá" nên không ai để ý là có người đang chờ trả lời. Không đặt
         // 'editorOk' => true: chỉ quản trị viên được đọc nội dung người dùng gửi.
         ['label' => 'Yêu cầu hỗ trợ', 'route' => 'admin.contact-messages.index', 'icon' => 'headphones', 'badge' => 'support'],
+        // SỬA 4/11 — gửi thông báo tới học sinh / phụ huynh / giáo viên (Admin\AnnouncementController).
+        ['label' => 'Thông báo', 'route' => 'admin.announcements.index', 'icon' => 'megaphone'],
         // SỬA 19/9 (10) (khách: "học sinh đăng ký cuộc thi mà admin không biết cuộc thi nào để
         // duyệt") — viên số đỏ = số ĐƠN ĐĂNG KÝ đang chờ duyệt của mọi cuộc thi cộng lại.
         ['label' => 'Cuộc thi', 'route' => 'admin.competitions.index', 'icon' => 'trophy', 'badge' => 'competitions'],

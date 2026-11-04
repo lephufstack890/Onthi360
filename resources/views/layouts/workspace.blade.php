@@ -180,6 +180,10 @@
                     </form>
                 </div>
             @endif
+            {{-- SỬA 4/11 — dải "Thông báo mới" (thông báo chưa đọc của Quản trị / giáo viên) ở trang Tổng quan. --}}
+            @if (request()->routeIs('student.dashboard', 'parent.dashboard', 'teacher.dashboard'))
+                @include('partials.announcement-strip')
+            @endif
             @yield('content')
         </main>
     </div>

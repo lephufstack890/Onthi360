@@ -81,6 +81,7 @@
                                 <select name="audience" aria-label="Người nhận" x-model="audience">
                                     <option value="students">Học sinh trong lớp</option>
                                     <option value="families">Học sinh &amp; phụ huynh đã liên kết</option>
+                                    <option value="parents">Chỉ phụ huynh đã liên kết</option>
                                 </select>
                             </label>
                         </div>
@@ -92,7 +93,7 @@
                             <textarea name="body" rows="4" maxlength="3000" placeholder="Nhập lời nhắn cho lớp…">{{ old('body', $editing['body'] ?? '') }}</textarea>
                         </label>
                         <div class="tw-actions" style="margin-top:0">
-                            <button class="tw-button" type="submit" name="action" value="publish" :disabled="counts[classId] && counts[classId].students === 0">Đăng thông báo</button>
+                            <button class="tw-button" type="submit" name="action" value="publish" :disabled="counts[classId] && (counts[classId].students === 0 || (audience === 'parents' && counts[classId].parents === 0))">Đăng thông báo</button>
                             <button class="tw-secondary" type="submit" name="action" value="draft">Lưu nháp</button>
                             @if ($editing)
                                 <a class="tw-secondary" href="{{ route('teacher.notifications.index', ['tab' => 'compose']) }}">Hủy chỉnh sửa</a>
@@ -114,8 +115,8 @@
                                 <h3 x-text="n.title || 'Bản nháp chưa có tiêu đề'"></h3>
                                 <span class="tw-tag" :class="n.state === 'published' ? 'tw-status-completed' : 'tw-status-pending'" x-text="n.state === 'draft' ? 'Bản nháp' : 'Đã đăng'"></span>
                             </div>
-                            <p x-text="n.class + ' · ' + (n.audience === 'families' ? 'Học sinh & phụ huynh đã liên kết' : 'Học sinh') + ' · ' + (n.state === 'published' ? 'Đăng: ' + n.publishedAt : 'Cập nhật: ' + n.updatedAt)"></p>
-                            <p x-show="n.state === 'published'" x-text="'Đã gửi tới ' + n.students + ' học sinh' + (n.audience === 'families' ? ' · ' + n.parents + ' phụ huynh' : '')"></p>
+                            <p x-text="n.class + ' · ' + audLabel(n.audience) + ' · ' + (n.state === 'published' ? 'Đăng: ' + n.publishedAt : 'Cập nhật: ' + n.updatedAt)"></p>
+                            <p x-show="n.state === 'published'" x-text="'Đã gửi tới ' + (n.audience === 'parents' ? n.parents + ' phụ huynh' : n.students + ' học sinh' + (n.audience === 'families' ? ' · ' + n.parents + ' phụ huynh' : ''))"></p>
                             <p class="tw-notice-body" x-text="n.body || 'Chưa nhập nội dung.'"></p>
                             <div class="tw-actions" x-show="n.state === 'draft'">
                                 <a class="tw-secondary" :href="'{{ route('teacher.notifications.index', ['tab' => 'compose']) }}&edit=' + n.id" x-text="editId === n.id ? 'Đang chỉnh sửa' : 'Viết tiếp'"></a>
@@ -165,8 +166,10 @@
         function twNotices(d) {
             return window.swPager(0, 10, {
                 notices: d.notices, counts: d.counts, classId: d.classId, audience: d.audience, filter: d.filter, editId: d.editId,
+                audLabel(a) { return a === 'families' ? 'Học sinh & phụ huynh đã liên kết' : (a === 'parents' ? 'Chỉ phụ huynh đã liên kết' : 'Học sinh'); },
                 get scopeText() {
                     var c = this.counts[this.classId] || { students: 0, parents: 0 };
+                    if (this.audience === 'parents') return c.parents + ' phụ huynh đã liên kết' + (c.parents === 0 ? '. Lớp chưa có phụ huynh nào liên kết — chỉ lưu nháp được.' : '.');
                     return c.students + ' học sinh' + (this.audience === 'families' ? ' và ' + c.parents + ' phụ huynh đã liên kết' : '') + (c.students === 0 ? '. Lớp chưa có học sinh đang học — chỉ lưu nháp được.' : '.');
                 },
                 get filtered() { var f = this.filter; return this.notices.filter(function (n) { return f === 'all' || n.state === f; }); },

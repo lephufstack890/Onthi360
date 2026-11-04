@@ -58,7 +58,10 @@ class AppServiceProvider extends ServiceProvider
         // Controller/route. "Xem tất cả" trỏ tới trang thông báo riêng của từng vai trò
         // nếu vai trò đó đã có trang (hiện: giáo viên, học sinh); vai trò khác chưa có
         // trang riêng thì ẩn link "Xem tất cả", chỉ hiện dropdown 5 thông báo gần nhất.
-        View::composer('partials.notifications-bell', function ($view) {
+        // SỬA 4/11 (khách: "hiển thị ra thông báo") — trước chỉ gắn cho partials.notifications-bell (layouts.app cũ) nên chuông ở
+        // khu làm việc (partials.admin-notifications-bell), thanh trên trang công khai (partials.nav-public) và tab Thông báo
+        // trang chủ (welcome) luôn trống. Gắn cho cả 4; dữ liệu tính 1 lần mỗi lượt tải trang.
+        View::composer(['partials.notifications-bell', 'partials.admin-notifications-bell', 'partials.nav-public', 'welcome'], function ($view) {
             $user = auth()->user();
 
             if ($user === null) {
@@ -67,11 +70,17 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $data = app(NotificationService::class)->bellData($user);
+            $bellKey = 'oi.bell.'.$user->id;
+            $data = request()->attributes->get($bellKey);
+            if ($data === null) {
+                $data = app(NotificationService::class)->bellData($user);
+                request()->attributes->set($bellKey, $data);
+            }
 
             $viewAllRoute = match (true) {
                 $user->hasRole(Role::TEACHER) => route('teacher.notifications.index'),
                 $user->hasRole(Role::STUDENT) => route('student.notifications'),
+                $user->hasRole(Role::PARENT) => route('parent.notifications.index'),
                 default => null,
             };
 

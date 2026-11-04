@@ -18,6 +18,11 @@ class NotificationController extends Controller
 
         $record?->markAsRead();
 
+        // SỬA 4/11 — thông báo không có đường dẫn (thông báo lớp, thông báo Quản trị…) mở trang đọc đủ nội dung thay vì về Tổng quan.
+        if (! $url && $record !== null) {
+            return redirect()->route('notifications.show', $record->id);
+        }
+
         return redirect($url ?: route('dashboard'));
     }
 

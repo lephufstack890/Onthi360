@@ -5,6 +5,9 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\NotificationController;
+// SỬA 4/11 — trang đọc đủ thông báo + thông báo Quản trị ghim trang chủ; mục "Thông báo" khu quản trị.
+use App\Http\Controllers\NotificationDetailController;
+use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Public\CompetitionController as PublicCompetitionController;
 use App\Http\Controllers\Public\CourseController as PublicCourseController;
 use App\Http\Controllers\Public\LearningPathController as PublicLearningPathController;
@@ -92,6 +95,8 @@ Route::get('/', [PublicHomeController::class, 'index'])->name('home');
 // SỬA 9/9 (9) — sitemap cho Google (xem Public\SitemapController). Đặt ngay dưới trang chủ
 // để không lọt vào nhóm route nào có middleware auth.
 Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap');
+// SỬA 4/11 — thông báo Quản trị đang ghim ở thanh "Thông báo hệ thống" trang chủ (ai cũng xem được).
+Route::get('/thong-bao/{announcement}', [NotificationDetailController::class, 'publicShow'])->whereNumber('announcement')->name('announcements.public');
 Route::get('/khoa-hoc', [PublicCourseController::class, 'index'])->name('courses.index');
 // SỬA 18/9 (khách yêu cầu) — mảnh giao diện cho popup "Chi tiết lớp" ở trang Lớp học công khai.
 // Công khai như chính trang danh sách: chỉ trả thông tin lớp vốn đã hiển thị ngoài trang, không
@@ -289,6 +294,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+    // SỬA 4/11 — đọc đủ nội dung một thông báo (thông báo lớp / thông báo Quản trị…).
+    Route::get('/notifications/{notification}', [NotificationDetailController::class, 'show'])->name('notifications.show');
 
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         /*
@@ -856,6 +863,14 @@ Route::middleware(['auth'])->group(function () {
          * CHỈ QUẢN TRỊ VIÊN đọc được — nhóm này đang ở trong middleware role:admin,super_admin
          * nên tài khoản biên tập / giáo viên / học sinh gõ thẳng địa chỉ cũng bị chặn.
          */
+        // SỬA 4/11 (khách: "admin có thể thông báo cho học sinh và phụ huynh") — mục Thông báo (App\Support\AdminPermissions: announcements).
+        Route::get('announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('announcements/preview', [AdminAnnouncementController::class, 'preview'])->name('announcements.preview');
+        Route::post('announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
+        Route::post('announcements/{announcement}/recall', [AdminAnnouncementController::class, 'recall'])->whereNumber('announcement')->name('announcements.recall');
+        Route::post('announcements/{announcement}/pin', [AdminAnnouncementController::class, 'pin'])->whereNumber('announcement')->name('announcements.pin');
+        Route::delete('announcements/{announcement}', [AdminAnnouncementController::class, 'destroy'])->whereNumber('announcement')->name('announcements.destroy');
+
         Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
         Route::post('contact-messages/{contactMessage}/status', [AdminContactMessageController::class, 'updateStatus'])->name('contact-messages.status');
         Route::post('contact-messages/{contactMessage}/note', [AdminContactMessageController::class, 'note'])->name('contact-messages.note');

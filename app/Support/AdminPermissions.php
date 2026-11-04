@@ -79,6 +79,12 @@ final class AdminPermissions
             'label' => 'Đánh giá', 'actions' => ['view', 'approve'], 'hint' => 'Duyệt: đăng, từ chối, ẩn, yêu cầu sửa, trả lời',
             'routes' => ['admin.reviews.'], 'home' => 'admin.reviews.index',
         ],
+        // SỬA 4/11 — mục Thông báo (gửi thông báo tới học sinh / phụ huynh / giáo viên). Admin mặc định có hết như các mục khác.
+        'announcements' => [
+            'label' => 'Thông báo', 'actions' => ['view', 'create', 'update', 'delete'],
+            'hint' => 'Thêm: soạn / gửi · Sửa: thu hồi, ghim trang chủ · Xoá: xoá bản nháp',
+            'routes' => ['admin.announcements.'], 'home' => 'admin.announcements.index',
+        ],
         'support' => [
             'label' => 'Yêu cầu hỗ trợ', 'actions' => ['view', 'update'], 'hint' => 'Sửa: nhận xử lý, ghi chú, đánh dấu đã xong',
             'routes' => ['admin.contact-messages.'], 'home' => 'admin.contact-messages.index',

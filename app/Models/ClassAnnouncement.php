@@ -21,6 +21,9 @@ class ClassAnnouncement extends Model
 
     public const AUDIENCE_FAMILIES = 'families';
 
+    // SỬA 4/11 — gửi RIÊNG cho phụ huynh đã liên kết của học sinh trong lớp (không gửi học sinh).
+    public const AUDIENCE_PARENTS = 'parents';
+
     protected $fillable = [
         'teacher_id', 'class_room_id', 'audience', 'title', 'body', 'state',
         'student_count', 'parent_count', 'published_at',

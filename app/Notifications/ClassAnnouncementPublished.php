@@ -41,6 +41,9 @@ class ClassAnnouncementPublished extends Notification
             'text' => ($this->forParent ? 'Thông báo cho phụ huynh lớp ' : 'Lớp ').$this->classRoom->name.' · '.$this->teacher->name.': '
                 .Str::limit(trim((string) $this->announcement->body), 160),
             'url' => null,
+            // SỬA 4/11 — khoá bản gốc để trang notifications.show hiện ĐỦ nội dung + tên lớp, giáo viên.
+            'ref' => 'cls:'.$this->announcement->id,
+            'from' => 'Giáo viên '.$this->teacher->name,
         ];
     }
 }
