@@ -16,7 +16,7 @@
             rows: config.rows || [],
             query: '',
             page: 1,
-            pageSize: config.pageSize || 5,
+            pageSize: config.pageSize || 10, // SỬA 4/11 — mặc định 10 / trang
             expanded: null,
 
             init() {

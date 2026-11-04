@@ -588,7 +588,7 @@
                         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#CFE6EC] bg-[#EAF5F8] text-[#2D7FA3]">
                             <x-lucide name="bar-chart-2" class="h-4 w-4" />
                         </span>
-                        <h4 class="type-card-title text-slate-800">Không gian học tập</h4>
+                        <h4 class="type-card-title text-slate-800">Không gian học tập - làm việc</h4>{{-- SỬA 4/11 (khách) --}}
                     </div>
                     @if (empty($learningSpace['guest']))
                         {{-- SỬA 12/9 — source mới đổi nhãn vai trò thành hộp chọn ngữ cảnh. Ở đây chỉ

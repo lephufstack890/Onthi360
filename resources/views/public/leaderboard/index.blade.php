@@ -34,7 +34,7 @@
         'rows' => $rows,
         'namesLocked' => (bool) $namesLocked,
         'scopeLabel' => $scopeLabel,
-        'pageSize' => 5,
+        'pageSize' => 10, // SỬA 4/11 (khách: "bảng xếp hạng 10 học sinh / trang")
     ];
 @endphp
 
@@ -553,7 +553,7 @@ body:has(.leaderboard-view) { background-color: #e0ebf0; }
                 <nav class="lb-pagination" aria-label="Phân trang bảng xếp hạng">
                     <div class="lb-page-summary">
                         Hiển thị <strong x-text="(start + 1) + '–' + Math.min(start + pageSize, filtered.length)"></strong> / <span x-text="filtered.length"></span> học sinh
-                        <label><select aria-label="Số học sinh mỗi trang" x-model.number="pageSize"><option value="5">5 / trang</option><option value="10">10 / trang</option></select></label>
+                        <label><select aria-label="Số học sinh mỗi trang" x-model.number="pageSize"><option value="10">10 / trang</option><option value="20">20 / trang</option><option value="50">50 / trang</option></select></label>
                     </div>
                     <div class="lb-page-buttons" x-show="totalPages > 1">
                         <button type="button" aria-label="Trang trước" :disabled="currentPage === 1" @click="goto(currentPage - 1)"><x-lucide name="chevron-left" style="width:16px;height:16px" /></button>

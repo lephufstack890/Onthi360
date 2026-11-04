@@ -41,6 +41,9 @@
     .ssm-sub { font-size: 11px; color: #7e93a3; }
     .ssm-sig { display: inline-block; margin: 0 4px 2px 0; padding: 1px 7px; border-radius: 999px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 10.5px; font-weight: 700; }
     .ssm-ok { color: #15803d; font-size: 11px; font-weight: 700; }
+    .ssm-adj-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 16px; font-weight: 800; color: #334155; cursor: pointer; line-height: 1; }
+    .ssm-adj-btn:hover:not(:disabled) { background: #f1f5f9; }
+    .ssm-adj-btn:disabled { opacity: .4; cursor: default; }
     .ssm-preview { border: 1px solid #e3ecf2; border-radius: 12px; background: #eef2f5; padding: 10px; }
     .ssm-preview iframe { width: 100%; height: 520px; border: 0; background: #fff; border-radius: 6px; }
     .ssm-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid #e3ecf2; position: sticky; bottom: 0; background: #fff; border-radius: 0 0 16px 16px; }
@@ -92,6 +95,15 @@
                                 <label class="ssm-check"><input type="checkbox" x-model="s.showActivity"> In cột "Kiểm tra thao tác"</label>
                                 <label class="ssm-check"><input type="checkbox" x-model="s.upper"> Viết hoa họ tên</label>
                                 <label class="ssm-check"><input type="checkbox" x-model="s.logo"> In logo hệ thống</label>
+                                {{-- SỬA 4/11 (khách: "in bảng điểm bị ngược") — trước đây ÉP khổ ngang (A4 landscape): Safari / máy Mac và nhiều
+                                     máy in xoay cả trang 90° nên bản in / PDF bị nằm nghiêng. Mặc định giờ là khổ DỌC (đứng thẳng như giấy A4 thường);
+                                     đề nhiều bài cần rộng thì chọn Ngang. --}}
+                                <label class="ssm-check">Khổ giấy
+                                    <select x-model="s.orient" style="margin-left:4px;width:auto;min-height:28px;padding:0 6px">
+                                        <option value="portrait">A4 dọc (đứng)</option>
+                                        <option value="landscape">A4 ngang</option>
+                                    </select>
+                                </label>
                             </div>
                             <p class="ssm-sub" style="margin:6px 0 0">Bằng điểm thì cùng hạng, cùng giải (vd hai bạn cùng hạng 4 đều được Khuyến khích nếu còn suất).</p>
                         </section>
@@ -107,6 +119,7 @@
                                             <th><label class="ssm-check"><input type="checkbox" :checked="includedCount === data.students.length" @change="toggleAll($event.target.checked)"> In</label></th>
                                             <th>Học sinh · tên in ra (sửa được)</th>
                                             <th>Lượt nộp được tính</th>
+                                            <th>Cộng / trừ điểm</th>
                                             <th>Kiểm tra thao tác (lượt đã chọn)</th>
                                             <th>Không xét giải (gian lận…)</th>
                                         </tr>
@@ -133,6 +146,20 @@
                                                         </template>
                                                     </select>
                                                     <div class="ssm-sub" x-show="st.attempts.length > 1" x-text="st.attempts.length + ' lượt nộp — mặc định lượt điểm cao nhất'"></div>
+                                                </td>
+                                                {{-- SỬA 4/11 (khách: "thêm cộng / trừ điểm thủ công trước khi in") — số dương = cộng, số âm = trừ (vd -1,5).
+                                                     CHỈ áp cho bản in (xếp hạng, giải tính theo điểm sau điều chỉnh), không đổi điểm lưu trong hệ thống. --}}
+                                                <td style="min-width:170px">
+                                                    <div style="display:flex;align-items:center;gap:4px">
+                                                        <button type="button" class="ssm-adj-btn" @click="bump(st, -0.25)" :disabled="!pick[st.userId].include || chosen(st).pending" title="Trừ 0,25 điểm">−</button>
+                                                        <input type="number" step="0.25" x-model.number="pick[st.userId].adj" :disabled="!pick[st.userId].include || chosen(st).pending"
+                                                               :aria-label="'Cộng / trừ điểm cho ' + st.name" placeholder="0" style="width:74px;text-align:center"
+                                                               :style="adjOf(st) > 0 ? 'border-color:#16a34a;background:#f0fdf4' : (adjOf(st) < 0 ? 'border-color:#dc2626;background:#fef2f2' : '')">
+                                                        <button type="button" class="ssm-adj-btn" @click="bump(st, 0.25)" :disabled="!pick[st.userId].include || chosen(st).pending" title="Cộng 0,25 điểm">+</button>
+                                                    </div>
+                                                    <div class="ssm-sub" style="margin-top:3px" x-show="adjOf(st) !== 0 && !chosen(st).pending"
+                                                         x-text="num(chosen(st).score) + ' → ' + num(finalScore(st)) + ' điểm'"></div>
+                                                    <input type="text" x-show="adjOf(st) !== 0" x-model="pick[st.userId].adjNote" placeholder="Lý do (tuỳ chọn), vd: phúc khảo bài 2" style="margin-top:4px">
                                                 </td>
                                                 <td>
                                                     <template x-for="t in sigList(chosen(st))" :key="t"><span class="ssm-sig" x-text="t"></span></template>
@@ -184,7 +211,7 @@
         return {
             show: false, loading: false, error: '', data: null, pick: {},
             s: { heading: 'BẢNG TỔNG HỢP ĐIỂM VÀ XẾP GIẢI', subheading: '', unit: '', date: today(), footer: '',
-                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, logo: true, extra: '' },
+                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, logo: true, orient: 'portrait', extra: '' },
             open() {
                 this.show = true;
                 if (this.data || this.loading) return;
@@ -198,7 +225,7 @@
                         try { savedNames = JSON.parse(window.localStorage.getItem(NAMES_KEY) || '{}') || {}; } catch (e) { savedNames = {}; }
                         (j.students || []).forEach((st) => {
                             const saved = typeof savedNames[st.userId] === 'string' && savedNames[st.userId].trim() ? savedNames[st.userId] : null;
-                            pick[st.userId] = { include: true, attemptId: st.defaultAttemptId, cheat: false, note: '', printName: saved || st.name };
+                            pick[st.userId] = { include: true, attemptId: st.defaultAttemptId, cheat: false, note: '', printName: saved || st.name, adj: 0, adjNote: '' };
                         });
                         this.pick = pick;
                         this.s.subheading = cfg.survey ? 'KHẢO SÁT MÔN TIN HỌC' : ((j.defaults && j.defaults.subheading) || '');
@@ -207,7 +234,7 @@
                         try {
                             const saved = JSON.parse(window.localStorage.getItem(KEY) || 'null');
                             if (saved && typeof saved === 'object') {
-                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper', 'logo'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
+                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper', 'logo', 'orient'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
                             }
                         } catch (e) {}
                         this.data = j;
@@ -217,6 +244,11 @@
             },
             toggleAll(on) { Object.keys(this.pick).forEach((k) => { this.pick[k].include = on; }); },
             get includedCount() { return Object.values(this.pick).filter((p) => p.include).length; },
+            // SỬA 4/11 — cộng / trừ điểm thủ công (chỉ cho bản in).
+            adjOf(st) { const v = Number((this.pick[st.userId] || {}).adj); return isFinite(v) ? Math.round(v * 100) / 100 : 0; },
+            bump(st, d) { const p = this.pick[st.userId]; if (p) p.adj = Math.round(((Number(p.adj) || 0) + d) * 100) / 100; },
+            finalScore(st) { const a = this.chosen(st); return a.pending ? null : Math.max(0, Math.round((Number(a.score) + this.adjOf(st)) * 100) / 100); },
+            signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '') + this.num(Math.abs(n)); },
             chosen(st) { const id = this.pick[st.userId] ? this.pick[st.userId].attemptId : null; return st.attempts.find((a) => a.id === id) || st.attempts[0]; },
             num(n) { return n === null || n === undefined || isNaN(n) ? '' : (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ','); },
             attemptLabel(st, a) { return 'Lần ' + a.no + ' · ' + a.submittedAt + ' · ' + (a.pending ? 'chờ chấm' : this.num(a.score) + ' điểm') + (this.sigList(a).length ? ' · có dấu hiệu' : ''); },
@@ -234,7 +266,9 @@
                 if (!this.data) return [];
                 const list = this.data.students.filter((st) => this.pick[st.userId] && this.pick[st.userId].include).map((st) => {
                     const p = this.pick[st.userId], a = this.chosen(st);
-                    return { st, a, pn: String(p.printName || '').trim() || st.name, cheat: !!p.cheat, note: (p.note || '').trim(), score: a.pending ? null : Number(a.score) };
+                    // SỬA 4/11 — score = điểm SAU cộng / trừ thủ công (xếp hạng, giải theo điểm này); adj / adjNote để in cột + ghi chú.
+                    const adj = a.pending ? 0 : this.adjOf(st);
+                    return { st, a, pn: String(p.printName || '').trim() || st.name, cheat: !!p.cheat, note: (p.note || '').trim(), score: this.finalScore(st), adj, adjNote: String(p.adjNote || '').trim() };
                 });
                 const byName = (x, y) => x.pn.localeCompare(y.pn, 'vi');
                 const ranked = list.filter((r) => !r.cheat && r.score !== null).sort((x, y) => (y.score - x.score) || byName(x, y));
@@ -258,6 +292,9 @@
                 if (multi.length) out.push('Học sinh nộp nhiều lần — lượt được tính: ' + multi.map((r) => this.nm(r.pn) + ' (lần ' + r.a.no + '/' + r.st.attempts.length + ', nộp ' + r.a.submittedAt + ')').join('; ') + '.');
                 const cheats = rows.filter((r) => r.cheat);
                 if (cheats.length) out.push('Không xét giải do vi phạm quy chế: ' + cheats.map((r) => this.nm(r.pn) + (r.note ? ' (' + r.note + ')' : '')).join('; ') + '.');
+                // SỬA 4/11 — ghi rõ ai được cộng / trừ điểm thủ công, bao nhiêu, lý do.
+                const adjs = rows.filter((r) => r.adj);
+                if (adjs.length) out.push('Điều chỉnh điểm thủ công: ' + adjs.map((r) => this.nm(r.pn) + ' ' + this.signed(r.adj) + ' điểm' + (r.adjNote ? ' (' + r.adjNote + ')' : '')).join('; ') + '.');
                 const pend = rows.filter((r) => r.award === 'Chờ chấm');
                 if (pend.length) out.push('Bài chưa chấm xong, chưa xếp hạng: ' + pend.map((r) => this.nm(r.pn)).join('; ') + '.');
                 const flagged = rows.filter((r) => this.sigList(r.a).length);
@@ -281,8 +318,11 @@
                 const qs = this.data.questions || [];
                 const max = Number(this.data.maxScore || 0);
                 const act = !!this.s.showActivity;
+                const port = this.s.orient !== 'landscape';
+                const hasAdj = rows.some((r) => r.adj); // SỬA 4/11 — có ai được cộng / trừ thì in thêm cột Điều chỉnh
                 const head = '<tr><th style="width:5%">Hạng</th><th style="width:' + (act ? 19 : 22) + '%">Họ tên / Tên bài làm</th>'
                     + qs.map((q, i) => '<th>Bài ' + (i + 1) + (q.code ? '<br>' + e(q.code) : '') + '<br>(' + this.num(q.points) + ' điểm)</th>').join('')
+                    + (hasAdj ? '<th style="width:8%">Điều chỉnh</th>' : '')
                     + '<th class="tot" style="width:9%">Tổng điểm<br>(' + this.num(max) + ')</th><th style="width:' + (act ? 11 : 13) + '%">Giải</th>'
                     + (act ? '<th style="width:16%">Kiểm tra thao tác</th>' : '') + '</tr>';
                 const body = rows.map((r) => {
@@ -294,6 +334,7 @@
                     }).join('');
                     const sig = this.sigList(r.a);
                     return '<tr><td>' + e(r.rank) + '</td><td class="nm">' + e(this.nm(r.pn)) + '</td>' + cells
+                        + (hasAdj ? '<td>' + (r.adj ? e(this.signed(r.adj)) : '') + '</td>' : '')
                         + '<td class="tot">' + (r.score === null ? '' : this.num(r.score)) + '</td><td class="aw">' + e(r.award)
                         // SỬA 2/11 (khách: "nhập lý do rồi mà in ra không hiện") — lý do không xét giải in ngay dưới chữ "Không xét" trong dòng.
                         + (r.cheat && r.note ? '<span class="rs">(' + e(r.note) + ')</span>' : '') + '</td>'
@@ -301,7 +342,8 @@
                 }).join('');
                 const notes = this.notes(rows).map((t, i) => '<p>' + (i === 0 ? '<b>Ghi chú:</b> ' : '') + e(t) + '</p>').join('');
                 return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + e(this.s.heading) + '</title><style>'
-                    + '@page{size:A4 landscape;margin:13mm 12mm 16mm 12mm;'
+                    // SỬA 4/11 — khổ giấy theo lựa chọn (mặc định dọc); khổ dọc thu nhỏ chữ bảng cho vừa bề ngang.
+                    + '@page{size:A4 ' + (port ? 'portrait' : 'landscape') + ';margin:' + (port ? '12mm 10mm 16mm 10mm' : '13mm 12mm 16mm 12mm') + ';'
                     + '@bottom-left{content:' + css(this.s.footer) + ';font:italic 9pt "Times New Roman",Times,serif;color:#333;border-top:.6pt solid #999;vertical-align:top;padding-top:2mm}'
                     + '@bottom-center{content:"";border-top:.6pt solid #999}'
                     + '@bottom-right{content:"Trang " counter(page) " / " counter(pages);font:italic 9pt "Times New Roman",Times,serif;color:#333;border-top:.6pt solid #999;vertical-align:top;padding-top:2mm}}'
@@ -314,6 +356,7 @@
                     + '.rule{width:31mm;border-top:1pt solid #000;margin:4pt auto 14pt}'
                     + '.meta{display:flex;justify-content:space-between;align-items:flex-end;font-size:11.5pt;margin:0 0 6pt}.meta i{font-style:italic}'
                     + 'table{width:100%;border-collapse:collapse;border:1pt solid #000;font-size:12pt}'
+                    + (port ? '.h1{font-size:16pt!important}table{font-size:10.5pt!important}th,td{padding:4pt 3pt!important}th{font-size:8.5pt!important}td.nm{padding-left:5pt!important}td.ac{font-size:8.5pt!important}td.aw{white-space:normal!important}td.aw .rs{font-size:8.5pt!important}.notes{font-size:9.5pt!important}.logo{height:11mm!important}' : '')
                     + 'th,td{border:.6pt solid #666;padding:6pt 6pt;text-align:center;vertical-align:middle}'
                     + 'th{background:#efefef;font-weight:bold;font-size:10.5pt;line-height:1.25}thead tr{border-bottom:1.2pt solid #000}'
                     + 'td.nm{text-align:left;padding-left:10pt}td.tot{background:#f3f3f3;font-weight:bold}th.tot{background:#efefef}td.aw{font-weight:bold;white-space:nowrap}td.aw .rs{display:block;margin-top:2pt;font-weight:normal;font-style:italic;font-size:9.5pt;white-space:normal;line-height:1.3}td.ac{font-size:9.5pt;text-align:left}'
@@ -341,7 +384,7 @@
                     });
                     window.localStorage.setItem(NAMES_KEY, JSON.stringify(names));
                 } catch (e) {}
-                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo })); } catch (e) {}
+                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo, orient: this.s.orient })); } catch (e) {}
                 const w = window.open('', '_blank');
                 if (!w) { alert('Trình duyệt đã chặn cửa sổ in — cho phép cửa sổ bật lên (pop-up) cho trang này rồi bấm In lại.'); return; }
                 w.document.open(); w.document.write(this.html(true)); w.document.close();

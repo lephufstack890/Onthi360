@@ -735,7 +735,8 @@ class HomeService
     }
 
     /** Nội dung FAQ (12.1 mục 9) — thông tin chính sách tĩnh, không phải dữ liệu nghiệp vụ cần truy vấn. */
-    private function faqs(): array
+    /** SỬA 4/11 — public để trang Thông tin dùng CHUNG đúng bộ câu hỏi của trang chủ (InfoService::supportFaqs). */
+    public function faqs(): array
     {
         return [
             // SỬA 3/11 (SEO — khách: "search Google không thấy web") — câu hỏi có từ khoá người ta hay tìm (luyện thi Tin học,

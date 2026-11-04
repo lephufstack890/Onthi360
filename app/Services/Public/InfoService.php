@@ -56,6 +56,12 @@ class InfoService
             ['q' => 'Hệ thống chấm bài Online Judge hoạt động như thế nào?', 'a' => 'Bài lập trình được chấm bằng bộ test và luật chấm đã định sẵn cho từng câu: mã nguồn được biên dịch, chạy qua các bộ test ẩn rồi trả kết quả. Trắc nghiệm và điền đáp án được chấm ngay theo đáp án đã cấu hình, nên điểm hiện gần như tức thì.'],
             ['q' => 'Giáo viên mở lớp và giao đề cho học sinh như thế nào?', 'a' => 'Giáo viên đăng ký hồ sơ và chờ quản trị viên duyệt trước khi mở lớp. Sau khi được duyệt, giáo viên tạo lớp, gắn học liệu còn quyền dạy, rồi giao bài kiểm tra kèm thời điểm mở và hạn nộp cho từng lớp.'],
             ['q' => 'Phụ huynh theo dõi việc học của con ra sao?', 'a' => 'Phụ huynh dùng mã liên kết do chính học sinh cấp để kết nối tài khoản. Sau khi liên kết được xác thực, phụ huynh xem được lịch học, điểm danh, số bài đã nộp và tiến độ của con — không tài khoản phụ huynh nào khác thấy được dữ liệu đó.'],
+            // SỬA 4/11 (khách: "thêm cho đủ nội dung như trang chủ") — nối thêm toàn bộ câu hỏi của trang chủ (HomeService::faqs),
+            // bỏ câu trùng ý "Chấm bài code (OJ)…" vì đã có câu 2 ở trên giải thích kỹ hơn. Sửa câu hỏi trang chủ là trang này đổi theo.
+            ...array_values(array_filter(
+                rescue(fn () => app(HomeService::class)->faqs(), [], false),
+                fn ($f) => ! str_starts_with((string) ($f['q'] ?? ''), 'Chấm bài code (OJ)')
+            )),
         ];
     }
 
