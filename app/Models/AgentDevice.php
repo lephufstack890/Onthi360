@@ -11,6 +11,7 @@ class AgentDevice extends Model
     protected $fillable = [
         'parent_user_id', 'student_user_id', 'name', 'machine_id', 'token_hash', 'agent_version', 'os_version',
         'policy_version', 'tray_connected', 'enforcement_enabled', 'locked', 'last_seen_at', 'revoked_at',
+        'last_stop_reason', 'offline_notified_at',
     ];
 
     protected $hidden = ['token_hash'];
@@ -22,6 +23,7 @@ class AgentDevice extends Model
         'policy_version' => 'integer',
         'last_seen_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'offline_notified_at' => 'datetime',
     ];
 
     public function parent(): BelongsTo

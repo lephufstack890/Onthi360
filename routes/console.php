@@ -52,3 +52,11 @@ Artisan::command('app:fix-mcq-correct-option-letters {--dry-run}', function () {
 // SỬA 20/10 — quyền tài liệu quá hạn -> status "expired" (App\Console\Commands\AccessExpire). Chặn đọc đã có sẵn ở mọi
 // cửa mở tài liệu (so expires_at mỗi lần mở), lịch này chỉ chốt trạng thái cho đúng. Cần cron: * * * * * php artisan schedule:run
 \Illuminate\Support\Facades\Schedule::command('access:expire')->hourly()->withoutOverlapping();
+
+// SỬA 4/11 — Chocon Desktop: máy của con mất kết nối quá 15 phút mà không tắt máy / ngủ bình thường → báo phụ huynh
+// (App\Services\Chocon\DeviceService::notifyOfflineDevices). Cần cron: * * * * * php artisan schedule:run
+Artisan::command('chocon:check-offline', function () {
+    $count = app(\App\Services\Chocon\DeviceService::class)->notifyOfflineDevices();
+    $this->info("Đã báo {$count} máy mất kết nối.");
+})->purpose('Báo phụ huynh khi máy tính của con mất kết nối bất thường');
+\Illuminate\Support\Facades\Schedule::command('chocon:check-offline')->everyFiveMinutes()->withoutOverlapping();

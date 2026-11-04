@@ -3,6 +3,7 @@
 namespace App\Services\Student;
 
 use App\Enums\ParentLinkStatus;
+use App\Models\AgentDevice;
 use App\Models\ParentLink;
 use App\Models\Role;
 use App\Models\User;
@@ -106,6 +107,16 @@ class StudentParentLinkService
         $this->ensureOwner($student, $link);
         if ($link->status !== ParentLinkStatus::Verified) {
             throw ValidationException::withMessages(['link' => 'Liên kết này không còn hiệu lực.']);
+        }
+        // SỬA 4/11 — phụ huynh đang quản lý máy tính của con bằng Chocon Desktop: con KHÔNG tự hủy liên kết được
+        // (nếu không, con hủy liên kết là phần mềm trên máy mất hiệu lực). Chỉ phụ huynh gỡ máy trên web.
+        $managedDevice = AgentDevice::query()
+            ->where('parent_user_id', $link->parent_user_id)
+            ->where('student_user_id', $link->student_user_id)
+            ->whereNull('revoked_at')
+            ->exists();
+        if ($managedDevice) {
+            throw ValidationException::withMessages(['link' => 'Phụ huynh đang quản lý máy tính của bạn bằng Chocon Desktop. Chỉ phụ huynh mới hủy được liên kết này.']);
         }
         $link->update(['status' => ParentLinkStatus::Revoked->value]);
 

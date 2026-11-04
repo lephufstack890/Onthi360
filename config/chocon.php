@@ -23,8 +23,11 @@ return [
     // Con mở đề trên web trong vòng bao nhiêu phút gần đây (chưa nộp) thì coi là đang làm bài → bật chế độ tập trung
     'focus_window_minutes' => 120,
 
-    // Máy không gửi tín hiệu quá bao nhiêu phút thì coi là "mất kết nối"
+    // Máy không gửi tín hiệu quá bao nhiêu phút thì coi là "mất kết nối" (hiện trên trang)
     'offline_after_minutes' => 5,
+
+    // Mất kết nối bất thường quá bao nhiêu phút thì gửi thông báo cho phụ huynh
+    'offline_alert_minutes' => 15,
 
     // Trang làm đề trên onthi360 — mở trang khớp mẫu là phần mềm tự bật chế độ tập trung ngay
     'focus_url_patterns' => [

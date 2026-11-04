@@ -19,6 +19,7 @@ class UsageReport
         'focus_mode_started' => 'Bật chế độ tập trung làm bài',
         'agent_started' => 'Máy bật / phần mềm khởi động',
         'update_installing' => 'Đang cập nhật phần mềm',
+        'agent_stopping' => 'Phần mềm dừng',
     ];
 
     private const REASONS = [
@@ -59,6 +60,11 @@ class UsageReport
             ->orderByDesc('occurred_at')->limit(15)->get()
             ->map(function (AgentEvent $e) {
                 $label = self::EVENT_LABELS[$e->type] ?? $e->type;
+                if ($e->type === 'agent_stopping') {
+                    $label .= ' ('.match ($e->data['reason'] ?? '') {
+                        'shutdown' => 'tắt máy', 'sleep' => 'máy ngủ', 'updating' => 'cập nhật', default => 'bị dừng khi máy đang bật',
+                    }.')';
+                }
                 if ($e->type === 'app_blocked') {
                     $label .= ' '.($e->data['process'] ?? '').' ('.(self::REASONS[$e->data['reason'] ?? ''] ?? 'bị giới hạn').')';
                 }

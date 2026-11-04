@@ -263,6 +263,9 @@ class DeviceService
             'enforcement_enabled' => (bool) ($data['enforcement_enabled'] ?? false),
             'locked' => (bool) ($data['locked'] ?? false),
             'last_seen_at' => now(),
+            // Máy hoạt động lại → lần mất kết nối sau được báo lại.
+            'last_stop_reason' => null,
+            'offline_notified_at' => null,
         ])->save();
     }
 
@@ -312,6 +315,7 @@ class DeviceService
                 "Đồng hồ máy của {$child} bị chỉnh", 'Lệch '.($data['drift_minutes'] ?? '?').' phút. Giờ chơi vẫn được tính theo giờ chuẩn.'),
             'tray_restarted' => $this->countToday($device, $type) === 3 ? $this->notifyParents($device, '🔁', 'warning',
                 "Phần mềm trên máy của {$child} bị tắt nhiều lần hôm nay", 'Phần mềm đã tự bật lại mỗi lần.') : null,
+            'agent_stopping' => $this->onAgentStopping($device, (string) ($data['reason'] ?? 'stopped'), $at),
             // Phụ huynh mở khóa tại máy bằng PIN → bỏ lệnh khóa trên web để không khóa lại.
             'device_unlocked' => ($data['by'] ?? null) === 'parent_pin'
                 // Sự kiện có thể đến muộn (máy mất mạng) → chỉ bỏ khóa nếu phụ huynh chưa khóa lại sau thời điểm đó.
@@ -320,6 +324,64 @@ class DeviceService
                 : null,
             default => null,
         };
+    }
+
+    /**
+     * Phần mềm báo sắp dừng: tắt máy / ngủ / đang cập nhật là bình thường (không báo phụ huynh);
+     * "stopped" = phần mềm bị dừng khi máy vẫn chạy → báo ngay (trừ khi vừa gỡ bằng PIN / vừa cập nhật).
+     */
+    private function onAgentStopping(AgentDevice $device, string $reason, Carbon $at): void
+    {
+        $reason = in_array($reason, ['shutdown', 'sleep', 'updating', 'stopped'], true) ? $reason : 'stopped';
+        // Sự kiện đến muộn (máy đã hoạt động lại sau đó) thì bỏ qua.
+        if ($device->last_seen_at && $device->last_seen_at->gt($at->copy()->addMinute())) {
+            return;
+        }
+        $device->forceFill(['last_stop_reason' => $reason])->save();
+
+        if ($reason !== 'stopped') {
+            return;
+        }
+        $expected = AgentEvent::query()
+            ->where('device_id', $device->id)
+            ->whereIn('type', ['uninstall_confirmed', 'update_installing'])
+            ->where('occurred_at', '>=', $at->copy()->subMinutes(15))
+            ->exists();
+        if (! $expected) {
+            $child = $device->student?->name ?? 'Con';
+            $this->notifyParents($device, '⚠️', 'danger', "Phần mềm trên máy của {$child} vừa bị dừng",
+                "Máy {$device->name}: phần mềm quản lý bị dừng khi máy vẫn đang bật. Có thể ai đó dùng quyền quản trị Windows để tắt.");
+        }
+    }
+
+    /**
+     * Gọi định kỳ (lịch chocon:check-offline): máy im lặng quá N phút mà KHÔNG báo tắt máy / ngủ trước đó
+     * → có thể bị ngắt mạng, tắt phần mềm, rút điện → báo phụ huynh 1 lần cho mỗi lần mất kết nối.
+     */
+    public function notifyOfflineDevices(): int
+    {
+        $minutes = (int) config('chocon.offline_alert_minutes', 15);
+        $devices = AgentDevice::query()
+            ->whereNull('revoked_at')
+            ->whereNull('offline_notified_at')
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '<', now()->subMinutes($minutes))
+            ->where('last_seen_at', '>', now()->subDay())
+            ->where(fn ($q) => $q->whereNull('last_stop_reason')->orWhere('last_stop_reason', 'stopped'))
+            ->with('student')
+            ->get();
+
+        foreach ($devices as $device) {
+            $device->forceFill(['offline_notified_at' => now()])->save();
+            if ($device->last_stop_reason === 'stopped') {
+                continue; // đã báo "bị dừng" lúc phần mềm dừng rồi
+            }
+            $child = $device->student?->name ?? 'Con';
+            $this->notifyParents($device, '📡', 'warning', "Máy của {$child} mất kết nối hơn {$minutes} phút",
+                "Máy {$device->name} không tắt hay ngủ theo cách bình thường. Có thể máy bị ngắt mạng, mất điện hoặc phần mềm bị tắt.");
+        }
+
+        return $devices->count();
     }
 
     private function countToday(AgentDevice $device, string $type): int
