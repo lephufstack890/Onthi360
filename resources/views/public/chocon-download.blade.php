@@ -20,10 +20,10 @@
     ];
 @endphp
 <style>
-    .cdl { width: 100%; margin: 0; padding: 16px 12px 56px; color: #1E3A52; font-size: 14px; line-height: 1.6; }
-    @media (min-width: 640px) { .cdl { padding: 20px 20px 64px; } }
-    @media (min-width: 1024px) { .cdl { padding: 20px 16px 72px; } }
-    @media (min-width: 1536px) { .cdl { padding: 24px 32px 72px; } }
+    .cdl { width: 100%; margin: 0; padding: 16px 12px 24px; color: #1E3A52; font-size: 14px; line-height: 1.6; }
+    @media (min-width: 640px) { .cdl { padding: 20px 20px 24px; } }
+    @media (min-width: 1024px) { .cdl { padding: 20px 16px 28px; } }
+    @media (min-width: 1536px) { .cdl { padding: 24px 32px 28px; } }
 
     /* ── Khối đầu ── */
     .cdl-hero { position: relative; overflow: hidden; display: grid; gap: 24px; align-items: center; padding: 22px 18px; border: 1px solid #DCE9F1; border-radius: 26px;
@@ -79,7 +79,11 @@
 
     /* ── Hai cột dưới ── */
     .cdl-cols { display: grid; gap: 16px; margin-top: 16px; }
-    @media (min-width: 1100px) { .cdl-cols { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; } }
+    /* SỬA 4/11 (khách: "cho bằng nhau, gần footer hơn") — 2 thẻ cao bằng nhau; lề dưới trang thu nhỏ. */
+    @media (min-width: 1100px) { .cdl-cols { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: stretch; } }
+    .cdl-cols > .cdl-card { display: flex; flex-direction: column; }
+    .cdl-cols .cdl-feats { flex: 1; grid-auto-rows: 1fr; }
+    .cdl-cols .cdl-card .cdl-btn.ghost { align-self: flex-start; }
     .cdl-card { border: 1px solid #DCE9F1; border-radius: 24px; background: #fff; padding: 20px 18px; box-shadow: 0 8px 26px rgba(18, 59, 104, .05); }
     @media (min-width: 768px) { .cdl-card { padding: 24px 26px; } }
     .cdl-h2 { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; font-size: 16px; font-weight: 800; color: #123B68; }
