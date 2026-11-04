@@ -30,6 +30,24 @@ class NotificationController extends Controller
     {
         $this->notificationService->markAllAsRead(Auth::user());
 
+        // SỬA 4/11 — nút "Đọc tất cả" ở chuông gọi ngầm (không tải lại trang).
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'unread' => 0]);
+        }
+
+        return redirect()->back();
+    }
+
+    /** SỬA 4/11 — nút "Đã đọc" từng thông báo ở chuông / tab Thông báo trang chủ (gọi ngầm, không mở thông báo). */
+    public function markRead(Request $request, string $notification)
+    {
+        $user = Auth::user();
+        $this->notificationService->markAsRead($user, $notification);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'unread' => $user->unreadNotifications()->count()]);
+        }
+
         return redirect()->back();
     }
 }

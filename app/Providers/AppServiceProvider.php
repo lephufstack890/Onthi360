@@ -73,7 +73,8 @@ class AppServiceProvider extends ServiceProvider
             $bellKey = 'oi.bell.'.$user->id;
             $data = request()->attributes->get($bellKey);
             if ($data === null) {
-                $data = app(NotificationService::class)->bellData($user);
+                // SỬA 4/11 — chỉ thông báo CHƯA ĐỌC (đọc rồi thì không hiện ở chuông / tab trang chủ nữa).
+                $data = app(NotificationService::class)->bellUnreadData($user, 8);
                 request()->attributes->set($bellKey, $data);
             }
 

@@ -148,26 +148,32 @@
             </form>
 
             {{-- [GLOBAL-01C2] Nút và bảng thông báo --}}
-            <div class="relative" @click.outside="notificationOpen = false">
+            {{-- SỬA 4/11 — chỉ hiện thông báo CHƯA ĐỌC, có nút ✓ "Đã đọc" từng cái và "Đọc tất cả" (partials.bell-actions). --}}
+            @if ($headerUser)
+                @include('partials.bell-actions')
+            @endif
+            <div class="relative" x-data="window.oiBell ? oiBell({{ (int) $bellUnreadCount }}) : { bellCount: {{ (int) $bellUnreadCount }}, bellLeft: 0 }" @click.outside="notificationOpen = false">
                 <button type="button" @click="notificationOpen = !notificationOpen"
                         class="relative p-1.5 text-slate-600 hover:text-blue-600 hover:bg-sky-50 rounded-full transition-colors cursor-pointer shrink-0"
                         aria-label="Thông báo">
                     <x-lucide name="bell" class="w-4.5 h-4.5 text-slate-600" />
-                    @if ($bellUnreadCount > 0)
-                        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-400 rounded-full ring-2 ring-white"></span>
-                    @endif
+                    <span x-show="bellCount > 0" @if ($bellUnreadCount <= 0) style="display:none" @endif class="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-400 rounded-full ring-2 ring-white"></span>
                 </button>
 
                 <div x-show="notificationOpen" x-cloak x-transition
                      class="absolute right-0 top-10 w-72 sm:w-80 bg-white border border-sky-100 rounded-2xl shadow-xl p-3 z-50">
                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                         <h4 class="type-card-title text-slate-800">Thông báo mới</h4>
-                        @if ($bellViewAllRoute)
-                            <a href="{{ $bellViewAllRoute }}" class="type-action text-blue-600 cursor-pointer hover:underline">Xem tất cả</a>
-                        @endif
+                        <span class="flex items-center gap-3">
+                            <button type="button" class="bel-all" x-show="bellCount > 0" @click="bellReadAll()" title="Đánh dấu tất cả đã đọc"><x-lucide name="check" />Đọc tất cả</button>
+                            @if ($bellViewAllRoute)
+                                <a href="{{ $bellViewAllRoute }}" class="type-action text-blue-600 cursor-pointer hover:underline">Xem tất cả</a>
+                            @endif
+                        </span>
                     </div>
                     <div class="flex flex-col gap-2 py-2 max-h-80 overflow-y-auto">
-                        @forelse ($bellItems as $n)
+                        @foreach ($bellItems as $n)
+                            <div class="bel-item" data-bell-id="{{ $n['id'] }}">
                             <a href="{{ route('notifications.read', $n['id']) }}"
                                class="p-2 rounded-xl text-xs transition-colors {{ empty($n['read']) ? 'bg-blue-50/60 border border-blue-100/80' : 'bg-slate-50 hover:bg-sky-50' }}">
                                 <p class="type-card-title flex items-center gap-1.5">
@@ -180,9 +186,13 @@
                                 @endif
                                 <span class="type-meta mt-1 block text-slate-400">{{ $n['time'] ?? '' }}</span>
                             </a>
-                        @empty
-                            <p class="type-body py-4 text-center text-slate-400">Chưa có thông báo nào.</p>
-                        @endforelse
+                            <button type="button" class="bel-x" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc" @click.stop="bellReadOne(@js($n['id']))"><x-lucide name="check" /></button>
+                            </div>
+                        @endforeach
+                        <p class="type-body py-4 text-center text-slate-400" x-show="bellLeft === 0" @if (! empty($bellItems)) style="display:none" @endif>
+                            <span x-show="bellCount === 0">{{ $headerUser ? 'Bạn đã xem hết thông báo.' : 'Đăng nhập để xem thông báo của bạn.' }}</span>
+                            <span x-show="bellCount > 0" style="display:none">Còn <b x-text="bellCount"></b> thông báo chưa đọc @if ($bellViewAllRoute) — <a href="{{ $bellViewAllRoute }}" class="text-blue-600 hover:underline">Xem tất cả</a>@endif</span>
+                        </p>
                     </div>
                 </div>
             </div>

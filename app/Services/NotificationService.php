@@ -36,6 +36,20 @@ class NotificationService
         ];
     }
 
+    /**
+     * SỬA 4/11 (khách: "đọc xong thì không hiển thị ngoài này nữa") — dữ liệu cho chuông / tab Thông báo trang chủ: CHỈ thông báo
+     * CHƯA ĐỌC (mới nhất trước). Đọc hết thì khối đó báo "đã xem hết", muốn xem lại vào trang Thông báo của mình.
+     */
+    public function bellUnreadData(User $user, int $limit = 8): array
+    {
+        $notifications = $user->unreadNotifications()->limit($limit)->get();
+
+        return [
+            'items' => $notifications->map(fn ($n) => $this->mapNotification($n))->all(),
+            'unreadCount' => $user->unreadNotifications()->count(),
+        ];
+    }
+
     public function markAsRead(User $user, string $notificationId): void
     {
         $notification = $user->notifications()->where('id', $notificationId)->first();

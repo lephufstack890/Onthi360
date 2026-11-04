@@ -294,6 +294,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+    // SỬA 4/11 — đánh dấu đã đọc 1 thông báo (nút ✓ ở chuông), không mở thông báo.
+    Route::post('/notifications/{notification}/mark-read', [NotificationController::class, 'markRead'])->name('notifications.markRead');
     // SỬA 4/11 — đọc đủ nội dung một thông báo (thông báo lớp / thông báo Quản trị…).
     Route::get('/notifications/{notification}', [NotificationDetailController::class, 'show'])->name('notifications.show');
 
