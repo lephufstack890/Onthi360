@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // SỬA 4/11 — API cho phần mềm Chocon Desktop trên máy của con (/api/agent/v1/...).
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -37,6 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'teacher.approved' => \App\Http\Middleware\EnsureTeacherApproved::class,
             // SỬA 28/10 — phân quyền từng mục / thao tác khu quản trị (App\Support\AdminPermissions).
             'admin.perm' => \App\Http\Middleware\EnsureAdminPermission::class,
+            // SỬA 4/11 — xác thực máy tính chạy Chocon Desktop bằng token thiết bị.
+            'agent.device' => \App\Http\Middleware\AuthenticateAgentDevice::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

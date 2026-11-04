@@ -54,6 +54,7 @@ use App\Http\Controllers\Teacher\WorkController as TeacherWorkController;
 use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Parent\AssignmentController as ParentAssignmentController;
 use App\Http\Controllers\Parent\ChildController as ParentChildController;
+use App\Http\Controllers\Parent\DeviceController as ParentDeviceController;
 use App\Http\Controllers\Parent\ClassReviewController as ParentClassReviewController;
 use App\Http\Controllers\Parent\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Parent\NotificationController as ParentNotificationController;
@@ -92,6 +93,10 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicHomeController::class, 'index'])->name('home');
+// SỬA 4/11 — trang tải Chocon Desktop (nút "Tải Chocon Desktop" ở trang chủ) + file bộ cài.
+Route::get('/tai-chocon', [\App\Http\Controllers\Public\ChoconDownloadController::class, 'show'])->name('chocon.download');
+Route::get('/tai-chocon/tai-ve', [\App\Http\Controllers\Public\ChoconDownloadController::class, 'file'])
+    ->middleware('throttle:20,1')->name('chocon.download.file');
 // SỬA 9/9 (9) — sitemap cho Google (xem Public\SitemapController). Đặt ngay dưới trang chủ
 // để không lọt vào nhóm route nào có middleware auth.
 Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap');
@@ -636,6 +641,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('notifications', [ParentNotificationController::class, 'index'])->name('notifications.index');
         Route::get('profile', [ParentProfileController::class, 'show'])->name('profile');
         Route::put('profile', [ParentProfileController::class, 'update'])->name('profile.update');
+        // SỬA 4/11 — "Máy tính của con" (Chocon Desktop).
+        Route::get('devices', [ParentDeviceController::class, 'index'])->name('devices.index');
+        Route::post('devices/pairing-code', [ParentDeviceController::class, 'pairingCode'])->middleware('throttle:10,1')->name('devices.pairingCode');
+        Route::post('devices/lock', [ParentDeviceController::class, 'lock'])->name('devices.lock');
+        Route::put('devices/policy', [ParentDeviceController::class, 'updatePolicy'])->name('devices.policy');
+        Route::post('devices/pin', [ParentDeviceController::class, 'pin'])->middleware('throttle:10,1')->name('devices.pin');
+        Route::post('devices/requests/{extraTimeRequest}/decide', [ParentDeviceController::class, 'decide'])
+            ->whereNumber('extraTimeRequest')->name('devices.requests.decide');
+        Route::delete('devices/{device}', [ParentDeviceController::class, 'destroy'])->whereNumber('device')->name('devices.destroy');
         // SỬA 9/10 — màn Đổi mật khẩu riêng (App\Http\Controllers\Account\PasswordController); khu suy ra từ tên route.
         Route::get('password', [AccountPasswordController::class, 'edit'])->name('password.edit');
         Route::put('password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');

@@ -14,6 +14,8 @@
         ['label' => 'Lịch & Điểm danh', 'route' => 'parent.schedule.index', 'icon' => 'calendar-days', 'active' => request()->routeIs('parent.schedule.index')],
         ['label' => 'Kết quả & Tiến độ', 'route' => 'parent.results.index', 'icon' => 'trophy', 'active' => request()->routeIs('parent.results.index')],
         ['label' => 'Đánh giá lớp', 'route' => 'parent.reviews.index', 'icon' => 'star', 'active' => request()->routeIs('parent.reviews.index')],
+        // SỬA 4/11 — Chocon Desktop.
+        ['label' => 'Máy tính của con', 'route' => 'parent.devices.index', 'icon' => 'monitor', 'active' => request()->routeIs('parent.devices.*')],
         ['label' => 'Thông báo', 'route' => 'parent.notifications.index', 'icon' => 'message-square-text', 'active' => request()->routeIs('parent.notifications.index')],
         ['label' => 'Hồ sơ', 'route' => 'parent.profile', 'icon' => 'user-cog', 'active' => request()->routeIs('parent.profile')],
         ['label' => 'Đổi mật khẩu', 'route' => 'parent.password.edit', 'icon' => 'lock', 'active' => request()->routeIs('parent.password.edit')],

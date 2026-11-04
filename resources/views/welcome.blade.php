@@ -887,7 +887,8 @@
 
         <div class="parent-lower-stack">
 
-        @php $parentSoftwareUrl = 'https://chocon.net/download'; @endphp
+        {{-- SỬA 4/11 — tải Chocon Desktop ngay trên onthi360 (trang hướng dẫn + nút tải bộ cài). --}}
+        @php $parentSoftwareUrl = route('chocon.download'); @endphp
         <section data-section="HOME-06D-PARENT-SOFTWARE" class="parent-software-wide">
             <div class="parent-software-wide__intro">
                 <p class="type-meta">Dành cho phụ huynh</p>
@@ -896,9 +897,9 @@
             </div>
             <div class="parent-software-wide__action">
                 <p class="type-meta">Cài đặt nhanh cho máy của con</p>
-                <a href="{{ $parentSoftwareUrl }}" target="_blank" rel="noopener noreferrer"
+                <a href="{{ $parentSoftwareUrl }}"
                    class="parent-software-wide__link">Tải Chocon Desktop</a>
-                <p class="parent-software-wide__meta">Windows &amp; macOS · Trang tải chính thức</p>
+                <p class="parent-software-wide__meta">Windows 10 / 11 · Miễn phí cho phụ huynh</p>
             </div>
         </section>
 
