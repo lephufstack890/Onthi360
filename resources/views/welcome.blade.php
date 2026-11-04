@@ -770,14 +770,14 @@
                     </a>
                 </div>
 
-                {{-- SỬA 4/11 — chỉ thông báo CHƯA ĐỌC; đọc ở chuông trên cùng (hoặc bấm ✓ ở đây) thì dòng đó biến mất ở cả hai chỗ. --}}
+                {{-- SỬA 4/11 — chỉ thông báo CHƯA ĐỌC; đọc ở chuông trên cùng thì dòng đó biến mất ở đây luôn (khách: không cần nút ✓ / đánh dấu đã đọc ở tab này). --}}
                 @auth
                     @include('partials.bell-actions')
                 @endauth
                 <div x-show="sidebarTab === 'notifications'" x-cloak class="flex flex-col gap-1.5 py-1">
                   <div class="flex flex-col gap-1.5" x-data="window.oiBell ? oiBell({{ (int) ($bellUnreadCount ?? 0) }}) : { bellCount: 0, bellLeft: 0 }">
                     @foreach ($bellItems as $n)
-                      <div class="bel-item" data-bell-id="{{ $n['id'] }}">
+                      <div data-bell-id="{{ $n['id'] }}">
                         <a href="{{ route('notifications.read', $n['id']) }}" class="flex items-start gap-2 text-xs group cursor-pointer hover:bg-sky-50/70 p-2 rounded-xl transition-colors">
                             <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#EAF5F8] text-[#2D7FA3]">{{ $n['icon'] ?? '🔔' }}</span>
                             <span class="flex-1 overflow-hidden">
@@ -785,16 +785,12 @@
                                 <span class="type-meta mt-0.5 block text-slate-400">{{ $n['time'] ?? '' }}</span>
                             </span>
                         </a>
-                        <button type="button" class="bel-x" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc" @click.stop="bellReadOne(@js($n['id']))"><x-lucide name="check" /></button>
                       </div>
                     @endforeach
                     <p class="type-body py-4 text-center text-slate-400" x-show="bellLeft === 0" @if (! empty($bellItems)) style="display:none" @endif>
                         <span x-show="bellCount === 0">{{ auth()->check() ? 'Bạn đã xem hết thông báo.' : 'Chưa có thông báo nào.' }}</span>
                         <span x-show="bellCount > 0" style="display:none">Còn <b x-text="bellCount"></b> thông báo chưa đọc.</span>
                     </p>
-                    @auth
-                        <button type="button" class="bel-all" style="align-self:center;margin-top:2px" x-show="bellLeft > 0" @click="bellReadAll()"><x-lucide name="check" />Đánh dấu đã đọc tất cả</button>
-                    @endauth
                   </div>
                 </div>
             </div>
