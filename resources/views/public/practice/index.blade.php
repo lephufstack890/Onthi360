@@ -1,7 +1,9 @@
 @extends('layouts.guest')
 
-@section('title', 'Luyện tập Thuật toán & Lập trình')
-@section('meta-description', 'Kho luyện tập Tin học của Ôn Thi 360 — bài tập theo chuyên đề có chấm tự động và đề thi luyện tập mô phỏng, lọc theo chuyên đề, độ khó và loại đề.')
+{{-- SỬA 4/11 (SEO "chấm code online") --}}
+@section('title', 'Luyện tập Thuật toán & Lập trình — Chấm code online C++, Python')
+@section('meta-description', 'Chấm code online C++, Python tự động, có kết quả ngay: kho bài tập Tin học theo chuyên đề và đề thi luyện tập mô phỏng, lọc theo chuyên đề, độ khó và loại đề.')
+@section('meta-keywords', 'chấm code online, chấm bài lập trình online, online judge, luyện code C++, luyện code Python, bài tập thuật toán, luyện thi HSG Tin học, đề thi Tin học')
 
 @section('content')
 {{-- ═══════════════ [PRACTICE] MÀN LUYỆN TẬP ═══════════════

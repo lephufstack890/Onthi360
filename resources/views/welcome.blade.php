@@ -2,8 +2,10 @@
 
 {{-- SỬA 27/10 (khách: đổi tiêu đề + mô tả hiện khi gửi link qua Zalo/Facebook, tối ưu SEO). Tiêu đề có chữ "Onthi360"
      nên partials/seo KHÔNG gắn thêm đuôi " — Ôn Thi 360". --}}
-@section('title', 'Tin học Onthi360 - Luyện thi Tin học: Học cùng mục tiêu, Vươn xa ước mơ')
-@section('meta-description', 'Tin học Onthi360 - Nền tảng học tập và luyện thi môn Tin học, lập trình thi đấu, HSG Tin học lớp 9, HSG Tin học lớp 12, Thi Tốt nghiệp THPT Quốc gia môn Tin học. Hệ thống bài tập, tài liệu, chuyên đề phong phú, chất lượng; Các giáo viên, chuyên gia uy tín hàng đầu; Hệ thống cuộc thi phong phú, cập nhật.')
+{{-- SỬA 4/11 (khách: "SEO cho thêm chấm code online") — thêm cụm "chấm code online" vào tiêu đề, mô tả và từ khoá. --}}
+@section('title', 'Tin học Onthi360 - Luyện thi Tin học, chấm code online: Học cùng mục tiêu, Vươn xa ước mơ')
+@section('meta-keywords', 'Tin học Onthi360, onthi360, chấm code online, chấm bài lập trình online, online judge, luyện code C++, luyện code Python, luyện thi Tin học, lập trình thi đấu, HSG Tin học lớp 9, HSG Tin học lớp 12, thi tốt nghiệp THPT môn Tin học, bài tập Tin học, đề thi Tin học')
+@section('meta-description', 'Tin học Onthi360 - Nền tảng học tập và luyện thi môn Tin học, chấm code online (C++, Python) tự động có kết quả ngay, lập trình thi đấu, HSG Tin học lớp 9, HSG Tin học lớp 12, Thi Tốt nghiệp THPT Quốc gia môn Tin học. Hệ thống bài tập, tài liệu, chuyên đề phong phú, chất lượng; Các giáo viên, chuyên gia uy tín hàng đầu; Hệ thống cuộc thi phong phú, cập nhật.')
 
 @section('content')
 
@@ -1024,8 +1026,9 @@
                     <p>Câu hỏi trắc nghiệm và đề luyện tập theo cấu trúc đề thi tốt nghiệp, biết đúng sai và điểm ngay sau khi làm.</p>
                 </div>
                 <div class="oi-about-item">
-                    <h3>Lập trình C++ và Python</h3>
-                    <p>Viết code ngay trên web, hệ thống chấm bài (Online Judge) báo kết quả từng test, lưu lịch sử nộp bài để ôn lại.</p>
+                    {{-- SỬA 4/11 (SEO) — có chữ "chấm code online" hiển thị thật trên trang, không chỉ trong thẻ meta. --}}
+                    <h3>Lập trình C++, Python &amp; chấm code online</h3>
+                    <p>Viết code ngay trên web, hệ thống chấm code online (Online Judge) chấm tự động, báo kết quả từng test, lưu lịch sử nộp bài để ôn lại.</p>
                 </div>
             </div>
             <p>Bên cạnh kho bài tập, Onthi360 có thư viện tài liệu, sách và bộ đề Tin học; các cuộc thi, kỳ khảo sát năng lực có bảng xếp hạng;

@@ -22,6 +22,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // SỬA 4/11 (SEO) — mã xác minh chủ sở hữu web của Google Search Console / Bing Webmaster (thẻ meta). Lấy mã trong
+    // Search Console > Thêm tài sản > Thẻ HTML, chỉ dán PHẦN content="..." vào .env. Để trống thì không in thẻ.
+    'google_site_verification' => env('GOOGLE_SITE_VERIFICATION'),
+    'bing_site_verification' => env('BING_SITE_VERIFICATION'),
+
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 
     'asset_url' => env('ASSET_URL'),

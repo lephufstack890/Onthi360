@@ -73,12 +73,31 @@
     // Sau này đổi ảnh chia sẻ: đặt file với tên mới khác (vd og-tinhoc-onthi360-2.png) rồi sửa tên ở dòng dưới.
     $seoOgFile = 'og-tinhoc-onthi360-v2.png'; // v2: logo + màu thương hiệu (xanh #0057F5, cam 360)
     $seoImage = trim((string) $__env->yieldContent('meta-image')) ?: asset($seoOgFile).'?v='.(@filemtime(public_path($seoOgFile)) ?: '1');
+
+    // SỬA 4/11 (SEO) — từ khoá (Cốc Cốc còn đọc, Google bỏ qua — không hại gì) + mã xác minh Search Console / Bing.
+    $seoKeywords = $seoDecode(trim((string) $__env->yieldContent('meta-keywords')));
+    $seoGoogleVerify = trim((string) config('app.google_site_verification'));
+    $seoBingVerify = trim((string) config('app.bing_site_verification'));
 @endphp
     <title>{{ $seoTitle }}</title>
     <meta name="robots" content="{{ $seoRobots }}">
 @unless ($seoPrivate)
     <meta name="description" content="{{ $seoDescription }}">
+    @if ($seoKeywords !== '')
+    <meta name="keywords" content="{{ $seoKeywords }}">
+    @endif
     <link rel="canonical" href="{{ $seoUrl }}">
+    {{-- SỬA 4/11 (SEO) — khai rõ trang tiếng Việt cho người dùng Việt Nam. --}}
+    <link rel="alternate" hreflang="vi-VN" href="{{ $seoUrl }}">
+    <link rel="alternate" hreflang="x-default" href="{{ $seoUrl }}">
+    <meta name="application-name" content="{{ $seoBrand }}">
+    <meta name="apple-mobile-web-app-title" content="{{ $seoBrand }}">
+    @if ($seoGoogleVerify !== '')
+    <meta name="google-site-verification" content="{{ $seoGoogleVerify }}">
+    @endif
+    @if ($seoBingVerify !== '')
+    <meta name="msvalidate.01" content="{{ $seoBingVerify }}">
+    @endif
 
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ $seoBrand }}">
@@ -91,11 +110,15 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="{{ $seoIsHome ? $seoTitle : $seoBrand }}">
+    @if (str_contains($seoImage, '.png'))
+    <meta property="og:image:type" content="image/png">
+    @endif
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $seoTitle }}">
     <meta name="twitter:description" content="{{ $seoDescription }}">
     <meta name="twitter:image" content="{{ $seoImage }}">
+    <meta name="twitter:image:alt" content="{{ $seoIsHome ? $seoTitle : $seoBrand }}">
 @endunless
 
     <link rel="icon" href="{{ asset('favicon.ico') }}?v={{ $seoIconVersion }}" sizes="16x16 24x24 32x32 48x48">
@@ -135,6 +158,23 @@
                     'url' => $seoHome,
                     'logo' => asset('icon-512.png'),
                     'description' => $seoDescription,
+                    // SỬA 4/11 (SEO) — lĩnh vực của tổ chức, giúp Google gắn trang với các cụm tìm kiếm này.
+                    'knowsAbout' => ['Tin học', 'Lập trình', 'Chấm code online', 'Lập trình thi đấu', 'Thuật toán', 'C++', 'Python',
+                        'HSG Tin học lớp 9', 'HSG Tin học lớp 12', 'Thi tốt nghiệp THPT môn Tin học'],
+                ],
+                // SỬA 4/11 (khách: "SEO thêm chấm code online") — khai báo hệ thống chấm code online là một ứng dụng web giáo dục.
+                [
+                    '@type' => 'WebApplication',
+                    '@id' => $seoHome.'#cham-code-online',
+                    'name' => 'Chấm code online - '.$seoBrand,
+                    'alternateName' => ['Chấm bài lập trình online', 'Online Judge Tin học Onthi360'],
+                    'url' => route('practice.index'),
+                    'applicationCategory' => 'EducationalApplication',
+                    'operatingSystem' => 'Web',
+                    'inLanguage' => 'vi-VN',
+                    'description' => 'Chấm code online tự động bằng C++ và Python, có kết quả ngay theo từng test: bài tập thuật toán theo chuyên đề, đề luyện thi HSG Tin học lớp 9, lớp 12 và thi tốt nghiệp THPT môn Tin học.',
+                    'featureList' => ['Chấm code C++ và Python tự động', 'Kết quả chấm theo từng test', 'Bài tập thuật toán theo chuyên đề', 'Đề thi luyện tập mô phỏng', 'Bảng xếp hạng'],
+                    'provider' => ['@id' => $seoHome.'#to-chuc'],
                 ],
                 [
                     '@type' => 'WebSite',
