@@ -24,17 +24,22 @@ class AuthenticateAgentDevice
 
         $device = AgentDevice::query()
             ->where('token_hash', AgentDevice::hashToken($token))
-            ->whereNull('revoked_at')
             ->first();
 
-        $linked = $device && ParentLink::query()
+        if (! $device) {
+            return response()->json(['message' => 'Thiết bị chưa ghép.'], 401);
+        }
+
+        $linked = $device->revoked_at === null && ParentLink::query()
             ->where('parent_user_id', $device->parent_user_id)
             ->where('student_user_id', $device->student_user_id)
             ->where('status', 'verified')
             ->exists();
 
+        // SỬA 4/11 — phụ huynh đã gỡ máy (hoặc liên kết phụ huynh–con không còn): trả 410 để phần mềm
+        // bỏ ghép + bỏ mọi giới hạn NGAY (401 thì phần mềm chờ 3 lần liên tiếp mới bỏ, phòng lỗi tạm thời).
         if (! $linked) {
-            return response()->json(['message' => 'Thiết bị chưa ghép hoặc đã bị gỡ liên kết.'], 401);
+            return response()->json(['message' => 'Phụ huynh đã gỡ liên kết máy này.', 'code' => 'device_revoked'], 410);
         }
 
         $request->attributes->set('agentDevice', $device);
