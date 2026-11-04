@@ -148,7 +148,7 @@ class TeacherWorkspaceService
         $defaults = ['course-img-1.jpg', 'course-img-2.jpg', 'course-img-3.jpg', 'course-img-4.jpg', 'course-img-5.jpg'];
         $out = [];
 
-        foreach ($teacher->classRoomsTeaching()->with('course')->orderBy('class_rooms.id')->get() as $i => $c) {
+        foreach ($teacher->teachingClassRooms()->with('course')->orderBy('class_rooms.id')->get() as $i => $c) {
             $out[(int) $c->id] = ($c->course?->coverUrl()) ?: asset('assets/'.$defaults[$i % count($defaults)]);
         }
 
@@ -158,7 +158,7 @@ class TeacherWorkspaceService
     /** Lớp giáo viên phụ trách (chỉ id / tên / mã) — cho các ô chọn lớp. */
     public function classOptions(User $teacher): array
     {
-        return $teacher->classRoomsTeaching()->orderBy('class_rooms.name')->get()
+        return $teacher->teachingClassRooms()->orderBy('class_rooms.name')->get()
             ->map(fn ($c) => ['id' => (int) $c->id, 'name' => (string) $c->name, 'code' => (string) ($c->code ?? '')])->all();
     }
 
@@ -223,7 +223,7 @@ class TeacherWorkspaceService
      */
     public function overview(User $teacher, array $workRows): array
     {
-        $classRooms = $teacher->classRoomsTeaching()->withCount('students')->get();
+        $classRooms = $teacher->teachingClassRooms()->withCount('students')->get();
         $classIds = $classRooms->pluck('id')->all();
         $studentCounts = $classRooms->pluck('students_count', 'id')->all();
 
@@ -378,7 +378,7 @@ class TeacherWorkspaceService
             throw ValidationException::withMessages(['class_room_id' => 'Chưa cập nhật cơ sở dữ liệu cho thông báo lớp. Hãy chạy php artisan migrate.']);
         }
 
-        $classRoom = $teacher->classRoomsTeaching()->where('class_rooms.id', (int) $data['class_room_id'])->first();
+        $classRoom = $teacher->teachingClassRooms()->where('class_rooms.id', (int) $data['class_room_id'])->first();
 
         if ($classRoom === null) {
             throw ValidationException::withMessages(['class_room_id' => 'Bạn không phụ trách lớp này.']);

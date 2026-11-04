@@ -43,7 +43,7 @@ class ScheduleService
     /** teacher.schedule.index — toàn bộ buổi học của mọi lớp giáo viên phụ trách, sắp tới trước. */
     public function indexData(User $teacher): array
     {
-        $classRooms = $teacher->classRoomsTeaching()->withCount('students')->get();
+        $classRooms = $teacher->teachingClassRooms()->withCount('students')->get();
         $classRoomIds = $classRooms->pluck('id')->all();
         $rosterCountByClassRoomId = $classRooms->pluck('students_count', 'id');
 

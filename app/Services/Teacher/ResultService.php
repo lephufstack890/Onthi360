@@ -19,7 +19,7 @@ class ResultService
 
     public function funnelFor(User $user, ?int $requestedClassId, ?int $requestedAssignmentId, ?string $requestedStatus = null): array
     {
-        $classRooms = $user->classRoomsTeaching()->with('course')->get();
+        $classRooms = $user->teachingClassRooms()->with('course')->get();
 
         $selectedClassId = $requestedClassId ?? ($classRooms->first()->id ?? 0);
         $selectedClassRoom = $classRooms->firstWhere('id', $selectedClassId);
@@ -97,7 +97,7 @@ class ResultService
         $attempt = $this->attempts->withAnswersAndAssessment($attemptId);
         abort_if($attempt === null, 404);
 
-        $taughtClassIds = $teacher->classRoomsTeaching()->pluck('class_rooms.id');
+        $taughtClassIds = $teacher->teachingClassRooms()->pluck('class_rooms.id');
         abort_unless($attempt->class_room_id !== null && $taughtClassIds->contains($attempt->class_room_id), 403);
 
         $attempt->loadMissing('user', 'classRoom');

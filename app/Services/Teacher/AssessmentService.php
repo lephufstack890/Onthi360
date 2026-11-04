@@ -395,7 +395,7 @@ class AssessmentService
             $this->publish($assessment);
         }
 
-        $classRoom = $teacher->classRoomsTeaching()->where('class_rooms.id', (int) $data['class_room_id'])->first();
+        $classRoom = $teacher->teachingClassRooms()->where('class_rooms.id', (int) $data['class_room_id'])->first();
 
         if ($classRoom === null) {
             throw ValidationException::withMessages(['class_room_id' => 'Bạn không phụ trách lớp này.']);

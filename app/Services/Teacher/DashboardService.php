@@ -19,7 +19,7 @@ class DashboardService
 
     public function buildFor(User $user): array
     {
-        $classRoomIds = $user->classRoomsTeaching()->pluck('class_rooms.id')->all();
+        $classRoomIds = $user->teachingClassRooms()->pluck('class_rooms.id')->all();
 
         $upcoming = $this->classSessions->upcomingForClassRoomIds($classRoomIds, 5)
             ->map(fn ($s) => [

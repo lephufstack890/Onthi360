@@ -65,6 +65,23 @@ class User extends Authenticatable // implements MustVerifyEmail
         return $this->belongsToMany(ClassRoom::class, 'class_teachers')->withPivot('role')->withTimestamps();
     }
 
+    /**
+     * SỬA 4/11 (khách: "admin chuyển qua giáo viên mà không thấy lớp học nào") — lớp hiện ở KHU GIÁO VIÊN (danh sách lớp,
+     * tổng quan, lịch, bài & đề, kết quả, thông báo lớp). Admin thật đang "xem như Giáo viên" không được gán vào lớp nào nên
+     * trước đây danh sách trống — giờ thấy TẤT CẢ lớp (đúng với quyền quản lý mọi lớp đã có ở ClassRoomPolicy). Giáo viên
+     * thường: y nguyên classRoomsTeaching() như cũ.
+     *
+     * @return BelongsToMany|\Illuminate\Database\Eloquent\Builder
+     */
+    public function teachingClassRooms()
+    {
+        if ($this->actingRole() === Role::TEACHER) {
+            return ClassRoom::query();
+        }
+
+        return $this->classRoomsTeaching();
+    }
+
     public function classEnrollments(): HasMany
     {
         return $this->hasMany(ClassEnrollment::class, 'student_id');

@@ -68,7 +68,7 @@ class ClassRoomService
     /** teacher.classes.index — lớp giáo viên phụ trách hoặc đồng phụ trách (8.1). */
     public function listForTeacher(User $user): array
     {
-        $classRooms = $user->classRoomsTeaching()
+        $classRooms = $user->teachingClassRooms()
             ->with('course')
             // students() relation đã tự lọc wherePivot('status','active') trong định nghĩa
             // (App\Models\ClassRoom) — không lặp lại điều kiện đó ở đây (gây lỗi SQL khi
