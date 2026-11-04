@@ -34,6 +34,7 @@
         $tcxClean = fn (?string $label) => trim(preg_replace('/^[^\p{L}]+/u', '', (string) $label));
     @endphp
 
+    {{-- SỬA 4/11 (khách: "đồng bộ chữ với trang chủ public, chữ to quá") — thu các cỡ chữ lớn (tiêu đề 22→18, số liệu 17–22→15–18, tab 13→12,5). --}}
     <style>
         .tcx [hidden] { display: none !important; }
         .tcx { --tcx-ink: #0F2A4A; --tcx-muted: #5B7189; --tcx-line: #E3ECF5; }
@@ -48,22 +49,22 @@
         .tcx-main { flex: 1 1 320px; min-width: 0; }
         .tcx-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #E8F0FF; color: #1D4ED8; font-size: 12px; font-weight: 700; }
         .tcx-pill svg { width: 14px; height: 14px; }
-        .tcx-title { margin: 6px 0 0; font-size: 22px; line-height: 1.2; font-weight: 800; color: var(--tcx-ink); letter-spacing: -.01em; }
-        .tcx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: #475569; }
+        .tcx-title { margin: 6px 0 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: var(--tcx-ink); letter-spacing: -.01em; }
+        .tcx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 12.5px; color: #475569; }
         .tcx-meta span { display: inline-flex; align-items: center; gap: 7px; }
         .tcx-meta svg { width: 15px; height: 15px; color: #64748B; }
         .tcx-meta i { width: 1px; height: 14px; background: #CBD5E1; }
         .tcx-prog { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid #DCE6F2; }
         .tcx-prog-txt small { display: block; max-width: 180px; font-size: 12px; line-height: 1.45; font-weight: 600; color: #475569; }
-        .tcx-prog-txt b { display: block; margin-top: 3px; font-size: 22px; line-height: 1; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-prog-txt b { display: block; margin-top: 3px; font-size: 18px; line-height: 1; font-weight: 800; color: var(--tcx-ink); }
         .tcx-bar { width: 170px; height: 6px; margin-top: 8px; border-radius: 999px; background: #E2E8F0; overflow: hidden; }
         .tcx-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3B82F6, #2563EB); }
         .tcx-prog-txt em { display: block; margin-top: 5px; font-style: normal; font-size: 11.5px; color: #94A3B8; }
         .tcx-target { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #93C5FD, #2563EB 70%); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, .28); flex: none; }
         .tcx-target svg { width: 26px; height: 26px; }
-        @media (max-width: 820px) { .tcx-prog { padding-left: 0; border-left: 0; width: 100%; } .tcx-target { display: none; } .tcx-title { font-size: 20px; } .tcx-media { width: 68px; height: 68px; font-size: 32px; } }
+        @media (max-width: 820px) { .tcx-prog { padding-left: 0; border-left: 0; width: 100%; } .tcx-target { display: none; } .tcx-title { font-size: 16px; } .tcx-media { width: 68px; height: 68px; font-size: 32px; } }
         .tcx-tabs { display: flex; gap: 4px; overflow-x: auto; padding: 6px 8px 0; border: 1px solid var(--tcx-line); border-bottom: 0; border-radius: 18px 18px 0 0; background: #fff; width: fit-content; max-width: 100%; scrollbar-width: none; }
-        .tcx-tab { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px 12px; font-size: 13px; font-weight: 700; color: #334155; white-space: nowrap; }
+        .tcx-tab { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px 12px; font-size: 12.5px; font-weight: 700; color: #334155; white-space: nowrap; }
         .tcx-tab svg { width: 16px; height: 16px; color: #64748B; }
         .tcx-tab:hover { color: #1D4ED8; }
         .tcx-tab.is-on { color: #1D4ED8; }
@@ -90,7 +91,7 @@
         .tcx-ic svg { width: 20px; height: 20px; }
         .tcx-doc.t-topic .tcx-ic { background: #EDE7FE; color: #7C3AED; } .tcx-doc.t-exam .tcx-ic { background: #F3E8FF; color: #9333EA; }
         .tcx-doc-txt { flex: 1 1 200px; min-width: 0; }
-        .tcx-doc-txt b { display: block; font-size: 14px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tcx-doc-txt b { display: block; font-size: 13px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tcx-doc-txt small { display: block; margin-top: 2px; font-size: 12px; color: #64748B; }
         .tcx-use { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: #E3F6EC; color: #15803D; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
         .tcx-use svg { width: 13px; height: 13px; }
@@ -109,7 +110,7 @@
         .tcx-folder svg { width: 30px; height: 30px; }
         .tcx-folder span { position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #2563EB; box-shadow: 0 6px 14px rgba(15, 42, 74, .15); }
         .tcx-folder span svg { width: 14px; height: 14px; }
-        .tcx-add h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-add h3 { margin: 0; font-size: 14px; font-weight: 800; color: var(--tcx-ink); }
         .tcx-add p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: #64748B; }
         .tcx-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .tcx-type { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid #DCE6F2; border-radius: 11px; background: #fff; font-size: 12.5px; font-weight: 700; color: #1E3A5F; cursor: pointer; box-shadow: 0 2px 6px rgba(15, 42, 74, .05); }
@@ -129,19 +130,19 @@
         .tcx-stat .tcx-ic { width: 40px; height: 40px; border-radius: 12px; }
         .tcx-stat .tcx-ic svg { width: 19px; height: 19px; }
         .tcx-stat small { display: block; font-size: 12px; font-weight: 600; color: #64748B; }
-        .tcx-stat b { display: block; margin-top: 1px; font-size: 17px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-stat b { display: block; margin-top: 1px; font-size: 15px; font-weight: 800; color: var(--tcx-ink); }
         .tcx-ic.g { background: #E3F6EC; color: #15803D; } .tcx-ic.a { background: #FFF1D6; color: #B45309; } .tcx-ic.v { background: #EDE7FE; color: #7C3AED; }
         .tcx-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
         @media (min-width: 900px) { .tcx-cards { grid-template-columns: 1fr 1fr; } }
         .tcx-card { padding: 14px 16px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
-        .tcx-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; font-weight: 800; color: var(--tcx-ink); }
         .tcx-card h3 .tcx-ic { width: 32px; height: 32px; border-radius: 10px; } .tcx-card h3 .tcx-ic svg { width: 16px; height: 16px; }
-        .tcx-card p { margin: 0; font-size: 13px; color: #475569; }
+        .tcx-card p { margin: 0; font-size: 12.5px; color: #475569; }
         /* SỬA 3/11 (khách: "tab Buổi học, Kết quả, Thành viên cũng thiết kế lại hiện đại") */
         .tcx-sec { padding: 14px 16px; border: 1px solid #E6EEF6; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
         .tcx-sec + .tcx-sec { margin-top: 12px; }
         .tcx-sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 12px; }
-        .tcx-sec-head h3 { margin: 0; font-size: 14.5px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-sec-head h3 { margin: 0; font-size: 14px; font-weight: 800; color: var(--tcx-ink); }
         .tcx-sec-head p { margin: 2px 0 0; font-size: 12px; color: #64748B; }
         .tcx-sec-head .tcx-ic { width: 36px; height: 36px; border-radius: 11px; } .tcx-sec-head .tcx-ic svg { width: 18px; height: 18px; }
         .tcx-count { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: #EEF4FF; color: #1D4ED8; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
@@ -153,7 +154,7 @@
         .tcx-ses { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 12px; border: 1px solid #E6EEF6; border-radius: 14px; background: #fff; transition: box-shadow .15s; }
         .tcx-ses:hover { box-shadow: 0 8px 18px rgba(15, 42, 74, .06); }
         .tcx-date { display: grid; place-items: center; width: 52px; flex: none; padding: 6px 0; border-radius: 12px; background: #EEF4FF; color: #1D4ED8; line-height: 1.1; text-align: center; }
-        .tcx-date b { font-size: 18px; font-weight: 800; } .tcx-date small { font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+        .tcx-date b { font-size: 16px; font-weight: 800; } .tcx-date small { font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
         .tcx-ses-txt { flex: 1 1 220px; min-width: 0; }
         .tcx-ses-txt b { display: block; font-size: 13.5px; font-weight: 800; color: var(--tcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tcx-ses-txt span { display: inline-flex; align-items: center; gap: 4px; margin: 3px 12px 0 0; font-size: 12px; color: #64748B; }
@@ -188,7 +189,7 @@
         .tcx-res-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: linear-gradient(120deg, #EEF4FF, #F5F9FF 60%, #fff); border: 1px solid #DCE8FA; }
         .tcx-res-hero .tcx-ic { width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(135deg, #3B82F6, #1D4ED8); color: #fff; }
         .tcx-res-hero .tcx-ic svg { width: 24px; height: 24px; }
-        .tcx-res-hero h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--tcx-ink); }
+        .tcx-res-hero h3 { margin: 0; font-size: 14px; font-weight: 800; color: var(--tcx-ink); }
         .tcx-res-hero p { margin: 3px 0 0; font-size: 12.5px; color: #475569; }
         .tcx-res-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
         .tcx-res-list li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #475569; }

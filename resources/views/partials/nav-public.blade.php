@@ -275,11 +275,14 @@
                                     <x-lucide name="shield-check" class="w-4 h-4 text-slate-500" />
                                     <span>Quyền của tôi</span>
                                 </a>
+                                {{-- SỬA 4/11 (khách: "bỏ Nhập mã kích hoạt quyền đi") — ẨN khỏi menu tài khoản (trang kích hoạt vẫn còn,
+                                     vào từ mục "Mã kích hoạt" ở thanh bên khu học tập / dạy học). Bật lại: bỏ dấu chú thích quanh thẻ <a> dưới.
                                 <a href="{{ route('access.activate') }}"
                                    class="w-full py-2.5 px-3 rounded-xl text-[13px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-2.5 transition-colors cursor-pointer">
                                     <x-lucide name="key-round" class="w-4 h-4 text-amber-600" />
                                     <span>Nhập mã kích hoạt quyền</span>
                                 </a>
+                                --}}
                             @endif
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
