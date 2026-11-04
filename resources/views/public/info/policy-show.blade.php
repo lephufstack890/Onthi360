@@ -70,6 +70,16 @@
         .pol-cta:hover { background: #0D5B77; transform: translateY(-1px); }
         .pol-cta svg { width: 14px; height: 14px; }
         .pol-empty { padding: 28px 0; text-align: center; font-size: 14px; color: #94A3B8; }
+        .pol-p + .pol-intro { margin-top: 8px; }
+        /* SỬA 4/11 — mục lục (trang có nhiều mục) */
+        .pol-toc { padding: 12px 18px 4px; border-bottom: 1px solid #E8F0F5; background: #FBFDFE; }
+        @media (min-width: 768px) { .pol-toc { padding: 14px 28px 6px; } }
+        .pol-toc-h { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12px; font-weight: 800; color: #607A90; text-transform: uppercase; letter-spacing: .04em; }
+        .pol-toc-h svg { width: 14px; height: 14px; }
+        .pol-toc ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px 16px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+        .pol-toc a { display: flex; align-items: baseline; gap: 7px; padding: 4px 6px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; color: #3D566B; text-decoration: none; }
+        .pol-toc a:hover { background: #EAF5F8; color: #126F91; }
+        .pol-toc a b { flex: none; min-width: 18px; font-weight: 800; color: #126F91; }
     </style>
 
     <div class="pol-wrap">
@@ -85,6 +95,17 @@
                     <p class="pol-date"><x-lucide name="calendar-days" /> Cập nhật lần cuối: {{ $updated }}</p>
                 @endif
             </header>
+
+            @if (count($sections) >= 6)
+                <nav class="pol-toc" aria-label="Mục lục">
+                    <p class="pol-toc-h"><x-lucide name="list" />Mục lục</p>
+                    <ol>
+                        @foreach ($sections as $i => $s)
+                            <li><a href="#muc-{{ $i + 1 }}"><b>{{ $i + 1 }}.</b><span>{{ $s['heading'] }}</span></a></li>
+                        @endforeach
+                    </ol>
+                </nav>
+            @endif
 
             <div class="pol-body">
                 @forelse ($sections as $i => $s)

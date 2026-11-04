@@ -136,7 +136,7 @@ class InfoService
     {
         return [
             ['slug' => 'bao-mat', 'title' => 'Chính sách bảo mật', 'desc' => 'Cách thu thập, sử dụng và bảo vệ dữ liệu cá nhân, đặc biệt với học sinh dưới 18 tuổi.'],
-            ['slug' => 'dieu-khoan', 'title' => 'Điều khoản sử dụng', 'desc' => 'Quy định quyền và trách nhiệm khi sử dụng Ôn Thi 360 cho từng vai trò.', 'updated' => '03/11/2026'],
+            ['slug' => 'dieu-khoan', 'title' => 'Điều khoản sử dụng', 'desc' => 'Quy định về tài khoản, quyền và nghĩa vụ của học sinh, giáo viên, phụ huynh và Ôn Thi 360; quy định khi luyện tập, chấm code online, tham gia cuộc thi, thanh toán token và xử lý vi phạm.', 'updated' => '04/11/2026'],
             ['slug' => 'hoan-tien', 'title' => 'Chính sách hoàn tiền', 'desc' => 'Điều kiện và quy trình hoàn tiền cho đơn hàng sản phẩm/khóa học (7.4).'],
         ];
     }
@@ -159,35 +159,126 @@ class InfoService
                 ['heading' => 'Chia sẻ với bên thứ ba', 'body' => 'Chỉ chia sẻ trong phạm vi cần thiết để vận hành (ví dụ dịch vụ hạ tầng lưu trữ), không bán hoặc cho thuê dữ liệu cá nhân cho mục đích quảng cáo.'],
                 ['heading' => 'Quyền của người dùng', 'body' => 'Người dùng có thể yêu cầu xem, chỉnh sửa hoặc xoá dữ liệu cá nhân của mình bằng cách liên hệ qua mục Liên hệ ở trang này.'],
             ],
-            // SỬA 3/11 (khách: "làm lại UI trang Điều khoản sử dụng như mẫu") — sắp lại theo đúng bố cục mẫu: Giới thiệu / Phạm vi /
-            // Quyền & nghĩa vụ người dùng (2 thẻ) / Quyền & nghĩa vụ Ôn Thi 360 (danh sách) / Tài khoản & vai trò / Điều khoản khác.
-            // Giữ nguyên các ý nghiệp vụ cũ (duyệt giáo viên, nêu rõ lý do khoá nội dung, kiểm duyệt đánh giá, hành vi cấm, thay
-            // đổi điều khoản). Khoá tuỳ chọn mỗi mục: body (đoạn văn) · intro + items (danh sách tick) · split (2 thẻ trái/phải).
+            // SỬA 4/11 (khách: "trang điều khoản còn ít chữ, nghèo nàn — thêm thông tin cho phong phú") — viết đầy đủ theo đúng các
+            // tính năng ĐANG CÓ (tài khoản & vai trò, chấm code online, cuộc thi/khảo sát, token & mã kích hoạt, liên kết phụ huynh,
+            // kiểm duyệt đánh giá…). Không bịa tên pháp nhân / địa chỉ. Nên nhờ bộ phận pháp lý của khách rà lại trước khi coi là
+            // văn bản chính thức. Khoá mỗi mục: body (đoạn văn) · intro + items (danh sách tick) · split (2 thẻ trái/phải).
             'dieu-khoan' => [
-                ['heading' => 'Giới thiệu', 'body' => 'Ôn Thi 360 (onthi360.vn) là nền tảng học tập trực tuyến, cung cấp khóa học, tài liệu, kho bài luyện tập, đề thi và cuộc thi, giúp người dùng ôn luyện, chuẩn bị tốt nhất cho các kỳ thi và nâng cao kiến thức.'],
-                ['heading' => 'Phạm vi áp dụng', 'body' => 'Điều khoản này áp dụng cho tất cả người truy cập và sử dụng dịch vụ trên Ôn Thi 360: học sinh, giáo viên, phụ huynh đã đăng ký tài khoản, khách vãng lai truy cập nội dung luyện tập/tài liệu công khai và các đối tác liên quan.'],
+                ['heading' => 'Giới thiệu', 'body' => 'Tin học Onthi360 (tinhoc.onthi360.vn) thuộc hệ thống Ôn Thi 360 (onthi360.vn) — nền tảng học tập và luyện thi môn Tin học trực tuyến. Nền tảng cung cấp lớp học và khóa học, kho tài liệu, kho bài luyện tập có chấm code online tự động (C++, Python), đề thi luyện tập mô phỏng, cuộc thi và khảo sát năng lực, bảng xếp hạng, cùng các công cụ để giáo viên tổ chức lớp và phụ huynh đồng hành cùng con. Bằng việc truy cập, đăng ký tài khoản hoặc sử dụng bất kỳ dịch vụ nào trên nền tảng, bạn xác nhận đã đọc, hiểu và đồng ý với toàn bộ Điều khoản sử dụng này cùng Chính sách bảo mật và Chính sách hoàn tiền đi kèm.'],
+                ['heading' => 'Giải thích từ ngữ', 'intro' => 'Trong Điều khoản này, các từ ngữ dưới đây được hiểu như sau:', 'items' => [
+                    'Nền tảng / Ôn Thi 360: website tinhoc.onthi360.vn và các dịch vụ, tính năng đi kèm do Ôn Thi 360 vận hành.',
+                    'Người dùng: mọi cá nhân truy cập nền tảng, gồm khách chưa đăng nhập và người đã có tài khoản (học sinh, giáo viên, phụ huynh).',
+                    'Quyền học / quyền dạy: quyền truy cập một khóa học, tài liệu hoặc bộ đề trong một thời hạn nhất định, được cấp sau khi đơn hàng được duyệt hoặc khi kích hoạt mã.',
+                    'Token: đơn vị thanh toán nội bộ trong ví của tài khoản, dùng để mua quyền học, học liệu và các dịch vụ trên nền tảng.',
+                    'Mã kích hoạt: mã dùng một lần để mở quyền học / quyền dạy cho một tài khoản.',
+                    'Nội dung người dùng: bài làm, bài code, đánh giá, nhận xét, tin nhắn liên hệ, đề và học liệu do người dùng gửi hoặc đăng lên nền tảng.',
+                ]],
+                ['heading' => 'Phạm vi áp dụng', 'body' => 'Điều khoản này áp dụng cho tất cả người truy cập và sử dụng dịch vụ trên Ôn Thi 360: học sinh, giáo viên, phụ huynh đã đăng ký tài khoản, khách vãng lai truy cập nội dung luyện tập / tài liệu công khai và các đối tác liên quan. Với một số dịch vụ riêng (cuộc thi, khảo sát, khóa học có điều kiện riêng), quy định của dịch vụ đó được áp dụng bổ sung; nếu có điểm khác nhau thì quy định riêng của dịch vụ được ưu tiên.'],
+                ['heading' => 'Đăng ký và quản lý tài khoản', 'intro' => 'Khi tạo và sử dụng tài khoản, người dùng cần:', 'items' => [
+                    'Cung cấp thông tin chính xác, đầy đủ (họ tên, email, số điện thoại…) và cập nhật khi có thay đổi.',
+                    'Tự bảo mật mật khẩu, không cho người khác dùng chung tài khoản; báo ngay cho Ôn Thi 360 khi nghi ngờ tài khoản bị truy cập trái phép.',
+                    'Mỗi người chỉ dùng một tài khoản cho một vai trò; không tạo nhiều tài khoản để gian lận điểm, xếp hạng hoặc ưu đãi.',
+                    'Học sinh dưới 18 tuổi nên sử dụng nền tảng với sự đồng ý và đồng hành của cha mẹ hoặc người giám hộ.',
+                    'Giáo viên cần được Ban quản trị duyệt hồ sơ trước khi mở lớp, giao bài và đăng đề.',
+                    'Người dùng chịu trách nhiệm về mọi hoạt động phát sinh từ tài khoản của mình, trừ trường hợp đã báo mất quyền kiểm soát tài khoản cho Ôn Thi 360.',
+                ]],
                 ['heading' => 'Quyền và nghĩa vụ của người dùng', 'split' => [
                     ['title' => 'Quyền của người dùng', 'tone' => 'ok', 'items' => [
-                        'Được truy cập, sử dụng các dịch vụ của Ôn Thi 360 theo quyền học/dạy đang có.',
+                        'Được truy cập, sử dụng các dịch vụ của Ôn Thi 360 theo quyền học / dạy đang có.',
+                        'Được luyện tập công khai, làm bài và nhận kết quả chấm tự động ngay trên web.',
                         'Được biết rõ lý do khi một nội dung bị khoá (thiếu quyền, giáo viên chưa mở theo tiến độ lớp, hoặc quyền đã hết hạn).',
+                        'Được xem lại lịch sử làm bài, kết quả và tiến độ học tập của mình.',
                         'Được hỗ trợ, giải đáp thắc mắc qua các kênh chính thức.',
-                        'Được bảo vệ thông tin cá nhân theo Chính sách bảo mật.',
+                        'Được bảo vệ thông tin cá nhân theo Chính sách bảo mật; được yêu cầu chỉnh sửa hoặc xoá dữ liệu của mình.',
                     ]],
                     ['title' => 'Nghĩa vụ của người dùng', 'tone' => 'warn', 'items' => [
-                        'Tuân thủ các điều khoản, quy định của website.',
-                        'Không gian lận khi làm bài/thi, không chia sẻ tài khoản cho người khác sử dụng.',
+                        'Tuân thủ các điều khoản, quy định của website và pháp luật Việt Nam.',
+                        'Trung thực khi làm bài, thi và khảo sát; không gian lận dưới bất kỳ hình thức nào.',
+                        'Không chia sẻ tài khoản, mã kích hoạt, đề thi đang diễn ra cho người khác.',
                         'Không đăng nội dung vi phạm pháp luật, thuần phong mỹ tục hoặc spam quảng cáo trong đánh giá, tin nhắn liên hệ.',
-                        'Không chia sẻ tài khoản, thông tin cá nhân cho bên thứ ba.',
+                        'Tôn trọng giáo viên, ban tổ chức và những người dùng khác.',
+                        'Thanh toán đầy đủ, đúng hướng dẫn cho các dịch vụ có phí.',
                     ]],
                 ]],
-                ['heading' => 'Quyền và nghĩa vụ của Ôn Thi 360', 'intro' => 'Ôn Thi 360 có quyền và trách nhiệm:', 'items' => [
-                    'Cung cấp, thay đổi hoặc ngừng một phần hay toàn bộ dịch vụ khi cần nâng cấp, bảo trì hoặc điều chỉnh tính năng.',
-                    'Từ chối hoặc khoá tài khoản vi phạm điều khoản.',
-                    'Kiểm duyệt đánh giá/nhận xét trước khi công khai — chỉ xử lý nội dung vi phạm (spam, xúc phạm, quảng cáo, lộ thông tin cá nhân), không ẩn đánh giá chỉ vì tiêu cực nhưng hợp lệ.',
-                    'Bảo mật thông tin người dùng theo Chính sách bảo mật.',
+                ['heading' => 'Luyện tập, làm bài và chấm code online', 'intro' => 'Hệ thống chấm code online (Online Judge) và khu luyện tập vận hành theo các nguyên tắc sau:', 'items' => [
+                    'Bài lập trình được chấm tự động bằng bộ test của đề; kết quả hiển thị theo từng test (đúng, sai, quá thời gian, lỗi biên dịch…).',
+                    'Bài trắc nghiệm và bài điền đáp án được chấm ngay sau khi nộp; lịch sử nộp bài được lưu để người dùng ôn lại.',
+                    'Không gửi mã độc, không cố tình khai thác lỗi, dò tìm bộ test hay làm quá tải hệ thống chấm.',
+                    'Không sao chép bài làm của người khác, không dùng nhiều tài khoản để nộp thử nhằm nâng thứ hạng.',
+                    'Thời gian chạy và giới hạn bộ nhớ của mỗi bài do đề quy định; kết quả chấm tự động là kết quả chính thức của lượt nộp.',
+                    'Khi phát hiện bộ test hoặc đáp án của đề có sai sót, Ôn Thi 360 có thể sửa đề và chấm lại; điểm và thứ hạng liên quan được cập nhật theo.',
                 ]],
-                ['heading' => 'Tài khoản và vai trò', 'body' => 'Giáo viên cần được Admin duyệt hồ sơ trước khi mở lớp. Học sinh cần có quyền học còn hiệu lực để truy cập nội dung giới hạn — hệ thống luôn nêu rõ lý do khi một nội dung bị khoá, không khoá mà không giải thích.'],
-                ['heading' => 'Điều khoản khác', 'body' => 'Các điều khoản khác như giới hạn trách nhiệm, giải quyết tranh chấp và các quy định liên quan được nêu chi tiết trong các chính sách riêng của website. Điều khoản có thể được cập nhật khi hệ thống có tính năng mới; việc tiếp tục sử dụng sau khi cập nhật được xem là đã đồng ý với điều khoản mới.'],
+                ['heading' => 'Cuộc thi và khảo sát năng lực', 'intro' => 'Khi tham gia cuộc thi hoặc khảo sát trên nền tảng:', 'items' => [
+                    'Thí sinh đăng ký theo hướng dẫn của từng cuộc thi; một số cuộc thi cần ban tổ chức duyệt đơn hoặc nhập mật khẩu kỳ thi.',
+                    'Thí sinh làm bài đúng thời gian quy định; bài nộp sau khi hết giờ có thể không được tính.',
+                    'Hệ thống ghi nhận nhật ký thao tác trong lúc làm bài để phục vụ việc kiểm tra tính trung thực.',
+                    'Ban tổ chức có quyền huỷ kết quả, loại thí sinh khi phát hiện gian lận, làm bài hộ hoặc trao đổi đề trong giờ thi.',
+                    'Ban tổ chức có thể điều chỉnh điểm thủ công (cộng / trừ) khi có căn cứ và công bố bảng điểm, xếp giải theo quy chế của từng cuộc thi.',
+                    'Thắc mắc về kết quả gửi cho ban tổ chức trong thời hạn được thông báo; quyết định cuối cùng thuộc về ban tổ chức cuộc thi.',
+                ]],
+                ['heading' => 'Dành cho giáo viên', 'intro' => 'Giáo viên sử dụng nền tảng để dạy học cần:', 'items' => [
+                    'Chỉ tổ chức lớp, giao bài và đăng đề sau khi hồ sơ giáo viên được duyệt.',
+                    'Chịu trách nhiệm về tính chính xác và bản quyền của đề, tài liệu, bài tập do mình tải lên; không đăng nội dung sao chép trái phép.',
+                    'Chỉ gắn vào lớp các học liệu mà mình còn quyền dạy; khi quyền dạy hết hạn, học liệu tương ứng sẽ bị khoá theo quy định.',
+                    'Rà soát đề nhập từ Word / PDF / ảnh trước khi phát hành để tránh sai sót cho học sinh.',
+                    'Bảo mật thông tin học sinh trong lớp, chỉ dùng thông tin đó cho mục đích dạy học.',
+                    'Dùng tính năng thông báo lớp, nhận xét đúng mục đích học tập, lời lẽ chuẩn mực.',
+                ]],
+                ['heading' => 'Dành cho phụ huynh', 'intro' => 'Phụ huynh đồng hành cùng con trên nền tảng:', 'items' => [
+                    'Liên kết với tài khoản của con bằng mã do chính học sinh cung cấp; một phụ huynh có thể theo dõi nhiều con.',
+                    'Được xem lịch học, điểm danh, tiến độ, kết quả bài làm và nhận thông báo từ giáo viên, nhà trường và Ban quản trị.',
+                    'Chỉ sử dụng thông tin của con cho mục đích theo dõi, hỗ trợ việc học; không chia sẻ cho người khác.',
+                    'Có thể gỡ liên kết khi không còn nhu cầu theo dõi.',
+                ]],
+                ['heading' => 'Thanh toán, token và mã kích hoạt', 'items' => [
+                    'Người dùng nạp token bằng chuyển khoản theo đúng nội dung / mã chuyển khoản hệ thống cung cấp; token được cộng sau khi Ban quản trị đối soát sao kê và duyệt.',
+                    'Token dùng để mua quyền học, học liệu và các dịch vụ trong hệ thống Ôn Thi 360.',
+                    'Đơn mua hàng được duyệt thủ công; sau khi duyệt, quyền học / quyền dạy hoặc mã kích hoạt được cấp cho tài khoản.',
+                    'Mã kích hoạt chỉ dùng được một lần; người dùng tự bảo quản mã, Ôn Thi 360 không chịu trách nhiệm với mã bị lộ do người dùng chia sẻ.',
+                    'Quyền học / quyền dạy có thời hạn; hết hạn thì nội dung tương ứng bị khoá nhưng kết quả và lịch sử làm bài cũ vẫn được giữ lại.',
+                    'Điều kiện và quy trình hoàn tiền áp dụng theo Chính sách hoàn tiền.',
+                ]],
+                ['heading' => 'Quyền sở hữu trí tuệ', 'body' => 'Toàn bộ nội dung trên nền tảng — đề thi, bài tập, bộ test, tài liệu, video, giao diện, logo, tên gọi Ôn Thi 360 / Tin học Onthi360 — thuộc quyền sở hữu của Ôn Thi 360 hoặc của giáo viên, đối tác đã cho phép sử dụng.', 'intro' => 'Người dùng được sử dụng nội dung cho mục đích học tập cá nhân, và cam kết:', 'items' => [
+                    'Không sao chép, tải về hàng loạt, chụp lại để phát tán, đăng lại hoặc bán lại đề, tài liệu khi chưa được Ôn Thi 360 đồng ý bằng văn bản.',
+                    'Không dùng công cụ tự động (bot, phần mềm thu thập dữ liệu) để lấy nội dung của nền tảng.',
+                    'Bài code, bài làm do người dùng tạo ra vẫn thuộc về người dùng; người dùng đồng ý để Ôn Thi 360 lưu trữ, chấm và hiển thị trong phạm vi vận hành (lịch sử nộp bài, bảng xếp hạng, bài mẫu khi giáo viên chọn).',
+                ]],
+                ['heading' => 'Đánh giá, nhận xét và nội dung người dùng', 'items' => [
+                    'Đánh giá về khóa học, tài liệu, giáo viên phải phản ánh trải nghiệm thật của người dùng.',
+                    'Ôn Thi 360 kiểm duyệt đánh giá / nhận xét trước khi công khai — chỉ xử lý nội dung vi phạm (spam, xúc phạm, quảng cáo, lộ thông tin cá nhân), không ẩn đánh giá chỉ vì tiêu cực nhưng hợp lệ.',
+                    'Người dùng chịu trách nhiệm về nội dung mình đăng; nội dung vi phạm có thể bị ẩn hoặc gỡ mà không cần báo trước.',
+                ]],
+                ['heading' => 'Quyền và nghĩa vụ của Ôn Thi 360', 'intro' => 'Ôn Thi 360 có quyền và trách nhiệm:', 'items' => [
+                    'Duy trì, nâng cấp nền tảng; cung cấp, thay đổi hoặc ngừng một phần hay toàn bộ dịch vụ khi cần bảo trì hoặc điều chỉnh tính năng, có thông báo trước khi có thể.',
+                    'Đảm bảo hệ thống chấm bài, lưu trữ kết quả hoạt động ổn định và xử lý sự cố trong thời gian sớm nhất.',
+                    'Từ chối, tạm khoá hoặc khoá tài khoản vi phạm điều khoản.',
+                    'Bảo mật thông tin người dùng theo Chính sách bảo mật; không bán dữ liệu cá nhân cho bên thứ ba.',
+                    'Tiếp nhận, phản hồi yêu cầu hỗ trợ và khiếu nại qua các kênh chính thức.',
+                    'Thông báo cho người dùng khi Điều khoản có thay đổi quan trọng.',
+                ]],
+                ['heading' => 'Hành vi bị nghiêm cấm', 'items' => [
+                    'Gian lận khi làm bài, thi, khảo sát: làm bài hộ, thi hộ, trao đổi đáp án trong giờ thi, dùng nhiều tài khoản.',
+                    'Tấn công, dò quét lỗ hổng, gửi mã độc, can thiệp trái phép vào hệ thống chấm bài hoặc dữ liệu của người khác.',
+                    'Mua bán, cho thuê, chia sẻ tài khoản hoặc mã kích hoạt.',
+                    'Đăng tải nội dung vi phạm pháp luật, xúc phạm, bạo lực, phản cảm, lừa đảo hoặc quảng cáo trái phép.',
+                    'Thu thập, sử dụng thông tin cá nhân của người dùng khác khi chưa được đồng ý.',
+                    'Mạo danh Ôn Thi 360, giáo viên, ban tổ chức hoặc người dùng khác.',
+                ]],
+                ['heading' => 'Xử lý vi phạm', 'intro' => 'Tuỳ mức độ vi phạm, Ôn Thi 360 có thể áp dụng một hoặc nhiều biện pháp:', 'items' => [
+                    'Nhắc nhở, yêu cầu gỡ bỏ hoặc tự ẩn nội dung vi phạm.',
+                    'Huỷ kết quả bài làm, bài thi; loại khỏi bảng xếp hạng hoặc cuộc thi.',
+                    'Tạm khoá hoặc khoá vĩnh viễn tài khoản; thu hồi quyền học / quyền dạy, mã kích hoạt liên quan đến hành vi vi phạm.',
+                    'Cung cấp thông tin cho cơ quan nhà nước có thẩm quyền khi hành vi có dấu hiệu vi phạm pháp luật.',
+                ]],
+                ['heading' => 'Giới hạn trách nhiệm', 'items' => [
+                    'Nền tảng có thể tạm gián đoạn do bảo trì, nâng cấp, sự cố đường truyền hoặc nguyên nhân bất khả kháng; Ôn Thi 360 sẽ khắc phục sớm nhất và cố gắng thông báo trước khi bảo trì.',
+                    'Ôn Thi 360 không chịu trách nhiệm với thiệt hại phát sinh do người dùng để lộ mật khẩu, mã kích hoạt hoặc chia sẻ tài khoản.',
+                    'Kết quả học tập và thi cử còn phụ thuộc vào sự nỗ lực của mỗi người; nền tảng hỗ trợ ôn luyện nhưng không cam kết một kết quả thi cụ thể.',
+                    'Các liên kết tới website hoặc dịch vụ bên ngoài (Zalo, Facebook…) do bên thứ ba quản lý, chịu sự điều chỉnh bởi điều khoản của bên đó.',
+                ]],
+                ['heading' => 'Thay đổi điều khoản', 'body' => 'Điều khoản có thể được cập nhật khi nền tảng có tính năng mới hoặc khi quy định pháp luật thay đổi. Ngày cập nhật gần nhất luôn được ghi ở đầu trang; với thay đổi quan trọng, Ôn Thi 360 sẽ thông báo trên website hoặc qua thông báo trong tài khoản. Việc tiếp tục sử dụng dịch vụ sau khi điều khoản được cập nhật đồng nghĩa với việc người dùng đồng ý với nội dung mới.'],
+                ['heading' => 'Giải quyết tranh chấp', 'body' => 'Mọi thắc mắc, khiếu nại liên quan đến dịch vụ trước hết được giải quyết bằng thương lượng, hoà giải trên tinh thần thiện chí qua các kênh hỗ trợ chính thức. Trường hợp không thể thương lượng, tranh chấp được giải quyết theo quy định của pháp luật nước Cộng hoà xã hội chủ nghĩa Việt Nam.'],
+                ['heading' => 'Liên hệ', 'body' => 'Mọi câu hỏi về Điều khoản sử dụng, vui lòng liên hệ Ôn Thi 360 qua hotline / Zalo 0344 082 787, email hotro@onthi360.vn, hoặc gửi yêu cầu ở mục Liên hệ của trang Thông tin. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.'],
             ],
             'hoan-tien' => [
                 ['heading' => 'Phạm vi áp dụng', 'body' => 'Áp dụng cho đơn hàng mua quyền học/dạy, khóa học hoặc gói token đã đặt qua hệ thống (7.4).'],
