@@ -733,7 +733,10 @@
                     </div>
                 </div>
 
-                <div x-show="sidebarTab === 'leaderboard'">
+                {{-- SỬA 4/11 (khách: "bấm qua tab Thông báo thì UI bị nhảy") — hai tab chồng lên nhau trong cùng một khung: khung LUÔN cao
+                     bằng tab Top xuất sắc (tab này chỉ ẩn đi chứ không rút chiều cao), tab Thông báo nằm đè lên trên và tự cuộn nếu dài hơn. --}}
+                <div style="position:relative;min-height:180px">
+                <div :style="sidebarTab === 'leaderboard' ? '' : 'visibility:hidden'" :aria-hidden="sidebarTab !== 'leaderboard'">
                     @if (count($topStudents['rows']) > 0)
                         <p class="type-meta mb-1.5 truncate text-slate-400">{{ $topStudents['title'] }}</p>
                         <div class="flex flex-col gap-1.5 mb-2.5">
@@ -774,7 +777,7 @@
                 @auth
                     @include('partials.bell-actions')
                 @endauth
-                <div x-show="sidebarTab === 'notifications'" x-cloak class="flex flex-col gap-1.5 py-1">
+                <div x-show="sidebarTab === 'notifications'" x-cloak class="flex flex-col gap-1.5 py-1" style="position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain">
                   <div class="flex flex-col gap-1.5" x-data="window.oiBell ? oiBell({{ (int) ($bellUnreadCount ?? 0) }}) : { bellCount: 0, bellLeft: 0 }">
                     @foreach ($bellItems as $n)
                       <div data-bell-id="{{ $n['id'] }}">
@@ -792,6 +795,7 @@
                         <span x-show="bellCount > 0" style="display:none">Còn <b x-text="bellCount"></b> thông báo chưa đọc.</span>
                     </p>
                   </div>
+                </div>
                 </div>
             </div>
 
