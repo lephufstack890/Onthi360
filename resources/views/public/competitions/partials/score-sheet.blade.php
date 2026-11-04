@@ -319,10 +319,8 @@
                 const max = Number(this.data.maxScore || 0);
                 const act = !!this.s.showActivity;
                 const port = this.s.orient !== 'landscape';
-                const hasAdj = rows.some((r) => r.adj); // SỬA 4/11 — có ai được cộng / trừ thì in thêm cột Điều chỉnh
                 const head = '<tr><th style="width:5%">Hạng</th><th style="width:' + (act ? 19 : 22) + '%">Họ tên / Tên bài làm</th>'
                     + qs.map((q, i) => '<th>Bài ' + (i + 1) + (q.code ? '<br>' + e(q.code) : '') + '<br>(' + this.num(q.points) + ' điểm)</th>').join('')
-                    + (hasAdj ? '<th style="width:8%">Điều chỉnh</th>' : '')
                     + '<th class="tot" style="width:9%">Tổng điểm<br>(' + this.num(max) + ')</th><th style="width:' + (act ? 11 : 13) + '%">Giải</th>'
                     + (act ? '<th style="width:16%">Kiểm tra thao tác</th>' : '') + '</tr>';
                 const body = rows.map((r) => {
@@ -334,7 +332,6 @@
                     }).join('');
                     const sig = this.sigList(r.a);
                     return '<tr><td>' + e(r.rank) + '</td><td class="nm">' + e(this.nm(r.pn)) + '</td>' + cells
-                        + (hasAdj ? '<td>' + (r.adj ? e(this.signed(r.adj)) : '') + '</td>' : '')
                         + '<td class="tot">' + (r.score === null ? '' : this.num(r.score)) + '</td><td class="aw">' + e(r.award)
                         // SỬA 2/11 (khách: "nhập lý do rồi mà in ra không hiện") — lý do không xét giải in ngay dưới chữ "Không xét" trong dòng.
                         + (r.cheat && r.note ? '<span class="rs">(' + e(r.note) + ')</span>' : '') + '</td>'
