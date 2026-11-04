@@ -24,7 +24,7 @@
         @media (min-width: 1536px) { .pol-wrap { padding: 24px 32px 72px; } }
         .pol-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #607A90; text-decoration: none; }
         .pol-back:hover { color: #126F91; }
-        .pol-card { border: 1px solid #DCE9F1; border-radius: 24px; background: #fff; box-shadow: 0 10px 34px rgba(18, 59, 104, .06); overflow: hidden; }
+        .pol-card { border: 1px solid #DCE9F1; border-radius: 24px; background: #fff; box-shadow: 0 10px 34px rgba(18, 59, 104, .06); overflow: hidden; overflow: clip; }
         .pol-head { position: relative; padding: 18px 18px 16px; border-bottom: 1px solid #E8F0F5;
             background: radial-gradient(120% 140% at 100% 0%, #E3F2F8 0%, rgba(227, 242, 248, 0) 55%), linear-gradient(180deg, #F7FBFD, #fff); }
         @media (min-width: 768px) { .pol-head { padding: 22px 28px 18px; } }
@@ -71,15 +71,25 @@
         .pol-cta svg { width: 14px; height: 14px; }
         .pol-empty { padding: 28px 0; text-align: center; font-size: 14px; color: #94A3B8; }
         .pol-p + .pol-intro { margin-top: 8px; }
-        /* SỬA 4/11 — mục lục (trang có nhiều mục) */
-        .pol-toc { padding: 12px 18px 4px; border-bottom: 1px solid #E8F0F5; background: #FBFDFE; }
-        @media (min-width: 768px) { .pol-toc { padding: 14px 28px 6px; } }
-        .pol-toc-h { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12px; font-weight: 800; color: #607A90; text-transform: uppercase; letter-spacing: .04em; }
-        .pol-toc-h svg { width: 14px; height: 14px; }
-        .pol-toc ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px 16px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
-        .pol-toc a { display: flex; align-items: baseline; gap: 7px; padding: 4px 6px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; color: #3D566B; text-decoration: none; }
-        .pol-toc a:hover { background: #EAF5F8; color: #126F91; }
-        .pol-toc a b { flex: none; min-width: 18px; font-weight: 800; color: #126F91; }
+        /* SỬA 4/11 (khách: "bỏ mục lục ngang, chia layout cho đẹp") — trang nhiều mục: màn rộng chia 2 cột — cột trái là mục lục
+           dính theo khi cuộn (mục đang đọc được tô sáng), cột phải là nội dung. Màn nhỏ: chỉ nội dung, ẩn mục lục. */
+        .pol-layout { display: block; }
+        .pol-side { display: none; }
+        @media (min-width: 1024px) {
+            .pol-layout.has-side { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+            .pol-layout.has-side .pol-side { display: block; border-right: 1px solid #E8F0F5; background: #FBFDFE; }
+            .pol-layout.has-side .pol-body { padding-left: 28px; }
+        }
+        @media (min-width: 1536px) { .pol-layout.has-side { grid-template-columns: 280px minmax(0, 1fr); } }
+        .pol-side-in { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 16px 12px 16px 16px; }
+        .pol-side-h { display: flex; align-items: center; gap: 6px; margin: 0 0 8px 6px; font-size: 11px; font-weight: 800; color: #7B8EA0; text-transform: uppercase; letter-spacing: .06em; }
+        .pol-side-h svg { width: 14px; height: 14px; }
+        .pol-side ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+        .pol-side a { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: 10px; border-left: 3px solid transparent; font-size: 12.5px; line-height: 1.4; color: #4A6378; text-decoration: none; transition: background .15s, color .15s; }
+        .pol-side a:hover { background: #EEF6F9; color: #126F91; }
+        .pol-side a b { flex: none; min-width: 16px; font-weight: 800; color: #9AB0C0; }
+        .pol-side a.is-on { background: #EAF5F8; border-left-color: #126F91; color: #0D5B77; font-weight: 700; }
+        .pol-side a.is-on b { color: #126F91; }
     </style>
 
     <div class="pol-wrap">
@@ -96,15 +106,19 @@
                 @endif
             </header>
 
-            @if (count($sections) >= 6)
-                <nav class="pol-toc" aria-label="Mục lục">
-                    <p class="pol-toc-h"><x-lucide name="list" />Mục lục</p>
-                    <ol>
-                        @foreach ($sections as $i => $s)
-                            <li><a href="#muc-{{ $i + 1 }}"><b>{{ $i + 1 }}.</b><span>{{ $s['heading'] }}</span></a></li>
-                        @endforeach
-                    </ol>
-                </nav>
+            @php $polSide = count($sections) >= 6; @endphp
+            <div class="pol-layout {{ $polSide ? 'has-side' : '' }}">
+            @if ($polSide)
+                <aside class="pol-side" aria-label="Mục lục">
+                    <div class="pol-side-in">
+                        <p class="pol-side-h"><x-lucide name="list" />Mục lục</p>
+                        <ol>
+                            @foreach ($sections as $i => $s)
+                                <li><a href="#muc-{{ $i + 1 }}" data-pol-toc="muc-{{ $i + 1 }}"><b>{{ $i + 1 }}</b><span>{{ $s['heading'] }}</span></a></li>
+                            @endforeach
+                        </ol>
+                    </div>
+                </aside>
             @endif
 
             <div class="pol-body">
@@ -158,6 +172,25 @@
                     <a href="{{ route('info.index') }}#lien-he" class="pol-cta"><x-lucide name="mail" /> Liên hệ ngay <x-lucide name="arrow-right" /></a>
                 </aside>
             </div>
+            </div>{{-- /.pol-layout --}}
         </article>
     </div>
+
+    @if ($polSide ?? false)
+        <script>
+            // Tô sáng mục đang đọc trong cột mục lục.
+            (function () {
+                var links = document.querySelectorAll('[data-pol-toc]');
+                if (!links.length || !('IntersectionObserver' in window)) return;
+                var map = {};
+                links.forEach(function (a) { map[a.getAttribute('data-pol-toc')] = a; });
+                var on = function (id) { links.forEach(function (a) { a.classList.toggle('is-on', a.getAttribute('data-pol-toc') === id); }); };
+                var io = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (e) { if (e.isIntersecting && map[e.target.id]) on(e.target.id); });
+                }, { rootMargin: '-90px 0px -65% 0px', threshold: 0 });
+                document.querySelectorAll('.pol-sec[id]').forEach(function (sec) { io.observe(sec); });
+                on(links[0].getAttribute('data-pol-toc'));
+            })();
+        </script>
+    @endif
 @endsection
