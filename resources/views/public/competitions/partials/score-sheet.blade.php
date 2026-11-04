@@ -14,6 +14,9 @@
         'survey' => (bool) $survey,
         // SỬA 3/11 (khách: "khi in chèn thêm logo hệ thống cho uy tín") — địa chỉ tuyệt đối để cửa sổ in / khung xem trước tải được.
         'logo' => asset('assets/header-logo.png'),
+        // SỬA 4/11 — nút "Tải PDF" (file PDF dựng trên máy chủ, khổ A4 đúng chiều — không phụ thuộc máy in / hộp in của trình duyệt).
+        'pdfUrl' => route('competitions.manage.scoreSheet.pdf', ['competition' => $contest['id'], 'exam' => $round['id']]),
+        'csrf' => csrf_token(),
     ];
 @endphp
 <style>
@@ -100,8 +103,8 @@
                                      đề nhiều bài cần rộng thì chọn Ngang. --}}
                                 <label class="ssm-check">Khổ giấy
                                     <select x-model="s.orient" style="margin-left:4px;width:auto;min-height:28px;padding:0 6px">
-                                        <option value="portrait">A4 dọc (đứng)</option>
                                         <option value="landscape">A4 ngang</option>
+                                        <option value="portrait">A4 dọc (đứng)</option>
                                     </select>
                                 </label>
                             </div>
@@ -195,7 +198,11 @@
 
             <div class="ssm-foot">
                 <button type="button" class="ssm-btn" @click="show = false">Đóng</button>
-                <button type="button" class="ssm-btn primary" @click="print()" :disabled="!data || !includedCount"><x-lucide name="printer" />In bảng điểm</button>
+                <button type="button" class="ssm-btn" @click="print()" :disabled="!data || !includedCount"><x-lucide name="printer" />In bảng điểm</button>
+                {{-- SỬA 4/11 (khách: "in xoay tùm lum, muốn lấy PDF ngang") — tải thẳng file PDF khổ A4 (ngang / dọc theo ô "Khổ giấy"). --}}
+                <button type="button" class="ssm-btn primary" @click="downloadPdf()" :disabled="!data || !includedCount || pdfBusy">
+                    <x-lucide name="download" /><span x-text="pdfBusy ? 'Đang tạo PDF…' : 'Tải PDF'">Tải PDF</span>
+                </button>
             </div>
         </div>
     </div>
@@ -211,7 +218,7 @@
         return {
             show: false, loading: false, error: '', data: null, pick: {},
             s: { heading: 'BẢNG TỔNG HỢP ĐIỂM VÀ XẾP GIẢI', subheading: '', unit: '', date: today(), footer: '',
-                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, logo: true, orient: 'portrait', extra: '' },
+                 q1: 1, q2: 1, q3: 1, q4: 2, needScore: true, showActivity: true, upper: false, logo: true, orient: 'landscape', extra: '' }, pdfBusy: false,
             open() {
                 this.show = true;
                 if (this.data || this.loading) return;
@@ -234,7 +241,9 @@
                         try {
                             const saved = JSON.parse(window.localStorage.getItem(KEY) || 'null');
                             if (saved && typeof saved === 'object') {
-                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper', 'logo', 'orient'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
+                                ['unit', 'q1', 'q2', 'q3', 'q4', 'needScore', 'showActivity', 'upper', 'logo'].forEach((k) => { if (saved[k] !== undefined) this.s[k] = saved[k]; });
+                                // SỬA 4/11 — khách muốn khổ NGANG: bỏ lựa chọn "dọc" lưu từ trước, chỉ nhớ lựa chọn từ nay (khoá orient2).
+                                if (saved.orient2 === 'portrait' || saved.orient2 === 'landscape') this.s.orient = saved.orient2;
                             }
                         } catch (e) {}
                         this.data = j;
@@ -371,6 +380,63 @@
                     + (autoPrint ? '<script>window.onload=function(){setTimeout(function(){window.print()},150)};<\/script>' : '')
                     + '</body></html>';
             },
+            // SỬA 4/11 — nội dung đã dàn sẵn (đúng như bản in) gửi lên máy chủ để dựng FILE PDF (ContestScoreSheetPdf).
+            pdfModel() {
+                const rows = this.rows();
+                const qs = this.data.questions || [];
+                const max = Number(this.data.maxScore || 0);
+                const act = !!this.s.showActivity;
+                const nameW = act ? 19 : 22, awardW = act ? 11 : 13, actW = act ? 16 : 0;
+                const qW = qs.length ? Math.max(4, (100 - 5 - nameW - 9 - awardW - actW) / qs.length) : 0;
+                const head = ['Hạng', 'Họ tên / Tên bài làm'], kinds = ['rank', 'name'], widths = [5, nameW];
+                qs.forEach((q, i) => { head.push('Bài ' + (i + 1) + (q.code ? '\n' + q.code : '') + '\n(' + this.num(q.points) + ' điểm)'); kinds.push('num'); widths.push(qW); });
+                head.push('Tổng điểm\n(' + this.num(max) + ')', 'Giải'); kinds.push('total', 'award'); widths.push(9, awardW);
+                if (act) { head.push('Kiểm tra thao tác'); kinds.push('activity'); widths.push(actW); }
+                const body = rows.map((r) => {
+                    const c = [String(r.rank), this.nm(r.pn)];
+                    qs.forEach((q) => {
+                        if (r.score === null) { c.push(''); return; }
+                        if (q.papers && q.papers.length && q.papers.indexOf(r.a.assessmentId) === -1) { c.push('—'); return; }
+                        const v = r.a.perQuestion ? r.a.perQuestion[q.id] : undefined;
+                        c.push(this.num(v === undefined || v === null ? 0 : v));
+                    });
+                    c.push(r.score === null ? '' : this.num(r.score), String(r.award));
+                    if (act) { const sig = this.sigList(r.a); c.push(!r.a.hasLog ? 'Không có dữ liệu' : (sig.length ? sig.join('; ') : 'Bình thường')); }
+                    return { c, r: r.cheat && r.note ? r.note : '' };
+                });
+                return {
+                    orient: this.s.orient === 'portrait' ? 'portrait' : 'landscape',
+                    heading: this.s.heading, subheading: this.s.subheading, unit: this.s.unit,
+                    metaLeft: 'Số học sinh/bài nộp: ' + rows.length + '  |  Thang điểm: ' + this.num(max).replace(/,00$/, ''),
+                    dateLine: this.dateLine(), footer: this.s.footer, logo: !!this.s.logo,
+                    filename: (this.s.subheading || this.s.heading || 'bang-diem') + ' ' + (this.s.date || ''),
+                    head, kinds, widths, rows: body, notes: this.notes(rows),
+                };
+            },
+            downloadPdf() {
+                if (this.pdfBusy || !this.data) return;
+                this.pdfBusy = true;
+                fetch(cfg.pdfUrl, {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/pdf, application/json', 'X-CSRF-TOKEN': cfg.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify(this.pdfModel()),
+                })
+                    .then((r) => {
+                        if (!r.ok) return r.json().catch(() => ({})).then((j) => Promise.reject(j.message || ('Lỗi ' + r.status)));
+                        const cd = r.headers.get('Content-Disposition') || '';
+                        const m = /filename="([^"]+)"/.exec(cd);
+                        return r.blob().then((b) => ({ b, name: m ? m[1] : 'bang-tong-hop-diem.pdf' }));
+                    })
+                    .then(({ b, name }) => {
+                        const url = URL.createObjectURL(b);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 5000);
+                        try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo, orient2: this.s.orient })); } catch (e) {}
+                    })
+                    .catch((msg) => alert('Chưa tạo được file PDF: ' + (typeof msg === 'string' ? msg : 'lỗi kết nối') + '. Thử lại, hoặc dùng nút "In bảng điểm".'))
+                    .finally(() => { this.pdfBusy = false; });
+            },
             print() {
                 // SỬA 01/11 — nhớ tên in ra đã sửa (chỉ những tên khác tên tài khoản) cho lần in sau.
                 try {
@@ -381,7 +447,7 @@
                     });
                     window.localStorage.setItem(NAMES_KEY, JSON.stringify(names));
                 } catch (e) {}
-                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo, orient: this.s.orient })); } catch (e) {}
+                try { window.localStorage.setItem(KEY, JSON.stringify({ unit: this.s.unit, q1: this.s.q1, q2: this.s.q2, q3: this.s.q3, q4: this.s.q4, needScore: this.s.needScore, showActivity: this.s.showActivity, upper: this.s.upper, logo: this.s.logo, orient2: this.s.orient })); } catch (e) {}
                 const w = window.open('', '_blank');
                 if (!w) { alert('Trình duyệt đã chặn cửa sổ in — cho phép cửa sổ bật lên (pop-up) cho trang này rồi bấm In lại.'); return; }
                 w.document.open(); w.document.write(this.html(true)); w.document.close();

@@ -28,6 +28,15 @@ class ContestScoreSheetService
         private ContestActivityLogService $activity,
     ) {}
 
+    /** SỬA 4/11 — kiểm quyền in (đúng luật như forRound) cho nút "Tải PDF" (ContestScoreSheetPdfController). */
+    public function authorizePrint(User $viewer, int $competitionId, int $examId): void
+    {
+        $c = Competition::query()->findOrFail($competitionId);
+        $exam = CompetitionExam::query()->where('competition_id', $c->id)->findOrFail($examId);
+        abort_unless($this->organizers->canCreateRound($viewer) && $this->organizers->canManageRound($viewer, $c, $exam), 403,
+            'Chỉ admin hoặc giáo viên tổ chức kỳ này mới in được bảng điểm.');
+    }
+
     /** @return array<string, mixed> */
     public function forRound(User $viewer, int $competitionId, int $examId): array
     {

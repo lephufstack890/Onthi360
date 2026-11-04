@@ -204,6 +204,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/bang-diem', \App\Http\Controllers\ContestScoreSheetController::class)
         ->whereNumber(['competition', 'exam'])->name('competitions.manage.scoreSheet');
+    // SỬA 4/11 (khách: "in bảng điểm xoay tùm lum, muốn PDF ngang") — nút "Tải PDF": máy chủ dựng file PDF khổ A4 đúng chiều.
+    Route::post('/cuoc-thi/{competition}/ban-to-chuc/vong/{exam}/bang-diem/pdf', \App\Http\Controllers\ContestScoreSheetPdfController::class)
+        ->whereNumber(['competition', 'exam'])->name('competitions.manage.scoreSheet.pdf');
     // SỬA 30/10 — tab "Nhật ký" của kỳ (JSON): ban tổ chức xem mọi lượt, người khác chỉ lượt của mình (ContestActivityLogService).
     Route::get('/cuoc-thi/{competition}/vong/{exam}/nhat-ky', \App\Http\Controllers\ContestActivityLogController::class)
         ->whereNumber(['competition', 'exam'])->name('competitions.activity');
