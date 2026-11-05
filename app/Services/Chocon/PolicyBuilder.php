@@ -64,7 +64,9 @@ class PolicyBuilder
         $sleepWindow = $this->window([], $p->sleep_start, $p->sleep_end);
 
         $payload = [
-            'daily_game_minutes' => $p->daily_game_minutes,
+            // SỬA 5/11 (khách: chỉ cần theo dõi con vào web nào, có chơi game không) — bỏ giới hạn phút chơi game.
+            // Giá trị cũ vẫn giữ trong DB; muốn bật lại thì đổi null thành $p->daily_game_minutes.
+            'daily_game_minutes' => null,
             'bonus_game_minutes_today' => $earned + $approved,
             // Giờ học + giờ ngủ: không được chơi game.
             'blocked_game_schedules' => array_values(array_filter([$studyWindow, $sleepWindow])),

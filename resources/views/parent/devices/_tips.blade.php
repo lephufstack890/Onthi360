@@ -22,12 +22,7 @@
     }
     if ($tg >= 60 && $tg > max($ts, 1) * 2) {
         $tips[] = ['warn', 'zap', 'Thời gian chơi game đang nhiều hơn học',
-            'Hôm nay con chơi game '.$tg.' phút, học '.$ts.' phút. '.($tLimit === null
-                ? 'Nên đặt “Số phút chơi game mỗi ngày” ở phần Cài đặt bên dưới (ví dụ 60 phút ngày đi học, 90–120 phút cuối tuần) và nói trước với con.'
-                : 'Giới hạn hiện tại là '.$tLimit.' phút/ngày. Nếu muốn giảm, hãy giảm dần 10–15 phút mỗi tuần thay vì cắt hẳn, để con không phản ứng.')];
-    } elseif ($tLimit === null && $tg > 0) {
-        $tips[] = ['info', 'timer', 'Chưa đặt giới hạn giờ chơi game',
-            'Con đã chơi '.$tg.' phút hôm nay. Thống nhất với con một con số cụ thể rồi đặt ở phần Cài đặt bên dưới — máy sẽ báo trước 5 phút trước khi đóng game.'];
+            'Hôm nay con chơi game '.$tg.' phút, học '.$ts.' phút. Hãy nói chuyện với con và thống nhất giờ chơi; khi cần có thể bật “Chế độ chỉ học” hoặc khóa máy từ xa.'];
     }
     if ($tb >= 90) {
         $tips[] = ['warn', 'globe', 'Con lướt web khá nhiều',

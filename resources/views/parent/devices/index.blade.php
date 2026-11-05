@@ -124,13 +124,10 @@
                                         <div class="cd-kid-name">{{ $c->name }}</div>
                                         <span class="cd-tag {{ $tone }}"><span class="cd-dot"></span>{{ $label }}</span>
                                     </div>
-                                    @if ($o['pending'] > 0)
-                                        <span class="cd-badge">{{ $o['pending'] }} xin giờ</span>
-                                    @endif
                                 </div>
                                 <div class="cd-kid-nums">
                                     <span>Học <b>{{ $o['study'] }}'</b></span>
-                                    <span>Game <b>{{ $o['game'] }}'</b>@if ($o['game_limit'] !== null)/{{ $o['game_limit'] }}'@endif</span>
+                                    <span>Game <b>{{ $o['game'] }}'</b></span>
                                     <span>{{ $o['devices'] }} máy</span>
                                 </div>
                             </a>
@@ -142,7 +139,7 @@
             {{-- ===== Hôm nay ===== --}}
             <div class="pw-grid4">
                 @include('parent._stat', ['label' => 'Học trên onthi360', 'value' => $usage['study'].' phút', 'note' => 'Đã nộp '.$doneToday.' bài/đề hôm nay', 'icon' => 'book-open', 'tone' => 'emerald'])
-                @include('parent._stat', ['label' => 'Chơi game', 'value' => $usage['game'].' phút', 'note' => $policy->daily_game_minutes === null ? 'Chưa giới hạn' : 'Giới hạn '.$policy->daily_game_minutes.' phút/ngày', 'icon' => 'zap', 'tone' => $policy->daily_game_minutes !== null && $usage['game'] >= $policy->daily_game_minutes ? 'rose' : 'amber'])
+                @include('parent._stat', ['label' => 'Chơi game', 'value' => $usage['game'].' phút', 'note' => 'Thời gian chơi game hôm nay', 'icon' => 'zap', 'tone' => 'amber'])
                 @include('parent._stat', ['label' => 'Trang web khác', 'value' => $usage['browser'].' phút', 'note' => 'Ngoài onthi360', 'icon' => 'globe', 'tone' => 'blue'])
                 @include('parent._stat', ['label' => 'Ứng dụng khác', 'value' => $usage['other'].' phút', 'note' => 'Word, Zalo, phần mềm khác…', 'icon' => 'layers', 'tone' => 'violet'])
             </div>
@@ -220,6 +217,8 @@
                         </form>
                     @endif
 
+                    {{-- SỬA 5/11 — ẨN "Xin thêm giờ hôm nay": phần mềm trên máy con đã bỏ nút xin thêm giờ. --}}
+                    <div class="cd-hidden" style="display:none" aria-hidden="true">
                     <p class="cd-sec">Xin thêm giờ hôm nay</p>
                     @forelse ($requests as $r)
                         <div class="cd-row" style="justify-content:space-between;padding:8px 0;border-top:1px solid #f1f5f9;font-size:12px">
@@ -236,6 +235,7 @@
                     @empty
                         <p class="pw-sub">Hôm nay con chưa xin thêm giờ.</p>
                     @endforelse
+                    </div>
                 </section>
             </div>
 
@@ -257,12 +257,16 @@
                             <small>onthi360.vn luôn được phép. Có thể ghi cả đường dẫn, hệ thống tự lấy tên trang.</small></label>
                     </div>
 
-                    <p class="cd-sec">Giờ chơi & khung giờ</p>
+                    {{-- SỬA 5/11 (khách: "ẩn đi, mục tiêu chỉ là kiểm tra con có vào web khác, có chơi game không") — ẨN "Số phút chơi game mỗi ngày".
+                         Ô vẫn còn (ẩn) để giữ giá trị cũ; máy con không còn bị giới hạn giờ game (PolicyBuilder gửi null). --}}
+                    <div class="cd-hidden" style="display:none" aria-hidden="true"><p class="cd-sec">Giờ chơi & khung giờ</p></div>
                     <div class="cd-grid">
+                        <div class="cd-hidden" style="display:none" aria-hidden="true">
                         <label class="cd-field"><span>Số phút chơi game mỗi ngày</span>
                             <input type="number" name="daily_game_minutes" min="0" max="720" value="{{ old('daily_game_minutes', $policy->daily_game_minutes) }}" placeholder="Để trống = không giới hạn">
                             <small>0 = cấm chơi game. Máy báo trước 5 phút rồi tự đóng game.</small></label>
                         <div></div>
+                        </div>
                         {{-- SỬA 5/11 (khách: "tạm thời bỏ những field này") — ẨN Giờ học / Giờ ngủ / Học xong mới được chơi / Trang web &
                              Phần mềm bị chặn. Chỉ ẩn khỏi giao diện, ô nhập vẫn còn (ẩn) nên bấm Lưu không làm mất giá trị đã đặt trước.
                              Muốn hiện lại: xoá các thẻ div cd-hidden bọc ngoài. --}}
