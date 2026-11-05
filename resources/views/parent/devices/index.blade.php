@@ -87,6 +87,10 @@
                 @include('parent._stat', ['label' => 'Ứng dụng khác', 'value' => $usage['other'].' phút', 'note' => 'Word, Zalo, phần mềm khác…', 'icon' => 'layers', 'tone' => 'violet'])
             </div>
 
+            {{-- SỬA 5/11 (khách: "thêm chỗ đề xuất phương pháp quản lý con, học nhiều thì được thưởng…") — gợi ý theo số liệu hôm nay,
+                 phương pháp đồng hành, bảng thưởng và thoả thuận gia đình mẫu. Chỉ hiển thị, không đổi cài đặt. --}}
+            @include('parent.devices._tips')
+
             <div class="pw-cols2">
                 {{-- ===== Máy tính + thêm máy ===== --}}
                 <section class="pw-card">
@@ -199,13 +203,19 @@
                             <input type="number" name="daily_game_minutes" min="0" max="720" value="{{ old('daily_game_minutes', $policy->daily_game_minutes) }}" placeholder="Để trống = không giới hạn">
                             <small>0 = cấm chơi game. Máy báo trước 5 phút rồi tự đóng game.</small></label>
                         <div></div>
+                        {{-- SỬA 5/11 (khách: "tạm thời bỏ những field này") — ẨN Giờ học / Giờ ngủ / Học xong mới được chơi / Trang web &
+                             Phần mềm bị chặn. Chỉ ẩn khỏi giao diện, ô nhập vẫn còn (ẩn) nên bấm Lưu không làm mất giá trị đã đặt trước.
+                             Muốn hiện lại: xoá các thẻ div cd-hidden bọc ngoài. --}}
+                        <div class="cd-hidden" style="display:none" aria-hidden="true">
                         <div class="cd-field"><span>Giờ học (Thứ 2 – Thứ 6): không được chơi game</span>
                             <div class="cd-row"><input type="time" name="study_hours_start" value="{{ old('study_hours_start', $policy->study_hours_start) }}"> – <input type="time" name="study_hours_end" value="{{ old('study_hours_end', $policy->study_hours_end) }}"></div></div>
                         <div class="cd-field"><span>Giờ ngủ (mọi ngày): không được chơi game</span>
                             <div class="cd-row"><input type="time" name="sleep_start" value="{{ old('sleep_start', $policy->sleep_start) }}"> – <input type="time" name="sleep_end" value="{{ old('sleep_end', $policy->sleep_end) }}"></div>
                             <small>Ví dụ 22:00 – 06:00.</small></div>
+                        </div>
                     </div>
 
+                    <div class="cd-hidden" style="display:none" aria-hidden="true">
                     <p class="cd-sec">Học xong mới được chơi</p>
                     <div class="cd-grid">
                         <label class="cd-check" style="grid-column:1/-1"><input type="hidden" name="game_requires_study" value="0"><input type="checkbox" name="game_requires_study" value="1" @checked(old('game_requires_study', $policy->game_requires_study))>
@@ -215,15 +225,18 @@
                         <label class="cd-field"><span>Thưởng phút chơi cho mỗi bài nộp</span>
                             <div class="cd-row"><input type="number" name="bonus_minutes_per_item" min="0" max="60" value="{{ old('bonus_minutes_per_item', $policy->bonus_minutes_per_item) }}"> <small style="white-space:nowrap">tối đa</small> <input type="number" name="bonus_cap_minutes" min="0" max="240" value="{{ old('bonus_cap_minutes', $policy->bonus_cap_minutes) }}"> <small>phút/ngày</small></div></label>
                     </div>
+                    </div>
 
-                    <p class="cd-sec">Chặn trang web & phần mềm</p>
+                    <div class="cd-hidden" style="display:none" aria-hidden="true"><p class="cd-sec">Chặn trang web & phần mềm</p></div>
                     <div class="cd-grid">
+                        <div class="cd-hidden" style="display:none" aria-hidden="true">
                         <label class="cd-field"><span>Trang web bị chặn</span>
                             <textarea name="blocked_domains" placeholder="Mỗi dòng một trang, ví dụ: tiktok.com">{{ old('blocked_domains', implode("\n", $policy->blocked_domains ?? [])) }}</textarea>
                             <small>Chặn cả trang con (m.tiktok.com…).</small></label>
                         <label class="cd-field"><span>Phần mềm bị chặn</span>
                             <textarea name="blocked_processes" placeholder="Mỗi dòng một tên, ví dụ: discord">{{ old('blocked_processes', implode("\n", $policy->blocked_processes ?? [])) }}</textarea>
                             <small>Tên chương trình trong Task Manager, không cần đuôi .exe.</small></label>
+                        </div>
                         <label class="cd-check" style="grid-column:1/-1"><input type="hidden" name="disable_private_browsing" value="0"><input type="checkbox" name="disable_private_browsing" value="1" @checked(old('disable_private_browsing', $policy->disable_private_browsing))>
                             <span><b>Tắt chế độ ẩn danh của trình duyệt</b><small>Để con không dùng tab ẩn danh lách chặn web.</small></span></label>
                     </div>
