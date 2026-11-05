@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Chocon\DeviceService;
 use App\Services\Chocon\PolicyBuilder;
 use App\Services\Chocon\UsageReport;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -38,7 +39,13 @@ class DeviceController extends Controller
             $selectedId = (int) ($children->first()->id ?? 0);
         }
 
-        $data = ['children' => $children, 'selectedId' => $selectedId, 'hasChildren' => $children->isNotEmpty()];
+        $data = [
+            'children' => $children,
+            'selectedId' => $selectedId,
+            'hasChildren' => $children->isNotEmpty(),
+            // SỬA 5/11 — phụ huynh nhiều con: thẻ tổng quan tất cả các con ở đầu trang.
+            'overview' => $this->devices->overview($children->pluck('id')->map(fn ($id) => (int) $id)->all()),
+        ];
 
         if ($selectedId > 0) {
             $policy = AgentPolicy::forStudent($selectedId);
@@ -59,6 +66,21 @@ class DeviceController extends Controller
         }
 
         return view('parent.devices.index', $data);
+    }
+
+    /**
+     * SỬA 5/11 — "dấu vân tay" trạng thái máy của con (số máy, online, khóa, lần hoạt động cuối, yêu cầu thêm giờ).
+     * Trang Máy tính của con hỏi mỗi 5 giây; đổi thì tự tải lại → vừa ghép máy / máy vừa khóa là thấy ngay.
+     */
+    public function status(Request $request): JsonResponse
+    {
+        // Gộp TẤT CẢ các con: con nào vừa ghép máy / bật máy / bị khóa / xin thêm giờ là trang cập nhật ngay.
+        $ids = $this->devices->childIds($request->user());
+        $sig = collect($this->devices->overview($ids))
+            ->map(fn (array $o, int $id) => $id.':'.$o['devices'].':'.$o['online'].':'.(int) $o['locked'].':'.(int) $o['tray_off'].':'.$o['pending'])
+            ->implode('|');
+
+        return response()->json(['sig' => md5($sig)]);
     }
 
     public function pairingCode(Request $request): RedirectResponse
@@ -83,6 +105,18 @@ class DeviceController extends Controller
         $this->devices->setLock($request->user(), (int) $data['child'], (bool) $data['locked'], $data['lock_message'] ?? null);
 
         return $this->back((int) $data['child'])->with('status', $data['locked'] ? 'chocon-locked' : 'chocon-unlocked');
+    }
+
+    public function lockAll(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'locked' => ['required', 'boolean'],
+            'lock_message' => ['nullable', 'string', 'max:200'],
+            'child' => ['nullable', 'integer'],
+        ]);
+        $this->devices->setLockAll($request->user(), (bool) $data['locked'], $data['lock_message'] ?? null);
+
+        return $this->back((int) ($data['child'] ?? 0))->with('status', $data['locked'] ? 'chocon-locked-all' : 'chocon-unlocked-all');
     }
 
     public function updatePolicy(Request $request): RedirectResponse
@@ -155,6 +189,6 @@ class DeviceController extends Controller
 
     private function back(int $childId): RedirectResponse
     {
-        return redirect()->route('parent.devices.index', ['child' => $childId]);
+        return redirect()->route('parent.devices.index', $childId > 0 ? ['child' => $childId] : []);
     }
 }

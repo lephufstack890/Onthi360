@@ -643,8 +643,10 @@ Route::middleware(['auth'])->group(function () {
         Route::put('profile', [ParentProfileController::class, 'update'])->name('profile.update');
         // SỬA 4/11 — "Máy tính của con" (Chocon Desktop).
         Route::get('devices', [ParentDeviceController::class, 'index'])->name('devices.index');
+        Route::get('devices/status', [ParentDeviceController::class, 'status'])->name('devices.status');
         Route::post('devices/pairing-code', [ParentDeviceController::class, 'pairingCode'])->middleware('throttle:10,1')->name('devices.pairingCode');
         Route::post('devices/lock', [ParentDeviceController::class, 'lock'])->name('devices.lock');
+        Route::post('devices/lock-all', [ParentDeviceController::class, 'lockAll'])->name('devices.lockAll');
         Route::put('devices/policy', [ParentDeviceController::class, 'updatePolicy'])->name('devices.policy');
         Route::post('devices/pin', [ParentDeviceController::class, 'pin'])->middleware('throttle:10,1')->name('devices.pin');
         Route::post('devices/requests/{extraTimeRequest}/decide', [ParentDeviceController::class, 'decide'])

@@ -74,6 +74,64 @@ class DeviceService
         $this->assertParentOf($parent, $studentId);
         $policy = AgentPolicy::forStudent($studentId);
         $policy->fill(['lock_now' => $locked, 'lock_message' => $locked ? $message : null, 'updated_by' => $parent->id])->save();
+        PolicyBuilder::forget($studentId);
+    }
+
+    /** SỬA 5/11 — khóa / mở khóa máy của TẤT CẢ các con trong một lần bấm (giờ ăn cơm, đi ngủ…). */
+    public function setLockAll(User $parent, bool $locked, ?string $message): int
+    {
+        $ids = $this->childIds($parent);
+        foreach ($ids as $studentId) {
+            AgentPolicy::forStudent($studentId)
+                ->fill(['lock_now' => $locked, 'lock_message' => $locked ? $message : null, 'updated_by' => $parent->id])->save();
+            PolicyBuilder::forget($studentId);
+        }
+
+        return count($ids);
+    }
+
+    /**
+     * SỬA 5/11 — tổng quan nhanh cho phụ huynh nhiều con: mỗi con 1 dòng (số máy, đang bật, đang khóa, học/chơi hôm nay,
+     * yêu cầu thêm giờ đang chờ). Chỉ 4 truy vấn gộp dù có bao nhiêu con — không lặp truy vấn theo từng con.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, array{devices:int, online:int, locked:bool, tray_off:bool, pending:int, study:int, game:int, game_limit:?int}>
+     */
+    public function overview(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $devices = AgentDevice::query()->whereIn('student_user_id', $ids)->whereNull('revoked_at')
+            ->get(['id', 'student_user_id', 'locked', 'last_seen_at', 'tray_connected'])->groupBy('student_user_id');
+        $policies = AgentPolicy::query()->whereIn('student_user_id', $ids)
+            ->get(['student_user_id', 'lock_now', 'daily_game_minutes'])->keyBy('student_user_id');
+        $pending = AgentExtraTimeRequest::query()->whereIn('student_user_id', $ids)->where('status', 'pending')
+            ->whereDate('for_date', today())->selectRaw('student_user_id, COUNT(*) c')->groupBy('student_user_id')->pluck('c', 'student_user_id');
+        $usage = AgentActivitySession::query()->whereIn('student_user_id', $ids)->where('started_at', '>=', now()->startOfDay())
+            ->whereIn('category', ['study', 'game'])
+            ->selectRaw('student_user_id, category, SUM(duration_seconds) s')->groupBy('student_user_id', 'category')->get();
+
+        $out = [];
+        foreach ($ids as $id) {
+            $list = $devices->get($id, collect());
+            $online = $list->filter(fn (AgentDevice $d) => $d->isOnline());
+            $policy = $policies->get($id);
+            $sum = fn (string $c) => intdiv((int) $usage->first(fn ($r) => (int) $r->student_user_id === $id && $r->category === $c)?->s, 60);
+            $out[$id] = [
+                'devices' => $list->count(),
+                'online' => $online->count(),
+                'locked' => (bool) ($policy?->lock_now) || $online->contains(fn (AgentDevice $d) => $d->locked),
+                'tray_off' => $online->contains(fn (AgentDevice $d) => ! $d->tray_connected),
+                'pending' => (int) ($pending[$id] ?? 0),
+                'study' => $sum('study'),
+                'game' => $sum('game'),
+                'game_limit' => $policy?->daily_game_minutes,
+            ];
+        }
+
+        return $out;
     }
 
     /** @param  array<string, mixed>  $data  đã validate ở controller */
@@ -82,6 +140,7 @@ class DeviceService
         $this->assertParentOf($parent, $studentId);
         $policy = AgentPolicy::forStudent($studentId);
         $policy->fill($data + ['updated_by' => $parent->id])->save();
+        PolicyBuilder::forget($studentId);
     }
 
     /** PIN đặt một lần dùng cho mọi con của phụ huynh. */
@@ -91,6 +150,7 @@ class DeviceService
         foreach ($this->childIds($parent) as $studentId) {
             $policy = AgentPolicy::forStudent($studentId);
             $policy->fill(['parent_pin_hash' => $hash, 'updated_by' => $parent->id])->save();
+            PolicyBuilder::forget($studentId);
         }
     }
 
@@ -106,6 +166,7 @@ class DeviceService
             'decided_by' => $parent->id,
             'decided_at' => now(),
         ]);
+        PolicyBuilder::forget((int) $request->student_user_id);
     }
 
     public function revokeDevice(User $parent, AgentDevice $device): void
@@ -319,8 +380,7 @@ class DeviceService
             // Phụ huynh mở khóa tại máy bằng PIN → bỏ lệnh khóa trên web để không khóa lại.
             'device_unlocked' => ($data['by'] ?? null) === 'parent_pin'
                 // Sự kiện có thể đến muộn (máy mất mạng) → chỉ bỏ khóa nếu phụ huynh chưa khóa lại sau thời điểm đó.
-                ? AgentPolicy::query()->where('student_user_id', $device->student_user_id)
-                    ->where('updated_at', '<=', $at)->update(['lock_now' => false, 'lock_message' => null])
+                ? $this->clearLockAfterPin($device, $at)
                 : null,
             default => null,
         };
@@ -382,6 +442,13 @@ class DeviceService
         }
 
         return $devices->count();
+    }
+
+    private function clearLockAfterPin(AgentDevice $device, Carbon $at): void
+    {
+        AgentPolicy::query()->where('student_user_id', $device->student_user_id)
+            ->where('updated_at', '<=', $at)->update(['lock_now' => false, 'lock_message' => null]);
+        PolicyBuilder::forget((int) $device->student_user_id);
     }
 
     private function countToday(AgentDevice $device, string $type): int

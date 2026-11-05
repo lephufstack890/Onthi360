@@ -33,14 +33,36 @@
         .cd-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
         .cd-list li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; color: #334155; }
         .cd-list li b { white-space: nowrap; color: #1e293b; }
+        /* SỬA 5/11 — thẻ tổng quan nhiều con */
+        .cd-kids { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+        .cd-kid { display: block; padding: 14px; border-radius: 18px; background: #fff; border: 2px solid #e2e8f0; text-decoration: none; color: #334155; transition: border-color .15s, box-shadow .15s, transform .15s; }
+        .cd-kid:hover { border-color: #93c5fd; transform: translateY(-1px); box-shadow: 0 8px 20px -12px rgba(7, 87, 232, .45); }
+        .cd-kid.is-on { border-color: #0757e8; box-shadow: 0 10px 24px -14px rgba(7, 87, 232, .7); }
+        .cd-kid-top { display: flex; align-items: center; gap: 10px; }
+        .cd-ava { width: 38px; height: 38px; border-radius: 999px; display: grid; place-items: center; flex: none; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0757e8, #33c8ef); }
+        .cd-kid-name { font-weight: 800; font-size: 14px; color: #0f172a; line-height: 1.2; }
+        .cd-tag { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; font-weight: 700; color: #64748b; }
+        .cd-dot { width: 8px; height: 8px; border-radius: 999px; background: #cbd5e1; }
+        .cd-tag.ok .cd-dot { background: #10b981; } .cd-tag.ok { color: #047857; }
+        .cd-tag.lock .cd-dot { background: #dc2626; } .cd-tag.lock { color: #b91c1c; }
+        .cd-tag.warn .cd-dot { background: #f59e0b; } .cd-tag.warn { color: #b45309; }
+        .cd-kid-nums { display: flex; gap: 12px; margin-top: 10px; font-size: 12px; color: #64748b; }
+        .cd-kid-nums b { color: #0f172a; }
+        .cd-badge { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #b45309; font-size: 11px; font-weight: 800; white-space: nowrap; }
+        .cd-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+        .cd-bar h3 { margin: 0; font-size: 14px; font-weight: 800; color: #0f172a; }
+        .cd-bar form { margin: 0; }
+        .pw-btn--ghost { background: #fff; color: #0757e8; border: 1px solid #bae6fd; box-shadow: none; }
         .cd-err { margin: 0 0 .75rem; padding: .75rem 1rem; border-radius: 12px; background: #fff1f2; color: #be123c; font-size: 12px; }
     </style>
 
     @php
         $statusText = match (session('status')) {
-            'chocon-locked' => 'Đã gửi lệnh khóa máy. Máy của con sẽ khóa trong khoảng 1 phút.',
-            'chocon-unlocked' => 'Đã mở khóa máy. Máy của con sẽ mở trong khoảng 1 phút.',
-            'chocon-policy-saved' => 'Đã lưu cài đặt. Máy của con áp dụng trong khoảng 1 phút.',
+            'chocon-locked' => 'Đã khóa máy. Máy của con khóa sau vài giây.',
+            'chocon-unlocked' => 'Đã mở khóa máy. Máy của con mở sau vài giây.',
+            'chocon-locked-all' => 'Đã khóa máy của tất cả các con. Các máy khóa sau vài giây.',
+            'chocon-unlocked-all' => 'Đã mở khóa máy của tất cả các con.',
+            'chocon-policy-saved' => 'Đã lưu cài đặt. Máy của con áp dụng sau vài giây.',
             'chocon-pin-saved' => 'Đã đặt mã PIN phụ huynh cho tất cả các con.',
             'chocon-approved' => 'Đã duyệt thêm giờ chơi.',
             'chocon-rejected' => 'Đã từ chối yêu cầu thêm giờ.',
@@ -67,15 +89,53 @@
             @include('parent._no-children')
         @else
             @if ($children->count() > 1)
+                {{-- SỬA 5/11 — phụ huynh nhiều con: xem nhanh tất cả các con, bấm vào con nào để quản lý con đó. --}}
+                @php $anyUnlocked = collect($overview)->contains(fn ($o) => ! $o['locked']); @endphp
                 <section class="pw-card pw-card--soft">
-                    <form method="GET" action="{{ route('parent.devices.index') }}" class="pw-pick" style="text-align:left">
-                        <span>Đang xem máy của</span>
-                        <select name="child" onchange="this.form.submit()">
-                            @foreach ($children as $c)
-                                <option value="{{ $c->id }}" @selected($c->id === $selectedId)>{{ $c->name }}</option>
-                            @endforeach
-                        </select>
-                    </form>
+                    <div class="cd-bar">
+                        <h3>Các con của bạn ({{ $children->count() }})</h3>
+                        <form method="POST" action="{{ route('parent.devices.lockAll') }}"
+                              onsubmit="return confirm(@js($anyUnlocked ? 'Khóa máy của TẤT CẢ các con ngay bây giờ?' : 'Mở khóa máy của tất cả các con?'))">
+                            @csrf
+                            <input type="hidden" name="child" value="{{ $selectedId }}">
+                            <input type="hidden" name="locked" value="{{ $anyUnlocked ? 1 : 0 }}">
+                            <button class="pw-btn {{ $anyUnlocked ? 'pw-btn--danger' : 'pw-btn--ghost' }}" type="submit">
+                                @if ($anyUnlocked)<x-lucide name="lock" />@else<x-lucide name="lock-open" />@endif
+                                {{ $anyUnlocked ? 'Khóa máy tất cả các con' : 'Mở khóa tất cả' }}
+                            </button>
+                        </form>
+                    </div>
+                    <div class="cd-kids">
+                        @foreach ($children as $c)
+                            @php
+                                $o = $overview[$c->id];
+                                [$tone, $label] = match (true) {
+                                    $o['devices'] === 0 => ['', 'Chưa có máy'],
+                                    $o['locked'] => ['lock', 'Đang khóa'],
+                                    $o['tray_off'] => ['warn', 'Đang bật · cần kiểm tra'],
+                                    $o['online'] > 0 => ['ok', 'Đang dùng máy'],
+                                    default => ['', 'Máy đang tắt'],
+                                };
+                            @endphp
+                            <a href="{{ route('parent.devices.index', ['child' => $c->id]) }}" class="cd-kid {{ $c->id === $selectedId ? 'is-on' : '' }}">
+                                <div class="cd-kid-top">
+                                    <span class="cd-ava">{{ mb_strtoupper(mb_substr(trim(\Illuminate\Support\Str::afterLast(trim($c->name), ' ')) ?: $c->name, 0, 1)) }}</span>
+                                    <div>
+                                        <div class="cd-kid-name">{{ $c->name }}</div>
+                                        <span class="cd-tag {{ $tone }}"><span class="cd-dot"></span>{{ $label }}</span>
+                                    </div>
+                                    @if ($o['pending'] > 0)
+                                        <span class="cd-badge">{{ $o['pending'] }} xin giờ</span>
+                                    @endif
+                                </div>
+                                <div class="cd-kid-nums">
+                                    <span>Học <b>{{ $o['study'] }}'</b></span>
+                                    <span>Game <b>{{ $o['game'] }}'</b>@if ($o['game_limit'] !== null)/{{ $o['game_limit'] }}'@endif</span>
+                                    <span>{{ $o['devices'] }} máy</span>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
                 </section>
             @endif
 
@@ -283,4 +343,27 @@
             </div>
         @endif
     </div>
+
+    @if ($hasChildren)
+        {{-- SỬA 5/11 — tự làm mới: máy vừa ghép / vừa khóa / con vừa xin thêm giờ là trang cập nhật ngay, không phải bấm F5.
+             Không tải lại khi phụ huynh đang gõ trong form. --}}
+        <script>
+            (function () {
+                const url = @js(route('parent.devices.status'));
+                let last = null;
+                const busy = () => { const a = document.activeElement; return a && ['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName); };
+                async function tick() {
+                    if (document.hidden) return;
+                    try {
+                        const r = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                        const { sig } = await r.json();
+                        if (last !== null && sig !== last && !busy()) { location.reload(); return; }
+                        last = sig;
+                    } catch (e) { /* mất mạng: thử lại lượt sau */ }
+                }
+                tick();
+                setInterval(tick, 5000);
+            })();
+        </script>
+    @endif
 @endsection

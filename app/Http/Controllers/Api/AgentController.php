@@ -54,7 +54,7 @@ class AgentController extends Controller
     /** GET policy?known_version=N — 304 nếu luật không đổi. */
     public function policy(Request $request): JsonResponse|Response
     {
-        $payload = $this->policies->build((int) $this->device($request)->student_user_id);
+        $payload = $this->policies->cached((int) $this->device($request)->student_user_id);
 
         if ((int) $request->query('known_version', 0) === $payload['version']) {
             return response('', 304);

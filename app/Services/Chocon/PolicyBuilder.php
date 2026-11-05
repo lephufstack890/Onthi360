@@ -7,6 +7,7 @@ use App\Enums\AttemptStatus;
 use App\Models\AgentExtraTimeRequest;
 use App\Models\AgentPolicy;
 use App\Models\Attempt;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * SỬA 4/11 — Dựng "bộ luật" gửi xuống Chocon Desktop (API GET /api/agent/v1/policy).
@@ -22,6 +23,27 @@ use App\Models\Attempt;
 class PolicyBuilder
 {
     private const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+    /**
+     * SỬA 5/11 — máy con hỏi luật mỗi ~10 giây: ghi nhớ kết quả 30 giây để server nhẹ.
+     * Phụ huynh đổi gì (khóa, luật, PIN, duyệt thêm giờ, gỡ máy) thì forget() ngay → máy con nhận trong vài giây.
+     *
+     * @return array<string, mixed>
+     */
+    public function cached(int $studentId): array
+    {
+        return Cache::remember(self::cacheKey($studentId), 30, fn () => $this->build($studentId));
+    }
+
+    public static function forget(int $studentId): void
+    {
+        Cache::forget(self::cacheKey($studentId));
+    }
+
+    private static function cacheKey(int $studentId): string
+    {
+        return "chocon:policy:{$studentId}";
+    }
 
     /** @return array<string, mixed> */
     public function build(int $studentId): array
