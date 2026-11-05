@@ -448,7 +448,10 @@
                     <div class="flex items-center justify-between gap-3 border-t border-[#DDEAF0] pt-3">
                         <div class="min-w-0">
                             @php
-                                $pclManage = $pclAdmin || ($pclTeacherId !== null && in_array($pclTeacherId, $cl['teacherIds'] ?? [], true));
+                                // SỬA 5/11 (khách: "admin chỉ khi chuyển qua giáo viên mới có nút Quản lý lớp") — ở giao diện Quản trị
+                                // không hiện nút; đang xem như Giáo viên thì vẫn quản lý được mọi lớp như trước.
+                                $pclManage = $pclAdminActing || ($pclTeacherId !== null && in_array($pclTeacherId, $cl['teacherIds'] ?? [], true));
+                                $pclAdminPlain = $pclAdmin && ! $pclAdminActing && ! $pclManage;
                                 $pclManageUrl = ($pclAdmin && ! $pclAdminActing && ! in_array((int) $pclViewer->id, $cl['teacherIds'] ?? [], true))
                                     ? route('admin.classes.edit', $cl['id'])
                                     : (($pclTeacherId !== null || $pclAdminActing) ? route('teacher.classes.show', $cl['id']) : route('admin.classes.edit', $cl['id']));
@@ -462,6 +465,8 @@
                             @elseif ($cl['priceLabel'])
                                 <p class="type-meta">Học phí trọn khóa</p>
                                 <p class="text-sm font-black text-[#126F91]">{{ $cl['priceLabel'] }}</p>
+                            @elseif ($pclAdminPlain)
+                                {{-- Admin ở giao diện Quản trị: không hiện nút (kể cả "Liên hệ quản lý lớp"). --}}
                             @else
                                 <a href="{{ route('info.index') }}"
                                    class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[#B8DCE6] bg-[#EAF5F8] px-3 py-2 text-[11px] font-extrabold text-[#126F91] transition-all hover:border-[#8FC7D6] hover:bg-[#DDF1F6] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEAF1] active:scale-[.98]">
@@ -472,7 +477,7 @@
                             @php
                                 // SỬA 16/9 — không còn lối vào bằng mã lớp; 3 trạng thái thật:
                                 // đang học / đã gửi yêu cầu chờ duyệt / chưa đăng ký.
-                                $joinHint = $pclManage ? (in_array((int) ($pclViewer?->id ?? 0), $cl['teacherIds'] ?? [], true) ? 'Bạn là giáo viên của lớp này' : 'Bạn là quản trị viên') : ($cl['isMember']
+                                $joinHint = ($pclManage || $pclAdminPlain) ? (in_array((int) ($pclViewer?->id ?? 0), $cl['teacherIds'] ?? [], true) ? 'Bạn là giáo viên của lớp này' : 'Bạn là quản trị viên') : ($cl['isMember']
                                     ? 'Bạn đang học lớp này'
                                     : ($cl['isPending']
                                         ? 'Đang chờ giáo viên duyệt'

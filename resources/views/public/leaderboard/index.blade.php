@@ -345,6 +345,48 @@ body:has(.leaderboard-view) { background-color: #e0ebf0; }
 .lb-page-buttons { flex-wrap: wrap; justify-content: flex-end; }
 @media (max-width: 800px) { .lb-group { display: block; } .lb-subbar { padding: 10px 12px; } .lb-subbar select { max-width: 100%; } }
 
+/* ── SỬA 5/11 (khách: "kích độ cao dòng nhỏ xuống cho gọn, màu tươi lên") — chỉ ghi đè CSS, không đổi cấu trúc / logic ── */
+body:has(.leaderboard-view) { background-color: #eef5fa; }
+.leaderboard-view { --lb-ink: #0f3554; --lb-muted: #5b7488; --lb-line: #d9e7f0; --lb-blue: #0b7fb0; --lb-soft-surface: #ffffff; --lb-soft-hover: #eef7fc;
+  --lb-gold: #b7791f; --lb-gold-soft: #ffe9a8; --lb-silver: #3f6a8a; --lb-silver-soft: #dcebf7; --lb-bronze: #c0622b; --lb-bronze-soft: #ffdcc4; }
+.lb-board-heading { background: #fff; padding-block: 14px; }
+.lb-table thead { background: #f1f7fb; border-color: #dbe8f0; }
+.lb-table th { color: #3b6683; }
+@media (min-width: 801px) { .lb-table th { padding-block: 9px; } .lb-table td { padding-block: 7px; } }
+@media (min-width: 1400px) { .lb-table td { padding-block: 8px; } }
+.lb-row { border-bottom: 1px solid #e3eef5; }
+.lb-row.is-alternate { --lb-row-bg: #f7fbfe; }
+.lb-row-rank-1 { --lb-row-bg: #fff6d6; --lb-row-hover: #ffefbd; box-shadow: inset 4px 0 #f5b301; }
+.lb-row.lb-row-rank-2 { --lb-row-bg: #e8f8ee; --lb-row-hover: #d7f2e2; box-shadow: inset 4px 0 #22b36b; }
+.lb-row-rank-3 { --lb-row-bg: #fff0e5; --lb-row-hover: #ffe2cf; box-shadow: inset 4px 0 #f08a4b; }
+.lb-row:is(.lb-row-rank-1, .lb-row-rank-2, .lb-row-rank-3) :is(.lb-student-info > p, .lb-points-cell > span, .lb-ac-cell > span, .lb-accuracy-cell > span, .lb-streak-cell small) { color: #4a6478; }
+.lb-rank-mark { height: 26px; min-width: 30px; font-size: 15px; color: #47677e; }
+.lb-movement { margin-top: 0; line-height: 1.2; }
+.lb-movement.is-up { color: #16a34a; } .lb-movement.is-down { color: #e11d48; }
+@media (min-width: 801px) { .lb-table .lb-avatar { width: 32px; height: 32px; } }
+.lb-avatar-tone-0 { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.lb-avatar-tone-1 { background: #e0ecff; color: #2563eb; border-color: #c7dbff; }
+.lb-avatar-tone-2 { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
+.lb-student { gap: 9px; }
+.lb-student-name > button { line-height: 1.35; }
+.lb-student-info > p { margin-top: 1px; }
+.lb-skill-badge { background: #e0f2fe; color: #0369a1; }
+.lb-skill-badge.is-gold { background: #fef3c7; color: #b45309; }
+.lb-skill-badge.is-green { background: #dcfce7; color: #15803d; }
+.lb-points-cell strong { color: #0b7fb0; }
+.lb-points-cell > span { display: inline; margin-left: 4px; }
+.lb-ac-cell strong { color: #15803d; }
+.lb-accuracy-cell > span { color: #0f3554; }
+.lb-accuracy-track { height: 5px; margin-top: 3px; background: #e3edf3; }
+.lb-accuracy-track > span { background: linear-gradient(90deg, #22c55e, #10b981); }
+.lb-streak-cell > span { color: #ea7a0c; }
+.lb-streak-cell svg { color: #f97316; }
+.lb-action-cell > button { height: 26px; width: 26px; background: #f0f8fc; border-color: #cfe4ef; color: #0b7fb0; }
+.lb-detail-row { background: #f3f9fd; }
+.lb-pagination { background: #fff; padding-block: 12px; }
+.lb-page-buttons button[aria-current="page"] { background: #0b7fb0; border-color: #0b7fb0; color: #fff; }
+@media (max-width: 800px) { .lb-row { padding: 12px 14px; gap: 10px 12px; } }
+
 </style>
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
