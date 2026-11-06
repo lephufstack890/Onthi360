@@ -204,13 +204,25 @@ class LeaderboardService
             ->latest('publish_result_at')
             ->get();
 
-        $boards = $published->map(fn (Competition $c) => [
-            'id' => $c->id,
-            'title' => $c->title,
-            'participants' => $c->leaderboard_entries_count,
+        // SỬA 6/11 (khách: "Cuộc thi gần nhất không đổ dữ liệu") — trước đây CHỈ lấy cuộc thi đã công bố VÀ đã có bảng
+        // chính thức (leaderboard_entries — chỉ sinh khi admin bấm tính lại bảng xếp hạng), nên đa số cuộc thi không hiện.
+        // Giờ thêm các cuộc thi đã có bài nộp nhưng chưa có bảng chính thức → bảng TẠM TÍNH từ bài làm (ghi rõ "tạm tính").
+        // Cuộc thi chính thức vẫn ưu tiên đúng như cũ. Không tính khảo sát, cuộc thi sắp diễn ra hoặc đã lưu trữ.
+        $all = $published->map(fn (Competition $c) => [
+            'model' => $c, 'live' => false, 'participants' => (int) $c->leaderboard_entries_count,
+            'at' => ($c->publish_result_at ?? $c->ends_at ?? $c->starts_at ?? $c->created_at)?->getTimestamp() ?? 0,
+        ])->concat($this->liveCompetitions($published->pluck('id')->map(fn ($v) => (int) $v)->all()))
+            ->sortByDesc('at')->values();
+
+        $boards = $all->map(fn (array $b) => [
+            'id' => $b['model']->id,
+            'title' => $b['model']->title.($b['live'] ? ' · tạm tính' : ''),
+            'participants' => $b['participants'],
         ])->all();
 
-        $selected = $competitionId !== null ? $published->firstWhere('id', $competitionId) : $published->first();
+        $pick = $competitionId !== null ? $all->first(fn (array $b) => (int) $b['model']->id === $competitionId) : null;
+        $pick ??= $all->first();
+        $selected = $pick['model'] ?? null;
 
         $base = [
             'namesLocked' => false,
@@ -224,6 +236,10 @@ class LeaderboardService
 
         $exams = $this->competitionExams->forCompetition($selected->id);
         $selectedExam = $examId !== null ? $exams->firstWhere('id', $examId) : null;
+
+        if ($pick['live']) {
+            return $this->liveContestBoard($selected, $exams, $selectedExam, $base, $viewer);
+        }
 
         $raw = $selectedExam !== null
             ? $this->leaderboardEntries->entriesForCompetitionExam($selectedExam->id)
@@ -298,6 +314,27 @@ class LeaderboardService
 
         $classes = $enrolled->merge($teaching)->filter()->unique('id')->values();
 
+        // SỬA 6/11 (khách: "Lớp của tôi không đổ dữ liệu") — trước chỉ học sinh / giáo viên của lớp mới có lớp để xem:
+        //  · Phụ huynh: thêm các lớp con mình đang học (con đã liên kết, đã xác minh).
+        //  · Quản trị viên: xem được mọi lớp đang có học sinh (chọn lớp ở ô "Lớp").
+        $childIds = $viewer->hasRole(Role::PARENT)
+            ? \App\Models\ParentLink::query()->where('parent_user_id', $viewer->id)
+                ->where('status', \App\Enums\ParentLinkStatus::Verified->value)->pluck('student_user_id')->all()
+            : [];
+        if ($childIds !== []) {
+            $classes = $classes->merge(ClassEnrollment::query()->whereIn('student_id', $childIds)
+                ->where('status', ClassEnrollment::STATUS_ACTIVE)->with('classRoom:id,name')->get()->pluck('classRoom'))
+                ->filter()->unique('id')->values();
+        }
+        if ($viewer->isRealAdmin()) {
+            $classes = $classes->merge(\App\Models\ClassRoom::query()
+                ->whereExists(fn ($q) => $q->select(DB::raw(1))->from('class_enrollments')
+                    ->whereColumn('class_enrollments.class_room_id', 'class_rooms.id')
+                    ->where('class_enrollments.status', ClassEnrollment::STATUS_ACTIVE))
+                ->orderBy('name')->get(['id', 'name']))
+                ->filter()->unique('id')->values();
+        }
+
         if ($classes->isEmpty()) {
             return $base + ['empty' => 'no-class'];
         }
@@ -343,6 +380,84 @@ class LeaderboardService
             'you' => $this->youEntry($payload['ranks'], $viewer),
             'empty' => $rows === [] ? 'class-empty' : null,
             'className' => $class->name,
+        ];
+    }
+
+    /**
+     * SỬA 6/11 — cuộc thi đã có bài nộp nhưng CHƯA có bảng xếp hạng chính thức (không gồm khảo sát / sắp diễn ra / lưu trữ).
+     *
+     * @param  array<int>  $exceptIds  cuộc thi đã có bảng chính thức
+     * @return Collection<int, array{model: Competition, live: bool, participants: int, at: int}>
+     */
+    private function liveCompetitions(array $exceptIds): Collection
+    {
+        $stats = DB::table('attempts')
+            ->whereNotNull('competition_id')
+            ->where('status', '!=', 'in_progress')
+            ->when($exceptIds !== [], fn ($q) => $q->whereNotIn('competition_id', $exceptIds))
+            ->groupBy('competition_id')
+            ->selectRaw('competition_id, COUNT(DISTINCT user_id) as n, MAX(updated_at) as last_at')
+            ->get()
+            ->keyBy('competition_id');
+
+        if ($stats->isEmpty()) {
+            return collect();
+        }
+
+        return $this->competitions->query()
+            ->whereIn('id', $stats->keys()->all())
+            ->whereNotIn('status', ['upcoming', 'archived'])
+            ->where(fn ($q) => $q->whereNull('type')->orWhere('type', '!=', 'survey'))
+            ->get()
+            ->map(fn (Competition $c) => [
+                'model' => $c,
+                'live' => true,
+                'participants' => (int) $stats[$c->id]->n,
+                'at' => strtotime((string) $stats[$c->id]->last_at) ?: 0,
+            ])
+            ->values();
+    }
+
+    /**
+     * SỬA 6/11 — bảng TẠM TÍNH cho cuộc thi chưa có bảng chính thức: xếp hạng từ bài làm trong cuộc thi / kỳ thi đang chọn,
+     * cùng cách tính điểm với bảng Toàn thời gian (mỗi câu lấy điểm cao nhất), chỉ tài khoản học sinh. Nhớ tạm 2 phút.
+     */
+    private function liveContestBoard(Competition $competition, Collection $exams, $selectedExam, array $base, ?User $viewer): array
+    {
+        $filter = $selectedExam !== null
+            ? ['attempts.competition_exam_id' => $selectedExam->id]
+            : ['attempts.competition_id' => $competition->id];
+
+        $payload = Cache::remember(
+            'leaderboard:'.self::CACHE_VERSION.':live-contest:'.$competition->id.':'.($selectedExam?->id ?? 0),
+            120,
+            function () use ($filter) {
+                $current = $this->rank($this->metrics(null, null, null, $filter));
+
+                return [
+                    'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), [], true, false),
+                    'totalStudents' => $current->count(),
+                    'totalSolved' => (int) $current->sum('solved'),
+                    'updatedAt' => Carbon::now()->toIso8601String(),
+                    'ranks' => $current->mapWithKeys(fn ($r) => [$r->uid => [$r->rank, $r->points]])->all(),
+                ];
+            },
+        );
+
+        $base['rule'] = 'Cuộc thi này chưa có bảng xếp hạng chính thức của ban tổ chức nên đây là bảng TẠM TÍNH từ bài làm của thí sinh: mỗi câu lấy điểm cao nhất, đồng điểm xét số bài giải rồi tỷ lệ đúng. Kết quả chính thức có thể khác sau khi ban tổ chức công bố.';
+        $base['contest']['examTabs'] = $exams->map(fn ($x) => ['id' => $x->id, 'title' => $x->displayTitle()])->all();
+        $base['contest']['selectedExamId'] = $selectedExam?->id;
+        $base['contest']['title'] = ($selectedExam !== null ? $selectedExam->displayTitle() : $competition->title).' (tạm tính)';
+
+        $rows = $this->personalise($payload['rows'], $viewer);
+
+        return $base + [
+            'rows' => $rows,
+            'totalStudents' => $payload['totalStudents'],
+            'totalSolved' => $payload['totalSolved'],
+            'updatedAt' => $payload['updatedAt'],
+            'you' => $this->youEntry($payload['ranks'], $viewer),
+            'empty' => $rows === [] ? 'contest' : null,
         ];
     }
 

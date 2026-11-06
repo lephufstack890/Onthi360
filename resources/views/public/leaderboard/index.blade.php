@@ -786,8 +786,15 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
                         <a href="{{ route('practice.index') }}">Luyện tập ngay</a>
                         @break
                     @case('contest')
-                        <h3>Chưa có cuộc thi nào công bố kết quả</h3>
-                        <p>Bảng xếp hạng cuộc thi chỉ hiện sau khi ban tổ chức công bố kết quả. Bạn có thể xem bảng toàn thời gian trong lúc chờ.</p>
+                        @if ($contest && $contest['selectedId'])
+                            {{-- SỬA 6/11 — đã có cuộc thi nhưng chưa thí sinh nào giải đúng câu nào --}}
+                            <h3>Cuộc thi này chưa có thí sinh nào giải đúng</h3>
+                            <p>Bảng xếp hạng sẽ hiện ngay khi có bài làm được chấm đúng. Bạn có thể chọn cuộc thi khác ở ô "Cuộc thi" phía trên.</p>
+                            <a href="{{ $scopeUrl('all-time') }}">Xem toàn thời gian</a>
+                            @break
+                        @endif
+                        <h3>Chưa có cuộc thi nào có bài làm</h3>
+                        <p>Bảng xếp hạng cuộc thi sẽ hiện khi có thí sinh nộp bài. Bạn có thể xem bảng toàn thời gian trong lúc chờ.</p>
                         <a href="{{ $scopeUrl('all-time') }}">Xem toàn thời gian</a>
                         @break
                     @default
