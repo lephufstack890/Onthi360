@@ -660,6 +660,19 @@ body:has(.leaderboard-view) { background-color: #f3f6fa; }
 .lb-page-buttons button { width: 28px; height: 28px; font-size: 11.5px; }
 .lb-board-note p, .lb-board-note > span { font-size: 11.5px !important; }
 @media (max-width: 800px) { .lbx-title h1 { font-size: 16px !important; } .lbx-board-heading h2 { font-size: 14px !important; } .lbx-card:not(.is-r1) .lbx-ava-wrap { width: 56px; height: 56px; } .lbx-card:not(.is-r1) h3 { font-size: 12px !important; } .lbx-card:not(.is-r1) .lbx-score strong { font-size: 16px; } }
+/* SỬA 6/11 (khách: "bóp lại cho ngang hàng, đồng bộ với tất cả các trang") — dải nền đầu trang KHÔNG tràn ra sát mép màn hình nữa:
+   thành 1 khối bo góc nằm trong lề trang, mép trái/phải thẳng hàng với bảng thứ hạng và các trang khác (lề = thanh menu). */
+body:has(.leaderboard-view) { background-color: #eef4f9; }
+.lbx-top { margin: 0 !important; padding: 20px 22px 24px !important; border-radius: 22px; border: 1px solid #f1e6c4;
+  box-shadow: 0 8px 26px rgba(15, 53, 84, .06); }
+@media (max-width: 800px) { .lbx-top { padding: 16px 12px 18px !important; border-radius: 18px; } }
+/* SỬA 6/11 (khách: "ngang hàng cả trên cả dưới, đồng bộ tất cả các trang") — khung trang GIỐNG HỆT các trang Lớp học / Luyện tập /
+   Cuộc thi / Trang chủ: tối đa 1780px, căn giữa, lề px-3 · sm:px-5 · lg:px-6 · 2xl:px-10, trên dưới py-3 · sm:py-5.
+   Dải đầu trang và bảng thứ hạng cùng nằm trong khung này nên mép trái / phải thẳng hàng nhau. */
+.lbx-page { max-width: 1780px; margin: 0 auto !important; padding: 12px !important; }
+@media (min-width: 640px) { .lbx-page { padding: 20px !important; } }
+@media (min-width: 1024px) { .lbx-page { padding: 20px 24px !important; } }
+@media (min-width: 1536px) { .lbx-page { padding: 20px 40px !important; } }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
