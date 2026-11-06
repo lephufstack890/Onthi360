@@ -46,6 +46,20 @@
             },
             get showPodium() { return this.rows.length > 0 && !this.query.trim(); },
             get podium() { return this.rows.slice(0, 3); },
+            // SỬA 6/11 — giao diện mới: thứ tự hiển thị 2 · 1 · 3; danh hiệu tiếng Việt; dòng phụ "Tỉnh • N bài đã thử".
+            get podiumOrdered() { const p = this.podium; return p.length === 3 ? [p[1], p[0], p[2]] : p; },
+            titleVi(p) {
+                return ({ Grandmaster: 'HUYỀN THOẠI', Master: 'BẬC THẦY', Expert: 'CHUYÊN GIA', Specialist: 'CAO THỦ', Pupil: 'HỌC VIÊN', Newbie: 'TÂN BINH' })[p.badge] || String(p.badge || '').toUpperCase();
+            },
+            titleClass(p) {
+                return 'lbx-t-' + (({ Grandmaster: 'legend', Master: 'master', Expert: 'expert', Specialist: 'pro', Pupil: 'pupil' })[p.badge] || 'new');
+            },
+            hasProvince(p) { return !!p.sub && !/bài đã thử$/.test(p.sub); },
+            subLine(p) {
+                const tried = p.attempted != null ? p.attempted + ' bài đã thử' : '';
+                return this.hasProvince(p) ? (tried ? p.sub + ' • ' + tried : p.sub) : (p.sub || tried);
+            },
+            triedText(p) { return p.attempted != null ? p.attempted + ' bài đã thử' : p.ac + ' bài AC'; },
             get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / this.pageSize)); },
             get currentPage() { return Math.min(this.page, this.totalPages); },
             get start() { return (this.currentPage - 1) * this.pageSize; },

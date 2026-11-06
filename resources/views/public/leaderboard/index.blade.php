@@ -387,6 +387,115 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 .lb-page-buttons button[aria-current="page"] { background: #0b7fb0; border-color: #0b7fb0; color: #fff; }
 @media (max-width: 800px) { .lb-row { padding: 12px 14px; gap: 10px 12px; } }
 
+/* ══════ SỬA 6/11 (khách gửi mẫu: "chỉnh lại bảng xếp hạng UI như này cho đẹp") — Gương mặt dẫn đầu (lbx-*) + bảng thứ hạng
+   kiểu mới: cột Danh hiệu, dòng phụ "📍 Tỉnh • N bài đã thử", phân trang góc phải. Chỉ đổi giao diện; dữ liệu / tìm kiếm /
+   phân trang giữ nguyên (Alpine onthiLeaderboardPage). ══════ */
+.lbx-podium-wrap { position: relative; padding: 18px 20px 26px; border-radius: 22px; border: 1px solid #f1e3b8;
+  background: linear-gradient(100deg, #fff1c7 0%, #fff8e3 38%, #f3f6ff 68%, #dfeaff 100%); box-shadow: 0 8px 26px rgba(15, 53, 84, .06); }
+.lbx-podium-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.lbx-podium-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, .85); border: 1px solid #ead9a8; color: #b7791f; }
+.lbx-podium-ic svg { width: 18px; height: 18px; fill: none; }
+.lbx-podium-head h2 { font-size: 20px !important; font-weight: 800 !important; color: #0f3554; letter-spacing: -.02em; }
+.lbx-podium-scope { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .75); font-size: 11.5px; font-weight: 700; color: #6b7f8f; }
+.lbx-podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; gap: 22px; align-items: end; padding-top: 16px; }
+.lbx-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 22px 20px 16px; border-radius: 20px;
+  background: rgba(255, 255, 255, .62); border: 1px solid rgba(255, 255, 255, .9); box-shadow: 0 12px 30px rgba(15, 53, 84, .10); backdrop-filter: blur(6px); }
+.lbx-card.is-r1 { padding: 30px 24px 18px; transform: translateY(-14px); background: linear-gradient(180deg, rgba(255, 250, 232, .95), rgba(255, 255, 255, .9));
+  border-color: #f3dc94; box-shadow: 0 18px 40px rgba(183, 121, 31, .18); z-index: 1; }
+.lbx-medal { position: absolute; left: 22px; top: -6px; width: 52px; height: 78px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .15)); }
+.lbx-ava-wrap { position: relative; width: 84px; height: 84px; margin-bottom: 12px; }
+.lbx-card.is-r1 .lbx-ava-wrap { width: 100px; height: 100px; margin-top: 18px; }
+.lbx-crown { position: absolute; left: 50%; top: -40px; width: 52px; height: 34px; transform: translateX(-50%); filter: drop-shadow(0 3px 4px rgba(183, 121, 31, .35)); }
+.lbx-ava { width: 100% !important; height: 100% !important; border: 4px solid #d1d5db !important; box-shadow: 0 6px 16px rgba(15, 53, 84, .15); font-size: 22px !important; }
+.lbx-card.is-r1 .lbx-ava { border-color: #f5c542 !important; }
+.lbx-card.is-r3 .lbx-ava { border-color: #e7a06b !important; }
+.lbx-ava-rank { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
+  background: #94a3b8; color: #fff; font-size: 12.5px; font-weight: 800; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+.lbx-card.is-r1 .lbx-ava-rank { background: #f5b301; color: #5b3a00; }
+.lbx-card.is-r3 .lbx-ava-rank { background: #e07b39; }
+.lbx-card h3 { font-size: 18px !important; font-weight: 800; color: #0f3554; line-height: 1.3; }
+.lbx-card.is-r1 h3 { font-size: 21px !important; }
+.lbx-sub { margin-top: 2px !important; font-size: 13px; color: #6b7f8f; }
+.lbx-card .lbx-title-chip { margin-top: 6px; }
+.lbx-card-foot { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(15, 53, 84, .10); text-align: left; }
+.lbx-score strong { font-size: 26px; font-weight: 800; letter-spacing: -.03em; color: #0f3554; font-variant-numeric: tabular-nums; }
+.lbx-card.is-r1 .lbx-score strong { font-size: 30px; color: #b7791f; }
+.lbx-score span { margin-left: 4px; font-size: 13px; color: #5b7488; }
+.lbx-stats { display: grid; gap: 3px; font-size: 12px; color: #5b7488; }
+.lbx-stats span { display: flex; align-items: center; gap: 5px; }
+.lbx-stats svg { width: 13px; height: 13px; fill: none; }
+.lbx-tried { font-size: 14px; color: #3b5568; padding-right: 64px; }
+.lbx-trophy { position: absolute; right: 10px; bottom: 34px; width: 88px; height: 88px; filter: drop-shadow(0 6px 10px rgba(183, 121, 31, .28)); pointer-events: none; }
+
+/* Danh hiệu */
+.lbx-title-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 7px; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.lbx-t-legend { background: linear-gradient(90deg, #fde68a, #fbbf24); color: #7c4a03; }
+.lbx-t-master { background: linear-gradient(90deg, #ede9fe, #ddd6fe); color: #6d28d9; }
+.lbx-t-expert { background: linear-gradient(90deg, #ffe4e6, #fde9d1); color: #c2410c; }
+.lbx-t-pro { background: linear-gradient(90deg, #dcfce7, #d1fae5); color: #047857; }
+.lbx-t-pupil { background: #e0f2fe; color: #0369a1; }
+.lbx-t-new { background: #f1f5f9; color: #64748b; }
+
+/* Bảng thứ hạng */
+.lb-board { background: #fff; border-color: #e3ecf3; border-radius: 18px; }
+.lbx-board-heading { align-items: flex-end; padding: 18px 20px 14px !important; }
+.lbx-board-heading h2 { font-size: 22px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .01em !important; color: #0f3554; }
+.lbx-board-sub { margin-top: 4px !important; padding-left: 20px; font-size: 15px !important; color: #5b7488 !important; }
+.lbx-board-meta { font-size: 12px; color: #6b7f8f; text-align: right; }
+.lbx-board-meta > span { margin-inline: 5px; color: #b6c4ce; }
+.lb-table thead { background: #f7fafc; border-top: 1px solid #e6eef4; border-bottom: 1px solid #e6eef4; }
+.lb-table th { font-size: 11.5px; letter-spacing: .03em; color: #4b6578; }
+.lb-table .lbx-title-col { width: 130px; }
+.lb-row, .lb-row.is-alternate { --lb-row-bg: #fff; --lb-row-hover: #f4f9fd; }
+.lb-row.is-alternate { --lb-row-bg: #fafcfe; }
+.lb-row-rank-1, .lb-row.lb-row-rank-2, .lb-row-rank-3 { --lb-row-bg: #fff; --lb-row-hover: #f4f9fd; box-shadow: none; }
+.lb-row.is-you { box-shadow: inset 3px 0 #0b7fb0; --lb-row-bg: #f0f8fd; }
+.lb-row { border-bottom: 1px solid #eef3f7; }
+.lb-rank-mark { height: 24px; min-width: 32px; padding: 0 6px; font-size: 14.5px; font-weight: 800; color: #0f3554; background: transparent; }
+.lb-rank-1 { background: #fff3c4; color: #a16207; border: 1px solid #f5d77a; }
+.lb-rank-2 { background: #eef2f6; color: #475569; border: 1px solid #d5dde6; }
+.lb-rank-3 { background: #ffe8d6; color: #b45309; border: 1px solid #f6c8a3; }
+.lb-student-name > button { font-weight: 700; color: #0f3554; }
+.lbx-sub-line { display: flex; align-items: center; gap: 4px; margin-top: 1px !important; font-size: 12px !important; color: #6b7f8f !important; }
+.lbx-sub-line svg { width: 12px; height: 12px; flex: none; fill: none; color: #94a3b8; }
+.lb-points-cell strong { color: #1d6fa5; }
+.lb-ac-cell strong { color: #15803d; } .lb-ac-cell > span { color: #15803d; font-weight: 600; }
+.lb-accuracy-track { width: 74px; height: 5px; background: #e8eef3; }
+.lb-accuracy-track > span { background: linear-gradient(90deg, #34d399, #10b981); }
+.lb-streak-cell > span { color: #ea7a0c; }
+.lb-streak-cell small { color: #ea7a0c !important; }
+.lb-action-cell > button { background: #f4f8fb; border-color: #dbe6ee; color: #5b7488; }
+
+/* Phân trang góc phải + ghi chú cuối bảng */
+.lb-pagination { flex-direction: column; align-items: flex-end; gap: 10px; padding: 14px 20px; background: #fff; border-top: 1px solid #eef3f7; }
+.lb-page-summary { font-size: 13px; color: #3b5568; }
+.lb-page-summary select { margin-left: 12px; padding: 6px 10px; border-radius: 9px; border-color: #d5e1ea; background: #fff; font-size: 12.5px; color: #3b5568; }
+.lb-page-buttons { gap: 6px; }
+.lb-page-buttons button { width: 34px; height: 34px; border-radius: 9px; border-color: #dbe6ee; background: #fff; color: #3b5568; font-size: 13px; }
+.lb-page-buttons button[aria-current="page"] { background: #126f91 !important; border-color: #126f91 !important; color: #fff !important; box-shadow: 0 4px 10px rgba(18, 111, 145, .25); }
+.lb-board-note { background: #fff; border-top: 1px solid #eef3f7; }
+.lb-board-note p, .lb-board-note > span { font-size: 13px; color: #5b7488; }
+
+@media (max-width: 1100px) { .lbx-podium { gap: 14px; } .lbx-trophy { width: 64px; height: 64px; } .lbx-tried { padding-right: 44px; } .lb-table .lbx-title-col { width: 110px; } }
+@media (max-width: 800px) {
+  .lbx-podium-wrap { padding: 14px 12px 18px; }
+  .lbx-podium-scope { display: none; }
+  .lbx-podium { grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 6px; }
+  .lbx-card.is-r1 { order: -1; grid-column: 1 / -1; transform: none; }
+  .lbx-card:not(.is-r1) { padding: 16px 10px 12px; }
+  .lbx-card:not(.is-r1) .lbx-ava-wrap { width: 62px; height: 62px; }
+  .lbx-card:not(.is-r1) h3 { font-size: 14.5px !important; }
+  .lbx-card:not(.is-r1) .lbx-card-foot { flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+  .lbx-card:not(.is-r1) .lbx-score strong { font-size: 20px; }
+  .lbx-medal { left: 8px; width: 34px; height: 52px; }
+  .lb-table td.lb-student-cell { padding-left: 54px !important; }
+  .lbx-board-heading { flex-direction: column; align-items: flex-start; }
+  .lbx-board-sub { padding-left: 0; }
+  .lbx-board-meta { text-align: left; }
+  .lb-table td.lbx-title-cell { display: none; }
+  .lb-pagination { align-items: stretch; }
+}
+
 </style>
 
 <div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
@@ -467,46 +576,65 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
     </section>
 
     @if (count($rows) > 0)
-        {{-- ══════ GƯƠNG MẶT DẪN ĐẦU ══════ --}}
-        <section class="lb-podium-section" aria-labelledby="lb-top-title" x-show="showPodium" x-cloak>
-            <div class="lb-section-heading">
-                <div><span class="lb-section-icon"><x-lucide name="trophy" style="width:17px;height:17px" /></span><h2 id="lb-top-title">Gương mặt dẫn đầu</h2></div>
-                <span>Top 3 · {{ $scopeLabel }}</span>
+        {{-- ══════ GƯƠNG MẶT DẪN ĐẦU ══════
+             SỬA 6/11 (khách gửi mẫu) — làm lại: hạng 2 · hạng 1 (nổi, vương miện + cúp) · hạng 3, huy chương bạc / đồng góc trái.
+             Dữ liệu giữ nguyên (top 3 của bảng, ẩn khi đang tìm kiếm). --}}
+        <section class="lbx-podium-wrap" aria-labelledby="lb-top-title" x-show="showPodium" x-cloak>
+            <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+                <defs>
+                    <linearGradient id="lbx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset=".55" stop-color="#f5b301"/><stop offset="1" stop-color="#d97706"/></linearGradient>
+                    <linearGradient id="lbx-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset=".55" stop-color="#cbd5e1"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
+                    <linearGradient id="lbx-bronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fed7aa"/><stop offset=".55" stop-color="#ea8a4a"/><stop offset="1" stop-color="#b45309"/></linearGradient>
+                </defs>
+            </svg>
+            <div class="lbx-podium-head">
+                <span class="lbx-podium-ic"><x-lucide name="trophy" /></span>
+                <h2 id="lb-top-title">Gương mặt dẫn đầu</h2>
+                <span class="lbx-podium-scope">Top 3 · {{ $scopeLabel }}</span>
             </div>
-            <div class="lb-podium">
-                <template x-for="p in podium" :key="p.rank">
-                    <article class="lb-podium-card" :class="'lb-place-' + p.rank">
-                        <x-lucide name="trophy" class="lb-podium-watermark" stroke-width="1.2" x-show="p.rank === 1" />
-                        <x-lucide name="medal" class="lb-podium-watermark" stroke-width="1.2" x-show="p.rank !== 1" />
-                        <div class="lb-podium-heading">
-                            <span class="lb-place-label">
-                                <x-lucide name="crown" style="width:14px;height:14px" x-show="p.rank === 1" />
-                                <x-lucide name="medal" style="width:14px;height:14px" x-show="p.rank !== 1" />
-                                Hạng <span x-text="p.rank"></span>
+            <div class="lbx-podium">
+                <template x-for="p in podiumOrdered" :key="p.rank">
+                    <article class="lbx-card" :class="'is-r' + p.rank">
+                        <svg class="lbx-medal" viewBox="0 0 56 84" x-show="p.rank !== 1" aria-hidden="true">
+                            <polygon points="9,0 25,0 34,40 19,46" fill="#60a5fa"/>
+                            <polygon points="47,0 31,0 22,40 37,46" fill="#2563eb"/>
+                            <circle cx="28" cy="58" r="22" :fill="p.rank === 2 ? 'url(#lbx-silver)' : 'url(#lbx-bronze)'" stroke="rgba(0,0,0,.08)"/>
+                            <circle cx="28" cy="58" r="16" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2"/>
+                            <text x="28" y="65" text-anchor="middle" font-size="19" font-weight="800" :fill="p.rank === 2 ? '#64748b' : '#fff'" x-text="p.rank"></text>
+                        </svg>
+                        <div class="lbx-ava-wrap">
+                            <svg class="lbx-crown" viewBox="0 0 64 42" x-show="p.rank === 1" aria-hidden="true">
+                                <path d="M6 36 L3 9 L19 22 L32 3 L45 22 L61 9 L58 36 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5" stroke-linejoin="round"/>
+                                <rect x="6" y="35" width="52" height="6" rx="2" fill="#d97706"/>
+                                <circle cx="32" cy="4" r="3" fill="#fde68a"/><circle cx="3.5" cy="9" r="2.6" fill="#fde68a"/><circle cx="60.5" cy="9" r="2.6" fill="#fde68a"/>
+                            </svg>
+                            <span class="lb-avatar lbx-ava" :class="avatarClass(p)" aria-hidden="true">
+                                <x-lucide name="user-round" x-show="isAnon(p)" />
+                                <img x-show="p.avatar" :src="p.avatar" alt="" loading="lazy">
+                                <span x-show="!isAnon(p) && !p.avatar" x-text="p.initials"></span>
                             </span>
-                            <span class="lb-podium-title" x-text="p.badge"></span>
+                            <span class="lbx-ava-rank" x-text="p.rank"></span>
                         </div>
-                        <div class="lb-podium-person">
-                            <div class="lb-podium-avatar">
-                                <span class="lb-avatar lb-avatar-large" :class="avatarClass(p)" aria-hidden="true">
-                                    <x-lucide name="user-round" x-show="isAnon(p)" />
-                                    <img x-show="p.avatar" :src="p.avatar" alt="" loading="lazy">
-                                    <span x-show="!isAnon(p) && !p.avatar" x-text="p.initials"></span>
-                                </span>
-                                <span x-text="p.rank"></span>
+                        <h3 x-text="display(p)"></h3>
+                        <span class="lbx-title-chip" x-show="p.rank === 1" :class="titleClass(p)" x-text="titleVi(p)"></span>
+                        <p class="lbx-sub" x-show="p.rank !== 1" x-text="p.sub"></p>
+                        <div class="lbx-card-foot">
+                            <div class="lbx-score"><strong x-text="fmt(p.score)"></strong><span>điểm</span></div>
+                            <div class="lbx-stats" x-show="p.rank !== 1">
+                                <span><x-lucide name="clock" /><span x-text="p.ac + ' bài AC'"></span></span>
+                                <span><x-lucide name="flame" /><span x-text="p.streak + ' ngày'"></span></span>
                             </div>
-                            <div class="lb-podium-identity">
-                                <h3 x-text="display(p)"></h3>
-                                <p x-text="p.sub"></p>
-                            </div>
+                            <div class="lbx-tried" x-show="p.rank === 1" x-text="triedText(p)"></div>
                         </div>
-                        <div class="lb-podium-bottom">
-                            <div class="lb-podium-score"><strong x-text="fmt(p.score)"></strong><span>điểm</span></div>
-                            <div class="lb-podium-stats">
-                                <span><x-lucide name="check-circle-2" style="width:13px;height:13px" /><span x-text="p.ac + ' bài AC'"></span></span>
-                                <span><x-lucide name="flame" style="width:13px;height:13px" /><span x-text="p.streak + ' ngày'"></span></span>
-                            </div>
-                        </div>
+                        <svg class="lbx-trophy" viewBox="0 0 96 96" x-show="p.rank === 1" aria-hidden="true">
+                            <path d="M25 20 C7 20 8 48 32 48" fill="none" stroke="#f5b301" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M71 20 C89 20 88 48 64 48" fill="none" stroke="#d99a06" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M22 12 H74 V30 C74 50 62 60 48 60 C34 60 22 50 22 30 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5"/>
+                            <path d="M30 18 V30 C30 40 35 47 41 51" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/>
+                            <rect x="43" y="59" width="10" height="12" fill="#e9a20a"/>
+                            <path d="M31 71 H65 L69 84 H27 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5" stroke-linejoin="round"/>
+                            <rect x="25" y="83" width="46" height="6" rx="2" fill="#b45309"/>
+                        </svg>
                     </article>
                 </template>
             </div>
@@ -515,17 +643,19 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 
     {{-- ══════ THỨ HẠNG HỌC SINH ══════ --}}
     <section class="lb-board" aria-labelledby="lb-board-title">
-        <div class="lb-board-heading">
+        <div class="lb-board-heading lbx-board-heading">
             <div>
                 <h2 id="lb-board-title">Thứ hạng học sinh</h2>
-                <p role="status" aria-live="polite">
+                <p class="lbx-board-sub">Cập nhật liên tục, thi đấu sôi nổi</p>
+            </div>
+            <div>
+                <p class="lbx-board-meta" role="status" aria-live="polite">
                     {{ $scopeLabel }}@if ($scope === 'contest' && $contest && $contest['title']) <span>·</span> {{ $contest['title'] }}@endif
                     @if ($scope === 'class' && !empty($className)) <span>·</span> {{ $className }}@endif
                     <span>·</span> <b class="lb-count" x-text="filtered.length + ' học sinh' + (query.trim() ? ' phù hợp' : '')">{{ count($rows) }} học sinh</b>
                     @if ($you)<span>·</span> <b class="lb-you-pill">Bạn: hạng #{{ $you['rank'] }}/{{ $nf($you['total']) }}</b>@endif
                 </p>
             </div>
-            <span class="lb-score-hint"><x-lucide name="arrow-down-right" style="width:14px;height:14px" />Tổng điểm từ cao xuống thấp</span>
         </div>
 
         @if (count($rows) > 0)
@@ -537,6 +667,7 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
                             <tr>
                                 <th scope="col" class="lb-rank-col">Hạng</th>
                                 <th scope="col">Học sinh</th>
+                                <th scope="col" class="lbx-title-col">Danh hiệu</th>
                                 <th scope="col" class="lb-number-col" aria-sort="descending">Tổng điểm</th>
                                 <th scope="col" class="lb-number-col">Bài đã giải</th>
                                 <th scope="col" class="lb-accuracy-col">Tỷ lệ đúng</th>
@@ -568,10 +699,11 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
                                                     <span class="lb-you" x-show="p.isYou">Bạn</span>
                                                     <span class="lb-skill-badge" :class="badgeClass(p)" x-text="p.badge"></span>
                                                 </div>
-                                                <p x-text="p.sub"></p>
+                                                <p class="lbx-sub-line"><x-lucide name="map-pin" x-show="hasProvince(p)" /><span x-text="subLine(p)"></span></p>
                                             </div>
                                         </div>
                                     </td>
+                                    <td class="lbx-title-cell" data-label="Danh hiệu"><span class="lbx-title-chip" :class="titleClass(p)" x-text="titleVi(p)"></span></td>
                                     <td class="lb-points-cell" data-label="Tổng điểm"><strong x-text="fmt(p.score)"></strong><span>điểm</span></td>
                                     <td class="lb-ac-cell" data-label="Bài đã giải"><strong x-text="p.ac"></strong><span>AC</span></td>
                                     <td class="lb-accuracy-cell" data-label="Tỷ lệ đúng"><span x-text="p.accuracy + '%'"></span><div class="lb-accuracy-track" aria-hidden="true"><span :style="'width:' + p.accuracy + '%'"></span></div></td>
@@ -581,7 +713,7 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
                                     </td>
                                 </tr>
                                 <tr :id="'lb-detail-' + p.rank" class="lb-detail-row" x-show="expanded === p.rank" x-cloak>
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         <dl class="lb-detail-grid">
                                             <template x-for="d in p.details" :key="d[0]"><div><dt x-text="d[0]"></dt><dd x-text="d[1]"></dd></div></template>
                                         </dl>
@@ -656,7 +788,7 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
         <div class="lb-board-note">
             <x-lucide name="award" style="width:15px;height:15px" />
             <p>Thành tích đến từ sự bền bỉ. Mỗi bài giải đúng là một bước tiến.</p>
-            <span>{{ $updated ? 'Cập nhật '.$updated : '' }}</span>
+            <span>{{ $updated ? 'Cập nhật lúc '.$updated : '' }}</span>
         </div>
     </section>
 </div>

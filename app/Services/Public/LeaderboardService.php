@@ -477,6 +477,7 @@ class LeaderboardService
                 'named' => $named && $user !== null,
                 'initials' => $named && $user ? $this->initials((string) $user->name) : '',
                 'sub' => $province ?? ($r->attempted.' bài đã thử'),
+                'attempted' => (int) $r->attempted, // SỬA 6/11 — dòng phụ "Tỉnh • N bài đã thử" ở giao diện mới
                 'badge' => $this->tier($solvedAllTime),
                 'movement' => $movement,
                 'score' => $r->points,
