@@ -18,7 +18,7 @@
                 : null,
             // SỬA 7/10 (khách: bỏ "Đề PDF của tôi", đổi "Kho câu hỏi của tôi" thành "Kho bài tập / câu hỏi và đề") — đề PDF
             // giờ là tab "Đề/bộ bài" trong màn này; các route con (trang quản lý/tạo đề PDF) cũng làm sáng mục này.
-            ['Kho bài tập / câu hỏi và đề', 'teacher.questions.index', 'library', ['teacher.papers.*', 'teacher.questions.*']],
+            ['Kho bài tập / câu hỏi và đề', 'teacher.questions.index', 'library', ['teacher.papers.*', 'teacher.questions.*', 'admin.content.*']],
             ['Cuộc thi', 'teacher.competitions.index', 'trophy', ['teacher.competitions.*']],
             ['Tài liệu', 'teacher.library.index', 'book-open', ['teacher.library.*', 'teacher.materials.*', 'teacher.products.*']],
             ['Lịch & điểm danh', 'teacher.schedule.index', 'calendar-days', ['teacher.schedule.*']],

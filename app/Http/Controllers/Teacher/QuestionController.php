@@ -22,9 +22,19 @@ class QuestionController extends Controller
         private readonly AssessmentService $assessmentService,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|\Illuminate\Http\RedirectResponse
     {
         $user = Auth::user();
+
+        // SỬA 6/11 (khách: "admin chuyển qua giáo viên thì màn này phải giống in đúc admin, và đang chậm") — admin đang ở vai Giáo
+        // viên dùng THẲNG trang Kho của quản trị (phân trang, đủ tab Bài của tài liệu / Đề thi / Tag, đủ nút) trong khung khu Giáo
+        // viên. Giáo viên thường: như cũ.
+        if ($user->actingSessionRole() === \App\Models\Role::TEACHER) {
+            $map = ['used' => ['tab' => 'questions', 'in_exam' => 'used'], 'assessments' => ['tab' => 'assessments']];
+            $target = $map[(string) $request->query('tab')] ?? ['tab' => 'questions', 'in_exam' => 'unused'];
+
+            return redirect()->route('admin.content.index', $target + $request->except(['tab', 'in_exam', 'page']));
+        }
         $tab = (string) $request->query('tab', 'unused');
 
         // SỬA 18/9 (khách: "kho câu hỏi của tôi bên giáo viên hiển thêm phần lọc cho đầy đủ như

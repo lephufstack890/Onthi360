@@ -177,7 +177,47 @@ class User extends Authenticatable // implements MustVerifyEmail
             return null;
         }
 
+        $role = is_string($role) && in_array($role, self::ACTING_ROLES, true) && $this->isRealAdmin() ? $role : null;
+
+        // SỬA 6/11 (khách: "admin chuyển qua giáo viên thì màn Kho bài tập / câu hỏi và đề phải giống in đúc admin") — ở các trang
+        // KHO NỘI DUNG của quản trị (route admin.content.*) admin vẫn là admin đầy đủ quyền dù đang ở vai Giáo viên; khung trang
+        // vẫn là khu Giáo viên (layouts/admin dựa vào actingSessionRole()). Mọi trang khác: như cũ.
+        if ($role !== null && self::isContentPassthroughRequest()) {
+            return null;
+        }
+
+        return $role;
+    }
+
+    /** SỬA 6/11 — vai trò "xem như" theo phiên, KHÔNG trừ ngoại lệ trang Kho nội dung (dùng cho khung trang, nút "Về Quản trị"). */
+    public function actingSessionRole(): ?string
+    {
+        try {
+            if (! $this->exists || (app()->runningInConsole() && ! app()->runningUnitTests())) {
+                return null;
+            }
+            $request = request();
+            if (! $request->hasSession() || ! auth()->hasUser() || (int) auth()->id() !== (int) $this->getKey()) {
+                return null;
+            }
+            $role = $request->session()->get(self::ACTING_ROLE_SESSION_KEY);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
         return is_string($role) && in_array($role, self::ACTING_ROLES, true) && $this->isRealAdmin() ? $role : null;
+    }
+
+    /** Request hiện tại là trang / thao tác thuộc Kho nội dung của quản trị (admin.content.*). */
+    public static function isContentPassthroughRequest(): bool
+    {
+        try {
+            $name = request()->route()?->getName();
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return is_string($name) && str_starts_with($name, 'admin.content.');
     }
 
     // -- Vai trò (RBAC tối giản, tự viết — xem docs/ARCHITECTURE.md) -----------

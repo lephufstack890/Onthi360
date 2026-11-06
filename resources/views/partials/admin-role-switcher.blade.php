@@ -6,7 +6,7 @@
      Hai nút là form POST có CSRF; route + controller tự kiểm tra lại admin thật (ActingRoleController). --}}
 @auth
     @php $rsUser = auth()->user(); @endphp
-    @if ($rsUser->actingRole() !== null)
+    @if ($rsUser->actingSessionRole() !== null)
         <form method="POST" action="{{ route('acting.stop') }}" class="shrink-0">
             @csrf
             <button type="submit" title="Đang xem như Giáo viên — bấm để quay về giao diện Quản trị"

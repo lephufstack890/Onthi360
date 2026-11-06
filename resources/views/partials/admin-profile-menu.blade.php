@@ -9,6 +9,10 @@
         // SỬA 9/10 — ưu tiên khu ĐANG đứng (theo tên route), để giáo viên/phụ huynh cũng có Hồ sơ + Đổi mật khẩu
         // trong menu; ngoài 4 khu thì rơi về logic theo vai trò như cũ.
         $menuArea = explode('.', (string) request()->route()?->getName())[0];
+        // SỬA 6/11 — admin đang "xem như Giáo viên" ở trang Kho nội dung (admin.content.*): menu như khu Giáo viên.
+        if ($menuArea === 'admin' && $authUser->actingSessionRole() !== null) {
+            $menuArea = 'teacher';
+        }
         $areaProfile = ['admin' => 'admin.profile.show', 'teacher' => 'teacher.profile.show', 'parent' => 'parent.profile', 'student' => 'student.profile'];
         if (isset($areaProfile[$menuArea])) {
             $profileRouteName = $areaProfile[$menuArea];
@@ -56,7 +60,7 @@
 
             {{-- SỬA 15/10 (khách: "thêm nút chuyển đổi Quản trị ⇄ Giáo viên vào menu này") — CHỈ admin thật (User::isRealAdmin)
                  hoặc admin đang xem như Giáo viên mới thấy; route + controller tự kiểm tra lại (ActingRoleController). --}}
-            @if ($authUser->actingRole() !== null)
+            @if ($authUser->actingSessionRole() !== null)
                 <form method="POST" action="{{ route('acting.stop') }}" class="border-t border-slate-100">
                     @csrf
                     <button type="submit"

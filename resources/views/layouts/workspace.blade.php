@@ -131,7 +131,8 @@
                      lại như cũ. --}}
                 @php
                     $wsTokenBalance = (int) (auth()->user()?->token_balance ?? 0);
-                    $wsShowWallet = ! (auth()->user()?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) ?? false);
+                    // SỬA 6/11 — admin đang "xem như Giáo viên" thì luôn hiện ví như khu Giáo viên (kể cả ở trang Kho nội dung).
+                    $wsShowWallet = ! ((auth()->user()?->hasAnyRole(\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN) ?? false) && auth()->user()?->actingSessionRole() === null);
                 @endphp
                 @if ($wsShowWallet)
                 <a href="{{ route('wallet.index') }}"
@@ -173,7 +174,7 @@
 
         <main class="min-w-0 space-y-4">
             {{-- SỬA 15/10 — nhắc rõ đang dùng giao diện Giáo viên bằng tài khoản quản trị, kèm nút quay về. --}}
-            @if (auth()->user()?->actingRole() !== null)
+            @if (auth()->user()?->actingSessionRole() !== null)
                 <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
                     <x-lucide name="eye" class="h-4 w-4 shrink-0" />
                     <span class="min-w-0 flex-1">Bạn đang xem <b>giao diện Giáo viên</b> bằng tài khoản quản trị. Mọi thao tác ở đây được thực hiện như một giáo viên.</span>
