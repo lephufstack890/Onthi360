@@ -407,7 +407,7 @@
                     <span class="tcx-folder" aria-hidden="true"><x-lucide name="book-open" /><span><x-lucide name="plus" /></span></span>
                     <div>
                         <h3>Thêm tài liệu vào lớp</h3>
-                        <p>Chọn loại tài liệu rồi chọn đúng cuốn. Chỉ hiện sách, chuyên đề, bộ đề bạn còn quyền dạy (còn hạn).</p>
+                        <p>Chọn loại tài liệu rồi chọn đúng cuốn. @if (auth()->user()?->actingRole() === \App\Models\Role::TEACHER)Bạn đang ở vai Giáo viên từ tài khoản quản trị nên thêm được mọi tài liệu đã phát hành, không cần mua.@else Chỉ hiện sách, chuyên đề, bộ đề bạn còn quyền dạy (còn hạn).@endif</p>
                     </div>
                 </div>
                 @if (! empty($attachableProducts))
@@ -436,7 +436,7 @@
                                     <span class="tcx-ic" style="width:34px;height:34px;border-radius:10px"><x-lucide :name="$tcxTypeIcon[$typeKey] ?? 'book-open'" style="width:17px;height:17px" /></span>
                                     <div style="flex:1 1 180px;min-width:0">
                                         <b title="{{ $p['title'] }}">{{ $p['title'] }}</b>
-                                        <small>Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] ?? '—' }}</small>
+                                        <small>@if (! empty($p['adminFree']) && empty($p['expiresAtLabel']))Quyền quản trị — thêm tự do, không cần mua @else Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] ?? '—' }}@endif</small>
                                     </div>
                                     <button type="submit" class="tcx-btn is-primary"><x-lucide name="plus" />Thêm vào lớp</button>
                                 </form>

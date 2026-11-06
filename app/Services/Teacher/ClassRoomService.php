@@ -391,7 +391,10 @@ class ClassRoomService
             ->filter(fn ($ar) => $ar->scope === AccessScope::TeacherTeaching && $ar->isCurrentlyActive())
             ->keyBy('product_id');
 
-        if ($activeTeachingByProduct->isEmpty()) {
+        // SỬA 6/11 (khách) — admin chuyển sang vai Giáo viên: thêm MỌI sách / chuyên đề / bộ đề đã phát hành, không cần mua.
+        $adminFree = $this->adminActingAsTeacher($teacher);
+
+        if ($activeTeachingByProduct->isEmpty() && ! $adminFree) {
             return [];
         }
 
@@ -402,7 +405,7 @@ class ClassRoomService
             ->all();
 
         $products = $this->products->query()
-            ->whereIn('id', $activeTeachingByProduct->keys())
+            ->when(! $adminFree, fn ($q) => $q->whereIn('id', $activeTeachingByProduct->keys()))
             ->where('status', ContentStatus::Published)
             ->whereIn('type', array_keys(self::TYPE_LABELS))
             ->whereNotIn('id', $alreadyAttachedProductIds)
@@ -419,10 +422,17 @@ class ClassRoomService
                 'id' => $p->id,
                 'title' => $p->title,
                 'expiresAtLabel' => optional($activeTeachingByProduct->get($p->id)?->expires_at)->format('d/m/Y'),
+                'adminFree' => $adminFree,
             ];
         }
 
         return $grouped;
+    }
+
+    /** SỬA 6/11 — admin thật đang xem ở vai Giáo viên (actingRole chỉ khác null với admin thật). Giáo viên thường: false. */
+    private function adminActingAsTeacher(User $user): bool
+    {
+        return $user->actingRole() === Role::TEACHER;
     }
 
     /**
@@ -441,7 +451,7 @@ class ClassRoomService
                 && $ar->isCurrentlyActive()
                 && (int) $ar->product_id === (int) $product->id);
 
-        abort_unless($stillEligible, 403, 'Bạn không còn quyền dạy sản phẩm này (quyền đã hết hạn hoặc chưa từng có).');
+        abort_unless($stillEligible || $this->adminActingAsTeacher($teacher), 403, 'Bạn không còn quyền dạy sản phẩm này (quyền đã hết hạn hoặc chưa từng có).');
 
         $existing = $this->classMaterials->query()
             ->where('class_room_id', $classRoom->id)

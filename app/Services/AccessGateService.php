@@ -294,6 +294,7 @@ class AccessGateService
     /** SỬA 14/10 — Admin/Super Admin đọc mọi tài liệu không cần quyền mua (khách yêu cầu). */
     private function isAdmin(User $user): bool
     {
-        return $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN);
+        // SỬA 6/11 — admin chuyển sang vai Giáo viên vẫn đọc được mọi tài liệu (đi cùng việc gắn tài liệu vào lớp không cần mua).
+        return $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $user->actingRole() === Role::TEACHER;
     }
 }
