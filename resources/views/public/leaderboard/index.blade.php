@@ -673,6 +673,34 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
 @media (min-width: 640px) { .lbx-page { padding: 20px !important; } }
 @media (min-width: 1024px) { .lbx-page { padding: 20px 24px !important; } }
 @media (min-width: 1536px) { .lbx-page { padding: 20px 40px !important; } }
+/* SỬA 6/11 (khách: "vương miện, cúp còn tối; cúp nghiêng; thêm pháo hoa; danh sách thưa ra, nền xen kẽ xanh lá / xám") */
+.lbx-trophy { width: 80px; height: 80px; transform: rotate(14deg); transform-origin: 50% 90%; filter: drop-shadow(0 6px 12px rgba(255, 191, 31, .45)); }
+.lbx-crown { filter: drop-shadow(0 3px 6px rgba(255, 191, 31, .55)); }
+.lbx-fx { position: absolute; width: 30px; height: 30px; pointer-events: none; animation: lbx-pop 2.4s ease-in-out infinite; }
+.lbx-fx.f1 { top: 14px; left: 18%; }
+.lbx-fx.f2 { top: 34px; right: 20%; width: 24px; height: 24px; animation-delay: .6s; }
+.lbx-fx.f3 { right: 22px; bottom: 112px; width: 26px; height: 26px; animation-delay: 1.1s; }
+.lbx-fx.f4 { left: 10%; bottom: 96px; width: 20px; height: 20px; animation-delay: 1.6s; }
+@keyframes lbx-pop { 0%, 100% { transform: scale(.55) rotate(0); opacity: .35; } 45% { transform: scale(1.05) rotate(20deg); opacity: 1; } 70% { transform: scale(.9) rotate(30deg); opacity: .8; } }
+.lbx-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.lbx-confetti i { position: absolute; width: 6px; height: 10px; border-radius: 2px; opacity: .85; }
+.lbx-confetti i:nth-child(1) { top: 12%; left: 8%; background: #f43f5e; transform: rotate(25deg); }
+.lbx-confetti i:nth-child(2) { top: 8%; left: 30%; background: #3b82f6; transform: rotate(-30deg); width: 5px; height: 8px; }
+.lbx-confetti i:nth-child(3) { top: 18%; right: 9%; background: #22c55e; transform: rotate(40deg); }
+.lbx-confetti i:nth-child(4) { top: 6%; right: 32%; background: #f59e0b; transform: rotate(-15deg); width: 5px; height: 7px; }
+.lbx-confetti i:nth-child(5) { top: 44%; left: 5%; background: #a855f7; transform: rotate(60deg); width: 4px; height: 8px; }
+.lbx-confetti i:nth-child(6) { top: 40%; right: 5%; background: #06b6d4; transform: rotate(-50deg); }
+.lbx-confetti i:nth-child(7) { top: 28%; left: 20%; background: #facc15; border-radius: 50%; width: 6px; height: 6px; }
+.lbx-confetti i:nth-child(8) { top: 30%; right: 18%; background: #f472b6; border-radius: 50%; width: 5px; height: 5px; }
+.lbx-card.is-r1 > :not(.lbx-confetti):not(.lbx-fx):not(.lbx-trophy) { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .lbx-fx { animation: none; } }
+
+/* Danh sách: thưa hơn + nền xen kẽ xanh lá nhạt / xám nhạt */
+@media (min-width: 801px) { .lb-table td { padding-block: 14px; } }
+.lb-table .lb-row { --lb-row-bg: #e4f6ea; --lb-row-hover: #d6f0df; border-bottom: 1px solid #ffffff; }
+.lb-table .lb-row.is-alternate { --lb-row-bg: #eef1f4; --lb-row-hover: #e3e8ee; }
+.lb-table .lb-row.is-you { --lb-row-bg: #e3f1fb; --lb-row-hover: #d6eaf8; }
+.lb-detail-row { background: #fafcfd; }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
@@ -760,7 +788,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
         <section class="lbx-podium-wrap" aria-labelledby="lb-top-title" x-show="showPodium" x-cloak>
             <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
                 <defs>
-                    <linearGradient id="lbx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset=".55" stop-color="#f5b301"/><stop offset="1" stop-color="#d97706"/></linearGradient>
+                    <linearGradient id="lbx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6b8"/><stop offset=".45" stop-color="#ffd83a"/><stop offset="1" stop-color="#ffad00"/></linearGradient>
                     <linearGradient id="lbx-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset=".55" stop-color="#cbd5e1"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
                     <linearGradient id="lbx-bronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fed7aa"/><stop offset=".55" stop-color="#ea8a4a"/><stop offset="1" stop-color="#b45309"/></linearGradient>
                 </defs>
@@ -782,9 +810,10 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                         </svg>
                         <div class="lbx-ava-wrap">
                             <svg class="lbx-crown" viewBox="0 0 64 42" x-show="p.rank === 1" aria-hidden="true">
-                                <path d="M6 36 L3 9 L19 22 L32 3 L45 22 L61 9 L58 36 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5" stroke-linejoin="round"/>
-                                <rect x="6" y="35" width="52" height="6" rx="2" fill="#d97706"/>
-                                <circle cx="32" cy="4" r="3" fill="#fde68a"/><circle cx="3.5" cy="9" r="2.6" fill="#fde68a"/><circle cx="60.5" cy="9" r="2.6" fill="#fde68a"/>
+                                <path d="M6 36 L3 9 L19 22 L32 3 L45 22 L61 9 L58 36 Z" fill="url(#lbx-gold)" stroke="#f5b301" stroke-width="1.5" stroke-linejoin="round"/>
+                                <rect x="6" y="35" width="52" height="6" rx="2" fill="#ffc933"/>
+                                <circle cx="32" cy="4" r="3" fill="#ff6b8a"/><circle cx="3.5" cy="9" r="2.6" fill="#5ec8ff"/><circle cx="60.5" cy="9" r="2.6" fill="#5ec8ff"/>
+                                <path d="M14 30 L13 18" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                             <span class="lb-avatar lbx-ava" :class="avatarClass(p)" aria-hidden="true">
                                 <x-lucide name="user-round" x-show="isAnon(p)" />
@@ -805,14 +834,22 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                             <div class="lbx-tried" x-show="p.rank === 1" x-text="triedText(p)"></div>
                         </div>
                         <svg class="lbx-trophy" viewBox="0 0 96 96" x-show="p.rank === 1" aria-hidden="true">
-                            <path d="M25 20 C7 20 8 48 32 48" fill="none" stroke="#f5b301" stroke-width="6" stroke-linecap="round"/>
-                            <path d="M71 20 C89 20 88 48 64 48" fill="none" stroke="#d99a06" stroke-width="6" stroke-linecap="round"/>
-                            <path d="M22 12 H74 V30 C74 50 62 60 48 60 C34 60 22 50 22 30 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5"/>
-                            <path d="M30 18 V30 C30 40 35 47 41 51" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/>
-                            <rect x="43" y="59" width="10" height="12" fill="#e9a20a"/>
-                            <path d="M31 71 H65 L69 84 H27 Z" fill="url(#lbx-gold)" stroke="#d97706" stroke-width="1.5" stroke-linejoin="round"/>
-                            <rect x="25" y="83" width="46" height="6" rx="2" fill="#b45309"/>
+                            <path d="M25 20 C7 20 8 48 32 48" fill="none" stroke="#ffd43b" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M71 20 C89 20 88 48 64 48" fill="none" stroke="#ffc21a" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M22 12 H74 V30 C74 50 62 60 48 60 C34 60 22 50 22 30 Z" fill="url(#lbx-gold)" stroke="#f5b301" stroke-width="1.5"/>
+                            <path d="M30 18 V30 C30 40 35 47 41 51" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3.5" stroke-linecap="round"/>
+                            <path d="M66 18 V26" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2.5" stroke-linecap="round"/>
+                            <rect x="43" y="59" width="10" height="12" fill="#ffcf3d"/>
+                            <path d="M31 71 H65 L69 84 H27 Z" fill="url(#lbx-gold)" stroke="#f5b301" stroke-width="1.5" stroke-linejoin="round"/>
+                            <rect x="25" y="83" width="46" height="6" rx="2" fill="#f0a500"/>
+                            <path d="M48 26 l2.6 5.3 5.8 .8 -4.2 4.1 1 5.8 -5.2 -2.7 -5.2 2.7 1 -5.8 -4.2 -4.1 5.8 -.8z" fill="#fff" fill-opacity=".9"/>
                         </svg>
+                        {{-- SỬA 6/11 (khách: "thêm vài pháo hoa") — pháo hoa + giấy màu quanh hạng 1, chỉ trang trí. --}}
+                        <svg class="lbx-fx f1" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <svg class="lbx-fx f2" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <svg class="lbx-fx f3" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <svg class="lbx-fx f4" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <span class="lbx-confetti" x-show="p.rank === 1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
                     </article>
                 </template>
             </div>
