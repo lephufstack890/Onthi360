@@ -99,12 +99,7 @@
         </button>
     </form>
 
-    <div class="my-3 flex items-center gap-3 text-[10px] font-semibold text-slate-400 before:h-px before:flex-1 before:bg-slate-100 after:h-px after:flex-1 after:bg-slate-100">hoặc</div>
-
-    <a href="{{ route('practice.index') }}"
-       class="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D5E3E9] bg-white px-4 py-3 text-xs font-bold text-[#183D5E] transition hover:border-[#B8D0DB] hover:bg-[#F8FCFD] focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-100">
-        <x-lucide name="code-2" class="h-4 w-4 text-[#126F91]" />Luyện tập thử không cần tài khoản
-    </a>
+    {{-- SỬA 6/11 (khách: "bỏ đi") — đã bỏ dòng "hoặc" + nút "Luyện tập thử không cần tài khoản". Bản cũ: _to_delete_claude/login-practice/. --}}
 
     <p class="auth-form-helper mt-3 text-center text-[11px] text-slate-500">
         Chưa có tài khoản?
