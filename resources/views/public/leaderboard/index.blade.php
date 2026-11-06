@@ -734,6 +734,24 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
 }
 @media (max-width: 1100px) and (min-width: 801px) { .lb-table .lbx-title-col { width: 15%; } .lb-table .lb-streak-col { width: 12%; } }
 @media (max-width: 800px) { .lbx-card.is-r3 .lbx-medal { right: 8px; } .lbx-trophy { top: 24px; right: 12px; width: 56px; height: 56px; } }
+/* SỬA 6/11 (khách: "đồng bộ danh hiệu, cân bằng thị giác, tiêu đề cột rộng hơn") — nhãn cạnh tên (Expert / Specialist…) cùng
+   bảng màu với cột Danh hiệu (Chuyên gia / Cao thủ…), cùng cỡ, cùng bo góc; dòng tiêu đề cột cao + thoáng hơn. */
+.lb-skill-badge, .lb-table .lbx-title-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; line-height: 1; }
+.lb-student-name { align-items: center; gap: 7px; }
+.lb-table thead { background: #f5f8fb; }
+.lb-table th { padding-block: 15px !important; font-size: 10.5px; letter-spacing: .07em; color: #3f5b70; }
+.lb-table td.lbx-title-cell { vertical-align: middle; }
+/* SỬA 6/11 — pháo hoa nhẹ cho hạng 2 (bên phải, đối diện huy chương) và hạng 3 (bên trái, đối diện huy chương). */
+.lbx-card:not(.is-r1) > :not(.lbx-confetti):not(.lbx-fx):not(.lbx-medal) { position: relative; z-index: 1; }
+.lbx-fx.f5 { top: 16px; width: 22px; height: 22px; animation-delay: .4s; }
+.lbx-fx.f6 { top: 40%; width: 16px; height: 16px; animation-delay: 1.3s; }
+.lbx-card.is-r2 .lbx-fx.f5 { right: 16%; } .lbx-card.is-r2 .lbx-fx.f6 { right: 9%; }
+.lbx-card.is-r3 .lbx-fx.f5 { left: 16%; } .lbx-card.is-r3 .lbx-fx.f6 { left: 9%; }
+.lbx-confetti.is-lite i { opacity: .7; }
+.lbx-confetti.is-lite i:nth-child(1) { top: 10%; left: 34%; background: #f43f5e; transform: rotate(25deg); }
+.lbx-confetti.is-lite i:nth-child(2) { top: 14%; right: 28%; left: auto; background: #3b82f6; transform: rotate(-30deg); }
+.lbx-confetti.is-lite i:nth-child(3) { top: 34%; left: 20%; right: auto; background: #facc15; border-radius: 50%; width: 5px; height: 5px; }
+.lbx-confetti.is-lite i:nth-child(4) { top: 30%; right: 20%; left: auto; background: #22c55e; transform: rotate(45deg); width: 5px; height: 8px; }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
@@ -883,6 +901,10 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                         <svg class="lbx-fx f3" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
                         <svg class="lbx-fx f4" viewBox="0 0 40 40" x-show="p.rank === 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
                         <span class="lbx-confetti" x-show="p.rank === 1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                        {{-- SỬA 6/11 (khách: "cho hạng nhì và ba ít pháo hoa") — 2 chùm nhỏ + ít giấy màu, nhẹ hơn hạng 1. --}}
+                        <svg class="lbx-fx f5" viewBox="0 0 40 40" x-show="p.rank !== 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <svg class="lbx-fx f6" viewBox="0 0 40 40" x-show="p.rank !== 1" aria-hidden="true"><g stroke-width="2.4" stroke-linecap="round"><path d="M20 3v7" stroke="#f43f5e"/><path d="M20 30v7" stroke="#3b82f6"/><path d="M3 20h7" stroke="#22c55e"/><path d="M30 20h7" stroke="#f59e0b"/><path d="M8 8l5 5" stroke="#a855f7"/><path d="M27 27l5 5" stroke="#f43f5e"/><path d="M32 8l-5 5" stroke="#06b6d4"/><path d="M13 27l-5 5" stroke="#f59e0b"/></g><circle cx="20" cy="20" r="2.6" fill="#facc15"/></svg>
+                        <span class="lbx-confetti is-lite" x-show="p.rank !== 1" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                     </article>
                 </template>
             </div>
@@ -946,7 +968,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                                                 <div class="lb-student-name">
                                                     <button type="button" :aria-expanded="expanded === p.rank" :aria-controls="'lb-detail-' + p.rank" @click="toggle(p.rank)" x-text="display(p)"></button>
                                                     <span class="lb-you" x-show="p.isYou">Bạn</span>
-                                                    <span class="lb-skill-badge" :class="badgeClass(p)" x-text="p.badge"></span>
+                                                    <span class="lb-skill-badge" :class="titleClass(p)" x-text="p.badge"></span>
                                                 </div>
                                                 <p class="lbx-sub-line"><x-lucide name="map-pin" x-show="hasProvince(p)" /><span x-text="subLine(p)"></span></p>
                                             </div>
