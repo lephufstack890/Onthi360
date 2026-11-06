@@ -86,6 +86,7 @@
             'Lộ trình & Bài tập' => 'route',
             'Lịch học' => 'calendar-days',
             'Tài liệu' => 'book-open',
+            'Tiến trình học' => 'layers',
             'Học liệu' => 'book-open',
             'Đánh giá' => 'star',
             'Thông báo' => 'bell',
@@ -340,7 +341,10 @@
 
         {{-- ══════ CỘT PHẢI ══════ --}}
         <section class="min-w-0 space-y-4">
-    @if ($tab === 'roadmap')
+    {{-- SỬA 6/11 — tab Tiến trình học (bước giáo viên đã mở khoá). --}}
+    @if ($tab === 'progress')
+        @include('student.classes._progress')
+    @elseif ($tab === 'roadmap')
         <div class="space-y-6">
             @forelse ($roadmap as $chap)
                 <div>

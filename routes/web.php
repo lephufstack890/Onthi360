@@ -535,6 +535,24 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('class')->middleware('throttle:30,1')->name('classes.members.add');
         Route::get('classes/{class}/students/search', [TeacherClassRoomController::class, 'searchStudents'])
             ->whereNumber('class')->middleware('throttle:120,1')->name('classes.students.search');
+        // SỬA 6/11 (khách: "lớp là một giao diện riêng, 8 tab") — thao tác mới của không gian lớp, xem Teacher\ClassSpaceController.
+        Route::controller(\App\Http\Controllers\Teacher\ClassSpaceController::class)->whereNumber(['class', 'teacher', 'assignment', 'step'])->group(function () {
+            Route::get('classes/{class}/teachers/search', 'searchTeachers')->middleware('throttle:120,1')->name('classes.teachers.search');
+            Route::post('classes/{class}/teachers', 'addTeacher')->name('classes.teachers.add');
+            Route::post('classes/{class}/teachers/{teacher}/role', 'setTeacherRole')->name('classes.teachers.role');
+            Route::delete('classes/{class}/teachers/{teacher}', 'removeTeacher')->name('classes.teachers.remove');
+            Route::post('classes/{class}/attendance/cell', 'saveAttendanceCell')->middleware('throttle:600,1')->name('classes.attendance.cell');
+            Route::get('classes/{class}/attendance/export', 'exportAttendance')->name('classes.attendance.export');
+            Route::post('classes/{class}/assignments/{assignment}/remind', 'remind')->name('classes.assignments.remind');
+            Route::post('classes/{class}/steps', 'storeStep')->name('classes.steps.store');
+            Route::put('classes/{class}/steps/{step}', 'updateStep')->name('classes.steps.update');
+            Route::delete('classes/{class}/steps/{step}', 'destroyStep')->name('classes.steps.destroy');
+            Route::post('classes/{class}/steps/{step}/toggle', 'toggleStep')->name('classes.steps.toggle');
+            Route::post('classes/{class}/steps/{step}/move', 'moveStep')->name('classes.steps.move');
+            Route::post('classes/{class}/grades', 'saveGrade')->middleware('throttle:600,1')->name('classes.grades.save');
+            Route::get('classes/{class}/results/export', 'exportResults')->name('classes.results.export');
+            Route::get('classes/{class}/results/print', 'printResults')->name('classes.results.print');
+        });
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.create');

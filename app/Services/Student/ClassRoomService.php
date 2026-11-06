@@ -112,6 +112,8 @@ class ClassRoomService
             // liệu của tôi" (2 khái niệm khác nhau: đây là tài liệu CỦA LỚP, trang kia liệt kê
             // MỌI tài liệu đã mua không theo lớp nào).
             ['label' => 'Tài liệu', 'key' => 'materials'],
+            // SỬA 6/11 — tab "Tiến trình học": các bước giáo viên ĐÃ MỞ KHOÁ (Teacher\ClassSpaceService::stepsForStudent()).
+            ['label' => 'Tiến trình học', 'key' => 'progress'],
             ['label' => 'Đánh giá', 'key' => 'reviews'],
             ['label' => 'Thông báo', 'key' => 'notifications'],
             ['label' => 'Thành viên', 'key' => 'members'],
@@ -207,6 +209,8 @@ class ClassRoomService
             $notifications = $this->notificationsForClass($user, $classRoom);
         }
 
+        $progressSteps = $tab === 'progress' ? app(\App\Services\Teacher\ClassSpaceService::class)->stepsForStudent($classRoom) : [];
+
         // Thành viên.
         $teachers = $tab === 'members' ? $classRoom->teachers : collect();
         $students = $tab === 'members' ? $classRoom->students : collect();
@@ -232,6 +236,7 @@ class ClassRoomService
             'notifications' => $notifications,
             'teachers' => $teachers,
             'students' => $students,
+            'progressSteps' => $progressSteps,
         ];
     }
 

@@ -41,6 +41,7 @@ class ScheduleController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->storeRules());
+        app(\App\Services\Teacher\ClassSpaceService::class)->authorize((int) $data['class_room_id'], Auth::user(), 'sessions'); // SỬA 6/11 — quyền theo vai trò
 
         $this->scheduleService->store(Auth::user(), [
             'class_room_id' => $data['class_room_id'],
@@ -52,7 +53,7 @@ class ScheduleController extends Controller
 
         // SỬA 6/11 — tạo từ tab "Buổi học" trong trang lớp thì quay lại đúng tab đó (trước đây luôn về trang Lịch).
         if ($request->boolean('back_to_class')) {
-            return redirect()->route('teacher.classes.show', ['class' => (int) $data['class_room_id'], 'tab' => 'schedule'])->with('status', 'session-created');
+            return redirect()->route('teacher.classes.show', ['class' => (int) $data['class_room_id'], 'tab' => 'attendance'])->with('status', 'session-created');
         }
 
         return redirect()->route('teacher.schedule.index')->with('status', 'session-created');
@@ -61,6 +62,7 @@ class ScheduleController extends Controller
     /** SỬA 6/11 — sửa buổi học (popup "Sửa buổi học" ở tab Buổi học trong trang lớp). */
     public function update(Request $request, int $session): RedirectResponse
     {
+        app(\App\Services\Teacher\ClassSpaceService::class)->authorize((int) \App\Models\ClassSession::query()->findOrFail($session)->class_room_id, Auth::user(), 'sessions'); // SỬA 6/11
         $rules = $this->storeRules();
         unset($rules['class_room_id']);
         foreach (['starts', 'ends'] as $k) {

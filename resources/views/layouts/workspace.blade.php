@@ -160,11 +160,16 @@
     </header>
 
     {{-- ══════ THÂN TRANG ══════ --}}
-    <div class="mx-auto grid w-full max-w-[1780px] min-w-0 gap-4 px-3 py-3 sm:px-5 sm:py-5 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-5 lg:px-6 2xl:px-10">
+    {{-- SỬA 6/11 (khách: "lớp phải là một giao diện riêng") — trang khai báo @section('ws-full') thì bỏ cột menu trái, nội dung
+         chiếm trọn bề ngang (menu vẫn mở được bằng nút ☰ trên điện thoại). Hiện dùng cho không gian lớp của giáo viên. --}}
+    @php $wsFull = $__env->hasSection('ws-full'); @endphp
+    <div class="mx-auto grid w-full max-w-[1780px] min-w-0 gap-4 px-3 py-3 sm:px-5 sm:py-5 {{ $wsFull ? '' : 'lg:grid-cols-[230px_minmax(0,1fr)]' }} lg:gap-5 lg:px-6 2xl:px-10">
 
+        @unless ($wsFull)
         <aside class="hidden min-w-0 lg:block lg:sticky lg:top-[68px] lg:h-fit">
             @include($wsConfig['sidebar'], ['wsNavTitle' => $wsConfig['navTitle']])
         </aside>
+        @endunless
 
         <main class="min-w-0 space-y-4">
             {{-- SỬA 15/10 — nhắc rõ đang dùng giao diện Giáo viên bằng tài khoản quản trị, kèm nút quay về. --}}

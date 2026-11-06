@@ -38,6 +38,7 @@ class NoticeController extends Controller
 
         // SỬA 6/11 — gửi từ tab "Thông báo" trong trang lớp: quay lại đúng tab đó (luồng cũ ở trang Thông báo giữ nguyên).
         if ($request->boolean('back_to_class')) {
+            app(\App\Services\Teacher\ClassSpaceService::class)->authorize((int) $data['class_room_id'], Auth::user(), 'notices'); // SỬA 6/11
             $back = route('teacher.classes.show', ['class' => (int) $data['class_room_id'], 'tab' => 'notices']);
             try {
                 $this->workspace->saveAnnouncement(Auth::user(), $data, $publish);
@@ -62,6 +63,7 @@ class NoticeController extends Controller
     /** SỬA 6/11 — xoá thông báo đã gửi từ tab "Thông báo" trong trang lớp (thu hồi luôn khỏi chuông học sinh / phụ huynh). */
     public function destroyFromClass(int $class, int $notice): RedirectResponse
     {
+        app(\App\Services\Teacher\ClassSpaceService::class)->authorize($class, Auth::user(), 'notices'); // SỬA 6/11
         $removed = $this->workspace->deletePublishedForClass(Auth::user(), $class, $notice);
         abort_if($removed === null, 404);
 

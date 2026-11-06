@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Services\Teacher\ClassRoomService;
+use App\Services\Teacher\ClassSpaceService;
 use App\Services\Teacher\TeacherWorkspaceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,12 +31,41 @@ class ClassRoomController extends Controller
         return view('teacher.classes.index', $data);
     }
 
+    /**
+     * SỬA 6/11 (khách: "lớp là một giao diện riêng, 8 tab") — trang lớp = không gian lớp: Tổng quan, Người tổ chức, Điểm danh,
+     * Tài liệu, Bài tập / Đề, Tiến trình dạy học, Kết quả học tập, Thông báo. Phần dữ liệu cũ vẫn từ showForTeacher(); phần mới
+     * từ ClassSpaceService. Tab cũ ?tab=schedule / members mở tab Điểm danh.
+     */
     public function show(Request $request, int $class): View
     {
         $user = Auth::user();
-        $tab = $request->query('tab', 'overview');
+        $space = app(ClassSpaceService::class);
+        $tab = ClassSpaceService::normalizeTab($request->query('tab', 'overview'));
+        $legacy = in_array($tab, ['materials', 'notices', 'assign'], true) ? $tab : 'overview';
 
-        return view('teacher.classes.show', $this->classRoomService->showForTeacher($user, $class, $tab));
+        $data = $this->classRoomService->showForTeacher($user, $class, $legacy);
+        $classRoom = $data['classRoom'];
+        $space->syncScheduledUnlocks($classRoom);
+
+        $data['tab'] = $tab;
+        $data['space'] = $space->header($classRoom, $user);
+        $data['spaceData'] = match ($tab) {
+            'overview' => $space->overview($classRoom),
+            'organizers' => $space->organizers($classRoom, $user),
+            'attendance' => $space->attendance($classRoom, $request->only(['range', 'from', 'to', 'p'])),
+            'assign' => $space->assignmentStats($classRoom),
+            'progress' => $space->progress($classRoom),
+            'results' => $space->results($classRoom),
+            default => [],
+        };
+
+        return view('teacher.classes.show', $data);
+    }
+
+    /** SỬA 6/11 — kiểm tra quyền theo vai trò trong lớp (Trợ giảng chỉ điểm danh + chấm điểm). */
+    private function allow(int $class, string $ability): void
+    {
+        app(ClassSpaceService::class)->authorize($class, Auth::user(), $ability);
     }
 
     /**
@@ -44,6 +74,7 @@ class ClassRoomController extends Controller
      */
     public function approveJoinRequest(Request $request, int $class, int $enrollment): RedirectResponse
     {
+        $this->allow($class, 'students');
         $this->classRoomService->approveJoinRequest(Auth::user(), $class, $enrollment);
 
         return back()->with('status', 'join-request-approved');
@@ -52,6 +83,7 @@ class ClassRoomController extends Controller
     /** SỬA 16/9 — giáo viên TỪ CHỐI yêu cầu vào lớp (kèm lý do, học sinh nhận được thông báo). */
     public function rejectJoinRequest(Request $request, int $class, int $enrollment): RedirectResponse
     {
+        $this->allow($class, 'students');
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
 
         $this->classRoomService->rejectJoinRequest(Auth::user(), $class, $enrollment, $data['reason'] ?? null);
@@ -66,6 +98,7 @@ class ClassRoomController extends Controller
      */
     public function removeStudent(Request $request, int $class, int $student): RedirectResponse
     {
+        $this->allow($class, 'students');
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
 
         $this->classRoomService->removeStudent(Auth::user(), $class, $student, $data['reason'] ?? null);
@@ -76,6 +109,7 @@ class ClassRoomController extends Controller
     /** SỬA 6/11 — giáo viên thêm học sinh vào lớp thủ công bằng email / số điện thoại (tab Học sinh). */
     public function addStudents(Request $request, int $class): RedirectResponse
     {
+        $this->allow($class, 'students');
         $data = $request->validate([
             'contacts' => ['nullable', 'string', 'max:3000'],
             'student_ids' => ['nullable', 'array', 'max:100'],
@@ -93,6 +127,7 @@ class ClassRoomController extends Controller
     /** SỬA 6/11 — ô tìm học sinh trong popup "Thêm học sinh" (JSON). */
     public function searchStudents(Request $request, int $class): \Illuminate\Http\JsonResponse
     {
+        $this->allow($class, 'students');
         return response()->json([
             'items' => $this->classRoomService->searchStudentsForClass(Auth::user(), $class, (string) $request->query('q', '')),
         ]);
@@ -127,6 +162,7 @@ class ClassRoomController extends Controller
      */
     public function attachMaterial(Request $request, int $class)
     {
+        $this->allow($class, 'materials');
         abort_if(Auth::user()->isPermissionRevoked('teacher.assign-material'), 403, 'Quyền "Giao tài liệu" của bạn đã bị quản trị viên thu hồi.');
 
         $data = $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
@@ -138,6 +174,7 @@ class ClassRoomController extends Controller
 
     public function detachMaterial(Request $request, int $class, int $classMaterial)
     {
+        $this->allow($class, 'materials');
         $this->classRoomService->detachMaterial(Auth::user(), $class, $classMaterial);
 
         return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'materials'])->with('status', 'material-detached');
@@ -152,6 +189,7 @@ class ClassRoomController extends Controller
      */
     public function assignAssessment(Request $request, int $class): RedirectResponse
     {
+        $this->allow($class, 'materials');
         abort_if(Auth::user()->isPermissionRevoked('teacher.assign-assessment'), 403, 'Quyền "Giao đề" của bạn đã bị quản trị viên thu hồi.');
 
         $data = $request->validate($this->assignRules());
