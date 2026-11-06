@@ -50,6 +50,11 @@ class ScheduleController extends Controller
             'ends_at' => $this->combineDateTime($data, 'ends'),
         ]);
 
+        // SỬA 6/11 — tạo từ tab "Buổi học" trong trang lớp thì quay lại đúng tab đó (trước đây luôn về trang Lịch).
+        if ($request->boolean('back_to_class')) {
+            return redirect()->route('teacher.classes.show', ['class' => (int) $data['class_room_id'], 'tab' => 'schedule'])->with('status', 'session-created');
+        }
+
         return redirect()->route('teacher.schedule.index')->with('status', 'session-created');
     }
 
