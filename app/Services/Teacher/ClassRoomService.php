@@ -603,7 +603,7 @@ class ClassRoomService
      *
      * @return array{added: list<string>, already: list<string>, notFound: list<string>, notStudent: list<string>}
      */
-    public function addStudentsManually(User $teacher, int $classId, string $input): array
+    public function addStudentsManually(User $teacher, int $classId, string $input, array $studentIds = []): array
     {
         $classRoom = $this->findTaughtClassRoom($teacher, $classId);
         // Tách theo xuống dòng / dấu phẩy / chấm phẩy; dòng có email thì tách thêm theo khoảng trắng (số điện thoại có dấu cách giữ nguyên).
@@ -612,8 +612,12 @@ class ClassRoomService
             ->map(fn ($t) => trim((string) $t))->filter()->unique()->take(50)->values();
         $out = ['added' => [], 'already' => [], 'notFound' => [], 'notStudent' => []];
 
-        foreach ($tokens as $token) {
-            $user = $this->findUserByContact($token);
+        // SỬA 6/11 — popup "Thêm học sinh": học sinh chọn từ danh sách (id) + học sinh nhập bằng email / SĐT, xử lý chung một vòng.
+        $picked = User::query()->whereIn('id', array_slice(array_values(array_unique(array_map('intval', $studentIds))), 0, 100))->get()
+            ->map(fn (User $u) => [$u->name, $u]);
+        $typed = $tokens->map(fn ($token) => [$token, $this->findUserByContact($token)]);
+
+        foreach ($picked->concat($typed) as [$token, $user]) {
             if ($user === null) {
                 $out['notFound'][] = $token;
 
@@ -648,6 +652,64 @@ class ClassRoomService
         }
 
         return $out;
+    }
+
+    /**
+     * SỬA 6/11 (khách: "bấm Thêm học sinh ra popup có ô chọn sổ xuống, tìm kiếm, chọn nhiều") — tìm học sinh để thêm vào lớp:
+     * theo tên / email / số điện thoại, tối đa 20 kết quả (để trống = 20 tài khoản học sinh mới nhất). Chỉ tài khoản học sinh đang
+     * hoạt động. Email / SĐT trả về đã che bớt (vd ng***@gmail.com, 091****678) — đủ để giáo viên nhận ra đúng em, không lộ đầy đủ.
+     *
+     * @return list<array{id:int, name:string, contact:string, province:?string, avatar:?string, initials:string, inClass:bool}>
+     */
+    public function searchStudentsForClass(User $teacher, int $classId, string $q, int $limit = 20): array
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        $inClass = ClassEnrollment::query()->where('class_room_id', $classRoom->id)
+            ->where('status', ClassEnrollment::STATUS_ACTIVE)->pluck('student_id')->map(fn ($v) => (int) $v)->flip();
+
+        $q = trim(mb_substr($q, 0, 100));
+        $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q).'%';
+        $digits = preg_replace('/\D+/', '', $q) ?? '';
+
+        $users = User::query()
+            ->whereHas('roles', fn ($r) => $r->where('name', Role::STUDENT))
+            ->where(fn ($w) => $w->whereNull('status')->orWhere('status', '!=', 'suspended'))
+            ->when($q !== '', fn ($w) => $w->where(function ($x) use ($like, $digits) {
+                $x->where('name', 'like', $like)->orWhere('email', 'like', $like);
+                if (strlen($digits) >= 3) {
+                    $x->orWhere('phone', 'like', '%'.$digits.'%');
+                }
+            }))
+            ->orderBy($q === '' ? 'id' : 'name', $q === '' ? 'desc' : 'asc')
+            ->limit($limit)
+            ->get(['id', 'name', 'email', 'phone', 'province', 'avatar_path']);
+
+        return $users->map(function (User $u) use ($inClass) {
+            $words = preg_split('/\s+/u', trim((string) $u->name)) ?: [];
+
+            return [
+                'id' => (int) $u->id,
+                'name' => (string) $u->name,
+                'contact' => $this->maskContact($u),
+                'province' => $u->province ?: null,
+                'avatar' => $u->avatarUrl() ?: null,
+                'initials' => mb_strtoupper(implode('', array_map(fn ($w) => mb_substr($w, 0, 1), array_slice($words, -2)))),
+                'inClass' => $inClass->has((int) $u->id),
+            ];
+        })->all();
+    }
+
+    private function maskContact(User $u): string
+    {
+        $email = (string) ($u->email ?? '');
+        if ($email !== '' && str_contains($email, '@')) {
+            [$local, $domain] = explode('@', $email, 2);
+
+            return mb_substr($local, 0, 2).'***@'.$domain;
+        }
+        $phone = preg_replace('/\D+/', '', (string) ($u->phone ?? '')) ?? '';
+
+        return strlen($phone) >= 7 ? substr($phone, 0, 3).'****'.substr($phone, -3) : '';
     }
 
     /** Tìm tài khoản theo email (không phân biệt hoa thường) hoặc số điện thoại (chấp nhận 0xxx / 84xxx / +84xxx, có dấu cách, chấm). */

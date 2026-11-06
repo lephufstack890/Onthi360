@@ -182,6 +182,81 @@
         .tcx-req + .tcx-req { margin-top: 8px; }
         .tcx-req-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
         .tcx-req-acts form { display: flex; align-items: center; gap: 6px; }
+        /* SỬA 6/11 — popup "Thêm học sinh" (tiền tố tam-; popup gắn ra <body> nên không dùng biến --tcx-*) */
+        .tam-ov { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(15, 35, 60, .45); backdrop-filter: blur(4px); }
+        .tam-dlg { width: min(600px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; border-radius: 22px; background: #fff; box-shadow: 0 30px 70px rgba(15, 35, 60, .3); overflow: hidden; font-family: inherit; color: #1E293B; }
+        .tam-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 14px; background: linear-gradient(120deg, #ECFDF5, #F0F9FF); border-bottom: 1px solid #E2EEF5; }
+        .tam-hic { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 14px; background: linear-gradient(135deg, #22C55E, #16A34A); color: #fff; box-shadow: 0 8px 18px rgba(22, 163, 74, .3); }
+        .tam-hic svg { width: 20px; height: 20px; }
+        .tam-htx { flex: 1; min-width: 0; }
+        .tam-htx h3 { margin: 0; font-size: 16px; font-weight: 800; color: #0F2F57; }
+        .tam-htx p { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: #5B7488; }
+        .tam-x { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .8); color: #5B7488; cursor: pointer; }
+        .tam-x:hover { background: #fff; color: #0F2F57; }
+        .tam-x svg { width: 17px; height: 17px; }
+        .tam-seg { display: flex; gap: 4px; margin: 14px 20px 0; padding: 4px; border-radius: 12px; background: #F1F5F9; }
+        .tam-seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: 0; border-radius: 9px; background: none; font-size: 12.5px; font-weight: 700; color: #5B7488; cursor: pointer; }
+        .tam-seg button svg { width: 15px; height: 15px; }
+        .tam-seg button.on { background: #fff; color: #0F2F57; box-shadow: 0 2px 6px rgba(15, 35, 60, .1); }
+        .tam-body { padding: 14px 20px 6px; overflow-y: auto; }
+        .tam-combo { position: relative; }
+        .tam-input { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1.5px solid #DCE6F0; border-radius: 13px; background: #fff; color: #7B8EA0; transition: border-color .15s, box-shadow .15s; }
+        .tam-input.on, .tam-input:focus-within { border-color: #22C55E; box-shadow: 0 0 0 4px rgba(34, 197, 94, .12); }
+        .tam-input > svg { width: 17px; height: 17px; flex: none; }
+        .tam-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: 13.5px; color: #0F2F57; }
+        .tam-caret { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: #F1F5F9; color: #5B7488; cursor: pointer; }
+        .tam-caret svg { width: 16px; height: 16px; transition: transform .15s; }
+        .tam-caret[aria-expanded="true"] svg { transform: rotate(180deg); }
+        .tam-spin { width: 16px; height: 16px; border: 2px solid #BBF7D0; border-top-color: #16A34A; border-radius: 50%; animation: tam-spin .7s linear infinite; }
+        @keyframes tam-spin { to { transform: rotate(360deg); } }
+        .tam-drop { margin-top: 8px; border: 1px solid #E2EBF2; border-radius: 14px; background: #fff; box-shadow: 0 12px 28px rgba(15, 35, 60, .1); overflow: hidden; } /* nằm trong luồng (không absolute) để không bị khung popup cắt */
+        .tam-drop-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #EEF3F7; background: #F8FAFC; font-size: 11.5px; font-weight: 700; color: #7B8EA0; }
+        .tam-drop-h button { border: 0; background: none; font-size: 11.5px; font-weight: 800; color: #16A34A; cursor: pointer; }
+        .tam-list { max-height: min(270px, 38vh); margin: 0; padding: 6px; list-style: none; overflow-y: auto; }
+        .tam-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 11px; cursor: pointer; transition: background .12s; }
+        .tam-list li:hover { background: #F0FDF4; }
+        .tam-list li.sel { background: #DCFCE7; }
+        .tam-list li.dis { cursor: not-allowed; opacity: .55; }
+        .tam-list li.dis:hover { background: none; }
+        .tam-ck { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border: 1.5px solid #CBD5E1; border-radius: 6px; background: #fff; color: transparent; transition: all .12s; }
+        .tam-ck svg { width: 13px; height: 13px; }
+        .tam-list li.sel .tam-ck { border-color: #16A34A; background: #16A34A; color: #fff; }
+        .tam-av { display: grid; place-items: center; width: 34px; height: 34px; flex: none; overflow: hidden; border-radius: 50%; font-size: 12px; }
+        .tam-av.sm { width: 22px; height: 22px; font-size: 9.5px; }
+        .tam-av img { width: 100%; height: 100%; object-fit: cover; }
+        .tam-av b { font-weight: 800; }
+        .tam-av.t0 { background: #DCFCE7; color: #15803D; } .tam-av.t1 { background: #DBEAFE; color: #1D4ED8; }
+        .tam-av.t2 { background: #FFEDD5; color: #C2410C; } .tam-av.t3 { background: #EDE9FE; color: #6D28D9; }
+        .tam-who { flex: 1; min-width: 0; }
+        .tam-who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: #0F2F57; }
+        .tam-who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: #7B8EA0; }
+        .tam-tag { flex: none; padding: 2px 8px; border-radius: 999px; background: #F1F5F9; font-size: 10.5px; font-weight: 700; color: #64748B; }
+        .tam-empty { margin: 0; padding: 16px; text-align: center; font-size: 12.5px; color: #94A3B8; }
+        .tam-picked { margin-top: 14px; padding: 12px; border-radius: 14px; border: 1px dashed #BBF7D0; background: #F7FEF9; }
+        .tam-picked-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #166534; }
+        .tam-picked-h button { border: 0; background: none; font-size: 12px; font-weight: 700; color: #DC2626; cursor: pointer; }
+        .tam-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 120px; overflow-y: auto; }
+        .tam-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px 0 4px; border: 1px solid #BBF7D0; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 600; color: #14532D; }
+        .tam-chip button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: #F0FDF4; color: #16A34A; cursor: pointer; }
+        .tam-chip button:hover { background: #DC2626; color: #fff; }
+        .tam-chip button svg { width: 12px; height: 12px; }
+        .tam-hint { margin: 6px 0 0; font-size: 12px; color: #6B8196; }
+        .tam-lb { display: block; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; color: #3D566B; }
+        .tam-ta { width: 100%; min-height: 140px; padding: 10px 12px; border: 1.5px solid #DCE6F0; border-radius: 13px; font: inherit; font-size: 13px; line-height: 1.7; color: #0F2F57; resize: vertical; outline: 0; box-sizing: border-box; }
+        .tam-ta:focus { border-color: #22C55E; box-shadow: 0 0 0 4px rgba(34, 197, 94, .12); }
+        .tam-err { display: flex; align-items: center; gap: 6px; margin: 6px 20px 0; padding: 8px 12px; border-radius: 10px; background: #FFF5F5; color: #B91C1C; font-size: 12.5px; font-weight: 600; }
+        .tam-err svg { width: 15px; height: 15px; }
+        .tam-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 14px 20px; border-top: 1px solid #EEF3F7; background: #FAFCFD; }
+        .tam-foot small { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6B8196; }
+        .tam-foot small svg { width: 14px; height: 14px; flex: none; }
+        .tam-acts { display: flex; gap: 8px; margin-left: auto; }
+        .tam-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border: 0; border-radius: 11px; font-size: 13px; font-weight: 800; cursor: pointer; }
+        .tam-btn svg { width: 16px; height: 16px; }
+        .tam-btn.ghost { background: #F1F5F9; color: #475569; } .tam-btn.ghost:hover { background: #E2E8F0; }
+        .tam-btn.pri { background: linear-gradient(135deg, #22C55E, #16A34A); color: #fff; box-shadow: 0 8px 18px rgba(22, 163, 74, .3); }
+        .tam-btn.pri:hover { filter: brightness(1.05); }
+        .tam-btn.pri:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+        @media (max-width: 560px) { .tam-ov { align-items: end; padding: 0; } .tam-dlg { border-radius: 22px 22px 0 0; max-height: 92vh; } .tam-foot small { display: none; } .tam-acts { width: 100%; } .tam-btn { flex: 1; justify-content: center; } }
         /* SỬA 6/11 — form + kết quả "Thêm học sinh vào lớp" */
         .tcx-addform { display: grid; gap: 8px; margin: 0 0 12px; padding: 12px 14px; border: 1px dashed #BBF7D0; border-radius: 14px; background: #F0FDF4; }
         .tcx-addform label { font-size: 12.5px; color: #3D566B; }
@@ -617,24 +692,102 @@
             @endif
         </section>
 
-        <section class="tcx-sec" x-data="{ q: '', adding: {{ $errors->has('contacts') ? 'true' : 'false' }} }">
+        <section class="tcx-sec" x-data="{ q: '' }">
             <div class="tcx-sec-head">
                 <span class="tcx-ic"><x-lucide name="users" /></span>
                 <div style="flex:1 1 220px;min-width:0"><h3>Học sinh đang học</h3><p>Gỡ khỏi lớp: em mất quyền vào lớp ngay; bài làm, điểm danh cũ vẫn giữ nguyên.</p></div>
                 <span class="tcx-count">{{ $members->count() }} học sinh</span>
-                {{-- SỬA 6/11 (khách: "cho giáo viên thêm học sinh vào lớp thủ công") --}}
-                <button type="button" class="tcx-btn is-green" @click="adding = !adding"><x-lucide name="user-plus" />Thêm học sinh</button>
-            </div>
-            <form x-show="adding" x-cloak method="POST" action="{{ route('teacher.classes.members.add', $classRoom->id) }}" class="tcx-addform">
-                @csrf
-                <label for="tcx-contacts"><b>Thêm học sinh vào lớp</b> — nhập <b>email</b> hoặc <b>số điện thoại</b> học sinh đã dùng để đăng ký tài khoản, mỗi dòng một người (tối đa 50).</label>
-                <textarea id="tcx-contacts" name="contacts" rows="3" class="tcx-input" placeholder="vd: nguyenvana@gmail.com&#10;0912345678">{{ old('contacts') }}</textarea>
-                <div class="tcx-addform-acts">
-                    <button type="submit" class="tcx-btn is-green"><x-lucide name="user-plus" />Thêm vào lớp</button>
-                    <button type="button" class="tcx-btn is-ghost" @click="adding = false">Huỷ</button>
-                    <small>Học sinh vào lớp ngay, không cần chờ duyệt, và nhận được thông báo.</small>
+                {{-- SỬA 6/11 (khách: "bấm Thêm học sinh ra popup thật đẹp: ô chọn sổ xuống có tìm kiếm, chọn nhiều") --}}
+                <div x-data="tamAdd(@js(['url' => route('teacher.classes.students.search', $classRoom->id), 'open' => $errors->has('contacts'), 'contacts' => old('contacts', '')]))" @keydown.escape.window="open && close()">
+                    <button type="button" class="tcx-btn is-green" @click="openModal()"><x-lucide name="user-plus" />Thêm học sinh</button>
+
+                    <template x-teleport="body">
+                        <div class="tam-ov" x-show="open" x-transition.opacity x-cloak @click.self="close()">
+                            <form class="tam-dlg" method="POST" action="{{ route('teacher.classes.members.add', $classRoom->id) }}" x-show="open" x-transition.scale.95 role="dialog" aria-modal="true" aria-labelledby="tam-title" @submit="submitting = true">
+                                @csrf
+                                <template x-for="s in selected" :key="'h' + s.id"><input type="hidden" name="student_ids[]" :value="s.id"></template>
+
+                                <header class="tam-head">
+                                    <span class="tam-hic"><x-lucide name="user-plus" /></span>
+                                    <div class="tam-htx">
+                                        <h3 id="tam-title">Thêm học sinh vào lớp</h3>
+                                        <p>{{ $classRoom->name }}</p>
+                                    </div>
+                                    <button type="button" class="tam-x" @click="close()" aria-label="Đóng"><x-lucide name="x" /></button>
+                                </header>
+
+                                <div class="tam-seg" role="tablist">
+                                    <button type="button" :class="{ on: mode === 'pick' }" @click="mode = 'pick'"><x-lucide name="search" />Chọn từ danh sách</button>
+                                    <button type="button" :class="{ on: mode === 'contact' }" @click="mode = 'contact'"><x-lucide name="mail" />Nhập email / SĐT</button>
+                                </div>
+
+                                <div class="tam-body" x-show="mode === 'pick'">
+                                    <div class="tam-combo" @click.outside="drop = false">
+                                        <label class="tam-input" :class="{ on: drop }">
+                                            <x-lucide name="search" />
+                                            <input type="text" x-ref="q" x-model="q" @input="search()" @focus="drop = true" @keydown.enter.prevent="pickFirst()"
+                                                   placeholder="Tìm theo tên, email hoặc số điện thoại…" autocomplete="off" aria-label="Tìm học sinh">
+                                            <span class="tam-spin" x-show="loading"></span>
+                                            <button type="button" class="tam-caret" @click="drop = !drop" :aria-expanded="drop" aria-label="Mở danh sách"><x-lucide name="chevron-down" /></button>
+                                        </label>
+                                        <div class="tam-drop" x-show="drop" x-transition.origin.top>
+                                            <div class="tam-drop-h">
+                                                <span x-text="q.trim() ? (results.length + ' kết quả') : 'Học sinh mới đăng ký gần đây'"></span>
+                                                <button type="button" x-show="selectable.length > 1" @click="selectAll()" x-text="allPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả (' + selectable.length + ')'"></button>
+                                            </div>
+                                            <ul class="tam-list" role="listbox" aria-multiselectable="true">
+                                                <template x-for="u in results" :key="u.id">
+                                                    <li role="option" :aria-selected="isSel(u)" :class="{ sel: isSel(u), dis: u.inClass }" @click="toggle(u)">
+                                                        <span class="tam-ck"><x-lucide name="check" /></span>
+                                                        <span class="tam-av" :class="'t' + (u.id % 4)"><img x-show="u.avatar" :src="u.avatar" alt=""><b x-show="!u.avatar" x-text="u.initials"></b></span>
+                                                        <span class="tam-who"><b x-text="u.name"></b><small x-text="[u.contact, u.province].filter(Boolean).join(' • ') || 'Chưa có email / SĐT'"></small></span>
+                                                        <span class="tam-tag" x-show="u.inClass">Đã trong lớp</span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                            <p class="tam-empty" x-show="!loading && results.length === 0" x-text="q.trim() ? 'Không tìm thấy học sinh phù hợp. Thử tên khác, hoặc chuyển sang “Nhập email / SĐT”.' : 'Chưa có tài khoản học sinh nào.'"></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="tam-picked">
+                                        <div class="tam-picked-h">
+                                            <b>Đã chọn <span x-text="selected.length"></span> học sinh</b>
+                                            <button type="button" x-show="selected.length" @click="selected = []">Bỏ chọn hết</button>
+                                        </div>
+                                        <div class="tam-chips" x-show="selected.length">
+                                            <template x-for="s in selected" :key="'c' + s.id">
+                                                <span class="tam-chip">
+                                                    <span class="tam-av sm" :class="'t' + (s.id % 4)"><img x-show="s.avatar" :src="s.avatar" alt=""><b x-show="!s.avatar" x-text="s.initials"></b></span>
+                                                    <span x-text="s.name"></span>
+                                                    <button type="button" @click="remove(s.id)" :aria-label="'Bỏ chọn ' + s.name"><x-lucide name="x" /></button>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <p class="tam-hint" x-show="!selected.length">Gõ tên vào ô tìm kiếm rồi bấm để chọn — chọn được nhiều em cùng lúc.</p>
+                                    </div>
+                                </div>
+
+                                <div class="tam-body" x-show="mode === 'contact'" x-cloak>
+                                    <label class="tam-lb" for="tam-contacts">Nhập <b>email</b> hoặc <b>số điện thoại</b> học sinh đã dùng để đăng ký tài khoản — mỗi dòng một người (tối đa 50).</label>
+                                    <textarea id="tam-contacts" name="contacts" rows="6" x-model="contacts" class="tam-ta" placeholder="vd: nguyenvana@gmail.com&#10;0912 345 678"></textarea>
+                                </div>
+
+                                @error('contacts')<p class="tam-err"><x-lucide name="alert-triangle" />{{ $message }}</p>@enderror
+
+                                <footer class="tam-foot">
+                                    <small><x-lucide name="info" />Học sinh vào lớp ngay, không cần chờ duyệt, và nhận được thông báo.</small>
+                                    <div class="tam-acts">
+                                        <button type="button" class="tam-btn ghost" @click="close()">Huỷ</button>
+                                        <button type="submit" class="tam-btn pri" :disabled="!canSubmit || submitting">
+                                            <x-lucide name="user-plus" /><span x-text="submitting ? 'Đang thêm…' : (count > 0 ? 'Thêm ' + count + ' học sinh' : 'Thêm vào lớp')"></span>
+                                        </button>
+                                    </div>
+                                </footer>
+                            </form>
+                        </div>
+                    </template>
                 </div>
-            </form>
+            </div>
             @if ($members->count() > 6)
                 <label class="tcx-search" style="display:block;max-width:320px;margin-bottom:10px"><x-lucide name="search" /><input type="search" placeholder="Tìm tên hoặc email học sinh…" x-model="q" aria-label="Tìm học sinh"></label>
             @endif
@@ -693,4 +846,39 @@
             [x-cloak] { display: none !important; }
         </style>
     @endpush
+    {{-- SỬA 6/11 — popup "Thêm học sinh": tìm (gõ là tìm, 250ms), chọn nhiều, gửi danh sách id + email / SĐT nhập tay. --}}
+    <script>
+        window.tamAdd = function (cfg) {
+            return {
+                open: !!cfg.open, mode: cfg.contacts ? 'contact' : 'pick', q: '', results: [], selected: [], contacts: cfg.contacts || '',
+                drop: false, loading: false, submitting: false, timer: null, seq: 0, loaded: false,
+                init() { if (this.open) { this.lock(true); if (this.mode === 'pick') this.search(true); } },
+                lock(on) { document.documentElement.style.overflow = on ? 'hidden' : ''; },
+                openModal() { this.open = true; this.submitting = false; this.lock(true); if (!this.loaded) this.search(true); this.$nextTick(() => { if (this.mode === 'pick' && this.$refs.q) { this.$refs.q.focus(); this.drop = true; } }); },
+                close() { this.open = false; this.drop = false; this.lock(false); },
+                search(now) {
+                    clearTimeout(this.timer);
+                    const run = () => {
+                        const my = ++this.seq; this.loading = true;
+                        fetch(cfg.url + '?q=' + encodeURIComponent(this.q.trim()), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                            .then((r) => r.ok ? r.json() : { items: [] })
+                            .then((j) => { if (my === this.seq) { this.results = j.items || []; this.loading = false; this.loaded = true; } })
+                            .catch(() => { if (my === this.seq) this.loading = false; });
+                    };
+                    this.drop = true;
+                    now ? run() : (this.timer = setTimeout(run, 250));
+                },
+                isSel(u) { return this.selected.some((s) => s.id === u.id); },
+                toggle(u) { if (u.inClass) return; this.isSel(u) ? this.remove(u.id) : this.selected.push(u); },
+                remove(id) { this.selected = this.selected.filter((s) => s.id !== id); },
+                get selectable() { return this.results.filter((u) => !u.inClass); },
+                get allPicked() { return this.selectable.length > 0 && this.selectable.every((u) => this.isSel(u)); },
+                selectAll() { if (this.allPicked) { const ids = this.selectable.map((u) => u.id); this.selected = this.selected.filter((s) => !ids.includes(s.id)); } else { this.selectable.forEach((u) => { if (!this.isSel(u)) this.selected.push(u); }); } },
+                pickFirst() { const u = this.selectable.find((x) => !this.isSel(x)); if (u) this.selected.push(u); },
+                get typedCount() { return this.contacts.split(/[\r\n,;]+/).map((t) => t.trim()).filter(Boolean).length; },
+                get count() { return this.selected.length + this.typedCount; },
+                get canSubmit() { return this.selected.length > 0 || this.contacts.trim() !== ''; },
+            };
+        };
+    </script>
 @endsection

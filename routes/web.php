@@ -533,6 +533,8 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 6/11 — thêm học sinh vào lớp thủ công (email / số điện thoại).
         Route::post('classes/{class}/members/add', [TeacherClassRoomController::class, 'addStudents'])
             ->whereNumber('class')->middleware('throttle:30,1')->name('classes.members.add');
+        Route::get('classes/{class}/students/search', [TeacherClassRoomController::class, 'searchStudents'])
+            ->whereNumber('class')->middleware('throttle:120,1')->name('classes.students.search');
         Route::get('classes/{class}', [TeacherClassRoomController::class, 'show'])->name('classes.show');
         Route::get('questions', [TeacherQuestionController::class, 'index'])->name('questions.index');
         Route::get('questions/create', [TeacherQuestionController::class, 'create'])->middleware(\App\Http\Middleware\EnsurePermissionNotRevoked::for('teacher.question-create'))->name('questions.create');

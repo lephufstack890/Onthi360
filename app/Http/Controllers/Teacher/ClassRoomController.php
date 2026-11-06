@@ -76,13 +76,26 @@ class ClassRoomController extends Controller
     /** SỬA 6/11 — giáo viên thêm học sinh vào lớp thủ công bằng email / số điện thoại (tab Học sinh). */
     public function addStudents(Request $request, int $class): RedirectResponse
     {
-        $data = $request->validate(['contacts' => ['required', 'string', 'max:3000']], [
-            'contacts.required' => 'Nhập email hoặc số điện thoại của học sinh cần thêm.',
+        $data = $request->validate([
+            'contacts' => ['nullable', 'string', 'max:3000'],
+            'student_ids' => ['nullable', 'array', 'max:100'],
+            'student_ids.*' => ['integer'],
         ]);
+        if (trim((string) ($data['contacts'] ?? '')) === '' && empty($data['student_ids'])) {
+            return back()->withErrors(['contacts' => 'Chọn ít nhất một học sinh, hoặc nhập email / số điện thoại.']);
+        }
 
-        $result = $this->classRoomService->addStudentsManually(Auth::user(), $class, $data['contacts']);
+        $result = $this->classRoomService->addStudentsManually(Auth::user(), $class, (string) ($data['contacts'] ?? ''), $data['student_ids'] ?? []);
 
         return back()->with('members_added', $result);
+    }
+
+    /** SỬA 6/11 — ô tìm học sinh trong popup "Thêm học sinh" (JSON). */
+    public function searchStudents(Request $request, int $class): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'items' => $this->classRoomService->searchStudentsForClass(Auth::user(), $class, (string) $request->query('q', '')),
+        ]);
     }
 
     public function create(Request $request): View
