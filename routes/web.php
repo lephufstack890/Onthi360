@@ -544,6 +544,8 @@ Route::middleware(['auth'])->group(function () {
             Route::post('classes/{class}/attendance/cell', 'saveAttendanceCell')->middleware('throttle:600,1')->name('classes.attendance.cell');
             Route::get('classes/{class}/attendance/export', 'exportAttendance')->name('classes.attendance.export');
             Route::post('classes/{class}/assignments/{assignment}/remind', 'remind')->name('classes.assignments.remind');
+            Route::get('classes/{class}/practice/sources', 'practiceSources')->middleware('throttle:60,1')->name('classes.practice.sources');
+            Route::post('classes/{class}/practice/assign', 'assignPractice')->middleware('throttle:30,1')->name('classes.practice.assign');
             Route::post('classes/{class}/steps', 'storeStep')->name('classes.steps.store');
             Route::put('classes/{class}/steps/{step}', 'updateStep')->name('classes.steps.update');
             Route::delete('classes/{class}/steps/{step}', 'destroyStep')->name('classes.steps.destroy');

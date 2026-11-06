@@ -186,6 +186,42 @@ class AssessmentService
             ])->all();
     }
 
+    /**
+     * SỬA 6/11 (khách: "tài khoản giáo viên chuyển từ admin qua thì lấy hết; giáo viên thường chỉ lấy của mình") — danh sách đề
+     * trong popup "Giao bài / đề" của lớp. Giáo viên thường: đúng như cũ (đề của mình). Admin đang xem như Giáo viên: thêm mọi đề
+     * kiểm tra / bài giao ĐÃ PHÁT HÀNH của người khác (không gồm đề luyện tập — có tab riêng — và đề cuộc thi).
+     */
+    public function assessmentsForClassPicker(User $teacher): array
+    {
+        $own = $this->assessmentsForPicker($teacher);
+        if ($teacher->actingRole() !== \App\Models\Role::TEACHER) {
+            return $own;
+        }
+        $ownIds = array_column($own, 'id');
+        $others = $this->assessments->query()
+            ->whereNotIn('id', $ownIds ?: [0])
+            ->whereNotIn('type', [AssessmentType::Practice->value, AssessmentType::CompetitionPaper->value])
+            ->where('status', ContentStatus::Published->value)
+            ->with('creator:id,name')
+            ->latest()->limit(300)->get()
+            ->map(fn (Assessment $a) => ['id' => $a->id, 'title' => $a->title.' — '.($a->creator->name ?? 'Kho chung'), 'status' => 'Đã phát hành'])
+            ->all();
+
+        return array_merge($own, $others);
+    }
+
+    /** SỬA 6/11 — đề được phép giao cho lớp: của mình; admin đang xem như Giáo viên thì mọi đề (trừ đề cuộc thi). */
+    public function findAssignable(User $teacher, int $id): Assessment
+    {
+        if ($teacher->actingRole() !== \App\Models\Role::TEACHER) {
+            return $this->findOwned($teacher, $id);
+        }
+        $assessment = $this->assessments->withItemsAndQuestions($id) ?? $this->assessments->findOrFail($id);
+        abort_if($assessment->type === AssessmentType::CompetitionPaper, 403, 'Không giao được đề cuộc thi cho lớp.');
+
+        return $assessment;
+    }
+
     /** teacher.assessments.create — chọn câu từ kho riêng (6.3). */
     public function createFormData(User $teacher): array
     {
@@ -316,7 +352,9 @@ class AssessmentService
         $assessment = $this->assessments->withItemsAndQuestions($id)
             ?? $this->assessments->findOrFail($id);
 
-        abort_unless($assessment->owner_type === OwnerType::Teacher && (int) $assessment->owner_id === $teacher->id, 403);
+        // SỬA 6/11 — quản trị đang ở vai Giáo viên được mở / sửa / giao mọi đề.
+        abort_unless(($assessment->owner_type === OwnerType::Teacher && (int) $assessment->owner_id === $teacher->id)
+            || $teacher->actingRole() === \App\Models\Role::TEACHER, 403);
 
         return $assessment;
     }
@@ -468,9 +506,10 @@ class AssessmentService
     /** teacher.papers.index — đề PDF riêng của giáo viên (khác teacher.assessments.index — Bài giao chọn câu rời, không đổi). */
     public function papersForTeacher(User $teacher): array
     {
+        // SỬA 6/11 — quản trị đang ở vai Giáo viên: thấy mọi đề (không lọc chủ sở hữu).
+        $seeAll = $teacher->actingRole() === \App\Models\Role::TEACHER;
         $papers = $this->assessments->query()
-            ->where('owner_type', OwnerType::Teacher->value)
-            ->where('owner_id', $teacher->id)
+            ->when(! $seeAll, fn ($q) => $q->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacher->id))
             ->where('content_mode', AssessmentContentMode::PdfAnswerSheet->value)
             ->withCount(['answerKeys', 'codingItems'])
             ->latest()

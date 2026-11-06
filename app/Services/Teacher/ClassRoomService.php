@@ -284,7 +284,7 @@ class ClassRoomService
             // SỬA 24/8 — khách yêu cầu: chọn đề CÓ SẴN ngay tại đây (lớp đã biết, chỉ cần
             // chọn đề) — dùng chung dữ liệu với teacher.assessments.index để không lệch
             // (xem AssessmentService::assessmentsForPicker()).
-            $assignableAssessments = $this->assessmentService->assessmentsForPicker($user);
+            $assignableAssessments = $this->assessmentService->assessmentsForClassPicker($user); // SỬA 6/11
         }
 
         $members = $tab === 'members' ? $classRoom->students : collect();
@@ -370,7 +370,7 @@ class ClassRoomService
     public function assignAssessmentToClass(User $teacher, int $classId, int $assessmentId, array $data): Assignment
     {
         $classRoom = $this->findTaughtClassRoom($teacher, $classId);
-        $assessment = $this->assessmentService->findOwned($teacher, $assessmentId);
+        $assessment = $this->assessmentService->findAssignable($teacher, $assessmentId); // SỬA 6/11 — admin xem như GV: mọi đề
 
         $data['class_room_id'] = $classRoom->id;
 

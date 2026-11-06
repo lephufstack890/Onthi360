@@ -13,6 +13,8 @@ use App\Models\ClassMaterial;
 use App\Models\ClassProgressStep;
 use App\Models\ClassRoom;
 use App\Models\ClassSession;
+use App\Models\Assessment;
+use App\Models\Question;
 use App\Models\Role;
 use App\Models\User;
 use App\Notifications\ClassSpaceNotice;
@@ -607,6 +609,151 @@ class ClassSpaceService
         Cache::put($key, 1, now()->addMinutes(10));
 
         return count($targets);
+    }
+
+    // ── Giao đề / bài LUYỆN TẬP cho cả lớp (SỬA 6/11, khách: "đổ đề luyện tập và bài luyện tập ra để giáo viên giao; tài khoản
+    //    giáo viên chuyển từ admin qua thì lấy hết, giáo viên thường chỉ lấy của mình") — dùng lại hệ "giao bài luyện tập" có
+    //    sẵn (bảng practice_assignments, PracticeAssignmentService::assignMany): mỗi học sinh trong lớp nhận 1 lượt giao, thấy ở
+    //    trang Luyện tập (Đề / Bài được giao) kèm hạn nộp.
+
+    /** Quản trị thật đang ở vai Giáo viên → lấy mọi nội dung; giáo viên thường → chỉ nội dung của mình. */
+    public function seesAllContent(User $user): bool
+    {
+        return $user->actingRole() === Role::TEACHER;
+    }
+
+    /** @return array{exams: list<array>, problems: list<array>, seeAll: bool} */
+    public function practiceSources(User $user): array
+    {
+        $all = $this->seesAllContent($user);
+        $mine = fn ($q) => $q->where('owner_type', 'teacher')->where('owner_id', $user->id);
+        $hasKind = Assessment::supportsPracticeKind();
+
+        $exams = Assessment::query()->where('type', 'practice')->where('status', 'published')
+            ->when($hasKind, fn ($q) => $q->where(fn ($w) => $w->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL)))
+            ->when(! $all, $mine)
+            ->latest()->limit(400)->get(['id', 'title', 'exam_code'])
+            ->map(fn ($a) => ['key' => 'exam:'.$a->id, 'title' => (string) $a->title, 'code' => (string) ($a->exam_code ?: '#'.$a->id), 'kind' => 'Đề luyện tập'])->all();
+
+        $sets = $hasKind
+            ? Assessment::query()->where('type', 'practice')->where('status', 'published')->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
+                ->when(! $all, $mine)->latest()->limit(300)->get(['id', 'title', 'exam_code'])
+                ->map(fn ($a) => ['key' => 'exam:'.$a->id, 'title' => (string) $a->title, 'code' => (string) ($a->exam_code ?: '#'.$a->id), 'kind' => 'Bài phổ thông'])->all()
+            : [];
+
+        $typeLabels = collect(\App\Support\PracticeFilters::TYPE_META)->map(fn ($m) => $m['label'])->all();
+        $problems = \App\Support\PracticeQuestionPool::excludeExamQuestions(
+            Question::query()->where('status', 'published')->whereNull('product_id')->whereIn('type', array_keys($typeLabels))
+        )->when(! $all, $mine)->latest()->limit(600)->get(['id', 'title', 'code', 'type'])
+            ->map(fn ($q) => ['key' => 'problem:'.$q->id, 'title' => (string) $q->title, 'code' => (string) ($q->code ?: '#'.$q->id),
+                'kind' => $typeLabels[$this->statusValue($q->type)] ?? 'Bài tập'])->all();
+
+        return ['exams' => $exams, 'problems' => array_merge($sets, $problems), 'seeAll' => $all];
+    }
+
+    /**
+     * Giao các đề / bài luyện tập đã chọn cho MỌI học sinh đang học của lớp. $keys dạng "exam:12" / "problem:34".
+     * Giáo viên thường chỉ giao được nội dung của mình (kiểm tra lại ở đây, không tin danh sách trên trang).
+     *
+     * @return array{items:int, students:int}
+     */
+    public function assignPractice(ClassRoom $classRoom, User $actor, array $keys, Carbon $deadline): array
+    {
+        $svc = app(\App\Services\Public\PracticeAssignmentService::class);
+        $roster = $this->rosterIds($classRoom);
+        if ($roster === []) {
+            throw ValidationException::withMessages(['items' => 'Lớp chưa có học sinh đang học.']);
+        }
+        if ($deadline->lte(now())) {
+            throw ValidationException::withMessages(['deadline' => 'Hạn nộp phải ở sau thời điểm hiện tại.']);
+        }
+
+        $pairs = collect($keys)->map(fn ($k) => explode(':', (string) $k, 2))
+            ->filter(fn ($p) => count($p) === 2 && in_array($p[0], ['exam', 'problem'], true) && (int) $p[1] > 0)
+            ->map(fn ($p) => [$p[0], (int) $p[1]])->unique(fn ($p) => $p[0].$p[1])->values();
+        if ($pairs->isEmpty()) {
+            throw ValidationException::withMessages(['items' => 'Chọn ít nhất một đề / bài luyện tập.']);
+        }
+        if ($pairs->count() > 30) {
+            throw ValidationException::withMessages(['items' => 'Mỗi lần giao tối đa 30 đề / bài.']);
+        }
+
+        if (! $this->seesAllContent($actor)) {
+            foreach ($pairs as [$type, $id]) {
+                $owned = ($type === 'exam' ? Assessment::query() : Question::query())
+                    ->whereKey($id)->where('owner_type', 'teacher')->where('owner_id', $actor->id)->exists();
+                if (! $owned) {
+                    throw ValidationException::withMessages(['items' => 'Chỉ giao được đề / bài luyện tập do chính bạn tạo.']);
+                }
+            }
+        }
+
+        $titles = [];
+        DB::transaction(function () use ($svc, $actor, $pairs, $roster, $deadline, &$titles) {
+            foreach ($pairs as [$type, $id]) {
+                foreach (array_chunk($roster, \App\Services\Public\PracticeAssignmentService::ASSIGN_MAX_STUDENTS) as $chunk) {
+                    $svc->assignMany($actor, $type, $id, $chunk, $deadline);
+                }
+                $titles[] = (string) (($type === 'exam' ? Assessment::query() : Question::query())->whereKey($id)->value('title') ?? '');
+            }
+        });
+
+        $label = count($titles) === 1 ? '"'.$titles[0].'"' : count($titles).' đề / bài luyện tập';
+        Notification::send(User::query()->whereIn('id', $roster)->get(), new ClassSpaceNotice('📝', 'info', 'Bài luyện tập mới: '.(count($titles) === 1 ? $titles[0] : count($titles).' bài'),
+            'Lớp '.$classRoom->name.': thầy cô giao '.$label.', hạn '.$deadline->format('H:i d/m/Y').'. Vào Luyện tập → mục Được giao để làm.',
+            route('practice.index'), 'Giáo viên '.$actor->name));
+
+        return ['items' => $pairs->count(), 'students' => count($roster)];
+    }
+
+    /** Các đề / bài luyện tập đã giao cho học sinh của lớp (giáo viên của lớp giao), gom theo nội dung + hạn. */
+    public function practiceAssigned(ClassRoom $classRoom): array
+    {
+        $svc = app(\App\Services\Public\PracticeAssignmentService::class);
+        if (! $svc->isReady()) {
+            return [];
+        }
+        $roster = $this->rosterIds($classRoom);
+        $teachers = DB::table('class_teachers')->where('class_room_id', $classRoom->id)->pluck('user_id')->all();
+        if ($roster === [] || $teachers === []) {
+            return [];
+        }
+        $rows = \App\Models\PracticeAssignment::query()->whereIn('student_id', $roster)->whereIn('assigned_by', $teachers)
+            ->orderByDesc('id')->limit(2000)->get();
+        if ($rows->isEmpty()) {
+            return [];
+        }
+        $progress = $svc->progressMap($rows);
+        $examIds = $rows->where('type', 'exam')->pluck('subject_id')->unique()->all();
+        $probIds = $rows->where('type', 'problem')->pluck('subject_id')->unique()->all();
+        $titles = [
+            'exam' => Assessment::query()->whereIn('id', $examIds ?: [0])->get(['id', 'title', 'practice_kind'])->keyBy('id'),
+            'problem' => Question::query()->whereIn('id', $probIds ?: [0])->pluck('title', 'id'),
+        ];
+        $names = User::query()->whereIn('id', $teachers)->pluck('name', 'id');
+
+        return $rows->groupBy(fn ($a) => $a->type.':'.$a->subject_id.':'.$a->deadline_at?->format('YmdHi'))
+            ->map(function ($g) use ($progress, $titles, $names) {
+                $a = $g->first();
+                $st = $g->map(fn ($x) => $progress[$x->id]['status'] ?? 'unsubmitted');
+                $isExam = $a->type === 'exam';
+                $model = $isExam ? ($titles['exam'][$a->subject_id] ?? null) : null;
+                $title = $isExam ? ($model->title ?? null) : ($titles['problem'][$a->subject_id] ?? null);
+
+                return [
+                    'type' => $a->type,
+                    'kind' => $isExam ? (($model && ($model->practice_kind ?? null) === Assessment::PRACTICE_KIND_GENERAL) ? 'Bài phổ thông' : 'Đề luyện tập') : 'Bài luyện tập',
+                    'title' => (string) ($title ?? 'Nội dung đã bị xoá'),
+                    'href' => $title === null ? null : ($isExam ? route('practice.exam.show', $a->subject_id) : route('student.practiceByQuestion.setup', ['question' => $a->subject_id])),
+                    'deadline' => $a->deadline_at?->format('H:i d/m/Y'),
+                    'overdue' => $a->deadline_at !== null && $a->deadline_at->isPast(),
+                    'by' => (string) ($names[$a->assigned_by] ?? ''),
+                    'total' => $g->count(),
+                    'done' => $st->filter(fn ($s) => $s === 'completed')->count(),
+                    'pending' => $st->filter(fn ($s) => $s === 'pending')->count(),
+                    'at' => $g->max('id'),
+                ];
+            })->sortByDesc('at')->values()->take(60)->all();
     }
 
     // ───────────────────────── Tab 6: Tiến trình dạy học ─────────────────────────

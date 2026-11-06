@@ -53,7 +53,7 @@ class ClassRoomController extends Controller
             'overview' => $space->overview($classRoom),
             'organizers' => $space->organizers($classRoom, $user),
             'attendance' => $space->attendance($classRoom, $request->only(['range', 'from', 'to', 'p'])),
-            'assign' => $space->assignmentStats($classRoom),
+            'assign' => $space->assignmentStats($classRoom) + ['practiceAssigned' => $space->practiceAssigned($classRoom)],
             'progress' => $space->progress($classRoom),
             'results' => $space->results($classRoom),
             default => [],

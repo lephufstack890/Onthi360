@@ -475,6 +475,24 @@ class PracticeAssignmentService
      * @param  Collection<int, PracticeAssignment>  $assignments
      * @return array<int, array<string, mixed>>  khoá = id lượt giao
      */
+    /**
+     * SỬA 6/11 — trạng thái từng lượt giao (completed | pending | unsubmitted | overdue), cho tab "Bài tập / Đề" của không gian
+     * lớp đếm số em đã làm xong. Chỉ đọc, dùng lại đúng progressFor() bên dưới.
+     *
+     * @param  Collection<int, PracticeAssignment>  $assignments
+     * @return array<int, string>  khoá = id lượt giao
+     */
+    public function statusesFor(Collection $assignments): array
+    {
+        return array_map(fn ($p) => (string) ($p['status'] ?? 'unsubmitted'), $this->progressFor($assignments));
+    }
+
+    /** SỬA 6/11 — tiến độ (completed | pending | unsubmitted | overdue) của các lượt giao — dùng ở tab Bài tập / Đề của lớp. */
+    public function progressMap(Collection $assignments): array
+    {
+        return $this->isReady() && $assignments->isNotEmpty() ? $this->progressFor($assignments) : [];
+    }
+
     private function progressFor(Collection $assignments, bool $withDetail = false): array
     {
         $result = [];

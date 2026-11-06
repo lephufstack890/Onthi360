@@ -85,13 +85,17 @@ class QuestionService
         $isShared = $activeTab === 'shared';
         $isQuestionTab = $activeTab !== 'assessments';
 
+        // SỬA 6/11 (khách: "giáo viên được chuyển từ admin qua thì xem được hết") — quản trị đang ở vai Giáo viên: tab Bài chung /
+        // Bài của đề lấy câu của MỌI người (không lọc chủ sở hữu). Giáo viên thường: như cũ, chỉ câu của mình.
+        $seeAll = $user->actingRole() === \App\Models\Role::TEACHER;
+        $ownerScope = $seeAll ? [] : ['owner_id' => $user->id];
         $counts = [
-            'used' => $this->questions->countAllFiltered(['owner_id' => $user->id, 'in_exam' => 'used']),
-            'unused' => $this->questions->countAllFiltered(['owner_id' => $user->id, 'in_exam' => 'unused']),
+            'used' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'used']),
+            'unused' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'unused']),
             'shared' => $this->questions->countShared(),
         ];
         // SỬA 3/11 — "Bài phổ thông" của giáo viên (mỗi bài = 1) tính vào tab Bài chung, chip môn và chip dạng.
-        $generalSetSubjects = \App\Services\GeneralSetBankService::countsBySubject((int) $user->id);
+        $generalSetSubjects = \App\Services\GeneralSetBankService::countsBySubject($seeAll ? null : (int) $user->id);
         $generalSetTotal = array_sum($generalSetSubjects);
         $counts['unused'] += $generalSetTotal;
 
@@ -104,7 +108,7 @@ class QuestionService
 
         $scope = $isShared
             ? ['owner_type' => OwnerType::Shared->value]
-            : ['owner_id' => $user->id, 'in_exam' => $activeTab === 'unused' ? 'unused' : 'used'];
+            : $ownerScope + ['in_exam' => $activeTab === 'unused' ? 'unused' : 'used'];
 
         $query = $scope + [
             'subject' => $filters['subject'] ?? null,
@@ -226,7 +230,9 @@ class QuestionService
     {
         $question = $this->questions->findOrFail($id);
 
-        abort_unless($question->owner_type === OwnerType::Teacher && (int) $question->owner_id === $teacher->id, 403);
+        // SỬA 6/11 — quản trị đang ở vai Giáo viên được mở / sửa mọi câu (như ở khu quản trị).
+        abort_unless(($question->owner_type === OwnerType::Teacher && (int) $question->owner_id === $teacher->id)
+            || $teacher->actingRole() === \App\Models\Role::TEACHER, 403);
 
         return $question;
     }

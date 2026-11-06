@@ -117,6 +117,32 @@ class ClassSpaceController extends Controller
         return $this->back($class, 'assign')->with('space_ok', $n > 0 ? "Đã nhắc {$n} học sinh chưa nộp bài." : 'Cả lớp đã nộp bài này rồi.');
     }
 
+    /** SỬA 6/11 — danh sách đề / bài LUYỆN TẬP để chọn giao (quản trị ở vai giáo viên: tất cả; giáo viên thường: của mình). */
+    public function practiceSources(int $class): JsonResponse
+    {
+        $this->space->authorize($class, Auth::user(), 'materials');
+
+        return response()->json($this->space->practiceSources(Auth::user()));
+    }
+
+    /** SỬA 6/11 — giao các đề / bài luyện tập đã chọn cho mọi học sinh của lớp, kèm hạn nộp. */
+    public function assignPractice(Request $request, int $class): RedirectResponse
+    {
+        $classRoom = $this->space->authorize($class, Auth::user(), 'materials');
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:30'],
+            'items.*' => ['string', 'max:30'],
+            'deadline' => ['required', 'date'],
+        ], ['items.required' => 'Chọn ít nhất một đề / bài luyện tập.', 'deadline.required' => 'Chọn hạn nộp.']);
+        try {
+            $r = $this->space->assignPractice($classRoom, Auth::user(), $data['items'], \Illuminate\Support\Carbon::parse($data['deadline']));
+        } catch (ValidationException $e) {
+            return $this->back($class, 'assign')->withErrors($e->errors());
+        }
+
+        return $this->back($class, 'assign')->with('space_ok', "Đã giao {$r['items']} đề / bài luyện tập cho {$r['students']} học sinh.");
+    }
+
     // ── Tiến trình dạy học ──
 
     private function stepRules(): array
