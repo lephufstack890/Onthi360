@@ -156,6 +156,31 @@ class ScheduleService
     }
 
     /**
+     * SỬA 6/11 (khách: "lỡ thêm sai thông tin thì giáo viên sửa được buổi học") — teacher.schedule.update: sửa chủ đề,
+     * địa điểm / link, giờ bắt đầu – kết thúc. Chỉ giáo viên dạy lớp (hoặc admin) sửa được; điểm danh / hoạt động / tài
+     * nguyên đã gắn của buổi giữ nguyên.
+     */
+    public function update(User $teacher, int $sessionId, array $data): ClassSession
+    {
+        $session = $this->classSessions->find($sessionId)
+            ?? throw (new ModelNotFoundException())->setModel(ClassSession::class, [$sessionId]);
+        $this->findTaughtClassRoom($teacher, $session->class_room_id);
+
+        if (strtotime($data['ends_at']) <= strtotime($data['starts_at'])) {
+            throw ValidationException::withMessages(['ends_date' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+        }
+
+        $session->update([
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'topic' => $data['topic'] ?? null,
+            'location' => $data['location'] ?? null,
+        ]);
+
+        return $session;
+    }
+
+    /**
      * teacher.schedule.attendance — roster đầy đủ của lớp + trạng thái điểm danh hiện có
      * (mặc định "present"), kèm nhận xét (mặc định 1 câu chung, note họp 13/8) + cột "Em
      * cần học thêm" + nguồn điểm danh (manual/auto — auto là học sinh tự vào làm bài lúc

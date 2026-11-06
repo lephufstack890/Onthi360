@@ -58,6 +58,28 @@ class ScheduleController extends Controller
         return redirect()->route('teacher.schedule.index')->with('status', 'session-created');
     }
 
+    /** SỬA 6/11 — sửa buổi học (popup "Sửa buổi học" ở tab Buổi học trong trang lớp). */
+    public function update(Request $request, int $session): RedirectResponse
+    {
+        $rules = $this->storeRules();
+        unset($rules['class_room_id']);
+        foreach (['starts', 'ends'] as $k) {
+            $rules[$k.'_date'] = ['required', 'date_format:Y-m-d'];
+            $rules[$k.'_hour'] = ['required', 'regex:/^([01]\d|2[0-3])$/'];
+            $rules[$k.'_minute'] = ['required', 'regex:/^[0-5]\d$/'];
+        }
+        $data = $request->validate($rules);
+
+        $this->scheduleService->update(Auth::user(), $session, [
+            'topic' => $data['topic'] ?? null,
+            'location' => $data['location'] ?? null,
+            'starts_at' => $this->combineDateTime($data, 'starts'),
+            'ends_at' => $this->combineDateTime($data, 'ends'),
+        ]);
+
+        return back()->with('status', 'session-updated');
+    }
+
     public function attendance(Request $request, int $session): View
     {
         return view('teacher.schedule.attendance', $this->scheduleService->attendanceForSession(Auth::user(), $session));

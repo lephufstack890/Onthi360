@@ -608,6 +608,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('schedule', [TeacherScheduleController::class, 'index'])->name('schedule.index');
         Route::post('schedule', [TeacherScheduleController::class, 'store'])->name('schedule.store');
+        Route::put('schedule/{session}', [TeacherScheduleController::class, 'update'])->whereNumber('session')->name('schedule.update'); // SỬA 6/11 — sửa buổi học
         Route::get('schedule/{session}/attendance', [TeacherScheduleController::class, 'attendance'])->name('schedule.attendance');
         Route::post('schedule/{session}/attendance', [TeacherScheduleController::class, 'saveAttendance'])->name('schedule.attendance.save');
         Route::post('schedule/{session}/summary', [TeacherScheduleController::class, 'saveSummary'])->name('schedule.summary.save');

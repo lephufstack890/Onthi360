@@ -23,7 +23,7 @@
         $ratingCount = $ratingSummary->review_count ?? 0;
         $tcxCover = method_exists($classRoom->course ?? null, 'coverUrl') ? $classRoom->course->coverUrl() : null;
         $tcxCompletion = (int) ($completion ?? 0);
-        $tcxTabIcons = ['Tổng quan' => 'home', 'Tài liệu' => 'file-text', 'Học liệu' => 'file-text', 'Buổi học' => 'play-circle', 'Giao đề' => 'clipboard-list', 'Kết quả' => 'bar-chart-3', 'Thành viên' => 'users', 'Học sinh' => 'users'];
+        $tcxTabIcons = ['Tổng quan' => 'home', 'Tài liệu' => 'file-text', 'Học liệu' => 'file-text', 'Buổi học' => 'play-circle', 'Giao đề' => 'clipboard-list', 'Kết quả' => 'bar-chart-3', 'Thành viên' => 'users', 'Học sinh' => 'users', 'Thông báo' => 'megaphone'];
         // Loại tài liệu suy từ nhãn có sẵn ("📘 Sách" / "🗂️ Chuyên đề" / "📝 Bộ đề") — không đổi dữ liệu của service.
         $tcxType = function (?string $label): string {
             $l = mb_strtolower((string) $label);
@@ -468,16 +468,22 @@
         })();
         </script>
     @elseif ($tab === 'schedule')
-        @php $sessions = $sessions ?? []; @endphp
+        @php
+            $sessions = $sessions ?? [];
+            $tseFail = filled(old('edit_session_id')); // SỬA 6/11 — lỗi khi SỬA buổi học: mở lại popup sửa, không đổ dữ liệu cũ vào form Tạo
+            $tsfOld = fn ($k) => $tseFail ? '' : old($k, '');
+        @endphp
 
         @if (session('status') === 'session-created')
             @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo buổi học mới.'])
+        @elseif (session('status') === 'session-updated')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã lưu thay đổi buổi học.'])
         @endif
         @if ($errors->any())
             @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
         @endif
 
-        <section class="tcx-sec" x-data="{ openForm: {{ $errors->any() || count($sessions) === 0 ? 'true' : 'false' }} }">
+        <section class="tcx-sec" x-data="{ openForm: {{ ($errors->any() && ! $tseFail) || count($sessions) === 0 ? 'true' : 'false' }} }">
             <div class="tcx-sec-head" style="margin-bottom:0">
                 <span class="tcx-ic"><x-lucide name="plus" /></span>
                 <div style="flex:1 1 220px;min-width:0"><h3>Tạo buổi học mới</h3><p>Chủ đề, địa điểm / link và thời gian bắt đầu – kết thúc.</p></div>
@@ -487,7 +493,7 @@
                  nút chọn nhanh thời lượng (tự tính giờ kết thúc), báo lỗi khi kết thúc trước bắt đầu. Tên trường gửi đi GIỮ NGUYÊN
                  (topic, location, starts_/ends_ date/hour/minute) nên ScheduleController không đổi. CSS tiền tố tsf-. --}}
             <form method="POST" action="{{ route('teacher.schedule.store') }}" class="tsf" x-show="openForm" x-cloak
-                  x-data="tsfForm(@js(['sd' => old('starts_date', ''), 'sh' => old('starts_hour', ''), 'sm' => old('starts_minute', ''), 'ed' => old('ends_date', ''), 'eh' => old('ends_hour', ''), 'em' => old('ends_minute', '')]))"
+                  x-data="tsfForm(@js(['sd' => $tsfOld('starts_date'), 'sh' => $tsfOld('starts_hour'), 'sm' => $tsfOld('starts_minute'), 'ed' => $tsfOld('ends_date'), 'eh' => $tsfOld('ends_hour'), 'em' => $tsfOld('ends_minute')]))"
                   @submit="if (dur <= 0) { $event.preventDefault(); tried = true; }">
                 @csrf
                 <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
@@ -496,11 +502,11 @@
                 <div class="tsf-row">
                     <div class="tsf-f">
                         <label class="tsf-lb" for="tsf-topic">Chủ đề buổi học</label>
-                        <div class="tsf-in"><x-lucide name="book-open" /><input id="tsf-topic" type="text" name="topic" maxlength="255" value="{{ old('topic') }}" placeholder="Ví dụ: Ôn tập chương 3"></div>
+                        <div class="tsf-in"><x-lucide name="book-open" /><input id="tsf-topic" type="text" name="topic" maxlength="255" value="{{ $tsfOld('topic') }}" placeholder="Ví dụ: Ôn tập chương 3"></div>
                     </div>
                     <div class="tsf-f">
                         <label class="tsf-lb" for="tsf-loc">Địa điểm / link học online</label>
-                        <div class="tsf-in"><x-lucide name="map-pin" /><input id="tsf-loc" type="text" name="location" maxlength="255" value="{{ old('location') }}" placeholder="Phòng 201, hoặc dán link Google Meet / Zoom"></div>
+                        <div class="tsf-in"><x-lucide name="map-pin" /><input id="tsf-loc" type="text" name="location" maxlength="255" value="{{ $tsfOld('location') }}" placeholder="Phòng 201, hoặc dán link Google Meet / Zoom"></div>
                     </div>
                 </div>
 
@@ -630,10 +636,28 @@
             </script>
         </section>
 
-        <section class="tcx-sec">
+        @php
+            $tseRound = fn ($d) => $d ? $d->copy()->setTime((int) $d->format('H'), intdiv((int) $d->format('i'), 5) * 5) : null;
+            $tsePayload = function (array $s) use ($tseRound) {
+                $a = $tseRound($s['startsAt'] ?? null);
+                $b = $tseRound($s['endsAt'] ?? null) ?? $a;
+
+                return [
+                    'id' => $s['id'], 'topic' => (string) ($s['topic'] ?? ''), 'location' => (string) ($s['location'] ?? ''), 'taken' => (bool) $s['attendanceTaken'],
+                    'sd' => $a?->format('Y-m-d') ?? '', 'sh' => $a?->format('H') ?? '08', 'sm' => $a?->format('i') ?? '00',
+                    'ed' => $b?->format('Y-m-d') ?? '', 'eh' => $b?->format('H') ?? '09', 'em' => $b?->format('i') ?? '30',
+                ];
+            };
+            $tseReopen = $tseFail ? [
+                'id' => (int) old('edit_session_id'), 'topic' => (string) old('topic', ''), 'location' => (string) old('location', ''), 'taken' => false,
+                'sd' => (string) old('starts_date', ''), 'sh' => (string) old('starts_hour', ''), 'sm' => (string) old('starts_minute', ''),
+                'ed' => (string) old('ends_date', ''), 'eh' => (string) old('ends_hour', ''), 'em' => (string) old('ends_minute', ''),
+            ] : null;
+        @endphp
+        <section class="tcx-sec" x-data="tseEdit(@js(['url' => route('teacher.schedule.update', ['session' => 0]), 'reopen' => $tseReopen]))" @keydown.escape.window="open && close()">
             <div class="tcx-sec-head">
                 <span class="tcx-ic v"><x-lucide name="calendar-days" /></span>
-                <div><h3>Lịch buổi học</h3><p>Mới nhất ở trên — bấm Điểm danh để ghi nhận học sinh có mặt.</p></div>
+                <div><h3>Lịch buổi học</h3><p>Mới nhất ở trên — bấm Điểm danh để ghi nhận học sinh có mặt, bấm Sửa nếu lỡ nhập sai.</p></div>
                 <span class="tcx-count">{{ count($sessions) }} buổi</span>
             </div>
             @if (count($sessions) === 0)
@@ -657,11 +681,130 @@
                             </div>
                             <span class="tcx-chip t-{{ $s['timeStatusTone'] }}">{{ $s['timeStatusLabel'] }}</span>
                             <span class="tcx-chip t-{{ $s['attendanceTaken'] ? 'success' : 'warning' }}">{{ $s['attendanceSummary'] }}</span>
-                            <a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="tcx-btn is-view" style="margin-left:auto"><x-lucide name="check" />Điểm danh</a>
+                            <div class="tse-acts">
+                                <button type="button" class="tcx-btn tse-edit" @click="edit(@js($tsePayload($s)))"><x-lucide name="pencil" />Sửa</button>
+                                <a href="{{ route('teacher.schedule.attendance', $s['id']) }}" class="tcx-btn is-view"><x-lucide name="check" />Điểm danh</a>
+                            </div>
                         </div>
                     @endforeach
                 </div>
             @endif
+
+            {{-- SỬA 6/11 (khách: "lỡ thêm sai thì giáo viên sửa buổi học, bấm Sửa hiện popup thật đẹp") — popup Sửa buổi học.
+                 Dùng lại khung popup tam- (Thêm học sinh) + ô / thẻ thời gian tsf- (form Tạo buổi học) cho đồng bộ. --}}
+            <template x-teleport="body">
+                <div class="tam-ov" x-show="open" x-transition.opacity x-cloak @click.self="close()">
+                    <form class="tam-dlg tse-dlg" method="POST" :action="action" x-show="open" x-transition.scale.95 role="dialog" aria-modal="true" aria-labelledby="tse-title"
+                          @submit="if (dur <= 0) { $event.preventDefault(); tried = true; } else { submitting = true; }">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="edit_session_id" :value="id">
+
+                        <header class="tam-head tse-head">
+                            <span class="tam-hic tse-hic"><x-lucide name="pencil" /></span>
+                            <div class="tam-htx">
+                                <h3 id="tse-title">Sửa buổi học</h3>
+                                <p x-text="(topic || 'Buổi học') + ' · {{ addslashes($classRoom->name) }}'"></p>
+                            </div>
+                            <button type="button" class="tam-x" @click="close()" aria-label="Đóng"><x-lucide name="x" /></button>
+                        </header>
+
+                        <div class="tam-body tse-body">
+                            <div class="tsf-row">
+                                <div class="tsf-f">
+                                    <label class="tsf-lb" for="tse-topic">Chủ đề buổi học</label>
+                                    <div class="tsf-in"><x-lucide name="book-open" /><input id="tse-topic" x-ref="topic" type="text" name="topic" maxlength="255" x-model="topic" placeholder="Ví dụ: Ôn tập chương 3"></div>
+                                </div>
+                                <div class="tsf-f">
+                                    <label class="tsf-lb" for="tse-loc">Địa điểm / link học online</label>
+                                    <div class="tsf-in"><x-lucide name="map-pin" /><input id="tse-loc" type="text" name="location" maxlength="255" x-model="location" placeholder="Phòng 201, hoặc dán link Google Meet / Zoom"></div>
+                                </div>
+                            </div>
+
+                            <div class="tsf-time tse-time">
+                                <div class="tsf-slot is-a">
+                                    <div class="tsf-slot-h"><span class="tsf-dot"></span>Bắt đầu<small x-text="dayLabel(sd)"></small></div>
+                                    <div class="tsf-dt">
+                                        <label class="sr-only" for="tse-sd">Ngày bắt đầu</label>
+                                        <div class="tsf-in tsf-date"><input id="tse-sd" type="date" name="starts_date" required x-model="sd" @change="onStart()"></div>
+                                        <div class="tsf-in tsf-tm"><x-lucide name="clock-3" />
+                                            <label class="sr-only" for="tse-sh">Giờ bắt đầu</label>
+                                            <select id="tse-sh" name="starts_hour" required x-model="sh" @change="onStart()">@for ($h = 0; $h < 24; $h++)<option value="{{ sprintf('%02d', $h) }}">{{ sprintf('%02d', $h) }}</option>@endfor</select>
+                                            <b>:</b>
+                                            <label class="sr-only" for="tse-sm">Phút bắt đầu</label>
+                                            <select id="tse-sm" name="starts_minute" required x-model="sm" @change="onStart()">@foreach (range(0, 55, 5) as $m)<option value="{{ sprintf('%02d', $m) }}">{{ sprintf('%02d', $m) }}</option>@endforeach</select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="tsf-arrow" aria-hidden="true"><x-lucide name="arrow-right" /></span>
+                                <div class="tsf-slot is-b" :class="{ bad: tried && dur <= 0 }">
+                                    <div class="tsf-slot-h"><span class="tsf-dot"></span>Kết thúc<small x-text="dayLabel(ed)"></small></div>
+                                    <div class="tsf-dt">
+                                        <label class="sr-only" for="tse-ed">Ngày kết thúc</label>
+                                        <div class="tsf-in tsf-date"><input id="tse-ed" type="date" name="ends_date" required x-model="ed" @change="lastDur = dur"></div>
+                                        <div class="tsf-in tsf-tm"><x-lucide name="clock-3" />
+                                            <label class="sr-only" for="tse-eh">Giờ kết thúc</label>
+                                            <select id="tse-eh" name="ends_hour" required x-model="eh" @change="lastDur = dur">@for ($h = 0; $h < 24; $h++)<option value="{{ sprintf('%02d', $h) }}">{{ sprintf('%02d', $h) }}</option>@endfor</select>
+                                            <b>:</b>
+                                            <label class="sr-only" for="tse-em">Phút kết thúc</label>
+                                            <select id="tse-em" name="ends_minute" required x-model="em" @change="lastDur = dur">@foreach (range(0, 55, 5) as $m)<option value="{{ sprintf('%02d', $m) }}">{{ sprintf('%02d', $m) }}</option>@endforeach</select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tsf-quick">
+                                <span class="tsf-q-lb"><x-lucide name="timer" />Thời lượng nhanh</span>
+                                <div class="tsf-chips">
+                                    <template x-for="d in [45, 60, 90, 120, 150]" :key="d">
+                                        <button type="button" :class="{ on: dur === d }" @click="setDur(d)" x-text="durLabel(d)"></button>
+                                    </template>
+                                </div>
+                                <span class="tsf-sum" :class="{ bad: dur <= 0 }" x-text="dur > 0 ? 'Buổi học dài ' + durLabel(dur) : 'Giờ kết thúc phải sau giờ bắt đầu'"></span>
+                            </div>
+
+                            <p class="tse-note" x-show="taken"><x-lucide name="info" /><span>Buổi này đã điểm danh — sửa thông tin buổi học <b>không</b> làm mất điểm danh, nhận xét hay tài liệu đã gắn.</span></p>
+                        </div>
+
+                        <footer class="tam-foot">
+                            <small><x-lucide name="shield-check" />Chỉ đổi thông tin buổi học, dữ liệu học sinh giữ nguyên.</small>
+                            <div class="tam-acts">
+                                <button type="button" class="tam-btn ghost" @click="close()">Huỷ</button>
+                                <button type="submit" class="tam-btn pri tse-save" :disabled="dur <= 0 || submitting"><x-lucide name="check" /><span x-text="submitting ? 'Đang lưu…' : 'Lưu thay đổi'"></span></button>
+                            </div>
+                        </footer>
+                    </form>
+                </div>
+            </template>
+            <style>
+                .tse-acts { display: flex; gap: 8px; margin-left: auto; }
+                .tcx-btn.tse-edit { background: #FFF7E6; color: #B45309; } .tcx-btn.tse-edit:hover { background: #FFEFCC; }
+                .tse-dlg { width: min(820px, 100%); }
+                .tse-head { background: linear-gradient(120deg, #FFF7E6, #EEF4FF); }
+                .tse-hic { background: linear-gradient(135deg, #F59E0B, #EA7A0B); box-shadow: 0 8px 18px rgba(234, 122, 11, .3); }
+                .tse-body { display: grid; gap: 16px; padding: 18px 20px 6px; }
+                @media (min-width: 700px) { .tse-time { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 12px; } .tse-time .tsf-arrow { display: grid; place-items: center; align-self: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid #E2E8F0; background: #fff; color: #64748B; } .tse-time .tsf-arrow svg { width: 16px; height: 16px; } }
+                .tse-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: #F0F9FF; border: 1px solid #D6ECFA; font-size: 12.5px; line-height: 1.5; color: #1E5A85; }
+                .tse-note svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+                .tam-btn.pri.tse-save { background: linear-gradient(135deg, #2563EB, #1D4ED8); box-shadow: 0 8px 18px rgba(37, 99, 235, .3); }
+                @media (max-width: 560px) { .tse-acts { width: 100%; } .tse-acts .tcx-btn { flex: 1; justify-content: center; } }
+            </style>
+            <script>
+                window.tseEdit = function (cfg) {
+                    const o = window.tsfForm({ sd: '', sh: '', sm: '', ed: '', eh: '', em: '' });
+                    o.init = function () { if (cfg.reopen) this.edit(cfg.reopen); };
+                    o.open = false; o.id = null; o.topic = ''; o.location = ''; o.taken = false; o.submitting = false; o.action = '';
+                    o.edit = function (s) {
+                        Object.assign(this, { id: s.id, topic: s.topic, location: s.location, taken: !!s.taken, sd: s.sd, sh: s.sh, sm: s.sm, ed: s.ed, eh: s.eh, em: s.em, tried: false, submitting: false });
+                        this.action = cfg.url.replace(/\/0$/, '/' + s.id);
+                        this.lastDur = this.dur > 0 ? this.dur : 90;
+                        this.open = true; document.documentElement.style.overflow = 'hidden';
+                        this.$nextTick(() => this.$refs.topic && this.$refs.topic.focus());
+                    };
+                    o.close = function () { this.open = false; document.documentElement.style.overflow = ''; };
+                    return o;
+                };
+            </script>
         </section>
     @elseif ($tab === 'assign')
         @php
@@ -945,6 +1088,264 @@
                 </div>
             @endif
         </section>
+    @elseif ($tab === 'notices')
+        {{-- SỬA 6/11 (khách: "thêm tab Thông báo để giáo viên thông báo cho toàn bộ học sinh của lớp, thiết kế đẹp dễ dùng") —
+             soạn + gửi thông báo cho cả lớp (học sinh / kèm phụ huynh / chỉ phụ huynh), mẫu soạn nhanh, xem trước như học sinh
+             thấy, bước xác nhận trước khi gửi, lịch sử đã gửi. Gửi qua teacher.notices.store (back_to_class=1) — dùng lại nguyên
+             TeacherWorkspaceService::saveAnnouncement() (thông báo vào chuông + dải "Thông báo mới" ở trang Tổng quan học sinh). --}}
+        @php
+            $tncCounts = $noticeCounts ?? ['students' => 0, 'parents' => 0];
+            $tncList = $notices ?? [];
+            $tncAudLabel = ['students' => 'Học sinh', 'families' => 'Học sinh + phụ huynh', 'parents' => 'Chỉ phụ huynh'];
+        @endphp
+        @if (session('notice_status') === 'published')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi thông báo — học sinh nhận được ngay.'])
+        @endif
+        @if ($errors->any())
+            <div class="tcx-alert"><x-lucide name="alert-triangle" /><div>@foreach ($errors->all() as $message)<p style="margin:0">{{ $message }}</p>@endforeach</div></div>
+        @endif
+
+        <section class="tcx-sec tnc-compose" x-data="tncForm(@js([
+            'students' => (int) $tncCounts['students'], 'parents' => (int) $tncCounts['parents'],
+            'aud' => old('audience', 'students'), 'title' => old('title', ''), 'body' => old('body', ''),
+            'className' => $classRoom->name, 'teacher' => auth()->user()->name,
+        ]))">
+            <div class="tcx-sec-head">
+                <span class="tcx-ic tnc-ic"><x-lucide name="megaphone" /></span>
+                <div style="flex:1 1 260px;min-width:0"><h3>Gửi thông báo cho cả lớp</h3><p>Các em nhận ngay trong chuông thông báo và ở mục "Thông báo mới" trang Tổng quan.</p></div>
+                <span class="tcx-count">{{ $tncCounts['students'] }} học sinh · {{ $tncCounts['parents'] }} phụ huynh</span>
+            </div>
+
+            @if ((int) $tncCounts['students'] === 0)
+                <div class="tnc-warn"><x-lucide name="alert-triangle" /><span>Lớp chưa có học sinh đang học nên chưa gửi được. Hãy thêm học sinh ở tab <a href="{{ route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => 'members']) }}">Học sinh</a> trước.</span></div>
+            @endif
+
+            <div class="tnc-grid">
+                <form method="POST" action="{{ route('teacher.notices.store') }}" class="tnc-form" @submit="sending = true">
+                    @csrf
+                    <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
+                    <input type="hidden" name="back_to_class" value="1">
+                    <input type="hidden" name="action" value="publish">
+
+                    <div>
+                        <span class="tnc-lb">1. Gửi tới</span>
+                        <div class="tnc-aud" role="radiogroup">
+                            <label class="tnc-opt" :class="{ on: aud === 'students' }">
+                                <input type="radio" name="audience" value="students" x-model="aud">
+                                <span class="tnc-opt-ic"><x-lucide name="users" /></span>
+                                <span class="tnc-opt-tx"><b>Học sinh trong lớp</b><small x-text="students + ' học sinh'"></small></span>
+                                <span class="tnc-tick"><x-lucide name="check" /></span>
+                            </label>
+                            <label class="tnc-opt" :class="{ on: aud === 'families' }">
+                                <input type="radio" name="audience" value="families" x-model="aud">
+                                <span class="tnc-opt-ic f"><x-lucide name="user-round" /></span>
+                                <span class="tnc-opt-tx"><b>Học sinh + phụ huynh</b><small x-text="students + ' HS · ' + parents + ' phụ huynh'"></small></span>
+                                <span class="tnc-tick"><x-lucide name="check" /></span>
+                            </label>
+                            <label class="tnc-opt" :class="{ on: aud === 'parents', dis: parents === 0 }">
+                                <input type="radio" name="audience" value="parents" x-model="aud" :disabled="parents === 0">
+                                <span class="tnc-opt-ic p"><x-lucide name="user-round" /></span>
+                                <span class="tnc-opt-tx"><b>Chỉ phụ huynh</b><small x-text="parents ? parents + ' phụ huynh đã liên kết' : 'Chưa có phụ huynh liên kết'"></small></span>
+                                <span class="tnc-tick"><x-lucide name="check" /></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="tnc-lb">2. Soạn nội dung <em>— hoặc bấm một mẫu có sẵn rồi sửa lại</em></span>
+                        <div class="tnc-tpl">
+                            <template x-for="(t, i) in templates" :key="i">
+                                <button type="button" @click="useTpl(t)" :class="{ on: picked === i }"><span x-text="t.icon"></span><span x-text="t.name"></span></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="tnc-field">
+                        <div class="tnc-fh"><label for="tnc-title">Tiêu đề</label><small :class="{ over: title.length > 110 }" x-text="title.length + '/120'"></small></div>
+                        <input id="tnc-title" name="title" type="text" maxlength="120" x-model="title" x-ref="title" placeholder="Ví dụ: Lịch học tuần sau thay đổi" class="tnc-input">
+                    </div>
+                    <div class="tnc-field">
+                        <div class="tnc-fh"><label for="tnc-body">Nội dung</label><small :class="{ over: body.length > 2900 }" x-text="body.length + '/3000'"></small></div>
+                        <textarea id="tnc-body" name="body" rows="6" maxlength="3000" x-model="body" placeholder="Viết rõ ràng, ngắn gọn: việc gì, khi nào, các em cần làm gì…" class="tnc-input tnc-ta"></textarea>
+                    </div>
+
+                    <div class="tnc-foot" x-show="!confirming">
+                        <small x-show="!canSend" x-text="hint"></small>
+                        <button type="button" class="tnc-btn pri" :disabled="!canSend" @click="confirming = true"><x-lucide name="send" /><span x-text="'Gửi tới ' + recipients + ' người'"></span></button>
+                    </div>
+                    <div class="tnc-confirm" x-show="confirming" x-cloak x-transition>
+                        <span class="tnc-confirm-ic"><x-lucide name="bell" /></span>
+                        <p>Gửi <b x-text="'“' + title.trim() + '”'"></b> tới <b x-text="whoLabel"></b>? Đã gửi thì không sửa hay thu hồi được.</p>
+                        <div class="tnc-acts">
+                            <button type="button" class="tnc-btn ghost" @click="confirming = false" :disabled="sending">Xem lại</button>
+                            <button type="submit" class="tnc-btn pri" :disabled="sending"><x-lucide name="send" /><span x-text="sending ? 'Đang gửi…' : 'Gửi ngay'"></span></button>
+                        </div>
+                    </div>
+                </form>
+
+                <aside class="tnc-prev">
+                    <span class="tnc-lb"><x-lucide name="eye" />Các em sẽ thấy như sau</span>
+                    <div class="tnc-phone">
+                        <div class="tnc-phone-h"><x-lucide name="bell" />Thông báo <span>1 mới</span></div>
+                        <div class="tnc-noti">
+                            <span class="tnc-noti-ic">📣</span>
+                            <div class="tnc-noti-tx">
+                                <b x-text="title.trim() || 'Tiêu đề thông báo'" :class="{ ph: !title.trim() }"></b>
+                                <p x-text="previewText" :class="{ ph: !body.trim() }"></p>
+                                <small>Vừa xong · Giáo viên <span x-text="teacher"></span></small>
+                            </div>
+                        </div>
+                        <div class="tnc-noti ghost"><span class="tnc-noti-ic">📘</span><div class="tnc-noti-tx"><i></i><i class="s"></i></div></div>
+                    </div>
+                    <ul class="tnc-tips">
+                        <li><x-lucide name="sparkles" />Tiêu đề nói ngay việc chính, vd "Nghỉ học thứ Bảy 08/11".</li>
+                        <li><x-lucide name="clock-3" />Ghi rõ ngày, giờ, việc các em cần chuẩn bị.</li>
+                        <li><x-lucide name="user-round" />Việc cần gia đình biết thì chọn "Học sinh + phụ huynh".</li>
+                    </ul>
+                </aside>
+            </div>
+        </section>
+
+        <section class="tcx-sec" x-data="{ openId: null }">
+            <div class="tcx-sec-head">
+                <span class="tcx-ic v"><x-lucide name="history" /></span>
+                <div style="flex:1 1 220px;min-width:0"><h3>Thông báo đã gửi</h3><p>Mới nhất ở trên — gồm thông báo của mọi giáo viên dạy lớp này.</p></div>
+                <span class="tcx-count">{{ count($tncList) }} thông báo</span>
+            </div>
+            @if (empty($tncList))
+                <div class="tcx-empty">Lớp chưa có thông báo nào. Soạn ở khung phía trên rồi bấm <b>Gửi</b> — các em nhận được ngay.</div>
+            @else
+                <div class="tnc-list">
+                    @foreach ($tncList as $n)
+                        <article class="tnc-item">
+                            <span class="tnc-item-ic">📣</span>
+                            <div class="tnc-item-main">
+                                <div class="tnc-item-top">
+                                    <b>{{ $n['title'] ?: 'Thông báo lớp' }}</b>
+                                    <span class="tnc-aud-chip a-{{ $n['audience'] }}">{{ $tncAudLabel[$n['audience']] ?? 'Học sinh' }}</span>
+                                </div>
+                                <p class="tnc-item-body" :class="{ open: openId === {{ $n['id'] }} }">{{ $n['body'] }}</p>
+                                @if (mb_strlen($n['body']) > 180)
+                                    <button type="button" class="tnc-more" @click="openId = openId === {{ $n['id'] }} ? null : {{ $n['id'] }}" x-text="openId === {{ $n['id'] }} ? 'Thu gọn' : 'Xem đầy đủ'">Xem đầy đủ</button>
+                                @endif
+                                <div class="tnc-meta">
+                                    <span title="{{ $n['at'] }}"><x-lucide name="clock-3" />{{ $n['ago'] }} · {{ $n['at'] }}</span>
+                                    <span><x-lucide name="user-round" />{{ $n['mine'] ? 'Bạn' : $n['by'] }}</span>
+                                    @if ($n['students'] > 0)<span><x-lucide name="users" />{{ $n['students'] }} học sinh</span>@endif
+                                    @if ($n['parents'] > 0)<span><x-lucide name="user-round" />{{ $n['parents'] }} phụ huynh</span>@endif
+                                </div>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+
+        <style>
+            .tnc-ic { background: linear-gradient(135deg, #FFEDD5, #FFE4E6) !important; color: #EA580C !important; }
+            .tnc-warn { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: #FFF7E6; border: 1px solid #FDE2B3; font-size: 12.5px; line-height: 1.5; color: #92400E; }
+            .tnc-warn svg { width: 15px; height: 15px; flex: none; margin-top: 2px; } .tnc-warn a { color: #B45309; font-weight: 800; }
+            .tnc-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+            @media (min-width: 1100px) { .tnc-grid { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 22px; } }
+            .tnc-form { display: grid; gap: 16px; min-width: 0; }
+            .tnc-lb { display: block; margin: 0 0 8px 2px; line-height: 1.5; font-size: 12.5px; font-weight: 800; color: #1E293B; }
+            .tnc-lb em { font-style: normal; font-weight: 600; color: #94A3B8; }
+            .tnc-lb svg { width: 15px; height: 15px; margin-right: 5px; vertical-align: -3px; color: #64748B; }
+            .tnc-aud { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+            @media (min-width: 700px) { .tnc-aud { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+            .tnc-opt { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px; border: 1.5px solid #E2E8F0; border-radius: 14px; background: #fff; cursor: pointer; transition: all .15s; }
+            .tnc-opt:hover { border-color: #BFD3EA; background: #FAFCFF; }
+            .tnc-opt input { position: absolute; opacity: 0; pointer-events: none; }
+            .tnc-opt.on { border-color: #2563EB; background: #F5F9FF; box-shadow: 0 0 0 4px rgba(37, 99, 235, .1); }
+            .tnc-opt.dis { opacity: .55; cursor: not-allowed; }
+            .tnc-opt-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 11px; background: #EEF4FF; color: #2563EB; }
+            .tnc-opt-ic.f { background: #ECFDF5; color: #059669; } .tnc-opt-ic.p { background: #FFF1F2; color: #E11D48; }
+            .tnc-opt-ic svg { width: 18px; height: 18px; }
+            .tnc-opt-tx { flex: 1; min-width: 0; } .tnc-opt-tx b { display: block; font-size: 13px; font-weight: 800; color: #0F172A; } .tnc-opt-tx small { display: block; margin-top: 1px; font-size: 11.5px; color: #64748B; }
+            .tnc-tick { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid #CBD5E1; color: transparent; }
+            .tnc-tick svg { width: 12px; height: 12px; }
+            .tnc-opt.on .tnc-tick { border-color: #2563EB; background: #2563EB; color: #fff; }
+            .tnc-tpl { display: flex; flex-wrap: wrap; gap: 8px; }
+            .tnc-tpl button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 1px solid #E2E8F0; border-radius: 999px; background: #fff; font: inherit; font-size: 12.5px; font-weight: 700; color: #334155; cursor: pointer; transition: all .15s; }
+            .tnc-tpl button:hover { border-color: #FDBA74; background: #FFF7ED; color: #C2410C; }
+            .tnc-tpl button.on { border-color: #F97316; background: #FFF7ED; color: #C2410C; }
+            .tnc-field { min-width: 0; }
+            .tnc-fh { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 6px; }
+            .tnc-fh label { font-size: 12.5px; font-weight: 800; color: #1E293B; }
+            .tnc-fh small { font-size: 11px; font-weight: 600; color: #94A3B8; font-variant-numeric: tabular-nums; } .tnc-fh small.over { color: #DC2626; }
+            .tnc-input { display: block; box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border: 1px solid #D9E3EE; border-radius: 12px; background: #fff; font: inherit; font-size: 13.5px; color: #0F172A; transition: border-color .15s, box-shadow .15s; }
+            .tnc-input::placeholder { color: #A3B1C2; }
+            .tnc-input:focus { outline: 0; border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59, 130, 246, .12); }
+            .tnc-ta { height: auto; min-height: 140px; padding: 12px 14px; line-height: 1.6; resize: vertical; }
+            .tnc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
+            .tnc-foot small { margin-right: auto; font-size: 12px; color: #94A3B8; }
+            .tnc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 20px; border: 1px solid transparent; border-radius: 12px; font: inherit; font-size: 13.5px; font-weight: 800; white-space: nowrap; cursor: pointer; transition: all .15s; }
+            .tnc-btn svg { width: 16px; height: 16px; }
+            .tnc-btn.pri { background: linear-gradient(135deg, #F97316, #EA580C); color: #fff; box-shadow: 0 8px 20px rgba(234, 88, 12, .28); }
+            .tnc-btn.pri:hover { transform: translateY(-1px); }
+            .tnc-btn.pri:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+            .tnc-btn.ghost { border-color: #E2E8F0; background: #fff; color: #475569; }
+            .tnc-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: linear-gradient(120deg, #FFF7ED, #FFF1F2); border: 1px solid #FED7AA; }
+            .tnc-confirm-ic { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: #fff; color: #EA580C; box-shadow: 0 4px 10px rgba(234, 88, 12, .15); }
+            .tnc-confirm-ic svg { width: 18px; height: 18px; }
+            .tnc-confirm p { flex: 1 1 240px; margin: 0; font-size: 13px; line-height: 1.5; color: #7C2D12; }
+            .tnc-acts { display: flex; gap: 10px; margin-left: auto; }
+            .tnc-prev { min-width: 0; }
+            .tnc-phone { padding: 14px; border-radius: 20px; background: linear-gradient(160deg, #F1F5FB, #EEF2FF); border: 1px solid #E2E8F0; }
+            .tnc-phone-h { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; font-weight: 800; color: #0F2F57; }
+            .tnc-phone-h svg { width: 15px; height: 15px; } .tnc-phone-h span { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #EF4444; color: #fff; font-size: 10.5px; }
+            .tnc-noti { display: flex; gap: 10px; padding: 12px; border-radius: 14px; background: #fff; box-shadow: 0 6px 16px rgba(15, 42, 74, .07); }
+            .tnc-noti + .tnc-noti { margin-top: 8px; }
+            .tnc-noti.ghost { opacity: .5; box-shadow: none; }
+            .tnc-noti-ic { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 11px; background: #FFF1E6; font-size: 16px; }
+            .tnc-noti-tx { flex: 1; min-width: 0; }
+            .tnc-noti-tx b { display: block; font-size: 13px; font-weight: 800; color: #0F172A; word-break: break-word; }
+            .tnc-noti-tx p { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: #475569; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+            .tnc-noti-tx .ph { color: #A3B1C2; font-weight: 600; }
+            .tnc-noti-tx small { display: block; margin-top: 6px; font-size: 11px; color: #94A3B8; }
+            .tnc-noti-tx i { display: block; height: 9px; width: 70%; border-radius: 6px; background: #E2E8F0; margin-top: 4px; } .tnc-noti-tx i.s { width: 45%; }
+            .tnc-tips { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+            .tnc-tips li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; color: #64748B; }
+            .tnc-tips svg { width: 14px; height: 14px; flex: none; margin-top: 2px; color: #F59E0B; }
+            .tnc-list { display: grid; gap: 10px; }
+            .tnc-item { display: flex; gap: 12px; padding: 14px; border: 1px solid #E6EEF6; border-radius: 14px; background: #fff; transition: box-shadow .15s; }
+            .tnc-item:hover { box-shadow: 0 8px 18px rgba(15, 42, 74, .06); }
+            .tnc-item-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: #FFF1E6; font-size: 18px; }
+            .tnc-item-main { flex: 1; min-width: 0; }
+            .tnc-item-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+            .tnc-item-top b { font-size: 14px; font-weight: 800; color: #0F172A; }
+            .tnc-aud-chip { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #EEF4FF; color: #1D4ED8; }
+            .tnc-aud-chip.a-families { background: #ECFDF5; color: #047857; } .tnc-aud-chip.a-parents { background: #FFF1F2; color: #BE123C; }
+            .tnc-item-body { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-line; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+            .tnc-item-body.open { display: block; -webkit-line-clamp: unset; }
+            .tnc-more { margin-top: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 800; color: #2563EB; cursor: pointer; }
+            .tnc-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+            .tnc-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #64748B; }
+            .tnc-meta svg { width: 13px; height: 13px; }
+            @media (max-width: 560px) { .tnc-foot .tnc-btn, .tnc-acts { width: 100%; } .tnc-acts .tnc-btn { flex: 1; } }
+        </style>
+        <script>
+            window.tncForm = function (c) {
+                const cls = c.className || 'lớp';
+                return {
+                    students: c.students, parents: c.parents, aud: c.aud || 'students', title: c.title || '', body: c.body || '',
+                    teacher: c.teacher || '', confirming: false, sending: false, picked: null,
+                    templates: [
+                        { icon: '🏖️', name: 'Nghỉ học', title: 'Thông báo nghỉ học ngày [dd/mm]', body: 'Các em lưu ý: lớp ' + cls + ' nghỉ học buổi ngày [dd/mm]. Lịch học bù thầy/cô sẽ thông báo sau. Các em tranh thủ ôn lại bài cũ nhé!' },
+                        { icon: '🗓️', name: 'Đổi lịch học', title: 'Thay đổi lịch học tuần này', body: 'Buổi học ngày [dd/mm] của lớp ' + cls + ' chuyển sang [giờ], ngày [dd/mm]. Các em sắp xếp thời gian tham gia đầy đủ nhé.' },
+                        { icon: '📝', name: 'Nhắc làm bài', title: 'Nhắc hoàn thành bài tập', body: 'Các em nhớ hoàn thành bài tập đã giao trước [giờ] ngày [dd/mm]. Em nào gặp khó khăn cứ nhắn thầy/cô để được hỗ trợ.' },
+                        { icon: '🎯', name: 'Kiểm tra sắp tới', title: 'Lịch kiểm tra ngày [dd/mm]', body: 'Lớp ' + cls + ' sẽ làm bài kiểm tra vào [giờ], ngày [dd/mm]. Nội dung: [phạm vi kiến thức]. Các em ôn tập kỹ và vào đúng giờ nhé.' },
+                        { icon: '🌟', name: 'Khen ngợi', title: 'Cả lớp làm rất tốt!', body: 'Thầy/cô rất vui vì tuần qua cả lớp học tập chăm chỉ và tiến bộ rõ rệt. Các em tiếp tục cố gắng nhé!' },
+                    ],
+                    get recipients() { return this.aud === 'parents' ? this.parents : (this.aud === 'families' ? this.students + this.parents : this.students); },
+                    get whoLabel() { return this.aud === 'parents' ? this.parents + ' phụ huynh' : (this.aud === 'families' ? this.students + ' học sinh và ' + this.parents + ' phụ huynh' : this.students + ' học sinh'); },
+                    get canSend() { return this.students > 0 && this.recipients > 0 && this.title.trim() !== '' && this.body.trim() !== ''; },
+                    get hint() { return this.students === 0 ? 'Lớp chưa có học sinh.' : (!this.title.trim() || !this.body.trim() ? 'Nhập tiêu đề và nội dung để gửi.' : ''); },
+                    get previewText() { return this.body.trim() ? 'Lớp ' + cls + ' · ' + this.teacher + ': ' + this.body.trim() : 'Nội dung thông báo sẽ hiện ở đây…'; },
+                    useTpl(t) { this.picked = this.templates.indexOf(t); this.title = t.title; this.body = t.body; this.confirming = false; this.$nextTick(() => this.$refs.title && this.$refs.title.focus()); },
+                };
+            };
+        </script>
     @else
         <div class="tcx-stats">
             <div class="tcx-stat"><span class="tcx-ic"><x-lucide name="users" /></span><div><small>Học sinh đang học</small><b>{{ $studentsCount }}</b></div></div>

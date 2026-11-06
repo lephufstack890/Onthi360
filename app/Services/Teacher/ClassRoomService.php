@@ -195,7 +195,7 @@ class ClassRoomService
         // liệu "Giao đề" bên dưới (vẫn còn nguyên trong showForTeacher(), route teacher.
         // classes.show vẫn nhận ?tab=assign nếu có link cũ trỏ tới) — dễ bật lại sau này.
         // SỬA 6/11 (khách: "đổi chữ Thành viên thành Học sinh") — chỉ đổi nhãn, khoá tab vẫn là 'members'.
-        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Tài liệu', 'schedule' => 'Buổi học', 'results' => 'Kết quả', 'members' => 'Học sinh'];
+        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Tài liệu', 'schedule' => 'Buổi học', 'results' => 'Kết quả', 'members' => 'Học sinh', 'notices' => 'Thông báo']; // SỬA 6/11 — thêm tab Thông báo
         $tabsData = [];
         foreach ($tabDefs as $key => $label) {
             $tabsData[] = ['label' => $label, 'href' => route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => $key]), 'active' => $tab === $key];
@@ -309,6 +309,34 @@ class ClassRoomService
         // TODO: rating_summaries theo target_type=class_room cho block "Rating nội bộ" ở tab overview.
         $ratingSummary = $this->ratingSummaries->findForTarget('class_room', $classRoom->id);
 
+        // SỬA 6/11 (khách: "thêm tab Thông báo để giáo viên thông báo cho toàn bộ học sinh của lớp") — số người nhận + lịch sử
+        // thông báo đã gửi của RIÊNG lớp này (mọi giáo viên của lớp). Gửi dùng lại TeacherWorkspaceService::saveAnnouncement().
+        $noticeCounts = ['students' => 0, 'parents' => 0];
+        $notices = [];
+        if ($tab === 'notices') {
+            $noticeCounts = app(TeacherWorkspaceService::class)->recipientCounts([$classRoom->id])[$classRoom->id] ?? $noticeCounts;
+            if (\App\Models\ClassAnnouncement::isReady()) {
+                $notices = \App\Models\ClassAnnouncement::query()
+                    ->where('class_room_id', $classRoom->id)
+                    ->where('state', \App\Models\ClassAnnouncement::STATE_PUBLISHED)
+                    ->with('teacher:id,name')
+                    ->orderByDesc('published_at')->orderByDesc('id')
+                    ->limit(50)->get()
+                    ->map(fn ($n) => [
+                        'id' => $n->id,
+                        'title' => (string) $n->title,
+                        'body' => (string) $n->body,
+                        'audience' => $n->audience,
+                        'students' => (int) $n->student_count,
+                        'parents' => (int) $n->parent_count,
+                        'by' => (string) ($n->teacher->name ?? 'Giáo viên'),
+                        'mine' => (int) $n->teacher_id === (int) $user->id,
+                        'at' => $n->published_at?->format('H:i d/m/Y'),
+                        'ago' => $n->published_at?->diffForHumans(),
+                    ])->all();
+            }
+        }
+
         return [
             'classRoom' => $classRoom,
             'tab' => $tab,
@@ -327,6 +355,8 @@ class ClassRoomService
             'pendingRequests' => $pendingRequests,
             'pendingCount' => $pendingCount,
             'ratingSummary' => $ratingSummary,
+            'noticeCounts' => $noticeCounts,
+            'notices' => $notices,
         ];
     }
 

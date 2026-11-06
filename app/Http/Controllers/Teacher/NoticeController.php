@@ -36,6 +36,18 @@ class NoticeController extends Controller
 
         $publish = $data['action'] === 'publish';
 
+        // SỬA 6/11 — gửi từ tab "Thông báo" trong trang lớp: quay lại đúng tab đó (luồng cũ ở trang Thông báo giữ nguyên).
+        if ($request->boolean('back_to_class')) {
+            $back = route('teacher.classes.show', ['class' => (int) $data['class_room_id'], 'tab' => 'notices']);
+            try {
+                $this->workspace->saveAnnouncement(Auth::user(), $data, $publish);
+            } catch (ValidationException $e) {
+                return redirect($back)->withErrors($e->errors())->withInput();
+            }
+
+            return redirect($back)->with('notice_status', $publish ? 'published' : 'draft');
+        }
+
         try {
             $this->workspace->saveAnnouncement(Auth::user(), $data, $publish);
         } catch (ValidationException $e) {
