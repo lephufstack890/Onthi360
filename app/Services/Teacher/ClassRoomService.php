@@ -321,7 +321,7 @@ class ClassRoomService
                     ->where('state', \App\Models\ClassAnnouncement::STATE_PUBLISHED)
                     ->with('teacher:id,name')
                     ->orderByDesc('published_at')->orderByDesc('id')
-                    ->limit(50)->get()
+                    ->limit(300)->get()
                     ->map(fn ($n) => [
                         'id' => $n->id,
                         'title' => (string) $n->title,
@@ -331,8 +331,9 @@ class ClassRoomService
                         'parents' => (int) $n->parent_count,
                         'by' => (string) ($n->teacher->name ?? 'Giáo viên'),
                         'mine' => (int) $n->teacher_id === (int) $user->id,
+                        'canDelete' => (int) $n->teacher_id === (int) $user->id || $user->isRealAdmin(),
                         'at' => $n->published_at?->format('H:i d/m/Y'),
-                        'ago' => $n->published_at?->diffForHumans(),
+                        'ago' => $n->published_at?->copy()->locale('vi')->diffForHumans(),
                     ])->all();
             }
         }

@@ -59,6 +59,15 @@ class NoticeController extends Controller
             ->with('notice_status', $publish ? 'published' : 'draft');
     }
 
+    /** SỬA 6/11 — xoá thông báo đã gửi từ tab "Thông báo" trong trang lớp (thu hồi luôn khỏi chuông học sinh / phụ huynh). */
+    public function destroyFromClass(int $class, int $notice): RedirectResponse
+    {
+        $removed = $this->workspace->deletePublishedForClass(Auth::user(), $class, $notice);
+        abort_if($removed === null, 404);
+
+        return redirect()->route('teacher.classes.show', ['class' => $class, 'tab' => 'notices'])->with('notice_status', 'deleted');
+    }
+
     public function destroy(int $notice): RedirectResponse
     {
         $this->workspace->deleteDraft(Auth::user(), $notice);

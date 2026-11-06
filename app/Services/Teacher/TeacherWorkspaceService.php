@@ -483,4 +483,31 @@ class TeacherWorkspaceService
             ->where('teacher_id', $teacher->id)->where('id', $id)
             ->where('state', ClassAnnouncement::STATE_DRAFT)->delete();
     }
+
+    /**
+     * SỬA 6/11 (khách: "lỡ đăng thông báo thì giáo viên xoá được") — xoá một thông báo lớp ĐÃ GỬI của lớp $classId và thu hồi
+     * luôn các thông báo đã vào chuông học sinh / phụ huynh (khoá ref "cls:<id>"). Chỉ người gửi hoặc admin thật được xoá.
+     * Trả về số thông báo đã thu hồi, null nếu không tìm thấy / không có quyền.
+     */
+    public function deletePublishedForClass(User $user, int $classId, int $id): ?int
+    {
+        if (! ClassAnnouncement::isReady()) {
+            return null;
+        }
+
+        $a = ClassAnnouncement::query()->where('id', $id)->where('class_room_id', $classId)->first();
+        if ($a === null || ((int) $a->teacher_id !== (int) $user->id && ! $user->isRealAdmin())) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($a) {
+            $removed = DB::table('notifications')
+                ->where('type', ClassAnnouncementPublished::class)
+                ->where('data', 'like', '%"ref":"cls:'.$a->id.'"%')
+                ->delete();
+            $a->delete();
+
+            return $removed;
+        });
+    }
 }

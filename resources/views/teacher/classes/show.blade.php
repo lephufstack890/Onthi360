@@ -1208,6 +1208,8 @@
         @endphp
         @if (session('notice_status') === 'published')
             @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gửi thông báo — học sinh nhận được ngay.'])
+        @elseif (session('notice_status') === 'deleted')
+            @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xoá thông báo — học sinh, phụ huynh không còn thấy nữa.'])
         @endif
         @if ($errors->any())
             <div class="tcx-alert"><x-lucide name="alert-triangle" /><div>@foreach ($errors->all() as $message)<p style="margin:0">{{ $message }}</p>@endforeach</div></div>
@@ -1314,7 +1316,7 @@
             </div>
         </section>
 
-        <section class="tcx-sec" x-data="{ openId: null }">
+        <section class="tcx-sec" x-data="tncPager({{ count($tncList) }})" x-ref="tncSec">
             <div class="tcx-sec-head">
                 <span class="tcx-ic v"><x-lucide name="history" /></span>
                 <div style="flex:1 1 220px;min-width:0"><h3>Thông báo đã gửi</h3><p>Mới nhất ở trên — gồm thông báo của mọi giáo viên dạy lớp này.</p></div>
@@ -1325,7 +1327,7 @@
             @else
                 <div class="tnc-list">
                     @foreach ($tncList as $n)
-                        <article class="tnc-item">
+                        <article class="tnc-item" x-data="{ del: false }" :class="{ 'is-del': del }" x-show="onPage({{ $loop->index }})" @if ($loop->index >= 5) style="display:none" @endif>
                             <span class="tnc-item-ic">📣</span>
                             <div class="tnc-item-main">
                                 <div class="tnc-item-top">
@@ -1342,9 +1344,36 @@
                                     @if ($n['students'] > 0)<span><x-lucide name="users" />{{ $n['students'] }} học sinh</span>@endif
                                     @if ($n['parents'] > 0)<span><x-lucide name="user-round" />{{ $n['parents'] }} phụ huynh</span>@endif
                                 </div>
+                                {{-- SỬA 6/11 — xoá thông báo đã gửi (hỏi lại ngay tại chỗ, không bật hộp thoại). --}}
+                                @if (! empty($n['canDelete']))
+                                    <form method="POST" action="{{ route('teacher.classes.notices.destroy', ['class' => $classRoom->id, 'notice' => $n['id']]) }}" class="tnc-del-bar" x-show="del" x-cloak x-transition @submit="$el.querySelector('[type=submit]').disabled = true">
+                                        @csrf
+                                        @method('DELETE')
+                                        <x-lucide name="alert-triangle" />
+                                        <p>Xoá thông báo này? Học sinh{{ $n['parents'] > 0 ? ', phụ huynh' : '' }} sẽ không còn thấy trong chuông thông báo nữa. Không khôi phục được.</p>
+                                        <div class="tnc-del-acts">
+                                            <button type="button" class="tnc-mini ghost" @click="del = false">Giữ lại</button>
+                                            <button type="submit" class="tnc-mini red"><x-lucide name="trash-2" />Xoá luôn</button>
+                                        </div>
+                                    </form>
+                                @endif
                             </div>
+                            @if (! empty($n['canDelete']))
+                                <button type="button" class="tnc-del" x-show="! del" @click="del = true" title="Xoá thông báo" aria-label="Xoá thông báo"><x-lucide name="trash-2" /><span>Xoá</span></button>
+                            @endif
                         </article>
                     @endforeach
+                </div>
+                {{-- SỬA 6/11 (khách: "nhiều thông báo thì có phân trang, đừng dài xuống quá") — 5 thông báo mỗi trang. --}}
+                <div class="tnc-pager" x-show="pages > 1" x-cloak>
+                    <span class="tnc-range" x-text="rangeText"></span>
+                    <nav class="tnc-pgs" aria-label="Phân trang thông báo">
+                        <button type="button" class="tnc-pg" @click="go(page - 1)" :disabled="page === 1" aria-label="Trang trước"><x-lucide name="chevron-left" /></button>
+                        <template x-for="(n, k) in pageList" :key="k">
+                            <button type="button" class="tnc-pg" :class="{ on: n === page, dots: n === '…' }" :disabled="n === '…'" @click="go(n)" x-text="n"></button>
+                        </template>
+                        <button type="button" class="tnc-pg" @click="go(page + 1)" :disabled="page === pages" aria-label="Trang sau"><x-lucide name="chevron-right" /></button>
+                    </nav>
                 </div>
             @endif
         </section>
@@ -1430,9 +1459,51 @@
             .tnc-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
             .tnc-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #64748B; }
             .tnc-meta svg { width: 13px; height: 13px; }
-            @media (max-width: 560px) { .tnc-foot .tnc-btn, .tnc-acts { width: 100%; } .tnc-acts .tnc-btn { flex: 1; } }
+            .tnc-item { align-items: flex-start; }
+            .tnc-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F7; }
+            .tnc-range { font-size: 12px; font-weight: 600; color: #94A3B8; }
+            .tnc-pgs { display: flex; flex-wrap: wrap; gap: 6px; }
+            .tnc-pg { display: grid; place-items: center; min-width: 34px; height: 34px; padding: 0 8px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; transition: all .15s; }
+            .tnc-pg svg { width: 16px; height: 16px; }
+            .tnc-pg:hover:not(:disabled) { border-color: #93C5FD; color: #1D4ED8; }
+            .tnc-pg.on { border-color: #2563EB; background: #2563EB; color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, .25); }
+            .tnc-pg:disabled { opacity: .4; cursor: default; } .tnc-pg.dots { border-color: transparent; background: none; opacity: 1; }
+            @media (max-width: 560px) { .tnc-pager { justify-content: center; } .tnc-range { width: 100%; text-align: center; } }
+            .tnc-item.is-del { border-color: #FECACA; background: #FFFBFB; }
+            .tnc-del { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 32px; padding: 0 11px; border: 1px solid #E2E8F0; border-radius: 10px; background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: #64748B; cursor: pointer; transition: all .15s; }
+            .tnc-del svg { width: 14px; height: 14px; }
+            .tnc-del:hover { border-color: #FCA5A5; background: #FFF5F5; color: #DC2626; }
+            .tnc-del-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA; }
+            .tnc-del-bar > svg { width: 16px; height: 16px; flex: none; color: #DC2626; }
+            .tnc-del-bar p { flex: 1 1 220px; margin: 0; font-size: 12.5px; line-height: 1.5; color: #991B1B; }
+            .tnc-del-acts { display: flex; gap: 8px; margin-left: auto; }
+            .tnc-mini { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+            .tnc-mini svg { width: 14px; height: 14px; }
+            .tnc-mini.ghost { border-color: #E2E8F0; background: #fff; color: #475569; }
+            .tnc-mini.red { background: #DC2626; color: #fff; box-shadow: 0 4px 12px rgba(220, 38, 38, .25); } .tnc-mini.red:hover { background: #B91C1C; } .tnc-mini.red:disabled { opacity: .6; }
+            @media (max-width: 560px) { .tnc-foot .tnc-btn, .tnc-acts { width: 100%; } .tnc-acts .tnc-btn { flex: 1; } .tnc-del span { display: none; } .tnc-del { padding: 0 9px; } }
         </style>
         <script>
+            window.tncPager = function (total) {
+                return {
+                    openId: null, page: 1, per: 5, total,
+                    get pages() { return Math.max(1, Math.ceil(this.total / this.per)); },
+                    onPage(i) { return Math.floor(i / this.per) + 1 === this.page; },
+                    get rangeText() { return 'Hiển thị ' + ((this.page - 1) * this.per + 1) + '–' + Math.min(this.page * this.per, this.total) + ' / ' + this.total + ' thông báo'; },
+                    get pageList() {
+                        const n = this.pages, p = this.page;
+                        if (n <= 7) return Array.from({ length: n }, (_, i) => i + 1);
+                        const out = []; [...new Set([1, p - 1, p, p + 1, n].filter((x) => x >= 1 && x <= n))].sort((a, b) => a - b)
+                            .forEach((x, i, arr) => { if (i && x - arr[i - 1] > 1) out.push('…'); out.push(x); });
+                        return out;
+                    },
+                    go(n) {
+                        if (typeof n !== 'number' || n < 1 || n > this.pages || n === this.page) return;
+                        this.page = n; this.openId = null;
+                        const r = this.$refs.tncSec; if (r && r.getBoundingClientRect().top < 0) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    },
+                };
+            };
             window.tncForm = function (c) {
                 const cls = c.className || 'lớp';
                 return {

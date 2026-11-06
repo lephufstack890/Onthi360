@@ -624,6 +624,7 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 12/10 — soạn / đăng thông báo lớp (nháp → đăng → gửi thông báo tới học sinh, phụ huynh).
         Route::post('notices', [TeacherNoticeController::class, 'store'])->name('notices.store');
         Route::delete('notices/{notice}', [TeacherNoticeController::class, 'destroy'])->whereNumber('notice')->name('notices.destroy');
+        Route::delete('classes/{class}/notices/{notice}', [TeacherNoticeController::class, 'destroyFromClass'])->whereNumber(['class', 'notice'])->name('classes.notices.destroy'); // SỬA 6/11
 
         Route::get('profile', [TeacherProfileController::class, 'show'])->name('profile.show');
         Route::put('profile', [TeacherProfileController::class, 'update'])->name('profile.update');
