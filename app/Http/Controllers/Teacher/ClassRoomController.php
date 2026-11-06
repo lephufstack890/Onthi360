@@ -36,7 +36,7 @@ class ClassRoomController extends Controller
      * Tài liệu, Bài tập / Đề, Tiến trình dạy học, Kết quả học tập, Thông báo. Phần dữ liệu cũ vẫn từ showForTeacher(); phần mới
      * từ ClassSpaceService. Tab cũ ?tab=schedule / members mở tab Điểm danh.
      */
-    public function show(Request $request, int $class): View
+    public function show(Request $request, int $class): View|\Illuminate\Http\Response
     {
         $user = Auth::user();
         $space = app(ClassSpaceService::class);
@@ -58,6 +58,15 @@ class ClassRoomController extends Controller
             'results' => $space->results($classRoom),
             default => [],
         };
+
+        // SỬA 6/11 (khách: "chuyển tab không load lại trang, dữ liệu vẫn tối ưu") — trang lớp đổi tab bằng JS: chỉ trả PHẦN NỘI
+        // DUNG của tab vừa chọn (teacher.classes._panel). Vẫn chỉ tính dữ liệu của đúng tab đó như trên, không dựng lại layout,
+        // sidebar, đầu trang. no-store: trình duyệt không lưu mảnh này thay cho trang đầy đủ.
+        if ($request->header('X-Csp-Tab') === '1') {
+            return response()->view('teacher.classes._panel', $data)
+                ->header('Cache-Control', 'no-store, private')
+                ->header('Vary', 'X-Csp-Tab');
+        }
 
         return view('teacher.classes.show', $data);
     }

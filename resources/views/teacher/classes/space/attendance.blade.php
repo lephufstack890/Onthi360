@@ -367,13 +367,16 @@
                     (cfg.cols || []).forEach((sid) => { const x = this.cells[sid + ':' + r.id]; if (x && x.s) { m++; if (came(x.s)) c++; } });
                     this.base[r.id] = { came: r.came - c, marked: r.marked - m };
                 });
-                window.addEventListener('keydown', (e) => {
+                this._kd = (e) => {
                     if (!this.menu || e.ctrlKey || e.metaKey || e.altKey) return;
                     const map = { c: 'present', m: 'late', p: 'excused', v: 'absent' };
                     const s = map[(e.key || '').toLowerCase()];
                     if (s) { e.preventDefault(); this.pick(s); }
-                });
+                };
+                window.addEventListener('keydown', this._kd);
             },
+            // SỬA 6/11 — đổi tab không tải lại trang: gỡ phím tắt khi khối điểm danh bị thay bằng tab khác.
+            destroy() { if (this._kd) window.removeEventListener('keydown', this._kd); document.documentElement.style.overflow = ''; },
             match(name) { const k = this.q.trim().toLowerCase(); return !k || name.includes(k); },
             st(k) { return this.cells[k] ? this.cells[k].s : null; },
             note(k) { return this.cells[k] ? this.cells[k].n : ''; },
