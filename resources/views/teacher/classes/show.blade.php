@@ -23,7 +23,7 @@
         $ratingCount = $ratingSummary->review_count ?? 0;
         $tcxCover = method_exists($classRoom->course ?? null, 'coverUrl') ? $classRoom->course->coverUrl() : null;
         $tcxCompletion = (int) ($completion ?? 0);
-        $tcxTabIcons = ['Tổng quan' => 'home', 'Tài liệu' => 'file-text', 'Học liệu' => 'file-text', 'Buổi học' => 'play-circle', 'Giao đề' => 'clipboard-list', 'Kết quả' => 'bar-chart-3', 'Thành viên' => 'users'];
+        $tcxTabIcons = ['Tổng quan' => 'home', 'Tài liệu' => 'file-text', 'Học liệu' => 'file-text', 'Buổi học' => 'play-circle', 'Giao đề' => 'clipboard-list', 'Kết quả' => 'bar-chart-3', 'Thành viên' => 'users', 'Học sinh' => 'users'];
         // Loại tài liệu suy từ nhãn có sẵn ("📘 Sách" / "🗂️ Chuyên đề" / "📝 Bộ đề") — không đổi dữ liệu của service.
         $tcxType = function (?string $label): string {
             $l = mb_strtolower((string) $label);
@@ -182,6 +182,18 @@
         .tcx-req + .tcx-req { margin-top: 8px; }
         .tcx-req-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
         .tcx-req-acts form { display: flex; align-items: center; gap: 6px; }
+        /* SỬA 6/11 — form + kết quả "Thêm học sinh vào lớp" */
+        .tcx-addform { display: grid; gap: 8px; margin: 0 0 12px; padding: 12px 14px; border: 1px dashed #BBF7D0; border-radius: 14px; background: #F0FDF4; }
+        .tcx-addform label { font-size: 12.5px; color: #3D566B; }
+        .tcx-addform textarea.tcx-input { height: auto; min-height: 76px; padding: 8px 10px; line-height: 1.6; resize: vertical; font-family: inherit; }
+        .tcx-addform-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .tcx-addform-acts small { font-size: 11.5px; color: #64748B; }
+        .tcx-addres { display: grid; gap: 6px; margin-bottom: 12px; }
+        .tcx-addres p { display: flex; align-items: flex-start; gap: 7px; margin: 0; padding: 9px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; }
+        .tcx-addres p svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+        .tcx-addres .ok { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+        .tcx-addres .info { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+        .tcx-addres .warn { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
         .tcx-alert { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #FECACA; border-radius: 12px; background: #FFF5F5; font-size: 12.5px; font-weight: 600; color: #991B1B; }
         .tcx-alert svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
         .tcx-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -555,6 +567,20 @@
             @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã gỡ học sinh khỏi lớp và gửi thông báo cho em.'])
         @endif
 
+        {{-- SỬA 6/11 — kết quả "Thêm học sinh vào lớp" --}}
+        @php $tcxAdded = session('members_added'); @endphp
+        @if (is_array($tcxAdded))
+            @if (! empty($tcxAdded['added']))
+                @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã thêm '.count($tcxAdded['added']).' học sinh vào lớp.'])
+            @endif
+            <div class="tcx-addres">
+                @if (! empty($tcxAdded['added']))<p class="ok"><x-lucide name="check-circle-2" />Đã thêm vào lớp: <b>{{ implode(', ', $tcxAdded['added']) }}</b></p>@endif
+                @if (! empty($tcxAdded['already']))<p class="info"><x-lucide name="info" />Đã ở trong lớp từ trước: {{ implode(', ', $tcxAdded['already']) }}</p>@endif
+                @if (! empty($tcxAdded['notFound']))<p class="warn"><x-lucide name="alert-triangle" />Không tìm thấy tài khoản: {{ implode(', ', $tcxAdded['notFound']) }} — kiểm tra lại email / số điện thoại học sinh đã đăng ký.</p>@endif
+                @if (! empty($tcxAdded['notStudent']))<p class="warn"><x-lucide name="alert-triangle" />Không phải tài khoản học sinh (hoặc đang bị khoá): {{ implode(', ', $tcxAdded['notStudent']) }}</p>@endif
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="tcx-alert"><x-lucide name="alert-triangle" /><div>@foreach ($errors->all() as $message)<p style="margin:0">{{ $message }}</p>@endforeach</div></div>
         @endif
@@ -591,17 +617,29 @@
             @endif
         </section>
 
-        <section class="tcx-sec" x-data="{ q: '' }">
+        <section class="tcx-sec" x-data="{ q: '', adding: {{ $errors->has('contacts') ? 'true' : 'false' }} }">
             <div class="tcx-sec-head">
                 <span class="tcx-ic"><x-lucide name="users" /></span>
-                <div><h3>Học sinh đang học</h3><p>Gỡ khỏi lớp: em mất quyền vào lớp ngay; bài làm, điểm danh cũ vẫn giữ nguyên.</p></div>
+                <div style="flex:1 1 220px;min-width:0"><h3>Học sinh đang học</h3><p>Gỡ khỏi lớp: em mất quyền vào lớp ngay; bài làm, điểm danh cũ vẫn giữ nguyên.</p></div>
                 <span class="tcx-count">{{ $members->count() }} học sinh</span>
+                {{-- SỬA 6/11 (khách: "cho giáo viên thêm học sinh vào lớp thủ công") --}}
+                <button type="button" class="tcx-btn is-green" @click="adding = !adding"><x-lucide name="user-plus" />Thêm học sinh</button>
             </div>
+            <form x-show="adding" x-cloak method="POST" action="{{ route('teacher.classes.members.add', $classRoom->id) }}" class="tcx-addform">
+                @csrf
+                <label for="tcx-contacts"><b>Thêm học sinh vào lớp</b> — nhập <b>email</b> hoặc <b>số điện thoại</b> học sinh đã dùng để đăng ký tài khoản, mỗi dòng một người (tối đa 50).</label>
+                <textarea id="tcx-contacts" name="contacts" rows="3" class="tcx-input" placeholder="vd: nguyenvana@gmail.com&#10;0912345678">{{ old('contacts') }}</textarea>
+                <div class="tcx-addform-acts">
+                    <button type="submit" class="tcx-btn is-green"><x-lucide name="user-plus" />Thêm vào lớp</button>
+                    <button type="button" class="tcx-btn is-ghost" @click="adding = false">Huỷ</button>
+                    <small>Học sinh vào lớp ngay, không cần chờ duyệt, và nhận được thông báo.</small>
+                </div>
+            </form>
             @if ($members->count() > 6)
                 <label class="tcx-search" style="display:block;max-width:320px;margin-bottom:10px"><x-lucide name="search" /><input type="search" placeholder="Tìm tên hoặc email học sinh…" x-model="q" aria-label="Tìm học sinh"></label>
             @endif
             @if ($members->isEmpty())
-                <div class="tcx-empty">Lớp chưa có học sinh nào. Các em đăng ký ở trang Lớp học, duyệt ở khối phía trên là vào lớp.</div>
+                <div class="tcx-empty">Lớp chưa có học sinh nào. Bấm <b>Thêm học sinh</b> để thêm bằng email / số điện thoại, hoặc để các em đăng ký ở trang Lớp học rồi duyệt ở khối phía trên.</div>
             @else
                 <div class="tcx-people">
                     @foreach ($members as $m)

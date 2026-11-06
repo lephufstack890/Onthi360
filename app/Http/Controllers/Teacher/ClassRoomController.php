@@ -73,6 +73,18 @@ class ClassRoomController extends Controller
         return back()->with('status', 'member-removed');
     }
 
+    /** SỬA 6/11 — giáo viên thêm học sinh vào lớp thủ công bằng email / số điện thoại (tab Học sinh). */
+    public function addStudents(Request $request, int $class): RedirectResponse
+    {
+        $data = $request->validate(['contacts' => ['required', 'string', 'max:3000']], [
+            'contacts.required' => 'Nhập email hoặc số điện thoại của học sinh cần thêm.',
+        ]);
+
+        $result = $this->classRoomService->addStudentsManually(Auth::user(), $class, $data['contacts']);
+
+        return back()->with('members_added', $result);
+    }
+
     public function create(Request $request): View
     {
         return view('teacher.classes.create', $this->classRoomService->createFormData());

@@ -194,7 +194,8 @@ class ClassRoomService
         // ClassRoomService::buildShowData()) — CHỈ ẩn khỏi thanh tab, KHÔNG xoá logic tải dữ
         // liệu "Giao đề" bên dưới (vẫn còn nguyên trong showForTeacher(), route teacher.
         // classes.show vẫn nhận ?tab=assign nếu có link cũ trỏ tới) — dễ bật lại sau này.
-        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Tài liệu', 'schedule' => 'Buổi học', 'results' => 'Kết quả', 'members' => 'Thành viên'];
+        // SỬA 6/11 (khách: "đổi chữ Thành viên thành Học sinh") — chỉ đổi nhãn, khoá tab vẫn là 'members'.
+        $tabDefs = ['overview' => 'Tổng quan', 'materials' => 'Tài liệu', 'schedule' => 'Buổi học', 'results' => 'Kết quả', 'members' => 'Học sinh'];
         $tabsData = [];
         foreach ($tabDefs as $key => $label) {
             $tabsData[] = ['label' => $label, 'href' => route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => $key]), 'active' => $tab === $key];
@@ -300,7 +301,7 @@ class ClassRoomService
             : (int) ($this->classEnrollments->pendingCountsByClassRoomIds([$classRoom->id])[$classRoom->id] ?? 0);
 
         foreach ($tabsData as $i => $t) {
-            if ($t['label'] === 'Thành viên' && $pendingCount > 0) {
+            if ($t['label'] === 'Học sinh' && $pendingCount > 0) {
                 $tabsData[$i]['count'] = $pendingCount;
             }
         }
@@ -591,6 +592,79 @@ class ClassRoomService
         $enrollment->student?->notify(new ClassMembershipRemoved($classRoom, $reason));
 
         return $enrollment;
+    }
+
+    /**
+     * SỬA 6/11 (khách: "cho giáo viên thêm học sinh vào lớp thủ công") — giáo viên nhập EMAIL hoặc SỐ ĐIỆN THOẠI của học sinh
+     * (mỗi dòng / dấu phẩy một người) → vào lớp ngay, không qua bước học sinh xin vào. Chỉ khớp CHÍNH XÁC email / số điện thoại
+     * (không cho dò danh sách học sinh toàn hệ thống), chỉ tài khoản có vai trò học sinh và đang hoạt động.
+     *  · Đã từng xin / bị từ chối / đã rời lớp → dòng ghi danh cũ chuyển lại 'active' (unique lớp + học sinh).
+     *  · Học sinh nhận thông báo "đã được vào lớp" như khi được duyệt.
+     *
+     * @return array{added: list<string>, already: list<string>, notFound: list<string>, notStudent: list<string>}
+     */
+    public function addStudentsManually(User $teacher, int $classId, string $input): array
+    {
+        $classRoom = $this->findTaughtClassRoom($teacher, $classId);
+        // Tách theo xuống dòng / dấu phẩy / chấm phẩy; dòng có email thì tách thêm theo khoảng trắng (số điện thoại có dấu cách giữ nguyên).
+        $tokens = collect(preg_split('/[\r\n,;]+/u', $input) ?: [])
+            ->flatMap(fn ($t) => str_contains((string) $t, '@') ? (preg_split('/\s+/u', trim((string) $t)) ?: []) : [$t])
+            ->map(fn ($t) => trim((string) $t))->filter()->unique()->take(50)->values();
+        $out = ['added' => [], 'already' => [], 'notFound' => [], 'notStudent' => []];
+
+        foreach ($tokens as $token) {
+            $user = $this->findUserByContact($token);
+            if ($user === null) {
+                $out['notFound'][] = $token;
+
+                continue;
+            }
+            if (! $user->roles()->where('name', Role::STUDENT)->exists() || ($user->status ?? 'active') === 'suspended') {
+                $out['notStudent'][] = $token;
+
+                continue;
+            }
+
+            $enrollment = ClassEnrollment::query()->where('class_room_id', $classRoom->id)->where('student_id', $user->id)->first();
+            if ($enrollment !== null && $enrollment->status === ClassEnrollment::STATUS_ACTIVE) {
+                $out['already'][] = $user->name;
+
+                continue;
+            }
+
+            $traces = ClassEnrollment::supportsApprovalFields()
+                ? ['approved_at' => now(), 'approved_by' => $teacher->id, 'reject_reason' => null]
+                : [];
+            $fields = array_merge(['status' => ClassEnrollment::STATUS_ACTIVE, 'enrolled_at' => now(), 'left_at' => null], $traces);
+
+            if ($enrollment !== null) {
+                $this->classEnrollments->update($enrollment, $fields);
+            } else {
+                ClassEnrollment::query()->create(['class_room_id' => $classRoom->id, 'student_id' => $user->id] + $fields);
+            }
+
+            $user->notify(new ClassJoinDecided($classRoom, true));
+            $out['added'][] = $user->name;
+        }
+
+        return $out;
+    }
+
+    /** Tìm tài khoản theo email (không phân biệt hoa thường) hoặc số điện thoại (chấp nhận 0xxx / 84xxx / +84xxx, có dấu cách, chấm). */
+    private function findUserByContact(string $token): ?User
+    {
+        if (str_contains($token, '@')) {
+            return User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($token)])->first();
+        }
+
+        $digits = preg_replace('/\D+/', '', $token) ?? '';
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        $local = str_starts_with($digits, '84') ? '0'.substr($digits, 2) : $digits;
+        $intl = str_starts_with($local, '0') ? '84'.substr($local, 1) : $local;
+
+        return User::query()->whereIn('phone', array_values(array_unique([$token, $digits, $local, $intl, '+'.$intl])))->first();
     }
 
     /**
