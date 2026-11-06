@@ -613,6 +613,53 @@ body:has(.leaderboard-view) { background-color: #f3f6fa; }
 .lbx-board-heading h2 { font-size: 16px !important; }
 .lbx-board-sub { padding-left: 0 !important; font-size: 12px !important; }
 @media (max-width: 800px) { .lbx-title h1 { font-size: 18px !important; } .lbx-board-heading h2 { font-size: 15px !important; } }
+/* ══════ SỬA 6/11 (khách lần 2: "chữ vẫn to, giảm nữa") — thu nhỏ đồng loạt ~10–15% cả trang (đặt cuối để ghi đè). ══════ */
+.lbx-title h1 { font-size: 17px !important; }
+.lbx-title p { font-size: 12px !important; margin-top: 2px !important; }
+.lbx-top { gap: 14px; padding-bottom: 24px; }
+.lbx-scopes a { padding: 7px 12px !important; font-size: 12px !important; }
+.lbx-search, .lbx-select { height: 34px; padding: 0 10px; }
+.lbx-search input, .lbx-select select { font-size: 12px; }
+.lbx-search svg, .lbx-select svg { width: 14px; height: 14px; }
+.lbx-top .lbx-podium-head h2 { font-size: 14px !important; }
+.lbx-top .lbx-podium-ic { width: 26px; height: 26px; } .lbx-top .lbx-podium-ic svg { width: 14px; height: 14px; }
+.lbx-card { padding: 18px 16px 14px; }
+.lbx-card.is-r1 { padding: 24px 20px 14px; }
+.lbx-ava-wrap { width: 72px; height: 72px; margin-bottom: 10px; }
+.lbx-card.is-r1 .lbx-ava-wrap { width: 86px; height: 86px; margin-top: 14px; }
+.lbx-crown { top: -34px; width: 44px; height: 29px; }
+.lbx-medal { width: 44px; height: 66px; }
+.lbx-ava { font-size: 16px !important; border-width: 3px !important; }
+.lbx-ava-rank { width: 20px; height: 20px; font-size: 10.5px; }
+.lbx-card h3 { font-size: 13px !important; }
+.lbx-card.is-r1 h3 { font-size: 14px !important; }
+.lbx-sub { font-size: 11px; }
+.lbx-card-foot { margin-top: 10px; padding-top: 10px; }
+.lbx-score strong { font-size: 18px; }
+.lbx-card.is-r1 .lbx-score strong { font-size: 19px; }
+.lbx-score span { font-size: 10.5px; }
+.lbx-stats { font-size: 10.5px; }
+.lbx-tried { font-size: 11.5px; }
+.lbx-trophy { width: 72px; height: 72px; bottom: 28px; }
+.lbx-title-chip { font-size: 9.5px; padding: 2px 7px; }
+.lbx-board-heading { padding-bottom: 10px !important; }
+.lbx-board-heading h2 { font-size: 14px !important; }
+.lbx-board-sub { font-size: 11px !important; }
+.lb-table th { font-size: 10px; }
+.lb-student-name > button { font-size: 12px; }
+.lb-skill-badge { font-size: 9.5px; }
+.lbx-sub-line { font-size: 10.5px !important; }
+.lb-table .lb-avatar { width: 30px !important; height: 30px !important; }
+.lb-rank-mark { font-size: 12px; height: 21px; min-width: 26px; }
+.lb-movement { font-size: 10px; }
+.lb-points-cell strong, .lb-ac-cell strong, .lb-accuracy-cell > span, .lb-streak-cell > span { font-size: 12px; }
+.lb-points-cell > span, .lb-ac-cell > span, .lb-streak-cell small { font-size: 10.5px; }
+@media (min-width: 801px) { .lb-table td { padding-block: 10px; } .lb-table th { padding-block: 10px; } }
+.lb-page-summary { font-size: 11.5px !important; }
+.lb-page-summary select { font-size: 11px; }
+.lb-page-buttons button { width: 28px; height: 28px; font-size: 11.5px; }
+.lb-board-note p, .lb-board-note > span { font-size: 11.5px !important; }
+@media (max-width: 800px) { .lbx-title h1 { font-size: 16px !important; } .lbx-board-heading h2 { font-size: 14px !important; } .lbx-card:not(.is-r1) .lbx-ava-wrap { width: 56px; height: 56px; } .lbx-card:not(.is-r1) h3 { font-size: 12px !important; } .lbx-card:not(.is-r1) .lbx-score strong { font-size: 16px; } }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
