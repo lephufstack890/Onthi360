@@ -605,6 +605,14 @@ body:has(.leaderboard-view) { background-color: #f3f6fa; }
   .lb-board-note > span { display: none; }
 }
 
+/* SỬA 6/11 (khách: "chữ Bảng xếp hạng, Thứ hạng học sinh, Gương mặt dẫn đầu to quá") — tiêu đề theo thang trang chủ. */
+.lbx-title h1 { font-size: 20px !important; }
+.lbx-title p { font-size: 13px; }
+.lbx-top .lbx-podium-head h2 { font-size: 16px !important; }
+.lbx-top .lbx-podium-ic { width: 28px; height: 28px; } .lbx-top .lbx-podium-ic svg { width: 15px; height: 15px; }
+.lbx-board-heading h2 { font-size: 16px !important; }
+.lbx-board-sub { padding-left: 0 !important; font-size: 12px !important; }
+@media (max-width: 800px) { .lbx-title h1 { font-size: 18px !important; } .lbx-board-heading h2 { font-size: 15px !important; } }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
