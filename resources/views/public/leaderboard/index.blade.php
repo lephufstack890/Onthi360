@@ -451,6 +451,11 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 .lb-row-rank-1, .lb-row.lb-row-rank-2, .lb-row-rank-3 { --lb-row-bg: #fff; --lb-row-hover: #f4f9fd; box-shadow: none; }
 .lb-row.is-you { box-shadow: inset 3px 0 #0b7fb0; --lb-row-bg: #f0f8fd; }
 .lb-row { border-bottom: 1px solid #eef3f7; }
+/* SỬA 6/11 (khách: "dãn dòng ra tí nữa") — chỉ màn rộng; điện thoại giữ dạng thẻ. */
+@media (min-width: 801px) { .lb-table td { padding-block: 12px; } .lb-table th { padding-block: 12px; } }
+@media (min-width: 1400px) { .lb-table td { padding-block: 13px; } }
+.lb-student-info > p.lbx-sub-line { margin-top: 3px !important; }
+.lb-movement { margin-top: 2px; }
 .lb-rank-mark { height: 24px; min-width: 32px; padding: 0 6px; font-size: 14.5px; font-weight: 800; color: #0f3554; background: transparent; }
 .lb-rank-1 { background: #fff3c4; color: #a16207; border: 1px solid #f5d77a; }
 .lb-rank-2 { background: #eef2f6; color: #475569; border: 1px solid #d5dde6; }
@@ -496,9 +501,17 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
   .lb-pagination { align-items: stretch; }
 }
 
+
+/* SỬA 6/11 (khách: "cho full ra bằng khung") — bỏ giới hạn 1440px, lề bằng thanh menu (nav-public: px-3 / sm:px-5 / lg:px-4 / 2xl:px-8). */
+.lbx-page { width: 100%; margin: 0; padding: 12px 12px 24px; }
+@media (min-width: 640px) { .lbx-page { padding: 20px 20px 28px; } }
+@media (min-width: 1024px) { .lbx-page { padding: 20px 16px 32px; } }
+@media (min-width: 1536px) { .lbx-page { padding: 24px 32px 32px; } }
+.lbx-page .leaderboard-view { max-width: none; margin: 0; }
 </style>
 
-<div class="max-w-[1780px] w-full mx-auto px-3 sm:px-5 lg:px-6 2xl:px-10 py-3 sm:py-5">
+{{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
+<div class="lbx-page">
 <div class="leaderboard-view" x-data="onthiLeaderboardPage({{ Js::from($config) }})">
 
     {{-- ══════ HERO ══════ --}}
