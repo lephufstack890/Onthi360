@@ -39,7 +39,7 @@
         $tasks[] = [($overview['missingAttendance'] ?? 0).' buổi chưa đủ điểm danh', 'Chỉ tính các buổi đã bắt đầu (60 ngày gần đây).', 'Điểm danh',
             ! empty($overview['firstMissingSessionId']) ? route('teacher.schedule.attendance', $overview['firstMissingSessionId']) : route('teacher.schedule.index')];
         $tasks[] = [($overview['noFeedback'] ?? 0).' bài nộp chưa có nhận xét', 'Đọc bài nộp trước khi phản hồi.', 'Xem bài nộp', route('teacher.results.index')];
-        $tasks[] = [($overview['drafts'] ?? 0).' thông báo nháp', 'Kiểm tra nội dung và người nhận.', 'Xem nháp', route('teacher.notifications.index', ['tab' => 'compose', 'filter' => 'draft'])];
+        // SỬA 6/11 — bỏ việc "thông báo nháp": trang Thông báo chỉ còn Hộp thư, gửi thông báo lớp làm trong tab Thông báo của từng lớp.
         if (count($toOpen) > 0) {
             $tasks[] = [count($toOpen).' bài chờ mở tiến độ', 'Đang ở trạng thái nháp hoặc hẹn giờ của lớp.', 'Mở bài', route('teacher.classes.index')];
         }

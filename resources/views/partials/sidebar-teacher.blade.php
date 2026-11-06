@@ -25,7 +25,7 @@
             ['Kết quả & nhận xét', 'teacher.results.index', 'trending-up', ['teacher.results.*']],
         ])),
         'Cá nhân' => [
-            ['Thông báo', 'teacher.notifications.index', 'message-square-text', ['teacher.notifications.*', 'teacher.notices.*']],
+            ['Hộp thư', 'teacher.notifications.index', 'inbox', ['teacher.notifications.*', 'teacher.notices.*']], // SỬA 6/11 — đổi "Thông báo" thành "Hộp thư" (trang chỉ còn hộp thư)
             // SỬA 14/9 — khu Giáo viên cũng có ví token, cùng route với khu Học sinh.
             ['Ví token', 'wallet.index', 'wallet-cards', ['wallet.*']],
             ['Mã kích hoạt', 'access.activate', 'key-round', ['access.activate*']],

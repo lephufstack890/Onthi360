@@ -1,181 +1,179 @@
 @extends('layouts.teacher')
 
-@section('title', 'Thông báo')
-@section('page-title', 'Thông báo')
+@section('title', 'Hộp thư')
+@section('page-title', 'Hộp thư')
 
 @section('content')
     {{--
-      SỬA 12/10 — dựng lại theo TeacherNoticePanel của source mới: tab "Thông báo lớp" (soạn, lưu nháp, đăng, lịch sử có lọc
-      Bản nháp / Đã đăng) và tab "Hộp thư" (thông báo hệ thống gửi tới giáo viên — GIỮ NGUYÊN như bản cũ, kể cả
-      "Đánh dấu đã đọc tất cả"). Đăng thông báo lớp = gửi thông báo thật tới học sinh trong lớp (và phụ huynh đã liên kết nếu
-      chọn) — xem Teacher\TeacherWorkspaceService::saveAnnouncement().
+      SỬA 6/11 (khách: "bỏ tab Thông báo lớp, chỉ để Hộp thư — thiết kế lại đẹp, bố cục hài hoà, có phân trang") — trang chỉ còn
+      Hộp thư: đầu khung (số chưa đọc, lọc Tất cả / Chưa đọc, Đánh dấu đã đọc tất cả), danh sách gom theo ngày, mỗi thư bấm để mở
+      (tự đánh dấu đã đọc), nút ✓ đánh dấu đã đọc từng thư, phân trang 10 thư / trang (máy chủ). Gửi thông báo cho lớp: vào lớp →
+      tab "Thông báo". Bản cũ (có tab Thông báo lớp) lưu ở _to_delete_claude/teacher-inbox/. CSS tiền tố tib-.
     --}}
     @php
-        $tab = $tab ?? 'compose';
         $items = $items ?? [];
-        $unreadCount = $unreadCount ?? 0;
-        $classes = $classes ?? [];
-        $notices = $notices ?? [];
-        $recipientCounts = $recipientCounts ?? [];
-        $editing = $editing ?? null;
-        $preClass = $preClass ?? 0;
-        $selectedClass = (int) old('class_room_id', $editing['classId'] ?? ($preClass ?: ($classes[0]['id'] ?? 0)));
-        if (! in_array($selectedClass, array_column($classes, 'id'), true)) {
-            $selectedClass = $classes[0]['id'] ?? 0;
-        }
-        $audience = old('audience', $editing['audience'] ?? 'students');
-        $status = session('notice_status');
-        $payload = [
-            'notices' => $notices,
-            'counts' => (object) $recipientCounts,
-            'classId' => $selectedClass,
-            'audience' => $audience,
-            'filter' => $initialFilter ?? 'all',
-            'editId' => $editing['id'] ?? null,
-        ];
+        $unreadCount = (int) ($unreadCount ?? 0);
+        $totalCount = (int) ($totalCount ?? 0);
+        $filter = $filter ?? 'all';
+        $groups = collect($items)->groupBy('group');
+        $cur = $page->currentPage();
+        $last = $page->lastPage();
+        $pageNums = $last <= 7 ? range(1, $last) : collect([1, $cur - 1, $cur, $cur + 1, $last])->filter(fn ($x) => $x >= 1 && $x <= $last)->unique()->sort()->values()->all();
+        $tibToneBg = ['success' => '#E7F7EE', 'warning' => '#FFF4DE', 'danger' => '#FEECEC', 'info' => '#EAF2FF', 'neutral' => '#EEF2F7'];
     @endphp
 
-    <div class="tw-dashboard" data-section="TEACHER-NOTICES" x-data="twNotices(@js($payload))">
+    <div class="tw-dashboard" data-section="TEACHER-INBOX">
         @include('teacher._hero')
 
-        <div class="tw-tabs" role="tablist" aria-label="Thông báo">
-            <a class="tw-tab" href="{{ route('teacher.notifications.index', ['tab' => 'compose']) }}" @if ($tab === 'compose') aria-current="page" @endif><x-lucide name="message-square-text" />Thông báo lớp</a>
-            <a class="tw-tab" href="{{ route('teacher.notifications.index', ['tab' => 'inbox']) }}" @if ($tab === 'inbox') aria-current="page" @endif><x-lucide name="bell" />Hộp thư @if ($unreadCount > 0)<span class="n">{{ $unreadCount }}</span>@endif</a>
-        </div>
-
-        @if ($tab === 'compose')
-            <section class="tw-card">
-                <div class="tw-heading">
-                    <div><h2><x-lucide name="message-square-text" />Thông báo lớp học</h2><p>Soạn nội dung, lưu nháp hoặc đăng ngay — thông báo được gửi tới học sinh trong lớp (và phụ huynh đã liên kết nếu chọn).</p></div>
+        <section class="tib">
+            <header class="tib-head">
+                <span class="tib-hic"><x-lucide name="bell" />@if ($unreadCount > 0)<i>{{ $unreadCount > 99 ? '99+' : $unreadCount }}</i>@endif</span>
+                <div class="tib-htx">
+                    <h2>Hộp thư</h2>
+                    <p>{{ $unreadCount > 0 ? "Bạn có {$unreadCount} thông báo chưa đọc." : 'Bạn đã xem hết thông báo — tuyệt vời!' }}</p>
                 </div>
-
-                @if ($status === 'published')
-                    <p class="tw-success" role="status">Đã đăng thông báo và gửi tới người nhận.</p>
-                @elseif ($status === 'draft')
-                    <p class="tw-success" role="status">Đã lưu bản nháp thông báo.</p>
-                @elseif ($status === 'deleted')
-                    <p class="tw-success" role="status">Đã xóa bản nháp.</p>
-                @endif
-                @if ($errors->any())
-                    <p class="tw-error" role="alert">{{ $errors->first() }}</p>
-                @endif
-
-                @if (empty($classes))
-                    <p class="tw-empty">Bạn chưa có lớp nào để gửi thông báo.</p>
-                @else
-                    <form class="tw-form" method="POST" action="{{ route('teacher.notices.store') }}" novalidate style="margin-top:12px">
-                        @csrf
-                        @if ($editing)
-                            <input type="hidden" name="id" value="{{ $editing['id'] }}">
-                            <p class="tw-muted">Đang viết tiếp bản nháp: <b>{{ $editing['title'] ?: 'Chưa có tiêu đề' }}</b></p>
-                        @endif
-                        <div class="tw-fields">
-                            <label>Lớp nhận
-                                <select name="class_room_id" aria-label="Lớp nhận" x-model.number="classId">
-                                    @foreach ($classes as $c)
-                                        <option value="{{ $c['id'] }}" @selected($selectedClass === $c['id'])>{{ $c['name'] }}</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                            <label>Người nhận
-                                <select name="audience" aria-label="Người nhận" x-model="audience">
-                                    <option value="students">Học sinh trong lớp</option>
-                                    <option value="families">Học sinh &amp; phụ huynh đã liên kết</option>
-                                    <option value="parents">Chỉ phụ huynh đã liên kết</option>
-                                </select>
-                            </label>
-                        </div>
-                        <p class="tw-muted">Phạm vi: <span x-text="scopeText"></span></p>
-                        <label>Tiêu đề
-                            <input type="text" name="title" maxlength="120" value="{{ old('title', $editing['title'] ?? '') }}" placeholder="Ví dụ: Chuẩn bị buổi học ngày mai">
-                        </label>
-                        <label>Nội dung
-                            <textarea name="body" rows="4" maxlength="3000" placeholder="Nhập lời nhắn cho lớp…">{{ old('body', $editing['body'] ?? '') }}</textarea>
-                        </label>
-                        <div class="tw-actions" style="margin-top:0">
-                            <button class="tw-button" type="submit" name="action" value="publish" :disabled="counts[classId] && (counts[classId].students === 0 || (audience === 'parents' && counts[classId].parents === 0))">Đăng thông báo</button>
-                            <button class="tw-secondary" type="submit" name="action" value="draft">Lưu nháp</button>
-                            @if ($editing)
-                                <a class="tw-secondary" href="{{ route('teacher.notifications.index', ['tab' => 'compose']) }}">Hủy chỉnh sửa</a>
-                            @endif
-                        </div>
-                    </form>
-                @endif
-
-                <div class="tw-notice-history">
-                    <div class="tw-heading">
-                        <h3 x-text="'Thông báo đã tạo · ' + (filter === 'all' ? total : total + '/' + notices.length)"></h3>
-                        <select aria-label="Lọc thông báo" x-model="filter" @change="page = 1" x-show="notices.length" x-cloak>
-                            <option value="all">Tất cả</option><option value="draft">Bản nháp</option><option value="published">Đã đăng</option>
-                        </select>
-                    </div>
-                    <template x-for="n in visible" :key="n.id">
-                        <article class="tw-row" :class="{ 'tw-notice-editing': editId === n.id }">
-                            <div class="tw-heading">
-                                <h3 x-text="n.title || 'Bản nháp chưa có tiêu đề'"></h3>
-                                <span class="tw-tag" :class="n.state === 'published' ? 'tw-status-completed' : 'tw-status-pending'" x-text="n.state === 'draft' ? 'Bản nháp' : 'Đã đăng'"></span>
-                            </div>
-                            <p x-text="n.class + ' · ' + audLabel(n.audience) + ' · ' + (n.state === 'published' ? 'Đăng: ' + n.publishedAt : 'Cập nhật: ' + n.updatedAt)"></p>
-                            <p x-show="n.state === 'published'" x-text="'Đã gửi tới ' + (n.audience === 'parents' ? n.parents + ' phụ huynh' : n.students + ' học sinh' + (n.audience === 'families' ? ' · ' + n.parents + ' phụ huynh' : ''))"></p>
-                            <p class="tw-notice-body" x-text="n.body || 'Chưa nhập nội dung.'"></p>
-                            <div class="tw-actions" x-show="n.state === 'draft'">
-                                <a class="tw-secondary" :href="'{{ route('teacher.notifications.index', ['tab' => 'compose']) }}&edit=' + n.id" x-text="editId === n.id ? 'Đang chỉnh sửa' : 'Viết tiếp'"></a>
-                                <form method="POST" :action="'{{ url('teacher/notices') }}/' + n.id" @submit="if (!confirm('Xóa bản nháp này?')) { $event.preventDefault(); }">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="tw-secondary">Xóa nháp</button>
-                                </form>
-                            </div>
-                        </article>
-                    </template>
-                    <p class="tw-muted" x-show="total === 0" x-cloak x-text="notices.length ? 'Không có thông báo ở trạng thái này.' : 'Thông báo của bạn sẽ xuất hiện tại đây sau khi lưu.'"></p>
-                    @include('student._pager')
-                </div>
-            </section>
-        @else
-            <section class="tw-card">
-                <div class="tw-heading">
-                    <div>
-                        <h2><x-lucide name="bell" />Hộp thư</h2>
-                        <p>{{ $unreadCount > 0 ? "Bạn có {$unreadCount} thông báo chưa đọc." : 'Bạn đã xem hết thông báo.' }}</p>
-                    </div>
+                <div class="tib-tools">
+                    <nav class="tib-seg" aria-label="Lọc thông báo">
+                        <a href="{{ route('teacher.notifications.index') }}" @class(['on' => $filter === 'all'])>Tất cả<em>{{ $totalCount }}</em></a>
+                        <a href="{{ route('teacher.notifications.index', ['loc' => 'unread']) }}" @class(['on' => $filter === 'unread'])>Chưa đọc<em @class(['hot' => $unreadCount > 0])>{{ $unreadCount }}</em></a>
+                    </nav>
                     @if ($unreadCount > 0)
                         <form method="POST" action="{{ route('notifications.readAll') }}">
                             @csrf
-                            <button type="submit" class="tw-secondary">Đánh dấu đã đọc tất cả</button>
+                            <button type="submit" class="tib-allread"><x-lucide name="check-circle-2" /><span>Đọc tất cả</span></button>
                         </form>
                     @endif
                 </div>
-                @forelse ($items as $n)
-                    <a href="{{ route('notifications.read', $n['id']) }}" class="sw-notice {{ ! $n['read'] ? 'unread' : '' }}">
-                        <span class="sw-tile">{{ $n['icon'] }}</span>
-                        <span class="sw-notice-b">
-                            <span style="display:flex;justify-content:space-between;gap:16px"><b style="font-size:12px;color:#1e293b">{{ $n['title'] }}</b><time>{{ $n['time'] }}</time></span>
-                            <p>{{ $n['text'] }}</p>
-                        </span>
-                        @if (! $n['read'])<span class="sw-new"></span>@endif
-                    </a>
-                @empty
-                    <p class="tw-empty">Chưa có thông báo nào.</p>
-                @endforelse
-            </section>
-        @endif
+            </header>
+
+            <div class="tib-tip"><x-lucide name="megaphone" /><span>Muốn gửi thông báo cho học sinh? Vào <a href="{{ route('teacher.classes.index') }}">Lớp học</a> → chọn lớp → tab <b>Thông báo</b>.</span></div>
+
+            @if (empty($items))
+                <div class="tib-empty">
+                    <span><x-lucide name="{{ $filter === 'unread' ? 'check-circle-2' : 'bell' }}" /></span>
+                    <b>{{ $filter === 'unread' ? 'Không còn thông báo chưa đọc' : 'Chưa có thông báo nào' }}</b>
+                    <p>{{ $filter === 'unread' ? 'Bạn đã đọc hết mọi thông báo.' : 'Thông báo từ hệ thống, lớp học và quản trị sẽ hiện ở đây.' }}</p>
+                    @if ($filter === 'unread' && $totalCount > 0)<a href="{{ route('teacher.notifications.index') }}">Xem tất cả thông báo</a>@endif
+                </div>
+            @else
+                <div class="tib-list">
+                    @foreach ($groups as $label => $rows)
+                        <div class="tib-day">{{ $label }}</div>
+                        @foreach ($rows as $n)
+                            <article @class(['tib-row', 'unread' => ! $n['read']])>
+                                <a class="tib-main" href="{{ route('notifications.read', $n['id']) }}">
+                                    <span class="tib-ic" style="background: {{ $tibToneBg[$n['tone']] ?? $tibToneBg['neutral'] }}">{{ $n['icon'] }}</span>
+                                    <span class="tib-tx">
+                                        <span class="tib-t"><b>{{ $n['title'] }}</b>@if (! $n['read'])<em>Mới</em>@endif</span>
+                                        @if ($n['text'] !== '' && $n['text'] !== $n['title'])<span class="tib-p">{{ $n['text'] }}</span>@endif
+                                        <span class="tib-meta">
+                                            <span title="{{ $n['at'] }}"><x-lucide name="clock-3" />{{ $n['ago'] }}</span>
+                                            @if ($n['from'] !== '')<span><x-lucide name="user-round" />{{ $n['from'] }}</span>@endif
+                                        </span>
+                                    </span>
+                                </a>
+                                <div class="tib-act">
+                                    @if (! $n['read'])
+                                        <form method="POST" action="{{ route('notifications.markRead', $n['id']) }}">
+                                            @csrf
+                                            <button type="submit" class="tib-mark" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc"><x-lucide name="check" /></button>
+                                        </form>
+                                    @endif
+                                    <a class="tib-go" href="{{ route('notifications.read', $n['id']) }}" aria-label="Mở thông báo"><x-lucide name="chevron-right" /></a>
+                                </div>
+                            </article>
+                        @endforeach
+                    @endforeach
+                </div>
+
+                @if ($last > 1)
+                    <div class="tib-pager">
+                        <span class="tib-range">Hiển thị {{ $page->firstItem() }}–{{ $page->lastItem() }} / {{ $page->total() }} thông báo</span>
+                        <nav class="tib-pgs" aria-label="Phân trang hộp thư">
+                            @if ($cur > 1)<a class="tib-pg" href="{{ $page->url($cur - 1) }}" aria-label="Trang trước"><x-lucide name="chevron-left" /></a>@else<span class="tib-pg off"><x-lucide name="chevron-left" /></span>@endif
+                            @php $prev = null; @endphp
+                            @foreach ($pageNums as $num)
+                                @if ($prev !== null && $num - $prev > 1)<span class="tib-pg dots">…</span>@endif
+                                <a @class(['tib-pg', 'on' => $num === $cur]) href="{{ $page->url($num) }}" @if ($num === $cur) aria-current="page" @endif>{{ $num }}</a>
+                                @php $prev = $num; @endphp
+                            @endforeach
+                            @if ($cur < $last)<a class="tib-pg" href="{{ $page->url($cur + 1) }}" aria-label="Trang sau"><x-lucide name="chevron-right" /></a>@else<span class="tib-pg off"><x-lucide name="chevron-right" /></span>@endif
+                        </nav>
+                    </div>
+                @endif
+            @endif
+        </section>
     </div>
 
-    <script>
-        function twNotices(d) {
-            return window.swPager(0, 10, {
-                notices: d.notices, counts: d.counts, classId: d.classId, audience: d.audience, filter: d.filter, editId: d.editId,
-                audLabel(a) { return a === 'families' ? 'Học sinh & phụ huynh đã liên kết' : (a === 'parents' ? 'Chỉ phụ huynh đã liên kết' : 'Học sinh'); },
-                get scopeText() {
-                    var c = this.counts[this.classId] || { students: 0, parents: 0 };
-                    if (this.audience === 'parents') return c.parents + ' phụ huynh đã liên kết' + (c.parents === 0 ? '. Lớp chưa có phụ huynh nào liên kết — chỉ lưu nháp được.' : '.');
-                    return c.students + ' học sinh' + (this.audience === 'families' ? ' và ' + c.parents + ' phụ huynh đã liên kết' : '') + (c.students === 0 ? '. Lớp chưa có học sinh đang học — chỉ lưu nháp được.' : '.');
-                },
-                get filtered() { var f = this.filter; return this.notices.filter(function (n) { return f === 'all' || n.state === f; }); },
-                get total() { return this.filtered.length; },
-                get visible() { return this.filtered.slice((this.page - 1) * this.size, this.page * this.size); },
-            });
+    <style>
+        .tib { padding: 20px; border: 1px solid #E3ECF3; border-radius: 20px; background: #fff; box-shadow: 0 6px 20px rgba(15, 42, 74, .05); }
+        .tib-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+        .tib-hic { position: relative; display: grid; place-items: center; width: 48px; height: 48px; flex: none; border-radius: 15px; background: linear-gradient(135deg, #1F8A63, #176B50); color: #fff; box-shadow: 0 10px 22px rgba(23, 107, 80, .28); }
+        .tib-hic svg { width: 22px; height: 22px; }
+        .tib-hic i { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border: 2px solid #fff; border-radius: 999px; background: #EF4444; font-style: normal; font-size: 10.5px; font-weight: 800; line-height: 16px; text-align: center; }
+        .tib-htx { flex: 1 1 220px; min-width: 0; }
+        .tib-htx h2 { margin: 0; font-size: 17px; font-weight: 800; color: #0F2F57; }
+        .tib-htx p { margin: 2px 0 0; font-size: 12.5px; color: #64748B; }
+        .tib-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .tib-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 13px; background: #EEF3F6; }
+        .tib-seg a { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #4B6476; text-decoration: none; transition: all .15s; }
+        .tib-seg a:hover { color: #0F2F57; }
+        .tib-seg a.on { background: #fff; color: #0F2F57; box-shadow: 0 2px 8px rgba(15, 42, 74, .1); }
+        .tib-seg em { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .85); font-style: normal; font-size: 11px; font-weight: 800; color: #64748B; text-align: center; }
+        .tib-seg a.on em { background: #E8F3EE; color: #176B50; }
+        .tib-seg em.hot { background: #FEE2E2; color: #DC2626; }
+        .tib-allread { display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 14px; border: 1px solid #CDE5DA; border-radius: 12px; background: #F1FAF5; font: inherit; font-size: 12.5px; font-weight: 800; color: #176B50; cursor: pointer; transition: all .15s; }
+        .tib-allread svg { width: 16px; height: 16px; }
+        .tib-allread:hover { background: #176B50; border-color: #176B50; color: #fff; }
+        .tib-tip { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 6px; padding: 10px 12px; border-radius: 12px; background: #F5F9FF; border: 1px solid #E0EBFA; font-size: 12.5px; line-height: 1.5; color: #46607A; }
+        .tib-tip svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: #EA580C; }
+        .tib-tip a { color: #1D4ED8; font-weight: 800; text-decoration: none; } .tib-tip a:hover { text-decoration: underline; }
+        .tib-list { display: grid; gap: 8px; }
+        .tib-day { margin: 10px 2px 0; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #94A3B8; }
+        .tib-row { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border: 1px solid #E8EEF4; border-radius: 16px; background: #fff; transition: border-color .15s, box-shadow .15s, background .15s; }
+        .tib-row:hover { border-color: #C9DCEA; box-shadow: 0 8px 20px rgba(15, 42, 74, .07); }
+        .tib-row.unread { border-color: #CFE7DC; background: linear-gradient(90deg, #F2FBF6, #FFFFFF 55%); }
+        .tib-row.unread::before { content: ''; position: absolute; left: -1px; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: #1F8A63; }
+        .tib-main { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; padding: 10px 6px 10px 12px; color: inherit; text-decoration: none; }
+        .tib-ic { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 13px; font-size: 19px; }
+        .tib-tx { display: grid; gap: 3px; flex: 1; min-width: 0; }
+        .tib-t { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .tib-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 700; color: #1E293B; }
+        .tib-row.unread .tib-t b { font-weight: 800; color: #0F172A; }
+        .tib-t em { flex: none; padding: 1px 8px; border-radius: 999px; background: #1F8A63; font-style: normal; font-size: 10.5px; font-weight: 800; color: #fff; }
+        .tib-p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; line-height: 1.55; color: #5B6F82; word-break: break-word; }
+        .tib-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 2px; }
+        .tib-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #94A3B8; }
+        .tib-meta svg { width: 13px; height: 13px; }
+        .tib-act { display: flex; align-items: center; gap: 6px; flex: none; }
+        .tib-act form { margin: 0; }
+        .tib-mark, .tib-go { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #E2E8F0; border-radius: 10px; background: #fff; color: #64748B; cursor: pointer; text-decoration: none; transition: all .15s; }
+        .tib-mark svg, .tib-go svg { width: 16px; height: 16px; }
+        .tib-mark:hover { border-color: #A7D7B8; background: #E6F4EA; color: #1F7A55; }
+        .tib-go { border-color: transparent; background: none; }
+        .tib-row:hover .tib-go { color: #176B50; }
+        .tib-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 40px 16px; border: 1px dashed #D5E1EA; border-radius: 16px; background: #FAFCFD; text-align: center; }
+        .tib-empty > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: #E8F3EE; color: #176B50; }
+        .tib-empty > span svg { width: 24px; height: 24px; }
+        .tib-empty b { margin-top: 4px; font-size: 14px; color: #0F2F57; }
+        .tib-empty p { margin: 0; font-size: 12.5px; color: #7B8EA0; }
+        .tib-empty a { margin-top: 4px; font-size: 12.5px; font-weight: 800; color: #176B50; }
+        .tib-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #EEF2F7; }
+        .tib-range { font-size: 12px; font-weight: 600; color: #94A3B8; }
+        .tib-pgs { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tib-pg { display: grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px; border: 1px solid #DCE6F0; border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: #475569; text-decoration: none; transition: all .15s; }
+        .tib-pg svg { width: 16px; height: 16px; }
+        a.tib-pg:hover { border-color: #9CCBB4; color: #176B50; }
+        .tib-pg.on { border-color: #176B50; background: #176B50; color: #fff; box-shadow: 0 4px 12px rgba(23, 107, 80, .25); }
+        .tib-pg.off { opacity: .4; } .tib-pg.dots { border-color: transparent; background: none; }
+        @media (max-width: 640px) {
+            .tib { padding: 14px; }
+            .tib-tools { width: 100%; } .tib-seg { flex: 1; } .tib-seg a { flex: 1; justify-content: center; }
+            .tib-allread span { display: none; } .tib-allread { width: 42px; justify-content: center; padding: 0; }
+            .tib-main { gap: 10px; padding: 10px 4px 10px 10px; } .tib-ic { width: 38px; height: 38px; font-size: 17px; }
+            .tib-go { display: none; }
+            .tib-pager { justify-content: center; } .tib-range { width: 100%; text-align: center; }
+            .tib-pgs { flex-wrap: nowrap; gap: 4px; } .tib-pg { min-width: 32px; height: 34px; padding: 0 6px; }
         }
-    </script>
+    </style>
 @endsection
