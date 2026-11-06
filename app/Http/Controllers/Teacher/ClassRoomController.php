@@ -40,7 +40,7 @@ class ClassRoomController extends Controller
     {
         $user = Auth::user();
         $space = app(ClassSpaceService::class);
-        $tab = ClassSpaceService::normalizeTab($request->query('tab', 'overview'));
+        $tab = ClassSpaceService::normalizeTab($request->query('tab', 'organizers'));
         $legacy = in_array($tab, ['materials', 'notices', 'assign'], true) ? $tab : 'overview';
 
         $data = $this->classRoomService->showForTeacher($user, $class, $legacy);

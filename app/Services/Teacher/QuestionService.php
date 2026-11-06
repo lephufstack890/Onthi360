@@ -78,7 +78,10 @@ class QuestionService
      *
      * @param  int  $paperCount  số đề PDF của giáo viên (do controller đếm) để in lên tab "Đề/bộ bài".
      */
-    public function listForTeacher(User $user, string $tab, array $filters = [], int $paperCount = 0): array
+    /** SỬA 6/11 — số câu mỗi trang của Kho giáo viên (bằng admin: ContentService::QUESTIONS_PER_PAGE). */
+    public const PER_PAGE = 10;
+
+    public function listForTeacher(User $user, string $tab, array $filters = [], int $paperCount = 0, int $page = 1): array
     {
         // Link cũ (?tab=all|published|draft) rơi về tab mặc định.
         $activeTab = in_array($tab, ['used', 'unused', 'assessments', 'shared'], true) ? $tab : 'unused';
@@ -88,7 +91,8 @@ class QuestionService
         // SỬA 6/11 (khách: "giáo viên được chuyển từ admin qua thì xem được hết") — quản trị đang ở vai Giáo viên: tab Bài chung /
         // Bài của đề lấy câu của MỌI người (không lọc chủ sở hữu). Giáo viên thường: như cũ, chỉ câu của mình.
         $seeAll = $user->actingRole() === \App\Models\Role::TEACHER;
-        $ownerScope = $seeAll ? [] : ['owner_id' => $user->id];
+        // SỬA 6/11 (khách: "giáo viên nào chỉ được xem của giáo viên đó") — khoá chặt cả owner_type = teacher (không chỉ owner_id).
+        $ownerScope = $seeAll ? [] : ['owner_id' => $user->id, 'owner_type' => OwnerType::Teacher->value];
         $counts = [
             'used' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'used']),
             'unused' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'unused']),
@@ -122,12 +126,35 @@ class QuestionService
 
         $questions = [];
         $total = 0;
+        $pagination = null;
+        $lead = ['leadPrevId' => null, 'leadPrevType' => null, 'leadNextId' => null, 'leadNextType' => null];
         if ($isQuestionTab) {
-            $questions = $this->questions->allWithOwnerFiltered($query, self::LIST_LIMIT)
-                ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: $isShared))
-                ->all();
+            // SỬA 6/11 (khách: "bên giáo viên UI như admin, tối ưu luôn") — PHÂN TRANG MÁY CHỦ 10 câu/trang y như admin. Trước đây
+            // nạp tới 500 câu (kèm cả bộ test trong grading_config) rồi mới chia trang trên trình duyệt → rất chậm. Giờ chỉ nạp cột
+            // nhẹ của 10 câu; riêng câu Nháp của trang này nạp đủ để ghi đúng lý do "Nháp — thiếu …".
             // Tổng ĐÃ LỌC (số trên tab vẫn là tổng toàn kho) — giống tab Câu hỏi bên Admin.
             $total = $this->questions->countAllFiltered($query);
+            $perPage = self::PER_PAGE;
+            $lastPage = max(1, (int) ceil($total / $perPage));
+            $page = min(max(1, $page), $lastPage);
+            $pagination = ['page' => $page, 'perPage' => $perPage, 'lastPage' => $lastPage, 'total' => $total];
+
+            $pageRows = $this->questions->allWithOwnerFiltered($query, $perPage, ($page - 1) * $perPage, true);
+            $draftIds = $pageRows->filter(fn (Question $q) => $q->status === ContentStatus::Draft)->pluck('id')->all();
+            $fullDrafts = $draftIds === [] ? collect() : Question::query()->whereIn('id', $draftIds)->get()->keyBy('id');
+            $questions = $pageRows
+                ->map(fn (Question $q) => $this->mapQuestionRow($q, readOnly: $isShared, full: $fullDrafts->get($q->id)))
+                ->all();
+
+            // Câu liền trước đầu trang / liền sau cuối trang — để nút "Đưa lên trước / Đưa xuống dưới" ở mép trang vẫn đổi chỗ được.
+            if (! $isShared) {
+                $prev = $page > 1 ? $this->questions->allWithOwnerFiltered($query, 1, ($page - 1) * $perPage - 1, true)->first() : null;
+                $next = $page < $lastPage ? $this->questions->allWithOwnerFiltered($query, 1, $page * $perPage, true)->first() : null;
+                $lead = [
+                    'leadPrevId' => $prev?->id, 'leadPrevType' => $prev?->type->value,
+                    'leadNextId' => $next?->id, 'leadNextType' => $next?->type->value,
+                ];
+            }
         }
 
         return [
@@ -135,6 +162,8 @@ class QuestionService
             'tabs' => $tabs,
             'questions' => $questions,
             'total' => $total,
+            'pagination' => $pagination,
+        ] + $lead + [
             'filters' => [
                 'subject' => $filters['subject'] ?? null,
                 'grade' => $filters['grade'] ?? null,
@@ -160,7 +189,7 @@ class QuestionService
         ];
     }
 
-    private function mapQuestionRow(Question $q, bool $readOnly): array
+    private function mapQuestionRow(Question $q, bool $readOnly, ?Question $full = null): array
     {
         return [
             'id' => $q->id,
@@ -185,7 +214,7 @@ class QuestionService
             // sau này không làm mất icon). Xem App\Enums\QuestionType::label().
             'type' => $q->type->label(),
             'typeValue' => $q->type->value,
-            'status' => $q->status === ContentStatus::Published ? 'Phát hành' : ($q->status === ContentStatus::Archived ? 'Lưu trữ' : $this->draftLabel($q)),
+            'status' => $q->status === ContentStatus::Published ? 'Phát hành' : ($q->status === ContentStatus::Archived ? 'Lưu trữ' : $this->draftLabel($full ?? $q)),
             'tone' => $q->status === ContentStatus::Published ? 'success' : ($q->status === ContentStatus::Archived ? 'neutral' : 'warning'),
             'canPublish' => ! $readOnly && $q->status === ContentStatus::Draft,
             'canArchive' => ! $readOnly && $q->status !== ContentStatus::Archived,

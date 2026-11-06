@@ -6,11 +6,12 @@
      Kho chung), chip Môn, tab Dạng câu, bộ lọc Khối-Tỉnh thành-Năm-Tìm kiếm rồi tới bảng.
      KHÔNG có tab Tag/Chuyên đề và không có ô lọc Chuyên đề — phần đó dành cho Admin.
 
-     SỬA 8/10 (khách: "UI Kho bài tập / câu hỏi và đề bên giáo viên cũng chỉnh lại UI luôn") — đổi sang
-     phong cách của source mới như bên Admin (dùng chung partials.admin-content-ui): dải tab, chip lọc,
-     bảng "Nội dung/Nguồn · Phân loại · Độ khó · Trạng thái · Thao tác" (gộp các cột cũ vào cùng ô, KHÔNG
-     bỏ dữ liệu nào), phân trang 10 dòng/trang cho MỌI tab (chia trang ngay trên các dòng đã có, không đổi
-     truy vấn). Bộ lọc, route, nút Sửa/Phát hành/Lưu trữ giữ nguyên. --}}
+     SỬA 8/10 — đổi sang phong cách của source mới như bên Admin (dùng chung partials.admin-content-ui).
+
+     SỬA 6/11 (khách: "bên giáo viên UI cũng như admin, tối ưu luôn, giáo viên nào chỉ xem của giáo viên đó") — bảng y hệt admin
+     (bỏ icon emoji trước tên, tên câu bấm vào là mở Sửa, dòng "Sắp xếp: ưu tiên cao trước" + chú thích nút đổi chỗ), PHÂN TRANG
+     MÁY CHỦ 10 dòng/trang cho cả câu hỏi lẫn đề (trước: nạp 500 dòng rồi chia trên trình duyệt → chậm). Tab Đề thi: MỌI đề của
+     chính giáo viên + ô tìm như admin. Nút theo quyền giáo viên: Sửa / Phát hành / Lưu trữ (không có Xoá như admin). --}}
 @section('title', 'Kho bài tập / câu hỏi và đề')
 @section('page-title', 'Kho bài tập / câu hỏi và đề')
 
@@ -29,13 +30,12 @@
         $questionTypeOptions = $questionTypeOptions ?? [];
         $subjectCounts = $subjectCounts ?? [];
         $typeCounts = $typeCounts ?? [];
-
-        // Icon theo MÃ loại câu ('mcq'/'fill_blank'/…), không theo nhãn tiếng Việt (xem App\Enums\QuestionType::label()).
-        $typeIcons = ['mcq' => '🔤', 'fill_blank' => '✏️', 'coding' => '💻', 'composite' => '🧩'];
+        $pagination = $pagination ?? ['page' => 1, 'perPage' => 10, 'lastPage' => 1, 'total' => $isAssessments ? count($papers) : $total];
+        $pgPage = (int) ($pagination['page'] ?? 1);
 
         $hasActiveFilter = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 
-        // Link chip/tab GIỮ NGUYÊN các bộ lọc đang bật (cùng cách làm bên admin).
+        // Link chip/tab/trang GIỮ NGUYÊN các bộ lọc đang bật (cùng cách làm bên admin). Đổi bộ lọc thì về trang 1.
         $filterLink = function (array $override = []) use ($filters, $tab) {
             $query = array_merge([
                 'tab' => $tab,
@@ -46,6 +46,7 @@
                 'exam_year' => $filters['exam_year'] ?? null,
                 'io' => $filters['io'] ?? null,
                 'q' => $filters['q'] ?? null,
+                'page' => null,
             ], $override);
 
             return route('teacher.questions.index', array_filter($query, fn ($v) => $v !== null && $v !== ''));
@@ -53,7 +54,7 @@
     @endphp
 
     @include('partials.admin-content-ui')
-    <style>.akx-title--static:hover{color:#1e3a5f;text-decoration:none}.akx-ico{margin-right:6px}</style>
+    <style>.akx-title--static:hover{color:#1e3a5f;text-decoration:none}</style>
 
     @php
         $badgeOf = fn ($tone) => match ($tone) {
@@ -120,15 +121,12 @@
                 </div>
             </div>
 
-            {{-- Dạng câu là dải TAB kèm số câu từng dạng, như admin. --}}
+            {{-- Dạng câu: chỉ Lập trình và Phổ thông (SỬA 3/11). --}}
             <div class="akx-pad">
                 <div class="akx-chips">
-                    {{-- SỬA 3/11 (khách: "bỏ Trắc nghiệm / Điền khuyết / Nhiều phần, để 1 tab Phổ thông") — chỉ còn Lập trình và Phổ thông
-                         (Phổ thông = mọi dạng không phải lập trình + các "Bài phổ thông", mỗi bài tính 1). --}}
                     @php
-                        $akxGsb = ($tab === 'unused') ? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q')) : [];
                         $akxCoding = (int) ($typeCounts['coding'] ?? 0);
-                        $akxGsTotal = (int) ($generalSetCount ?? count($akxGsb)); // SỬA 3/11 — tổng bài phổ thông (không phụ thuộc ô tìm)
+                        $akxGsTotal = (int) ($generalSetCount ?? 0); // tổng bài phổ thông (không phụ thuộc ô tìm)
                         $akxGeneral = array_sum($typeCounts) - $akxCoding + $akxGsTotal;
                     @endphp
                     <a href="{{ $filterLink(['type' => null]) }}" class="akx-chip akx-chip--type {{ ! ($filters['type'] ?? null) ? 'is-on' : '' }}">Tất cả dạng <small>({{ array_sum($typeCounts) + $akxGsTotal }})</small></a>
@@ -170,22 +168,26 @@
             </div>
         </section>
 
-        {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài. --}}
-        @if ($tab === 'unused' && ($filters['type'] ?? null) === 'general' /* SỬA 3/11 — chỉ hiện khi lọc Phổ thông */)
-            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => $akxGsb ?? app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
+        {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài, chỉ khi lọc Phổ thông.
+             SỬA 6/11 — như admin: chỉ ở trang 1 (danh sách câu lẻ đã phân trang máy chủ). --}}
+        @if ($tab === 'unused' && ($filters['type'] ?? null) === 'general' && $pgPage <= 1)
+            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
         @endif
         {{-- SỬA 3/11 (khách: "lọc Phổ thông thì bỏ bảng này đi") — chỉ còn khối Bài phổ thông; nếu có câu trắc nghiệm lẻ thì bảng vẫn hiện. --}}
         @if (! (($filters['type'] ?? null) === 'general' && (int) $total === 0))
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách câu hỏi">
             <div class="akx-sub">
                 <span><b>{{ $total }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
-                @if (count($questions) < $total)
-                    <span>Đang hiện {{ count($questions) }} / {{ $total }} — dùng bộ lọc để thu hẹp</span>
-                @endif
+                <span>Sắp xếp: ưu tiên cao trước</span>
             </div>
+            @unless ($isShared)
+                <p class="oi-ord-hint akx-hint">Nút <strong>Đưa lên trước</strong> / <strong>Đưa xuống dưới</strong> (cột cuối) đổi chỗ câu với câu liền trên / liền dưới trong cùng dạng bài — hệ thống tự lưu.</p>
+            @endunless
 
-            <div class="acx-scroll" data-pg="rows" data-unit="câu hỏi">
-                <table class="acx-table apx-up akx-table is-q" style="min-width:1040px">
+            <div class="acx-scroll">
+                <table class="acx-table apx-up akx-table is-q" style="min-width:1040px"
+                       data-lead-prev="{{ $leadPrevId ?? '' }}" data-lead-prevtype="{{ $leadPrevType ?? '' }}"
+                       data-lead-next="{{ $leadNextId ?? '' }}" data-lead-nexttype="{{ $leadNextType ?? '' }}">
                     <caption class="acx-sr">Danh sách câu hỏi</caption>
                     <thead>
                         <tr>
@@ -200,9 +202,13 @@
                     </thead>
                     <tbody>
                         @foreach ($questions as $q)
-                            <tr data-pg-item data-qid="{{ $q['id'] }}" data-qtype="{{ $q['typeValue'] ?? '' }}" @if ($q['readOnly'] ?? false) data-ro="1" @endif>
+                            <tr data-qid="{{ $q['id'] }}" data-qtype="{{ $q['typeValue'] ?? '' }}" @if ($q['readOnly'] ?? false) data-ro="1" @endif>
                                 <td>
-                                    <span class="akx-title akx-title--static"><span class="akx-ico">{{ $typeIcons[$q['typeValue'] ?? ''] ?? '❓' }}</span>{{ $q['title'] }}</span>
+                                    @if ($q['readOnly'] ?? false)
+                                        <span class="akx-title akx-title--static">{{ $q['title'] }}</span>
+                                    @else
+                                        <a href="{{ route('teacher.questions.edit', $q['id']) }}" class="akx-title">{{ $q['title'] }}</a>
+                                    @endif
                                     <div class="akx-meta">
                                         @if (! empty($q['code']))<code>{{ $q['code'] }}</code>@endif
                                         @if (($q['subject'] ?? '') === 'Chưa phân loại')
@@ -232,7 +238,7 @@
                                 <td>
                                     <div class="akx-act">
                                         @if ($q['readOnly'] ?? false)
-                                            <span class="akx-mute" style="font-size:12px;text-align:right">Thuộc Kho chung — chỉ Admin/Editor sửa được (6.5).</span>
+                                            <span class="akx-mute" style="font-size:12px;text-align:right">Thuộc Kho chung — chỉ Admin/Editor sửa được.</span>
                                         @else
                                             {{-- SỬA 10/10 — đổi chỗ câu với câu liền trên/dưới (cùng dạng bài); thứ tự này cũng là thứ tự trang Luyện tập public. --}}
                                             <span class="tq-mv">
@@ -268,45 +274,85 @@
                     </div>
                 @endif
             </div>
-            {{-- SỬA 8/10 (khách: "quá 10 item thì phân trang") — chia trang 10 dòng/trang ngay trên các dòng đã có. --}}
-            <div class="akx-pg" data-pg-nav="rows" hidden></div>
+            @include('teacher.questions._pager', ['pgCount' => count($questions), 'pgUnit' => 'câu hỏi'])
         </section>
         @endif{{-- /SỬA 3/11 ẩn bảng câu lẻ khi lọc Phổ thông --}}
     @else
-        {{-- Tab Đề/bộ bài — thay cho trang "Đề PDF của tôi" cũ (đề PDF riêng tư của giáo viên, chờ Admin duyệt đưa ra kho chung). --}}
+        {{-- Tab Đề thi — SỬA 6/11: MỌI đề của chính giáo viên (PDF, chọn câu, lập trình), 10 đề/trang + ô tìm như admin. --}}
+        <section class="acx-panel" style="margin-top:16px" aria-label="Tìm đề thi">
+            <div class="akx-pad">
+                <form method="GET" action="{{ route('teacher.questions.index') }}" class="akx-form">
+                    <input type="hidden" name="tab" value="assessments">
+                    <div class="akx-grow">
+                        <label class="akx-lbl" for="filter-assess-q">Tìm theo tên hoặc mã đề</label>
+                        <div class="acx-search">
+                            <x-lucide name="search" />
+                            <input id="filter-assess-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
+                                   placeholder="Ví dụ: HSG, khảo sát tin 9…" class="admin-input">
+                        </div>
+                    </div>
+                    <button type="submit" class="acx-btn acx-btn--primary">Tìm</button>
+                    @if (($filters['q'] ?? '') !== '')
+                        <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" class="acx-btn">Xoá tìm</a>
+                    @endif
+                </form>
+            </div>
+        </section>
+
         <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách đề">
             <div class="akx-sub">
-                <span><b>{{ count($papers) }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
+                <span><b>{{ $pagination['total'] ?? count($papers) }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
+                <span>Mới nhất trước</span>
             </div>
-            <div class="acx-scroll" data-pg="rows" data-unit="đề">
-                <table class="acx-table apx-up akx-table" style="min-width:760px">
-                    <caption class="acx-sr">Danh sách đề PDF</caption>
+            <div class="acx-scroll">
+                <table class="acx-table apx-up akx-table">
+                    <caption class="acx-sr">Danh sách đề</caption>
                     <thead>
                         <tr>
-                            <th scope="col">Tên đề / Mã đề</th>
-                            <th scope="col">Loại</th>
-                            <th scope="col">PDF · Câu/đáp án</th>
+                            <th scope="col">Nội dung / Nguồn</th>
+                            <th scope="col">Phân loại</th>
                             <th scope="col">Trạng thái</th>
                             <th scope="col">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($papers as $p)
-                            <tr data-pg-item>
+                            <tr>
                                 <td>
-                                    <span class="akx-title akx-title--static">{{ $p['title'] }}</span>
-                                    <div class="akx-src">Mã đề: {{ $p['examCode'] ?: '—' }}</div>
+                                    @if ($p['editHref'] ?? null)
+                                        <a href="{{ $p['editHref'] }}" class="akx-title">{{ $p['title'] }}</a>
+                                    @else
+                                        <span class="akx-title akx-title--static">{{ $p['title'] }}</span>
+                                    @endif
+                                    @if (($p['variantCount'] ?? 0) > 1)
+                                        <span style="display:inline-flex;align-items:center;margin-left:6px;padding:2px 9px;border-radius:999px;background:#E0F2FE;color:#0369A1;font-size:11.5px;font-weight:800;vertical-align:middle">{{ $p['variantCount'] }} mã đề</span>
+                                    @elseif (! empty($p['variantOf']))
+                                        <span style="display:inline-flex;margin-left:6px;padding:2px 9px;border-radius:999px;background:#F1F5F9;color:#475569;font-size:11.5px;font-weight:700;vertical-align:middle">Mã {{ $p['variantCode'] ?: 'con' }} của nhóm</span>
+                                    @endif
+                                    <div class="akx-meta">
+                                        @if (! empty($p['examCode']))<code>{{ $p['examCode'] }}</code>@endif
+                                        <span>{{ $p['mode'] }}</span>
+                                    </div>
+                                    <div class="akx-src">Nguồn: {{ $p['owner'] }}</div>
                                 </td>
-                                <td><div class="akx-k">{{ $p['type'] }}</div></td>
                                 <td>
-                                    <div class="akx-k" style="color:{{ $p['hasPdf'] ? '#059669' : '#d97706' }}">PDF: {{ $p['hasPdf'] ? 'Đã tải' : 'Chưa tải' }}</div>
-                                    <div class="akx-k2">{{ $p['answerKeysCount'] }} câu · {{ $p['codingItemsCount'] }} bài code</div>
+                                    <div class="akx-k">{{ $p['type'] }}</div>
+                                    @if ($p['isPdf'])
+                                        <div class="akx-k2" style="color:{{ $p['hasPdf'] ? '#059669' : '#d97706' }}">PDF: {{ $p['hasPdf'] ? 'Đã tải' : 'Chưa tải' }}</div>
+                                        <div class="akx-k2">{{ $p['answerKeysCount'] }} câu · {{ $p['codingItemsCount'] }} bài code</div>
+                                    @else
+                                        <div class="akx-k2">{{ $p['itemsCount'] }} câu trong đề</div>
+                                    @endif
                                 </td>
                                 <td><span class="acx-badge {{ $badgeOf($p['tone'] ?? null) }}">{{ $p['status'] }}</span></td>
                                 <td>
                                     <div class="akx-act">
                                         <div class="akx-act__links">
-                                            <a href="{{ route('teacher.papers.pdf.edit', $p['id']) }}" class="akx-lnk">Quản lý đề PDF</a>
+                                            @if ($p['editHref'] ?? null)
+                                                <a href="{{ $p['editHref'] }}" class="akx-lnk">Sửa</a>
+                                            @else
+                                                <a href="{{ route('teacher.questions.index', ['tab' => 'used']) }}" class="akx-lnk akx-lnk--mute" title="Sửa từng câu của đề ở tab Bài của đề">Câu trong đề</a>
+                                            @endif
                                             @if ($p['canPublish'])
                                                 <form method="POST" action="{{ route('teacher.assessments.publish', $p['id']) }}" class="inline">
                                                     @csrf
@@ -321,15 +367,24 @@
                     </tbody>
                 </table>
                 @if (count($papers) === 0)
-                    <div class="akx-empty"><strong>Chưa có đề nào</strong>Bấm "+ Tạo đề PDF mới" để bắt đầu.</div>
+                    <div class="akx-empty">
+                        @if (($filters['q'] ?? '') !== '')
+                            <strong>Không có đề nào khớp "{{ $filters['q'] }}"</strong>
+                            Thử từ khoá ngắn hơn hoặc bấm "Xoá tìm".
+                        @else
+                            <strong>Chưa có đề nào</strong>Bấm "+ Tạo đề PDF mới" để bắt đầu.
+                        @endif
+                    </div>
                 @endif
             </div>
-            <div class="akx-pg" data-pg-nav="rows" hidden></div>
+            @include('teacher.questions._pager', ['pgCount' => count($papers), 'pgUnit' => 'đề'])
         </section>
     @endif
 
 @push('scripts')
 <style>
+    .oi-ord-hint{margin:0;font-size:12px;line-height:1.5;color:#64748b}
+    .oi-ord-hint strong{color:#334155}
     .tq-mv{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;margin-bottom:6px}
     .tq-mv__b{border:0;background:transparent;padding:0;color:#2563eb;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
     .tq-mv__b::before{content:"\2191";margin-right:4px}
@@ -343,13 +398,21 @@
         var csrf = @json(csrf_token());
         var moveUrl = @json(url('teacher/questions/__ID__/move'));
         function rows() { return Array.prototype.slice.call(document.querySelectorAll('tr[data-qid]:not([data-ro])')); }
+        // SỬA 6/11 — phân trang máy chủ: dòng đầu / cuối trang đổi chỗ với câu ở trang trước / trang sau (id do máy chủ gửi kèm bảng).
+        function neighbor(tr, dir) {
+            var all = rows(), i = all.indexOf(tr), el = dir === 'up' ? all[i - 1] : all[i + 1];
+            if (el) return { id: el.dataset.qid, type: el.dataset.qtype, el: el };
+            var tb = tr.closest('table'); if (!tb) return null;
+            var id = dir === 'up' ? tb.dataset.leadPrev : tb.dataset.leadNext;
+            var ty = dir === 'up' ? tb.dataset.leadPrevtype : tb.dataset.leadNexttype;
+            return id ? { id: id, type: ty, el: null } : null;
+        }
         function refresh() {
-            var all = rows();
-            all.forEach(function (tr, i) {
+            rows().forEach(function (tr) {
                 var up = tr.querySelector('[data-tmove="up"]'), dn = tr.querySelector('[data-tmove="down"]');
                 if (!up || !dn) return;
-                var prev = all[i - 1], next = all[i + 1], t = tr.dataset.qtype;
-                var noUp = !prev || prev.dataset.qtype !== t, noDn = !next || next.dataset.qtype !== t;
+                var p = neighbor(tr, 'up'), n = neighbor(tr, 'down'), t = tr.dataset.qtype;
+                var noUp = !p || p.type !== t, noDn = !n || n.type !== t;
                 up.disabled = noUp; dn.disabled = noDn;
                 up.textContent = noUp ? 'Đang ở đầu' : 'Đưa lên trước';
                 dn.textContent = noDn ? 'Đang ở cuối' : 'Đưa xuống dưới';
@@ -358,22 +421,19 @@
         document.addEventListener('click', function (e) {
             var b = e.target.closest ? e.target.closest('[data-tmove]') : null;
             if (!b || b.disabled) return;
-            var tr = b.closest('tr'), all = rows(), i = all.indexOf(tr), dir = b.dataset.tmove;
-            var nb = dir === 'up' ? all[i - 1] : all[i + 1];
-            if (!nb || nb.dataset.qtype !== tr.dataset.qtype) return;
+            var tr = b.closest('tr'), dir = b.dataset.tmove, nb = neighbor(tr, dir);
+            if (!nb || nb.type !== tr.dataset.qtype) return;
             b.disabled = true;
             fetch(moveUrl.replace('__ID__', tr.dataset.qid), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ dir: dir, neighbor_id: parseInt(nb.dataset.qid, 10) })
+                body: JSON.stringify({ dir: dir, neighbor_id: parseInt(nb.id, 10) })
             }).then(function (res) { return res.json().catch(function () { return {}; }).then(function (j) { return { ok: res.ok, j: j }; }); })
               .then(function (r) {
                   if (!r.ok) { alert((r.j && (r.j.message || (r.j.errors && Object.values(r.j.errors)[0][0]))) || 'Không đổi được thứ tự.'); refresh(); return; }
-                  // Đổi chỗ 2 dòng trên màn hình; ẩn/hiện theo VỊ TRÍ (trang đang xem) nên hoán đổi cờ hidden cho 2 dòng.
-                  var h1 = tr.hidden, h2 = nb.hidden;
-                  if (dir === 'up') nb.parentNode.insertBefore(tr, nb); else nb.parentNode.insertBefore(tr, nb.nextSibling);
-                  tr.hidden = h2; nb.hidden = h1;
+                  if (!nb.el) { window.location.reload(); return; } // câu bên kia nằm ở trang khác → tải lại trang này
+                  if (dir === 'up') nb.el.parentNode.insertBefore(tr, nb.el); else nb.el.parentNode.insertBefore(tr, nb.el.nextSibling);
                   tr.classList.add('tq-flash'); setTimeout(function () { tr.classList.remove('tq-flash'); }, 1400);
                   refresh();
               })

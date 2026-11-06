@@ -57,10 +57,17 @@ class QuestionController extends Controller
         // SỬA 7/10 — tab "Đề/bộ bài" của màn gộp "Kho bài tập / câu hỏi và đề" (thay cho trang
         // "Đề PDF của tôi" cũ). Luôn lấy danh sách để đếm số đề in lên tab; chỉ đưa ra view khi
         // đang đứng ở tab đó.
-        $papers = $this->assessmentService->papersForTeacher($user)['papers'];
-
-        $data = $this->questionService->listForTeacher($user, $tab, $filters, count($papers));
-        $data['papers'] = $data['tab'] === 'assessments' ? $papers : [];
+        // SỬA 6/11 (khách: "bên giáo viên UI như admin, tối ưu luôn; giáo viên nào chỉ xem của giáo viên đó") — phân trang MÁY CHỦ
+        // 10 dòng/trang cho cả câu hỏi lẫn đề (trước đây nạp 500 câu + toàn bộ đề PDF mỗi lần mở trang). Tab Đề thi giờ gồm MỌI đề
+        // của chính giáo viên (không chỉ đề PDF); số trên tab chỉ là 1 câu đếm.
+        $page = max(1, (int) $request->query('page', 1));
+        $data = $this->questionService->listForTeacher($user, $tab, $filters, $this->assessmentService->khoAssessmentCount($user), $page);
+        $data['papers'] = [];
+        if ($data['tab'] === 'assessments') {
+            $kho = $this->assessmentService->khoAssessments($user, $filters['q'], $page);
+            $data['papers'] = $kho['rows'];
+            $data['pagination'] = $kho['pagination'];
+        }
 
         return view('teacher.questions.index', $data);
     }

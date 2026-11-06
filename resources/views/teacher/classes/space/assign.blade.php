@@ -107,7 +107,7 @@
                         @csrf
                         <template x-for="k in picked" :key="'h' + k"><input type="hidden" name="items[]" :value="k"></template>
                         <div class="tam-body" style="display:grid;gap:12px;padding-top:14px">
-                            <div class="csp-note" style="padding:8px 12px"><x-lucide name="info" /><span x-text="seeAll ? 'Bạn đang ở vai Giáo viên từ tài khoản quản trị — hiện TẤT CẢ ' + (mode === 'exam' ? 'đề' : 'bài') + ' luyện tập đã phát hành.' : 'Chỉ hiện ' + (mode === 'exam' ? 'đề' : 'bài') + ' luyện tập do bạn tạo và đã phát hành.'"></span></div>
+                            <div class="csp-note" style="padding:8px 12px"><x-lucide name="info" /><span x-text="seeAll ? 'Hiện TẤT CẢ ' + (mode === 'exam' ? 'đề' : 'bài') + ' luyện tập đã phát hành trên hệ thống.' : 'Chỉ hiện ' + (mode === 'exam' ? 'đề' : 'bài') + ' luyện tập do bạn tạo và đã phát hành.'"></span></div>
                             <label class="tam-input on">
                                 <x-lucide name="search" />
                                 <input type="text" x-ref="q" x-model="q" :placeholder="mode === 'exam' ? 'Tìm tên hoặc mã đề…' : 'Tìm tên hoặc mã bài…'" autocomplete="off">

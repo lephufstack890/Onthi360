@@ -38,8 +38,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ClassSpaceService
 {
+    // SỬA 6/11 (khách: "bỏ tab Tổng quan, không cần") — lớp còn 7 tab, mở lớp vào thẳng Người tổ chức. Hàm overview() vẫn giữ.
     public const TABS = [
-        'overview' => ['Tổng quan', 'home'],
         'organizers' => ['Người tổ chức', 'user-round'],
         'attendance' => ['Điểm danh', 'list-checks'],
         'materials' => ['Tài liệu', 'book-open'],
@@ -50,7 +50,7 @@ class ClassSpaceService
     ];
 
     /** Tên tab cũ → tab mới (link cũ, redirect cũ vẫn mở đúng chỗ). */
-    private const LEGACY_TABS = ['schedule' => 'attendance', 'members' => 'attendance'];
+    private const LEGACY_TABS = ['schedule' => 'attendance', 'members' => 'attendance', 'overview' => 'organizers'];
 
     public const ROLE_LABELS = ['main' => 'Giáo viên chính', 'co_teacher' => 'Đồng giảng dạy', 'assistant' => 'Trợ giảng', 'admin' => 'Quản trị'];
 
@@ -77,7 +77,7 @@ class ClassSpaceService
     {
         $tab = self::LEGACY_TABS[$tab] ?? $tab;
 
-        return array_key_exists((string) $tab, self::TABS) ? $tab : 'overview';
+        return array_key_exists((string) $tab, self::TABS) ? $tab : 'organizers';
     }
 
     // ───────────────────────── Vai trò & quyền ─────────────────────────
@@ -625,7 +625,9 @@ class ClassSpaceService
     /** @return array{exams: list<array>, problems: list<array>, seeAll: bool} */
     public function practiceSources(User $user): array
     {
-        $all = $this->seesAllContent($user);
+        // SỬA 6/11 (khách: "kể cả quyền giáo viên thì vẫn được chọn để giao full") — MỌI giáo viên thấy tất cả đề / bài luyện tập
+        // ĐÃ PHÁT HÀNH (như quản trị ở vai giáo viên). Nội dung đã phát hành vốn công khai ở trang Luyện tập.
+        $all = true;
         $mine = fn ($q) => $q->where('owner_type', 'teacher')->where('owner_id', $user->id);
         $hasKind = Assessment::supportsPracticeKind();
 
@@ -678,13 +680,13 @@ class ClassSpaceService
             throw ValidationException::withMessages(['items' => 'Mỗi lần giao tối đa 30 đề / bài.']);
         }
 
-        if (! $this->seesAllContent($actor)) {
-            foreach ($pairs as [$type, $id]) {
-                $owned = ($type === 'exam' ? Assessment::query() : Question::query())
-                    ->whereKey($id)->where('owner_type', 'teacher')->where('owner_id', $actor->id)->exists();
-                if (! $owned) {
-                    throw ValidationException::withMessages(['items' => 'Chỉ giao được đề / bài luyện tập do chính bạn tạo.']);
-                }
+        // SỬA 6/11 — giao được mọi đề / bài luyện tập ĐÃ PHÁT HÀNH (khớp danh sách practiceSources()); vẫn kiểm tra lại ở đây.
+        foreach ($pairs as [$type, $id]) {
+            $ok = $type === 'exam'
+                ? Assessment::query()->whereKey($id)->where('type', 'practice')->where('status', 'published')->exists()
+                : Question::query()->whereKey($id)->where('status', 'published')->whereNull('product_id')->exists();
+            if (! $ok) {
+                throw ValidationException::withMessages(['items' => 'Có đề / bài chưa phát hành hoặc không còn tồn tại — tải lại danh sách rồi chọn lại.']);
             }
         }
 

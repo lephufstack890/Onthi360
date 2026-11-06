@@ -538,6 +538,82 @@ class AssessmentService
         return ['papers' => $papers];
     }
 
+    /**
+     * SỬA 6/11 (khách: "bên giáo viên UI như admin… giáo viên nào chỉ được xem của giáo viên đó") — tab Đề thi của Kho giáo viên:
+     * MỌI đề của CHÍNH giáo viên (PDF, chọn câu, lập trình — trước đây chỉ đề PDF nên nhiều thầy cô thấy 0), trừ "Bài phổ thông"
+     * (đã ở tab Bài chung) và mã đề con (hiện kèm đề gốc). Có tìm kiếm thì ra cả mã con.
+     */
+    private function khoAssessmentsQuery(User $teacher, ?string $search = null)
+    {
+        $search = trim((string) $search);
+
+        return $this->assessments->query()
+            ->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacher->id)
+            ->when(Assessment::supportsPracticeKind(), fn ($q) => $q->where(fn ($w) => $w->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL)))
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('title', 'like', '%'.$search.'%')->orWhere('exam_code', 'like', '%'.$search.'%')))
+            ->when($search === '' && \App\Services\ExamVariantService::ready(), fn ($q) => $q->whereNull('variant_of_id'));
+    }
+
+    /** Số đề in trên tab "Đề thi" (1 câu đếm, không nạp dòng). */
+    public function khoAssessmentCount(User $teacher): int
+    {
+        return $this->khoAssessmentsQuery($teacher)->count();
+    }
+
+    /** @return array{rows: list<array>, pagination: array{page:int, perPage:int, lastPage:int, total:int}} — 10 đề/trang. */
+    public function khoAssessments(User $teacher, ?string $search, int $page = 1): array
+    {
+        $perPage = 10;
+        $query = $this->khoAssessmentsQuery($teacher, $search);
+        $total = (clone $query)->count();
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $lastPage);
+
+        $list = $query->withCount(['answerKeys', 'codingItems', 'items'])->latest()->orderByDesc('id')
+            ->offset(($page - 1) * $perPage)->limit($perPage)->get();
+
+        $variantCounts = [];
+        if (\App\Services\ExamVariantService::ready() && $list->isNotEmpty()) {
+            $variantCounts = Assessment::query()->whereIn('variant_of_id', $list->pluck('id')->all())
+                ->groupBy('variant_of_id')->selectRaw('variant_of_id, COUNT(*) as n')->pluck('n', 'variant_of_id')->all();
+        }
+
+        $rows = $list->map(function (Assessment $a) use ($teacher, $variantCounts) {
+            $isPdf = $a->content_mode === AssessmentContentMode::PdfAnswerSheet;
+
+            return [
+                'id' => $a->id,
+                'title' => $a->title,
+                'type' => $a->type->label(),
+                'mode' => $a->content_mode?->label() ?? '',
+                'isPdf' => $isPdf,
+                'examCode' => $a->exam_code,
+                'hasPdf' => filled($a->pdf_path),
+                'answerKeysCount' => (int) $a->answer_keys_count,
+                'codingItemsCount' => (int) $a->coding_items_count,
+                'itemsCount' => (int) $a->items_count,
+                'owner' => 'GV '.$teacher->name,
+                'status' => match ($a->status) {
+                    ContentStatus::Published => 'Đã phát hành',
+                    ContentStatus::Archived => 'Lưu trữ',
+                    default => 'Nháp',
+                },
+                'tone' => match ($a->status) {
+                    ContentStatus::Published => 'success',
+                    ContentStatus::Archived => 'neutral',
+                    default => 'warning',
+                },
+                'canPublish' => $a->status === ContentStatus::Draft,
+                'editHref' => $isPdf ? route('teacher.papers.pdf.edit', $a->id) : null,
+                'variantCount' => isset($variantCounts[$a->id]) ? (int) $variantCounts[$a->id] + 1 : 0,
+                'variantOf' => \App\Services\ExamVariantService::ready() && $a->variant_of_id ? (int) $a->variant_of_id : null,
+                'variantCode' => \App\Services\ExamVariantService::ready() ? $a->variant_code : null,
+            ];
+        })->all();
+
+        return ['rows' => $rows, 'pagination' => ['page' => $page, 'perPage' => $perPage, 'lastPage' => $lastPage, 'total' => $total]];
+    }
+
     public function paperCreateFormData(): array
     {
         return ['types' => $this->paperTypeOptions()];
