@@ -36,6 +36,7 @@ final class TeacherContentScope
         'admin.content.show',
         'admin.content.questions.create',
         'admin.content.questions.edit',
+        'admin.content.questions.destroy', // nút "Xoá" câu trong danh sách câu của đề (chỉ câu của chính giáo viên)
         'admin.content.assessments.create',
         'admin.content.assessments.store',
         'admin.content.assessments.zipImport',
@@ -89,9 +90,11 @@ final class TeacherContentScope
     }
 
     /** Chủ sở hữu cho nội dung tạo mới: giáo viên thường → kho riêng; còn lại → Kho chung như cũ. */
-    public static function ownerAttributes(User $actor): array
+    public static function ownerAttributes(?User $actor = null): array
     {
-        return self::isPlainTeacher($actor) && self::active()
+        $actor ??= auth()->user();
+
+        return $actor !== null && self::isPlainTeacher($actor) && self::active()
             ? ['owner_type' => OwnerType::Teacher->value, 'owner_id' => $actor->id]
             : ['owner_type' => OwnerType::Shared->value, 'owner_id' => null];
     }
@@ -125,6 +128,9 @@ final class TeacherContentScope
         }
         if ($name === 'admin.content.questions.create') {
             return redirect()->route('teacher.questions.create', array_filter(['type' => $request->query('type')]));
+        }
+        if ($name === 'admin.content.questions.destroy') {
+            self::ownedQuestion(self::param($request, 'question'), $user);
         }
         if ($name === 'admin.content.questions.edit') {
             return redirect()->route('teacher.questions.edit', self::ownedQuestion(self::param($request, 'question'), $user)->id);

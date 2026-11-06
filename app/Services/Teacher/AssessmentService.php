@@ -593,18 +593,24 @@ class AssessmentService
                 'codingItemsCount' => (int) $a->coding_items_count,
                 'itemsCount' => (int) $a->items_count,
                 'owner' => 'GV '.$teacher->name,
+                // SỬA 6/11 (khách: "tab Đề thi giống admin") — nhãn trạng thái + Sửa / Xem / Xoá y như admin (ContentService::indexData()):
+                // các màn đó mở cho giáo viên trên đề của chính mình qua App\Support\TeacherContentScope.
                 'status' => match ($a->status) {
-                    ContentStatus::Published => 'Đã phát hành',
+                    ContentStatus::Published => 'Phát hành',
+                    ContentStatus::PendingReview => 'Chờ duyệt',
                     ContentStatus::Archived => 'Lưu trữ',
                     default => 'Nháp',
                 },
                 'tone' => match ($a->status) {
                     ContentStatus::Published => 'success',
-                    ContentStatus::Archived => 'neutral',
-                    default => 'warning',
+                    ContentStatus::PendingReview => 'warning',
+                    default => 'neutral',
                 },
                 'canPublish' => $a->status === ContentStatus::Draft,
-                'editHref' => $isPdf ? route('teacher.papers.pdf.edit', $a->id) : null,
+                'editHref' => route('admin.content.assessments.edit', $a->id),
+                'showHref' => route('admin.content.show', ['content' => $a->id, 'kind' => 'assessment']),
+                'deleteHref' => route('admin.content.assessments.destroy', $a->id),
+                'deleteLabel' => 'Xoá vĩnh viễn đề này cùng TOÀN BỘ câu hỏi trong đề (kèm đề bài, lời giải, ảnh, bộ test), file PDF, ảnh bìa và mọi lượt làm của học sinh? Câu nào còn nằm trong đề khác thì giữ lại. Không thể khôi phục.',
                 'variantCount' => isset($variantCounts[$a->id]) ? (int) $variantCounts[$a->id] + 1 : 0,
                 'variantOf' => \App\Services\ExamVariantService::ready() && $a->variant_of_id ? (int) $a->variant_of_id : null,
                 'variantCode' => \App\Services\ExamVariantService::ready() ? $a->variant_code : null,

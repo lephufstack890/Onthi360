@@ -70,7 +70,8 @@
     <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" eyebrow="Giáo viên · Biên soạn" subtitle="Kho riêng — chỉ bạn tạo, sửa và sử dụng.">
         <x-slot:actions>
             @if ($isAssessments)
-                <a href="{{ route('teacher.papers.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo đề PDF mới</a>
+                {{-- SỬA 6/11 (khách: "giống admin") — dùng đúng màn "Tạo đề/bộ bài" của quản trị (đề vào kho riêng của giáo viên, xem TeacherContentScope). --}}
+                <a href="{{ route('admin.content.assessments.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo đề/bộ bài</a>
             @else
                 {{-- SỬA 6/11 (khách: "bỏ đi") — bỏ nút "+ Nhập đề (Word/PDF/OCR)"; route teacher.assessments.import vẫn giữ. --}}
                 <a href="{{ route('teacher.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>
@@ -90,6 +91,8 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo đề — tiếp tục tải PDF và nhập đáp án.'])
     @elseif (session('status') === 'assessment-published')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã phát hành đề.'])
+    @elseif (session('status') === 'assessment-deleted')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã xoá đề.')])
     @elseif (session('status') === 'papers-bulk-created')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã tạo '.session('bulkCreatedCount').' đề PDF — vào từng đề để nhập đáp án.'])
     @endif
@@ -278,17 +281,18 @@
         </section>
         @endif{{-- /SỬA 3/11 ẩn bảng câu lẻ khi lọc Phổ thông --}}
     @else
-        {{-- Tab Đề thi — SỬA 6/11: MỌI đề của chính giáo viên (PDF, chọn câu, lập trình), 10 đề/trang + ô tìm như admin. --}}
+        {{-- Tab Đề thi — SỬA 6/11 (khách: "giống admin") — y hệt tab Đề thi của quản trị: ô tìm, bảng Nội dung/Nguồn · Phân loại ·
+             Trạng thái · Thao tác (Sửa / Xem / Xoá dùng thẳng màn của quản trị, chỉ trên đề của chính giáo viên). 10 đề/trang. --}}
         <section class="acx-panel" style="margin-top:16px" aria-label="Tìm đề thi">
             <div class="akx-pad">
                 <form method="GET" action="{{ route('teacher.questions.index') }}" class="akx-form">
                     <input type="hidden" name="tab" value="assessments">
                     <div class="akx-grow">
-                        <label class="akx-lbl" for="filter-assess-q">Tìm theo tên hoặc mã đề</label>
+                        <label class="akx-lbl" for="filter-assess-q">Tìm theo tên đề thi</label>
                         <div class="acx-search">
                             <x-lucide name="search" />
                             <input id="filter-assess-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
-                                   placeholder="Ví dụ: HSG, khảo sát tin 9…" class="admin-input">
+                                   placeholder="Ví dụ: Hưng Yên, HSG, khảo sát tin 9…" class="admin-input">
                         </div>
                     </div>
                     <button type="submit" class="acx-btn acx-btn--primary">Tìm</button>
@@ -299,14 +303,13 @@
             </div>
         </section>
 
-        <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách đề">
+        <section class="acx-panel" style="margin-top:16px" aria-label="Danh sách nội dung">
             <div class="akx-sub">
                 <span><b>{{ $pagination['total'] ?? count($papers) }}</b> kết quả{{ $activeTabLabel ? ' · '.$activeTabLabel : '' }}</span>
-                <span>Mới nhất trước</span>
             </div>
             <div class="acx-scroll">
                 <table class="acx-table apx-up akx-table">
-                    <caption class="acx-sr">Danh sách đề</caption>
+                    <caption class="acx-sr">Danh sách nội dung</caption>
                     <thead>
                         <tr>
                             <th scope="col">Nội dung / Nguồn</th>
@@ -319,46 +322,30 @@
                         @foreach ($papers as $p)
                             <tr>
                                 <td>
-                                    @if ($p['editHref'] ?? null)
-                                        <a href="{{ $p['editHref'] }}" class="akx-title">{{ $p['title'] }}</a>
-                                    @else
-                                        <span class="akx-title akx-title--static">{{ $p['title'] }}</span>
-                                    @endif
+                                    <a href="{{ $p['showHref'] }}" class="akx-title">{{ $p['title'] }}</a>
                                     @if (($p['variantCount'] ?? 0) > 1)
-                                        <span style="display:inline-flex;align-items:center;margin-left:6px;padding:2px 9px;border-radius:999px;background:#E0F2FE;color:#0369A1;font-size:11.5px;font-weight:800;vertical-align:middle">{{ $p['variantCount'] }} mã đề</span>
+                                        <a href="{{ $p['showHref'] }}#exam-variant-box"
+                                           style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 9px;border-radius:999px;background:#E0F2FE;color:#0369A1;font-size:11.5px;font-weight:800;text-decoration:none;vertical-align:middle"
+                                           title="Xem / sửa các mã đề">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>{{ $p['variantCount'] }} mã đề
+                                        </a>
                                     @elseif (! empty($p['variantOf']))
                                         <span style="display:inline-flex;margin-left:6px;padding:2px 9px;border-radius:999px;background:#F1F5F9;color:#475569;font-size:11.5px;font-weight:700;vertical-align:middle">Mã {{ $p['variantCode'] ?: 'con' }} của nhóm</span>
                                     @endif
-                                    <div class="akx-meta">
-                                        @if (! empty($p['examCode']))<code>{{ $p['examCode'] }}</code>@endif
-                                        <span>{{ $p['mode'] }}</span>
-                                    </div>
                                     <div class="akx-src">Nguồn: {{ $p['owner'] }}</div>
                                 </td>
-                                <td>
-                                    <div class="akx-k">{{ $p['type'] }}</div>
-                                    @if ($p['isPdf'])
-                                        <div class="akx-k2" style="color:{{ $p['hasPdf'] ? '#059669' : '#d97706' }}">PDF: {{ $p['hasPdf'] ? 'Đã tải' : 'Chưa tải' }}</div>
-                                        <div class="akx-k2">{{ $p['answerKeysCount'] }} câu · {{ $p['codingItemsCount'] }} bài code</div>
-                                    @else
-                                        <div class="akx-k2">{{ $p['itemsCount'] }} câu trong đề</div>
-                                    @endif
-                                </td>
+                                <td><div class="akx-k">{{ $p['type'] }}</div></td>
                                 <td><span class="acx-badge {{ $badgeOf($p['tone'] ?? null) }}">{{ $p['status'] }}</span></td>
                                 <td>
                                     <div class="akx-act">
                                         <div class="akx-act__links">
-                                            @if ($p['editHref'] ?? null)
-                                                <a href="{{ $p['editHref'] }}" class="akx-lnk">Sửa</a>
-                                            @else
-                                                <a href="{{ route('teacher.questions.index', ['tab' => 'used']) }}" class="akx-lnk akx-lnk--mute" title="Sửa từng câu của đề ở tab Bài của đề">Câu trong đề</a>
-                                            @endif
-                                            @if ($p['canPublish'])
-                                                <form method="POST" action="{{ route('teacher.assessments.publish', $p['id']) }}" class="inline">
-                                                    @csrf
-                                                    <button type="submit" class="akx-lnk akx-lnk--ok">Phát hành</button>
-                                                </form>
-                                            @endif
+                                            <a href="{{ $p['editHref'] }}" class="akx-lnk">Sửa</a>
+                                            <a href="{{ $p['showHref'] }}" class="akx-lnk akx-lnk--mute">Xem</a>
+                                            <form method="POST" action="{{ $p['deleteHref'] }}" class="inline" onsubmit="return confirm(@js($p['deleteLabel']));">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="akx-lnk akx-lnk--del"><x-lucide name="trash-2" /> Xoá</button>
+                                            </form>
                                         </div>
                                     </div>
                                 </td>
@@ -372,7 +359,8 @@
                             <strong>Không có đề nào khớp "{{ $filters['q'] }}"</strong>
                             Thử từ khoá ngắn hơn hoặc bấm "Xoá tìm".
                         @else
-                            <strong>Chưa có đề nào</strong>Bấm "+ Tạo đề PDF mới" để bắt đầu.
+                            <strong>Chưa có dữ liệu.</strong>
+                            Bấm "+ Tạo đề/bộ bài" để thêm đề đầu tiên.
                         @endif
                     </div>
                 @endif

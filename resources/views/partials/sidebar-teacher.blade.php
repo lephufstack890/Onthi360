@@ -12,7 +12,7 @@
         'Giảng dạy' => array_values(array_filter([
             ['Tổng quan', 'dashboard', 'layout-dashboard', ['dashboard', 'teacher.dashboard']],
             ['Lớp học', 'teacher.classes.index', 'users', ['teacher.classes.*']],
-            ['Bài & đề', 'teacher.work.index', 'clipboard-check', ['teacher.work.*']],
+            // SỬA 6/11 (khách: "bỏ Bài & đề, chả cần") — giao bài / đề làm ở tab Bài tập / Đề trong từng lớp; route teacher.work.* vẫn giữ.
             config('features.teacher_practice_screen', false)
                 ? ['Luyện tập', 'teacher.assessments.index', 'notebook-pen', ['teacher.assessments.*']]
                 : null,

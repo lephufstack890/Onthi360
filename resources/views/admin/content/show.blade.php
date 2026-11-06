@@ -180,7 +180,10 @@
                     </section>
 
                     {{-- SỬA 18/10 — MODULE BỘ ĐỀ: "Chỉ trong bộ đề" + đề thuộc bộ đề nào (chỉ đề Luyện tập). --}}
-                    @include('admin.content.partials.assessment-bundle-box', ['assessment' => $model])
+                    {{-- SỬA 6/11 — giáo viên (TeacherContentScope) không quản lý bộ đề / sản phẩm bán. --}}
+                    @unless (\App\Support\TeacherContentScope::active())
+                        @include('admin.content.partials.assessment-bundle-box', ['assessment' => $model])
+                    @endunless
 
                     {{-- SỬA 3/11 — NHÓM MÃ ĐỀ: gắn các đề khác làm mã đề của đề này (chỉ đề Luyện tập). --}}
                     @include('admin.content.partials.assessment-variant-box', ['assessment' => $model])

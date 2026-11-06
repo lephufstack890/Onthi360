@@ -26,10 +26,13 @@
 
     <x-ws.page-header title="Quản lý đề PDF" icon="scroll-text" :subtitle="$assessment->title">
         <x-slot:actions>
+            {{-- SỬA 6/11 — giáo viên (TeacherContentScope) không gắn đề vào học liệu bán. --}}
+            @unless (\App\Support\TeacherContentScope::active())
             <a href="{{ route('admin.content.materials.create', ['assessment_id' => $assessment->id]) }}"
                class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">
                 🔗 Gắn vào học liệu để bán
             </a>
+            @endunless
         </x-slot:actions>
     </x-ws.page-header>
 

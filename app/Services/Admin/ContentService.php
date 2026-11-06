@@ -1997,8 +1997,10 @@ class ContentService
         // admin gán lại ở form Sửa. Bản taxonomy đầy đủ vẫn giữ nguyên trong metadata bên dưới.
         $classification = SubjectCatalog::fromTaxonomy($json['taxonomy'] ?? []);
 
+        // SỬA 6/11 — giáo viên nhập gói ZIP đề ở màn của quản trị (TeacherContentScope): câu vào kho riêng của giáo viên.
+        $teacherScoped = \App\Support\TeacherContentScope::ownerAttributes($admin)['owner_type'] === OwnerType::Teacher->value;
         $question = $this->questions->create([
-            'bank_id' => $this->sharedBank()->id,
+            'bank_id' => $teacherScoped ? app(\App\Services\Teacher\QuestionService::class)->findOrCreatePersonalBank($admin)->id : $this->sharedBank()->id,
             'code' => $this->deriveUniqueQuestionCode($zip->getClientOriginalName()),
             'type' => $type,
             'title' => $content['title'] ?? 'Câu hỏi (nhập từ ZIP)',
@@ -2012,9 +2014,8 @@ class ContentService
             'body' => $this->placeholderBodyForZipImport($content, $package['attachments']),
             'points' => max(0, $points),
             'grading_config' => $this->buildGradingConfigFromZipPackage($contentType, $json, $package['testCases']),
-            'owner_type' => OwnerType::Shared->value,
-            'owner_id' => null,
-            'visibility' => Visibility::Public->value,
+            ...\App\Support\TeacherContentScope::ownerAttributes($admin),
+            'visibility' => $teacherScoped ? Visibility::Private->value : Visibility::Public->value,
             'status' => ContentStatus::Draft->value,
             'version' => 1,
             'created_by' => $admin->id,
@@ -3228,8 +3229,8 @@ class ContentService
             ...$this->assessmentDetailAttributes($data, $cover, $removeCover, null),
             'status' => ContentStatus::Draft->value,
             'version' => 1,
-            'owner_type' => OwnerType::Shared->value,
-            'owner_id' => null,
+            // SỬA 6/11 — giáo viên tạo đề từ màn của quản trị (App\Support\TeacherContentScope): đề thuộc kho riêng của giáo viên.
+            ...\App\Support\TeacherContentScope::ownerAttributes($admin),
             'created_by' => $admin->id,
         ]);
     }
@@ -3263,7 +3264,10 @@ class ContentService
 
         return [
             'assessment' => $assessment,
-            'questions' => $this->questions->allLatestWithOwner(200)->map(fn (Question $q) => [
+            // SỬA 6/11 — giáo viên (TeacherContentScope) chỉ chọn được câu trong kho của chính mình.
+            'questions' => (($tid = \App\Support\TeacherContentScope::teacherId()) !== null
+                ? Question::query()->with('owner')->whereNull('product_id')->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $tid)->latest()->limit(500)->get()
+                : $this->questions->allLatestWithOwner(200))->map(fn (Question $q) => [
                 'id' => $q->id,
                 'code' => (string) $q->code, // SỬA 10/10 — để tìm theo mã ở màn chọn câu
                 'title' => $q->title,

@@ -153,6 +153,8 @@ class ExamVariantService
             ->whereNull('variant_of_id')
             ->where('id', '!=', $rootId)
             ->whereNotIn('id', $groupRoots)
+            // SỬA 6/11 — giáo viên (App\Support\TeacherContentScope) chỉ gắn được đề của chính mình làm mã đề.
+            ->when(\App\Support\TeacherContentScope::teacherId() !== null, fn ($q) => $q->where('owner_type', 'teacher')->where('owner_id', \App\Support\TeacherContentScope::teacherId()))
             ->when(Assessment::supportsPracticeKind(), fn ($q) => $q->where(fn ($w) => $w->whereNull('practice_kind')->orWhere('practice_kind', '!=', Assessment::PRACTICE_KIND_GENERAL)))
             ->latest()
             ->limit(500)
