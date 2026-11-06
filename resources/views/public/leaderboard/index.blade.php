@@ -701,6 +701,39 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
 .lb-table .lb-row.is-alternate { --lb-row-bg: #eef1f4; --lb-row-hover: #e3e8ee; }
 .lb-table .lb-row.is-you { --lb-row-bg: #e3f1fb; --lb-row-hover: #d6eaf8; }
 .lb-detail-row { background: #fafcfd; }
+/* ══════ SỬA 6/11 (khách: "điều chỉnh cho cân bằng thị giác") ══════
+   · Top 3 đối xứng: huy chương hạng 2 ở góc TRÁI, hạng 3 ở góc PHẢI; cúp hạng 1 dời lên góc phải phía trên (không đè chân thẻ),
+     pháo hoa đặt cân hai bên; chân thẻ 3 ô cùng bố cục (điểm trái · số liệu phải).
+   · Bảng: các cột số căn GIỮA cả tiêu đề lẫn nội dung, chia độ rộng đều hơn để không còn khoảng trống lớn giữa Học sinh và Danh hiệu. */
+.lbx-card.is-r3 .lbx-medal { left: auto; right: 22px; }
+.lbx-trophy { top: 40px; right: 20px; bottom: auto; width: 74px; height: 74px; }
+.lbx-tried { padding-right: 0; }
+.lbx-fx.f1 { top: 16px; left: 14%; right: auto; bottom: auto; }
+.lbx-fx.f2 { top: 16px; right: 14%; left: auto; bottom: auto; width: 26px; height: 26px; }
+.lbx-fx.f3 { top: 46%; left: 7%; right: auto; bottom: auto; width: 24px; height: 24px; }
+.lbx-fx.f4 { top: 30%; right: 26%; left: auto; bottom: auto; width: 18px; height: 18px; }
+/* 3 thẻ cùng đáy (bục podium): thẻ hạng 1 cao hơn tự nhiên, không đẩy lệch lên. */
+@media (min-width: 801px) { .lbx-card.is-r1 { transform: none; } .lbx-podium { align-items: end; padding-top: 4px; } }
+.lbx-card-foot { min-height: 46px; }
+
+@media (min-width: 801px) {
+  .lb-table { table-layout: fixed; }
+  .lb-table .lb-rank-col { width: 76px; }
+  .lb-table .lbx-title-col { width: 13%; }
+  .lb-table .lb-number-col { width: 12%; }
+  .lb-table .lb-accuracy-col { width: 14%; padding-left: 16px; }
+  .lb-table .lb-streak-col { width: 13%; }
+  .lb-table .lb-action-col { width: 58px; }
+  .lb-table :is(.lbx-title-col, .lb-number-col, .lb-accuracy-col, .lb-streak-col) { text-align: center; }
+  .lb-table :is(td.lbx-title-cell, td.lb-points-cell, td.lb-ac-cell, td.lb-accuracy-cell, td.lb-streak-cell) { text-align: center; padding-inline: 10px; }
+  .lb-table td.lb-accuracy-cell { padding-left: 10px; }
+  .lb-accuracy-track { margin: 5px auto 0; }
+  .lb-table td.lb-action-cell > button { margin-left: auto; }
+  .lb-student-info { overflow: hidden; }
+  .lb-student-name > button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 1100px) and (min-width: 801px) { .lb-table .lbx-title-col { width: 15%; } .lb-table .lb-streak-col { width: 12%; } }
+@media (max-width: 800px) { .lbx-card.is-r3 .lbx-medal { right: 8px; } .lbx-trophy { top: 24px; right: 12px; width: 56px; height: 56px; } }
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
