@@ -3,4 +3,5 @@
      giao diện một khu là đổi luôn các khu còn lại. Giờ cả 4 khu cùng dùng layouts/workspace
      (đúng cách source gom vào một <RoleWorkspace> với roleConfig), phân biệt bằng $wsRole. --}}
 {{-- SỬA 6/11 — admin đang "xem như Giáo viên" mở trang Kho nội dung (admin.content.*): giữ khung khu Giáo viên. --}}
-@extends('layouts.workspace', ['wsRole' => auth()->user()?->actingSessionRole() === \App\Models\Role::TEACHER ? 'teacher' : 'admin'])
+{{-- SỬA 6/11 — giáo viên thường dùng màn Đề thi của quản trị (App\Support\TeacherContentScope): cũng giữ khung khu Giáo viên. --}}
+@extends('layouts.workspace', ['wsRole' => (auth()->user()?->actingSessionRole() === \App\Models\Role::TEACHER || \App\Support\TeacherContentScope::active()) ? 'teacher' : 'admin'])

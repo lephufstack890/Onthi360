@@ -67,12 +67,12 @@
         $activeTabLabel = collect($tabs)->first(fn ($t) => $t['active'] ?? false)['label'] ?? '';
     @endphp
 
-    <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" eyebrow="Giáo viên · Biên soạn" subtitle="Kho riêng chỉ bạn tạo/sửa/sử dụng — xem thêm Kho chung ở tab riêng (không sửa được).">
+    <x-ws.page-header title="Kho bài tập / câu hỏi và đề" icon="library" eyebrow="Giáo viên · Biên soạn" subtitle="Kho riêng — chỉ bạn tạo, sửa và sử dụng.">
         <x-slot:actions>
             @if ($isAssessments)
                 <a href="{{ route('teacher.papers.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo đề PDF mới</a>
             @else
-                <a href="{{ route('teacher.assessments.import') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20">+ Nhập đề (Word/PDF/OCR)</a>
+                {{-- SỬA 6/11 (khách: "bỏ đi") — bỏ nút "+ Nhập đề (Word/PDF/OCR)"; route teacher.assessments.import vẫn giữ. --}}
                 <a href="{{ route('teacher.questions.create') }}" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-blue-700 shadow-sm transition-colors hover:bg-sky-50">+ Tạo câu hỏi</a>
             @endif
         </x-slot:actions>

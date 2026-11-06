@@ -25,6 +25,11 @@ class EnsureAdminPermission
         $route = $request->route();
         $name = $route?->getName();
 
+        // SỬA 6/11 — giáo viên dùng màn Đề thi của quản trị trên đề của chính mình (đã kiểm ở App\Support\TeacherContentScope).
+        if (\App\Support\TeacherContentScope::active()) {
+            return $next($request);
+        }
+
         if ($user === null || $user->hasRole(Role::SUPER_ADMIN) || $name === null) {
             return $next($request);
         }

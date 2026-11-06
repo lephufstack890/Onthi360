@@ -21,8 +21,8 @@
             ['Kho bài tập / câu hỏi và đề', 'teacher.questions.index', 'library', ['teacher.papers.*', 'teacher.questions.*', 'admin.content.*']],
             ['Cuộc thi', 'teacher.competitions.index', 'trophy', ['teacher.competitions.*']],
             ['Tài liệu', 'teacher.library.index', 'book-open', ['teacher.library.*', 'teacher.materials.*', 'teacher.products.*']],
-            ['Lịch & điểm danh', 'teacher.schedule.index', 'calendar-days', ['teacher.schedule.*']],
-            ['Kết quả & nhận xét', 'teacher.results.index', 'trending-up', ['teacher.results.*']],
+            // SỬA 6/11 (khách: "bỏ Lịch & điểm danh, đã có trong lớp") — route teacher.schedule.* vẫn giữ (lớp dùng tạo / sửa buổi).
+            // SỬA 6/11 (khách: "bỏ Kết quả & nhận xét, chả cần") — đã có tab Kết quả học tập trong từng lớp; route vẫn giữ.
         ])),
         'Cá nhân' => [
             ['Hộp thư', 'teacher.notifications.index', 'inbox', ['teacher.notifications.*', 'teacher.notices.*']], // SỬA 6/11 — đổi "Thông báo" thành "Hộp thư" (trang chỉ còn hộp thư)

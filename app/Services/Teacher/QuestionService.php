@@ -84,7 +84,8 @@ class QuestionService
     public function listForTeacher(User $user, string $tab, array $filters = [], int $paperCount = 0, int $page = 1): array
     {
         // Link cũ (?tab=all|published|draft) rơi về tab mặc định.
-        $activeTab = in_array($tab, ['used', 'unused', 'assessments', 'shared'], true) ? $tab : 'unused';
+        // SỬA 6/11 (khách: "giáo viên bỏ tab Kho chung, chả cần") — bỏ tab 'shared'; link cũ ?tab=shared rơi về Bài chung.
+        $activeTab = in_array($tab, ['used', 'unused', 'assessments'], true) ? $tab : 'unused';
         $isShared = $activeTab === 'shared';
         $isQuestionTab = $activeTab !== 'assessments';
 
@@ -96,7 +97,6 @@ class QuestionService
         $counts = [
             'used' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'used']),
             'unused' => $this->questions->countAllFiltered($ownerScope + ['in_exam' => 'unused']),
-            'shared' => $this->questions->countShared(),
         ];
         // SỬA 3/11 — "Bài phổ thông" của giáo viên (mỗi bài = 1) tính vào tab Bài chung, chip môn và chip dạng.
         $generalSetSubjects = \App\Services\GeneralSetBankService::countsBySubject($seeAll ? null : (int) $user->id);
@@ -107,7 +107,6 @@ class QuestionService
             ['label' => 'Bài chung', 'href' => route('teacher.questions.index', ['tab' => 'unused']), 'active' => $activeTab === 'unused', 'count' => $counts['unused']],
             ['label' => 'Bài của đề', 'href' => route('teacher.questions.index', ['tab' => 'used']), 'active' => $activeTab === 'used', 'count' => $counts['used']],
             ['label' => 'Đề thi', 'href' => route('teacher.questions.index', ['tab' => 'assessments']), 'active' => $activeTab === 'assessments', 'count' => $paperCount],
-            ['label' => 'Kho chung (chỉ xem)', 'href' => route('teacher.questions.index', ['tab' => 'shared']), 'active' => $isShared, 'count' => $counts['shared']],
         ];
 
         $scope = $isShared
