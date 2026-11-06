@@ -401,53 +401,161 @@
             </div>
         </div>
 
-        <div class="tcx-add" x-data="{ type: '{{ $defaultType }}' }">
-            <div>
-                <div class="tcx-add-intro">
-                    <span class="tcx-folder" aria-hidden="true"><x-lucide name="book-open" /><span><x-lucide name="plus" /></span></span>
-                    <div>
-                        <h3>Thêm tài liệu vào lớp</h3>
-                        <p>Chọn loại tài liệu rồi chọn đúng cuốn. @if (auth()->user()?->actingRole() === \App\Models\Role::TEACHER)Bạn đang ở vai Giáo viên từ tài khoản quản trị nên thêm được mọi tài liệu đã phát hành, không cần mua.@else Chỉ hiện sách, chuyên đề, bộ đề bạn còn quyền dạy (còn hạn).@endif</p>
-                    </div>
+        {{-- SỬA 6/11 (khách: "nhiều sách / bộ đề kéo dài quá — thiết kế đẹp, có phân trang, bố cục hài hoà") — khung "Thêm tài liệu
+             vào lớp" dựng lại: đầu khung (giới thiệu + ô tìm) / hàng chọn loại / lưới thẻ 3 cột / phân trang 9 thẻ mỗi trang (điện thoại
+             5). Vẫn gửi đúng form cũ (teacher.classes.materials.attach, product_id) — logic gắn không đổi. CSS tiền tố tca-. --}}
+        @php
+            $tcaItems = [];
+            foreach ($attachableProducts as $typeKey => $group) {
+                foreach ($group['products'] as $p) {
+                    $tcaItems[] = [
+                        'id' => $p['id'], 'type' => $typeKey, 'title' => $p['title'],
+                        'sub' => (! empty($p['adminFree']) && empty($p['expiresAtLabel'])) ? 'Quyền quản trị · không cần mua' : 'Quyền dạy đến '.($p['expiresAtLabel'] ?? '—'),
+                    ];
+                }
+            }
+            $tcaTypes = collect($attachableProducts)->map(fn ($g, $k) => ['key' => $k, 'label' => $tcxClean($g['label']), 'count' => count($g['products'])])->values()->all();
+        @endphp
+        <section class="tca" x-data="tcaPick(@js(['type' => $defaultType, 'items' => $tcaItems]))">
+            <div class="tca-head">
+                <span class="tcx-folder" aria-hidden="true"><x-lucide name="book-open" /><span><x-lucide name="plus" /></span></span>
+                <div class="tca-intro">
+                    <h3>Thêm tài liệu vào lớp</h3>
+                    <p>@if (auth()->user()?->actingRole() === \App\Models\Role::TEACHER)Bạn đang ở vai Giáo viên từ tài khoản quản trị — thêm được mọi tài liệu đã phát hành, không cần mua.@else Chỉ hiện sách, chuyên đề, bộ đề bạn còn quyền dạy (còn hạn).@endif</p>
                 </div>
-                @if (! empty($attachableProducts))
-                    <div class="tcx-types">
-                        @foreach ($attachableProducts as $typeKey => $group)
-                            <button type="button" class="tcx-type" :class="type === '{{ $typeKey }}' && 'is-on'" @click="type = '{{ $typeKey }}'">
-                                <x-lucide :name="$tcxTypeIcon[$typeKey] ?? 'book-open'" class="c-{{ $typeKey }}" />{{ $tcxClean($group['label']) }}<em>{{ count($group['products']) }}</em>
-                            </button>
-                        @endforeach
-                    </div>
+                @if ($hasAnyAttachable)
+                    <label class="tca-search">
+                        <x-lucide name="search" />
+                        <input type="search" x-model="q" @input="page = 1" placeholder="Tìm tên sách, bộ đề…" aria-label="Tìm tài liệu để thêm">
+                        <button type="button" x-show="q" x-cloak @click="q = ''; page = 1" aria-label="Xoá tìm kiếm"><x-lucide name="x" /></button>
+                    </label>
                 @endif
             </div>
 
-            <div class="tcx-pick">
-                @if (empty($attachableProducts))
-                    <div class="tcx-pick-empty">Không có sách / chuyên đề / bộ đề nào bạn còn quyền dạy để thêm — quyền dạy đã hết hạn hoặc chưa được cấp.</div>
-                @elseif (! $hasAnyAttachable)
-                    <div class="tcx-pick-empty">Mọi sách / chuyên đề / bộ đề bạn còn quyền dạy đã gắn hết vào lớp này rồi.</div>
-                @else
-                    @foreach ($attachableProducts as $typeKey => $group)
-                        <div x-show="type === '{{ $typeKey }}'" x-cloak>
-                            @forelse ($group['products'] as $p)
-                                <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="tcx-pick-row">
-                                    @csrf
-                                    <input type="hidden" name="product_id" value="{{ $p['id'] }}">
-                                    <span class="tcx-ic" style="width:34px;height:34px;border-radius:10px"><x-lucide :name="$tcxTypeIcon[$typeKey] ?? 'book-open'" style="width:17px;height:17px" /></span>
-                                    <div style="flex:1 1 180px;min-width:0">
-                                        <b title="{{ $p['title'] }}">{{ $p['title'] }}</b>
-                                        <small>@if (! empty($p['adminFree']) && empty($p['expiresAtLabel']))Quyền quản trị — thêm tự do, không cần mua @else Dùng được ở mọi lớp phụ trách đến {{ $p['expiresAtLabel'] ?? '—' }}@endif</small>
-                                    </div>
-                                    <button type="submit" class="tcx-btn is-primary"><x-lucide name="plus" />Thêm vào lớp</button>
-                                </form>
-                            @empty
-                                <div class="tcx-pick-empty">Không còn {{ mb_strtolower($tcxClean($group['label'])) }} nào để thêm.</div>
-                            @endforelse
-                        </div>
-                    @endforeach
-                @endif
-            </div>
-        </div>
+            @if (empty($attachableProducts))
+                <div class="tca-empty"><x-lucide name="book-open" /><p>Không có sách / chuyên đề / bộ đề nào bạn còn quyền dạy để thêm — quyền dạy đã hết hạn hoặc chưa được cấp.</p></div>
+            @elseif (! $hasAnyAttachable)
+                <div class="tca-empty"><x-lucide name="check-circle-2" /><p>Mọi sách / chuyên đề / bộ đề bạn còn quyền dạy đã gắn hết vào lớp này rồi.</p></div>
+            @else
+                <div class="tca-bar">
+                    <div class="tca-types" role="tablist">
+                        @foreach ($tcaTypes as $t)
+                            <button type="button" role="tab" class="tca-type t-{{ $t['key'] }}" :class="{ on: type === '{{ $t['key'] }}' }" @click="setType('{{ $t['key'] }}')" @disabled($t['count'] === 0)>
+                                <x-lucide :name="$tcxTypeIcon[$t['key']] ?? 'book-open'" />{{ $t['label'] }}<em x-text="countFor('{{ $t['key'] }}')">{{ $t['count'] }}</em>
+                            </button>
+                        @endforeach
+                    </div>
+                    <span class="tca-range" x-show="filtered.length" x-text="rangeText"></span>
+                </div>
+
+                <div class="tca-grid">
+                    <template x-for="it in pageItems" :key="it.id">
+                        <form method="POST" action="{{ route('teacher.classes.materials.attach', $classRoom->id) }}" class="tca-card" :class="'t-' + it.type" @submit="busy = it.id">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="product_id" :value="it.id">
+                            <span class="tca-ic">
+                                <span x-show="it.type === 'book'"><x-lucide name="book-open" /></span>
+                                <span x-show="it.type === 'topic'"><x-lucide name="layers" /></span>
+                                <span x-show="it.type === 'exam'"><x-lucide name="clipboard-list" /></span>
+                            </span>
+                            <div class="tca-tx">
+                                <b :title="it.title" x-text="it.title"></b>
+                                <small x-text="it.sub"></small>
+                            </div>
+                            <button type="submit" class="tca-add" :disabled="busy !== null" :aria-label="'Thêm ' + it.title + ' vào lớp'">
+                                <span x-show="busy !== it.id"><x-lucide name="plus" /></span><span x-text="busy === it.id ? 'Đang thêm…' : 'Thêm'"></span>
+                            </button>
+                        </form>
+                    </template>
+                </div>
+                <div class="tca-none" x-show="filtered.length === 0" x-cloak>
+                    <x-lucide name="search" /><p x-text="q ? 'Không tìm thấy tài liệu khớp “' + q + '” trong mục này.' : 'Mục này không còn tài liệu nào để thêm.'"></p>
+                </div>
+
+                <nav class="tca-pager" x-show="pages > 1" x-cloak aria-label="Phân trang tài liệu">
+                    <button type="button" class="tca-pg" @click="go(page - 1)" :disabled="page === 1" aria-label="Trang trước"><x-lucide name="chevron-left" /></button>
+                    <template x-for="(n, k) in pageList" :key="k">
+                        <button type="button" class="tca-pg" :class="{ on: n === page, dots: n === '…' }" :disabled="n === '…'" @click="go(n)" x-text="n"></button>
+                    </template>
+                    <button type="button" class="tca-pg" @click="go(page + 1)" :disabled="page === pages" aria-label="Trang sau"><x-lucide name="chevron-right" /></button>
+                </nav>
+            @endif
+        </section>
+        <style>
+            .tca { margin-top: 12px; padding: 18px; border: 1.5px dashed #BFD4F1; border-radius: 18px; background: linear-gradient(180deg, #FBFDFF, #F6FAFF); }
+            .tca-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; }
+            .tca-intro { flex: 1 1 320px; min-width: 0; }
+            .tca-intro h3 { margin: 0; font-size: 14.5px; font-weight: 800; color: var(--tcx-ink, #0F2F57); }
+            .tca-intro p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: #64748B; }
+            .tca-search { display: flex; align-items: center; gap: 8px; flex: 0 1 320px; min-width: 220px; height: 40px; padding: 0 12px; border: 1px solid #D9E3EE; border-radius: 12px; background: #fff; transition: border-color .15s, box-shadow .15s; }
+            .tca-search:focus-within { border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59, 130, 246, .12); }
+            .tca-search svg { width: 16px; height: 16px; flex: none; color: #94A3B8; }
+            .tca-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; font: inherit; font-size: 13px; color: #0F172A; }
+            .tca-search input:focus { box-shadow: none; outline: 0; }
+            .tca-search input::-webkit-search-cancel-button { display: none; }
+            .tca-search button { display: grid; place-items: center; width: 24px; height: 24px; flex: none; padding: 0; border: 0; border-radius: 7px; background: #F1F5F9; color: #64748B; cursor: pointer; }
+            .tca-search button svg { width: 13px; height: 13px; color: inherit; }
+            .tca-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 0 12px; }
+            .tca-types { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 13px; background: #EDF2F8; }
+            .tca-type { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; transition: all .15s; }
+            .tca-type svg { width: 15px; height: 15px; }
+            .tca-type.t-book svg { color: #2563EB; } .tca-type.t-topic svg { color: #7C3AED; } .tca-type.t-exam svg { color: #EA580C; }
+            .tca-type em { font-style: normal; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .8); font-size: 11px; font-weight: 800; color: #64748B; text-align: center; }
+            .tca-type:hover:not(:disabled) { color: #0F172A; }
+            .tca-type.on { background: #fff; color: #0F2F57; box-shadow: 0 2px 8px rgba(15, 42, 74, .1); }
+            .tca-type.on em { background: #EEF4FF; color: #1D4ED8; }
+            .tca-type:disabled { opacity: .45; cursor: not-allowed; }
+            .tca-range { font-size: 12px; font-weight: 600; color: #94A3B8; }
+            .tca-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+            @media (min-width: 720px) { .tca-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            @media (min-width: 1200px) { .tca-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+            .tca-card { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 0; padding: 12px; border: 1px solid #E3EBF4; border-radius: 14px; background: #fff; transition: border-color .15s, box-shadow .15s, transform .15s; }
+            .tca-card:hover { border-color: #BFD3EA; box-shadow: 0 10px 22px rgba(15, 42, 74, .07); transform: translateY(-1px); }
+            .tca-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EEF4FF; color: #2563EB; }
+            .tca-card.t-topic .tca-ic { background: #F3EEFF; color: #7C3AED; } .tca-card.t-exam .tca-ic { background: #FFF1E6; color: #EA580C; }
+            .tca-ic svg { width: 19px; height: 19px; display: block; }
+            .tca-tx { flex: 1; min-width: 0; }
+            .tca-tx b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: 800; line-height: 1.4; color: #0F172A; }
+            .tca-tx small { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: #94A3B8; }
+            .tca-add { display: inline-flex; align-items: center; gap: 4px; flex: none; height: 32px; padding: 0 12px; border: 1px solid #C7DAF7; border-radius: 10px; background: #F2F7FF; font: inherit; font-size: 12.5px; font-weight: 800; color: #1D4ED8; white-space: nowrap; cursor: pointer; transition: all .15s; }
+            .tca-add svg { width: 14px; height: 14px; display: block; }
+            .tca-card:hover .tca-add, .tca-add:focus-visible { border-color: #2563EB; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #fff; box-shadow: 0 6px 14px rgba(37, 99, 235, .25); }
+            .tca-add:disabled { opacity: .55; cursor: wait; }
+            .tca-none, .tca-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 12px; border-radius: 14px; border: 1px dashed #D5E1EE; background: #fff; text-align: center; }
+            .tca-empty { margin-top: 14px; }
+            .tca-none svg, .tca-empty svg { width: 22px; height: 22px; color: #A3B6CC; }
+            .tca-none p, .tca-empty p { margin: 0; font-size: 12.5px; color: #8093A8; }
+            .tca-pager { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 16px; }
+            .tca-pg { display: grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; transition: all .15s; }
+            .tca-pg svg { width: 16px; height: 16px; }
+            .tca-pg:hover:not(:disabled) { border-color: #93C5FD; color: #1D4ED8; }
+            .tca-pg.on { border-color: #2563EB; background: #2563EB; color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, .25); }
+            .tca-pg:disabled { opacity: .4; cursor: default; } .tca-pg.dots { border-color: transparent; background: none; opacity: 1; }
+            @media (max-width: 560px) { .tca { padding: 14px; } .tca-head .tcx-folder { display: none; } .tca-search { flex: 1 1 100%; min-width: 0; } .tca-types { width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } .tca-type { justify-content: center; gap: 4px; padding: 0 4px; font-size: 12px; white-space: nowrap; } .tca-type svg { display: none; } .tca-add { padding: 0 10px; } }
+        </style>
+        <script>
+            window.tcaPick = function (c) {
+                const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+                const items = (c.items || []).map((it) => Object.assign({}, it, { f: fold(it.title) }));
+                return {
+                    type: c.type, q: '', page: 1, busy: null, items, per: (window.matchMedia && window.matchMedia('(max-width: 719px)').matches) ? 5 : 9,
+                    setType(t) { this.type = t; this.page = 1; },
+                    countFor(t) { const k = fold(this.q.trim()); return this.items.filter((it) => it.type === t && (!k || it.f.includes(k))).length; },
+                    get filtered() { const k = fold(this.q.trim()); return this.items.filter((it) => it.type === this.type && (!k || it.f.includes(k))); },
+                    get pages() { return Math.max(1, Math.ceil(this.filtered.length / this.per)); },
+                    get pageItems() { const p = Math.min(this.page, this.pages); return this.filtered.slice((p - 1) * this.per, p * this.per); },
+                    get rangeText() { const n = this.filtered.length, p = Math.min(this.page, this.pages); return 'Hiển thị ' + ((p - 1) * this.per + 1) + '–' + Math.min(p * this.per, n) + ' / ' + n + ' tài liệu'; },
+                    get pageList() {
+                        const n = this.pages, p = this.page;
+                        if (n <= 7) return Array.from({ length: n }, (_, i) => i + 1);
+                        const set = [1, p - 1, p, p + 1, n].filter((x) => x >= 1 && x <= n);
+                        const out = []; [...new Set(set)].sort((a, b) => a - b).forEach((x, i, arr) => { if (i && x - arr[i - 1] > 1) out.push('…'); out.push(x); });
+                        return out;
+                    },
+                    go(n) { if (typeof n === 'number' && n >= 1 && n <= this.pages) this.page = n; },
+                };
+            };
+        </script>
 
         <script>
         (() => {
