@@ -15,12 +15,16 @@
         return {
             rows: config.rows || [],
             query: '',
+            provinceFilter: '', // SỬA 6/11 — lọc Tỉnh/Thành phố
+            titleFilter: '',    // SỬA 6/11 — lọc Danh hiệu (tiếng Việt)
             page: 1,
             pageSize: config.pageSize || 10, // SỬA 4/11 — mặc định 10 / trang
             expanded: null,
 
             init() {
                 this.$watch('query', () => { this.page = 1; this.expanded = null; });
+                this.$watch('provinceFilter', () => { this.page = 1; this.expanded = null; });
+                this.$watch('titleFilter', () => { this.page = 1; this.expanded = null; });
                 this.$watch('pageSize', () => { this.page = 1; this.expanded = null; });
             },
 
@@ -40,11 +44,21 @@
             },
 
             get filtered() {
-                const q = normalize(this.query);
-                if (!q) return this.rows;
-                return this.rows.filter((p) => normalize([this.display(p), p.sub, p.badge, '#' + p.rank, p.rank].join(' ')).includes(q));
+                const q = normalize(this.query), pv = this.provinceFilter, tt = this.titleFilter;
+                if (!q && !pv && !tt) return this.rows;
+                return this.rows.filter((p) => (!pv || (this.hasProvince(p) && p.sub === pv))
+                    && (!tt || this.titleVi(p) === tt)
+                    && (!q || normalize([this.display(p), p.sub, p.badge, this.titleVi(p), '#' + p.rank, p.rank].join(' ')).includes(q)));
             },
-            get showPodium() { return this.rows.length > 0 && !this.query.trim(); },
+            get showPodium() { return this.rows.length > 0 && !this.query.trim() && !this.provinceFilter && !this.titleFilter; },
+            get provinces() {
+                return [...new Set(this.rows.filter((p) => this.hasProvince(p)).map((p) => p.sub))].sort((a, b) => a.localeCompare(b, 'vi'));
+            },
+            get titleOptions() {
+                const order = ['HUYỀN THOẠI', 'BẬC THẦY', 'CHUYÊN GIA', 'CAO THỦ', 'HỌC VIÊN', 'TÂN BINH'];
+                const have = new Set(this.rows.map((p) => this.titleVi(p)));
+                return order.filter((t) => have.has(t)).concat([...have].filter((t) => !order.includes(t)));
+            },
             get podium() { return this.rows.slice(0, 3); },
             // SỬA 6/11 — giao diện mới: thứ tự hiển thị 2 · 1 · 3; danh hiệu tiếng Việt; dòng phụ "Tỉnh • N bài đã thử".
             get podiumOrdered() { const p = this.podium; return p.length === 3 ? [p[1], p[0], p[2]] : p; },

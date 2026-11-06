@@ -508,40 +508,145 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 @media (min-width: 1024px) { .lbx-page { padding: 20px 16px 32px; } }
 @media (min-width: 1536px) { .lbx-page { padding: 24px 32px 32px; } }
 .lbx-page .leaderboard-view { max-width: none; margin: 0; }
+/* ══════ SỬA 6/11 (khách: "chữ to quá, đồng bộ cỡ chữ với trang chủ") — theo thang chữ trang chủ (resources/css/app.css:
+   tiêu đề trang 18–20 · tiêu đề khối 16 · tên / tiêu đề thẻ 12–13 · nội dung 12 · phụ 11 · nhãn nhỏ 10). Đặt cuối để ghi đè. ══════ */
+.leaderboard-view { --lb-font-page: 1.25rem; --lb-font-section: 1rem; --lb-font-title: .8125rem; --lb-font-item: .8125rem; --lb-font-body: .75rem; --lb-font-meta: .6875rem; --lb-font-badge: .625rem; }
+.lb-hero h1 { font-size: 20px; }
+.lb-hero-copy > p { font-size: 13px; }
+.lb-hero-stats strong { font-size: 20px; }
+.lb-scopes a { font-size: 12px; }
+.lb-search input { font-size: 12.5px; }
+.lbx-podium-head h2 { font-size: 16px !important; }
+.lbx-podium-scope { font-size: 10.5px; }
+.lbx-podium-ic { width: 30px; height: 30px; } .lbx-podium-ic svg { width: 16px; height: 16px; }
+.lbx-card h3 { font-size: 14px !important; }
+.lbx-card.is-r1 h3 { font-size: 15px !important; }
+.lbx-sub { font-size: 11px; }
+.lbx-score strong { font-size: 20px; }
+.lbx-card.is-r1 .lbx-score strong { font-size: 22px; }
+.lbx-score span { font-size: 11px; }
+.lbx-stats { font-size: 11px; }
+.lbx-tried { font-size: 12px; }
+.lbx-ava-rank { width: 22px; height: 22px; font-size: 11px; }
+.lbx-ava { font-size: 18px !important; }
+.lbx-title-chip { padding: 2px 8px; font-size: 10px; }
+.lbx-board-heading h2 { font-size: 16px !important; }
+.lbx-board-sub { font-size: 12px !important; padding-left: 0; }
+.lbx-board-meta { font-size: 11px; }
+.lb-table { --lb-list-value: .8125rem; --lb-list-meta: .6875rem; }
+.lb-table th { font-size: 10.5px; }
+.lb-student-name > button { font-size: 13px; }
+.lb-skill-badge { font-size: 10px; }
+.lbx-sub-line { font-size: 11px !important; }
+.lb-rank-mark { font-size: 13px; height: 22px; min-width: 28px; }
+.lb-movement { font-size: 10.5px; }
+.lb-points-cell strong, .lb-ac-cell strong, .lb-accuracy-cell > span, .lb-streak-cell > span { font-size: 13px; }
+.lb-points-cell > span, .lb-ac-cell > span, .lb-streak-cell small { font-size: 11px; }
+.lb-page-summary { font-size: 12px; }
+.lb-page-summary select { font-size: 11.5px; }
+.lb-page-buttons button { width: 30px; height: 30px; font-size: 12px; }
+.lb-board-note p, .lb-board-note > span { font-size: 12px; }
+.lb-detail-grid dt { font-size: 11px; } .lb-detail-grid dd { font-size: 12px; }
+@media (max-width: 800px) { .lbx-card:not(.is-r1) h3 { font-size: 13px !important; } .lbx-card:not(.is-r1) .lbx-score strong { font-size: 17px; } }
+/* ══════ SỬA 6/11 (khách: "giống 100% UI mẫu") — đầu trang dạng dải nền vàng → xanh trải hết bề ngang (tiêu đề, thanh lọc,
+   Gương mặt dẫn đầu), bỏ banner tối; bảng thứ hạng: tiêu đề nằm ngoài, bảng là 1 thẻ trắng bo góc, phân trang + ghi chú bên dưới. ══════ */
+.lbx-page { --lbx-px: 12px; --lbx-pt: 12px; }
+@media (min-width: 640px) { .lbx-page { --lbx-px: 20px; --lbx-pt: 20px; } }
+@media (min-width: 1024px) { .lbx-page { --lbx-px: 16px; --lbx-pt: 20px; } }
+@media (min-width: 1536px) { .lbx-page { --lbx-px: 32px; --lbx-pt: 24px; } }
+body:has(.leaderboard-view) { background-color: #f3f6fa; }
+.leaderboard-view { gap: 22px; }
+.lbx-top { display: grid; gap: 18px; margin: calc(-1 * var(--lbx-pt)) calc(-1 * var(--lbx-px)) 0; padding: calc(var(--lbx-pt) + 8px) var(--lbx-px) 30px;
+  background: linear-gradient(100deg, #fff1c4 0%, #fff7df 32%, #f1f4fb 62%, #dbe8ff 100%); }
+.lbx-title h1 { font-size: 26px !important; font-weight: 800 !important; letter-spacing: -.02em; color: #0f2f57; line-height: 1.25; }
+.lbx-title p { margin-top: 4px !important; font-size: 14px; color: #4b6074; }
+.lbx-filter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; padding: 8px 10px; border-radius: 16px;
+  background: rgba(255, 255, 255, .72); border: 1px solid rgba(255, 255, 255, .95); box-shadow: 0 8px 22px rgba(15, 53, 84, .08); backdrop-filter: blur(6px); }
+.lbx-scopes { display: flex; flex-wrap: wrap; gap: 4px; }
+.lbx-scopes a { padding: 8px 14px !important; border-radius: 10px !important; font-size: 13px !important; color: #34506a !important; }
+.lbx-scopes a:hover { background: rgba(18, 111, 145, .08) !important; }
+.lbx-scopes a[aria-pressed="true"] { background: #2b6f8a !important; color: #fff !important; box-shadow: 0 4px 10px rgba(18, 111, 145, .25) !important; }
+.lbx-filter-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lbx-search, .lbx-select { position: relative; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border: 1px solid #dbe5ee; border-radius: 10px; background: #fff; color: #5b7488; }
+.lbx-search svg, .lbx-select svg { width: 15px; height: 15px; flex: none; fill: none; }
+.lbx-search input { width: 170px; border: 0; outline: none; background: transparent; font-size: 13px; color: #0f3554; }
+.lbx-search input::placeholder { color: #8195a6; }
+.lbx-search button { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; }
+.lbx-select select { appearance: none; -webkit-appearance: none; border: 0; outline: none; background: transparent !important; padding-right: 18px; font-size: 13px; color: #34506a; cursor: pointer; max-width: 170px; }
+.lbx-select::after { content: ''; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; border-right: 1.5px solid #6b7f8f; border-bottom: 1.5px solid #6b7f8f; transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.lbx-top .lb-subbar { border: 0; border-radius: 12px; background: rgba(255, 255, 255, .6); }
+.lbx-top .lbx-podium-wrap { padding: 0; border: 0; background: none; box-shadow: none; }
+.lbx-top .lbx-podium-head { margin-bottom: 4px; }
+.lbx-top .lbx-podium-head h2 { font-size: 20px !important; }
+.lbx-top .lbx-podium-scope { display: none; }
+
+.lb-board { background: transparent !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
+.lbx-board-heading { padding: 0 0 12px !important; background: transparent !important; }
+.lbx-board-heading h2 { font-size: 22px !important; color: #0f2f57; }
+.lbx-board-sub { margin-top: 2px !important; padding-left: 22px !important; font-size: 15px !important; color: #4b6074 !important; }
+.lbx-board-meta { display: none; }
+.lb-board .lb-table-wrap { border: 1px solid #e3ebf2; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(15, 53, 84, .05); overflow: hidden; }
+.lb-pagination { padding: 14px 0 0 !important; background: transparent !important; border-top: 0 !important; }
+.lb-page-summary { font-size: 13px !important; color: #2c4458; }
+.lb-board-note { padding: 18px 0 0 !important; background: transparent !important; border-top: 0 !important; }
+.lb-board-note > svg { display: none; }
+.lb-board-note p, .lb-board-note > span { font-size: 13px !important; color: #3d5466 !important; }
+
+@media (max-width: 800px) {
+  .lbx-top { padding-bottom: 20px; }
+  .lbx-title h1 { font-size: 22px !important; }
+  .lbx-filter { flex-direction: column; align-items: stretch; }
+  .lbx-filter-tools { display: grid; grid-template-columns: 1fr 1fr; }
+  .lbx-search { grid-column: 1 / -1; } .lbx-search input { width: 100%; }
+  .lbx-select select { max-width: none; width: 100%; }
+  .lbx-board-heading h2 { font-size: 18px !important; }
+  .lbx-board-sub { padding-left: 0 !important; font-size: 13px !important; }
+  .lb-board .lb-table-wrap { border-radius: 14px; }
+  .lb-board-note > span { display: none; }
+}
+
 </style>
 
 {{-- SỬA 6/11 (khách: "cho full ra") — trải hết bề ngang, lề trái/phải bằng lề thanh menu trên cùng (giống trang chính sách). --}}
 <div class="lbx-page">
 <div class="leaderboard-view" x-data="onthiLeaderboardPage({{ Js::from($config) }})">
 
-    {{-- ══════ HERO ══════ --}}
-    <header class="lb-hero">
-        <div class="lb-hero-copy">
-            <span class="lb-eyebrow"><x-lucide name="trophy" style="width:15px;height:15px" />NỖ LỰC ĐƯỢC GHI NHẬN</span>
+    {{-- ══════ ĐẦU TRANG — SỬA 6/11 (khách: "giống 100% UI mẫu"): dải nền vàng → xanh gồm tiêu đề, thanh lọc (phạm vi · tìm kiếm ·
+         Tỉnh/Thành phố · Danh hiệu) và Gương mặt dẫn đầu. Bỏ banner tối + 3 số liệu tổng. Lọc tỉnh / danh hiệu chạy ở trình duyệt. ══════ --}}
+    <div class="lbx-top">
+        <header class="lbx-title">
             <h1>Bảng xếp hạng</h1>
-            <p>Theo dõi thành tích, chinh phục từng thứ hạng.</p>
-            <span class="lb-demo-label"><span></span>{{ $updated ? 'Cập nhật lúc '.$updated : 'Chưa có dữ liệu xếp hạng' }}</span>
-        </div>
-        <div class="lb-hero-stats" aria-label="Tổng quan bảng xếp hạng {{ $scopeLabel }}">
-            <div><x-lucide name="users" style="width:18px;height:18px" /><strong>{{ $nf($hero['students']) }}</strong><span>Học sinh</span></div>
-            <div><x-lucide name="check-circle-2" style="width:18px;height:18px" /><strong>{{ $nf($hero['solved']) }}</strong><span>Bài AC tích lũy</span></div>
-            <div><x-lucide name="flame" style="width:18px;height:18px" /><strong>{{ $nf($hero['bestStreak']) }}<small> ngày</small></strong><span>Chuỗi tốt nhất</span></div>
-        </div>
-    </header>
+            <p>Theo dõi thành tích, chinh phục từng thứ hạng</p>
+        </header>
 
-    {{-- ══════ PHẠM VI + TÌM KIẾM ══════ --}}
-    <section class="lb-workspace" aria-label="Bộ lọc bảng xếp hạng">
-        <div class="lb-scope-bar">
-            <div class="lb-scopes" role="group" aria-label="Phạm vi bảng xếp hạng">
+        <section class="lbx-filter" aria-label="Bộ lọc bảng xếp hạng">
+            <div class="lb-scopes lbx-scopes" role="group" aria-label="Phạm vi bảng xếp hạng">
                 @foreach ($scopes as $key => $label)
                     <a href="{{ $scopeUrl($key) }}" aria-pressed="{{ $scope === $key ? 'true' : 'false' }}">{{ $label }}</a>
                 @endforeach
             </div>
-            <details class="lb-ranking-help">
-                <summary><x-lucide name="info" style="width:14px;height:14px" />Cách xếp hạng</summary>
-                <p>{{ $rule }}</p>
-            </details>
-        </div>
+            <div class="lbx-filter-tools">
+                <label class="lbx-search">
+                    <x-lucide name="search" />
+                    <input type="text" x-model="query" placeholder="Tìm kiếm học sinh..." aria-label="Tìm kiếm học sinh" autocomplete="off">
+                    <button type="button" x-show="query" x-cloak aria-label="Xóa tìm kiếm" @click="query = ''"><x-lucide name="x" /></button>
+                </label>
+                <label class="lbx-select">
+                    <x-lucide name="map-pin" />
+                    <select x-model="provinceFilter" aria-label="Lọc theo tỉnh / thành phố">
+                        <option value="">Tỉnh/Thành phố</option>
+                        <template x-for="v in provinces" :key="v"><option :value="v" x-text="v"></option></template>
+                    </select>
+                </label>
+                <label class="lbx-select">
+                    <x-lucide name="trophy" />
+                    <select x-model="titleFilter" aria-label="Lọc theo danh hiệu">
+                        <option value="">Danh hiệu</option>
+                        <template x-for="t in titleOptions" :key="t"><option :value="t" x-text="t"></option></template>
+                    </select>
+                </label>
+            </div>
+        </section>
 
         {{-- Chọn cuộc thi / kỳ thi (phạm vi cuộc thi) --}}
         @if ($scope === 'contest' && $contest && count($contest['boards']) > 0)
@@ -579,14 +684,6 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
             </div>
         @endif
 
-        <div class="lb-tools">
-            <label class="lb-search">
-                <x-lucide name="search" style="width:17px;height:17px" />
-                <input type="text" x-model="query" placeholder="Tìm học sinh, tỉnh thành hoặc danh hiệu…" aria-label="Tìm học sinh, tỉnh thành hoặc danh hiệu" autocomplete="off">
-                <button type="button" x-show="query" x-cloak aria-label="Xóa tìm kiếm" @click="query = ''"><x-lucide name="x" style="width:15px;height:15px" /></button>
-            </label>
-        </div>
-    </section>
 
     @if (count($rows) > 0)
         {{-- ══════ GƯƠNG MẶT DẪN ĐẦU ══════
@@ -653,12 +750,13 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
             </div>
         </section>
     @endif
+    </div>
 
     {{-- ══════ THỨ HẠNG HỌC SINH ══════ --}}
     <section class="lb-board" aria-labelledby="lb-board-title">
         <div class="lb-board-heading lbx-board-heading">
             <div>
-                <h2 id="lb-board-title">Thứ hạng học sinh</h2>
+                <h2 id="lb-board-title" title="{{ $rule }}">Thứ hạng học sinh</h2>
                 <p class="lbx-board-sub">Cập nhật liên tục, thi đấu sôi nổi</p>
             </div>
             <div>
@@ -739,8 +837,8 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 
                 <nav class="lb-pagination" aria-label="Phân trang bảng xếp hạng">
                     <div class="lb-page-summary">
-                        Hiển thị <strong x-text="(start + 1) + '–' + Math.min(start + pageSize, filtered.length)"></strong> / <span x-text="filtered.length"></span> học sinh
-                        <label><select aria-label="Số học sinh mỗi trang" x-model.number="pageSize"><option value="10">10 / trang</option><option value="20">20 / trang</option><option value="50">50 / trang</option></select></label>
+                        Hiển thị <strong x-text="(start + 1) + '-' + Math.min(start + pageSize, filtered.length)"></strong> / <span x-text="filtered.length"></span> học sinh
+                        <label><select aria-label="Số học sinh mỗi trang" x-model.number="pageSize"><option value="10">Số trang: 10</option><option value="20">Số trang: 20</option><option value="50">Số trang: 50</option></select></label>
                     </div>
                     <div class="lb-page-buttons" x-show="totalPages > 1">
                         <button type="button" aria-label="Trang trước" :disabled="currentPage === 1" @click="goto(currentPage - 1)"><x-lucide name="chevron-left" style="width:16px;height:16px" /></button>
