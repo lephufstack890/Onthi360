@@ -13,58 +13,6 @@
     @include('partials.toast-flash', ['type' => 'success', 'message' => session('statusMessage', 'Đã lưu.')])
 @endif
 
-<section class="acx-card acx-card--white pbk" id="ban-in-ca-cuon" style="scroll-margin-top:80px"
-         x-data="pbkBox(@js(['upload' => $pbkReady ? route('admin.products.print-book.upload', $product->id) : '', 'file' => $pbkFile, 'csrf' => csrf_token(), 'maxBytes' => \App\Support\PrintBook::maxKilobytes() * 1024, 'maxLabel' => \App\Support\PrintBook::maxLabel()]))">
-    <div class="pbk-head">
-        <h2><x-lucide name="printer" /> Bản in cả cuốn</h2>
-        <span class="pbk-badge"><x-lucide name="lock" />Chỉ lưu nội bộ</span>
-    </div>
-    <p class="pbk-note">Tệp PDF cả quyển để <b>in khi có khách đặt bản in</b> rồi ship. Học sinh không xem / tải được tệp này; không ảnh hưởng phần đọc và bán tài liệu.</p>
-
-    @if (! $pbkReady)
-        <p class="pbk-warn"><x-lucide name="alert-triangle" />Chưa cập nhật cơ sở dữ liệu — chạy <code>php artisan migrate --force</code> trên máy chủ để dùng mục này.</p>
-    @else
-        @if ($pbkHas)
-            <div class="pbk-file">
-                <span class="pbk-pdf">PDF</span>
-                <div class="pbk-fi">
-                    <b title="{{ $product->print_book_name }}">{{ $product->print_book_name ?: 'Ban-in-ca-cuon.pdf' }}</b>
-                    <small>{{ \App\Support\PrintBook::sizeLabel((int) $product->print_book_size) }}@if ($pbkAt) · tải lên {{ $pbkAt }}@endif @if ($pbkBy) · {{ $pbkBy }}@endif</small>
-                </div>
-                <div class="pbk-acts">
-                    <button type="button" class="pbk-btn" @click="view = !view" :class="{ on: view }"><x-lucide name="eye" /><span x-text="view ? 'Ẩn xem trước' : 'Xem trước'"></span></button>
-                    <button type="button" class="pbk-btn pri" @click="printBook()" :disabled="printing"><x-lucide name="printer" /><span x-text="printing ? 'Đang mở…' : 'In sách'"></span></button>
-                    <a href="{{ $pbkFile }}?tai=1" class="pbk-btn"><x-lucide name="download" />Tải PDF</a>
-                    <button type="button" class="pbk-btn" @click="$refs.input.click()"><x-lucide name="upload" />Thay tệp</button>
-                    <form method="POST" action="{{ route('admin.products.print-book.destroy', $product->id) }}" onsubmit="return confirm('Xoá tệp bản in cả cuốn của tài liệu này? Tài liệu vẫn giữ nguyên.');" style="margin:0">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="pbk-btn red" title="Xoá tệp bản in"><x-lucide name="trash-2" /></button>
-                    </form>
-                </div>
-            </div>
-            <div class="pbk-view" x-show="view" x-cloak>
-                <iframe x-ref="frame" :src="view ? cfg.file : 'about:blank'" title="Xem trước bản in cả cuốn" @load="frameLoaded()"></iframe>
-            </div>
-        @else
-            <label class="pbk-drop" :class="{ over: over }" @dragover.prevent="over = true" @dragleave.prevent="over = false" @drop.prevent="over = false; pick($event.dataTransfer.files[0])">
-                <span class="pbk-dic"><x-lucide name="upload" /></span>
-                <b>Chọn hoặc kéo thả tệp PDF cả cuốn sách</b>
-                <small>Một tệp PDF đầy đủ để in · tối đa {{ \App\Support\PrintBook::maxLabel() }}</small>
-                <span class="pbk-btn pri" style="pointer-events:none"><x-lucide name="upload" />Chọn tệp PDF</span>
-            </label>
-        @endif
-
-        <input type="file" accept="application/pdf,.pdf" x-ref="input" hidden @change="pick($event.target.files[0]); $event.target.value = ''">
-
-        <div class="pbk-up" x-show="busy" x-cloak>
-            <div class="pbk-upt"><span x-text="name"></span><b x-text="pct + '%'"></b></div>
-            <div class="pbk-bar"><i :style="'width:' + pct + '%'"></i></div>
-            <small x-text="pct < 100 ? 'Đang tải lên… vui lòng không đóng trang.' : 'Đang lưu…'"></small>
-        </div>
-        <p class="pbk-err" x-show="err" x-cloak x-text="err"></p>
-    @endif
-</section>
-
 <script>
     window.pbkBox = function (cfg) {
         return {
@@ -114,6 +62,66 @@
         };
     };
 </script>
+
+<section class="acx-card acx-card--white pbk" id="ban-in-ca-cuon" style="scroll-margin-top:80px"
+         x-data="pbkBox(@js(['upload' => $pbkReady ? route('admin.products.print-book.upload', $product->id) : '', 'file' => $pbkFile, 'csrf' => csrf_token(), 'maxBytes' => \App\Support\PrintBook::maxKilobytes() * 1024, 'maxLabel' => \App\Support\PrintBook::maxLabel()]))">
+    <div class="pbk-head">
+        <h2><x-lucide name="printer" /> Bản in cả cuốn</h2>
+        <span class="pbk-badge"><x-lucide name="lock" />Chỉ lưu nội bộ</span>
+    </div>
+    <p class="pbk-note">Tệp PDF cả quyển để <b>in khi có khách đặt bản in</b> rồi ship. Học sinh không xem / tải được tệp này; không ảnh hưởng phần đọc và bán tài liệu.</p>
+
+    @if (! $pbkReady)
+        <p class="pbk-warn"><x-lucide name="alert-triangle" />Chưa cập nhật cơ sở dữ liệu — chạy <code>php artisan migrate --force</code> trên máy chủ để dùng mục này.</p>
+    @else
+        @if ($pbkHas)
+            <div class="pbk-file">
+                <span class="pbk-pdf">PDF</span>
+                <div class="pbk-fi">
+                    <b title="{{ $product->print_book_name }}">{{ $product->print_book_name ?: 'Ban-in-ca-cuon.pdf' }}</b>
+                    <small>{{ \App\Support\PrintBook::sizeLabel((int) $product->print_book_size) }}@if ($pbkAt) · tải lên {{ $pbkAt }}@endif @if ($pbkBy) · {{ $pbkBy }}@endif</small>
+                </div>
+                <div class="pbk-acts">
+                    <button type="button" class="pbk-btn" @click="view = !view" :class="{ on: view }"><x-lucide name="eye" /><span x-text="view ? 'Ẩn xem trước' : 'Xem trước'"></span></button>
+                    <button type="button" class="pbk-btn pri" @click="printBook()" :disabled="printing"><x-lucide name="printer" /><span x-text="printing ? 'Đang mở…' : 'In sách'"></span></button>
+                    <a href="{{ $pbkFile }}?tai=1" class="pbk-btn"><x-lucide name="download" />Tải PDF</a>
+                    <label for="pbk-in-{{ $product->id }}" class="pbk-btn"><x-lucide name="upload" />Thay tệp</label>
+                    <form method="POST" action="{{ route('admin.products.print-book.destroy', $product->id) }}" onsubmit="return confirm('Xoá tệp bản in cả cuốn của tài liệu này? Tài liệu vẫn giữ nguyên.');" style="margin:0">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="pbk-btn red" title="Xoá tệp bản in"><x-lucide name="trash-2" /></button>
+                    </form>
+                </div>
+            </div>
+            <div class="pbk-view" x-show="view" x-cloak>
+                <iframe x-ref="frame" :src="view ? cfg.file : 'about:blank'" title="Xem trước bản in cả cuốn" @load="frameLoaded()"></iframe>
+            </div>
+        @else
+            <label for="pbk-in-{{ $product->id }}" class="pbk-drop" :class="{ over: over }" @dragover.prevent="over = true" @dragleave.prevent="over = false" @drop.prevent="over = false; pick($event.dataTransfer.files[0])">
+                <span class="pbk-dic"><x-lucide name="upload" /></span>
+                <b>Chọn hoặc kéo thả tệp PDF cả cuốn sách</b>
+                <small>Một tệp PDF đầy đủ để in · tối đa {{ \App\Support\PrintBook::maxLabel() }}</small>
+                <span class="pbk-btn pri" style="pointer-events:none"><x-lucide name="upload" />Chọn tệp PDF</span>
+            </label>
+        @endif
+
+        {{-- SỬA 7/11 (lỗi "bấm chọn tệp không được") — ô chọn tệp THẬT (không ẩn bằng display:none), mở bằng <label for> nên bấm là
+             hiện hộp chọn tệp kể cả khi JS chưa chạy; có JS thì tải lên kèm thanh tiến độ, không có JS thì gửi form như thường. --}}
+        <form method="POST" action="{{ route('admin.products.print-book.upload', $product->id) }}" enctype="multipart/form-data" @submit.prevent style="margin:0">
+            @csrf
+            <input type="file" name="book_pdf" id="pbk-in-{{ $product->id }}" class="pbk-in" accept="application/pdf,.pdf" x-ref="input"
+                   onchange="if (! window.Alpine && this.files.length) this.form.submit()" @change="pick($event.target.files[0]); $event.target.value = ''">
+        </form>
+
+        <div class="pbk-up" x-show="busy" x-cloak>
+            <div class="pbk-upt"><span x-text="name"></span><b x-text="pct + '%'"></b></div>
+            <div class="pbk-bar"><i :style="'width:' + pct + '%'"></i></div>
+            <small x-text="pct < 100 ? 'Đang tải lên… vui lòng không đóng trang.' : 'Đang lưu…'"></small>
+        </div>
+        <p class="pbk-err" x-show="err" x-cloak x-text="err"></p>
+    @endif
+</section>
+
+
 <style>
     .pbk-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
     .pbk-head h2 { margin: 0; }
@@ -145,5 +153,7 @@
     .pbk-upt { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: #1E3A5F; } .pbk-upt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pbk-bar { height: 8px; margin: 8px 0 6px; overflow: hidden; border-radius: 9px; background: #E8EEF5; } .pbk-bar i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, #2563EB, #60A5FA); transition: width .2s; }
     .pbk-up small { font-size: 12px; color: #6B8197; }
+    .pbk-in { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; opacity: 0; }
+    label.pbk-btn { margin: 0; }
     .pbk-err { margin: 10px 0 0; font-size: 13px; font-weight: 600; color: #DC2626; }
 </style>
