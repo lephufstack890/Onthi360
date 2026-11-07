@@ -28,12 +28,12 @@
             <button type="button" :class="{ on: f === 'closed' }" @click="f = 'closed'">Đã đóng {{ $asCount['closed'] ?? 0 }}</button>
         </nav>
         @if ($asCan)
-            <button type="button" class="csp-btn pri" @click="openModal('exam')"><x-lucide name="plus" />Giao bài / đề</button>
+            <button type="button" class="csp-btn pri" @click="openModal('exam')"><x-lucide name="plus" />Thêm bài / đề</button>
         @endif
     </div>
 
     @if (empty($assignments))
-        <div class="csp-empty"><x-lucide name="clipboard-list" /><b>Lớp chưa có bài nào được giao</b><span>Bấm <b>Giao bài / đề</b> để chọn đề kiểm tra, đề luyện tập hoặc bài luyện tập.</span></div>
+        <div class="csp-empty"><x-lucide name="clipboard-list" /><b>Lớp chưa có bài nào được giao</b><span>Bấm <b>Thêm bài / đề</b> để chọn đề kiểm tra, đề luyện tập hoặc bài luyện tập.</span></div>
     @else
         <div class="asg-grid">
             @foreach ($assignments as $ag)
@@ -93,7 +93,7 @@
                 <div class="tam-dlg asg-dlg" x-show="open" x-transition.scale.95 role="dialog" aria-modal="true">
                     <header class="tam-head" style="background:linear-gradient(120deg,#FFF1E6,#EEF4FF)">
                         <span class="tam-hic" style="background:linear-gradient(135deg,#F97316,#EA580C)"><x-lucide name="clipboard-list" /></span>
-                        <div class="tam-htx"><h3>Giao bài / đề cho lớp</h3><p>{{ $className }} · {{ $asRoster }} học sinh</p></div>
+                        <div class="tam-htx"><h3>Thêm bài / đề cho lớp</h3><p>{{ $className }} · {{ $asRoster }} học sinh</p></div>
                         <button type="button" class="tam-x" @click="close()" aria-label="Đóng"><x-lucide name="x" /></button>
                     </header>
                     <div class="tam-seg">
