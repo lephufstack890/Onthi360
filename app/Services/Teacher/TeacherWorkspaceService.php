@@ -496,7 +496,7 @@ class TeacherWorkspaceService
         }
 
         $a = ClassAnnouncement::query()->where('id', $id)->where('class_room_id', $classId)->first();
-        if ($a === null || ((int) $a->teacher_id !== (int) $user->id && ! $user->isRealAdmin())) {
+        if ($a === null || ((int) $a->teacher_id !== (int) $user->id && $user->actingRole() !== \App\Models\Role::TEACHER)) {
             return null;
         }
 

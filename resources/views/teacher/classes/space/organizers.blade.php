@@ -20,7 +20,7 @@
                 <b class="ogz-name">{{ $t['name'] }}@if ($t['me']) <small>(bạn)</small>@endif</b>
                 @if ($t['contact'])<span class="ogz-mut">{{ $t['contact'] }}</span>@endif
                 <span class="csp-pill {{ $ogTone[$t['role']] ?? 'p-gray' }}">{{ $t['roleLabel'] }}</span>
-                <span class="ogz-mut" style="font-size:11.5px">{{ $t['role'] === 'main' ? 'Phụ trách lớp' : 'Tham gia' }}{{ $t['since'] ? ' từ '.$t['since'] : '' }}</span>
+                <span class="ogz-mut" style="font-size:12px">{{ $t['role'] === 'main' ? 'Phụ trách lớp' : 'Tham gia' }}{{ $t['since'] ? ' từ '.$t['since'] : '' }}</span>
                 @if ($t['editable'])
                     <div class="ogz-acts" x-show="! del">
                         <form method="POST" action="{{ route('teacher.classes.teachers.role', ['class' => $classRoom->id, 'teacher' => $t['id']]) }}">
@@ -139,7 +139,7 @@
     .ogz-roles label { display: grid; gap: 2px; padding: 12px; border: 1.5px solid #E2E8F0; border-radius: 14px; cursor: pointer; }
     .ogz-roles label.on { border-color: #2563EB; background: #F5F9FF; box-shadow: 0 0 0 4px rgba(37, 99, 235, .1); }
     .ogz-roles input { position: absolute; opacity: 0; pointer-events: none; }
-    .ogz-roles b { font-size: 13px; color: #0F172A; } .ogz-roles small { font-size: 11.5px; color: #64748B; }
+    .ogz-roles b { font-size: 13px; color: #0F172A; } .ogz-roles small { font-size: 12px; color: #64748B; }
     .ogz-perm { width: 100%; border-collapse: collapse; min-width: 560px; }
     .ogz-perm th, .ogz-perm td { padding: 11px 12px; border-bottom: 1px solid #EEF2F7; text-align: center; font-size: 13px; }
     .ogz-perm th { background: #F7FAFD; font-size: 12px; color: #475569; }

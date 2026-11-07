@@ -151,6 +151,8 @@ class ClassSpaceController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:2000'],
             'unlock_on' => ['nullable', 'date_format:Y-m-d'],
+            // SỬA 7/11 — hẹn giờ mở: ngày + giờ phút.
+            'unlock_at' => ['nullable', 'date_format:Y-m-d H:i'],
             'material_ids' => ['nullable', 'array', 'max:50'],
             'material_ids.*' => ['integer'],
             'assignment_ids' => ['nullable', 'array', 'max:50'],

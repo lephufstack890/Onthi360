@@ -3,6 +3,7 @@
      Logic / giao diện từng tab giữ nguyên như cũ. --}}
     @php
         $tab = $tab ?? 'overview';
+        $cspPartial = request()->header('X-Csp-Tab') === '1';
         $materials = $materials ?? [];
         $members = $members ?? collect();
         $studentsCount = $studentsCount ?? 0;
@@ -23,6 +24,17 @@
         $tcxTypeName = ['book' => 'Sách', 'topic' => 'Chuyên đề', 'exam' => 'Bộ đề'];
         $tcxClean = fn (?string $label) => trim(preg_replace('/^[^\p{L}]+/u', '', (string) $label));
     @endphp
+{{-- SỬA 7/11 — chuyển tab / bấm nút không tải lại trang: phần này được trả riêng, nên tự hiện thông báo "đã lưu" / lỗi (bình
+     thường nằm ở đầu trang _header). Tab Tài liệu, Thông báo đã tự hiện lỗi của mình bên dưới. --}}
+@if ($cspPartial)
+    @if (session('space_ok'))
+        @include('partials.toast-flash', ['type' => 'success', 'message' => session('space_ok')])
+    @endif
+    @if (! in_array($tab, ['materials', 'notices'], true) && $errors->any())
+        @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
+    @endif
+@endif
+
     @if ($tab === 'materials')
         {{-- Tab Tài liệu — logic như cũ (gắn NGUYÊN 1 sản phẩm, chỉ hiện sách/chuyên đề/bộ đề còn quyền dạy, Gỡ = "Đã gỡ").
              Tìm kiếm + lọc loại chạy ngay trên trang (JS ở cuối), không gọi máy chủ. --}}
@@ -174,8 +186,8 @@
             .tca { margin-top: 12px; padding: 18px; border: 1.5px dashed #BFD4F1; border-radius: 18px; background: linear-gradient(180deg, #FBFDFF, #F6FAFF); }
             .tca-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; }
             .tca-intro { flex: 1 1 320px; min-width: 0; }
-            .tca-intro h3 { margin: 0; font-size: 14.5px; font-weight: 800; color: var(--tcx-ink, #0F2F57); }
-            .tca-intro p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: #64748B; }
+            .tca-intro h3 { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--tcx-ink, #0F2F57); }
+            .tca-intro p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: #64748B; }
             .tca-search { display: flex; align-items: center; gap: 8px; flex: 0 1 320px; min-width: 220px; height: 40px; padding: 0 12px; border: 1px solid #D9E3EE; border-radius: 12px; background: #fff; transition: border-color .15s, box-shadow .15s; }
             .tca-search:focus-within { border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59, 130, 246, .12); }
             .tca-search svg { width: 16px; height: 16px; flex: none; color: #94A3B8; }
@@ -189,7 +201,7 @@
             .tca-type { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; transition: all .15s; }
             .tca-type svg { width: 15px; height: 15px; }
             .tca-type.t-book svg { color: #2563EB; } .tca-type.t-topic svg { color: #7C3AED; } .tca-type.t-exam svg { color: #EA580C; }
-            .tca-type em { font-style: normal; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .8); font-size: 11px; font-weight: 800; color: #64748B; text-align: center; }
+            .tca-type em { font-style: normal; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .8); font-size: 11px; font-weight: 700; color: #64748B; text-align: center; }
             .tca-type:hover:not(:disabled) { color: #0F172A; }
             .tca-type.on { background: #fff; color: #0F2F57; box-shadow: 0 2px 8px rgba(15, 42, 74, .1); }
             .tca-type.on em { background: #EEF4FF; color: #1D4ED8; }
@@ -204,16 +216,16 @@
             .tca-card.t-topic .tca-ic { background: #F3EEFF; color: #7C3AED; } .tca-card.t-exam .tca-ic { background: #FFF1E6; color: #EA580C; }
             .tca-ic svg { width: 19px; height: 19px; display: block; }
             .tca-tx { flex: 1; min-width: 0; }
-            .tca-tx b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: 800; line-height: 1.4; color: #0F172A; }
-            .tca-tx small { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: #94A3B8; }
-            .tca-add { display: inline-flex; align-items: center; gap: 4px; flex: none; height: 32px; padding: 0 12px; border: 1px solid #C7DAF7; border-radius: 10px; background: #F2F7FF; font: inherit; font-size: 12.5px; font-weight: 800; color: #1D4ED8; white-space: nowrap; cursor: pointer; transition: all .15s; }
+            .tca-tx b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: 700; line-height: 1.4; color: #0F172A; }
+            .tca-tx small { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #94A3B8; }
+            .tca-add { display: inline-flex; align-items: center; gap: 4px; flex: none; height: 32px; padding: 0 12px; border: 1px solid #C7DAF7; border-radius: 10px; background: #F2F7FF; font: inherit; font-size: 13px; font-weight: 700; color: #1D4ED8; white-space: nowrap; cursor: pointer; transition: all .15s; }
             .tca-add svg { width: 14px; height: 14px; display: block; }
             .tca-card:hover .tca-add, .tca-add:focus-visible { border-color: #2563EB; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #fff; box-shadow: 0 6px 14px rgba(37, 99, 235, .25); }
             .tca-add:disabled { opacity: .55; cursor: wait; }
             .tca-none, .tca-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 12px; border-radius: 14px; border: 1px dashed #D5E1EE; background: #fff; text-align: center; }
             .tca-empty { margin-top: 14px; }
             .tca-none svg, .tca-empty svg { width: 22px; height: 22px; color: #A3B6CC; }
-            .tca-none p, .tca-empty p { margin: 0; font-size: 12.5px; color: #8093A8; }
+            .tca-none p, .tca-empty p { margin: 0; font-size: 13px; color: #8093A8; }
             .tca-pager { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 16px; }
             .tca-pg { display: grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; transition: all .15s; }
             .tca-pg svg { width: 16px; height: 16px; }
@@ -309,7 +321,7 @@
             @endif
 
             <div class="tnc-grid">
-                <form method="POST" action="{{ route('teacher.notices.store') }}" class="tnc-form" @submit="sending = true">
+                <form method="POST" action="{{ route('teacher.notices.store') }}" class="tnc-form" @submit="sending = true" data-csp-ajax>
                     @csrf
                     <input type="hidden" name="class_room_id" value="{{ $classRoom->id }}">
                     <input type="hidden" name="back_to_class" value="1">
@@ -458,12 +470,12 @@
 
         <style>
             .tnc-ic { background: linear-gradient(135deg, #FFEDD5, #FFE4E6) !important; color: #EA580C !important; }
-            .tnc-warn { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: #FFF7E6; border: 1px solid #FDE2B3; font-size: 12.5px; line-height: 1.5; color: #92400E; }
-            .tnc-warn svg { width: 15px; height: 15px; flex: none; margin-top: 2px; } .tnc-warn a { color: #B45309; font-weight: 800; }
+            .tnc-warn { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: #FFF7E6; border: 1px solid #FDE2B3; font-size: 13px; line-height: 1.5; color: #92400E; }
+            .tnc-warn svg { width: 15px; height: 15px; flex: none; margin-top: 2px; } .tnc-warn a { color: #B45309; font-weight: 700; }
             .tnc-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
             @media (min-width: 1100px) { .tnc-grid { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 22px; } }
             .tnc-form { display: grid; gap: 16px; min-width: 0; }
-            .tnc-lb { display: block; margin: 0 0 8px 2px; line-height: 1.5; font-size: 12.5px; font-weight: 800; color: #1E293B; }
+            .tnc-lb { display: block; margin: 0 0 8px 2px; line-height: 1.5; font-size: 13px; font-weight: 700; color: #1E293B; }
             .tnc-lb em { font-style: normal; font-weight: 600; color: #94A3B8; }
             .tnc-lb svg { width: 15px; height: 15px; margin-right: 5px; vertical-align: -3px; color: #64748B; }
             .tnc-aud { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -476,25 +488,25 @@
             .tnc-opt-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 11px; background: #EEF4FF; color: #2563EB; }
             .tnc-opt-ic.f { background: #ECFDF5; color: #059669; } .tnc-opt-ic.p { background: #FFF1F2; color: #E11D48; }
             .tnc-opt-ic svg { width: 18px; height: 18px; }
-            .tnc-opt-tx { flex: 1; min-width: 0; } .tnc-opt-tx b { display: block; font-size: 13px; font-weight: 800; color: #0F172A; } .tnc-opt-tx small { display: block; margin-top: 1px; font-size: 11.5px; color: #64748B; }
+            .tnc-opt-tx { flex: 1; min-width: 0; } .tnc-opt-tx b { display: block; font-size: 13px; font-weight: 700; color: #0F172A; } .tnc-opt-tx small { display: block; margin-top: 1px; font-size: 12px; color: #64748B; }
             .tnc-tick { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid #CBD5E1; color: transparent; }
             .tnc-tick svg { width: 12px; height: 12px; }
             .tnc-opt.on .tnc-tick { border-color: #2563EB; background: #2563EB; color: #fff; }
             .tnc-tpl { display: flex; flex-wrap: wrap; gap: 8px; }
-            .tnc-tpl button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 1px solid #E2E8F0; border-radius: 999px; background: #fff; font: inherit; font-size: 12.5px; font-weight: 700; color: #334155; cursor: pointer; transition: all .15s; }
+            .tnc-tpl button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 1px solid #E2E8F0; border-radius: 999px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; transition: all .15s; }
             .tnc-tpl button:hover { border-color: #FDBA74; background: #FFF7ED; color: #C2410C; }
             .tnc-tpl button.on { border-color: #F97316; background: #FFF7ED; color: #C2410C; }
             .tnc-field { min-width: 0; }
             .tnc-fh { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 6px; }
-            .tnc-fh label { font-size: 12.5px; font-weight: 800; color: #1E293B; }
+            .tnc-fh label { font-size: 13px; font-weight: 700; color: #1E293B; }
             .tnc-fh small { font-size: 11px; font-weight: 600; color: #94A3B8; font-variant-numeric: tabular-nums; } .tnc-fh small.over { color: #DC2626; }
-            .tnc-input { display: block; box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border: 1px solid #D9E3EE; border-radius: 12px; background: #fff; font: inherit; font-size: 13.5px; color: #0F172A; transition: border-color .15s, box-shadow .15s; }
+            .tnc-input { display: block; box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border: 1px solid #D9E3EE; border-radius: 12px; background: #fff; font: inherit; font-size: 14px; color: #0F172A; transition: border-color .15s, box-shadow .15s; }
             .tnc-input::placeholder { color: #A3B1C2; }
             .tnc-input:focus { outline: 0; border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59, 130, 246, .12); }
             .tnc-ta { height: auto; min-height: 140px; padding: 12px 14px; line-height: 1.6; resize: vertical; }
             .tnc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
             .tnc-foot small { margin-right: auto; font-size: 12px; color: #94A3B8; }
-            .tnc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 20px; border: 1px solid transparent; border-radius: 12px; font: inherit; font-size: 13.5px; font-weight: 800; white-space: nowrap; cursor: pointer; transition: all .15s; }
+            .tnc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 20px; border: 1px solid transparent; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: all .15s; }
             .tnc-btn svg { width: 16px; height: 16px; }
             .tnc-btn.pri { background: linear-gradient(135deg, #F97316, #EA580C); color: #fff; box-shadow: 0 8px 20px rgba(234, 88, 12, .28); }
             .tnc-btn.pri:hover { transform: translateY(-1px); }
@@ -507,14 +519,14 @@
             .tnc-acts { display: flex; gap: 10px; margin-left: auto; }
             .tnc-prev { min-width: 0; }
             .tnc-phone { padding: 14px; border-radius: 20px; background: linear-gradient(160deg, #F1F5FB, #EEF2FF); border: 1px solid #E2E8F0; }
-            .tnc-phone-h { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; font-weight: 800; color: #0F2F57; }
-            .tnc-phone-h svg { width: 15px; height: 15px; } .tnc-phone-h span { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #EF4444; color: #fff; font-size: 10.5px; }
+            .tnc-phone-h { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; font-weight: 700; color: #0F2F57; }
+            .tnc-phone-h svg { width: 15px; height: 15px; } .tnc-phone-h span { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #EF4444; color: #fff; font-size: 11px; }
             .tnc-noti { display: flex; gap: 10px; padding: 12px; border-radius: 14px; background: #fff; box-shadow: 0 6px 16px rgba(15, 42, 74, .07); }
             .tnc-noti + .tnc-noti { margin-top: 8px; }
             .tnc-noti.ghost { opacity: .5; box-shadow: none; }
             .tnc-noti-ic { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 11px; background: #FFF1E6; font-size: 16px; }
             .tnc-noti-tx { flex: 1; min-width: 0; }
-            .tnc-noti-tx b { display: block; font-size: 13px; font-weight: 800; color: #0F172A; word-break: break-word; }
+            .tnc-noti-tx b { display: block; font-size: 13px; font-weight: 700; color: #0F172A; word-break: break-word; }
             .tnc-noti-tx p { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: #475569; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
             .tnc-noti-tx .ph { color: #A3B1C2; font-weight: 600; }
             .tnc-noti-tx small { display: block; margin-top: 6px; font-size: 11px; color: #94A3B8; }
@@ -528,14 +540,14 @@
             .tnc-item-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: #FFF1E6; font-size: 18px; }
             .tnc-item-main { flex: 1; min-width: 0; }
             .tnc-item-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-            .tnc-item-top b { font-size: 14px; font-weight: 800; color: #0F172A; }
-            .tnc-aud-chip { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #EEF4FF; color: #1D4ED8; }
+            .tnc-item-top b { font-size: 14px; font-weight: 700; color: #0F172A; }
+            .tnc-aud-chip { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #EEF4FF; color: #1D4ED8; }
             .tnc-aud-chip.a-families { background: #ECFDF5; color: #047857; } .tnc-aud-chip.a-parents { background: #FFF1F2; color: #BE123C; }
             .tnc-item-body { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-line; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
             .tnc-item-body.open { display: block; -webkit-line-clamp: unset; }
-            .tnc-more { margin-top: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 800; color: #2563EB; cursor: pointer; }
+            .tnc-more { margin-top: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 700; color: #2563EB; cursor: pointer; }
             .tnc-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
-            .tnc-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #64748B; }
+            .tnc-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #64748B; }
             .tnc-meta svg { width: 13px; height: 13px; }
             .tnc-item { align-items: flex-start; }
             .tnc-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F7; }
@@ -553,9 +565,9 @@
             .tnc-del:hover { border-color: #FCA5A5; background: #FFF5F5; color: #DC2626; }
             .tnc-del-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA; }
             .tnc-del-bar > svg { width: 16px; height: 16px; flex: none; color: #DC2626; }
-            .tnc-del-bar p { flex: 1 1 220px; margin: 0; font-size: 12.5px; line-height: 1.5; color: #991B1B; }
+            .tnc-del-bar p { flex: 1 1 220px; margin: 0; font-size: 13px; line-height: 1.5; color: #991B1B; }
             .tnc-del-acts { display: flex; gap: 8px; margin-left: auto; }
-            .tnc-mini { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+            .tnc-mini { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
             .tnc-mini svg { width: 14px; height: 14px; }
             .tnc-mini.ghost { border-color: #E2E8F0; background: #fff; color: #475569; }
             .tnc-mini.red { background: #DC2626; color: #fff; box-shadow: 0 4px 12px rgba(220, 38, 38, .25); } .tnc-mini.red:hover { background: #B91C1C; } .tnc-mini.red:disabled { opacity: .6; }

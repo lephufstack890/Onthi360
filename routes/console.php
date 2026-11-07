@@ -60,3 +60,12 @@ Artisan::command('chocon:check-offline', function () {
     $this->info("Đã báo {$count} máy mất kết nối.");
 })->purpose('Báo phụ huynh khi máy tính của con mất kết nối bất thường');
 \Illuminate\Support\Facades\Schedule::command('chocon:check-offline')->everyFiveMinutes()->withoutOverlapping();
+
+// SỬA 7/11 (khách: "bước tiến trình hẹn giờ phút, tới giờ dạy thì mở ra") — mỗi phút mở các bước "Tiến trình dạy học" đã tới giờ
+// hẹn + báo học sinh (App\Services\Teacher\ClassSpaceService::syncAllScheduledUnlocks). Trang lớp cũng tự mở khi có người vào.
+// Cần cron: * * * * * php artisan schedule:run
+Artisan::command('class-steps:unlock', function () {
+    $n = app(\App\Services\Teacher\ClassSpaceService::class)->syncAllScheduledUnlocks();
+    $this->info("Đã mở bước tới giờ hẹn ở {$n} lớp.");
+})->purpose('Mở khoá các bước tiến trình dạy học tới giờ hẹn');
+\Illuminate\Support\Facades\Schedule::command('class-steps:unlock')->everyMinute()->withoutOverlapping();

@@ -72,11 +72,11 @@
 </div>
 <style>
     .csp-mut { color: #64748B; font-weight: 700; }
-    .csp-big { display: block; font-size: 22px; line-height: 1.25; font-weight: 900; color: #0F2F57; }
-    .csp-sub { display: block; font-size: 11.5px; font-weight: 700; color: #16A34A; }
+    .csp-big { display: block; font-size: 22px; line-height: 1.25; font-weight: 800; color: #0F2F57; }
+    .csp-sub { display: block; font-size: 12px; font-weight: 700; color: #16A34A; }
     .csp-day { display: grid; place-items: center; width: 50px; height: 50px; flex: none; border-radius: 13px; background: #EEF4FF; color: #1D4ED8; line-height: 1.1; text-align: center; }
-    .csp-day small { font-size: 10.5px; font-weight: 800; } .csp-day b { font-size: 18px; }
+    .csp-day small { font-size: 11px; font-weight: 700; } .csp-day b { font-size: 18px; }
     .csp-pbar { height: 8px; margin-top: 6px; border-radius: 9px; background: #EEF2F7; overflow: hidden; }
     .csp-pbar i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, #7C3AED, #A78BFA); }
-    .csp-empty a { color: #1D4ED8; font-weight: 800; }
+    .csp-empty a { color: #1D4ED8; font-weight: 700; }
 </style>

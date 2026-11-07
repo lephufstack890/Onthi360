@@ -151,7 +151,7 @@
                         @endforeach
                         <div class="tam-body" style="display:grid;gap:14px;padding-top:14px">
                             @if (empty($assignableAssessments))
-                                <div class="csp-note"><x-lucide name="info" /><span>Bạn chưa có đề kiểm tra nào. Tạo đề ở <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" style="font-weight:800;color:#1D4ED8">Kho bài tập / câu hỏi và đề</a>, hoặc giao <b>Đề / Bài luyện tập</b> ở 2 mục bên cạnh.</span></div>
+                                <div class="csp-note"><x-lucide name="info" /><span>Bạn chưa có đề kiểm tra nào. Tạo đề ở <a href="{{ route('teacher.questions.index', ['tab' => 'assessments']) }}" style="font-weight:700;color:#1D4ED8">Kho bài tập / câu hỏi và đề</a>, hoặc giao <b>Đề / Bài luyện tập</b> ở 2 mục bên cạnh.</span></div>
                             @else
                                 <div>
                                     <label class="csp-lb" for="asg-ass">Chọn đề</label>
@@ -208,22 +208,22 @@
     .asg-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .asg-opt { font-style: normal; font-weight: 600; color: #94A3B8; }
     @media (max-width: 560px) { .asg-two { grid-template-columns: 1fr; } }
-    .asg-sub { display: flex; align-items: center; gap: 8px; margin: 22px 0 10px; font-size: 14px; font-weight: 800; color: #0F2F57; }
+    .asg-sub { display: flex; align-items: center; gap: 8px; margin: 22px 0 10px; font-size: 14px; font-weight: 700; color: #0F2F57; }
     .asg-sub svg { width: 17px; height: 17px; color: #EA580C; }
-    .asg-sub span { padding: 1px 8px; border-radius: 999px; background: #FFF1E6; color: #C2410C; font-size: 11.5px; }
+    .asg-sub span { padding: 1px 8px; border-radius: 999px; background: #FFF1E6; color: #C2410C; font-size: 12px; }
     .asg-plist { display: grid; gap: 8px; }
     .asg-prow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 1px solid #E5EDF5; border-radius: 14px; background: #fff; }
-    .asg-link { font-size: 14px; font-weight: 800; color: #0F2F57; text-decoration: none; } .asg-link:hover { color: #1D4ED8; text-decoration: underline; }
+    .asg-link { font-size: 14px; font-weight: 700; color: #0F2F57; text-decoration: none; } .asg-link:hover { color: #1D4ED8; text-decoration: underline; }
     .asg-late { color: #DC2626; font-weight: 700; }
     .asg-dlg { width: min(760px, 100%); }
     .asg-form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
     .asg-form .tam-body { flex: 1; }
     .asg-pick { border: 1px solid #E2EBF2; border-radius: 14px; overflow: hidden; }
-    .asg-pick-h { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #EEF3F7; background: #F8FAFC; font-size: 11.5px; font-weight: 700; color: #7B8EA0; }
+    .asg-pick-h { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #EEF3F7; background: #F8FAFC; font-size: 12px; font-weight: 700; color: #7B8EA0; }
     .asg-pick-h b { color: #EA580C; }
     .asg-pick .tam-list { max-height: min(300px, 40vh); }
     .asg-quick div { display: flex; flex-wrap: wrap; gap: 6px; }
-    .asg-quick button { height: 38px; padding: 0 12px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font: inherit; font-size: 12.5px; font-weight: 700; color: #475569; cursor: pointer; }
+    .asg-quick button { height: 38px; padding: 0 12px; border: 1px solid #DCE6F2; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
     .asg-quick button:hover { border-color: #FDBA74; color: #C2410C; background: #FFF7ED; }
     @media (max-width: 640px) { .asg-prow .asg-prog { flex: 1 1 100% !important; } }
 </style>

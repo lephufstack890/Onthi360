@@ -519,7 +519,7 @@ class ScheduleService
     private function findTaughtClassRoom(User $teacher, int $classId): ClassRoom
     {
         $classRoom = $this->classRooms->findOrFail($classId);
-        abort_unless($classRoom->isTaughtBy($teacher) || $teacher->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $teacher->isRealAdmin(), 403); // SỬA 3/11 — admin thật (kể cả đang xem như Giáo viên) quản lý được mọi lớp
+        abort_unless($classRoom->isTaughtBy($teacher) || $teacher->actingRole() === Role::TEACHER, 403, 'Bạn không dạy lớp này.'); // SỬA 7/11 — chỉ giáo viên của lớp / quản trị đang xem như Giáo viên
 
         return $classRoom;
     }

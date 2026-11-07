@@ -72,7 +72,7 @@
             </table>
         </div>
         @if (empty($rsCols))
-            <div class="csp-note csp-noprint" style="margin-top:12px"><x-lucide name="info" /><span>Lớp chưa có bài giao nào đã phát hành — giao bài ở tab <a href="{{ route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => 'assign']) }}" style="font-weight:800;color:#1D4ED8">Bài tập / Đề</a>. Vẫn ghi được nhận xét chung cho từng em.</span></div>
+            <div class="csp-note csp-noprint" style="margin-top:12px"><x-lucide name="info" /><span>Lớp chưa có bài giao nào đã phát hành — giao bài ở tab <a href="{{ route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => 'assign']) }}" style="font-weight:700;color:#1D4ED8">Bài tập / Đề</a>. Vẫn ghi được nhận xét chung cho từng em.</span></div>
         @endif
         <div class="rs-legend csp-noprint"><span><i class="rs-sc s-a">8+</i>Giỏi</span><span><i class="rs-sc s-b">6.5+</i>Khá</span><span><i class="rs-sc s-c">5+</i>Trung bình</span><span><i class="rs-sc s-d">&lt;5</i>Yếu</span><span><i class="rs-dot" style="position:static"></i>Điểm giáo viên chấm / sửa</span><span>✎ có nhận xét</span></div>
     @endif
@@ -96,17 +96,17 @@
 <style>
     .att-print-title { display: none; }
     .att-wrap { overflow-x: auto; border: 1px solid #E5EDF5; border-radius: 16px; }
-    .rs-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+    .rs-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
     .rs-t th, .rs-t td { padding: 9px 10px; border-bottom: 1px solid #EEF2F7; background: #fff; vertical-align: middle; }
-    .rs-t thead th { background: #F7FAFD; font-size: 11.5px; font-weight: 800; color: #475569; white-space: nowrap; }
-    .rs-t tfoot td { background: #F7FAFD; font-weight: 800; color: #334155; }
+    .rs-t thead th { background: #F7FAFD; font-size: 12px; font-weight: 700; color: #475569; white-space: nowrap; }
+    .rs-t tfoot td { background: #F7FAFD; font-weight: 700; color: #334155; }
     .rs-name { position: sticky; left: 0; z-index: 2; min-width: 200px; box-shadow: 1px 0 0 #E5EDF5; }
     .rs-c { text-align: center; }
     .rs-note { min-width: 220px; max-width: 280px; }
-    .rs-sc { position: relative; display: inline-grid; place-items: center; min-width: 44px; height: 30px; padding: 0 8px; border: 0; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 900; font-style: normal; cursor: pointer; }
+    .rs-sc { position: relative; display: inline-grid; place-items: center; min-width: 44px; height: 30px; padding: 0 8px; border: 0; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 800; font-style: normal; cursor: pointer; }
     .rs-sc:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); } .rs-sc:disabled { cursor: default; }
     .s-a { background: #DCFCE7; color: #15803D; } .s-b { background: #DBEAFE; color: #1D4ED8; } .s-c { background: #FEF3C7; color: #B45309; } .s-d { background: #FEE2E2; color: #DC2626; }
-    .s-e { background: #F8FAFC; color: #A3B1C2; font-weight: 700; border: 1px dashed #CBD5E1; } .s-wait { background: #FFEDD5; color: #C2410C; font-size: 11.5px; }
+    .s-e { background: #F8FAFC; color: #A3B1C2; font-weight: 700; border: 1px dashed #CBD5E1; } .s-wait { background: #FFEDD5; color: #C2410C; font-size: 12px; }
     .rs-dot { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border: 2px solid #fff; border-radius: 50%; background: #7C3AED; display: inline-block; }
     .rs-cm { position: absolute; bottom: -6px; right: -4px; font-size: 10px; font-style: normal; color: #64748B; }
     .rs-avg { font-size: 15px; color: #0F2F57; }
@@ -117,9 +117,9 @@
     .att-ed { position: fixed; z-index: 80; width: 300px; padding: 10px; border: 1px solid #E2E8F0; border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(15, 35, 60, .18); }
     .att-ed textarea { width: 100%; box-sizing: border-box; margin-top: 8px; }
     .att-ed-acts { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-    .rs-ed-score label { display: grid; gap: 4px; font-size: 12px; font-weight: 800; color: #1E293B; }
+    .rs-ed-score label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: #1E293B; }
     .rs-ed-score input { width: 100%; }
-    .rs-ed-score small { display: block; margin-top: 4px; font-size: 11.5px; color: #64748B; }
+    .rs-ed-score small { display: block; margin-top: 4px; font-size: 12px; color: #64748B; }
     @media print {
         @page { size: A4 landscape; margin: 10mm; }
         .att-print-title { display: block; margin-bottom: 8px; } .att-print-title h2 { margin: 0; font-size: 16px; } .att-print-title p { margin: 2px 0 0; font-size: 11px; }

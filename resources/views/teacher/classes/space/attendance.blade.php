@@ -220,7 +220,7 @@
     <div x-data="cspSess(@js(['store' => route('teacher.schedule.store'), 'update' => route('teacher.schedule.update', ['session' => 0])]))" @csp-sess.window="show($event.detail)" @keydown.escape.window="open && close()">
         <template x-teleport="body">
             <div class="tam-ov" x-show="open" x-transition.opacity x-cloak @click.self="close()">
-                <form class="tam-dlg att-sdlg" method="POST" :action="action" x-show="open" x-transition.scale.95 role="dialog" aria-modal="true"
+                <form class="tam-dlg att-sdlg" data-csp-ajax method="POST" :action="action" x-show="open" x-transition.scale.95 role="dialog" aria-modal="true"
                       @submit="if (dur <= 0) { $event.preventDefault(); tried = true; } else { submitting = true; }">
                     @csrf
                     <template x-if="id"><input type="hidden" name="_method" value="PUT"></template>
@@ -282,35 +282,35 @@
     .att-print-title { display: none; }
     .att-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
     .att-range { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
-    .att-range label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #475569; }
+    .att-range label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #475569; }
     .att-range label svg { width: 15px; height: 15px; color: #64748B; }
-    .att-range .csp-inp { height: 34px; padding: 0 8px; font-size: 12.5px; }
+    .att-range .csp-inp { height: 34px; padding: 0 8px; font-size: 13px; }
     .att-search { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 1px solid #D9E3EE; border-radius: 11px; background: #fff; }
     .att-search svg { width: 15px; height: 15px; color: #94A3B8; }
-    .att-search input { width: 160px; border: 0; outline: 0; background: none; font: inherit; font-size: 12.5px; box-shadow: none; }
+    .att-search input { width: 160px; border: 0; outline: 0; background: none; font: inherit; font-size: 13px; box-shadow: none; }
     .att-legend { display: inline-flex; flex-wrap: wrap; gap: 6px; }
     .att-wrap { overflow-x: auto; border: 1px solid #E5EDF5; border-radius: 16px; }
-    .att-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+    .att-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
     .att-t th, .att-t td { padding: 8px 10px; border-bottom: 1px solid #EDF2F7; border-right: 1px solid #EDF2F7; vertical-align: middle; background: #fff; }
-    .att-t thead th { background: #F7FAFD; font-size: 11.5px; font-weight: 800; color: #475569; }
+    .att-t thead th { background: #F7FAFD; font-size: 12px; font-weight: 700; color: #475569; }
     .att-t thead tr:first-child th { background: #F1F6FB; }
-    .att-t tfoot td { background: #F7FAFD; font-weight: 800; color: #334155; font-size: 12px; }
+    .att-t tfoot td { background: #F7FAFD; font-weight: 700; color: #334155; font-size: 12px; }
     .att-no { width: 40px; text-align: center; color: #94A3B8; font-weight: 700; }
     .att-name { position: sticky; left: 0; z-index: 2; min-width: 210px; max-width: 250px; text-align: left; box-shadow: 1px 0 0 #E5EDF5; }
     .att-t td.att-name .csp-who b { font-size: 13px; }
     .att-contact { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; color: #94A3B8; }
     .att-rm { display: grid; place-items: center; width: 26px; height: 26px; flex: none; margin-left: auto; padding: 0; border: 0; border-radius: 8px; background: none; color: #CBD5E1; cursor: pointer; }
     .att-rm:hover { background: #FFF5F5; color: #DC2626; } .att-rm svg { width: 14px; height: 14px; }
-    .att-rmf { display: grid; gap: 6px; margin-top: 8px; padding: 8px; border-radius: 10px; background: #FEF2F2; font-size: 11.5px; font-weight: 600; color: #991B1B; white-space: normal; }
+    .att-rmf { display: grid; gap: 6px; margin-top: 8px; padding: 8px; border-radius: 10px; background: #FEF2F2; font-size: 12px; font-weight: 600; color: #991B1B; white-space: normal; }
     .att-rmf div { display: flex; gap: 6px; }
     .att-sess { min-width: 220px; text-align: center !important; color: #0F2F57 !important; }
-    .att-sess b { display: block; font-size: 12.5px; } .att-sess small { display: block; margin-top: 1px; font-weight: 600; color: #64748B; }
+    .att-sess b { display: block; font-size: 13px; } .att-sess small { display: block; margin-top: 1px; font-weight: 600; color: #64748B; }
     .att-hacts { display: flex; justify-content: center; gap: 6px; margin-top: 5px; }
     .att-hacts button { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid #DCE6F0; border-radius: 8px; background: #fff; font: inherit; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; }
     .att-hacts button:hover { border-color: #93C5FD; color: #1D4ED8; } .att-hacts svg { width: 12px; height: 12px; }
     .att-sub { text-align: center !important; font-size: 11px !important; color: #64748B !important; }
     .att-st { width: 92px; text-align: center; }
-    .att-pill { min-width: 78px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: transform .1s, box-shadow .15s; }
+    .att-pill { min-width: 78px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform .1s, box-shadow .15s; }
     .att-pill:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
     .att-pill.p-none { background: #F8FAFC; color: #A3B1C2; border: 1px dashed #CBD5E1; }
     .att-pill:disabled { cursor: default; }
@@ -319,7 +319,7 @@
     .att-note:hover:not(:disabled) { background: #F5F9FF; }
     .att-note.empty { color: #A3B1C2; font-style: italic; }
     .att-addcol { width: 104px; text-align: center; background: repeating-linear-gradient(45deg, #FAFCFF, #FAFCFF 8px, #F3F7FC 8px, #F3F7FC 16px) !important; }
-    .att-addcol button { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 800; color: #2563EB; cursor: pointer; }
+    .att-addcol button { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 700; color: #2563EB; cursor: pointer; }
     .att-addcol button svg { width: 18px; height: 18px; }
     .att-tot { width: 92px; text-align: center; white-space: nowrap; }
     .att-tot b { display: block; font-size: 13px; color: #0F2F57; }
@@ -329,7 +329,7 @@
     .att-menu { display: grid; gap: 2px; width: 170px; }
     .att-menu button { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border: 0; border-radius: 9px; background: none; cursor: pointer; }
     .att-menu button:hover, .att-menu button.on { background: #F1F5F9; }
-    .att-menu kbd { font: inherit; font-size: 10.5px; font-weight: 700; color: #94A3B8; }
+    .att-menu kbd { font: inherit; font-size: 11px; font-weight: 700; color: #94A3B8; }
     .att-ed { width: 300px; padding: 10px; }
     .att-ed textarea { width: 100%; box-sizing: border-box; }
     .att-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }

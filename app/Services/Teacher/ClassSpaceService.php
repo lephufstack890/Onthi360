@@ -89,7 +89,9 @@ class ClassSpaceService
         if ($role === 'main') {
             return 'main';
         }
-        if ($user->isRealAdmin() || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN)) {
+        // SỬA 7/11 (khách: "giáo viên nào chỉ quản lý lớp của giáo viên đó, trừ giáo viên từ admin chuyển qua") — toàn quyền mọi lớp
+        // CHỈ khi quản trị đang "xem như Giáo viên"; tài khoản có thêm vai quản trị mà không bấm chuyển thì theo vai trong lớp như ai.
+        if ($user->actingRole() === Role::TEACHER) {
             return 'admin';
         }
 
@@ -760,18 +762,53 @@ class ClassSpaceService
 
     // ───────────────────────── Tab 6: Tiến trình dạy học ─────────────────────────
 
-    /** Bước có hẹn ngày mở mà đã tới ngày → mở khoá (gọi khi giáo viên / học sinh mở trang lớp). */
+    /**
+     * Bước có hẹn giờ mở mà đã tới giờ → mở khoá + báo học sinh. Gọi khi giáo viên / học sinh mở trang lớp và mỗi phút từ lịch
+     * chạy nền (lệnh class-steps:unlock, routes/console.php). SỬA 7/11 — hẹn theo NGÀY + GIỜ PHÚT (unlock_at); dữ liệu cũ chỉ có
+     * ngày (unlock_on) thì mở từ 00:00 ngày đó như trước.
+     */
     public function syncScheduledUnlocks(ClassRoom $classRoom): void
     {
         if (! ClassProgressStep::isReady()) {
             return;
         }
-        $due = ClassProgressStep::query()->where('class_room_id', $classRoom->id)->where('is_unlocked', false)
-            ->whereNotNull('unlock_on')->whereDate('unlock_on', '<=', now()->toDateString())->get();
+        $due = $this->dueStepsQuery()->where('class_room_id', $classRoom->id)->get();
         foreach ($due as $step) {
-            $step->forceFill(['is_unlocked' => true, 'unlocked_at' => now()])->save();
-            $this->notifyStepUnlocked($classRoom, $step);
+            // Khoá dòng theo điều kiện: 2 người mở trang cùng lúc thì chỉ 1 lần mở + 1 lần báo học sinh.
+            $changed = ClassProgressStep::query()->whereKey($step->id)->where('is_unlocked', false)
+                ->update(['is_unlocked' => true, 'unlocked_at' => now(), 'updated_at' => now()]);
+            if ($changed > 0) {
+                $this->notifyStepUnlocked($classRoom, $step);
+            }
         }
+    }
+
+    /** SỬA 7/11 — chạy nền mỗi phút: mở mọi bước tới giờ hẹn của mọi lớp (không cần ai mở trang). @return int số lớp có bước được mở */
+    public function syncAllScheduledUnlocks(): int
+    {
+        if (! ClassProgressStep::isReady()) {
+            return 0;
+        }
+        $classIds = $this->dueStepsQuery()->distinct()->pluck('class_room_id')->all();
+        foreach (ClassRoom::query()->whereIn('id', $classIds ?: [0])->get() as $room) {
+            $this->syncScheduledUnlocks($room);
+        }
+
+        return count($classIds);
+    }
+
+    private function dueStepsQuery()
+    {
+        $now = now();
+
+        return ClassProgressStep::query()->where('is_unlocked', false)->where(function ($q) use ($now) {
+            if (ClassProgressStep::supportsUnlockAt()) {
+                $q->where('unlock_at', '<=', $now)
+                    ->orWhere(fn ($w) => $w->whereNull('unlock_at')->whereNotNull('unlock_on')->whereDate('unlock_on', '<=', $now->toDateString()));
+            } else {
+                $q->whereNotNull('unlock_on')->whereDate('unlock_on', '<=', $now->toDateString());
+            }
+        });
     }
 
     public function progress(ClassRoom $classRoom): array
@@ -793,6 +830,7 @@ class ClassSpaceService
 
         $steps = ClassProgressStep::query()->where('class_room_id', $classRoom->id)->orderBy('position')->orderBy('id')->get()
             ->map(function (ClassProgressStep $s) use ($materials, $assignments, $submittedBy, $rosterIds) {
+                $at = $s->scheduledAt();
                 $items = [];
                 $aIds = [];
                 foreach ((array) $s->items as $it) {
@@ -818,9 +856,14 @@ class ClassSpaceService
                     'title' => $s->title,
                     'description' => (string) $s->description,
                     'unlocked' => (bool) $s->is_unlocked,
-                    'unlockedAt' => $s->unlocked_at?->format('d/m/Y'),
-                    'unlockOn' => $s->unlock_on?->format('Y-m-d'),
-                    'unlockOnLabel' => $s->unlock_on?->format('d/m/Y'),
+                    'unlockedAt' => $s->unlocked_at?->format('H:i d/m/Y'),
+                    // SỬA 7/11 — hẹn giờ mở: ngày + giờ phút (ô nhập của form Sửa) và nhãn "19:30 · Thứ năm, 12/11/2026" + "còn 2 ngày".
+                    'unlockOn' => $at?->format('Y-m-d'),
+                    'unlockDate' => $at?->format('Y-m-d'),
+                    'unlockTime' => $at?->format('H:i'),
+                    'unlockOnLabel' => $at ? $at->format('H:i').' · '.self::weekday($at).', '.$at->format('d/m/Y') : null,
+                    'unlockIn' => $at && $at->isFuture() ? $at->copy()->locale('vi')->diffForHumans(now(), \Carbon\CarbonInterface::DIFF_ABSOLUTE, false, 2) : null,
+                    'unlockTs' => $at ? $at->getTimestamp() * 1000 : null,
                     'items' => $items,
                     'done' => $done,
                     'roster' => count($rosterIds),
@@ -831,8 +874,18 @@ class ClassSpaceService
         // Bước "đang học" = bước đã mở có vị trí lớn nhất.
         $currentId = ($steps->where('unlocked', true)->sortByDesc('position')->first())['id'] ?? null;
 
+        // SỬA 7/11 — các buổi học sắp tới của lớp: chọn nhanh "mở đúng giờ vào buổi" trong form bước.
+        $sessions = ClassSession::query()->where('class_room_id', $classRoom->id)->where('starts_at', '>', now())
+            ->orderBy('starts_at')->limit(8)->get(['id', 'starts_at', 'topic'])
+            ->map(fn ($x) => ['date' => $x->starts_at->format('Y-m-d'), 'time' => $x->starts_at->format('H:i'),
+                'label' => self::weekday($x->starts_at, true).' '.$x->starts_at->format('d/m · H:i'), 'topic' => (string) $x->topic])->all();
+        // Bước khoá có hẹn giờ gần nhất (trong 24 giờ tới) — trang giáo viên tự tải lại phần nội dung đúng lúc đó.
+        $nextTs = $steps->where('unlocked', false)->pluck('unlockTs')->filter(fn ($t) => $t && $t > now()->getTimestamp() * 1000 && $t < now()->addDay()->getTimestamp() * 1000)->min();
+
         return [
             'ready' => true,
+            'sessions' => $sessions,
+            'nextUnlockTs' => $nextTs,
             'steps' => $steps->map(fn ($s) => $s + ['current' => $s['id'] === $currentId])->all(),
             'materials' => $materials->values()->all(),
             'assignments' => $assignments->values()->all(),
@@ -853,12 +906,18 @@ class ClassSpaceService
             array_map(fn ($id) => ['type' => 'assignment', 'id' => (int) $id], $aIds),
         );
 
+        // SỬA 7/11 — hẹn giờ mở theo NGÀY + GIỜ PHÚT ("Y-m-d H:i"); form cũ chỉ gửi ngày (unlock_on) vẫn nhận.
+        $at = ! empty($data['unlock_at']) ? Carbon::createFromFormat('Y-m-d H:i', $data['unlock_at'])->seconds(0)
+            : (! empty($data['unlock_on']) ? Carbon::parse($data['unlock_on'])->startOfDay() : null);
         $attrs = [
             'title' => trim($data['title']),
             'description' => trim((string) ($data['description'] ?? '')) ?: null,
-            'unlock_on' => ! empty($data['unlock_on']) ? $data['unlock_on'] : null,
+            'unlock_on' => $at?->toDateString(),
             'items' => $items,
         ];
+        if (ClassProgressStep::supportsUnlockAt()) {
+            $attrs['unlock_at'] = $at;
+        }
 
         if ($stepId !== null) {
             $step = ClassProgressStep::query()->where('class_room_id', $classRoom->id)->findOrFail($stepId);
@@ -889,9 +948,11 @@ class ClassSpaceService
         $step->forceFill([
             'is_unlocked' => $open,
             'unlocked_at' => $open ? now() : null,
-            // Khoá lại bằng tay thì bỏ hẹn ngày đã qua, kẻo lần tải trang sau lại tự mở.
-            'unlock_on' => (! $open && $step->unlock_on && $step->unlock_on->lte(now())) ? null : $step->unlock_on,
-        ])->save();
+            // Khoá lại bằng tay thì bỏ hẹn giờ đã qua, kẻo lần tải trang sau lại tự mở.
+            'unlock_on' => (! $open && $step->scheduledAt() && $step->scheduledAt()->lte(now())) ? null : $step->unlock_on,
+        ] + (ClassProgressStep::supportsUnlockAt()
+            ? ['unlock_at' => (! $open && $step->scheduledAt() && $step->scheduledAt()->lte(now())) ? null : $step->unlock_at]
+            : []))->save();
         if ($open && $notify) {
             $this->notifyStepUnlocked($classRoom, $step);
         }
@@ -915,6 +976,17 @@ class ClassSpaceService
             $a->forceFill(['position' => $b->position])->save();
             $b->forceFill(['position' => $pa])->save();
         });
+    }
+
+    /** "Thứ năm" / ngắn: "T5" (Chủ nhật: "CN"). */
+    private static function weekday(\DateTimeInterface $d, bool $short = false): string
+    {
+        $w = (int) $d->format('w');
+        if ($short) {
+            return $w === 0 ? 'CN' : 'T'.($w + 1);
+        }
+
+        return $w === 0 ? 'Chủ nhật' : 'Thứ '.['', 'hai', 'ba', 'tư', 'năm', 'sáu', 'bảy'][$w];
     }
 
     private function renumberSteps(ClassRoom $classRoom): void

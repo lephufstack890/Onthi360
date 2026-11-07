@@ -13,7 +13,7 @@
 @if (! ($pg['ready'] ?? false))
     <div class="csp-card"><div class="csp-empty"><x-lucide name="alert-triangle" /><b>Chưa cập nhật cơ sở dữ liệu</b><span>Quản trị chạy <code>php artisan migrate --force</code> trên máy chủ để dùng Tiến trình dạy học.</span></div></div>
 @else
-<div class="csp-grid pg-layout" x-data="cspSteps(@js(['materials' => $pg['materials'], 'assignments' => $pg['assignments'], 'store' => route('teacher.classes.steps.store', $classRoom->id), 'update' => route('teacher.classes.steps.update', ['class' => $classRoom->id, 'step' => 0])]))" @keydown.escape.window="open && close()">
+<div class="csp-grid pg-layout" x-data="cspSteps(@js(['materials' => $pg['materials'], 'assignments' => $pg['assignments'], 'sessions' => $pg['sessions'] ?? [], 'nextTs' => $pg['nextUnlockTs'] ?? null, 'store' => route('teacher.classes.steps.store', $classRoom->id), 'update' => route('teacher.classes.steps.update', ['class' => $classRoom->id, 'step' => 0])]))" @keydown.escape.window="open && close()">
     <div class="csp-card" style="margin:0">
         <div class="csp-ch">
             <span class="csp-ic v"><x-lucide name="layers" /></span>
@@ -39,12 +39,16 @@
                         <div class="pg-tx">
                             <b>Bước {{ $i + 1 }}. {{ $s['title'] }}</b>
                             <small>
-                                @if ($s['unlocked'])Đã mở{{ $s['unlockedAt'] ? ' '.$s['unlockedAt'] : '' }}@elseif ($s['unlockOnLabel'])Chưa mở · hẹn tự mở {{ $s['unlockOnLabel'] }}@else Chưa mở @endif
-                                @if ($s['done'] !== null) · {{ $s['done'] }}/{{ $s['roster'] }} học sinh hoàn thành @endif
+                                @if ($s['unlocked'])Đã mở lúc {{ $s['unlockedAt'] }}@elseif (! $s['unlockOnLabel'])Chưa mở — bật công tắc khi lên lớp @endif
+                                @if ($s['done'] !== null){{ ($s['unlocked'] || ! $s['unlockOnLabel']) ? ' · ' : '' }}{{ $s['done'] }}/{{ $s['roster'] }} học sinh hoàn thành @endif
                             </small>
+                            {{-- SỬA 7/11 — hẹn giờ mở (ngày + giờ phút): tới giờ bước tự mở, học sinh nhận thông báo. --}}
+                            @if (! $s['unlocked'] && $s['unlockOnLabel'])
+                                <span class="pg-when-pill"><x-lucide name="clock" />Tự mở lúc <strong>{{ $s['unlockOnLabel'] }}</strong>@if ($s['unlockIn'])<em>còn {{ $s['unlockIn'] }}</em>@endif</span>
+                            @endif
                         </div>
                         @if ($s['current'])<span class="csp-pill p-late">Đang học</span>@endif
-                        <span class="pg-state">{{ $s['unlocked'] ? 'Đã mở' : 'Đang khoá' }}</span>
+                        <span class="pg-state">{{ $s['unlocked'] ? 'Đã mở' : ($s['unlockOnLabel'] ? 'Hẹn giờ' : 'Đang khoá') }}</span>
                         <form method="POST" action="{{ route('teacher.classes.steps.toggle', ['class' => $classRoom->id, 'step' => $s['id']]) }}" style="margin:0">
                             @csrf
                             <button type="submit" @class(['csp-sw', 'on' => $s['unlocked']]) @disabled(! $pgCan) title="{{ $s['unlocked'] ? 'Khoá lại' : 'Mở khoá cho học sinh' }}" aria-label="{{ $s['unlocked'] ? 'Khoá lại bước' : 'Mở khoá bước' }}"></button>
@@ -83,7 +87,7 @@
             <ul class="pg-tips">
                 <li><x-lucide name="plus" /><span>Thêm bước theo thứ tự bài dạy, gắn tài liệu &amp; bài tập đã có ở tab Tài liệu, Bài tập / Đề.</span></li>
                 <li><x-lucide name="lock" /><span>Học sinh chỉ thấy bước <b>đã mở</b> (trang lớp của em → Tiến trình học).</span></li>
-                <li><x-lucide name="calendar-days" /><span>Đặt "Hẹn ngày mở" để bước tự mở vào ngày đó.</span></li>
+                <li><x-lucide name="clock" /><span>Đặt <b>hẹn giờ mở</b> (ngày + giờ phút, hoặc chọn đúng buổi học) — tới giờ bước tự mở và học sinh nhận thông báo.</span></li>
                 <li><x-lucide name="check-circle-2" /><span>% hoàn thành = số em đã nộp đủ bài tập của bước.</span></li>
             </ul>
         </div>
@@ -117,11 +121,27 @@
                             </div>
                             <p class="pg-none" x-show="!assignments.length">Lớp chưa giao bài nào (tab Bài tập / Đề).</p>
                         </div>
-                        <div><label class="csp-lb" for="pg-on">Hẹn ngày tự mở khoá <em class="asg-opt">(không bắt buộc)</em></label><input id="pg-on" type="date" name="unlock_on" x-model="unlockOn" class="csp-inp"></div>
+                        {{-- SỬA 7/11 (khách: "mở theo giờ phút, tới lúc dạy thì mở ra") — hẹn NGÀY + GIỜ PHÚT; chọn nhanh theo buổi học sắp tới. --}}
+                        <div>
+                            <label class="csp-lb" for="pg-on">Hẹn giờ tự mở khoá <em class="asg-opt">(không bắt buộc)</em></label>
+                            <div class="pg-when">
+                                <input id="pg-on" type="date" x-model="uDate" class="csp-inp" @change="if (uDate && !uTime) uTime = '07:00'" aria-label="Ngày mở">
+                                <input type="time" x-model="uTime" class="csp-inp" step="300" :disabled="!uDate" aria-label="Giờ mở">
+                                <button type="button" class="pg-clear" x-show="uDate" @click="uDate = ''; uTime = ''"><x-lucide name="x" />Bỏ hẹn</button>
+                            </div>
+                            <div class="pg-sess" x-show="sessions.length">
+                                <span>Mở đúng giờ vào buổi:</span>
+                                <template x-for="s in sessions" :key="s.date + s.time">
+                                    <button type="button" :class="{ on: uDate === s.date && uTime === s.time }" @click="uDate = s.date; uTime = s.time" :title="s.topic" x-text="s.label"></button>
+                                </template>
+                            </div>
+                            <p class="pg-hint" x-show="uDate" :class="{ warn: isPast }" x-text="whenHint"></p>
+                            <input type="hidden" name="unlock_at" :value="uDate ? uDate + ' ' + (uTime || '07:00') : ''">
+                        </div>
                     </div>
                     <footer class="tam-foot">
                         <template x-if="id">
-                            <button type="button" class="tam-btn ghost" style="color:#DC2626" @click="if (confirmDel) { $refs.del.submit() } else { confirmDel = true }" x-text="confirmDel ? 'Bấm lần nữa để xoá' : 'Xoá bước'"></button>
+                            <button type="button" class="tam-btn ghost" style="color:#DC2626" @click="if (confirmDel) { $refs.del.requestSubmit ? $refs.del.requestSubmit() : $refs.del.submit() } else { confirmDel = true }" x-text="confirmDel ? 'Bấm lần nữa để xoá' : 'Xoá bước'"></button>
                         </template>
                         <div class="tam-acts">
                             <button type="button" class="tam-btn ghost" @click="close()">Huỷ</button>
@@ -141,7 +161,7 @@
     @media (max-width: 1100px) { .pg-layout { grid-template-columns: minmax(0, 1fr); } }
     .pg-step { display: flex; gap: 12px; }
     .pg-dot { width: 36px; flex: none; display: flex; flex-direction: column; align-items: center; }
-    .pg-dot b { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 900; font-size: 13px; z-index: 1; }
+    .pg-dot b { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 800; font-size: 13px; z-index: 1; }
     .pg-dot b svg { width: 15px; height: 15px; }
     .pg-dot i { flex: 1; width: 3px; margin: 4px 0; background: #E2E8F0; }
     .pg-dot.done b { background: #DCFCE7; color: #16A34A; } .pg-dot.now b { background: #DBEAFE; color: #2563EB; } .pg-dot.lock b { background: #F1F5F9; color: #94A3B8; }
@@ -152,40 +172,66 @@
     .pg-move button { display: grid; place-items: center; width: 22px; height: 16px; padding: 0; border: 0; border-radius: 5px; background: #F1F5F9; color: #64748B; cursor: pointer; }
     .pg-move button:hover:not(:disabled) { background: #E0E7FF; color: #4338CA; } .pg-move button:disabled { opacity: .35; cursor: default; }
     .pg-move svg { width: 13px; height: 13px; }
-    .pg-tx { flex: 1 1 220px; min-width: 0; } .pg-tx b { display: block; font-size: 14px; color: #0F2F57; } .pg-tx small { display: block; margin-top: 2px; font-size: 12px; color: #64748B; }
+    .pg-tx { flex: 1 1 220px; min-width: 0; } .pg-tx > b { display: block; font-size: 14px; color: #0F2F57; } .pg-tx small { display: block; margin-top: 2px; font-size: 12px; color: #64748B; }
     .pg-state { font-size: 12px; font-weight: 700; color: #64748B; }
-    .pg-desc { margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: #475569; white-space: pre-line; }
+    .pg-desc { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: #475569; white-space: pre-line; }
     .pg-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-    .pg-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 0; border-radius: 9px; background: #F1F5F9; font: inherit; font-size: 11.5px; font-weight: 700; color: #475569; }
+    .pg-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 0; border-radius: 9px; background: #F1F5F9; font: inherit; font-size: 12px; font-weight: 700; color: #475569; }
     .pg-chip svg { width: 13px; height: 13px; } .pg-chip.material { background: #EEF4FF; color: #1D4ED8; } .pg-chip.assignment { background: #FFF1E6; color: #C2410C; }
     .pg-chip.add { background: #F5F9FF; color: #2563EB; cursor: pointer; } .pg-chip.add:hover { background: #E6EFFF; }
     .pg-bar { height: 8px; margin-top: 10px; border-radius: 9px; background: #EEF2F7; overflow: hidden; } .pg-bar i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, #2563EB, #60A5FA); }
-    .pg-h { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: #0F2F57; }
+    .pg-h { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: #0F2F57; }
     .pg-ring { display: grid; place-items: center; width: 84px; height: 84px; flex: none; border-radius: 50%; }
-    .pg-ring span { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #fff; font-weight: 900; font-size: 16px; color: #5B21B6; }
+    .pg-ring span { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #fff; font-weight: 800; font-size: 16px; color: #5B21B6; }
     .pg-tips { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .pg-tips li { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.5; color: #475569; } .pg-tips svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: #7C3AED; }
+    .pg-tips li { display: flex; gap: 8px; font-size: 13px; line-height: 1.5; color: #475569; } .pg-tips svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: #7C3AED; }
     .pg-pick { display: flex; flex-wrap: wrap; gap: 6px; max-height: 170px; overflow-y: auto; padding: 2px; }
-    .pg-pick label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: #334155; cursor: pointer; }
+    .pg-pick label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
     .pg-pick label.on { border-color: #7C3AED; background: #F5F3FF; color: #5B21B6; }
     .pg-pick input { accent-color: #7C3AED; }
     .pg-none { margin: 0; font-size: 12px; color: #94A3B8; }
     .asg-opt { font-style: normal; font-weight: 600; color: #94A3B8; }
+    .pg-when-pill { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 10px; border-radius: 10px; background: #F5F3FF; font-size: 12px; color: #5B21B6; }
+    .pg-when-pill svg { width: 14px; height: 14px; } .pg-when-pill strong { font-weight: 700; } .pg-when-pill em { font-style: normal; color: #7C3AED; opacity: .8; }
+    .pg-when { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .pg-when input[type="date"] { flex: 1 1 160px; } .pg-when input[type="time"] { flex: 0 1 120px; }
+    .pg-clear { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: #F1F5F9; font: inherit; font-size: 12px; font-weight: 600; color: #64748B; cursor: pointer; }
+    .pg-clear svg { width: 14px; height: 14px; } .pg-clear:hover { background: #E2E8F0; }
+    .pg-sess { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: #64748B; }
+    .pg-sess button { height: 30px; padding: 0 10px; border: 1px solid #E2E8F0; border-radius: 9px; background: #fff; font: inherit; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; }
+    .pg-sess button:hover { border-color: #C4B5FD; } .pg-sess button.on { border-color: #7C3AED; background: #F5F3FF; color: #5B21B6; }
+    .pg-hint { margin: 8px 0 0; font-size: 12px; color: #5B21B6; } .pg-hint.warn { color: #B45309; }
 </style>
 <script>
     window.cspSteps = function (cfg) {
         return {
             materials: cfg.materials || [], assignments: cfg.assignments || [],
-            open: false, id: null, title: '', description: '', unlockOn: '', mIds: [], aIds: [], busy: false, confirmDel: false, action: cfg.store, delAction: '',
+            sessions: cfg.sessions || [], uDate: '', uTime: '', timer: null,
+            open: false, id: null, title: '', description: '', mIds: [], aIds: [], busy: false, confirmDel: false, action: cfg.store, delAction: '',
+            // SỬA 7/11 — bước hẹn giờ trong 24 giờ tới: đúng giờ đó tự tải lại phần nội dung tab (máy chủ mở khoá + báo học sinh).
+            init() {
+                if (cfg.nextTs && window.cspReload) {
+                    const wait = cfg.nextTs - Date.now() + 1500;
+                    if (wait > 0 && wait < 86400000) this.timer = setTimeout(() => { if (!this.open) window.cspReload(); }, wait);
+                }
+            },
+            destroy() { clearTimeout(this.timer); },
+            get isPast() { return !!this.uDate && new Date(this.uDate + 'T' + (this.uTime || '07:00')) <= new Date(); },
+            get whenHint() {
+                if (!this.uDate) return '';
+                const [y, m, d] = this.uDate.split('-');
+                const when = (this.uTime || '07:00') + ' ngày ' + d + '/' + m + '/' + y;
+                return this.isPast ? 'Thời điểm ' + when + ' đã qua — lưu xong bước sẽ mở ngay và báo học sinh.' : 'Bước tự mở lúc ' + when + ' — học sinh nhận thông báo ngay khi mở.';
+            },
             edit(s) {
                 this.busy = false; this.confirmDel = false;
                 if (s) {
-                    this.id = s.id; this.title = s.title; this.description = s.description || ''; this.unlockOn = s.unlockOn || '';
+                    this.id = s.id; this.title = s.title; this.description = s.description || ''; this.uDate = s.unlockDate || ''; this.uTime = s.unlockTime || '';
                     this.mIds = s.items.filter((i) => i.type === 'material').map((i) => i.id);
                     this.aIds = s.items.filter((i) => i.type === 'assignment').map((i) => i.id);
                     this.action = cfg.update.replace(/\/0$/, '/' + s.id); this.delAction = this.action;
                 } else {
-                    this.id = null; this.title = ''; this.description = ''; this.unlockOn = ''; this.mIds = []; this.aIds = []; this.action = cfg.store;
+                    this.id = null; this.title = ''; this.description = ''; this.uDate = ''; this.uTime = ''; this.mIds = []; this.aIds = []; this.action = cfg.store;
                 }
                 this.open = true; document.documentElement.style.overflow = 'hidden';
                 this.$nextTick(() => this.$refs.title && this.$refs.title.focus());

@@ -58,7 +58,7 @@
     // SỬA 3/11 (khách: "riêng admin quản lý được toàn bộ lớp") — admin thật thấy "Quản lý lớp" ở MỌI lớp: đang xem như Giáo viên
     // thì mở trang lớp bên giáo viên, còn ở giao diện Quản trị thì mở trang sửa lớp của khu quản trị.
     $pclAdmin = $pclViewer !== null && $pclViewer->isRealAdmin();
-    $pclAdminActing = $pclAdmin && $pclViewer->actingRole() !== null;
+    $pclAdminActing = $pclAdmin && $pclViewer->actingRole() === \App\Models\Role::TEACHER; // SỬA 7/11 — chỉ khi đang xem như Giáo viên
 
     /*
      * Dải chip MÔN HỌC (khối [COURSES-03]) đang ẨN: khách chốt trang chỉ cần hai bộ lọc

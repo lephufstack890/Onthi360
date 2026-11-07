@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
 class ClassProgressStep extends Model
 {
     protected $fillable = [
-        'class_room_id', 'position', 'title', 'description', 'items', 'is_unlocked', 'unlocked_at', 'unlock_on', 'created_by',
+        'class_room_id', 'position', 'title', 'description', 'items', 'is_unlocked', 'unlocked_at', 'unlock_on', 'unlock_at', 'created_by',
     ];
 
     protected $casts = [
@@ -21,6 +21,7 @@ class ClassProgressStep extends Model
         'is_unlocked' => 'boolean',
         'unlocked_at' => 'datetime',
         'unlock_on' => 'date',
+        'unlock_at' => 'datetime', // SỬA 7/11 — hẹn NGÀY + GIỜ PHÚT tự mở khoá (migration 001430)
         'position' => 'integer',
     ];
 
@@ -29,6 +30,24 @@ class ClassProgressStep extends Model
         static $ready = null;
 
         return $ready ??= Schema::hasTable('class_progress_steps');
+    }
+
+    /** SỬA 7/11 — đã chạy migration 001430 (cột unlock_at) chưa; chưa thì vẫn chạy theo unlock_on (chỉ ngày) như cũ. */
+    public static function supportsUnlockAt(): bool
+    {
+        static $has = null;
+
+        return $has ??= self::isReady() && Schema::hasColumn('class_progress_steps', 'unlock_at');
+    }
+
+    /** Thời điểm hẹn tự mở: unlock_at; dữ liệu cũ chỉ có ngày (unlock_on) thì tính 00:00 ngày đó. */
+    public function scheduledAt(): ?\Illuminate\Support\Carbon
+    {
+        if (self::supportsUnlockAt() && $this->unlock_at !== null) {
+            return $this->unlock_at;
+        }
+
+        return $this->unlock_on?->copy()->startOfDay();
     }
 
     public function classRoom(): BelongsTo

@@ -331,7 +331,7 @@ class ClassRoomService
                         'parents' => (int) $n->parent_count,
                         'by' => (string) ($n->teacher->name ?? 'Giáo viên'),
                         'mine' => (int) $n->teacher_id === (int) $user->id,
-                        'canDelete' => (int) $n->teacher_id === (int) $user->id || $user->isRealAdmin(),
+                        'canDelete' => (int) $n->teacher_id === (int) $user->id || $user->actingRole() === Role::TEACHER, // SỬA 7/11
                         'at' => $n->published_at?->format('H:i d/m/Y'),
                         'ago' => $n->published_at?->copy()->locale('vi')->diffForHumans(),
                     ])->all();
@@ -808,7 +808,9 @@ class ClassRoomService
     /** Kiểm tra quyền: giáo viên đứng lớp (main/co_teacher) hoặc admin/super_admin (7.2). */
     public function ensureTeaches(ClassRoom $classRoom, User $user): void
     {
-        abort_unless($classRoom->isTaughtBy($user) || $user->hasAnyRole(Role::ADMIN, Role::SUPER_ADMIN) || $user->isRealAdmin(), 403); // SỬA 3/11 — admin thật (kể cả đang xem như Giáo viên) quản lý được mọi lớp
+        // SỬA 7/11 (khách: "giáo viên nào chỉ quản lý lớp của giáo viên đó, trừ giáo viên từ admin chuyển qua") — chỉ giáo viên của lớp,
+        // hoặc quản trị ĐANG "xem như Giáo viên". Tài khoản vừa có vai quản trị vừa có vai giáo viên mà không bấm chuyển thì như giáo viên thường.
+        abort_unless($classRoom->isTaughtBy($user) || $user->actingRole() === Role::TEACHER, 403, 'Bạn không dạy lớp này.');
     }
 
     /** teacher.classes.create — danh sách khóa học để chọn khi tạo lớp mới. */
