@@ -4,6 +4,9 @@
 
 @section('title', 'Chi tiết lớp')
 @section('page-title', 'Chi tiết lớp')
+{{-- SỬA 7/11 (khách: "vào lớp thì thành 1 trang riêng, phóng to, full trang") — bỏ cột menu khu học sinh, lớp chiếm trọn bề ngang
+     (giống không gian lớp bên giáo viên); trên điện thoại menu vẫn mở bằng nút ☰. --}}
+@section('ws-full', '1')
 
 @section('content')
     @php
@@ -247,7 +250,7 @@
         </div>
     </header>
 
-    <main class="grid gap-3 py-3.5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-4 lg:py-4">
+    <main class="stu-full grid gap-3 py-3.5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-4 lg:py-4">
         {{-- ══════ CỘT TRÁI ══════ --}}
         <aside class="space-y-3">
             @if ($lesson)
@@ -995,6 +998,10 @@
      đổi địa chỉ (pushState) — Quay lại / Tiến tới vẫn đúng. Máy chủ vẫn chỉ tính dữ liệu của đúng mục đang mở. Lỗi / hết phiên →
      mở trang theo cách thường. Link có data-stu-full (vd. Làm bài) luôn mở trang mới như bình thường. --}}
 <style>
+    /* SỬA 7/11 — trang lớp toàn màn hình: cột trái rộng hơn, chữ / khoảng cách phóng to đều trên màn lớn. */
+    @media (min-width: 1024px) { .classroom-ui .stu-full { grid-template-columns: 260px minmax(0, 1fr); gap: 20px; } }
+    @media (min-width: 1280px) { .classroom-ui { zoom: 1.06; } }
+    @media (min-width: 1680px) { .classroom-ui { zoom: 1.12; } }
     .stu-navi { color: #466278; } .stu-navi:hover { background: #F4F9FC; }
     .stu-navi.is-on { background: #EAF5F8; font-weight: 600; color: #126F91; }
     [data-stu-panel][aria-busy="true"] { opacity: .55; pointer-events: none; transition: opacity .15s; }
