@@ -141,6 +141,9 @@
                     @endif
                 </section>
 
+                {{-- SỬA 7/11 (khách: "up cả quyển sách để in khi có người đặt") — chỉ thêm khối này, không đổi phần nào khác. --}}
+                @include('admin.products.partials.print-book')
+
                 {{-- SỬA 18/10 — MODULE BỘ ĐỀ: tài liệu loại Bộ đề có khối "Đề trong bộ đề" (lấy đề luyện tập có sẵn, không nhập lại). --}}
                 @if ($product->type === \App\Enums\ProductType::Exam)
                     @include('admin.products.partials.exam-bundle', ['product' => $product])

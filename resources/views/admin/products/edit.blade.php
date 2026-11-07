@@ -170,6 +170,9 @@
                 </section>
             </form>
 
+        {{-- SỬA 7/11 (khách: "chỗ thêm và sửa tài liệu thêm phần up cả quyển sách") — đặt NGOÀI form Lưu thay đổi; chỉ thêm khối này. --}}
+        <div style="margin-top:16px">@include('admin.products.partials.print-book')</div>
+
         <div class="acx-danger" x-data="{ open: false, reason: '' }">
             <h3><x-lucide name="alert-triangle" /> Xóa tài liệu</h3>
             <p>Xóa mềm — quyền truy cập đã cấp trước đó vẫn còn dữ liệu để tra cứu. Bắt buộc nêu lý do (10.4).</p>

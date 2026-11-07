@@ -802,6 +802,11 @@ Route::middleware(['auth'])->group(function () {
         // SỬA 16/10 — đổi thứ tự tài liệu bằng nút ↑ / ↓ ở danh sách (thứ tự này dùng luôn cho trang Tài liệu public).
         Route::post('products/{product}/move', [AdminProductController::class, 'move'])->name('products.move');
         Route::get('products/{product}', [AdminProductController::class, 'show'])->name('products.show');
+        // SỬA 7/11 (khách: "up cả quyển sách, chỉ lưu lại, xem trước, in, tải PDF") — tệp PDF cả cuốn lưu nội bộ để in khi có khách đặt
+        // bản in (Admin\ProductPrintBookController). Chỉ thêm, không đụng các route tài liệu khác.
+        Route::post('products/{product}/ban-in-ca-cuon', [\App\Http\Controllers\Admin\ProductPrintBookController::class, 'upload'])->whereNumber('product')->name('products.print-book.upload');
+        Route::get('products/{product}/ban-in-ca-cuon', [\App\Http\Controllers\Admin\ProductPrintBookController::class, 'file'])->whereNumber('product')->name('products.print-book.file');
+        Route::delete('products/{product}/ban-in-ca-cuon', [\App\Http\Controllers\Admin\ProductPrintBookController::class, 'destroy'])->whereNumber('product')->name('products.print-book.destroy');
         // SỬA 18/10 — MODULE BỘ ĐỀ (Admin\ExamBundleController -> App\Services\ExamBundle\ExamBundleService).
         Route::prefix('products/{product}/bundle')->name('products.bundle.')->group(function () {
             $c = \App\Http\Controllers\Admin\ExamBundleController::class;
