@@ -38,6 +38,7 @@
 </section>
 
 <nav class="csp-tabs" aria-label="Các mục của lớp">
+    <p class="csp-tabs-h">Không gian lớp</p>
     @foreach (\App\Services\Teacher\ClassSpaceService::TABS as $key => [$label, $icon])
         <a href="{{ route('teacher.classes.show', ['class' => $classRoom->id, 'tab' => $key]) }}" @class(['csp-tab', 'on' => $tab === $key]) @if ($tab === $key) aria-current="page" @endif>
             <x-lucide :name="$icon" />{{ $label }}@if (($cspBadges[$key] ?? 0) > 0)<em>{{ $cspBadges[$key] }}</em>@endif

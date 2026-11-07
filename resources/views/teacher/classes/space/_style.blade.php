@@ -91,7 +91,24 @@
         .csp-tab { padding: 0 11px; font-size: 13px; }
         .csp-card { padding: 14px; }
     }
+    /* SỬA 7/11 (khách: "mấy tab để hàng dọc dạng sidebar") — màn ≥1024px: các mục của lớp thành cột menu dọc bên trái (dính khi cuộn),
+       nội dung tab bên phải; đầu lớp (hero) vẫn trải hết bề ngang. Màn nhỏ giữ dải tab ngang cuộn được như cũ. */
+    .csp-tabs-h { display: none; }
+    @media (min-width: 1024px) {
+        .tcx.csp { display: grid; grid-template-columns: 244px minmax(0, 1fr); column-gap: 18px; align-items: start; }
+        .tcx.csp > * { grid-column: 1 / -1; }
+        .tcx.csp > .csp-tabs { grid-column: 1; position: sticky; top: 84px; flex-direction: column; gap: 2px; margin: 16px 0 0; padding: 10px; overflow: visible; }
+        .tcx.csp > .tcx-panel { grid-column: 2; min-width: 0; margin-top: 16px; }
+        .csp-tabs-h { display: block; margin: 2px 8px 8px; padding-bottom: 8px; border-bottom: 1px solid #EEF3F7; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94A3B8; }
+        .csp-tab { flex: none; justify-content: flex-start; gap: 10px; height: 44px; padding: 0 14px; font-size: 14px; }
+        .csp-tab svg { width: 17px; height: 17px; flex: none; }
+        .csp-tab em { margin-left: auto; }
+        .csp-tab.on { box-shadow: 0 6px 14px rgba(23, 107, 80, .22); }
+        /* Sổ điểm danh: nội dung hẹp lại vì có cột menu — thu bớt bề rộng cột để vừa 4 buổi / trang. */
+        .tcx.csp .att-name { min-width: 186px; } .tcx.csp .att-sess { min-width: 190px; } .tcx.csp .att-addcol { width: 84px; }
+    }
     @media print {
+        .tcx.csp { display: block; }
         header, .csp-back, .csp-hero, .csp-tabs, .csp-noprint, [data-toast-root] { display: none !important; }
         body { background: #fff !important; }
         .csp-card { border: 0; box-shadow: none; padding: 0; }
