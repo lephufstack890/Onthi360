@@ -193,8 +193,15 @@ class ClassRoomService
         // thái độc lập: thời gian (Sắp diễn ra/Đang diễn ra/Đã kết thúc) và điểm danh CỦA
         // CHÍNH học sinh này (Có mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm danh).
         $scheduleWeek = ['weekOffset' => 0, 'weekStart' => now()->startOfWeek(Carbon::MONDAY), 'weekEnd' => now()->endOfWeek(Carbon::SUNDAY), 'days' => []];
+        // SỬA 7/11 (khách: "vẽ lại thời khoá biểu bằng thư viện cho đẹp, bỏ khối Hoạt động buổi học") — tab Lịch học dùng lịch
+        // FullCalendar: nạp MỌI buổi của lớp (kèm điểm danh của em) một lần, lịch tự chuyển tuần / tháng trên trình duyệt.
+        // Hàm cũ buildScheduleTab() (bảng theo tuần + hoạt động) vẫn giữ, không gọi nữa.
+        $calendar = null;
         if ($tab === 'schedule') {
-            $scheduleWeek = $this->buildScheduleTab($classRoom, $user, $weekOffset);
+            $calendar = $this->buildScheduleCalendar($classRoom, $user);
+            $weekOffset = max(-self::MAX_WEEK_OFFSET, min(self::MAX_WEEK_OFFSET, $weekOffset));
+            $scheduleWeek['weekOffset'] = $weekOffset;
+            $scheduleWeek['weekStart'] = now()->startOfWeek(Carbon::MONDAY)->addWeeks($weekOffset)->startOfDay();
         }
 
         // Đánh giá lớp: review đã publish.
@@ -252,6 +259,7 @@ class ClassRoomService
             'students' => $students,
             'progressSteps' => $progressSteps,
             'progressUpcoming' => $progressUpcoming,
+            'calendar' => $calendar,
             'classAssign' => $classAssign,
             'myResults' => $myResults,
         ];
@@ -685,6 +693,69 @@ class ClassRoomService
             'weekStart' => $weekStart,
             'weekEnd' => $weekEnd,
             'days' => $days,
+        ];
+    }
+
+    /**
+     * SỬA 7/11 — dữ liệu lịch FullCalendar của tab Lịch học: mọi buổi của lớp (tối đa 500) + điểm danh của em + vài số tổng.
+     *
+     * @return array{events: list<array>, stats: array<string,int>, minHour: int, maxHour: int, next: ?string}
+     */
+    private function buildScheduleCalendar(ClassRoom $classRoom, User $user): array
+    {
+        $sessions = ClassSession::query()->where('class_room_id', $classRoom->id)->whereNotNull('starts_at')
+            ->orderBy('starts_at')->limit(500)->get();
+        $att = $this->attendance->forStudentInSessionIds($user->id, $sessions->pluck('id')->all());
+
+        $events = [];
+        $stats = ['total' => $sessions->count(), 'done' => 0, 'upcoming' => 0, 'present' => 0, 'absent' => 0];
+        $minH = 24;
+        $maxH = 0;
+        foreach ($sessions->values() as $i => $s) {
+            $end = $s->ends_at ?? $s->starts_at->copy()->addMinutes(90);
+            [$tLabel, $tTone] = $this->timeStatus($s);
+            $state = match ($tTone) { 'info' => 'upcoming', 'warning' => 'live', default => 'done' };
+            $rec = $att->get($s->id);
+            $aKey = $rec?->status instanceof \BackedEnum ? $rec->status->value : ($rec ? (string) $rec->status : null);
+            [$aLabel] = $aKey !== null ? (self::ATTENDANCE_LABELS[$aKey] ?? [$aKey, 'neutral']) : ['Chưa điểm danh', 'neutral'];
+            $stats[$state === 'upcoming' ? 'upcoming' : 'done']++;
+            if (in_array($aKey, ['present', 'late'], true)) {
+                $stats['present']++;
+            } elseif (in_array($aKey, ['absent', 'excused'], true)) {
+                $stats['absent']++;
+            }
+            $minH = min($minH, (int) $s->starts_at->format('G'));
+            $maxH = max($maxH, (int) $end->format('G') + ((int) $end->format('i') > 0 ? 1 : 0));
+            $loc = (string) ($s->location ?? '');
+            $isLink = $loc !== '' && \Illuminate\Support\Str::startsWith($loc, ['http://', 'https://']);
+            $events[] = [
+                'id' => (string) $s->id,
+                'title' => $s->topic ?: 'Buổi '.($i + 1),
+                'start' => $s->starts_at->format('Y-m-d\TH:i:s'),
+                'end' => $end->format('Y-m-d\TH:i:s'),
+                'classNames' => ['ev-'.$state, $aKey ? 'att-'.$aKey : 'att-none'],
+                'extendedProps' => [
+                    'no' => $i + 1,
+                    'state' => $state,
+                    'stateLabel' => $tLabel,
+                    'att' => $aKey ?? 'none',
+                    'attLabel' => $aLabel,
+                    'place' => $isLink ? '' : $loc,
+                    'link' => $isLink ? $loc : '',
+                    'day' => self::WEEKDAY_LABELS[((int) $s->starts_at->format('N')) - 1].', '.$s->starts_at->format('d/m/Y'),
+                    'time' => $s->starts_at->format('H:i').' – '.$end->format('H:i'),
+                ],
+            ];
+        }
+        $next = $sessions->first(fn ($s) => ($s->ends_at ?? $s->starts_at)->isFuture());
+
+        return [
+            'events' => $events,
+            'stats' => $stats,
+            'minHour' => $minH === 24 ? 7 : max(0, $minH - 1),
+            'maxHour' => $maxH === 0 ? 22 : min(24, max($maxH + 1, $minH + 4)),
+            'next' => $next ? self::WEEKDAY_LABELS[((int) $next->starts_at->format('N')) - 1].' '.$next->starts_at->format('d/m · H:i') : null,
+            'nextDate' => $next?->starts_at->format('Y-m-d'),
         ];
     }
 

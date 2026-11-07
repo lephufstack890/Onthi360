@@ -395,153 +395,225 @@
             @endforelse
         </div>
     @elseif ($tab === 'schedule')
-        {{-- DẠNG BẢNG theo tuần (Thứ Hai → Chủ Nhật, có ngày cụ thể) — cùng cách trình bày
-             với student.schedule.index (trang thời khoá biểu gộp mọi lớp), chỉ khác là CHỈ
-             lọc buổi học của LỚP NÀY. Mỗi buổi có ĐỦ 2 trạng thái độc lập: thời gian (Sắp
-             diễn ra/Đang diễn ra/Đã kết thúc) và điểm danh CỦA CHÍNH học sinh này (Có
-             mặt/Vắng/Vắng có phép/Đi trễ/Chưa điểm danh). Xem App\Services\Student\
-             ClassRoomService::buildScheduleTab(). --}}
-        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
-            <div class="flex items-center gap-2">
-                <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule', 'week' => $weekOffset - 1]) }}"
-                   class="w-9 h-9 rounded-xl border border-sky-100 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần trước">‹</a>
-                <p class="text-[13px] font-medium text-slate-700 min-w-[160px] text-center">
-                    {{ $weekStart->format('d/m') }} – {{ $weekEnd->format('d/m/Y') }}
-                </p>
-                <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule', 'week' => $weekOffset + 1]) }}"
-                   class="w-9 h-9 rounded-xl border border-sky-100 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Tuần sau">›</a>
-            </div>
-            @if ($weekOffset !== 0)
-                <a href="{{ route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'schedule']) }}" class="text-[13px] text-blue-600 font-medium">Về tuần này</a>
-            @endif
-        </div>
-
-        <div class="bg-white rounded-3xl border border-sky-100 overflow-x-auto">
-            <table class="w-full border-collapse min-w-[980px] table-fixed">
-                <thead>
-                    <tr>
-                        @foreach ($days as $day)
-                            <th class="w-[14.2857%] align-top border-b border-sky-100 {{ ! $loop->last ? 'border-r' : '' }} p-3 text-left {{ $day['isToday'] ? 'bg-blue-50' : 'bg-slate-50' }}">
-                                <p class="text-xs font-semibold uppercase tracking-wide {{ $day['isToday'] ? 'text-blue-600' : 'text-slate-500' }}">{{ $day['label'] }}</p>
-                                <p class="text-[13px] font-medium text-slate-700">{{ $day['date']->format('d/m') }}</p>
-                            </th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        @foreach ($days as $day)
-                            <td class="align-top border-sky-100 {{ ! $loop->last ? 'border-r' : '' }} p-2 {{ $day['isToday'] ? 'bg-blue-50/30' : '' }}">
-                                <div class="space-y-2">
-                                    @forelse ($day['sessions'] as $s)
-                                        <div class="rounded-xl bg-slate-50 border border-slate-100 p-2.5">
-                                            <p class="text-xs font-semibold text-slate-700 truncate" title="{{ $s['topic'] }}">{{ $s['topic'] ?? 'Buổi học' }}</p>
-                                            @if (! empty($s['location']))
-                                                <p class="text-xs text-slate-400 truncate" title="{{ $s['location'] }}"><x-lucide name="map-pin" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $s['location'] }}</p>
-                                            @endif
-                                            <p class="text-xs text-slate-400 mt-1"><x-lucide name="clock" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ $s['timeRangeLabel'] }}</p>
-                                            <div class="flex flex-wrap items-center gap-1 mt-1.5">
-                                                <x-ws.badge :tone="$s['timeStatusTone']">{{ $s['timeStatusLabel'] }}</x-ws.badge>
-                                                <x-ws.badge :tone="$s['attendanceTone']">{{ $s['attendanceLabel'] }}</x-ws.badge>
-                                            </div>
-
-                                            {{-- SỬA 9/9 (5) — ô lịch chỉ hiện SỐ hoạt động cho gọn;
-                                                 danh sách đầy đủ + nút Làm bài nằm ở khu "Hoạt động
-                                                 buổi học" ngay dưới bảng, rộng rãi dễ bấm hơn. --}}
-                                            @if (! empty($s['activities']))
-                                                <p class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">
-                                                    <x-lucide name="layers" class="inline h-3.5 w-3.5 shrink-0 align-[-2px]" /> {{ count($s['activities']) }} hoạt động
-                                                </p>
-                                            @endif
-                                        </div>
-                                    @empty
-                                        <p class="text-xs text-slate-300 italic px-1">—</p>
-                                    @endforelse
-                                </div>
-                            </td>
-                        @endforeach
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        {{-- ═══════════ HOẠT ĐỘNG BUỔI HỌC ═══════════
-             SỬA 9/9 (5) (khách: "học sinh thấy được hoạt động, thiết kế UI thân thiện dễ nhìn, và
-             học sinh có thể click vào làm được đề trong hoạt động"). Chỉ hiện hoạt động giáo viên
-             ĐÃ BẤM PHÁT (lọc từ Student\ClassRoomService bằng scopePublished()). --}}
+        {{-- SỬA 7/11 (khách: "dùng thư viện vẽ lại thời khoá biểu cho đẹp, bỏ khối Hoạt động buổi học") — lịch FullCalendar 6 (nạp từ
+             CDN jsdelivr, chỉ khi mở tab này): xem theo Tuần (khung giờ) / Tháng / Danh sách, điện thoại tự sang dạng danh sách.
+             Mỗi buổi tô màu theo trạng thái (sắp diễn ra / đang diễn ra / đã kết thúc) + chấm điểm danh của em; bấm buổi để xem chi
+             tiết (giờ, phòng / link vào học, điểm danh). Dữ liệu: Student\ClassRoomService::buildScheduleCalendar() — mọi buổi của
+             lớp nạp 1 lần, chuyển tuần / tháng không gọi lại máy chủ. --}}
         @php
-            $activityDays = collect($days)
-                ->flatMap(fn ($day) => collect($day['sessions'])
-                    ->filter(fn ($s) => ! empty($s['activities']))
-                    ->map(fn ($s) => $s + ['dayLabel' => $day['label'] ?? '', 'isToday' => $day['isToday'] ?? false])
-                    ->all())
-                ->values();
+            $cal = $calendar ?? ['events' => [], 'stats' => ['total' => 0, 'done' => 0, 'upcoming' => 0, 'present' => 0, 'absent' => 0], 'minHour' => 7, 'maxHour' => 22, 'next' => null, 'nextDate' => null];
+            $calInit = $weekOffset !== 0 ? $weekStart->format('Y-m-d') : now()->format('Y-m-d');
         @endphp
-
-        <div class="mt-6">
-            <div class="flex items-center gap-2.5 mb-3">
-                <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center text-lg"><x-lucide name="layers" class="h-4 w-4" /></span>
-                <div>
-                    <h3 class="font-semibold text-slate-800">Hoạt động buổi học</h3>
-                    <p class="text-xs text-slate-400">Bài giao thầy cô đã phát cho tuần này — bấm để làm ngay.</p>
+        <section class="scal" x-data="stuCal(@js(['events' => $cal['events'], 'minHour' => $cal['minHour'], 'maxHour' => $cal['maxHour'], 'initialDate' => $calInit, 'nextDate' => $cal['nextDate']]))" @keydown.escape.window="sel = null">
+            <header class="scal-head">
+                <span class="scal-ic"><x-lucide name="calendar-days" /></span>
+                <div class="scal-ht">
+                    <h2>Lịch học của lớp</h2>
+                    <p>{{ $cal['next'] ? 'Buổi tới: '.$cal['next'] : 'Chưa có buổi học sắp tới' }}{{ $scheduleNote ? ' · '.$scheduleNote : '' }}</p>
                 </div>
+                @if ($cal['nextDate'])
+                    <button type="button" class="scal-jump" @click="goNext()"><x-lucide name="arrow-right" />Đến buổi tới</button>
+                @endif
+            </header>
+
+            <div class="scal-stats">
+                <div><b>{{ $cal['stats']['total'] }}</b><span>Tổng số buổi</span></div>
+                <div class="done"><b>{{ $cal['stats']['done'] }}</b><span>Đã học</span></div>
+                <div class="up"><b>{{ $cal['stats']['upcoming'] }}</b><span>Sắp tới</span></div>
+                <div class="ok"><b>{{ $cal['stats']['present'] }}<small>/{{ $cal['stats']['done'] }}</small></b><span>Buổi em có mặt</span></div>
             </div>
 
-            @forelse ($activityDays as $sess)
-                <div class="rounded-3xl border border-sky-100 bg-white overflow-hidden mb-3">
-                    <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                        <span class="text-[13px] font-semibold text-slate-700">{{ $sess['topic'] ?: 'Buổi học' }}</span>
-                        <span class="text-xs text-slate-400">
-                            {{ $sess['startsAt']?->format('d/m/Y') }} · {{ $sess['timeRangeLabel'] }}
-                        </span>
-                        @if ($sess['isToday'])
-                            <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold">Hôm nay</span>
-                        @endif
-                    </div>
+            <div class="scal-legend">
+                <span><i class="st-upcoming"></i>Sắp diễn ra</span>
+                <span><i class="st-live"></i>Đang diễn ra</span>
+                <span><i class="st-done"></i>Đã kết thúc</span>
+                <span class="sep"></span>
+                <span><i class="dot att-present"></i>Có mặt</span>
+                <span><i class="dot att-late"></i>Đi trễ</span>
+                <span><i class="dot att-excused"></i>Có phép</span>
+                <span><i class="dot att-absent"></i>Vắng</span>
+            </div>
 
-                    <div class="p-4 space-y-3">
-                        @foreach ($sess['activities'] as $activity)
-                            <div class="rounded-xl border border-violet-100 bg-violet-50/40 p-3">
-                                <p class="text-[13px] font-bold text-violet-800 flex items-center gap-1.5">
-                                    <span><x-lucide name="layers" class="h-4 w-4" /></span> {{ $activity['title'] }}
-                                </p>
-                                @if (! empty($activity['note']))
-                                    <p class="text-xs text-slate-500 mt-0.5">{{ $activity['note'] }}</p>
-                                @endif
+            <div class="scal-box">
+                <div class="scal-cal" x-ref="cal"></div>
+                <p class="scal-msg" x-show="!ready && !failed">Đang tải lịch…</p>
+                <p class="scal-msg err" x-show="failed" x-cloak>Không tải được lịch — kiểm tra kết nối mạng rồi tải lại trang.</p>
+            </div>
 
-                                <div class="mt-2.5 space-y-2">
-                                    @forelse ($activity['resources'] as $res)
-                                        <div class="flex flex-wrap items-center gap-3 rounded-xl bg-white border border-sky-100 px-3 py-2.5">
-                                            <span class="text-lg shrink-0"><x-lucide name="file-check-2" class="h-4 w-4" /></span>
-                                            <div class="min-w-0 flex-1">
-                                                <p class="text-[13px] font-medium text-slate-700 truncate" title="{{ $res['title'] }}">{{ $res['title'] }}</p>
-                                                <p class="text-[11px] text-slate-400">{{ $res['typeLabel'] }}</p>
-                                            </div>
-                                            @if (! empty($res['assessmentId']))
-                                                <a href="{{ route('student.assessment.take', $res['assessmentId']) }}"
-                                                   class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-[13px] font-semibold shadow-sm hover:bg-blue-700 transition">
-                                                    ▶ Làm bài
-                                                </a>
-                                            @else
-                                                <span class="shrink-0 text-[11px] text-slate-400 italic">Thầy cô chưa mở làm bài</span>
-                                            @endif
-                                        </div>
-                                    @empty
-                                        <p class="text-xs text-slate-400">Hoạt động này chưa có bài nào.</p>
-                                    @endforelse
+            {{-- Chi tiết buổi --}}
+            <div class="scal-ov" x-show="sel" x-cloak x-transition.opacity @click.self="sel = null">
+                <div class="scal-dlg" role="dialog" aria-modal="true" x-show="sel" x-transition.scale.95>
+                    <template x-if="sel">
+                        <div>
+                            <header :class="'st-' + sel.state">
+                                <span class="no" x-text="'Buổi ' + sel.no"></span>
+                                <h3 x-text="sel.title"></h3>
+                                <button type="button" class="x" @click="sel = null" aria-label="Đóng"><x-lucide name="x" /></button>
+                            </header>
+                            <div class="body">
+                                <p><x-lucide name="calendar-days" /><span x-text="sel.day"></span></p>
+                                <p><x-lucide name="clock" /><span x-text="sel.time"></span></p>
+                                <p x-show="sel.place"><x-lucide name="map-pin" /><span x-text="sel.place"></span></p>
+                                <div class="chips">
+                                    <span class="pill" :class="'st-' + sel.state" x-text="sel.stateLabel"></span>
+                                    <span class="pill" :class="'att-' + sel.att" x-text="sel.attLabel"></span>
                                 </div>
+                                <a x-show="sel.link" :href="sel.link" target="_blank" rel="noopener noreferrer" class="go"><x-lucide name="video" />Vào phòng học trực tuyến</a>
                             </div>
-                        @endforeach
-                    </div>
+                        </div>
+                    </template>
                 </div>
-            @empty
-                <div class="rounded-3xl border-2 border-dashed border-sky-100 py-10 text-center">
-                    <p class="text-3xl mb-2">🌤️</p>
-                    <p class="text-[13px] text-slate-500">Tuần này chưa có hoạt động nào được phát.</p>
-                    <p class="text-xs text-slate-400 mt-1">Khi thầy cô phát hoạt động, bài giao sẽ hiện ở đây để em làm.</p>
-                </div>
-            @endforelse
-        </div>
+            </div>
+        </section>
+
+        <script>
+            window.stuCal = function (cfg) {
+                const W = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                const pad = (n) => String(n).padStart(2, '0');
+                return {
+                    sel: null, cal: null, ready: false, failed: false,
+                    init() {
+                        const run = () => this.render();
+                        if (window.FullCalendar) return this.$nextTick(run);
+                        let s = document.querySelector('script[data-fc]');
+                        if (!s) {
+                            s = document.createElement('script');
+                            s.src = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js';
+                            s.setAttribute('data-fc', '1');
+                            document.head.appendChild(s);
+                        }
+                        s.addEventListener('load', run, { once: true });
+                        s.addEventListener('error', () => { this.failed = true; }, { once: true });
+                    },
+                    destroy() { if (this.cal) { this.cal.destroy(); this.cal = null; } },
+                    goNext() { if (this.cal && cfg.nextDate) this.cal.gotoDate(cfg.nextDate); },
+                    render() {
+                        const FC = window.FullCalendar;
+                        if (!FC || !this.$refs.cal || this.cal) return;
+                        const mobile = window.matchMedia('(max-width: 767px)').matches;
+                        this.cal = new FC.Calendar(this.$refs.cal, {
+                            locales: [{ code: 'vi', week: { dow: 1, doy: 4 }, buttonText: { prev: 'Trước', next: 'Sau', today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'Danh sách' }, allDayText: 'Cả ngày', moreLinkText: (n) => '+' + n + ' buổi', noEventsText: 'Không có buổi học nào trong khoảng này' }],
+                            locale: 'vi',
+                            initialView: mobile ? 'listMonth' : 'timeGridWeek',
+                            initialDate: cfg.initialDate,
+                            headerToolbar: mobile
+                                ? { left: 'prev,next', center: 'title', right: 'today' }
+                                : { left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth,listMonth' },
+                            views: { timeGridWeek: { buttonText: 'Tuần' }, dayGridMonth: { buttonText: 'Tháng' }, listMonth: { buttonText: 'Danh sách' } },
+                            events: cfg.events,
+                            allDaySlot: false,
+                            nowIndicator: true,
+                            height: 'auto',
+                            expandRows: true,
+                            slotMinTime: pad(cfg.minHour) + ':00:00',
+                            slotMaxTime: (cfg.maxHour >= 24 ? '24' : pad(cfg.maxHour)) + ':00:00',
+                            slotDuration: '00:30:00',
+                            slotLabelInterval: '01:00',
+                            slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                            dayMaxEvents: 3,
+                            dayHeaderContent: (a) => a.view.type === 'timeGridWeek'
+                                ? { html: '<span class="dw">' + W[a.date.getDay()] + '</span><span class="dd">' + a.date.getDate() + '/' + (a.date.getMonth() + 1) + '</span>' }
+                                : W[a.date.getDay()],
+                            eventContent: (a) => {
+                                const p = a.event.extendedProps;
+                                const att = '<i class="dot att-' + esc(p.att) + '" title="' + esc(p.attLabel) + '"></i>';
+                                if (a.view.type === 'listMonth') {
+                                    return { html: '<div class="scal-li"><b>' + esc(a.event.title) + '</b>' + (p.place ? '<span>· ' + esc(p.place) + '</span>' : '')
+                                        + '<em class="pill st-' + esc(p.state) + '">' + esc(p.stateLabel) + '</em><em class="pill att-' + esc(p.att) + '">' + esc(p.attLabel) + '</em></div>' };
+                                }
+                                if (a.view.type === 'dayGridMonth') {
+                                    return { html: '<div class="scal-mo">' + att + '<b>' + esc(p.time.split(' ')[0]) + '</b><span>' + esc(a.event.title) + '</span></div>' };
+                                }
+                                return { html: '<div class="scal-ev"><div class="t">' + att + '<b>' + esc(a.event.title) + '</b></div><span>' + esc(p.time) + '</span>'
+                                    + (p.place ? '<span class="pl">' + esc(p.place) + '</span>' : '') + (p.link ? '<span class="pl">Học trực tuyến</span>' : '') + '</div>' };
+                            },
+                            eventClick: (a) => { a.jsEvent.preventDefault(); this.sel = Object.assign({ title: a.event.title }, a.event.extendedProps); },
+                        });
+                        this.cal.render();
+                        this.ready = true;
+                    },
+                };
+            };
+        </script>
+        <style>
+            .scal { padding: 18px; border: 1px solid #DDEAF0; border-radius: 20px; background: #fff; box-shadow: 0 6px 18px rgba(15, 42, 74, .04); }
+            .scal-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+            .scal-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EAF5F8; color: #126F91; }
+            .scal-ic svg { width: 19px; height: 19px; }
+            .scal-ht { flex: 1 1 260px; min-width: 0; } .scal-ht h2 { margin: 0; font-size: 15px; font-weight: 700; color: #123B68; } .scal-ht p { margin: 2px 0 0; font-size: 12px; color: #61798B; }
+            .scal-jump { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 11px; background: linear-gradient(135deg, #126F91, #1688B0); font: inherit; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 6px 14px rgba(18, 111, 145, .22); }
+            .scal-jump svg { width: 15px; height: 15px; }
+            .scal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+            @media (max-width: 640px) { .scal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            .scal-stats div { display: flex; flex-direction: column; padding: 10px 12px; border: 1px solid #E5EDF3; border-radius: 14px; background: #F8FBFD; }
+            .scal-stats b { font-size: 20px; line-height: 1.15; font-weight: 800; color: #123B68; } .scal-stats b small { font-size: 12px; font-weight: 600; color: #7890A0; }
+            .scal-stats span { font-size: 12px; font-weight: 600; color: #61798B; }
+            .scal-stats .done b { color: #475569; } .scal-stats .up b { color: #1D4ED8; } .scal-stats .ok b { color: #15803D; }
+            .scal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 12px 0 10px; font-size: 12px; color: #61798B; }
+            .scal-legend span { display: inline-flex; align-items: center; gap: 6px; } .scal-legend .sep { width: 1px; height: 14px; background: #DDE6EE; }
+            .scal-legend i { width: 14px; height: 10px; border-radius: 3px; }
+            .scal i.dot { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 50%; }
+            .st-upcoming { background: #DBEAFE; box-shadow: inset 3px 0 #2563EB; } .st-live { background: #DCFCE7; box-shadow: inset 3px 0 #16A34A; } .st-done { background: #F1F5F9; box-shadow: inset 3px 0 #94A3B8; }
+            .att-present { background: #16A34A; } .att-late { background: #2563EB; } .att-excused { background: #F59E0B; } .att-absent { background: #EF4444; } .att-none { background: #CBD5E1; }
+            .scal-box { position: relative; min-height: 120px; }
+            .scal-msg { margin: 0; padding: 30px 0; text-align: center; font-size: 13px; color: #61798B; } .scal-msg.err { color: #DC2626; }
+            /* Trang lớp phóng to bằng zoom (show.blade.php) — trả lịch về tỉ lệ 1 để thư viện đo vị trí buổi học không lệch. */
+            @media (min-width: 1280px) { .classroom-ui .scal-cal { zoom: .9434; font-size: 14px; } }
+            @media (min-width: 1680px) { .classroom-ui .scal-cal { zoom: .8929; font-size: 15px; } }
+            .scal .fc { --fc-border-color: #E5EDF3; --fc-today-bg-color: #F3F9FF; --fc-now-indicator-color: #EF4444; --fc-page-bg-color: #fff; --fc-neutral-bg-color: #F8FBFD; --fc-list-event-hover-bg-color: #F4F9FC;
+                --fc-button-bg-color: #fff; --fc-button-border-color: #D5E4EC; --fc-button-text-color: #126F91; --fc-button-hover-bg-color: #F0F8FB; --fc-button-hover-border-color: #126F91;
+                --fc-button-active-bg-color: #126F91; --fc-button-active-border-color: #126F91; --fc-event-border-color: transparent; font-family: inherit; font-size: 13px; color: #334155; }
+            .scal .fc .fc-toolbar { flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+            .scal .fc .fc-toolbar-title { font-size: 16px; font-weight: 700; color: #123B68; text-transform: capitalize; }
+            .scal .fc .fc-button { padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; text-transform: none; box-shadow: none !important; }
+            .scal .fc .fc-button-group > .fc-button { border-radius: 0; } .scal .fc .fc-button-group > .fc-button:first-child { border-radius: 10px 0 0 10px; } .scal .fc .fc-button-group > .fc-button:last-child { border-radius: 0 10px 10px 0; }
+            .scal .fc .fc-button-primary:not(:disabled).fc-button-active, .scal .fc .fc-button-primary:not(:disabled):active { color: #fff; }
+            .scal .fc .fc-button-primary:disabled { opacity: .45; }
+            .scal .fc .fc-scrollgrid { border-radius: 14px; overflow: hidden; }
+            .scal .fc .fc-col-header-cell { padding: 8px 0; background: #F8FBFD; font-weight: 600; color: #475569; }
+            .scal .fc .fc-col-header-cell-cushion { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; text-decoration: none; color: inherit; }
+            .scal .fc .dw { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: #7890A0; } .scal .fc .dd { font-size: 15px; font-weight: 700; color: #123B68; }
+            .scal .fc .fc-day-today .dw, .scal .fc .fc-day-today .dd { color: #1D4ED8; }
+            .scal .fc .fc-timegrid-slot { height: 30px; } .scal .fc .fc-timegrid-slot-label-cushion { font-size: 12px; color: #7890A0; }
+            .scal .fc .fc-daygrid-day-number { font-size: 12px; font-weight: 600; color: #61798B; text-decoration: none; }
+            .scal .fc a { text-decoration: none; }
+            .scal .fc .fc-v-event, .scal .fc .fc-daygrid-event { border: 0; border-radius: 10px; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+            .scal .fc .fc-v-event:hover, .scal .fc .fc-daygrid-event:hover { box-shadow: 0 6px 14px rgba(15, 42, 74, .14); }
+            .scal .fc .fc-v-event .fc-event-main { color: inherit; padding: 4px 6px; }
+            .scal .fc .ev-upcoming.fc-v-event { background: #EAF2FF; box-shadow: inset 4px 0 #2563EB; color: #1E3A8A; }
+            .scal .fc .ev-live.fc-v-event { background: #E7F8EE; box-shadow: inset 4px 0 #16A34A; color: #14532D; }
+            .scal .fc .ev-done.fc-v-event { background: #F1F5F9; box-shadow: inset 4px 0 #94A3B8; color: #475569; }
+            .scal-ev { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow: hidden; padding-left: 3px; font-size: 12px; line-height: 1.35; }
+            .scal-ev .t { display: flex; align-items: center; gap: 5px; min-width: 0; } .scal-ev b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 700; }
+            .scal-ev span { opacity: .85; } .scal-ev .pl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .scal .fc .fc-daygrid-event { padding: 2px 6px; background: #F4F8FB; }
+            .scal .fc .ev-upcoming.fc-daygrid-event { background: #EAF2FF; color: #1E3A8A; } .scal .fc .ev-live.fc-daygrid-event { background: #E7F8EE; color: #14532D; } .scal .fc .ev-done.fc-daygrid-event { color: #475569; }
+            .scal-mo { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; font-size: 12px; } .scal-mo b { font-weight: 700; } .scal-mo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .scal .fc .fc-list { border-radius: 14px; overflow: hidden; } .scal .fc .fc-list-day-cushion { background: #F8FBFD; }
+            .scal .fc .fc-list-day-text, .scal .fc .fc-list-day-side-text { font-weight: 700; color: #123B68; text-transform: capitalize; }
+            .scal .fc .fc-list-event { cursor: pointer; } .scal .fc .fc-list-event-dot { border-color: #126F91; }
+            .scal .fc .ev-done .fc-list-event-dot { border-color: #94A3B8; } .scal .fc .ev-live .fc-list-event-dot { border-color: #16A34A; }
+            .scal-li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .scal-li b { font-weight: 700; color: #123B68; } .scal-li span { color: #61798B; }
+            .scal .pill { padding: 2px 9px; border-radius: 999px; font-style: normal; font-size: 11px; font-weight: 700; white-space: nowrap; }
+            .scal .pill.st-upcoming { background: #DBEAFE; color: #1D4ED8; box-shadow: none; } .scal .pill.st-live { background: #DCFCE7; color: #15803D; box-shadow: none; } .scal .pill.st-done { background: #F1F5F9; color: #475569; box-shadow: none; }
+            .scal .pill.att-present { background: #DCFCE7; color: #15803D; } .scal .pill.att-late { background: #DBEAFE; color: #1D4ED8; } .scal .pill.att-excused { background: #FEF3C7; color: #B45309; }
+            .scal .pill.att-absent { background: #FEE2E2; color: #DC2626; } .scal .pill.att-none { background: #F1F5F9; color: #64748B; }
+            .scal-ov { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(15, 30, 50, .45); backdrop-filter: blur(3px); }
+            .scal-dlg { width: min(420px, 100%); overflow: hidden; border-radius: 20px; background: #fff; box-shadow: 0 30px 70px rgba(15, 35, 60, .3); }
+            .scal-dlg header { position: relative; padding: 16px 48px 14px 18px; }
+            .scal-dlg header.st-upcoming { background: linear-gradient(120deg, #EAF2FF, #F5F9FF); } .scal-dlg header.st-live { background: linear-gradient(120deg, #E7F8EE, #F4FBF7); } .scal-dlg header.st-done { background: linear-gradient(120deg, #F1F5F9, #F8FAFC); }
+            .scal-dlg header { box-shadow: none; }
+            .scal-dlg .no { font-size: 12px; font-weight: 700; color: #61798B; } .scal-dlg h3 { margin: 2px 0 0; font-size: 16px; font-weight: 700; color: #123B68; }
+            .scal-dlg .x { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .8); color: #475569; cursor: pointer; }
+            .scal-dlg .x svg { width: 16px; height: 16px; }
+            .scal-dlg .body { display: grid; gap: 8px; padding: 14px 18px 18px; }
+            .scal-dlg .body p { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: #334155; } .scal-dlg .body p svg { width: 16px; height: 16px; color: #7890A0; flex: none; }
+            .scal-dlg .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+            .scal-dlg .go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; margin-top: 6px; border-radius: 12px; background: linear-gradient(135deg, #126F91, #1688B0); font-size: 13px; font-weight: 700; color: #fff; text-decoration: none; }
+            .scal-dlg .go svg { width: 16px; height: 16px; }
+        </style>
     @elseif ($tab === 'materials')
         {{-- SỬA 31/8 (khách yêu cầu — "chi tiết lớp có tab Học liệu để xem TRONG lớp thôi,
              tài liệu tự mua xem ở trang Tài liệu, không liên quan"): $materials giờ là mảng
@@ -999,6 +1071,9 @@
      mở trang theo cách thường. Link có data-stu-full (vd. Làm bài) luôn mở trang mới như bình thường. --}}
 <style>
     /* SỬA 7/11 — trang lớp toàn màn hình: cột trái rộng hơn, chữ / khoảng cách phóng to đều trên màn lớn. */
+    /* SỬA 7/11 (khách: "chữ Danh sách lớp bị dính với nền trắng") — thanh đầu trang thành thẻ bo góc, có khoảng đệm hai bên. */
+    .classroom-ui > header { margin-top: 2px; padding: 4px 16px; border: 1px solid #DDEAF0; border-radius: 18px; box-shadow: 0 4px 14px rgba(15, 42, 74, .05); }
+    .classroom-ui > header .classroom-back-button { border: 1px solid #D5E4EC; background: #F7FBFD; }
     @media (min-width: 1024px) { .classroom-ui .stu-full { grid-template-columns: 260px minmax(0, 1fr); gap: 20px; } }
     @media (min-width: 1280px) { .classroom-ui { zoom: 1.06; } }
     @media (min-width: 1680px) { .classroom-ui { zoom: 1.12; } }
