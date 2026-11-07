@@ -1,4 +1,6 @@
-@extends('layouts.student')
+{{-- SỬA 7/11 — đổi tab trong lớp không tải lại trang: Student\ClassRoomController::show() trả RIÊNG phần nội dung tab (fragment
+     stu-panel) với khung trống student.classes._bare thay cho khung khu học sinh (không dựng lại sidebar / thanh trên). --}}
+@extends(($stuPartial ?? false) ? 'student.classes._bare' : 'layouts.student')
 
 @section('title', 'Chi tiết lớp')
 @section('page-title', 'Chi tiết lớp')
@@ -87,6 +89,8 @@
             'Lịch học' => 'calendar-days',
             'Tài liệu' => 'book-open',
             'Tiến trình học' => 'layers',
+            'Bài tập / Đề' => 'clipboard-list',
+            'Kết quả học tập' => 'bar-chart-3',
             'Học liệu' => 'book-open',
             'Đánh giá' => 'star',
             'Thông báo' => 'bell',
@@ -102,7 +106,7 @@
         // Thành viên ($students), sĩ số tối đa là trường quản trị nhập — in đúng thứ đang có.
         $studentsCount = $tab === 'members' ? $students->count() : null;
 
-        $isOverview = ! in_array($tab, ['roadmap', 'schedule', 'materials', 'reviews', 'notifications', 'members'], true);
+        $isOverview = ! in_array($tab, ['roadmap', 'schedule', 'materials', 'reviews', 'notifications', 'members', 'progress', 'assign', 'results'], true);
 
         // Bản mẫu có 4 "hoạt động" viết cứng. Nguồn thật tương đương ở tab Tổng quan là
         // $roadmap (bài tập của lớp — ClassRoomService::buildRoadmap()). Trải phẳng để đưa vào
@@ -317,13 +321,13 @@
                  vẫn phải vào được từ đây, nếu không là mất đường. --}}
             <section class="classroom-side-card rounded-2xl border bg-white p-3.5">
                 <h2 class="mb-2 flex items-center gap-2 text-[14px] font-semibold text-[#123B68]"><x-lucide name="book-open" class="h-4 w-4 text-[#2D7FA3]" />Trong lớp học</h2>
-                <div class="space-y-1">
+                <div class="space-y-1" data-stu-nav>
                     @foreach ($tabsData as $navItem)
                         {{-- SỬA 3/11 (khách: "bỏ tab Đánh giá") — ẩn mục Đánh giá ở cột "Trong lớp học" (muốn hiện lại: bỏ dòng continue). --}}
                         @continue(($navItem['label'] ?? '') === 'Đánh giá')
                         @php $navActive = $navItem['active'] ?? false; @endphp
-                        <a href="{{ $navItem['href'] }}" @if ($navActive) aria-current="page" @endif
-                           class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium transition {{ $navActive ? 'bg-[#EAF5F8] font-semibold text-[#126F91]' : 'text-[#466278] hover:bg-[#F4F9FC]' }}">
+                        <a href="{{ $navItem['href'] }}" @if ($navActive) aria-current="page" @endif data-stu-tab
+                           class="stu-navi flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium transition {{ $navActive ? 'is-on' : '' }}">
                             <span class="flex min-w-0 items-center gap-2">
                                 <x-lucide :name="$navIcons[$navItem['label']] ?? 'chevron-right'" class="h-3.5 w-3.5 shrink-0" />
                                 <span class="truncate">{{ $navItem['label'] }}</span>
@@ -340,10 +344,15 @@
         </aside>
 
         {{-- ══════ CỘT PHẢI ══════ --}}
-        <section class="min-w-0 space-y-4">
+        <section class="min-w-0 space-y-4" data-stu-panel>
+        @fragment('stu-panel')
     {{-- SỬA 6/11 — tab Tiến trình học (bước giáo viên đã mở khoá). --}}
     @if ($tab === 'progress')
         @include('student.classes._progress')
+    @elseif ($tab === 'assign')
+        @include('student.classes._assign')
+    @elseif ($tab === 'results')
+        @include('student.classes._results')
     @elseif ($tab === 'roadmap')
         <div class="space-y-6">
             @forelse ($roadmap as $chap)
@@ -976,7 +985,103 @@
             </div>
         @endif
         @endif
+        @endfragment
         </section>
     </main>
 </div>
+
+{{-- SỬA 7/11 (khách: "làm lại khu học sinh cho đẹp, tiện dùng") — bấm mục "Trong lớp học" (và link đổi tuần / chọn buổi trong cùng
+     trang lớp) chỉ tải PHẦN NỘI DUNG bên phải qua fetch (header X-Stu-Tab, xem Student\ClassRoomController::show), thay tại chỗ rồi
+     đổi địa chỉ (pushState) — Quay lại / Tiến tới vẫn đúng. Máy chủ vẫn chỉ tính dữ liệu của đúng mục đang mở. Lỗi / hết phiên →
+     mở trang theo cách thường. Link có data-stu-full (vd. Làm bài) luôn mở trang mới như bình thường. --}}
+<style>
+    .stu-navi { color: #466278; } .stu-navi:hover { background: #F4F9FC; }
+    .stu-navi.is-on { background: #EAF5F8; font-weight: 600; color: #126F91; }
+    [data-stu-panel][aria-busy="true"] { opacity: .55; pointer-events: none; transition: opacity .15s; }
+    .stu-load { position: fixed; left: 0; top: 0; z-index: 80; height: 3px; width: 0; background: linear-gradient(90deg, #126F91, #38BDF8); opacity: 0; transition: width .4s ease, opacity .2s; pointer-events: none; }
+    .stu-load.on { opacity: 1; width: 70%; } .stu-load.done { opacity: 0; width: 100%; }
+</style>
+<div class="stu-load" aria-hidden="true"></div>
+<script>
+    (function () {
+        var panel = document.querySelector('[data-stu-panel]');
+        if (!panel || !window.fetch || !window.history || !history.pushState) return;
+        var bar = document.querySelector('.stu-load');
+        var base = location.pathname.replace(/\/+$/, '');
+        var seq = 0, pre = {};
+        function same(u) { return u.origin === location.origin && u.pathname.replace(/\/+$/, '') === base; }
+        function get(url) {
+            return fetch(url, { headers: { 'X-Stu-Tab': '1', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { if (!r.ok || r.redirected) throw new Error('http'); return r.text(); });
+        }
+        function take(url) { var c = pre[url]; delete pre[url]; return (c && Date.now() - c.t < 15000) ? c.p : get(url); }
+        function tabOf(u) { return new URL(u, location.href).searchParams.get('tab') || 'overview'; }
+        function mark(url) {
+            var t = tabOf(url);
+            document.querySelectorAll('[data-stu-nav] a[data-stu-tab]').forEach(function (a) {
+                var on = tabOf(a.href) === t;
+                a.classList.toggle('is-on', on);
+                if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+            });
+        }
+        function swap(html) {
+            var A = window.Alpine;
+            panel.style.minHeight = panel.offsetHeight + 'px';
+            if (A && A.destroyTree) Array.prototype.forEach.call(panel.children, function (el) { A.destroyTree(el); });
+            var put = function () { panel.innerHTML = html; };
+            if (A && A.mutateDom) A.mutateDom(put); else put();
+            Array.prototype.forEach.call(panel.querySelectorAll('script'), function (old) {
+                var s = document.createElement('script');
+                Array.prototype.forEach.call(old.attributes, function (at) { s.setAttribute(at.name, at.value); });
+                s.textContent = old.textContent;
+                old.parentNode.replaceChild(s, old);
+            });
+            if (A && A.initTree) A.initTree(panel);
+            requestAnimationFrame(function () { panel.style.minHeight = ''; });
+        }
+        function go(url, push) {
+            var my = ++seq;
+            mark(url);
+            panel.setAttribute('aria-busy', 'true');
+            if (bar) { bar.classList.remove('done'); void bar.offsetWidth; bar.classList.add('on'); }
+            take(url).then(function (html) {
+                if (my !== seq) return;
+                swap(html);
+                if (push) history.pushState({ stu: 1 }, '', url);
+                var top = panel.getBoundingClientRect().top;
+                if (top < 0) window.scrollBy({ top: top - 12, behavior: 'smooth' });
+            }).catch(function () {
+                if (my === seq) location.href = url;
+            }).finally(function () {
+                if (my !== seq) return;
+                panel.removeAttribute('aria-busy');
+                if (bar) { bar.classList.remove('on'); bar.classList.add('done'); }
+            });
+        }
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest ? e.target.closest('a[href]') : null;
+            if (!a || !a.closest('.classroom-ui') || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+                || a.target || a.hasAttribute('download') || a.hasAttribute('data-stu-full')) return;
+            var u = new URL(a.href, location.href);
+            if (!same(u) || u.hash) return;
+            e.preventDefault();
+            if (u.href === location.href) return;
+            go(u.href, true);
+        });
+        var hoverT = null;
+        document.addEventListener('pointerover', function (e) {
+            var a = e.target.closest ? e.target.closest('[data-stu-nav] a[data-stu-tab]') : null;
+            if (!a || a.classList.contains('is-on')) return;
+            clearTimeout(hoverT);
+            hoverT = setTimeout(function () {
+                var c = pre[a.href];
+                if (c && Date.now() - c.t < 15000) return;
+                var p = get(a.href); p.catch(function () { delete pre[a.href]; });
+                pre[a.href] = { t: Date.now(), p: p };
+            }, 90);
+        });
+        window.addEventListener('popstate', function () { if (same(new URL(location.href))) go(location.href, false); });
+        history.replaceState({ stu: 1 }, '', location.href);
+    })();
+</script>
 @endsection

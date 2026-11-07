@@ -14,7 +14,7 @@ class ClassRoomController extends Controller
         private ClassRoomService $classRoomService,
     ) {}
 
-    public function show(Request $request, int $class): View
+    public function show(Request $request, int $class): View|\Illuminate\Http\Response
     {
         $user = $request->user();
         $tab = $request->query('tab', 'overview');
@@ -23,7 +23,17 @@ class ClassRoomController extends Controller
         // đổi tại chỗ, để tải lại trang hoặc gửi link cho nhau vẫn mở đúng buổi.
         $sessionId = $request->query('buoi') !== null ? (int) $request->query('buoi') : null;
 
-        return view('student.classes.show', $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset, $sessionId));
+        $data = $this->classRoomService->buildShowData($user, $class, $tab, $weekOffset, $sessionId);
+
+        // SỬA 7/11 (khách: "làm lại khu học sinh cho đẹp, tiện dùng") — đổi mục trong lớp bằng JS: chỉ trả PHẦN NỘI DUNG mục vừa chọn
+        // (fragment stu-panel, khung trống — không dựng lại sidebar / thanh trên). Dữ liệu vẫn chỉ tính cho đúng mục đó như trên.
+        if ($request->header('X-Stu-Tab') === '1') {
+            return response(view('student.classes.show', $data + ['stuPartial' => true])->fragment('stu-panel'))
+                ->header('Cache-Control', 'no-store, private')
+                ->header('Vary', 'X-Stu-Tab');
+        }
+
+        return view('student.classes.show', $data);
     }
 
 

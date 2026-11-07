@@ -112,8 +112,12 @@ class ClassRoomService
             // liệu của tôi" (2 khái niệm khác nhau: đây là tài liệu CỦA LỚP, trang kia liệt kê
             // MỌI tài liệu đã mua không theo lớp nào).
             ['label' => 'Tài liệu', 'key' => 'materials'],
+            // SỬA 7/11 (khách: "làm lại khu học sinh cho đẹp, tiện") — bài / đề giáo viên của lớp giao (kèm hạn, trạng thái, nút làm bài).
+            ['label' => 'Bài tập / Đề', 'key' => 'assign'],
             // SỬA 6/11 — tab "Tiến trình học": các bước giáo viên ĐÃ MỞ KHOÁ (Teacher\ClassSpaceService::stepsForStudent()).
             ['label' => 'Tiến trình học', 'key' => 'progress'],
+            // SỬA 7/11 — điểm từng bài, nhận xét, điểm TB, chuyên cần của CHÍNH học sinh (giáo viên chấm ở tab Kết quả học tập).
+            ['label' => 'Kết quả học tập', 'key' => 'results'],
             ['label' => 'Đánh giá', 'key' => 'reviews'],
             ['label' => 'Thông báo', 'key' => 'notifications'],
             ['label' => 'Thành viên', 'key' => 'members'],
@@ -209,7 +213,17 @@ class ClassRoomService
             $notifications = $this->notificationsForClass($user, $classRoom);
         }
 
-        $progressSteps = $tab === 'progress' ? app(\App\Services\Teacher\ClassSpaceService::class)->stepsForStudent($classRoom) : [];
+        // SỬA 7/11 — Tiến trình học: bước đã mở + bước SẮP mở (có hẹn giờ) — chỉ tên + giờ mở, nội dung vẫn ẩn tới lúc mở.
+        $progressSteps = [];
+        $progressUpcoming = [];
+        if ($tab === 'progress') {
+            $sp = app(\App\Services\Teacher\ClassSpaceService::class)->progressForStudent($classRoom);
+            $progressSteps = $sp['open'];
+            $progressUpcoming = $sp['upcoming'];
+        }
+        // SỬA 7/11 — tab Bài tập / Đề và Kết quả học tập (chỉ nạp khi đang mở tab đó).
+        $classAssign = $tab === 'assign' ? app(StudentWorkspaceService::class)->assignments($user, (int) $classRoom->id) : null;
+        $myResults = $tab === 'results' ? $this->myResults($user, $classRoom) : null;
 
         // Thành viên.
         $teachers = $tab === 'members' ? $classRoom->teachers : collect();
@@ -237,6 +251,71 @@ class ClassRoomService
             'teachers' => $teachers,
             'students' => $students,
             'progressSteps' => $progressSteps,
+            'progressUpcoming' => $progressUpcoming,
+            'classAssign' => $classAssign,
+            'myResults' => $myResults,
+        ];
+    }
+
+    /**
+     * SỬA 7/11 — tab "Kết quả học tập" của học sinh: đúng số liệu giáo viên thấy ở bảng điểm lớp (Teacher\ClassSpaceService::
+     * results() — điểm thang 10, điểm giáo viên chấm đè, nhận xét từng bài + nhận xét chung), lọc lấy dòng của CHÍNH em này,
+     * kèm điểm danh của em (các buổi đã diễn ra).
+     *
+     * @return array<string, mixed>
+     */
+    private function myResults(User $user, ClassRoom $classRoom): array
+    {
+        $all = app(\App\Services\Teacher\ClassSpaceService::class)->results($classRoom);
+        $row = collect($all['rows'])->firstWhere('id', (int) $user->id);
+        $assessOf = \App\Models\Assignment::query()->whereIn('id', array_column($all['cols'], 'id') ?: [0])
+            ->get(['id', 'assessment_id', 'status', 'due_at', 'closes_at'])->keyBy('id');
+
+        $items = [];
+        foreach ($all['cols'] as $c) {
+            $cell = $row['cells'][$c['id']] ?? null;
+            $a = $assessOf->get($c['id']);
+            $due = $a?->due_at ?? $a?->closes_at;
+            $state = match (true) {
+                $cell === null => 'none',
+                $cell['score'] !== null => 'graded',
+                $cell['submitted'] => 'grading',
+                $c['closed'] => 'missed',
+                default => 'todo',
+            };
+            $items[] = [
+                'title' => $c['title'],
+                'state' => $state,
+                'score' => $cell['score'] ?? null,
+                'override' => (bool) ($cell['override'] ?? false),
+                'comment' => (string) ($cell['comment'] ?? ''),
+                'due' => $due?->format('H:i d/m/Y'),
+                'url' => ($cell['attemptId'] ?? null)
+                    ? route('student.assessment.result', $cell['attemptId'])
+                    : (($state === 'todo' && $a?->assessment_id) ? route('student.assessment.take', ['assessment' => $a->assessment_id, 'assignment' => $a->id]) : null),
+            ];
+        }
+
+        $past = ClassSession::query()->where('class_room_id', $classRoom->id)->where('starts_at', '<=', now())->pluck('id');
+        $marks = \App\Models\Attendance::query()->whereIn('class_session_id', $past)->where('student_id', $user->id)->pluck('status')
+            ->map(fn ($s) => $s instanceof \BackedEnum ? $s->value : (string) $s)->countBy()->all();
+
+        return [
+            'ready' => (bool) ($all['ready'] ?? false),
+            'inClass' => $row !== null,
+            'items' => $items,
+            'avg' => $row['avg'] ?? null,
+            'rank' => $row['rank'] ?? null,
+            'attRate' => $row['attRate'] ?? null,
+            'note' => (string) ($row['note'] ?? ''),
+            'classAvg' => $all['classAvg'] ?? null,
+            'submitted' => count(array_filter($items, fn ($i) => in_array($i['state'], ['graded', 'grading'], true))),
+            'total' => count($items),
+            'att' => [
+                'present' => (int) ($marks['present'] ?? 0), 'late' => (int) ($marks['late'] ?? 0),
+                'excused' => (int) ($marks['excused'] ?? 0), 'absent' => (int) ($marks['absent'] ?? 0),
+                'sessions' => $past->count(),
+            ],
         ];
     }
 

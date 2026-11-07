@@ -348,6 +348,7 @@ class PracticeAssignmentService
             $out[$assignment->type][$assignment->subject_id] = [
                 'id' => $assignment->id,
                 'teacher' => $assignment->assigner?->name ?? 'Giáo viên',
+                'assignedBy' => (int) $assignment->assigned_by, // SỬA 7/11 — lọc theo lớp ở trang lớp học sinh (tab Bài tập / Đề)
                 'group' => 'Giao riêng',
                 'assignedAt' => $assignment->created_at?->format('d/m/Y'),
                 'deadline' => $assignment->deadline_at?->format('d/m/Y · H:i'),

@@ -1010,6 +1010,28 @@ class ClassSpaceService
             route('student.classes.show', ['class' => $classRoom->id, 'tab' => 'progress'])));
     }
 
+    /**
+     * SỬA 7/11 — tab Tiến trình học của học sinh: open = bước đã mở (như stepsForStudent); upcoming = bước còn khoá nhưng ĐÃ HẸN GIỜ
+     * mở (chỉ tên + giờ mở, không lộ nội dung). Một lần tính progress().
+     *
+     * @return array{open: list<array>, upcoming: list<array>}
+     */
+    public function progressForStudent(ClassRoom $classRoom): array
+    {
+        if (! ClassProgressStep::isReady()) {
+            return ['open' => [], 'upcoming' => []];
+        }
+        $this->syncScheduledUnlocks($classRoom);
+        $steps = collect($this->progress($classRoom)['steps']);
+
+        return [
+            'open' => $steps->where('unlocked', true)->values()->all(),
+            'upcoming' => $steps->filter(fn ($s) => ! $s['unlocked'] && $s['unlockOnLabel'])
+                ->map(fn ($s) => ['id' => $s['id'], 'title' => $s['title'], 'when' => $s['unlockOnLabel'], 'in' => $s['unlockIn'], 'ts' => $s['unlockTs']])
+                ->values()->all(),
+        ];
+    }
+
     /** Các bước ĐÃ MỞ cho trang lớp của học sinh (kèm link tài liệu / bài tập). */
     public function stepsForStudent(ClassRoom $classRoom): array
     {

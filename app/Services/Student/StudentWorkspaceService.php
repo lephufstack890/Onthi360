@@ -48,15 +48,27 @@ class StudentWorkspaceService
      *
      * @return array{rows: list<array<string,mixed>>, counts: array<string,int>, pending: list<array<string,mixed>>}
      */
-    public function assignments(User $student): array
+    public function assignments(User $student, ?int $onlyClassId = null): array
     {
         $enrollments = $this->activeEnrollments($student);
         $classIds = $enrollments->pluck('class_room_id')->unique()->values()->all();
+        // SỬA 7/11 — tab "Bài tập / Đề" trong trang lớp của học sinh: chỉ bài của lớp đó + bài luyện tập do giáo viên
+        // CỦA LỚP đó giao (giao từ tab Bài tập / Đề bên giáo viên). Không truyền = như cũ (mọi lớp + giao riêng).
+        $classTeacherIds = null;
+        if ($onlyClassId !== null) {
+            $classIds = in_array($onlyClassId, array_map('intval', $classIds), true) ? [$onlyClassId] : [];
+            $classTeacherIds = \Illuminate\Support\Facades\DB::table('class_teachers')->where('class_room_id', $onlyClassId)->pluck('user_id')->map(fn ($v) => (int) $v)->all();
+        }
         $now = now()->getTimestamp();
         $rows = [];
 
         // (1) Giao riêng ở trang Luyện tập.
         $mine = $this->practice->forStudent($student);
+        if ($classTeacherIds !== null) {
+            foreach (['problem', 'exam'] as $t) {
+                $mine[$t] = array_filter($mine[$t] ?? [], fn ($a) => in_array((int) ($a['assignedBy'] ?? 0), $classTeacherIds, true));
+            }
+        }
         $examIds = array_keys($mine['exam'] ?? []);
         $examInfo = empty($examIds) ? collect() : Assessment::query()->whereIn('id', $examIds)->withCount('items')->get()->keyBy('id');
         $startedExams = empty($examIds) ? [] : Attempt::query()->where('user_id', $student->id)->whereIn('assessment_id', $examIds)
