@@ -50,6 +50,18 @@ class OrderController extends Controller
         return redirect()->route('admin.orders.show', $order->id)->with('status', 'order-rejected');
     }
 
+    /** SỬA 9/11 — cập nhật trạng thái giao sách in của đơn. */
+    public function updateDelivery(Request $request, Order $order): RedirectResponse
+    {
+        $data = $request->validate([
+            'delivery_status' => ['required', 'string', 'in:'.implode(',', array_keys(OrderService::DELIVERY_STATUSES))],
+            'admin_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $this->orderService->updateDelivery($order, $data['delivery_status'], $data['admin_note'] ?? null);
+
+        return redirect()->route('admin.orders.show', $order->id)->with('status', 'delivery-updated');
+    }
+
     public function approveTopup(Request $request, TokenTopup $tokenTopup): RedirectResponse
     {
         try {

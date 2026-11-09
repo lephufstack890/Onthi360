@@ -259,6 +259,7 @@ class AccessService
         $unitPrice = (int) $product->price;
 
         $includePrint = (bool) ($data['include_print'] ?? false) && $product->has_print_option;
+        $shippingInfo = $includePrint ? $this->printShippingInfo($data) : null;
         $totalAmount = $unitPrice + ($includePrint ? $product->printPrice() : 0);
 
         if ($paymentMethod === PaymentMethod::Token && $user->token_balance < $totalAmount) {
@@ -267,7 +268,7 @@ class AccessService
             ]);
         }
 
-        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $totalAmount, $unitPrice, $paymentMethod) {
+        return DB::transaction(function () use ($user, $product, $scope, $includePrint, $shippingInfo, $totalAmount, $unitPrice, $paymentMethod) {
             $order = $this->orders->create([
                 'order_no' => $this->generateUniqueOrderNo(),
                 'buyer_id' => $user->id,
@@ -285,7 +286,7 @@ class AccessService
                 'quantity' => 1,
                 'unit_price' => $unitPrice,
                 'include_print' => $includePrint,
-                'print_shipping_info' => null,
+                'print_shipping_info' => $shippingInfo,
             ]);
 
             if ($paymentMethod === PaymentMethod::Token) {
@@ -298,6 +299,41 @@ class AccessService
 
             return $order->fresh();
         });
+    }
+
+    /**
+     * SỬA 9/11 (khách: "học sinh mua sách cần bản cứng thì cho nhắn địa chỉ, hiển thị đơn lên quản trị") — thông tin giao
+     * sách in lưu vào order_items.print_shipping_info (cột JSON có sẵn từ đầu, không cần migration). Trạng thái giao
+     * (delivery_status) do quản trị cập nhật ở admin.orders.show — xem Admin\OrderService::updateDelivery().
+     *
+     * @throws ValidationException thiếu người nhận / SĐT / địa chỉ, hoặc SĐT sai dạng.
+     */
+    private function printShippingInfo(array $data): array
+    {
+        $name = trim((string) ($data['ship_name'] ?? ''));
+        $phone = preg_replace('/[\s.\-]/', '', (string) ($data['ship_phone'] ?? ''));
+        $address = trim((string) ($data['ship_address'] ?? ''));
+
+        if ($name === '' || $phone === '' || $address === '') {
+            throw ValidationException::withMessages([
+                'shipping' => 'Mua kèm sách in cần nhập đủ tên người nhận, số điện thoại và địa chỉ giao hàng.',
+            ]);
+        }
+        if (! preg_match('/^\+?\d{9,12}$/', $phone)) {
+            throw ValidationException::withMessages([
+                'shipping' => 'Số điện thoại nhận sách chưa đúng — vui lòng kiểm tra lại.',
+            ]);
+        }
+
+        return [
+            'name' => $name,
+            'phone' => $phone,
+            'address' => $address,
+            'note' => trim((string) ($data['ship_note'] ?? '')) ?: null,
+            'delivery_status' => 'pending',
+            'admin_note' => null,
+            'updated_at' => now()->toDateTimeString(),
+        ];
     }
 
     /**

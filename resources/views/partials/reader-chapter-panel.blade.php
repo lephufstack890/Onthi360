@@ -137,6 +137,14 @@
     .rcp-tile.is-progress:hover { background: #FFF3CF; }
     .rcp-tile.is-selected { border-color: #135C78; background: #17698A; color: #fff; box-shadow: 0 0 0 2px #B9DDE8; }
     .rcp-tile:focus-visible { outline: 2px solid #7FAFCB; outline-offset: 2px; }
+    /* SỬA 9/11 (khách: "danh sách bài trong tài liệu để cả sao vào cho sinh động, sao là độ khó") — hàng sao nhỏ dưới mã bài. */
+    .rcp-tile.has-stars { flex-direction: column; gap: 3px; min-height: 52px; }
+    .rcp-tile-top { display: flex; max-width: 100%; align-items: center; justify-content: center; gap: 4px; }
+    .rcp-tile .rcp-tstars { display: inline-flex; gap: 1px; line-height: 0; }
+    .rcp-tile .rcp-tstars svg { width: 9px; height: 9px; fill: #D5DEE5; }
+    .rcp-tile .rcp-tstars svg.is-on { fill: #E0A21B; }
+    .rcp-tile.is-selected .rcp-tstars svg { fill: rgba(255,255,255,.35); }
+    .rcp-tile.is-selected .rcp-tstars svg.is-on { fill: #FFD66B; }
     .rcp-empty { padding: 16px; border: 1px dashed #C9DFE8; border-radius: 10px; text-align: center; font-size: 12px; color: #61798B; }
     .rcp-empty button { margin-top: 6px; border: 0; background: none; font-size: 12px; font-weight: 700; color: #126F91; text-decoration: underline; cursor: pointer; }
     .rcp-detail { flex-shrink: 0; border-top: 1px solid #E5EEF3; background: #F8FBFD; padding: 10px 12px; }
@@ -222,17 +230,27 @@
                     <div class="rcp-grid">
                         @foreach ($rcpRows as $r)
                             @continue($r['chapter'] !== $g['id'])
-                            <button type="button" class="rcp-tile"
+                            <button type="button" class="rcp-tile {{ $r['stars'] > 0 ? 'has-stars' : '' }}"
                                     x-show="matches({{ $r['id'] }})"
                                     :class="'is-' + statusOf({{ $r['id'] }}) + (selectedId === {{ $r['id'] }} ? ' is-selected' : '')"
                                     :aria-current="selectedId === {{ $r['id'] }} ? 'true' : null"
                                     @click="start({{ $r['id'] }})" :disabled="busy"
-                                    title="Làm bài {{ $r['code'] }} · {{ $r['title'] }} · {{ $r['statusLabel'] }}"
-                                    aria-label="Làm bài {{ $r['code'] }} · {{ $r['statusLabel'] }}">
+                                    title="Làm bài {{ $r['code'] }} · {{ $r['title'] }}{{ $r['stars'] > 0 ? ' · Độ khó '.$r['stars'].'/5'.($r['difficulty'] !== '' ? ' ('.$r['difficulty'].')' : '') : '' }} · {{ $r['statusLabel'] }}"
+                                    aria-label="Làm bài {{ $r['code'] }}{{ $r['stars'] > 0 ? ' · độ khó '.$r['stars'].' trên 5 sao' : '' }} · {{ $r['statusLabel'] }}">
+                                <span class="rcp-tile-top">
                                 <code>{{ $r['code'] }}</code>
                                 {{-- SỬA 28/10 — dấu theo trạng thái hiện tại (cập nhật tại chỗ sau khi làm bài trong khung nổi). --}}
                                 <span x-show="statusOf({{ $r['id'] }}) === 'done'" @if ($r['status'] !== 'done') x-cloak @endif><x-lucide name="check-circle-2" /></span>
                                 <span x-show="statusOf({{ $r['id'] }}) === 'progress'" @if ($r['status'] !== 'progress') x-cloak @endif><x-lucide name="clock-3" /></span>
+                                </span>
+                                @if ($r['stars'] > 0)
+                                    {{-- SỬA 9/11 — sao độ khó (1–5), lấy từ difficultyStars có sẵn của bài. --}}
+                                    <span class="rcp-tstars" aria-hidden="true">
+                                        @for ($i = 1; $i <= 5; $i++)
+                                            <svg viewBox="0 0 24 24" class="{{ $i <= $r['stars'] ? 'is-on' : '' }}"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                                        @endfor
+                                    </span>
+                                @endif
                             </button>
                         @endforeach
                     </div>

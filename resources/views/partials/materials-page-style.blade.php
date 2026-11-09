@@ -231,6 +231,16 @@
     .mp-opt small { display: block; margin-top: 4px; font-weight: 400; color: #64748b; }
     .mp-opt strong { font-size: 14px; color: #123b68; }
     .mp-legend { margin: 20px 0 0; font-size: 12px; font-weight: 700; color: #365b7a; }
+    /* SỬA 9/11 — ô nhập nơi nhận sách in trong hộp mua. */
+    .mp-ship { margin-top: 10px; padding: 12px; border: 1px solid #bae6fd; border-radius: 12px; background: #f8fbfe; }
+    .mp-ship__title { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: #123b68; }
+    .mp-ship__row { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    @media (min-width: 560px) { .mp-ship__row { grid-template-columns: 1fr 1fr; } }
+    .mp-ship label { display: block; margin-top: 8px; font-size: 11.5px; font-weight: 600; color: #334155; }
+    .mp-ship__row label { margin-top: 0; }
+    .mp-ship label b { color: #e11d48; }
+    .mp-ship input, .mp-ship textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; font: inherit; font-size: 13px; font-weight: 400; color: #0f172a; }
+    .mp-ship input:focus, .mp-ship textarea:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px #e0f2fe; }
     .mp-box { margin-top: 16px; border-radius: 12px; padding: 12px; font-size: 12px; line-height: 20px; }
     .mp-box.is-green { border: 1px solid #a7f3d0; background: #ecfdf5; color: #065f46; }
     .mp-box.is-amber { border: 1px solid #fde68a; background: #fffbeb; color: #78350f; }

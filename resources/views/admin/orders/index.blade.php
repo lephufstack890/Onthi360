@@ -25,17 +25,33 @@
 
     <x-ws.tabs :tabs="$tabs" />
 
+    @if ($tab === 'print')
+        <p class="mb-3 text-[12px] text-slate-500">Đơn mua kèm sách in — đơn chưa giao xếp trên cùng. Bấm <b>Xem</b> để thấy đủ địa chỉ và cập nhật trạng thái giao.</p>
+    @endif
+
     <x-ws.table :columns="['Mã đơn', 'Người mua', 'Sản phẩm', 'Tổng tiền', 'Trạng thái', '']">
         @forelse ($orders as $o)
             <tr>
-                <td class="px-4 py-3 font-medium text-slate-700">#OD-{{ $o['id'] }}</td>
+                <td class="px-4 py-3 font-medium text-slate-700">#OD-{{ $o['id'] }}
+                    @if (! empty($o['createdAt']))<span class="block text-[11px] font-normal text-slate-400">{{ $o['createdAt'] }}</span>@endif
+                </td>
                 <td class="px-4 py-3 text-slate-500">
                     <div class="flex items-center gap-2.5">
                         <x-ws.avatar :name="$o['buyer']" size="sm" />
                         <span>{{ $o['buyer'] }}</span>
                     </div>
                 </td>
-                <td class="px-4 py-3 text-slate-500">{{ $o['items'] }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ $o['items'] }}
+                    {{-- SỬA 9/11 — đơn kèm sách in: trạng thái giao + người nhận. --}}
+                    @if (! empty($o['print']))
+                        <span class="mt-1 flex flex-wrap items-center gap-1.5">
+                            <x-ws.badge tone="brand">Sách in</x-ws.badge>
+                            <x-ws.badge :tone="$o['print']['tone']">{{ $o['print']['label'] }}</x-ws.badge>
+                        </span>
+                        <span class="mt-1 block text-[11px] text-slate-500">{{ $o['print']['to'] }}</span>
+                        @if (! empty($o['print']['address']))<span class="block max-w-xs truncate text-[11px] text-slate-400" title="{{ $o['print']['address'] }}">{{ $o['print']['address'] }}</span>@endif
+                    @endif
+                </td>
                 <td class="px-4 py-3 text-slate-500">{{ $o['total'] }}</td>
                 <td class="px-4 py-3"><x-ws.badge :tone="$o['tone']">{{ $o['status'] }}</x-ws.badge></td>
                 <td class="px-4 py-3 text-right">

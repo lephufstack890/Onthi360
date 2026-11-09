@@ -43,6 +43,61 @@ class OrderService
 
     private const DONE_STATUSES = [OrderStatus::Approved, OrderStatus::Completed];
 
+    /**
+     * SỬA 9/11 (khách: "học sinh mua bản cứng thì nhắn địa chỉ, hiển thị đơn mua tài liệu lên quản trị") — trạng thái giao
+     * sách in, lưu trong order_items.print_shipping_info.delivery_status. [nhãn, tone badge].
+     */
+    public const DELIVERY_STATUSES = [
+        'pending' => ['Chờ giao', 'warning'],
+        'shipping' => ['Đang giao', 'info'],
+        'delivered' => ['Đã giao', 'success'],
+        'canceled' => ['Huỷ giao', 'danger'],
+    ];
+
+    /** [nhãn, tone] trạng thái giao sách in của 1 dòng đơn (đơn cũ chưa có thông tin giao → "Chờ giao"). */
+    public static function deliveryLabel(?array $info): array
+    {
+        return self::DELIVERY_STATUSES[$info['delivery_status'] ?? 'pending'] ?? self::DELIVERY_STATUSES['pending'];
+    }
+
+    /** Đơn có mua kèm sách in, chưa giao xong (Chờ giao / Đang giao) — dùng cho số trên tab "Sách in". */
+    private function printOrdersQuery(bool $onlyOpen)
+    {
+        return Order::query()
+            ->whereIn('status', array_map(fn ($s) => $s->value, self::DONE_STATUSES))
+            ->whereHas('items', function ($q) use ($onlyOpen) {
+                $q->where('include_print', true);
+                if ($onlyOpen) {
+                    $q->where(function ($w) {
+                        $w->whereNull('print_shipping_info->delivery_status')
+                            ->orWhereIn('print_shipping_info->delivery_status', ['pending', 'shipping']);
+                    });
+                }
+            });
+    }
+
+    /** SỬA 9/11 — đổi trạng thái giao (+ ghi chú nội bộ) cho mọi dòng sách in của đơn. */
+    public function updateDelivery(Order $order, string $status, ?string $adminNote): void
+    {
+        if (! array_key_exists($status, self::DELIVERY_STATUSES)) {
+            throw ValidationException::withMessages(['delivery_status' => 'Trạng thái giao không hợp lệ.']);
+        }
+
+        $items = $order->items()->where('include_print', true)->get();
+        if ($items->isEmpty()) {
+            throw ValidationException::withMessages(['delivery_status' => 'Đơn này không mua kèm sách in.']);
+        }
+
+        foreach ($items as $item) {
+            $info = (array) ($item->print_shipping_info ?? []);
+            $info['delivery_status'] = $status;
+            $info['admin_note'] = trim((string) $adminNote) ?: null;
+            $info['updated_at'] = now()->toDateTimeString();
+            $item->print_shipping_info = $info;
+            $item->save();
+        }
+    }
+
     private const REJECTED_STATUSES = [OrderStatus::Rejected, OrderStatus::Canceled, OrderStatus::Refunded];
 
     public function __construct(
@@ -67,6 +122,7 @@ class OrderService
             'pending' => $this->orders->countByStatuses(self::PENDING_STATUSES),
             'done' => $this->orders->countByStatuses(self::DONE_STATUSES),
             'rejected' => $this->orders->countByStatuses(self::REJECTED_STATUSES),
+            'print' => $this->printOrdersQuery(true)->count(),
         ];
 
         $tabs = [
@@ -74,6 +130,8 @@ class OrderService
             ['label' => 'Chờ duyệt', 'href' => route('admin.orders.index', ['tab' => 'pending']), 'active' => $tab === 'pending', 'count' => $counts['pending']],
             ['label' => 'Hoàn tất', 'href' => route('admin.orders.index', ['tab' => 'done']), 'active' => $tab === 'done', 'count' => $counts['done']],
             ['label' => 'Từ chối/hủy', 'href' => route('admin.orders.index', ['tab' => 'rejected']), 'active' => $tab === 'rejected', 'count' => $counts['rejected']],
+            // SỬA 9/11 — đơn mua kèm sách in; số trên tab = đơn CHƯA giao xong.
+            ['label' => 'Sách in cần giao', 'href' => route('admin.orders.index', ['tab' => 'print']), 'active' => $tab === 'print', 'count' => $counts['print']],
         ];
 
         $statuses = match ($tab) {
@@ -83,12 +141,32 @@ class OrderService
             default => null,
         };
 
-        $total = $statuses === null ? $counts['all'] : $counts[$tab];
-        $orders = $this->orders->filteredWithBuyerAndItems($statuses, 50)->map(function (Order $o) {
+        if ($tab === 'print') {
+            // Tab Sách in: liệt kê MỌI đơn có sách in (cả đã giao), chưa giao xếp trước.
+            $list = $this->printOrdersQuery(false)->with(['buyer', 'items.product'])->latest('id')->limit(100)->get()
+                ->sortBy(fn (Order $o) => in_array($o->items->firstWhere('include_print', true)?->print_shipping_info['delivery_status'] ?? 'pending', ['pending', 'shipping'], true) ? 0 : 1)
+                ->values();
+            $total = $this->printOrdersQuery(false)->count();
+        } else {
+            $list = $this->orders->filteredWithBuyerAndItems($statuses, 50);
+            $total = $statuses === null ? $counts['all'] : $counts[$tab];
+        }
+
+        $orders = $list->map(function (Order $o) {
             [$label, $tone] = $this->statusLabel($o->status);
             $itemsLabel = $o->items->map(fn ($it) => $it->product->title ?? '')->implode(', ');
+            $printItem = $o->items->firstWhere('include_print', true);
+            $ship = $printItem?->print_shipping_info;
 
             return [
+                // SỬA 9/11 — đơn kèm sách in: trạng thái giao + nơi nhận (hiện ngay ở danh sách).
+                'print' => $printItem ? [
+                    'label' => self::deliveryLabel($ship)[0],
+                    'tone' => self::deliveryLabel($ship)[1],
+                    'to' => $ship ? trim(($ship['name'] ?? '').' · '.($ship['phone'] ?? ''), ' ·') : 'Chưa có địa chỉ (đơn cũ)',
+                    'address' => $ship['address'] ?? null,
+                ] : null,
+                'createdAt' => $o->created_at?->format('H:i d/m/Y'),
                 'id' => $o->id,
                 'buyer' => $o->buyer->name ?? '',
                 'items' => $itemsLabel,

@@ -37,6 +37,11 @@ class AccessController extends Controller
             'scope' => ['required', 'string', 'in:personal_learning,teacher_teaching,auto'],
             'include_print' => ['nullable', 'boolean'],
             'payment_method' => ['required', 'string', 'in:token'],
+            // SỬA 9/11 (khách: "mua sách cần bản cứng thì cho nhắn địa chỉ") — bắt buộc khi mua kèm bản in, kiểm ở placeOrder().
+            'ship_name' => ['nullable', 'string', 'max:120'],
+            'ship_phone' => ['nullable', 'string', 'max:20'],
+            'ship_address' => ['nullable', 'string', 'max:500'],
+            'ship_note' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($data['scope'] === 'auto') {

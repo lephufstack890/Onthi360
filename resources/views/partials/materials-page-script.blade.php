@@ -28,6 +28,8 @@
             assignUrl: config.assignUrl || '',
             assignSearchUrl: config.assignSearchUrl || '',
             csrf: config.csrf || '',
+            // SỬA 9/11 — nơi nhận sách in (hộp mua, khi chọn "Bản mềm + sách in").
+            ship: { name: (config.buyer && config.buyer.name) || '', phone: (config.buyer && config.buyer.phone) || '', address: '', note: '' },
             accessDays: config.accessDays || [7, 30, 90, 365],
 
             scopeTab: 'catalog',
@@ -329,12 +331,24 @@
             quickBuy() {
                 var s = this.selected, self = this;
                 if (!s || this.buying) return;
+                var withPrint = this.buyFormat === 'print' && !!s.pricePrint;
+                if (withPrint) {
+                    var phone = String(this.ship.phone || '').replace(/[\s.\-]/g, '');
+                    if (!String(this.ship.name || '').trim() || !phone || !String(this.ship.address || '').trim()) {
+                        this.buyError = 'Mua kèm sách in cần nhập đủ tên người nhận, số điện thoại và địa chỉ giao hàng.'; this.buyNeedTopup = false; return;
+                    }
+                    if (!/^\+?\d{9,12}$/.test(phone)) { this.buyError = 'Số điện thoại nhận sách chưa đúng — vui lòng kiểm tra lại.'; this.buyNeedTopup = false; return; }
+                }
                 this.buying = true; this.buyError = ''; this.buyNeedTopup = false;
                 var fd = new FormData();
                 fd.append('_token', this.csrf);
                 fd.append('scope', 'auto');
                 fd.append('payment_method', 'token');
-                if (this.buyFormat === 'print' && s.pricePrint) fd.append('include_print', '1');
+                if (withPrint) {
+                    fd.append('include_print', '1');
+                    fd.append('ship_name', this.ship.name); fd.append('ship_phone', this.ship.phone);
+                    fd.append('ship_address', this.ship.address); fd.append('ship_note', this.ship.note || '');
+                }
                 fetch(s.checkoutHref, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function (r) {
                         return r.json().catch(function () {

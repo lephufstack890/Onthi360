@@ -96,6 +96,8 @@
         'assignUrl' => route('materials.assign'),
         'assignSearchUrl' => route('materials.assign.students'),
         'csrf' => csrf_token(),
+        // SỬA 9/11 — điền sẵn người nhận / SĐT khi mua kèm sách in.
+        'buyer' => ['name' => (string) (auth()->user()?->name ?? ''), 'phone' => (string) (auth()->user()?->phone ?? '')],
         'accessDays' => $accessDaysOptions ?? [7, 30, 90, 365],
     ]) }})" class="mp-page">
 
@@ -504,6 +506,16 @@
                                 <span>Bản mềm + sách in<small>Giao tận nhà · bên bán liên hệ xác nhận địa chỉ</small></span>
                                 <strong x-text="selected.pricePrint"></strong>
                             </button>
+                        </div>
+                        {{-- SỬA 9/11 (khách: "mua cần bản cứng thì cho nhắn địa chỉ") — chọn "Bản mềm + sách in" thì nhập nơi nhận sách. --}}
+                        <div class="mp-ship" x-show="buyFormat === 'print' && selected.pricePrint && !selected.owned" x-cloak>
+                            <p class="mp-ship__title">Thông tin nhận sách in</p>
+                            <div class="mp-ship__row">
+                                <label>Người nhận <b>*</b><input type="text" x-model="ship.name" maxlength="120" autocomplete="name" placeholder="Họ tên người nhận"></label>
+                                <label>Số điện thoại <b>*</b><input type="tel" x-model="ship.phone" maxlength="20" autocomplete="tel" placeholder="VD: 0912345678"></label>
+                            </div>
+                            <label>Địa chỉ giao hàng <b>*</b><textarea x-model="ship.address" rows="2" maxlength="500" autocomplete="street-address" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"></textarea></label>
+                            <label>Ghi chú<input type="text" x-model="ship.note" maxlength="500" placeholder="VD: giao giờ hành chính"></label>
                         </div>
                         <p class="mp-meta-line"><x-lucide name="clock" />Thời hạn tính từ khi kích hoạt quyền đọc.</p>
 

@@ -12,8 +12,13 @@
         $orderStatusMessage = match (session('status')) {
             'order-approved' => 'Đã duyệt đơn, đã sinh mã kích hoạt cho từng sản phẩm.',
             'order-rejected' => 'Đã từ chối đơn, đã ghi lý do.',
+            'delivery-updated' => 'Đã cập nhật trạng thái giao sách in.',
             default => null,
         };
+        // SỬA 9/11 — dòng mua kèm sách in (nếu có) + thông tin giao.
+        $printItem = $orderModel->items->firstWhere('include_print', true);
+        $ship = $printItem?->print_shipping_info ?? [];
+        [$deliveryLabel, $deliveryTone] = \App\Services\Admin\OrderService::deliveryLabel($printItem?->print_shipping_info);
     @endphp
     @if ($orderStatusMessage)
         @include('partials.toast-flash', ['type' => 'success', 'message' => $orderStatusMessage])
@@ -42,6 +47,39 @@
                     </tbody>
                 </table>
             </div>
+            @if ($printItem)
+                {{-- SỬA 9/11 (khách: "mua bản cứng thì nhắn địa chỉ, hiển thị lên quản trị") — thông tin giao sách in. --}}
+                <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
+                    <div class="mb-3 flex items-center justify-between gap-2">
+                        <h2 class="font-medium text-slate-700">Giao sách in</h2>
+                        <x-ws.badge :tone="$deliveryTone">{{ $deliveryLabel }}</x-ws.badge>
+                    </div>
+                    @if (! empty($ship['address']))
+                        <dl class="space-y-2 text-[13px]">
+                            <div><dt class="inline text-slate-400">Người nhận:</dt> <dd class="inline font-medium text-slate-700">{{ $ship['name'] ?? '' }}</dd></div>
+                            <div><dt class="inline text-slate-400">Số điện thoại:</dt> <dd class="inline"><a href="tel:{{ $ship['phone'] ?? '' }}" class="text-blue-600 font-medium">{{ $ship['phone'] ?? '' }}</a></dd></div>
+                            <div><dt class="inline text-slate-400">Địa chỉ:</dt> <dd class="inline text-slate-700">{{ $ship['address'] }}</dd></div>
+                            @if (! empty($ship['note']))<div><dt class="inline text-slate-400">Ghi chú của khách:</dt> <dd class="inline text-slate-700">{{ $ship['note'] }}</dd></div>@endif
+                            @if (! empty($ship['updated_at']))<div><dt class="inline text-slate-400">Cập nhật lúc:</dt> <dd class="inline text-slate-500">{{ \Illuminate\Support\Carbon::parse($ship['updated_at'])->format('H:i d/m/Y') }}</dd></div>@endif
+                        </dl>
+                    @else
+                        <p class="text-[13px] text-slate-500">Đơn đặt trước khi có ô nhập địa chỉ — liên hệ người mua{{ $orderModel->buyer?->phone ? ' ('.$orderModel->buyer->phone.')' : '' }}{{ $orderModel->buyer?->email ? ' · '.$orderModel->buyer->email : '' }} để lấy địa chỉ.</p>
+                    @endif
+
+                    <form method="POST" action="{{ route('admin.orders.delivery', $orderModel->id) }}" class="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                        @csrf
+                        <label class="block text-[13px] text-slate-600">Trạng thái giao</label>
+                        <select name="delivery_status" class="admin-input">
+                            @foreach (\App\Services\Admin\OrderService::DELIVERY_STATUSES as $dKey => [$dLabel])
+                                <option value="{{ $dKey }}" @selected(($ship['delivery_status'] ?? 'pending') === $dKey)>{{ $dLabel }}</option>
+                            @endforeach
+                        </select>
+                        <label class="block text-[13px] text-slate-600">Ghi chú nội bộ (mã vận đơn, đơn vị giao…)</label>
+                        <textarea name="admin_note" rows="2" class="admin-input" placeholder="VD: GHTK S123456 — giao ngày 10/11">{{ $ship['admin_note'] ?? '' }}</textarea>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-[13px] font-medium">Lưu trạng thái giao</button>
+                    </form>
+                </div>
+            @endif
             <div class="rounded-3xl border border-sky-100 bg-white shadow-[0_2px_8px_rgba(0,90,180,.04)] p-4 sm:p-5">
                 <h2 class="font-medium text-slate-700 mb-2">Phương thức thanh toán</h2>
                 <p class="text-[13px] text-slate-500">{{ $methodLabel }}</p>

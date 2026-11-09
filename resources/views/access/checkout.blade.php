@@ -161,7 +161,41 @@
                         </span>
                         <span class="shrink-0 text-[12px] font-bold text-slate-500">+{{ \App\Support\TokenPrice::label($printPrice) }}</span>
                     </label>
+
+                    {{-- SỬA 9/11 (khách: "mua cần bản cứng thì cho nhắn địa chỉ") — thông tin giao sách, bắt buộc khi tích bản in.
+                         CSS viết thường (.co-ship) vì máy chủ không build lại Tailwind. --}}
+                    <div class="co-ship" x-show="includePrint" x-cloak>
+                        <p class="co-ship__hint">Nhập thông tin nhận sách — bên bán sẽ gọi xác nhận trước khi giao.</p>
+                        <div class="co-ship__row">
+                            <label>Người nhận <b>*</b>
+                                <input type="text" name="ship_name" maxlength="120" :required="includePrint" autocomplete="name"
+                                       value="{{ old('ship_name', $coUser?->name) }}" placeholder="Họ tên người nhận">
+                            </label>
+                            <label>Số điện thoại <b>*</b>
+                                <input type="tel" name="ship_phone" maxlength="20" :required="includePrint" autocomplete="tel"
+                                       value="{{ old('ship_phone', $coUser?->phone) }}" placeholder="VD: 0912345678">
+                            </label>
+                        </div>
+                        <label>Địa chỉ giao hàng <b>*</b>
+                            <textarea name="ship_address" rows="2" maxlength="500" :required="includePrint" autocomplete="street-address"
+                                      placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành">{{ old('ship_address') }}</textarea>
+                        </label>
+                        <label>Ghi chú cho người giao
+                            <input type="text" name="ship_note" maxlength="500" value="{{ old('ship_note') }}" placeholder="VD: giao giờ hành chính">
+                        </label>
+                    </div>
                 </x-ws.card>
+                <style>
+                    .co-ship { margin-top: 10px; padding: 12px; border: 1px solid #dbeafe; border-radius: 16px; background: #f8fbfe; }
+                    .co-ship__hint { margin: 0 0 8px; font-size: 11.5px; color: #64748b; }
+                    .co-ship__row { display: grid; grid-template-columns: 1fr; gap: 8px; }
+                    @media (min-width: 640px) { .co-ship__row { grid-template-columns: 1fr 1fr; } }
+                    .co-ship label { display: block; margin-top: 8px; font-size: 12px; font-weight: 600; color: #334155; }
+                    .co-ship__row label { margin-top: 0; }
+                    .co-ship label b { color: #e11d48; }
+                    .co-ship input, .co-ship textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; font: inherit; font-size: 13px; font-weight: 400; color: #0f172a; }
+                    .co-ship input:focus, .co-ship textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
+                </style>
             @endunless
         </div>
 

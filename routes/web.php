@@ -889,6 +889,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::post('orders/{order}/approve', [AdminOrderController::class, 'approve'])->name('orders.approve');
         Route::post('orders/{order}/reject', [AdminOrderController::class, 'reject'])->name('orders.reject');
+        // SỬA 9/11 — cập nhật trạng thái giao sách in (Chờ giao / Đang giao / Đã giao / Huỷ giao). Xem OrderService::updateDelivery().
+        Route::post('orders/{order}/giao-hang', [AdminOrderController::class, 'updateDelivery'])->name('orders.delivery');
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::get('activation-codes', [AdminActivationCodeController::class, 'index'])->name('activation-codes.index');
         // SỬA 18/9 (khách: "thêm tính năng thêm mã kích hoạt") — admin cấp tay 1 mã cho đúng 1
