@@ -53,7 +53,9 @@ final class ProductExercisePickService
             ->where('product_id', '!=', $target->id)
             ->whereIn('product_id', Product::query()->whereIn('type', array_keys(self::TYPE_LABELS))->select('id'))
             ->where('status', ContentStatus::Published->value)
-            ->get(['id', 'code', 'title', 'type', 'points', 'product_id', 'material_id', 'metadata', 'grading_config'])
+            // SỬA 09/11 (lỗi 500 "Server Error" — tràn bộ nhớ): KHÔNG kéo grading_config (chứa test, có bài vài chục MB) của
+            // mọi bài; số test / phương án chỉ đếm bằng SQL cho các bài thực sự hiện ra (xem withCounts() bên dưới).
+            ->get(['id', 'code', 'title', 'type', 'points', 'product_id', 'material_id', 'metadata'])
             ->reject(fn (Question $q) => isset($taken[$q->id]) || isset($taken[self::originId($q)]))
             ->values();
 
@@ -98,7 +100,7 @@ final class ProductExercisePickService
         }
 
         $total = $items->count();
-        $items = $this->sorted($items)->take(self::MAX_ITEMS);
+        $items = $this->withCounts($this->sorted($items)->take(self::MAX_ITEMS));
         $chapterTitles = Material::query()->whereIn('id', $items->pluck('material_id')->filter()->unique()->values()->all() ?: [0])->pluck('title', 'id');
         $productTitles = $products->pluck('title', 'id');
 
@@ -145,7 +147,9 @@ final class ProductExercisePickService
 
         $chapterId = $chapterId !== null ? $target->chapters()->whereKey($chapterId)->value('id') : null;
         $taken = $this->takenOrigins($target);
-        $sources = Question::query()->whereIn('id', $ids)->with(['product:id,title,type'])->get()->keyBy('id');
+        // SỬA 09/11 — chỉ lấy cột nhẹ (không grading_config) để thêm 300 bài một lần không tràn bộ nhớ.
+        $sources = Question::query()->whereIn('id', $ids)->with(['product:id,title,type'])
+            ->get(['id', 'code', 'title', 'status', 'product_id', 'metadata'])->keyBy('id');
 
         $added = [];
         $skipped = [];
@@ -227,6 +231,29 @@ final class ProductExercisePickService
         $root = $q->metadata['copied_from']['id'] ?? null;
 
         return is_numeric($root) ? (int) $root : (int) $q->id;
+    }
+
+    /**
+     * SỬA 09/11 — gắn sẵn số test / phương án / đáp án / phần (đếm bằng SQL, xem Question::scopeWithSummaryCounts()) vào các
+     * bài sẽ hiện, để exerciseSummaryLabel() không cần grading_config.
+     */
+    private function withCounts(Collection $items): Collection
+    {
+        if ($items->isEmpty()) {
+            return $items;
+        }
+        $counts = Question::query()->select('questions.id')->withSummaryCounts()
+            ->whereIn('questions.id', $items->pluck('id')->all())->get()->keyBy('id');
+
+        return $items->each(function (Question $q) use ($counts) {
+            $c = $counts->get($q->id);
+            $q->setRawAttributes(array_merge($q->getAttributes(), [
+                'cnt_tests' => (int) ($c?->cnt_tests ?? 0),
+                'cnt_options' => (int) ($c?->cnt_options ?? 0),
+                'cnt_answers' => (int) ($c?->cnt_answers ?? 0),
+                'cnt_parts' => (int) ($c?->cnt_parts ?? 0),
+            ]), true);
+        });
     }
 
     /** Thứ tự: tài liệu → chương (theo thứ tự chương) → mã bài tự nhiên (T1B002 trước T1B010). */
