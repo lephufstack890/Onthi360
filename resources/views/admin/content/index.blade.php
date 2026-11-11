@@ -216,13 +216,13 @@
                          nhiều tag); 'none' = câu CHƯA gắn chuyên đề nào, để dò ra mà gắn dần. --}}
                     <div class="min-w-[160px]">
                         <label class="akx-lbl" for="filter-tag">Chuyên đề</label>
-                        <x-ws.select id="filter-tag" name="tag">
-                            <option value="">Tất cả chuyên đề</option>
-                            @foreach ($tagOptions as $tagId => $tagName)
-                                <option value="{{ $tagId }}" @selected((string) ($filters['tag'] ?? '') === (string) $tagId)>{{ $tagName }}</option>
-                            @endforeach
-                            <option value="none" @selected(($filters['tag'] ?? null) === 'none')>Chưa gắn chuyên đề</option>
-                        </x-ws.select>
+                        {{-- SỬA 11/11 (khách: "có search nữa nhé") — ô chọn chuyên đề gõ tìm được (partials/tag-filter-select).
+                             Vẫn là <select name="tag"> như cũ, chỉ thêm lớp giao diện: không đổi gì phía máy chủ. --}}
+                        @include('partials.tag-filter-select', [
+                            'tfsId' => 'filter-tag',
+                            'tfsOptions' => $tagOptions,
+                            'tfsValue' => $filters['tag'] ?? '',
+                        ])
                     </div>
                     @include('partials.question-province-year-filter')
                     {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
