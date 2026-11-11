@@ -51,6 +51,9 @@ class QuestionController extends Controller
             'exam_year' => $request->query('exam_year') ?: null,
             // SỬA 28/10 — lọc câu Lập trình theo cách vào/ra: 'file' (đọc từ tệp) | 'std' (bàn phím / màn hình).
             'io' => in_array($request->query('io'), ['file', 'std'], true) ? $request->query('io') : null,
+            // SỬA 11/11 (khách: "Bài chung bên admin và giáo viên cho thêm lọc theo tag chuyên đề") — id tag, hoặc 'none'
+            // (chưa gắn chuyên đề). Đọc y hệt Admin\ContentController::index() để 2 bên dùng chung một luật lọc.
+            'tag' => $request->query('tag') ?: null,
             'q' => $request->query('q') ?: null,
         ];
 

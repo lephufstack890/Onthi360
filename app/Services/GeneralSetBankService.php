@@ -22,9 +22,14 @@ class GeneralSetBankService
 
     /**
      * @param  int|null  $teacherId  null = admin (mọi bài phổ thông); có id = chỉ bài của giáo viên đó.
+     * @param  string|int|null  $tag  SỬA 11/11 — id chuyên đề (tag) đang lọc, hoặc 'none' = bài không có câu nào gắn
+     *                                chuyên đề. Một "Bài phổ thông" KHÔNG tự mang tag — tag nằm ở các câu con, nên ở đây
+     *                                dò qua quan hệ items.question.tags (whereHas, không join tay để 1 bài nhiều câu
+     *                                cùng tag vẫn chỉ ra 1 dòng). Thiếu tham số này thì ô lọc Chuyên đề ở Kho bài tập
+     *                                chỉ lọc được câu lẻ, còn khối Bài phổ thông vẫn hiện đủ — nhìn như lọc không ăn.
      * @return list<array<string, mixed>>
      */
-    public function rows(?int $teacherId = null, ?string $search = null): array
+    public function rows(?int $teacherId = null, ?string $search = null, string|int|null $tag = null): array
     {
         if (! Assessment::supportsPracticeKind()) {
             return [];
@@ -34,6 +39,9 @@ class GeneralSetBankService
             ->where('practice_kind', Assessment::PRACTICE_KIND_GENERAL)
             ->when($teacherId !== null, fn ($q) => $q->where('owner_type', OwnerType::Teacher->value)->where('owner_id', $teacherId))
             ->when(filled($search), fn ($q) => $q->where(fn ($w) => $w->where('title', 'like', '%'.$search.'%')->orWhere('exam_code', 'like', '%'.$search.'%')))
+            ->when($tag === 'none', fn ($q) => $q->whereDoesntHave('items.question.tags'))
+            ->when($tag !== null && $tag !== '' && $tag !== 'none',
+                fn ($q) => $q->whereHas('items.question.tags', fn ($w) => $w->where('tags.id', (int) $tag)))
             ->with(['items.question', 'creator'])
             ->withCount('attempts') // SỬA 3/11 — để hộp xác nhận Xoá báo số lượt làm sẽ mất
             ->latest()

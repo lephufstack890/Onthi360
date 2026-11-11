@@ -120,6 +120,8 @@ class QuestionService
             'province' => $filters['province'] ?? null,
             'exam_year' => $filters['exam_year'] ?? null,
             'io' => $filters['io'] ?? null,
+            // SỬA 11/11 — lọc theo chuyên đề (tag), xem QuestionRepository::applyQuestionBankFilters().
+            'tag' => $filters['tag'] ?? null,
             'q' => $filters['q'] ?? null,
         ];
 
@@ -170,12 +172,15 @@ class QuestionService
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'io' => $filters['io'] ?? null,
+                'tag' => $filters['tag'] ?? null, // SỬA 11/11
                 'q' => $filters['q'] ?? null,
             ],
             'isShared' => $isShared,
             'subjectOptions' => SubjectCatalog::SUBJECTS,
             'gradeOptions' => SubjectCatalog::GRADES,
             'questionTypeOptions' => collect(QuestionType::cases())->mapWithKeys(fn (QuestionType $t) => [$t->value => $t->label()])->all(),
+            // SỬA 11/11 — danh sách chuyên đề cho ô lọc mới; giống Admin\ContentService::indexData().
+            'tagOptions' => $isQuestionTab ? $this->tags->allOrderedByName()->pluck('name', 'id')->all() : [],
             // Chia <optgroup> (hiện hành / tên cũ trước sáp nhập 2025) cho danh sách khỏi rối mắt.
             'provinceGroups' => ProvinceCatalog::groups(),
             'examYearOptions' => ProvinceCatalog::years(),

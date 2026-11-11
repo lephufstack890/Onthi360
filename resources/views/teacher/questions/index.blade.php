@@ -30,6 +30,8 @@
         $questionTypeOptions = $questionTypeOptions ?? [];
         $subjectCounts = $subjectCounts ?? [];
         $typeCounts = $typeCounts ?? [];
+        // SỬA 11/11 — danh sách chuyên đề cho ô lọc mới (Teacher\QuestionService::listForTeacher()).
+        $tagOptions = $tagOptions ?? [];
         $pagination = $pagination ?? ['page' => 1, 'perPage' => 10, 'lastPage' => 1, 'total' => $isAssessments ? count($papers) : $total];
         $pgPage = (int) ($pagination['page'] ?? 1);
 
@@ -45,6 +47,7 @@
                 'province' => $filters['province'] ?? null,
                 'exam_year' => $filters['exam_year'] ?? null,
                 'io' => $filters['io'] ?? null,
+                'tag' => $filters['tag'] ?? null, // SỬA 11/11 — giữ chuyên đề đang lọc khi bấm chip Môn / tab Dạng câu
                 'q' => $filters['q'] ?? null,
                 'page' => null,
             ], $override);
@@ -154,6 +157,20 @@
                             <option value="none" @selected(($filters['grade'] ?? null) === 'none')>Chưa gán khối</option>
                         </x-ws.select>
                     </div>
+                    {{-- SỬA 11/11 (khách: "Bài chung trong admin và giáo viên cho thêm lọc theo tag chuyên đề nữa, thêm 1 cái lọc")
+                         — ô lọc Chuyên đề (tag) quay lại hàng bộ lọc. Lọc chạy ở QuestionRepository::applyQuestionBankFilters()
+                         bằng whereHas trên quan hệ nhiều-nhiều question_tag (KHÔNG join tay, tránh nhân đôi dòng khi 1 câu mang
+                         nhiều tag); 'none' = câu CHƯA gắn chuyên đề nào, để dò ra mà gắn dần. --}}
+                    <div class="min-w-[160px]">
+                        <label class="akx-lbl" for="filter-tag">Chuyên đề</label>
+                        <x-ws.select id="filter-tag" name="tag">
+                            <option value="">Tất cả chuyên đề</option>
+                            @foreach ($tagOptions as $tagId => $tagName)
+                                <option value="{{ $tagId }}" @selected((string) ($filters['tag'] ?? '') === (string) $tagId)>{{ $tagName }}</option>
+                            @endforeach
+                            <option value="none" @selected(($filters['tag'] ?? null) === 'none')>Chưa gắn chuyên đề</option>
+                        </x-ws.select>
+                    </div>
                     @include('partials.question-province-year-filter')
                     <div class="akx-grow">
                         <label class="akx-lbl" for="filter-q">Tìm theo tên hoặc mã</label>
@@ -174,7 +191,7 @@
         {{-- SỬA 3/11 — tab "Bài chung": "Bài phổ thông" của giáo viên (1 bài nhiều câu) hiện 1 dòng / bài, chỉ khi lọc Phổ thông.
              SỬA 6/11 — như admin: chỉ ở trang 1 (danh sách câu lẻ đã phân trang máy chủ). --}}
         @if ($tab === 'unused' && ($filters['type'] ?? null) === 'general' && $pgPage <= 1)
-            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'))])
+            @include('partials.general-set-bank', ['gsbMode' => 'teacher', 'gsbRows' => app(\App\Services\GeneralSetBankService::class)->rows((int) auth()->id(), request('q'), $filters['tag'] ?? null)])
         @endif
         {{-- SỬA 3/11 (khách: "lọc Phổ thông thì bỏ bảng này đi") — chỉ còn khối Bài phổ thông; nếu có câu trắc nghiệm lẻ thì bảng vẫn hiện. --}}
         @if (! (($filters['type'] ?? null) === 'general' && (int) $total === 0))
