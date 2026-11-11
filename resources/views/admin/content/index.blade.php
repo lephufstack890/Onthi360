@@ -285,10 +285,23 @@
         </div>
 
         <section class="acx-panel" style="margin-top:16px">
-            <div class="akx-sub"><span><b>{{ $resultTotal }}</b> kết quả · {{ $activeTabLabel }}</span></div>
+            {{-- SỬA 11/11 (khách: "làm cho tôi phần lọc tag, lọc theo tên nha") — ô lọc tag theo TÊN chạy
+                 ngay trên trình duyệt (không gọi máy chủ) vì cả danh sách tag đã nạp sẵn ở trang này.
+                 So khớp BỎ DẤU + không phân biệt hoa thường nên gõ "chu ky" vẫn ra "Chu kỳ", "so nguyen to"
+                 ra "Số nguyên tố". Dòng không khớp bị gỡ thuộc tính data-pg-item để thanh chuyển trang
+                 (partials.admin-content-ui) đếm và chia lại trang trên đúng tập đã lọc. --}}
+            <div class="acx-toolbar">
+                <label class="acx-search">
+                    <x-lucide name="search" />
+                    <input type="search" id="atgQuery" aria-label="Lọc tag theo tên" autocomplete="off"
+                           placeholder="Lọc theo tên tag… (VD: chu kỳ, số nguyên tố)">
+                    <button type="button" class="acx-clear" id="atgClear" aria-label="Xoá ô lọc"><x-lucide name="x" class="h-4 w-4" /></button>
+                </label>
+            </div>
+            <div class="akx-sub" style="padding-top:0"><span><b id="atgCount">{{ $resultTotal }}</b> kết quả · {{ $activeTabLabel }}</span></div>
             <div data-pg="tags" data-unit="tag">
                 @forelse ($tags as $t)
-                    <div class="apx-item" data-pg-item style="padding:12px 20px" x-data="{ editing: false }">
+                    <div class="apx-item" data-pg-item data-search="{{ $t['name'] }}" style="padding:12px 20px" x-data="{ editing: false }">
                         <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex items-center gap-2" x-show="editing" x-cloak>
                             @csrf
                             @method('PUT')
@@ -313,8 +326,45 @@
                     <div class="akx-empty"><strong>Chưa có tag nào</strong>Thêm tag đầu tiên ở trên.</div>
                 @endforelse
             </div>
+            <div class="akx-empty" id="atgEmpty" hidden><strong>Không tìm thấy tag phù hợp</strong>Thử bớt từ khoá, hoặc thêm tag mới ở ô phía trên.</div>
             <div class="akx-pg" data-pg-nav="tags" hidden></div>
         </section>
+
+        @push('scripts')
+            <script>
+                /* Lọc tag theo tên, chạy trên các dòng đã có (không gọi máy chủ) — cùng cách làm với ô tìm
+                   ở trang Người dùng (admin/users/index). Dòng không khớp được gỡ data-pg-item rồi dựng lại
+                   thanh chuyển trang qua window.akxRepage('tags'). */
+                document.addEventListener('DOMContentLoaded', function () {
+                    var box = document.querySelector('[data-pg="tags"]');
+                    var q = document.getElementById('atgQuery');
+                    if (!box || !q) return;
+                    var clear = document.getElementById('atgClear');
+                    var count = document.getElementById('atgCount');
+                    var empty = document.getElementById('atgEmpty');
+                    var rows = Array.prototype.slice.call(box.querySelectorAll('[data-pg-item]'));
+                    var total = rows.length;
+                    function norm(s) {
+                        return String(s || '').toLowerCase().normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd').replace(/\s+/g, ' ').trim();
+                    }
+                    rows.forEach(function (el) { el._s = norm(el.dataset.search); });
+                    function apply() {
+                        var term = norm(q.value), hits = 0;
+                        rows.forEach(function (el) {
+                            if (!term || el._s.indexOf(term) !== -1) { el.setAttribute('data-pg-item', ''); hits++; }
+                            else { el.removeAttribute('data-pg-item'); el.hidden = true; }
+                        });
+                        window.akxRepage && window.akxRepage('tags');
+                        count.textContent = term ? hits : total;
+                        if (empty) empty.hidden = hits !== 0;
+                        if (clear) clear.classList.toggle('is-on', q.value !== '');
+                    }
+                    q.addEventListener('input', apply);
+                    if (clear) clear.addEventListener('click', function () { q.value = ''; apply(); q.focus(); });
+                });
+            </script>
+        @endpush
     @else
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm Môn/Khối (và mã câu hỏi dưới tên) để nhìn bảng là biết
              ngay câu nào chưa phân loại; SỬA 1/10 — thêm Tỉnh thành/Năm. SỬA 8/10: các thông tin này giờ gộp
