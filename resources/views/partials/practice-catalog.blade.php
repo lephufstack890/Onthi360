@@ -564,12 +564,29 @@
                 </span>
                 Tất cả chuyên đề
             </button>
-            {{-- SỬA 12/11 — thẻ chuyên đề chỉ hiện khi đúng loại đang lọc (Lập trình / Phổ thông), xem topicFits(). --}}
-            <span x-init="topicMeta = @js(collect($practiceTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all())" hidden></span>
-            @foreach ($practiceTags as $i => $tag)
+            {{-- SỬA 12/11 — thẻ chuyên đề chỉ hiện khi đúng loại đang lọc (Lập trình / Phổ thông), xem topicFits().
+                 "Phổ thông" = tag loại Phổ thông (kể cả tag chưa có bài) + tag đang gắn trên các Bài phổ thông (để bấm lọc ra bài). --}}
+            @php
+                $gstRows = $gstRows ?? rescue(fn () => app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user()), [], false);
+                $__generalIds = collect($gstRows)->pluck('tagIds')->flatten()->map(fn ($id) => (int) $id)->filter()->unique()->values();
+                $__known = collect($practiceTags)->pluck('id')->map(fn ($id) => (int) $id)->all();
+                $__extraTags = rescue(function () use ($__generalIds, $__known) {
+                    $hasKind = \Illuminate\Support\Facades\Schema::hasColumn('tags', 'kind');
+                    return \App\Models\Tag::query()
+                        ->where(fn ($w) => $w->whereIn('id', $__generalIds->all())->when($hasKind, fn ($x) => $x->orWhere('kind', 'general')))
+                        ->whereNotIn('id', $__known ?: [0])
+                        ->orderBy('name')->get()
+                        ->map(fn ($t) => ['id' => (int) $t->id, 'name' => (string) $t->name, 'counts' => [], 'total' => 0, 'kind' => $hasKind ? $t->kind : null])
+                        ->all();
+                }, [], false);
+                $chipTags = array_merge($practiceTags, $__extraTags);
+                $__generalIdsAll = $__generalIds->merge(collect($chipTags)->where('kind', 'general')->pluck('id'))->unique()->values()->all();
+            @endphp
+            <span x-init="topicMeta = @js(collect($chipTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all()); generalTagIds = @js($__generalIdsAll)" hidden></span>
+            @foreach ($chipTags as $i => $tag)
                 @php $icon = $topicChipIcons[$i % count($topicChipIcons)]; @endphp
                 <button type="button" @click="setTopic({{ $tag['id'] }})" :aria-pressed="selectedTopic === {{ $tag['id'] }}"
-                        x-show="topicFits(@js($tag['kind'] ?? null), @js($tag['counts'] ?? []))"
+                        x-show="topicFits({{ (int) $tag['id'] }}, @js($tag['kind'] ?? null), @js($tag['counts'] ?? []))"
                         class="inline-flex min-h-9 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
                         :class="selectedTopic === {{ $tag['id'] }} ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">
                     <span class="grid h-4 w-4 place-items-center rounded-md" :class="selectedTopic === {{ $tag['id'] }} ? 'bg-white/60' : 'bg-white'">

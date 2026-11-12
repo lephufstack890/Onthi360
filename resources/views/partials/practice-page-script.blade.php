@@ -46,7 +46,8 @@
             // 'coding' = bài lập trình; 'general' = Phổ thông (mọi dạng KHÔNG phải lập trình: trắc nghiệm, điền đáp án, nhiều phần…).
             activeTab: 'coding',
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
-            topicMeta: {},             // SỬA 12/11 — id chuyên đề → { kind, counts } (đổ từ partials/practice-catalog)
+            topicMeta: {},
+            generalTagIds: [],         // SỬA 12/11 — id tag Phổ thông + tag gắn trên Bài phổ thông             // SỬA 12/11 — id chuyên đề → { kind, counts } (đổ từ partials/practice-catalog)
             selectedDifficulty: 'all',
             selectedExamType: 'all',
             // SỬA 12/10 — ô lọc "Khối": 'all' | 'thcs' | 'thpt' | 'khac'.
@@ -276,9 +277,10 @@
              * chỉ hiện khi đúng loại đang lọc. Tag đã gán loại (tags.kind) thì theo loại; tag chưa gán loại thì hiện nếu có câu
              * hỏi thuộc dạng đó. Mục "Bài được giao" không lọc theo dạng nên hiện mọi chuyên đề.
              */
-            topicFits(kind, counts) {
+            topicFits(id, kind, counts) {
                 if (this.problemScope === 'assigned' || this.activeTab === 'all') return true;
                 const want = this.activeTab === 'general' ? 'general' : 'coding';
+                if (want === 'general' && this.generalTagIds.includes(Number(id))) return true;
                 if (kind === 'coding' || kind === 'general') return kind === want;
                 const c = counts || {};
                 return want === 'coding'
@@ -290,7 +292,7 @@
                 this.problemPageIndex = 1;
                 if (this.selectedTopic === 'all') return;
                 const t = (this.topicMeta || {})[String(this.selectedTopic)];
-                if (t && !this.topicFits(t.kind, t.counts)) this.selectedTopic = 'all';
+                if (t && !this.topicFits(this.selectedTopic, t.kind, t.counts)) this.selectedTopic = 'all';
             },
             setDifficulty(v) { this.selectedDifficulty = v; this.problemPageIndex = 1; },
             setExamType(v) { this.selectedExamType = v; this.examPageIndex = 1; },
