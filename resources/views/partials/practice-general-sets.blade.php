@@ -8,7 +8,7 @@
 @php
     // SỬA 12/11 — practice-catalog có thể đã nạp sẵn (để dựng băng chuyên đề Phổ thông) thì dùng lại, khỏi truy vấn 2 lần.
     $gstRows = $gstRows ?? app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user());
-    $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => $r['search'], 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
+    $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => $r['search'].' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($r['search'])) /* SỬA 12/11 — tìm không dấu */, 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
 @endphp
 <script>
     // Số bài đang hiện — để dòng "Hiển thị N bài tập" ở đầu trang đếm đúng khi chọn Phổ thông.
@@ -22,9 +22,10 @@
             gstShow: 20,
             get gstVisibleIds() {
                 const q = (this.searchQuery || '').trim().toLowerCase();
+                const qPlain = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
                 const topic = this.selectedTopic, diff = this.selectedDifficulty;
                 return this.gstRows.filter((r) =>
-                    (!q || r.search.includes(q))
+                    (!q || r.search.includes(q) || r.search.includes(qPlain))
                     && (topic === 'all' || topic === undefined || r.tagIds.includes(Number(topic)))
                     && (diff === 'all' || diff === undefined || r.difficulty === diff)
                     && (!this.onlyUndone || !r.done)).map((r) => r.id);
@@ -107,12 +108,22 @@
                 <div class="col-span-1 grid grid-cols-2 gap-2 lg:contents">
                     <div class="min-w-0 rounded-lg border border-[#E7EFF3] bg-[#F8FBFC] px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                         <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
+                        @php $gstTopicIds = array_values($set['tagIds'] ?? []); /* SỬA 12/11 — bấm chuyên đề để lọc */ @endphp
                         <div class="oi-topics" title="{{ $gstTopics ? implode(', ', $gstTopics) : $set['topicLabel'] }}">
-                            <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $set['topicLabel'] }}</span>
+                            @if (isset($gstTopicIds[0]))
+                                <button type="button" class="oi-topic-chip oi-topic-pick rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]"
+                                        @click.stop="pickTopic({{ (int) $gstTopicIds[0] }})" title="Lọc theo chuyên đề “{{ $set['topicLabel'] }}”">{{ $set['topicLabel'] }}</button>
+                            @else
+                                <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $set['topicLabel'] }}</span>
+                            @endif
                             @if ($gstTopicSubs)
                                 <span class="oi-topic-subs">
-                                    @foreach ($gstTopicSubs as $gstTopic)
-                                        <span class="oi-topic-sub">{{ $gstTopic }}</span>
+                                    @foreach ($gstTopicSubs as $si => $gstTopic)
+                                        @if (isset($gstTopicIds[$si + 1]))
+                                            <button type="button" class="oi-topic-sub oi-topic-pick" @click.stop="pickTopic({{ (int) $gstTopicIds[$si + 1] }})" title="Lọc theo chuyên đề “{{ $gstTopic }}”">{{ $gstTopic }}</button>
+                                        @else
+                                            <span class="oi-topic-sub">{{ $gstTopic }}</span>
+                                        @endif
                                     @endforeach
                                     @if ($gstTopicMore)
                                         <span class="oi-topic-more">+{{ count($gstTopicMore) }}</span>

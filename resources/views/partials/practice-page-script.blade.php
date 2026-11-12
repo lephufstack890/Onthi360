@@ -272,6 +272,18 @@
 
             setTab(v) { this.activeTab = v; this.problemPageIndex = 1; },
             setTopic(v) { this.selectedTopic = v; this.problemPageIndex = 1; },
+            // SỬA 12/11 (khách: "bấm vào chuyên đề của từng bài thì lọc theo chuyên đề đó") — chọn chuyên đề, xoá ô tìm kiếm
+            // (để không bị lọc chồng ra rỗng), cuộn băng chuyên đề tới thẻ đang chọn và đưa danh sách lên đầu.
+            pickTopic(id) {
+                this.searchQuery = '';
+                this.setTopic(Number(id));
+                this.$nextTick(() => {
+                    const rail = document.querySelector('[x-ref="topicRail"]');
+                    const chip = rail && rail.querySelector('[aria-pressed="true"]');
+                    if (chip && chip.scrollIntoView) chip.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+                    if (rail && rail.getBoundingClientRect().top < 0) rail.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                });
+            },
             /*
              * SỬA 12/11 (khách: "lọc Lập trình thì ra tag + bài Lập trình, Phổ thông thì ra tag + bài Phổ thông") — thẻ chuyên đề
              * chỉ hiện khi đúng loại đang lọc. Tag đã gán loại (tags.kind) thì theo loại; tag chưa gán loại thì hiện nếu có câu
@@ -327,6 +339,7 @@
             },
 
             computeFilteredProblems(q, assignedView) {
+                const qPlain = String(q || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 
                 const list = this.problems.filter((p) => {
                     // "Tất cả bài tập" chỉ gồm bài thuộc kho; bài chỉ có mặt vì được giao thì chỉ
@@ -339,7 +352,8 @@
                         || (this.activeTab === 'general' ? p.type !== 'coding' : p.type === this.activeTab);
                     const matchTopic = this.selectedTopic === 'all' || p.tagIds.includes(this.selectedTopic);
                     const matchDiff = this.selectedDifficulty === 'all' || p.difficulty === this.selectedDifficulty;
-                    const matchSearch = !q || p.search.includes(q);
+                    // SỬA 12/11 — p.search có cả tên chuyên đề + bản không dấu; so cả q gốc lẫn q bỏ dấu.
+                    const matchSearch = !q || p.search.includes(q) || (qPlain !== q && p.search.includes(qPlain));
                     const matchUndone = !this.onlyUndone || !p.attempted;
                     return matchScope && matchAssign && matchTab && matchTopic && matchDiff && matchSearch && matchUndone;
                 });

@@ -89,6 +89,10 @@
     .oi-topic-sub, .oi-topic-more { display: inline-block; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         padding: 1px 7px; border: 1px solid #E3ECF4; border-radius: 7px; background: #fff; font-size: 11px; font-weight: 600; line-height: 1.5; color: #5C7A93; }
     .oi-topic-more { border-color: #E2E8F0; background: #F1F5F9; color: #64748B; cursor: help; }
+    /* SỬA 12/11 — chuyên đề trên từng bài bấm được để lọc */
+    .oi-topic-pick { cursor: pointer; font: inherit; text-align: left; transition: background-color .12s, border-color .12s, color .12s; }
+    .oi-topic-pick:hover { border-color: #2D7FA3 !important; background: #DDF1F6 !important; color: #126F91 !important; text-decoration: underline; text-underline-offset: 2px; }
+    .oi-topic-pick:focus-visible { outline: 2px solid #2D7FA3; outline-offset: 1px; }
 
     /* SỬA 8/10 — nút sắp xếp ở đầu cột (PracticeSortButton của source mới). */
     .oi-sort-btn { display: inline-flex; align-items: center; gap: .375rem; padding: 0; margin: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; transition: color .15s; }
@@ -182,7 +186,9 @@
             'tagIds' => $p['tagIds'],
             'difficulty' => $p['difficulty'],
             'status' => $p['status'],
-            'search' => mb_strtolower(trim($p['title'].' '.$p['code'])),
+            // SỬA 12/11 (khách: "gõ tag chuyên đề vào ô tìm kiếm cũng phải ra bài thuộc tag đó") — tìm cả theo tên chuyên đề.
+            // + bản KHÔNG DẤU để gõ "so hoc" cũng ra "Số học".
+            'search' => (function ($t) { $t = mb_strtolower(trim($t)); return $t.' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($t)); })($p['title'].' '.$p['code'].' '.implode(' ', $p['topicLabels'] ?? [])),
             // SỬA 8/10 — dữ liệu để sắp xếp bảng theo Chuyên đề / Độ khó / Tỷ lệ AC.
             'titleText' => (string) $p['title'],
             // SỬA 8/10 (khách: "nút tắt/bật chưa làm") — đã làm = có ít nhất 1 lượt nộp hoặc đã AC/đang làm dở.
@@ -763,13 +769,24 @@
                                 $probTopics = array_values(array_filter($prob['topicLabels'] ?? []));
                                 $probTopicSubs = array_slice($probTopics, 1, 2);
                                 $probTopicMore = array_slice($probTopics, 3);
+                                // SỬA 12/11 (khách: "hover vào chuyên đề hiện bàn tay, bấm thì lọc theo chuyên đề đó") — tên ↔ id tag (cùng thứ tự).
+                                $probTopicIds = array_values($prob['tagIds'] ?? []);
                             @endphp
                             <div class="oi-topics" title="{{ $probTopics ? implode(', ', $probTopics) : $prob['topicLabel'] }}">
-                                <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $prob['topicLabel'] }}</span>
+                                @if (isset($probTopicIds[0]))
+                                    <button type="button" class="oi-topic-chip oi-topic-pick rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]"
+                                            @click.stop="pickTopic({{ (int) $probTopicIds[0] }})" title="Lọc theo chuyên đề “{{ $prob['topicLabel'] }}”">{{ $prob['topicLabel'] }}</button>
+                                @else
+                                    <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]">{{ $prob['topicLabel'] }}</span>
+                                @endif
                                 @if ($probTopicSubs)
                                     <span class="oi-topic-subs">
-                                        @foreach ($probTopicSubs as $probTopic)
-                                            <span class="oi-topic-sub">{{ $probTopic }}</span>
+                                        @foreach ($probTopicSubs as $si => $probTopic)
+                                            @if (isset($probTopicIds[$si + 1]))
+                                                <button type="button" class="oi-topic-sub oi-topic-pick" @click.stop="pickTopic({{ (int) $probTopicIds[$si + 1] }})" title="Lọc theo chuyên đề “{{ $probTopic }}”">{{ $probTopic }}</button>
+                                            @else
+                                                <span class="oi-topic-sub">{{ $probTopic }}</span>
+                                            @endif
                                         @endforeach
                                         @if ($probTopicMore)
                                             <span class="oi-topic-more">+{{ count($probTopicMore) }}</span>
