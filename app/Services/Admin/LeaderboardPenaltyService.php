@@ -21,7 +21,19 @@ class LeaderboardPenaltyService
 
     public function ready(): bool
     {
-        return Schema::hasTable('leaderboard_penalties');
+        try {
+            return Schema::hasTable('leaderboard_penalties');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    /** Số tài khoản đang bị khóa — viên số trên tab admin. */
+    public function lockedCount(): int
+    {
+        return $this->ready() ? LeaderboardPenalty::query()->currentlyLocked()->count() : 0;
     }
 
     /** @return array<string, mixed> */
@@ -36,7 +48,7 @@ class LeaderboardPenaltyService
         $query = LeaderboardPenalty::query()->with(['user:id,name,email,phone,token_balance', 'creator:id,name'])
             ->orderByDesc('locked_at')->orderByDesc('id');
         if ($filter === 'locked') {
-            $query->locked();
+            $query->currentlyLocked();
         }
 
         return [
@@ -44,7 +56,7 @@ class LeaderboardPenaltyService
             'filter' => $filter,
             'ready' => true,
             'counts' => [
-                'locked' => LeaderboardPenalty::query()->locked()->count(),
+                'locked' => LeaderboardPenalty::query()->currentlyLocked()->count(),
                 'all' => LeaderboardPenalty::query()->count(),
                 'tokens' => (int) LeaderboardPenalty::query()->effective()->sum('tokens_deducted'),
             ],

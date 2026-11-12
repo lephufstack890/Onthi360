@@ -495,7 +495,16 @@ class LeaderboardService
     {
         static $ready = null;
 
-        return $ready ??= Schema::hasTable('leaderboard_penalties');
+        if ($ready === null) {
+            try {
+                $ready = class_exists(LeaderboardPenalty::class) && Schema::hasTable('leaderboard_penalties');
+            } catch (\Throwable $e) {
+                report($e);
+                $ready = false;
+            }
+        }
+
+        return $ready;
     }
 
     /**
@@ -508,7 +517,19 @@ class LeaderboardService
             return $metrics;
         }
 
-        $locked = array_flip(LeaderboardPenalty::query()->locked($at)->pluck('user_id')->map(fn ($id) => (int) $id)->all());
+        // Tính năng xử phạt KHÔNG được làm sập bảng xếp hạng: lỗi gì cũng ghi log rồi trả bảng gốc.
+        try {
+            return $this->applyPenaltiesUnsafe($metrics, $from, $at);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $metrics;
+        }
+    }
+
+    private function applyPenaltiesUnsafe(Collection $metrics, ?Carbon $from, Carbon $at): Collection
+    {
+        $locked = array_flip(LeaderboardPenalty::query()->currentlyLocked($at)->pluck('user_id')->map(fn ($id) => (int) $id)->all());
         $deductions = LeaderboardPenalty::query()->effective()
             ->where('locked_at', '<=', $at)
             ->when($from, fn ($q) => $q->where('locked_at', '>=', $from))
@@ -557,9 +578,30 @@ class LeaderboardService
     private function violationsScope(): array
     {
         $rows = [];
+        try {
+            $rows = $this->violationRows();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return [
+            'rows' => [],
+            'violations' => $rows,
+            'totalStudents' => 0,
+            'totalSolved' => 0,
+            'namesLocked' => false,
+            'rule' => 'Danh sách tài khoản đang bị khóa khỏi bảng xếp hạng do vi phạm quy chế. Hết hạn khóa, tài khoản tự trở lại bảng xếp hạng; điểm đã trừ không được hoàn lại.',
+            'updatedAt' => Carbon::now()->toIso8601String(),
+        ];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function violationRows(): array
+    {
+        $rows = [];
         if (self::penaltiesReady()) {
             $now = Carbon::now();
-            $rows = LeaderboardPenalty::query()->locked($now)
+            $rows = LeaderboardPenalty::query()->currentlyLocked($now)
                 ->with('user:id,name,province,avatar_path')
                 ->orderByDesc('locked_at')->orderByDesc('id')
                 ->limit(self::DISPLAY_LIMIT)
@@ -590,15 +632,7 @@ class LeaderboardService
                 })->all();
         }
 
-        return [
-            'rows' => [],
-            'violations' => $rows,
-            'totalStudents' => 0,
-            'totalSolved' => 0,
-            'namesLocked' => false,
-            'rule' => 'Danh sách tài khoản đang bị khóa khỏi bảng xếp hạng do vi phạm quy chế. Hết hạn khóa, tài khoản tự trở lại bảng xếp hạng; điểm đã trừ không được hoàn lại.',
-            'updatedAt' => Carbon::now()->toIso8601String(),
-        ];
+        return $rows;
     }
 
     /**

@@ -60,9 +60,10 @@ class LeaderboardPenalty extends Model
     }
 
     /** Đang khóa ngay lúc này: chưa hủy, chưa mở khóa sớm, chưa tới hạn mở khóa (hoặc vĩnh viễn). */
-    public function scopeLocked(Builder $q, ?Carbon $at = null): Builder
+    public function scopeCurrentlyLocked(Builder $q, ?\DateTimeInterface $at = null): Builder
     {
-        $at ??= Carbon::now();
+        // SỬA 12/11 — nhận cả Carbon\Carbon (LeaderboardService) lẫn Illuminate\Support\Carbon, tránh TypeError.
+        $at = $at === null ? Carbon::now() : Carbon::instance($at);
 
         return $q->whereNull('revoked_at')
             ->whereNull('unlocked_at')

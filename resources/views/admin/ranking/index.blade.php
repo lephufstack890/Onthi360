@@ -8,13 +8,10 @@
         $boards = $boards ?? [];
     @endphp
 
-    <x-ws.page-header title="Bảng xếp hạng" icon="bar-chart-3" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1).">
-        <x-slot:actions>
-            {{-- SỬA 12/11 — xử phạt tài khoản vi phạm (tab "Tài khoản vi phạm" ở trang công khai) --}}
-            <x-ws.btn :href="route('admin.ranking.violations.index')" variant="onhero" icon="ban">Tài khoản vi phạm</x-ws.btn>
-            <x-ws.btn :href="route('leaderboard.index', ['scope' => 'violations'])" variant="onhero-ghost" icon="eye" target="_blank">Xem trang công khai</x-ws.btn>
-        </x-slot:actions>
-    </x-ws.page-header>
+    <x-ws.page-header title="Bảng xếp hạng" icon="bar-chart-3" subtitle="Không trộn số liệu giữa các phạm vi khác nhau; tách biệt hoàn toàn với sao/rating (11.2, 9.1)." />
+
+    {{-- SỬA 12/11 — 2 tab: danh sách bảng xếp hạng | cấu hình xử phạt tài khoản vi phạm --}}
+    @include('admin.ranking._tabs', ['rankingTab' => 'boards', 'violationCount' => $violationCount ?? 0])
 
     <x-ws.table :columns="['Phạm vi', 'Số người xếp hạng', 'Trạng thái', '']">
         @forelse ($boards as $b)
