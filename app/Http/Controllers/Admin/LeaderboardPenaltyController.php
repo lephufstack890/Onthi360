@@ -23,6 +23,12 @@ class LeaderboardPenaltyController extends Controller
         ]);
     }
 
+    /** SỬA 12/11 — ô chọn tài khoản kiểu Select2: tìm theo tên / email / SĐT / ID, trả JSON. */
+    public function accounts(Request $request): \Illuminate\Http\JsonResponse
+    {
+        return response()->json(['items' => $this->penalties->searchAccounts((string) $request->query('q', ''))]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($this->penalties->ready(), 503, 'Chưa chạy migration bảng leaderboard_penalties (php artisan migrate).');

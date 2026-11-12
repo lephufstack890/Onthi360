@@ -978,6 +978,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
         // SỬA 12/11 — xử phạt tài khoản vi phạm (hiện ở tab "Tài khoản vi phạm" của trang Bảng xếp hạng công khai).
         Route::get('ranking/violations', [AdminLeaderboardPenaltyController::class, 'index'])->name('ranking.violations.index');
+        Route::get('ranking/violations/accounts', [AdminLeaderboardPenaltyController::class, 'accounts'])->name('ranking.violations.accounts');
         Route::post('ranking/violations', [AdminLeaderboardPenaltyController::class, 'store'])->name('ranking.violations.store');
         Route::post('ranking/violations/{penalty}/unlock', [AdminLeaderboardPenaltyController::class, 'unlock'])->whereNumber('penalty')->name('ranking.violations.unlock');
         Route::delete('ranking/violations/{penalty}', [AdminLeaderboardPenaltyController::class, 'destroy'])->whereNumber('penalty')->name('ranking.violations.destroy');

@@ -25,10 +25,12 @@
     @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã hủy hình phạt và hoàn token.'])
 @endif
 
-<x-ws.page-header title="Bảng xếp hạng" icon="bar-chart-3"
-                  subtitle="Khóa tài khoản khỏi bảng xếp hạng, trừ điểm / token. Tài khoản đang khóa hiện công khai ở tab “Tài khoản vi phạm”." />
-
-@include('admin.ranking._tabs', ['rankingTab' => 'violations', 'violationCount' => $counts['locked'] ?? 0])
+<x-ws.page-header title="Tài khoản vi phạm" icon="ban"
+                  subtitle="Khóa tài khoản khỏi bảng xếp hạng, trừ điểm / token. Tài khoản đang khóa hiện công khai ở tab “Tài khoản vi phạm”.">
+    <x-slot:actions>
+        <x-ws.btn :href="route('leaderboard.index', ['scope' => 'violations'])" variant="onhero-ghost" icon="external-link" target="_blank">Trang công khai</x-ws.btn>
+    </x-slot:actions>
+</x-ws.page-header>
 
 @if (! ($ready ?? true))
     <div class="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-800">

@@ -63,6 +63,43 @@ class LeaderboardPenaltyService
         ];
     }
 
+    /**
+     * SỬA 12/11 — gợi ý cho ô chọn tài khoản (Select2): học sinh đang hoạt động, khớp tên / email / SĐT / ID.
+     * Ô trống → 20 học sinh mới nhất.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function searchAccounts(string $q): array
+    {
+        $q = trim($q);
+        $lockedIds = $this->ready()
+            ? array_flip(LeaderboardPenalty::query()->currentlyLocked()->pluck('user_id')->map(fn ($id) => (int) $id)->all())
+            : [];
+
+        return User::query()
+            ->whereNull('deleted_at')
+            ->whereHas('roles', fn ($r) => $r->where('name', \App\Models\Role::STUDENT))
+            ->when($q !== '', function ($w) use ($q) {
+                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%';
+                $w->where(function ($x) use ($q, $like) {
+                    $x->where('name', 'like', $like)->orWhere('email', 'like', $like)->orWhere('phone', 'like', $like);
+                    if (preg_match('/^(?:VP-)?0*(\d+)$/i', $q, $m)) {
+                        $x->orWhere('id', (int) $m[1]);
+                    }
+                });
+            })
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get(['id', 'name', 'email', 'phone', 'province', 'avatar_path'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => (string) $u->name,
+                'meta' => collect(['#'.$u->id, $u->email, $u->phone, $u->province])->filter()->implode(' · '),
+                'avatar' => \App\Services\Account\AvatarService::url($u->avatar_path),
+                'locked' => isset($lockedIds[$u->id]),
+            ])->all();
+    }
+
     /** Tìm tài khoản theo ID, email, số điện thoại (hoặc "VP-000123"). */
     public function findAccount(string $needle): ?User
     {
