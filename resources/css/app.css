@@ -9,6 +9,8 @@
   --font-sans: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+
+
 :root {
   /* SỬA 14/9 — viền dải phần mềm cho phụ huynh [HOME-06D], chép từ source. */
   --parent-software-border: #cfe8e9;
