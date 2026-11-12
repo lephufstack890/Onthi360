@@ -90,7 +90,11 @@
         padding: 1px 7px; border: 1px solid #E3ECF4; border-radius: 7px; background: #fff; font-size: 11px; font-weight: 600; line-height: 1.5; color: #5C7A93; }
     .oi-topic-more { border-color: #E2E8F0; background: #F1F5F9; color: #64748B; cursor: help; }
     /* SỬA 12/11 — chuyên đề trên từng bài bấm được để lọc */
-    .oi-topic-pick { cursor: pointer; font: inherit; text-align: left; transition: background-color .12s, border-color .12s, color .12s; }
+    /* SỬA 12/11 (khách: "chữ badge to quá, cho nhỏ lại như ban đầu") — KHÔNG dùng font: inherit (kéo cỡ chữ của ô cha, to hơn);
+       giữ đúng cỡ cũ: chip chính 12px, chip phụ 11px. */
+    .oi-topic-pick { cursor: pointer; font-family: inherit; text-align: left; transition: background-color .12s, border-color .12s, color .12s; }
+    .oi-topic-chip.oi-topic-pick { font-size: 12px; font-weight: 600; line-height: 1.5; }
+    .oi-topic-sub.oi-topic-pick { font-size: 11px; font-weight: 600; line-height: 1.5; }
     .oi-topic-pick:hover { border-color: #2D7FA3 !important; background: #DDF1F6 !important; color: #126F91 !important; text-decoration: underline; text-underline-offset: 2px; }
     .oi-topic-pick:focus-visible { outline: 2px solid #2D7FA3; outline-offset: 1px; }
 
