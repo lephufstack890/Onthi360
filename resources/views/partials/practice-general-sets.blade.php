@@ -6,7 +6,8 @@
     Dữ liệu: App\Services\Public\GeneralSetCatalogService. Lọc theo ô tìm kiếm / chuyên đề / độ khó / "Chưa làm" của trang.
 --}}
 @php
-    $gstRows = app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user());
+    // SỬA 12/11 — practice-catalog có thể đã nạp sẵn (để dựng băng chuyên đề Phổ thông) thì dùng lại, khỏi truy vấn 2 lần.
+    $gstRows = $gstRows ?? app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user());
     $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => $r['search'], 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
 @endphp
 <script>
