@@ -335,7 +335,12 @@ class ContentService
             $leadNextType = $leadNext?->type->value;
 
             // SỬA 3/11 (khách: "chuyển trang / lọc chậm") — chỉ nạp cột nhẹ (không kéo grading_config chứa bộ test), xem QuestionRepository.
-            $rows = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage, true)->map(function ($q) {
+            $pageQuestions = $this->questions->allWithOwnerFiltered($filters, $perPage, ($page - 1) * $perPage, true);
+            // SỬA 12/11 (khách: "thêm 1 cột Tag chuyên đề, hiển thị ra trang danh sách") — nạp tag 1 lần cho cả trang (không N+1).
+            if ($pageQuestions instanceof \Illuminate\Database\Eloquent\Collection) {
+                $pageQuestions->loadMissing('tags');
+            }
+            $rows = $pageQuestions->map(function ($q) {
                 [$label, $tone] = $this->statusLabel($q->status);
 
                 return [
@@ -354,6 +359,10 @@ class ContentService
                     'difficultySet' => QuestionDifficulty::stored($q->metadata) !== null,
                     // SỬA 28/10 — cột Input/Output (null = không phải câu Lập trình).
                     'io' => $q->ioInfo(),
+                    // SỬA 12/11 — cột Tag chuyên đề.
+                    'tags' => $q->relationLoaded('tags')
+                        ? $q->tags->sortBy('name')->map(fn ($t) => ['name' => (string) $t->name, 'kind' => $t->kind ?? null])->values()->all()
+                        : [],
                     'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
                     'status' => $label,
                     'tone' => $tone,

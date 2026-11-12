@@ -74,8 +74,15 @@ class ProductExerciseBulkController extends Controller
         @set_time_limit(300);
 
         $exercises = Question::query()->where('product_id', $product->id)->whereIn('id', $data['ids'])->get();
+        // SỬA 12/11 — 1 bài lỗi không được làm hỏng cả lượt xoá (trước đây ném lỗi 500): ghi log, đếm, báo lại.
+        $failed = [];
         foreach ($exercises as $exercise) {
-            $content->productExerciseDestroy($exercise);
+            try {
+                $content->productExerciseDestroy($exercise);
+            } catch (\Throwable $e) {
+                report($e);
+                $failed[] = $exercise->code ?: ('#'.$exercise->id);
+            }
         }
 
         // SỬA 27/10 — bài DÙNG CHUNG được chọn:
@@ -89,8 +96,13 @@ class ProductExerciseBulkController extends Controller
                 ->pluck('question_id')->map(fn ($id) => (int) $id)->all();
             if ($linkedIds !== [] && $request->boolean('xoa_ca_bai_goc')) {
                 foreach (Question::query()->whereIn('id', $linkedIds)->get() as $original) {
-                    $content->productExerciseDestroy($original);
-                    $deletedOriginals++;
+                    try {
+                        $content->productExerciseDestroy($original);
+                        $deletedOriginals++;
+                    } catch (\Throwable $e) {
+                        report($e);
+                        $failed[] = $original->code ?: ('#'.$original->id);
+                    }
                 }
             } elseif ($linkedIds !== []) {
                 $unlinked = \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $linkedIds)->delete();
@@ -98,14 +110,15 @@ class ProductExerciseBulkController extends Controller
         }
 
         $parts = array_filter([
-            $exercises->count() > 0 ? 'xoá '.$exercises->count().' bài tập' : null,
+            ($exercises->count() - count($failed)) > 0 ? 'xoá '.($exercises->count() - count(array_intersect($failed, $exercises->map(fn ($x) => $x->code ?: ('#'.$x->id))->all()))).' bài tập' : null,
             $deletedOriginals > 0 ? 'xoá hẳn '.$deletedOriginals.' bài dùng chung (cả bài gốc)' : null,
             $unlinked > 0 ? 'gỡ '.$unlinked.' bài dùng chung' : null,
         ]);
 
         return redirect()->route('admin.products.show', $product->id)
             ->with('status', 'exercises-deleted-many')
-            ->with('statusMessage', $parts !== [] ? 'Đã '.implode(', ', $parts).'.' : 'Không có bài nào được xoá.');
+            ->with('statusMessage', ($parts !== [] ? 'Đã '.implode(', ', $parts).'.' : 'Không có bài nào được xoá.')
+                .($failed !== [] ? ' Không xoá được '.count($failed).' bài ('.implode(', ', array_slice($failed, 0, 5)).(count($failed) > 5 ? '…' : '').') — xem log máy chủ.' : ''));
     }
 
     /** Xong (hoặc dừng giữa chừng): dọn thư mục tạm. */
