@@ -94,10 +94,19 @@ class LeaderboardPenaltyService
             ->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => (string) $u->name,
-                'meta' => collect(['#'.$u->id, $u->email, $u->phone, $u->province])->filter()->implode(' · '),
+                // SỬA 12/11 (khách: "đổ tên, email và avatar thôi") — dòng phụ chỉ còn email (không có thì SĐT).
+                'meta' => (string) ($u->email ?: $u->phone ?: ''),
+                'initials' => self::initials((string) $u->name),
                 'avatar' => \App\Services\Account\AvatarService::url($u->avatar_path),
                 'locked' => isset($lockedIds[$u->id]),
             ])->all();
+    }
+
+    public static function initials(string $name): string
+    {
+        $words = preg_split('/\s+/u', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return mb_strtoupper(implode('', array_map(fn ($w) => mb_substr($w, 0, 1), array_slice($words, -2)))) ?: '?';
     }
 
     /** Tìm tài khoản theo ID, email, số điện thoại (hoặc "VP-000123"). */

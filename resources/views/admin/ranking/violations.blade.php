@@ -14,9 +14,11 @@
 .vp-pick__box:hover { border-color: #bfdbfe; }
 .vp-pick__box.is-open, .vp-pick__box:focus-visible { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px #dbeafe; }
 .vp-pick__val { display: flex; flex: 1; min-width: 0; align-items: center; gap: 9px; }
-.vp-pick__val img, .vp-pick__opt img { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; object-fit: cover; background: #eef4f8; }
+.vp-pick__val img, .vp-pick__opt img, .vp-pick__ini { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; object-fit: cover; background: #eef4f8; }
+.vp-pick__ini { display: grid; place-items: center; background: linear-gradient(135deg, #dbeafe, #e0e7ff); color: #1d4ed8; font-size: 12px; font-style: normal; font-weight: 800; letter-spacing: .02em; }
+.vp-pick__opt { min-height: 52px; }
 .vp-pick__val b, .vp-pick__opt b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; color: #1e293b; }
-.vp-pick__val small, .vp-pick__opt small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #94a3b8; }
+.vp-pick__val small, .vp-pick__opt small { display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #94a3b8; }
 .vp-pick__ph { flex: 1; font-size: 14px; color: #94a3b8; }
 .vp-pick__x { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: #94a3b8; }
 .vp-pick__x:hover { background: #f1f5f9; color: #e11d48; }
@@ -91,6 +93,7 @@
 .vpx-acc { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .vpx-av { position: relative; width: 44px; height: 44px; flex: 0 0 44px; }
 .vpx-av img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #eef4f8; }
+.vpx-ini { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #dbeafe, #e0e7ff); color: #1d4ed8; font-size: 14px; font-weight: 800; }
 .vpx-av i { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50%; background: #e11d48; color: #fff; }
 .vpx-av i svg { width: 9px; height: 9px; }
 .vpx-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 800; color: #0f172a; }
@@ -233,7 +236,12 @@
                 {{-- Tài khoản --}}
                 <div class="vpx-acc">
                     <span class="vpx-av">
-                        <img src="{{ \App\Services\Account\AvatarService::url($p->user->avatar_path ?? null) }}" alt="" loading="lazy">
+                        @php $__av = \App\Services\Account\AvatarService::url($p->user->avatar_path ?? null); @endphp
+                        @if ($__av)
+                            <img src="{{ $__av }}" alt="" loading="lazy">
+                        @else
+                            <b class="vpx-ini">{{ \App\Services\Admin\LeaderboardPenaltyService::initials((string) ($p->user->name ?? '?')) }}</b>
+                        @endif
                         @if ($p->isLocked())<i title="Đang khóa"><x-lucide name="lock" /></i>@endif
                     </span>
                     <div class="min-w-0">
@@ -347,6 +355,7 @@
                         <template x-if="selected">
                             <span class="vp-pick__val">
                                 <img :src="selected.avatar" alt="" x-show="selected.avatar">
+                                <i class="vp-pick__ini" x-show="!selected.avatar" x-text="selected.initials || '?'"></i>
                                 <span class="min-w-0"><b x-text="selected.name"></b><small x-text="selected.meta"></small></span>
                             </span>
                         </template>
@@ -368,6 +377,7 @@
                                 <li role="option" class="vp-pick__opt" :class="{ 'is-active': i === active, 'is-sel': selected && selected.id == it.id }"
                                     @mouseenter="active = i" @click="pick(it)" :aria-selected="selected && selected.id == it.id">
                                     <img :src="it.avatar" alt="" x-show="it.avatar">
+                                    <i class="vp-pick__ini" x-show="!it.avatar" x-text="it.initials"></i>
                                     <span class="min-w-0 flex-1"><b x-text="it.name"></b><small x-text="it.meta"></small></span>
                                     <span class="vp-pick__lock" x-show="it.locked">Đang khóa</span>
                                 </li>
