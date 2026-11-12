@@ -44,9 +44,20 @@ class PracticeFilters
             $types[] = $info + ['value' => $value, 'count' => (int) ($totals[$value] ?? 0)];
         }
 
+        // SỬA 12/11 (khách: "lọc Lập trình thì ra tag + bài thuộc Lập trình, Phổ thông thì ra tag + bài thuộc Phổ thông") —
+        // kèm loại tag (tags.kind: coding / general) để băng chuyên đề chỉ hiện tag đúng loại đang lọc.
+        $kinds = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('tags', 'kind') && $tagCounts !== []) {
+                $kinds = \App\Models\Tag::query()->whereIn('id', array_keys($tagCounts))->pluck('kind', 'id')->all();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         $list = [];
         foreach ($tagCounts as $id => $row) {
-            $list[] = ['id' => $id, 'name' => $row['name'], 'counts' => $row['counts'], 'total' => $row['total']];
+            $list[] = ['id' => $id, 'name' => $row['name'], 'counts' => $row['counts'], 'total' => $row['total'], 'kind' => $kinds[$id] ?? null];
         }
 
         return [

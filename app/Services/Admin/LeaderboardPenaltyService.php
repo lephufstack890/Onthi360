@@ -97,9 +97,15 @@ class LeaderboardPenaltyService
                 // SỬA 12/11 (khách: "đổ tên, email và avatar thôi") — dòng phụ chỉ còn email (không có thì SĐT).
                 'meta' => (string) ($u->email ?: $u->phone ?: ''),
                 'initials' => self::initials((string) $u->name),
-                'avatar' => \App\Services\Account\AvatarService::url($u->avatar_path),
+                'avatar' => self::avatar($u->avatar_path),
                 'locked' => isset($lockedIds[$u->id]),
             ])->all();
+    }
+
+    /** SỬA 12/11 — chưa có ảnh đại diện thì dùng ảnh mặc định của giao diện (public/assets/user-avatar.png). */
+    public static function avatar(?string $path): string
+    {
+        return \App\Services\Account\AvatarService::url($path) ?? asset('assets/user-avatar.png');
     }
 
     public static function initials(string $name): string
@@ -146,7 +152,8 @@ class LeaderboardPenaltyService
                 $fresh->decrement('token_balance', $tokens);
             }
 
-            $penalty = LeaderboardPenalty::create([
+            $hasHideAvatar = Schema::hasColumn('leaderboard_penalties', 'hide_avatar'); // SỬA 12/11 — chưa migrate thì bỏ qua cột này
+            $penalty = LeaderboardPenalty::create(($hasHideAvatar ? ['hide_avatar' => (bool) ($data['hide_avatar'] ?? false)] : []) + [
                 'user_id' => $user->id,
                 'reason' => $data['reason'],
                 'note' => $data['note'] ?? null,

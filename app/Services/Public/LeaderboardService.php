@@ -615,7 +615,7 @@ class LeaderboardService
                         'name' => $hidden ? $p->accountCode() : (string) $p->user->name,
                         'named' => ! $hidden,
                         'initials' => $hidden ? '' : $this->initials((string) $p->user->name),
-                        'avatar' => $hidden ? null : \App\Services\Account\AvatarService::url($p->user->avatar_path),
+                        'avatar' => ($hidden || $p->hide_avatar) ? asset('assets/user-avatar.png') : (\App\Services\Account\AvatarService::url($p->user->avatar_path) ?? asset('assets/user-avatar.png')),
                         'sub' => $hidden ? null : ($p->user->province ?: null),
                         'badge' => $p->badge_at_lock ?: 'Newbie',
                         'scoreAtLock' => $p->score_at_lock,

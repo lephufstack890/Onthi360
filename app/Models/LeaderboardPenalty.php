@@ -28,7 +28,7 @@ class LeaderboardPenalty extends Model
 
     protected $fillable = [
         'user_id', 'reason', 'note', 'lock_days', 'points_deducted', 'tokens_deducted', 'score_at_lock', 'badge_at_lock',
-        'hide_name', 'locked_at', 'unlock_at', 'unlocked_at', 'revoked_at', 'revoke_reason', 'created_by',
+        'hide_name', 'hide_avatar', 'locked_at', 'unlock_at', 'unlocked_at', 'revoked_at', 'revoke_reason', 'created_by',
     ];
 
     protected $casts = [
@@ -37,6 +37,7 @@ class LeaderboardPenalty extends Model
         'tokens_deducted' => 'integer',
         'score_at_lock' => 'float',
         'hide_name' => 'boolean',
+        'hide_avatar' => 'boolean',
         'locked_at' => 'datetime',
         'unlock_at' => 'datetime',
         'unlocked_at' => 'datetime',

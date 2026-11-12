@@ -41,6 +41,7 @@ class LeaderboardPenaltyController extends Controller
             'points_deducted' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'tokens_deducted' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'hide_name' => ['nullable', 'boolean'],
+            'hide_avatar' => ['nullable', 'boolean'],
         ], [], [
             'account' => 'tài khoản', 'reason' => 'lý do', 'lock_days' => 'số ngày khóa',
             'points_deducted' => 'điểm trừ', 'tokens_deducted' => 'token trừ',

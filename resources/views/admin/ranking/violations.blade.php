@@ -236,12 +236,7 @@
                 {{-- Tài khoản --}}
                 <div class="vpx-acc">
                     <span class="vpx-av">
-                        @php $__av = \App\Services\Account\AvatarService::url($p->user->avatar_path ?? null); @endphp
-                        @if ($__av)
-                            <img src="{{ $__av }}" alt="" loading="lazy">
-                        @else
-                            <b class="vpx-ini">{{ \App\Services\Admin\LeaderboardPenaltyService::initials((string) ($p->user->name ?? '?')) }}</b>
-                        @endif
+                        <img src="{{ \App\Services\Admin\LeaderboardPenaltyService::avatar($p->user->avatar_path ?? null) }}" alt="" loading="lazy">
                         @if ($p->isLocked())<i title="Đang khóa"><x-lucide name="lock" /></i>@endif
                     </span>
                     <div class="min-w-0">
@@ -250,6 +245,7 @@
                         <div class="vpx-chips">
                             <span class="vpx-chip vpx-chip--score" title="Điểm xếp hạng trước khi áp mức trừ"><x-lucide name="trophy" /> {{ $p->score_at_lock !== null ? $nf($p->score_at_lock) : '—' }} điểm</span>
                             @if ($p->hide_name)<span class="vpx-chip vpx-chip--none"><x-lucide name="eye-off" /> Ẩn tên</span>@endif
+                            @if ($p->hide_avatar)<span class="vpx-chip vpx-chip--none"><x-lucide name="eye-off" /> Ẩn ảnh</span>@endif
                         </div>
                     </div>
                 </div>
@@ -354,8 +350,7 @@
                     <button type="button" id="account" class="vp-pick__box" :class="{ 'is-open': open }" @click="toggle()" :aria-expanded="open" aria-haspopup="listbox">
                         <template x-if="selected">
                             <span class="vp-pick__val">
-                                <img :src="selected.avatar" alt="" x-show="selected.avatar">
-                                <i class="vp-pick__ini" x-show="!selected.avatar" x-text="selected.initials || '?'"></i>
+                                <img :src="selected.avatar || @js(asset('assets/user-avatar.png'))" alt="">
                                 <span class="min-w-0"><b x-text="selected.name"></b><small x-text="selected.meta"></small></span>
                             </span>
                         </template>
@@ -376,8 +371,7 @@
                             <template x-for="(it, i) in items" :key="it.id">
                                 <li role="option" class="vp-pick__opt" :class="{ 'is-active': i === active, 'is-sel': selected && selected.id == it.id }"
                                     @mouseenter="active = i" @click="pick(it)" :aria-selected="selected && selected.id == it.id">
-                                    <img :src="it.avatar" alt="" x-show="it.avatar">
-                                    <i class="vp-pick__ini" x-show="!it.avatar" x-text="it.initials"></i>
+                                    <img :src="it.avatar" alt="" loading="lazy">
                                     <span class="min-w-0 flex-1"><b x-text="it.name"></b><small x-text="it.meta"></small></span>
                                     <span class="vp-pick__lock" x-show="it.locked">Đang khóa</span>
                                 </li>
@@ -428,6 +422,13 @@
                     <input type="hidden" name="hide_name" value="0">
                     <input type="checkbox" name="hide_name" value="1" class="mt-0.5 rounded border-slate-300" @checked(old('hide_name'))>
                     <span><b>Ẩn tên trên trang công khai</b><small>Chỉ hiện mã tài khoản dạng VP-000123 thay cho tên thật.</small></span>
+                </label>
+
+                {{-- SỬA 12/11 (khách: "thêm 1 cái để chọn ẩn avatar") --}}
+                <label class="vpx-switch">
+                    <input type="hidden" name="hide_avatar" value="0">
+                    <input type="checkbox" name="hide_avatar" value="1" class="mt-0.5 rounded border-slate-300" @checked(old('hide_avatar'))>
+                    <span><b>Ẩn ảnh đại diện trên trang công khai</b><small>Hiện ảnh mặc định thay cho ảnh thật của học sinh.</small></span>
                 </label>
             </div>
 

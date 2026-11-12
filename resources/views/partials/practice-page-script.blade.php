@@ -46,6 +46,7 @@
             // 'coding' = bài lập trình; 'general' = Phổ thông (mọi dạng KHÔNG phải lập trình: trắc nghiệm, điền đáp án, nhiều phần…).
             activeTab: 'coding',
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
+            topicMeta: {},             // SỬA 12/11 — id chuyên đề → { kind, counts } (đổ từ partials/practice-catalog)
             selectedDifficulty: 'all',
             selectedExamType: 'all',
             // SỬA 12/10 — ô lọc "Khối": 'all' | 'thcs' | 'thpt' | 'khac'.
@@ -270,6 +271,27 @@
 
             setTab(v) { this.activeTab = v; this.problemPageIndex = 1; },
             setTopic(v) { this.selectedTopic = v; this.problemPageIndex = 1; },
+            /*
+             * SỬA 12/11 (khách: "lọc Lập trình thì ra tag + bài Lập trình, Phổ thông thì ra tag + bài Phổ thông") — thẻ chuyên đề
+             * chỉ hiện khi đúng loại đang lọc. Tag đã gán loại (tags.kind) thì theo loại; tag chưa gán loại thì hiện nếu có câu
+             * hỏi thuộc dạng đó. Mục "Bài được giao" không lọc theo dạng nên hiện mọi chuyên đề.
+             */
+            topicFits(kind, counts) {
+                if (this.problemScope === 'assigned' || this.activeTab === 'all') return true;
+                const want = this.activeTab === 'general' ? 'general' : 'coding';
+                if (kind === 'coding' || kind === 'general') return kind === want;
+                const c = counts || {};
+                return want === 'coding'
+                    ? Number(c.coding || 0) > 0
+                    : Object.keys(c).some((k) => k !== 'coding' && Number(c[k] || 0) > 0);
+            },
+            // Đổi Lập trình ⇄ Phổ thông: chuyên đề đang chọn không thuộc loại mới thì quay về "Tất cả chuyên đề".
+            onTypeChange() {
+                this.problemPageIndex = 1;
+                if (this.selectedTopic === 'all') return;
+                const t = (this.topicMeta || {})[String(this.selectedTopic)];
+                if (t && !this.topicFits(t.kind, t.counts)) this.selectedTopic = 'all';
+            },
             setDifficulty(v) { this.selectedDifficulty = v; this.problemPageIndex = 1; },
             setExamType(v) { this.selectedExamType = v; this.examPageIndex = 1; },
 
