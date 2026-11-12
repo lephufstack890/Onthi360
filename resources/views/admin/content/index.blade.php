@@ -307,12 +307,50 @@
             @error('name')<p style="margin-top:8px;font-size:12px;color:#e11d48">{{ $message }}</p>@enderror
         </div>
 
+        @php
+            // SỬA 12/11 (khách: "loại tag là Lập trình và Phổ thông; danh sách thêm cột Phân loại; có lọc theo loại")
+            $tagKindCounts = ['' => count($tags), 'none' => 0] + array_fill_keys(array_keys(\App\Models\Tag::KINDS), 0);
+            foreach ($tags as $__t) {
+                $__k = $__t['kind'] ?? null;
+                $tagKindCounts[$__k && isset(\App\Models\Tag::KINDS[$__k]) ? $__k : 'none']++;
+            }
+            $tagKindTabs = ['' => 'Tất cả'] + \App\Models\Tag::KINDS + ['none' => 'Chưa phân loại'];
+            $tagKindIcon = ['coding' => 'code', 'general' => 'book-open', 'none' => 'tag'];
+        @endphp
+        <style>
+            .atg-kinds { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 12px; }
+            .atg-kinds button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; font-size: 12.5px; font-weight: 700; color: #475569; transition: all .12s; }
+            .atg-kinds button:hover { border-color: #bfdbfe; color: #1d4ed8; }
+            .atg-kinds button.is-on { border-color: #2563eb; background: #2563eb; color: #fff; box-shadow: 0 3px 10px rgba(37, 99, 235, .22); }
+            .atg-kinds button svg { width: 13px; height: 13px; }
+            .atg-kinds button em { min-width: 22px; padding: 1px 6px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 10.5px; font-style: normal; text-align: center; }
+            .atg-kinds button.is-on em { background: rgba(255, 255, 255, .22); color: #fff; }
+            .atg-head, .atg-row { display: grid; grid-template-columns: minmax(0, 1fr) 170px 150px 150px; align-items: center; gap: 16px; padding: 12px 20px; }
+            .atg-head { border-top: 1px solid #eef2f7; border-bottom: 1px solid #eef2f7; background: #f8fbfe; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #64748b; }
+            .atg-row { border-bottom: 1px solid #f1f5f9; }
+            .atg-row[hidden] { display: none !important; }
+            .atg-row:hover { background: #fafcff; }
+            .atg-name { font-size: 14px; font-weight: 700; color: #0f172a; }
+            .atg-kind { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+            .atg-kind svg { width: 12px; height: 12px; }
+            .atg-kind--coding { background: #e0f2fe; border-color: #bae6fd; color: #0369a1; }
+            .atg-kind--general { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+            .atg-kind--none { background: #f8fafc; border-color: #e2e8f0; color: #94a3b8; }
+            .atg-count { font-size: 13px; color: #475569; }
+            .atg-count b { font-weight: 800; color: #0f172a; }
+            .atg-acts { display: flex; justify-content: flex-end; gap: 8px; }
+            .atg-edit { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+            @media (max-width: 760px) {
+                .atg-head { display: none; }
+                .atg-row { grid-template-columns: minmax(0, 1fr) auto; }
+                .atg-row > .atg-col-kind, .atg-row > .atg-col-count { grid-column: 1; }
+                .atg-row > .atg-acts { grid-column: 2; grid-row: 1 / span 3; }
+            }
+        </style>
         <section class="acx-panel" style="margin-top:16px">
-            {{-- SỬA 11/11 (khách: "làm cho tôi phần lọc tag, lọc theo tên nha") — ô lọc tag theo TÊN chạy
-                 ngay trên trình duyệt (không gọi máy chủ) vì cả danh sách tag đã nạp sẵn ở trang này.
-                 So khớp BỎ DẤU + không phân biệt hoa thường nên gõ "chu ky" vẫn ra "Chu kỳ", "so nguyen to"
-                 ra "Số nguyên tố". Dòng không khớp bị gỡ thuộc tính data-pg-item để thanh chuyển trang
-                 (partials.admin-content-ui) đếm và chia lại trang trên đúng tập đã lọc. --}}
+            {{-- SỬA 11/11 — ô lọc tag theo TÊN chạy ngay trên trình duyệt (bỏ dấu, không phân biệt hoa thường).
+                 SỬA 12/11 — thêm lọc theo LOẠI (viên bấm có số đếm) + danh sách dạng bảng có cột Phân loại.
+                 Dòng không khớp bị gỡ data-pg-item để thanh chuyển trang (partials.admin-content-ui) chia lại trang. --}}
             <div class="acx-toolbar">
                 <label class="acx-search">
                     <x-lucide name="search" />
@@ -320,64 +358,57 @@
                            placeholder="Lọc theo tên tag… (VD: chu kỳ, số nguyên tố)">
                     <button type="button" class="acx-clear" id="atgClear" aria-label="Xoá ô lọc"><x-lucide name="x" class="h-4 w-4" /></button>
                 </label>
-                {{-- SỬA 12/11 — lọc theo loại tag --}}
-                <select id="atgKind" class="apx-input" style="width:auto;min-width:170px" aria-label="Lọc theo loại tag">
-                    <option value="">Tất cả loại</option>
-                    @foreach (\App\Models\Tag::KINDS as $kv => $kl)
-                        <option value="{{ $kv }}">{{ $kl }}</option>
-                    @endforeach
-                    <option value="none">Chưa phân loại</option>
-                </select>
+            </div>
+            <div class="atg-kinds" id="atgKinds" role="group" aria-label="Lọc theo loại tag">
+                @foreach ($tagKindTabs as $kv => $kl)
+                    <button type="button" data-kind="{{ $kv }}" class="{{ $kv === '' ? 'is-on' : '' }}" aria-pressed="{{ $kv === '' ? 'true' : 'false' }}">
+                        @if ($kv !== '')<x-lucide :name="$tagKindIcon[$kv] ?? 'tag'" />@endif
+                        {{ $kl }} <em>{{ $tagKindCounts[$kv] ?? 0 }}</em>
+                    </button>
+                @endforeach
             </div>
             <div class="akx-sub" style="padding-top:0"><span><b id="atgCount">{{ $resultTotal }}</b> kết quả · {{ $activeTabLabel }}</span></div>
+            @if (count($tags) > 0)
+                <div class="atg-head" aria-hidden="true">
+                    <span>Tên tag</span><span>Phân loại</span><span>Câu hỏi đang dùng</span><span style="text-align:right">Thao tác</span>
+                </div>
+            @endif
             <div data-pg="tags" data-unit="tag">
                 @forelse ($tags as $t)
-                    <div class="apx-item" data-pg-item data-search="{{ $t['name'] }}" data-kind="{{ $t['kind'] ?? 'none' }}" style="padding:12px 20px" x-data="{ editing: false }">
-                        <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex flex-wrap items-center gap-2" x-show="editing" x-cloak>
+                    @php $tk = ($t['kind'] ?? null) && isset(\App\Models\Tag::KINDS[$t['kind']]) ? $t['kind'] : 'none'; @endphp
+                    <div class="atg-row" data-pg-item data-search="{{ $t['name'] }}" data-kind="{{ $tk }}" x-data="{ editing: false }">
+                        <p class="atg-name" x-show="!editing">{{ $t['name'] }}</p>
+                            <div class="atg-col-kind" x-show="!editing">
+                                <span class="atg-kind atg-kind--{{ $tk }}"><x-lucide :name="$tagKindIcon[$tk] ?? 'tag'" />{{ \App\Models\Tag::KINDS[$tk] ?? 'Chưa phân loại' }}</span>
+                            </div>
+                            <p class="atg-count atg-col-count" x-show="!editing"><b>{{ $t['questionsCount'] }}</b> câu hỏi</p>
+                            <div class="atg-acts" x-show="!editing">
+                                <button type="button" @click="editing = true" class="acx-link">Sửa</button>
+                                <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="acx-link acx-link--del">Xoá</button>
+                                </form>
+                            </div>
+                        <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="atg-edit" x-show="editing" x-cloak>
                             @csrf
                             @method('PUT')
                             <input type="text" name="name" value="{{ $t['name'] }}" required maxlength="120" class="apx-input apx-input--grow">
-                            {{-- SỬA 12/11 — sửa tag cho đổi cả loại --}}
-                            <select name="kind" required class="apx-input" style="width:auto;min-width:150px" aria-label="Loại tag">
-                                <option value="" disabled @selected(empty($t['kind']))>— Chọn loại —</option>
+                            <select name="kind" required class="apx-input" style="width:auto;min-width:160px" aria-label="Loại tag">
+                                <option value="" disabled @selected($tk === 'none')>— Chọn loại —</option>
                                 @foreach (\App\Models\Tag::KINDS as $kv => $kl)
-                                    <option value="{{ $kv }}" @selected(($t['kind'] ?? null) === $kv)>{{ $kl }}</option>
+                                    <option value="{{ $kv }}" @selected($tk === $kv)>{{ $kl }}</option>
                                 @endforeach
                             </select>
-                            <button type="submit" class="akx-lnk">Lưu</button>
+                            <button type="submit" class="acx-btn acx-btn--primary">Lưu</button>
                             <button type="button" @click="editing = false" class="akx-lnk akx-lnk--mute">Huỷ</button>
                         </form>
-                        <div class="apx-item__main" x-show="!editing">
-                            <p class="apx-item__title">{{ $t['name'] }}</p>
-                            <p class="apx-item__sub">
-                                {{-- SỬA 12/11 — cột Loại trong danh sách --}}
-                                @php
-                                    $kindStyle = match ($t['kind'] ?? null) {
-                                        'coding' => 'background:#e0f2fe;color:#0369a1;border-color:#bae6fd',
-                                        'manual' => 'background:#fef3c7;color:#92400e;border-color:#fde68a',
-                                        default => 'background:#f1f5f9;color:#64748b;border-color:#e2e8f0',
-                                    };
-                                @endphp
-                                <span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;margin-right:6px;border:1px solid;border-radius:999px;font-size:11px;font-weight:700;{{ $kindStyle }}">
-                                    <x-lucide :name="($t['kind'] ?? null) === 'coding' ? 'code' : (($t['kind'] ?? null) === 'manual' ? 'pen-line' : 'tag')" style="width:11px;height:11px" />{{ $t['kindLabel'] ?? 'Chưa phân loại' }}
-                                </span>
-                                {{ $t['questionsCount'] }} câu hỏi đang dùng
-                            </p>
-                        </div>
-                        <div class="apx-item__side" x-show="!editing">
-                            <button type="button" @click="editing = true" class="acx-link">Sửa</button>
-                            <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="acx-link acx-link--del">Xoá</button>
-                            </form>
-                        </div>
                     </div>
                 @empty
                     <div class="akx-empty"><strong>Chưa có tag nào</strong>Thêm tag đầu tiên ở trên.</div>
                 @endforelse
             </div>
-            <div class="akx-empty" id="atgEmpty" hidden><strong>Không tìm thấy tag phù hợp</strong>Thử bớt từ khoá, hoặc thêm tag mới ở ô phía trên.</div>
+            <div class="akx-empty" id="atgEmpty" hidden><strong>Không tìm thấy tag phù hợp</strong>Thử bớt từ khoá, đổi loại, hoặc thêm tag mới ở ô phía trên.</div>
             <div class="akx-pg" data-pg-nav="tags" hidden></div>
         </section>
 
@@ -393,7 +424,8 @@
                     var clear = document.getElementById('atgClear');
                     var count = document.getElementById('atgCount');
                     var empty = document.getElementById('atgEmpty');
-                    var kindSel = document.getElementById('atgKind'); // SỬA 12/11 — lọc theo loại tag
+                    var kindBox = document.getElementById('atgKinds'); // SỬA 12/11 — lọc theo loại tag (viên bấm)
+                    var kind = '';
                     var rows = Array.prototype.slice.call(box.querySelectorAll('[data-pg-item]'));
                     var total = rows.length;
                     function norm(s) {
@@ -402,7 +434,7 @@
                     }
                     rows.forEach(function (el) { el._s = norm(el.dataset.search); });
                     function apply() {
-                        var term = norm(q.value), kind = kindSel ? kindSel.value : '', hits = 0;
+                        var term = norm(q.value), hits = 0;
                         rows.forEach(function (el) {
                             if ((!term || el._s.indexOf(term) !== -1) && (!kind || el.dataset.kind === kind)) { el.setAttribute('data-pg-item', ''); hits++; }
                             else { el.removeAttribute('data-pg-item'); el.hidden = true; }
@@ -413,7 +445,13 @@
                         if (clear) clear.classList.toggle('is-on', q.value !== '');
                     }
                     q.addEventListener('input', apply);
-                    if (kindSel) kindSel.addEventListener('change', apply);
+                    if (kindBox) kindBox.addEventListener('click', function (e) {
+                        var b = e.target.closest('button[data-kind]');
+                        if (!b) return;
+                        kind = b.dataset.kind;
+                        kindBox.querySelectorAll('button').forEach(function (x) { var on = x === b; x.classList.toggle('is-on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+                        apply();
+                    });
                     if (clear) clear.addEventListener('click', function () { q.value = ''; apply(); q.focus(); });
                 });
             </script>

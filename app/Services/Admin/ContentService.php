@@ -528,7 +528,7 @@ class ContentService
     {
         $tag = $this->tags->findOrCreateByName($name);
 
-        // SỬA 12/11 — loại tag (Lập trình / Thủ công). Gõ lại đúng tên tag đã có thì cập nhật luôn loại theo lựa chọn mới.
+        // SỬA 12/11 — loại tag (Lập trình / Phổ thông). Gõ lại đúng tên tag đã có thì cập nhật luôn loại theo lựa chọn mới.
         if ($kind !== null && $tag->kind !== $kind && \Illuminate\Support\Facades\Schema::hasColumn('tags', 'kind')) {
             $tag = $this->tags->update($tag, ['kind' => $kind]);
         }

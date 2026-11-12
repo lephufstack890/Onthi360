@@ -774,11 +774,11 @@ class ContentController extends Controller
 
     public function tagsStore(Request $request): RedirectResponse
     {
-        // SỬA 12/11 — bắt buộc chọn loại (Lập trình / Thủ công) khi thêm tag.
+        // SỬA 12/11 — bắt buộc chọn loại (Lập trình / Phổ thông) khi thêm tag.
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'kind' => ['required', 'string', 'in:'.implode(',', array_keys(Tag::KINDS))],
-        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Thủ công).'], ['kind' => 'loại tag']);
+        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Phổ thông).'], ['kind' => 'loại tag']);
         $this->contentService->tagStore($data['name'], $data['kind']);
 
         return redirect()->route('admin.content.index', ['tab' => 'tags'])->with('status', 'tag-created');
@@ -789,7 +789,7 @@ class ContentController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'kind' => ['required', 'string', 'in:'.implode(',', array_keys(Tag::KINDS))],
-        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Thủ công).'], ['kind' => 'loại tag']);
+        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Phổ thông).'], ['kind' => 'loại tag']);
 
         try {
             $this->contentService->tagUpdate($tag, $data['name'], $data['kind']);

@@ -11,11 +11,11 @@ class Tag extends Model
     /** SỬA 12/11 — loại chuyên đề (cột tags.kind). */
     public const KIND_CODING = 'coding';
 
-    public const KIND_MANUAL = 'manual';
+    public const KIND_GENERAL = 'general'; // SỬA 12/11 — "Phổ thông" (trước gọi nhầm là "Thủ công")
 
     public const KINDS = [
         self::KIND_CODING => 'Lập trình',
-        self::KIND_MANUAL => 'Thủ công',
+        self::KIND_GENERAL => 'Phổ thông',
     ];
 
     protected $fillable = ['name', 'kind'];
