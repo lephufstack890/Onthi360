@@ -2523,8 +2523,15 @@ class ContentService
      */
     public function discardAbandonedDraftsFor(Product $product): void
     {
-        $product->exercises()->where('status', ContentStatus::Draft->value)->get()
-            ->each(fn (Question $draft) => $this->productExerciseDestroy($draft));
+        // SỬA 12/11 — chỉ lấy id nháp (rẻ, chạy MỖI lần mở trang tài liệu); nạp từng bài cột nhẹ khi thật sự có nháp cần xoá
+        // (không kéo grading_config hàng trăm test → chậm / tràn bộ nhớ).
+        $draftIds = $product->exercises()->reorder()->where('status', ContentStatus::Draft->value)->pluck('questions.id')->all();
+        foreach ($draftIds as $draftId) {
+            $draft = Question::query()->select(['id', 'code', 'points', 'metadata', 'product_id'])->find($draftId);
+            if ($draft !== null) {
+                $this->productExerciseDestroy($draft);
+            }
+        }
     }
 
     /**

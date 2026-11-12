@@ -120,7 +120,7 @@
                 <div class="acx-stat"><p>Đề trong bộ đề</p><strong>{{ app(\App\Services\ExamBundle\ExamBundleService::class)->items($product)->count() }}</strong></div>
             @else
             @if ($chapterLabel)
-                <div class="acx-stat"><p>{{ $chapterLabel }}</p><strong>{{ count($chapters) }}</strong></div>
+                <div class="acx-stat"><p>{{ $chapterLabel }}</p><strong data-apx-chapter-stat>{{ count($chapters) }}</strong></div>
             @endif
             <div class="acx-stat"><p>Bài tập đính kèm</p><strong>{{ count($exercises) }}</strong></div>
             @if ($chapterLabel)
@@ -156,7 +156,7 @@
                     <section class="acx-card acx-card--white" id="chapters" x-data="{ editing: null }" style="scroll-margin-top:80px">
                         <div class="apx-cardtop">
                             <h2><x-lucide name="book-open" /> {{ $chapterLabel }}</h2>
-                            <span class="apx-count">{{ count($chapters) }} mục</span>
+                            <span class="apx-count" data-apx-chapter-count>{{ count($chapters) }} mục</span>
                         </div>
                         {{-- SỬA 29/9 (khách chốt: "chỗ chương mỗi chương là thêm từng file pdf") — mỗi
                              mục giờ mang LUÔN tệp PDF nội dung của nó. Học sinh/giáo viên mở trang đọc
@@ -168,7 +168,7 @@
                         </p>
 
                         <div class="apx-add" data-oi-perm="products.create">
-                            <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data">
+                            <form action="{{ route('admin.products.chapters.store', $product->id) }}" method="POST" enctype="multipart/form-data" data-apx-chapter-form>
                                 @csrf
                                 <input type="text" name="title" required maxlength="255" placeholder="Tên {{ mb_strtolower($chapterLabel) }} mới..."
                                        class="apx-input apx-input--grow">
@@ -177,73 +177,9 @@
                             </form>
                         </div>
 
-                        @if (empty($chapters))
-                            <x-ws.empty-state :title="'Chưa có '.mb_strtolower($chapterLabel).' nào'" description="Thêm mục đầu tiên ở ô trên để bắt đầu gắn bài tập/học liệu." />
-                        @else
-                            <div class="apx-list">
-                                @foreach ($chapters as $c)
-                                    <div class="apx-item" x-show="editing !== {{ $c['id'] }}">
-                                        <div class="apx-item__main">
-                                            <p class="apx-item__title">{{ $c['title'] }}</p>
-                                            <p class="apx-item__sub">
-                                                @if ($c['hasPdf'])
-                                                    <span class="apx-ok">✓ {{ $c['pdfName'] ?: 'Đã có PDF' }}</span>
-                                                @else
-                                                    <span class="apx-warn">⚠ Chưa có PDF nội dung</span>
-                                                @endif
-                                                · {{ $c['questionsCount'] }} bài tập
-                                                @if (($c['materialsCount'] ?? 0) > 0)
-                                                    · {{ $c['materialsCount'] }} học liệu
-                                                @endif
-                                            </p>
-                                        </div>
-                                        <div class="apx-item__side">
-                                            {{-- SỬA 15/10 (khách: "nút mũi tên lên xuống để đảo thứ tự chương", "để gần nút Sửa/Xoá cho đẹp") —
-                                                 đổi chỗ với mục liền trên/dưới; đây là thứ tự đọc của học sinh. --}}
-                                            <div class="apx-move" role="group" aria-label="Đổi thứ tự">
-                                                <form action="{{ route('admin.products.chapters.move', [$product->id, $c['id']]) }}" method="POST">
-                                                    @csrf
-                                                    <input type="hidden" name="direction" value="up">
-                                                    <button type="submit" class="apx-move__btn" title="Đưa lên trên" aria-label="Đưa {{ $c['title'] }} lên trên" {{ $loop->first ? 'disabled' : '' }}>
-                                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-                                                    </button>
-                                                </form>
-                                                <form action="{{ route('admin.products.chapters.move', [$product->id, $c['id']]) }}" method="POST">
-                                                    @csrf
-                                                    <input type="hidden" name="direction" value="down">
-                                                    <button type="submit" class="apx-move__btn" title="Đưa xuống dưới" aria-label="Đưa {{ $c['title'] }} xuống dưới" {{ $loop->last ? 'disabled' : '' }}>
-                                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                            <button type="button" @click="editing = {{ $c['id'] }}" class="acx-link" data-oi-perm="products.update">Sửa</button>
-                                            <form action="{{ route('admin.products.chapters.destroy', [$product->id, $c['id']]) }}" method="POST" onsubmit="return confirm('Xoá mục này? Không thể hoàn tác.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="acx-link acx-link--del">Xoá</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div x-show="editing === {{ $c['id'] }}" x-cloak>
-                                        <form action="{{ route('admin.products.chapters.update', [$product->id, $c['id']]) }}" method="POST" enctype="multipart/form-data" class="apx-edit">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="text" name="title" value="{{ $c['title'] }}" required maxlength="255" class="apx-input apx-input--grow">
-                                            <input type="number" name="order" value="{{ $c['order'] }}" min="0" class="apx-input apx-input--num" title="Thứ tự">
-                                            {{-- SỬA 29/9 — thay/thêm tệp PDF của chính mục này. Bỏ trống = giữ tệp đang có. --}}
-                                            <input type="file" name="pdf" accept="application/pdf" class="apx-file">
-                                            @if ($c['hasPdf'])
-                                                <label>
-                                                    <input type="checkbox" name="remove_pdf" value="1"> Xoá PDF
-                                                </label>
-                                            @endif
-                                            <button type="submit" class="acx-btn acx-btn--primary acx-btn--sm">Lưu</button>
-                                            <button type="button" @click="editing = null" class="acx-btn acx-btn--sm">Huỷ</button>
-                                        </form>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
+                        <div id="apxChapterList">
+                            @include('admin.products.partials.chapters-list')
+                        </div>
                     </section>
                 @endif
 
@@ -252,6 +188,11 @@
                     <div class="apx-cardtop">
                         <h2><x-lucide name="layers" /> Bài tập đính kèm</h2>
                         <span class="apx-count">{{ count($exercises) }} bài</span>
+                    </div>
+                    {{-- SỬA 12/11 — chương vừa đổi (thêm / sửa / xoá không tải lại trang) thì nhắc tải lại để ô chọn chương ở đây cập nhật. --}}
+                    <div class="apx-chstale" data-apx-chapter-stale hidden>
+                        <span>Danh sách {{ mb_strtolower($chapterLabel ?: 'chương') }} vừa thay đổi — tải lại trang để ô chọn {{ mb_strtolower($chapterLabel ?: 'chương') }} ở mục này cập nhật.</span>
+                        <button type="button" onclick="location.reload()">Tải lại</button>
                     </div>
                     <p class="apx-hint">
                         {{ $chapterLabel ? 'Chọn '.mb_strtolower($chapterLabel).' rồi tải' : 'Tải' }} gói ZIP bài tập (mẫu OT360-QPACK) — hệ thống <b>tự nhận dạng</b>
@@ -526,6 +467,91 @@
     </div>
 
     @push('scripts')
+        {{-- SỬA 12/11 (khách: "thêm chương / sửa chương load lâu quá") — gửi form chương bằng XHR: có thanh % khi tải PDF, xong thì
+             thay ngay khối danh sách chương (ProductChapterController trả HTML), KHÔNG tải lại cả trang tài liệu. --}}
+        <style>
+            .apx-up-toast { position: fixed; z-index: 120; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; min-width: 300px; max-width: calc(100vw - 32px); padding: 12px 16px; border-radius: 14px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 16px 40px rgba(15, 23, 42, .3); }
+            .apx-up-toast__bar { flex: 1; height: 6px; min-width: 120px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .18); }
+            .apx-up-toast__bar i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #38bdf8, #22c55e); transition: width .15s; }
+            .apx-up-toast b { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+            [data-apx-chapter-form].is-busy { opacity: .6; pointer-events: none; }
+            .apx-chstale { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 12px; padding: 10px 14px; border: 1px solid #fde68a; border-radius: 12px; background: #fffbeb; color: #92400e; font-size: 12.5px; }
+            .apx-chstale[hidden] { display: none; }
+            .apx-chstale button { padding: 6px 12px; border-radius: 9px; background: #f59e0b; color: #fff; font-weight: 700; font-size: 12px; }
+        </style>
+        <script>
+            (function () {
+                var toastEl = null;
+                function progress(text, pct) {
+                    if (!toastEl) {
+                        toastEl = document.createElement('div');
+                        toastEl.className = 'apx-up-toast';
+                        toastEl.setAttribute('role', 'status');
+                        toastEl.innerHTML = '<span></span><div class="apx-up-toast__bar"><i></i></div><b></b>';
+                        document.body.appendChild(toastEl);
+                    }
+                    toastEl.children[0].textContent = text;
+                    toastEl.querySelector('i').style.width = (pct == null ? 100 : pct) + '%';
+                    toastEl.children[2].textContent = pct == null ? '' : pct + '%';
+                }
+                function hideProgress() { if (toastEl) { toastEl.remove(); toastEl = null; } }
+                function notify(type, msg) { if (window.toast) window.toast(type, msg); else if (type === 'error') alert(msg); }
+
+                document.addEventListener('submit', function (e) {
+                    var form = e.target;
+                    if (!form.matches || !form.matches('[data-apx-chapter-form]') || e.defaultPrevented) return;
+                    if (!window.FormData || !window.XMLHttpRequest) return; // trình duyệt quá cũ → gửi kiểu thường
+                    e.preventDefault();
+                    if (form.classList.contains('is-busy')) return;
+
+                    var data = new FormData(form);
+                    var file = form.querySelector('input[type=file]');
+                    var hasFile = file && file.files && file.files.length > 0;
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', form.action);
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    form.classList.add('is-busy');
+                    progress(hasFile ? 'Đang tải PDF lên…' : 'Đang lưu…', hasFile ? 0 : null);
+                    if (hasFile) {
+                        xhr.upload.onprogress = function (ev) {
+                            if (!ev.lengthComputable) return;
+                            var pct = Math.min(100, Math.round(ev.loaded / ev.total * 100));
+                            progress(pct >= 100 ? 'Đang lưu tệp…' : 'Đang tải PDF lên…', pct);
+                        };
+                    }
+                    xhr.onload = function () {
+                        form.classList.remove('is-busy');
+                        hideProgress();
+                        var res = {};
+                        try { res = JSON.parse(xhr.responseText || '{}'); } catch (err) { res = {}; }
+                        if (xhr.status >= 200 && xhr.status < 300 && res.ok) {
+                            var list = document.getElementById('apxChapterList');
+                            if (list && res.html != null) list.innerHTML = res.html;
+                            document.querySelectorAll('[data-apx-chapter-count]').forEach(function (el) { el.textContent = res.count + ' mục'; });
+                            document.querySelectorAll('[data-apx-chapter-stat]').forEach(function (el) { el.textContent = res.count; });
+                            var card = document.getElementById('chapters');
+                            try { if (card && window.Alpine) Alpine.$data(card).editing = null; } catch (err) {}
+                            if (form.closest('.apx-add')) form.reset();
+                            document.querySelectorAll('[data-apx-chapter-stale]').forEach(function (el) { el.hidden = false; });
+                            notify('success', res.message || 'Đã lưu.');
+                            return;
+                        }
+                        if (xhr.status === 419) { notify('error', 'Phiên làm việc đã hết hạn — tải lại trang rồi thử lại.'); return; }
+                        if (xhr.status === 413) { notify('error', 'Tệp PDF quá lớn so với giới hạn của máy chủ.'); return; }
+                        var msg = res.message || 'Không lưu được (mã lỗi ' + xhr.status + ').';
+                        if (res.errors) { var first = Object.values(res.errors)[0]; if (first && first[0]) msg = first[0]; }
+                        notify('error', msg);
+                    };
+                    xhr.onerror = function () {
+                        form.classList.remove('is-busy');
+                        hideProgress();
+                        notify('error', 'Mất kết nối tới máy chủ — thử lại sau.');
+                    };
+                    xhr.send(data);
+                });
+            })();
+        </script>
         <style>
             .rich-content ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
             .rich-content ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }

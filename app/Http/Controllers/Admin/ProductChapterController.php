@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Product;
 use App\Services\Admin\ContentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +22,39 @@ class ProductChapterController extends Controller
 {
     public function __construct(private ContentService $contentService) {}
 
+    /**
+     * SỬA 12/11 (khách: "thêm chương / sửa chương load lâu quá") — gọi bằng fetch (Accept: JSON) thì KHÔNG chuyển hướng về trang
+     * tài liệu (trang đó nặng vì nạp cả danh sách bài tập) mà trả lại riêng khối danh sách chương đã dựng sẵn để thay tại chỗ.
+     */
+    private function respond(Request $request, Product $product, string $status, string $message, string $anchor = ''): RedirectResponse|JsonResponse
+    {
+        if (! $request->expectsJson()) {
+            return redirect()->to(route('admin.products.show', $product->id).$anchor)->with('status', $status);
+        }
+
+        $chapters = $this->contentService->productChaptersFor($product);
+
+        return response()->json([
+            'ok' => true,
+            'message' => $message,
+            'count' => count($chapters),
+            'html' => view('admin.products.partials.chapters-list', [
+                'product' => $product,
+                'chapters' => $chapters,
+                'chapterLabel' => $product->chapterLabel(),
+            ])->render(),
+        ]);
+    }
+
+    private function fail(Request $request, ValidationException $e): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => false, 'message' => collect($e->errors())->flatten()->first() ?: 'Không lưu được.', 'errors' => $e->errors()], 422);
+        }
+
+        return back()->withErrors($e->errors())->withInput();
+    }
+
     /** Chặn admin sửa/xoá "nhầm" chương của sản phẩm KHÁC qua việc tự sửa URL — cùng nguyên tắc với ProductExerciseController::assertBelongsToProduct(). */
     private function assertBelongsToProduct(Product $product, Material $chapter): void
     {
@@ -32,7 +66,7 @@ class ProductChapterController extends Controller
      * — thêm ô tệp PDF cho chính chương/phần/đề. Vẫn TÙY CHỌN: tạo mục lục rỗng rồi tải tệp
      * sau vẫn được. Giới hạn dung lượng dùng chung ContentService::maxPdfKb() như mọi ô PDF khác.
      */
-    public function store(Request $request, Product $product): RedirectResponse
+    public function store(Request $request, Product $product): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -43,13 +77,13 @@ class ProductChapterController extends Controller
         try {
             $this->contentService->productChapterStore($product, $data);
         } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+            return $this->fail($request, $e);
         }
 
-        return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-created');
+        return $this->respond($request, $product, 'chapter-created', 'Đã thêm "'.$data['title'].'".');
     }
 
-    public function update(Request $request, Product $product, Material $chapter): RedirectResponse
+    public function update(Request $request, Product $product, Material $chapter): RedirectResponse|JsonResponse
     {
         $this->assertBelongsToProduct($product, $chapter);
 
@@ -64,33 +98,33 @@ class ProductChapterController extends Controller
         try {
             $this->contentService->productChapterUpdate($chapter, $data);
         } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+            return $this->fail($request, $e);
         }
 
-        return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-updated');
+        return $this->respond($request, $product, 'chapter-updated', 'Đã lưu "'.$data['title'].'".');
     }
 
     /** SỬA 15/10 — nút ↑ / ↓ ở danh sách chương: đổi chỗ với chương liền trên/dưới. */
-    public function move(Request $request, Product $product, Material $chapter): RedirectResponse
+    public function move(Request $request, Product $product, Material $chapter): RedirectResponse|JsonResponse
     {
         $this->assertBelongsToProduct($product, $chapter);
         $data = $request->validate(['direction' => ['required', 'in:up,down']]);
 
         $this->contentService->productChapterMove($chapter, $data['direction']);
 
-        return redirect()->to(route('admin.products.show', $product->id).'#chapters')->with('status', 'chapter-moved');
+        return $this->respond($request, $product, 'chapter-moved', 'Đã đổi thứ tự.', '#chapters');
     }
 
-    public function destroy(Product $product, Material $chapter): RedirectResponse
+    public function destroy(Request $request, Product $product, Material $chapter): RedirectResponse|JsonResponse
     {
         $this->assertBelongsToProduct($product, $chapter);
 
         try {
             $this->contentService->productChapterDestroy($chapter);
         } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
+            return $this->fail($request, $e);
         }
 
-        return redirect()->route('admin.products.show', $product->id)->with('status', 'chapter-deleted');
+        return $this->respond($request, $product, 'chapter-deleted', 'Đã xoá.');
     }
 }
