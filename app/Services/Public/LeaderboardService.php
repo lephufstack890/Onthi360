@@ -626,6 +626,8 @@ class LeaderboardService
                         'lockDays' => $p->lock_days ?: 100000,
                         'points' => (float) $p->points_deducted,
                         'tokens' => (int) $p->tokens_deducted,
+                        'pointsPct' => $p->points_percent !== null ? (float) $p->points_percent : null, // SỬA 12/11 — trừ theo %
+                        'tokensPct' => $p->tokens_percent !== null ? (float) $p->tokens_percent : null,
                         'unlockAt' => $p->unlock_at?->copy()->setTimezone($tz)->format('H:i d/m/Y'),
                         'unlockTs' => $p->unlock_at?->getTimestamp() ?? PHP_INT_MAX,
                     ];

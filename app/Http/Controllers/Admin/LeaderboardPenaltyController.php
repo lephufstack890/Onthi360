@@ -71,13 +71,16 @@ class LeaderboardPenaltyController extends Controller
             'reason' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:2000'],
             'lock_days' => ['required', 'integer', 'min:0', 'max:3650'],
-            'points_deducted' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
-            'tokens_deducted' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            // SỬA 12/11 — trừ theo % (0–100).
+            'points_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'tokens_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'hide_name' => ['nullable', 'boolean'],
             'hide_avatar' => ['nullable', 'boolean'],
         ], ['reason.required' => 'Hãy chọn hoặc nhập lý do khóa.'], [
-            'reason' => 'lý do', 'lock_days' => 'thời gian khóa', 'points_deducted' => 'điểm trừ', 'tokens_deducted' => 'token trừ',
+            'reason' => 'lý do', 'lock_days' => 'thời gian khóa', 'points_percent' => '% điểm trừ', 'tokens_percent' => '% token trừ',
         ]);
+        $data['points_percent'] = (float) ($data['points_percent'] ?? 0);
+        $data['tokens_percent'] = (float) ($data['tokens_percent'] ?? 0);
 
         try {
             $this->penalties->store(Auth::user(), $data + ['account' => (string) $user->id]);

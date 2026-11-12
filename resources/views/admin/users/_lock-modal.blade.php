@@ -62,6 +62,10 @@
 .ulk-num { position: relative; }
 .ulk-num em { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 11px; font-style: normal; font-weight: 700; color: #94a3b8; pointer-events: none; }
 .ulk-num .ulk-input { padding-right: 52px; }
+.ulk-quick { display: flex; gap: 5px; margin-top: 7px; }
+.ulk-quick button { flex: 1; padding: 4px 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 11px; font-weight: 700; color: #64748b; }
+.ulk-quick button:hover { border-color: #fda4af; color: #be123c; }
+.ulk-quick button.is-on { border-color: #e11d48; background: #fff1f2; color: #be123c; }
 .ulk-toggle { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: border-color .12s; }
 .ulk-toggle:hover { border-color: #cbd5e1; }
 .ulk-toggle input { position: absolute; opacity: 0; pointer-events: none; }
@@ -133,9 +137,11 @@
             get canLock() { return !!this.finalReason && !this.busy; },
             get lockUrl() { return this.user ? this.lockUrlTpl.replace('__ID__', this.user.id) : '#'; },
             get unlockUrl() { return this.user ? this.unlockUrlTpl.replace('__ID__', this.user.id) : '#'; },
+            clampPct(v) { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; },
+            get tokenPreview() { return Math.floor(Number(this.user && this.user.tokens || 0) * this.clampPct(this.tokens) / 100); },
             submitLock(e) {
                 if (!this.finalReason) { e.preventDefault(); this.error = 'Hãy chọn hoặc nhập lý do khóa.'; return; }
-                if (Number(this.tokens) > Number(this.user.tokens || 0)) this.tokens = Number(this.user.tokens || 0);
+                this.points = this.clampPct(this.points); this.tokens = this.clampPct(this.tokens);
                 this.busy = true;
             },
             submitUnlock(e) {
@@ -219,19 +225,25 @@
                         <p class="ulk-until"><x-lucide name="clock-3" /><b x-text="untilText"></b></p>
                     </section>
 
-                    {{-- 3. Mức trừ --}}
+                    {{-- 3. Mức trừ — SỬA 12/11 (khách: "trừ điểm và trừ token là trừ theo %") --}}
                     <section class="ulk-sec">
-                        <h3><em>3</em>Mức trừ (tuỳ chọn)</h3>
+                        <h3><em>3</em>Mức trừ theo % (tuỳ chọn)</h3>
                         <div class="ulk-grid2">
                             <div>
                                 <span class="ulk-lbl">Trừ điểm xếp hạng</span>
-                                <div class="ulk-num"><input type="number" name="points_deducted" min="0" step="0.01" class="ulk-input" x-model="points"><em>điểm</em></div>
-                                <p class="ulk-help">Trừ vào tổng điểm bảng xếp hạng.</p>
+                                <div class="ulk-num"><input type="number" name="points_percent" min="0" max="100" step="1" class="ulk-input" x-model.number="points" @input="points = clampPct(points)"><em>%</em></div>
+                                <div class="ulk-quick">
+                                    <template x-for="v in [0, 10, 25, 50, 100]" :key="'p' + v"><button type="button" :class="Number(points) === v && 'is-on'" @click="points = v" x-text="v + '%'"></button></template>
+                                </div>
+                                <p class="ulk-help">Tính trên tổng điểm xếp hạng lúc khóa.</p>
                             </div>
                             <div>
                                 <span class="ulk-lbl">Trừ token</span>
-                                <div class="ulk-num"><input type="number" name="tokens_deducted" min="0" step="1" :max="user.tokens || 0" class="ulk-input" x-model="tokens"><em>token</em></div>
-                                <p class="ulk-help">Ví hiện có <b x-text="(user.tokens || 0).toLocaleString('vi-VN')"></b> token.</p>
+                                <div class="ulk-num"><input type="number" name="tokens_percent" min="0" max="100" step="1" class="ulk-input" x-model.number="tokens" @input="tokens = clampPct(tokens)"><em>%</em></div>
+                                <div class="ulk-quick">
+                                    <template x-for="v in [0, 10, 25, 50, 100]" :key="'t' + v"><button type="button" :class="Number(tokens) === v && 'is-on'" @click="tokens = v" x-text="v + '%'"></button></template>
+                                </div>
+                                <p class="ulk-help">≈ trừ <b x-text="tokenPreview.toLocaleString('vi-VN')"></b> / <span x-text="(user.tokens || 0).toLocaleString('vi-VN')"></span> token trong ví.</p>
                             </div>
                         </div>
                     </section>
@@ -296,7 +308,7 @@
                         <div><span>Hình thức</span><b x-text="user.lock && user.lock.label"></b></div>
                         <div><span>Khóa lúc</span><b x-text="user.lock && user.lock.since"></b></div>
                         <div><span>Dự kiến mở</span><b x-text="user.lock && (user.lock.until || 'Vĩnh viễn')"></b></div>
-                        <div x-show="user.lock && (user.lock.tokens || user.lock.points)"><span>Đã trừ</span><b x-text="user.lock ? ((user.lock.points ? '-' + user.lock.points + ' điểm ' : '') + (user.lock.tokens ? '-' + user.lock.tokens + ' token' : '')) : ''"></b></div>
+                        <div x-show="user.lock && (user.lock.tokens || user.lock.points)"><span>Đã trừ</span><b x-text="user.lock ? ((user.lock.points ? '-' + user.lock.points + ' điểm' + (user.lock.pointsPct ? ' (' + user.lock.pointsPct + '%)' : '') + ' ' : '') + (user.lock.tokens ? '-' + user.lock.tokens + ' token' + (user.lock.tokensPct ? ' (' + user.lock.tokensPct + '%)' : '') : '')) : ''"></b></div>
                     </div>
                     <label class="ulk-choice" :class="unlockMode === 'keep' && 'is-on'">
                         <input type="radio" name="mode" value="keep" x-model="unlockMode">

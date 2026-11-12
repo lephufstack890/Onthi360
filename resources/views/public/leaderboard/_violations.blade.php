@@ -130,11 +130,11 @@
                             <td style="min-width:200px" x-text="r.reason"></td>
                             <td><span class="lbv-form" x-text="r.lockLabel"></span></td>
                             <td>
-                                <span class="lbv-minus" x-show="r.points > 0" x-text="'-' + fmt(r.points)"></span>
+                                <span class="lbv-minus" x-show="r.points > 0" x-text="'-' + fmt(r.points) + (r.pointsPct ? ' (' + fmt(r.pointsPct) + '%)' : '')"></span>
                                 <span class="lbv-none" x-show="!(r.points > 0)">Không trừ</span>
                             </td>
                             <td>
-                                <span class="lbv-minus" x-show="r.tokens > 0" x-text="'-' + fmt(r.tokens)"></span>
+                                <span class="lbv-minus" x-show="r.tokens > 0" x-text="'-' + fmt(r.tokens) + (r.tokensPct ? ' (' + fmt(r.tokensPct) + '%)' : '')"></span>
                                 <span class="lbv-none" x-show="!(r.tokens > 0)">Không trừ</span>
                             </td>
                             <td class="lbv-unlock">

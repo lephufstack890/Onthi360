@@ -108,8 +108,13 @@ class UserService
             'parent' => Role::PARENT,
         ];
 
+        // SỬA 12/11 — mở các khóa đã hết hạn + khóa thật các tài khoản đang bị phạt mà status chưa chuyển (trước khi đếm tab).
+        \App\Services\Admin\LeaderboardPenaltyService::releaseExpired();
+        \App\Services\Admin\LeaderboardPenaltyService::syncLockedStatus();
+
         $counts = [
             'all' => $this->users->count(),
+            'locked' => User::query()->where('status', 'suspended')->count(), // SỬA 12/11 — tab Đã khóa
             'student' => $this->users->countByRoleName(Role::STUDENT),
             'teacher' => $this->users->countByRoleName(Role::TEACHER),
             'parent' => $this->users->countByRoleName(Role::PARENT),
@@ -123,20 +128,21 @@ class UserService
             ['label' => 'Giáo viên', 'href' => route('admin.users.index', ['tab' => 'teacher']), 'active' => $tab === 'teacher', 'count' => $counts['teacher']],
             ['label' => 'Phụ huynh', 'href' => route('admin.users.index', ['tab' => 'parent']), 'active' => $tab === 'parent', 'count' => $counts['parent']],
             ['label' => 'Admin/Editor', 'href' => route('admin.users.index', ['tab' => 'staff']), 'active' => $tab === 'staff', 'count' => $counts['staff']],
+            // SỬA 12/11 (khách: "thêm 1 tab hiển thị học sinh đã khóa") — mọi tài khoản đang bị khóa (chưa xoá).
+            ['label' => 'Đã khóa', 'href' => route('admin.users.index', ['tab' => 'locked']), 'active' => $tab === 'locked', 'count' => $counts['locked']],
             ['label' => 'Đã xóa', 'href' => route('admin.users.index', ['tab' => 'deleted']), 'active' => $tab === 'deleted', 'count' => $counts['deleted']],
         ];
 
         $query = $this->users->withRolesAndTeacherProfile();
         if ($tab === 'deleted') {
             $query->onlyTrashed();
+        } elseif ($tab === 'locked') {
+            $query->where('status', 'suspended');
         } elseif ($tab === 'staff') {
             $query->whereHas('roles', fn ($q) => $q->whereIn('name', [Role::EDITOR, Role::ADMIN, Role::SUPER_ADMIN]));
         } elseif (isset($roleMap[$tab])) {
             $query->whereHas('roles', fn ($q) => $q->where('name', $roleMap[$tab]));
         }
-
-        // SỬA 12/11 — tài khoản khóa có thời hạn đã hết hạn thì tự mở trước khi dựng danh sách.
-        \App\Services\Admin\LeaderboardPenaltyService::releaseExpired();
 
         $total = (clone $query)->count();
         // SỬA 8/10: nâng trần 50 -> 500 để giao diện tìm/lọc/chia trang 10 người/trang chạy trên đủ danh sách (logic lọc/sắp xếp không đổi).
@@ -366,7 +372,7 @@ class UserService
             $status = 'Đã xóa';
             $tone = 'danger';
         } elseif ($u->status === 'suspended') {
-            $status = 'Đã khóa';
+            $status = 'Đã khóa'; // SỬA 12/11 — đổi "Tạm khóa" → "Đã khóa"
             $tone = 'danger';
         }
 
@@ -387,6 +393,8 @@ class UserService
                 'since' => $lock->locked_at?->copy()->setTimezone($tz)->format('H:i d/m/Y'),
                 'tokens' => (int) $lock->tokens_deducted,
                 'points' => (float) $lock->points_deducted,
+                'pointsPct' => $lock->points_percent !== null ? (float) $lock->points_percent : null,
+                'tokensPct' => $lock->tokens_percent !== null ? (float) $lock->tokens_percent : null,
             ] : null,
             'id' => $u->id,
             'name' => $u->name,

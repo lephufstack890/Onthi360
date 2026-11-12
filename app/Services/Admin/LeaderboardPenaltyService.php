@@ -150,18 +150,32 @@ class LeaderboardPenaltyService
         $penalty = DB::transaction(function () use ($admin, $user, $data, $standing, $days, $now) {
             // Trừ token: không để ví âm — trừ tối đa số đang có, ghi lại số thực trừ.
             $fresh = User::query()->lockForUpdate()->find($user->id);
-            $tokens = min(max(0, (int) ($data['tokens_deducted'] ?? 0)), max(0, (int) $fresh->token_balance));
+            // SỬA 12/11 (khách: "trừ điểm và trừ token là trừ theo %") — có *_percent thì tính theo %: token = % × số dư ví (làm tròn
+            // xuống), điểm = % × điểm xếp hạng hiện tại. Không có % thì giữ cách cũ (số tuyệt đối).
+            $tokensPct = isset($data['tokens_percent']) ? max(0, min(100, (float) $data['tokens_percent'])) : null;
+            $pointsPct = isset($data['points_percent']) ? max(0, min(100, (float) $data['points_percent'])) : null;
+            $balance = max(0, (int) $fresh->token_balance);
+            $tokens = $tokensPct !== null
+                ? (int) floor($balance * $tokensPct / 100)
+                : min(max(0, (int) ($data['tokens_deducted'] ?? 0)), $balance);
+            $points = $pointsPct !== null
+                ? round((float) $standing['score'] * $pointsPct / 100, 2)
+                : max(0, (float) ($data['points_deducted'] ?? 0));
             if ($tokens > 0) {
                 $fresh->decrement('token_balance', $tokens);
             }
 
             $hasHideAvatar = Schema::hasColumn('leaderboard_penalties', 'hide_avatar'); // SỬA 12/11 — chưa migrate thì bỏ qua cột này
-            $penalty = LeaderboardPenalty::create(($hasHideAvatar ? ['hide_avatar' => (bool) ($data['hide_avatar'] ?? false)] : []) + [
+            $extra = $hasHideAvatar ? ['hide_avatar' => (bool) ($data['hide_avatar'] ?? false)] : [];
+            if (Schema::hasColumn('leaderboard_penalties', 'points_percent')) {
+                $extra += ['points_percent' => $pointsPct, 'tokens_percent' => $tokensPct];
+            }
+            $penalty = LeaderboardPenalty::create($extra + [
                 'user_id' => $user->id,
                 'reason' => $data['reason'],
                 'note' => $data['note'] ?? null,
                 'lock_days' => $days > 0 ? $days : null,
-                'points_deducted' => max(0, (float) ($data['points_deducted'] ?? 0)),
+                'points_deducted' => $points,
                 'tokens_deducted' => $tokens,
                 'score_at_lock' => $standing['score'],
                 'badge_at_lock' => $standing['badge'],
@@ -259,6 +273,34 @@ class LeaderboardPenaltyService
                 if (! $stillLocked) {
                     User::query()->whereKey($uid)->where('status', 'suspended')->update(['status' => 'active']);
                 }
+            }
+            LeaderboardService::forgetCache();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * SỬA 12/11 — đồng bộ: tài khoản đang có khóa hiệu lực nhưng users.status vẫn 'active' (vd. bị phạt TRƯỚC khi có tính năng
+     * chặn đăng nhập) → chuyển sang 'suspended' + đăng xuất. Gọi cùng releaseExpired() khi mở danh sách người dùng.
+     */
+    public static function syncLockedStatus(): void
+    {
+        try {
+            if (! Schema::hasTable('leaderboard_penalties')) {
+                return;
+            }
+            $ids = LeaderboardPenalty::query()->currentlyLocked()->distinct()->pluck('user_id')->all();
+            if ($ids === []) {
+                return;
+            }
+            $toLock = User::query()->whereIn('id', $ids)->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'suspended'))->pluck('id')->all();
+            if ($toLock === []) {
+                return;
+            }
+            User::query()->whereIn('id', $toLock)->update(['status' => 'suspended']);
+            if (config('session.driver') === 'database' && Schema::hasTable(config('session.table', 'sessions'))) {
+                DB::table(config('session.table', 'sessions'))->whereIn('user_id', $toLock)->delete();
             }
             LeaderboardService::forgetCache();
         } catch (\Throwable $e) {

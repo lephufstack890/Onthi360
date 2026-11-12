@@ -27,7 +27,7 @@ class LeaderboardPenalty extends Model
     public const LOCK_DAYS = [1, 3, 7, 14, 30, 90, 0];
 
     protected $fillable = [
-        'user_id', 'reason', 'note', 'lock_days', 'points_deducted', 'tokens_deducted', 'score_at_lock', 'badge_at_lock',
+        'user_id', 'reason', 'note', 'lock_days', 'points_deducted', 'tokens_deducted', 'points_percent', 'tokens_percent', 'score_at_lock', 'badge_at_lock',
         'hide_name', 'hide_avatar', 'locked_at', 'unlock_at', 'unlocked_at', 'revoked_at', 'revoke_reason', 'created_by',
     ];
 
@@ -35,6 +35,8 @@ class LeaderboardPenalty extends Model
         'lock_days' => 'integer',
         'points_deducted' => 'float',
         'tokens_deducted' => 'integer',
+        'points_percent' => 'float',
+        'tokens_percent' => 'float',
         'score_at_lock' => 'float',
         'hide_name' => 'boolean',
         'hide_avatar' => 'boolean',
