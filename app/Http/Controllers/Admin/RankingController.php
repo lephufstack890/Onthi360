@@ -13,10 +13,9 @@ class RankingController extends Controller
 
     public function index(Request $request): View
     {
-        // SỬA 12/11 — viên số trên tab "Tài khoản vi phạm".
-        return view('admin.ranking.index', $this->rankingService->indexData() + [
-            'violationCount' => app(\App\Services\Admin\LeaderboardPenaltyService::class)->lockedCount(),
-        ]);
+        // SỬA 12/11 (khách: "bỏ tab danh sách đi, không cần") — mục Bảng xếp hạng trong admin giờ mở thẳng màn
+        // Tài khoản vi phạm (cấu hình xử phạt). Màn chi tiết từng bảng (ranking.show) vẫn giữ nguyên.
+        return app(LeaderboardPenaltyController::class)->index($request);
     }
 
     public function show(string $scope, int $id): View
