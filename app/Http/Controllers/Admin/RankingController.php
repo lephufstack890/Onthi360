@@ -11,11 +11,11 @@ class RankingController extends Controller
 {
     public function __construct(private RankingService $rankingService) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): \Illuminate\Http\RedirectResponse
     {
-        // SỬA 12/11 (khách: "bỏ tab danh sách đi, không cần") — mục Bảng xếp hạng trong admin giờ mở thẳng màn
-        // Tài khoản vi phạm (cấu hình xử phạt). Màn chi tiết từng bảng (ranking.show) vẫn giữ nguyên.
-        return app(LeaderboardPenaltyController::class)->index($request);
+        // SỬA 12/11 (khách: "không cần màn riêng, gộp sang Người dùng") — khóa / mở khóa tài khoản giờ làm ngay ở danh sách
+        // Người dùng; link cũ tới màn Bảng xếp hạng chuyển thẳng sang đó.
+        return redirect()->route('admin.users.index');
     }
 
     public function show(string $scope, int $id): View

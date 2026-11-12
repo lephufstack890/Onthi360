@@ -4,9 +4,9 @@
 @php
     $isTrashed = $trashed;
     $isSuspended = ! $isTrashed && $u->status === 'suspended';
-    $stateLabel = $isTrashed ? 'Đã xóa' : ($isSuspended ? 'Tạm khóa' : 'Hoạt động');
+    $stateLabel = $isTrashed ? 'Đã xóa' : ($isSuspended ? 'Đã khóa' : 'Hoạt động');
     $stateClass = ($isTrashed || $isSuspended) ? 'aum-state--off' : 'aum-state--ok';
-    $stateLabelFor = fn ($s) => $s === 'suspended' ? 'Tạm khóa' : 'Hoạt động';
+    $stateLabelFor = fn ($s) => $s === 'suspended' ? 'Đã khóa' : 'Hoạt động';
     $matrixOn = ($matrix['mode'] ?? '') === 'matrix';
     $readonlyPerm = $matrix['readonly'] ?? false;
     $tagText = ['revoked' => 'Thu hồi', 'extra' => 'Cấp thêm'];
@@ -140,10 +140,12 @@
                     </dl>
                     <hr>
                     <h4>Trạng thái tài khoản</h4>
-                    <p class="aum-hint">Khóa để tạm ngừng đăng nhập, giữ nguyên thông tin và các quyền đã cấp. Bấm "Lưu thông tin" để áp dụng.</p>
+                    {{-- SỬA 12/11 (khách: "trạng thái mặc định disabled, đang Hoạt động; khóa thì chuyển sang Đã khóa") — chỉ để xem.
+                         Khóa / mở khóa bằng nút "Khóa" / "Mở khóa" ở từng dòng danh sách Người dùng (popup xử phạt). --}}
+                    <p class="aum-hint">Chỉ để xem. Khóa / mở khóa bằng nút <b>Khóa</b> / <b>Mở khóa</b> ở danh sách người dùng — khóa xong tài khoản không đăng nhập được nữa.</p>
                     <div class="aum-field">
                         <label for="aumStatus" class="aum-sr">Trạng thái</label>
-                        <select id="aumStatus" name="status" form="aumInfoForm" data-orig="{{ $u->status === 'suspended' ? 'suspended' : 'active' }}">
+                        <select id="aumStatus" disabled aria-disabled="true" style="cursor:not-allowed;opacity:.85;{{ $isSuspended ? 'color:#be123c;font-weight:700;' : '' }}" data-orig="{{ $u->status === 'suspended' ? 'suspended' : 'active' }}">
                             <option value="active" @selected($u->status !== 'suspended')>{{ $stateLabelFor('active') }}</option>
                             <option value="suspended" @selected($u->status === 'suspended')>{{ $stateLabelFor('suspended') }}</option>
                         </select>

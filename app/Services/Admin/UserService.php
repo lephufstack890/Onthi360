@@ -26,6 +26,9 @@ use Illuminate\Validation\ValidationException;
  */
 class UserService
 {
+    /** SỬA 12/11 — user_id → khóa đang hiệu lực (LeaderboardPenalty), dựng trong indexData(). */
+    private array $lockMap = [];
+
     private const ROLE_LABELS = [
         Role::STUDENT => 'Học sinh', Role::TEACHER => 'Giáo viên', Role::PARENT => 'Phụ huynh',
         Role::EDITOR => 'Editor', Role::ADMIN => 'Admin', Role::SUPER_ADMIN => 'Super Admin',
@@ -132,9 +135,23 @@ class UserService
             $query->whereHas('roles', fn ($q) => $q->where('name', $roleMap[$tab]));
         }
 
+        // SỬA 12/11 — tài khoản khóa có thời hạn đã hết hạn thì tự mở trước khi dựng danh sách.
+        \App\Services\Admin\LeaderboardPenaltyService::releaseExpired();
+
         $total = (clone $query)->count();
         // SỬA 8/10: nâng trần 50 -> 500 để giao diện tìm/lọc/chia trang 10 người/trang chạy trên đủ danh sách (logic lọc/sắp xếp không đổi).
-        $users = $query->latest()->limit(500)->get()->map(fn ($u) => $this->presentUser($u))->all();
+        $models = $query->latest()->limit(500)->get();
+        // SỬA 12/11 — thông tin khóa đang hiệu lực (lý do, hạn mở) của các dòng đang hiện: 1 truy vấn cho cả trang.
+        $this->lockMap = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('leaderboard_penalties')) {
+                \App\Models\LeaderboardPenalty::query()->currentlyLocked()->whereIn('user_id', $models->pluck('id'))
+                    ->orderBy('locked_at')->get()->each(function ($p) { $this->lockMap[$p->user_id] = $p; });
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        $users = $models->map(fn ($u) => $this->presentUser($u))->all();
 
         return ['tab' => $tab, 'tabs' => $tabs, 'users' => $users, 'total' => $total];
     }
@@ -349,11 +366,28 @@ class UserService
             $status = 'Đã xóa';
             $tone = 'danger';
         } elseif ($u->status === 'suspended') {
-            $status = 'Tạm khóa';
+            $status = 'Đã khóa'; // SỬA 12/11 — đổi "Tạm khóa" → "Đã khóa"
             $tone = 'danger';
         }
 
+        $lock = $this->lockMap[$u->id] ?? null;
+        $tz = 'Asia/Ho_Chi_Minh';
+
         return [
+            // SỬA 12/11 — dữ liệu cho nút Khóa / Mở khóa + popup khóa ở danh sách.
+            'avatar' => $u->avatarUrl(),
+            'phone' => $u->phone,
+            'province' => $u->province,
+            'tokens' => (int) ($u->token_balance ?? 0),
+            'locked' => ! $u->trashed() && $u->status === 'suspended',
+            'lock' => $lock ? [
+                'reason' => $lock->reason,
+                'label' => $lock->lockLabel(),
+                'until' => $lock->unlock_at?->copy()->setTimezone($tz)->format('H:i d/m/Y'),
+                'since' => $lock->locked_at?->copy()->setTimezone($tz)->format('H:i d/m/Y'),
+                'tokens' => (int) $lock->tokens_deducted,
+                'points' => (float) $lock->points_deducted,
+            ] : null,
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
@@ -379,7 +413,7 @@ class UserService
 
     private const REGION_LABELS = ['mien_bac' => 'Miền Bắc', 'mien_trung' => 'Miền Trung', 'mien_nam' => 'Miền Nam'];
 
-    private const STATUS_LABELS = ['active' => 'Hoạt động', 'suspended' => 'Tạm khóa', 'deleted' => 'Đã xóa'];
+    private const STATUS_LABELS = ['active' => 'Hoạt động', 'suspended' => 'Đã khóa', 'deleted' => 'Đã xóa'];
 
     /** Giá trị một trường audit -> chữ dễ đọc. */
     private function humanValue(string $field, mixed $v): string

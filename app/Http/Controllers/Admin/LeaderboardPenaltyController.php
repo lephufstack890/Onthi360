@@ -15,8 +15,13 @@ class LeaderboardPenaltyController extends Controller
 {
     public function __construct(private LeaderboardPenaltyService $penalties) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        // SỬA 12/11 — màn riêng đã gộp sang Người dùng.
+        if (! $request->boolean('legacy')) {
+            return redirect()->route('admin.users.index');
+        }
+
         return view('admin.ranking.violations', $this->penalties->indexData($request->query('filter')) + [
             'reasons' => LeaderboardPenalty::REASONS,
             'lockDays' => LeaderboardPenalty::LOCK_DAYS,
@@ -52,6 +57,48 @@ class LeaderboardPenaltyController extends Controller
         return redirect()->route('admin.ranking.violations.index')
             ->with('status', 'penalty-created')
             ->with('penaltyTokens', $penalty->tokens_deducted);
+    }
+
+    /**
+     * SỬA 12/11 (khách: "gộp sang màn Người dùng — nút Khóa ở từng dòng, bấm thì hiện popup xử lý") — admin.users.lock.
+     * Khóa = không đăng nhập được + gỡ khỏi bảng xếp hạng + hiện ở tab công khai "Tài khoản vi phạm".
+     */
+    public function lockUser(Request $request, \App\Models\User $user): RedirectResponse
+    {
+        abort_unless($this->penalties->ready(), 503, 'Chưa chạy migration bảng leaderboard_penalties (php artisan migrate).');
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:2000'],
+            'lock_days' => ['required', 'integer', 'min:0', 'max:3650'],
+            'points_deducted' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'tokens_deducted' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'hide_name' => ['nullable', 'boolean'],
+            'hide_avatar' => ['nullable', 'boolean'],
+        ], ['reason.required' => 'Hãy chọn hoặc nhập lý do khóa.'], [
+            'reason' => 'lý do', 'lock_days' => 'thời gian khóa', 'points_deducted' => 'điểm trừ', 'tokens_deducted' => 'token trừ',
+        ]);
+
+        try {
+            $this->penalties->store(Auth::user(), $data + ['account' => (string) $user->id]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors(['lock' => collect($e->errors())->flatten()->first()])->withInput()->with('lockUser', $user->id);
+        }
+
+        return back()->with('status', 'user-locked')->with('lockedName', $user->name);
+    }
+
+    /** admin.users.unlock — mở khóa; mode=refund thì hủy luôn hình phạt (hoàn token, bỏ trừ điểm). */
+    public function unlockUser(Request $request, \App\Models\User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode' => ['nullable', 'string', 'in:keep,refund'],
+            'reason' => [$request->input('mode') === 'refund' ? 'required' : 'nullable', 'string', 'max:500'],
+        ], ['reason.required' => 'Hủy hình phạt cần ghi lý do.']);
+
+        $this->penalties->unlockUser(Auth::user(), $user, ($data['mode'] ?? 'keep') === 'refund', $data['reason'] ?? null);
+
+        return back()->with('status', 'user-unlocked')->with('lockedName', $user->name);
     }
 
     public function unlock(LeaderboardPenalty $penalty): RedirectResponse

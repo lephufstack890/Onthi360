@@ -137,7 +137,10 @@ class LeaderboardPenaltyService
             throw ValidationException::withMessages(['account' => 'Không tìm thấy tài khoản này (nhập ID, email hoặc số điện thoại).']);
         }
         if ($user->id === $admin->id) {
-            throw ValidationException::withMessages(['account' => 'Không thể tự xử phạt chính mình.']);
+            throw ValidationException::withMessages(['account' => 'Không thể tự khóa chính mình.']);
+        }
+        if ($user->hasRole(\App\Models\Role::SUPER_ADMIN) && ! $admin->hasRole(\App\Models\Role::SUPER_ADMIN)) {
+            throw ValidationException::withMessages(['account' => 'Chỉ Super Admin mới được khóa tài khoản Super Admin.']);
         }
 
         $standing = $this->leaderboard->standingFor($user->id);
@@ -168,12 +171,21 @@ class LeaderboardPenaltyService
                 'created_by' => $admin->id,
             ]);
 
-            $this->audit($admin, $penalty, 'leaderboard_penalized', [
-                'after' => [
-                    'reason' => $penalty->reason, 'lock' => $penalty->lockLabel(),
+            // SỬA 12/11 (khách: "khóa xong là không đăng nhập được nữa") — chuyển tài khoản sang Đã khóa (users.status = suspended):
+            // AuthController chặn đăng nhập; phiên đang mở bị đăng xuất ngay (xoá bản ghi sessions).
+            $wasStatus = (string) $fresh->status;
+            $fresh->forceFill(['status' => 'suspended'])->save();
+            $this->killSessions($fresh->id);
+
+            $this->audit($admin, $penalty, 'locked', [
+                'before' => ['status' => $wasStatus ?: 'active'],
+                'after' => ['status' => 'suspended'],
+                'penalty' => [
+                    'lock' => $penalty->lockLabel(),
+                    'unlock_at' => $penalty->unlock_at?->toIso8601String(),
                     'points_deducted' => $penalty->points_deducted, 'tokens_deducted' => $tokens,
                 ],
-            ], $data['note'] ?? null);
+            ], $penalty->reason.' · '.$penalty->lockLabel().(filled($data['note'] ?? null) ? ' — '.$data['note'] : ''));
 
             return $penalty;
         });
@@ -183,15 +195,107 @@ class LeaderboardPenaltyService
         return $penalty;
     }
 
+    /** Khóa đang hiệu lực mới nhất của 1 tài khoản (null = không có). */
+    public function activeLockFor(int $userId): ?LeaderboardPenalty
+    {
+        if (! $this->ready()) {
+            return null;
+        }
+        self::releaseExpired($userId);
+
+        return LeaderboardPenalty::query()->currentlyLocked()->where('user_id', $userId)->latest('locked_at')->first();
+    }
+
+    /**
+     * Mở khóa tài khoản (nút "Mở khóa" ở danh sách người dùng). $refund = true → hủy luôn hình phạt (hoàn token, bỏ trừ điểm).
+     * Tài khoản bị khóa tay (không có bản ghi xử phạt) cũng mở được.
+     */
+    public function unlockUser(User $admin, User $user, bool $refund, ?string $reason): void
+    {
+        $locks = $this->ready() ? LeaderboardPenalty::query()->currentlyLocked()->where('user_id', $user->id)->get() : collect();
+        foreach ($locks as $lock) {
+            $refund ? $this->revoke($admin, $lock, $reason ?: 'Hủy khi mở khóa') : $this->unlock($admin, $lock, false);
+        }
+        if ($user->status === 'suspended') {
+            $user->forceFill(['status' => 'active'])->save();
+        }
+        try {
+            AuditLog::create([
+                'actor_id' => $admin->id, 'action' => 'unlocked', 'auditable_type' => User::class, 'auditable_id' => $user->id,
+                'changes' => ['before' => ['status' => 'suspended'], 'after' => ['status' => 'active']],
+                'reason' => $reason ?: ($refund ? 'Mở khóa và hủy hình phạt (hoàn token, bỏ trừ điểm)' : 'Mở khóa sớm'),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        LeaderboardService::forgetCache();
+    }
+
+    /**
+     * Tự mở khóa các tài khoản đã HẾT HẠN khóa (gọi lúc đăng nhập, khi mở danh sách người dùng, trang bảng xếp hạng).
+     * Chỉ mở tài khoản đang 'suspended' mà KHÔNG còn khóa nào hiệu lực; đánh dấu unlocked_at = unlock_at để lần sau admin
+     * khóa tay thì không bị mở nhầm.
+     */
+    public static function releaseExpired(?int $userId = null): void
+    {
+        try {
+            if (! Schema::hasTable('leaderboard_penalties')) {
+                return;
+            }
+            $now = Carbon::now();
+            $expired = LeaderboardPenalty::query()
+                ->whereNull('revoked_at')->whereNull('unlocked_at')
+                ->whereNotNull('unlock_at')->where('unlock_at', '<=', $now)
+                ->when($userId, fn ($q) => $q->where('user_id', $userId))
+                ->limit(500)->get();
+            if ($expired->isEmpty()) {
+                return;
+            }
+            foreach ($expired as $p) {
+                $p->forceFill(['unlocked_at' => $p->unlock_at])->save();
+            }
+            foreach ($expired->pluck('user_id')->unique() as $uid) {
+                $stillLocked = LeaderboardPenalty::query()->currentlyLocked($now)->where('user_id', $uid)->exists();
+                if (! $stillLocked) {
+                    User::query()->whereKey($uid)->where('status', 'suspended')->update(['status' => 'active']);
+                }
+            }
+            LeaderboardService::forgetCache();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function killSessions(int $userId): void
+    {
+        try {
+            if (config('session.driver') === 'database' && Schema::hasTable(config('session.table', 'sessions'))) {
+                DB::table(config('session.table', 'sessions'))->where('user_id', $userId)->delete();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Mở khóa sớm: tài khoản trở lại bảng xếp hạng; điểm/token đã trừ giữ nguyên. */
-    public function unlock(User $admin, LeaderboardPenalty $penalty): void
+    public function unlock(User $admin, LeaderboardPenalty $penalty, bool $reactivate = true): void
     {
         if (! $penalty->isLocked()) {
             return;
         }
         $penalty->update(['unlocked_at' => Carbon::now()]);
         $this->audit($admin, $penalty, 'leaderboard_unlocked', []);
+        if ($reactivate) {
+            $this->reactivateIfFree($penalty->user_id);
+        }
         LeaderboardService::forgetCache();
+    }
+
+    private function reactivateIfFree(int $userId): void
+    {
+        if (! LeaderboardPenalty::query()->currentlyLocked()->where('user_id', $userId)->exists()) {
+            User::query()->whereKey($userId)->where('status', 'suspended')->update(['status' => 'active']);
+        }
     }
 
     /** Hủy hình phạt (xử nhầm): hoàn token đã trừ, bỏ trừ điểm, gỡ khỏi danh sách vi phạm. */
@@ -207,6 +311,7 @@ class LeaderboardPenaltyService
             }
             $penalty->update(['revoked_at' => Carbon::now(), 'revoke_reason' => $reason]);
             $this->audit($admin, $penalty, 'leaderboard_penalty_revoked', ['refund_tokens' => $penalty->tokens_deducted], $reason);
+            $this->reactivateIfFree($penalty->user_id);
         });
 
         LeaderboardService::forgetCache();

@@ -29,7 +29,21 @@
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã xóa người dùng. Có thể khôi phục ở tab "Đã xóa".'])
     @elseif (session('status') === 'user-restored')
         @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã khôi phục người dùng.'])
+    @elseif (session('status') === 'user-locked')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã khóa tài khoản '.session('lockedName').' — không đăng nhập được nữa.'])
+    @elseif (session('status') === 'user-unlocked')
+        @include('partials.toast-flash', ['type' => 'success', 'message' => 'Đã mở khóa tài khoản '.session('lockedName').'.'])
     @endif
+    <style>
+        /* SỬA 12/11 — nút Khóa / Mở khóa + dòng hạn khóa ở danh sách */
+        .aux-rowbtn--lock { color: #c2410c; }
+        .aux-rowbtn--lock:hover:not(:disabled) { color: #9a3412; text-decoration: underline; }
+        .aux-rowbtn--lock:disabled { opacity: .45; cursor: not-allowed; }
+        .aux-rowbtn--unlock { color: #047857; }
+        .aux-rowbtn--unlock:hover { color: #065f46; text-decoration: underline; }
+        .aux-lockinfo { display: block; margin-top: 3px; font-size: 11px; font-weight: 600; color: #be123c; white-space: nowrap; }
+        .aux-lockinfo + .aux-lockinfo { color: #94a3b8; font-weight: 500; }
+    </style>
 
     {{--
       SỬA 8/10 (khách: "cập nhật lại UI màn người dùng theo source mới, logic giữ nguyên") — dựng lại theo
@@ -104,11 +118,33 @@
                                     @endforeach
                                 </div>
                             </td>
-                            <td><span class="aux-status {{ ($u['tone'] ?? '') === 'warning' ? 'aux-status--warn' : (in_array($u['tone'] ?? '', ['danger', 'error'], true) ? 'aux-status--off' : '') }}">{{ $u['status'] }}</span></td>
+                            <td>
+                                <span class="aux-status {{ ($u['tone'] ?? '') === 'warning' ? 'aux-status--warn' : (in_array($u['tone'] ?? '', ['danger', 'error'], true) ? 'aux-status--off' : '') }}">{{ $u['status'] }}</span>
+                                @if (! empty($u['lock']))
+                                    <span class="aux-lockinfo" title="{{ $u['lock']['reason'] }}">{{ $u['lock']['until'] ? 'Đến '.$u['lock']['until'] : 'Vĩnh viễn' }}</span>
+                                    <span class="aux-lockinfo" title="{{ $u['lock']['reason'] }}">{{ \Illuminate\Support\Str::limit($u['lock']['reason'], 28) }}</span>
+                                @endif
+                            </td>
                             <td><span class="aux-date">{{ $u['created'] }}</span></td>
                             <td>
                                 <div class="aux-actions">
                                     <a href="{{ route('admin.users.show', $u['id']) }}" class="akx-lnk" data-user-open="{{ $u['id'] }}">Chi tiết</a>
+                                    {{-- SỬA 12/11 — Khóa / Mở khóa ngay trên dòng, mở popup (admin/users/_lock-modal). --}}
+                                    @php
+                                        $lockPayload = ['id' => $u['id'], 'name' => $u['name'], 'email' => $u['email'], 'avatar' => $u['avatar'] ?? null,
+                                            'roles' => $u['roles'], 'tokens' => $u['tokens'] ?? 0, 'province' => $u['province'] ?? null, 'lock' => $u['lock'] ?? null];
+                                    @endphp
+                                    @unless ($u['trashed'] ?? false)
+                                        @if ($u['locked'] ?? false)
+                                            <button type="button" class="aux-rowbtn aux-rowbtn--unlock" data-user="{{ json_encode($lockPayload) }}"
+                                                    onclick="window.dispatchEvent(new CustomEvent('user-unlock', { detail: JSON.parse(this.dataset.user) }))"
+                                                    aria-label="Mở khóa {{ $u['name'] }}"><x-lucide name="lock-open" /> Mở khóa</button>
+                                        @else
+                                            <button type="button" class="aux-rowbtn aux-rowbtn--lock" data-lock-open="{{ $u['id'] }}" data-user="{{ json_encode($lockPayload) }}"
+                                                    onclick="window.dispatchEvent(new CustomEvent('user-lock', { detail: JSON.parse(this.dataset.user) }))"
+                                                    aria-label="Khóa {{ $u['name'] }}" @disabled($u['is_self'] ?? false) @if ($u['is_self'] ?? false) title="Không thể tự khóa chính mình" @endif><x-lucide name="lock" /> Khóa</button>
+                                        @endif
+                                    @endunless
                                     @if ($u['trashed'] ?? false)
                                         <button type="button" class="aux-rowbtn aux-rowbtn--restore" data-user-restore="{{ $u['id'] }}" aria-label="Khôi phục {{ $u['name'] }}"><x-lucide name="rotate-ccw" /> Khôi phục</button>
                                     @else
@@ -127,10 +163,11 @@
         </div>
 
         <div class="akx-pg" data-pg-nav="users" hidden></div>
-        <p class="acx-foot" style="padding-top:12px">Bấm "Chi tiết" để cập nhật thông tin và mật khẩu, phân quyền chức năng và xem lịch sử thay đổi. Người dùng bị xóa được giữ ở tab "Đã xóa" và có thể khôi phục.</p>
+        <p class="acx-foot" style="padding-top:12px">Bấm "Chi tiết" để cập nhật thông tin và mật khẩu, phân quyền chức năng và xem lịch sử thay đổi. Người dùng bị xóa được giữ ở tab "Đã xóa" và có thể khôi phục. Bấm "Khóa" để khóa tài khoản (không đăng nhập được, gỡ khỏi bảng xếp hạng).</p>
     </section>
 
     @include('partials.admin-users-modal')
+    @include('admin.users._lock-modal')
 @endsection
 
 @push('scripts')

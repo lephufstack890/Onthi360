@@ -167,12 +167,13 @@ class AuthController extends Controller
         // Tài khoản bị Admin khoá thì đăng xuất ngay — trước đây cột status không hề được
         // kiểm tra ở bước đăng nhập nên người bị khoá vẫn vào được.
         if ($this->authService->isSuspended($user)) {
+            $suspendedMsg = $this->authService->suspensionMessage($user); // SỬA 12/11 — báo rõ lý do + hạn khóa
             $this->authService->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'identifier' => 'Tài khoản của bạn đang tạm khoá. Vui lòng liên hệ bộ phận hỗ trợ.',
+                'identifier' => $suspendedMsg,
             ]);
         }
 

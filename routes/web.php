@@ -749,6 +749,9 @@ Route::middleware(['auth'])->group(function () {
         Route::put('users/{user}/permissions', [AdminUserController::class, 'updatePermissions'])->name('users.permissions.update');
         Route::get('users/{user}/panel', [AdminUserController::class, 'panel'])->name('users.panel');
         Route::post('users/{user}/restore', [AdminUserController::class, 'restore'])->name('users.restore');
+        // SỬA 12/11 — nút Khóa / Mở khóa ở từng dòng danh sách người dùng (popup xử phạt).
+        Route::post('users/{user}/lock', [AdminLeaderboardPenaltyController::class, 'lockUser'])->name('users.lock');
+        Route::post('users/{user}/unlock', [AdminLeaderboardPenaltyController::class, 'unlockUser'])->name('users.unlock');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('parent-links/{parentLink}/approve', [AdminUserController::class, 'approveParentLink'])->name('parent-links.approve');

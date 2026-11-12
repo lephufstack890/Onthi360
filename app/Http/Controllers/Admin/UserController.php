@@ -73,13 +73,13 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'province' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'in:mien_bac,mien_trung,mien_nam'],
-            'status' => ['required', 'string', 'in:active,suspended'],
-            'reason' => [$request->input('status') === 'suspended' && $user->status !== 'suspended' ? 'required' : 'nullable', 'string', 'max:1000'],
+            'status' => ['nullable', 'string', 'in:active,suspended'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if ($user->id === Auth::id() && $data['status'] === 'suspended') {
-            throw ValidationException::withMessages(['status' => 'Không thể tự khóa tài khoản của chính mình.']);
-        }
+        // SỬA 12/11 (khách: "trạng thái mặc định disabled; khóa thì dùng nút Khóa ở danh sách") — ô Trạng thái chỉ để xem,
+        // không đổi trạng thái ở form này nữa. Khóa / mở khóa đi qua LeaderboardPenaltyController::lockUser() / unlockUser().
+        $data['status'] = $user->status ?: 'active';
 
         $this->userService->update(Auth::user(), $user, $data, $data['reason'] ?? null);
 

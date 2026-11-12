@@ -83,7 +83,33 @@ class AuthService
      */
     public function isSuspended(?User $user): bool
     {
-        return $user !== null && $user->status === 'suspended';
+        if ($user === null || $user->status !== 'suspended') {
+            return false;
+        }
+        // SỬA 12/11 — khóa có thời hạn (Admin › Người dùng › Khóa) đã hết hạn thì tự mở rồi cho vào luôn.
+        \App\Services\Admin\LeaderboardPenaltyService::releaseExpired($user->id);
+
+        return $user->refresh()->status === 'suspended';
+    }
+
+    /** SỬA 12/11 — câu báo khi tài khoản bị khóa: kèm lý do + thời điểm mở khóa (nếu khóa qua nút "Khóa" có thời hạn). */
+    public function suspensionMessage(User $user): string
+    {
+        try {
+            $lock = \Illuminate\Support\Facades\Schema::hasTable('leaderboard_penalties')
+                ? \App\Models\LeaderboardPenalty::query()->currentlyLocked()->where('user_id', $user->id)->latest('locked_at')->first()
+                : null;
+        } catch (\Throwable $e) {
+            $lock = null;
+        }
+        if ($lock === null) {
+            return 'Tài khoản của bạn đang tạm khoá. Vui lòng liên hệ bộ phận hỗ trợ.';
+        }
+        $until = $lock->unlock_at
+            ? 'đến '.$lock->unlock_at->copy()->setTimezone('Asia/Ho_Chi_Minh')->format('H:i d/m/Y')
+            : 'vĩnh viễn';
+
+        return 'Tài khoản của bạn đã bị khóa '.$until.'. Lý do: '.$lock->reason.'. Nếu có nhầm lẫn, vui lòng liên hệ bộ phận hỗ trợ.';
     }
 
     /**
