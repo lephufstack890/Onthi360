@@ -20,7 +20,7 @@
                 default => '',
             };
         };
-        $statusOptions = collect($users)->pluck('status')->unique()->values();
+        $statusOptions = collect($users)->map(fn ($x) => (! ($x['trashed'] ?? false) && (($x['locked'] ?? false) || ! empty($x['lock']))) ? 'Đã khóa' : $x['status'])->unique()->values();
     @endphp
 
     @if (session('status') === 'user-created')
@@ -101,6 +101,12 @@
                 </thead>
                 <tbody id="auxBody" data-pg="users" data-unit="người dùng">
                     @foreach ($users as $u)
+                        @php
+                            // SỬA 12/11 — có khóa đang hiệu lực (kể cả tài khoản bị phạt trước khi có chặn đăng nhập) thì coi là ĐÃ KHÓA:
+                            // hiện "Đã khóa" + nút "Mở khóa" thay cho nút "Khóa".
+                            $isLockedRow = ! ($u['trashed'] ?? false) && (($u['locked'] ?? false) || ! empty($u['lock']));
+                            if ($isLockedRow) { $u['status'] = 'Đã khóa'; $u['tone'] = 'danger'; }
+                        @endphp
                         <tr data-pg-item data-search="{{ $u['name'] }} {{ $u['email'] }} {{ implode(' ', $u['roles']) }}" data-status="{{ $u['status'] }}">
                             <td>
                                 <div class="aux-who">
@@ -135,7 +141,7 @@
                                             'roles' => $u['roles'], 'tokens' => $u['tokens'] ?? 0, 'province' => $u['province'] ?? null, 'lock' => $u['lock'] ?? null];
                                     @endphp
                                     @unless ($u['trashed'] ?? false)
-                                        @if ($u['locked'] ?? false)
+                                        @if ($isLockedRow)
                                             <button type="button" class="aux-rowbtn aux-rowbtn--unlock" data-user="{{ json_encode($lockPayload) }}"
                                                     onclick="window.dispatchEvent(new CustomEvent('user-unlock', { detail: JSON.parse(this.dataset.user) }))"
                                                     aria-label="Mở khóa {{ $u['name'] }}"><x-lucide name="lock-open" /> Mở khóa</button>
