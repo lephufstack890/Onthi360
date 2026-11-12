@@ -84,6 +84,7 @@ use App\Http\Controllers\Admin\ProductExerciseController as AdminProductExercise
 use App\Http\Controllers\Admin\ProductExerciseBulkController as AdminProductExerciseBulkController; // SỬA 27/10 — nhập bài tập hàng loạt
 use App\Http\Controllers\Admin\ProductExercisePickController as AdminProductExercisePickController; // SỬA 27/10 — lấy từ bài có sẵn
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
+use App\Http\Controllers\Admin\LeaderboardPenaltyController as AdminLeaderboardPenaltyController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\MaterialReadController as AdminMaterialReadController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
@@ -975,6 +976,11 @@ Route::middleware(['auth'])->group(function () {
         Route::put('featured-teachers/{featuredTeacher}', [AdminFeaturedTeacherController::class, 'update'])->name('featured-teachers.update');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
+        // SỬA 12/11 — xử phạt tài khoản vi phạm (hiện ở tab "Tài khoản vi phạm" của trang Bảng xếp hạng công khai).
+        Route::get('ranking/violations', [AdminLeaderboardPenaltyController::class, 'index'])->name('ranking.violations.index');
+        Route::post('ranking/violations', [AdminLeaderboardPenaltyController::class, 'store'])->name('ranking.violations.store');
+        Route::post('ranking/violations/{penalty}/unlock', [AdminLeaderboardPenaltyController::class, 'unlock'])->whereNumber('penalty')->name('ranking.violations.unlock');
+        Route::delete('ranking/violations/{penalty}', [AdminLeaderboardPenaltyController::class, 'destroy'])->whereNumber('penalty')->name('ranking.violations.destroy');
         Route::get('ranking/{scope}/{id}', [AdminRankingController::class, 'show'])
             ->whereIn('scope', ['competition', 'class', 'exam'])
             ->where('id', '[0-9]+')

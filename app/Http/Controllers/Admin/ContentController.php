@@ -774,18 +774,25 @@ class ContentController extends Controller
 
     public function tagsStore(Request $request): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
-        $this->contentService->tagStore($data['name']);
+        // SỬA 12/11 — bắt buộc chọn loại (Lập trình / Thủ công) khi thêm tag.
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'kind' => ['required', 'string', 'in:'.implode(',', array_keys(Tag::KINDS))],
+        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Thủ công).'], ['kind' => 'loại tag']);
+        $this->contentService->tagStore($data['name'], $data['kind']);
 
         return redirect()->route('admin.content.index', ['tab' => 'tags'])->with('status', 'tag-created');
     }
 
     public function tagsUpdate(Request $request, Tag $tag): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'kind' => ['required', 'string', 'in:'.implode(',', array_keys(Tag::KINDS))],
+        ], ['kind.required' => 'Hãy chọn loại tag (Lập trình hoặc Thủ công).'], ['kind' => 'loại tag']);
 
         try {
-            $this->contentService->tagUpdate($tag, $data['name']);
+            $this->contentService->tagUpdate($tag, $data['name'], $data['kind']);
         } catch (ValidationException $e) {
             return redirect()->route('admin.content.index', ['tab' => 'tags'])->withErrors($e->errors());
         }

@@ -4,6 +4,7 @@ namespace App\Services\Public;
 
 use App\Models\ClassEnrollment;
 use App\Models\Competition;
+use App\Models\LeaderboardPenalty;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\CompetitionExamRepositoryInterface;
@@ -13,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * SỬA 8/10 (khách: "xây lại UI bảng xếp hạng public theo source mới rồi làm lại logic cho hợp lý với UI").
@@ -49,10 +51,22 @@ class LeaderboardService
 
     public const SCOPE_CLASS = 'class';
 
+    /** SỬA 12/11 — tab "Tài khoản vi phạm" (App\Models\LeaderboardPenalty, admin cấu hình ở Quản trị › Bảng xếp hạng). */
+    public const SCOPE_VIOLATIONS = 'violations';
+
+    /**
+     * Các tab hiện trên trang. SỬA 12/11 (khách: "bỏ 2 tab Cuộc thi gần nhất với Lớp của tôi, thay thành 1 tab Tài khoản
+     * vi phạm") — 2 phạm vi cũ KHÔNG còn tab, nhưng vẫn mở được qua link cũ (?scope=contest / ?competition=… từ trang
+     * cuộc thi, ?scope=class) để không làm gãy liên kết đang có — xem LEGACY_SCOPES.
+     */
     public const SCOPES = [
         self::SCOPE_ALL => 'Toàn thời gian',
         self::SCOPE_MONTH => 'Tháng này',
-        self::SCOPE_CONTEST => 'Cuộc thi gần nhất',
+        self::SCOPE_VIOLATIONS => 'Tài khoản vi phạm',
+    ];
+
+    private const LEGACY_SCOPES = [
+        self::SCOPE_CONTEST => 'Cuộc thi',
         self::SCOPE_CLASS => 'Lớp của tôi',
     ];
 
@@ -91,11 +105,12 @@ class LeaderboardService
     public function indexData(?string $scope, ?int $competitionId, ?int $examId, ?int $classId, ?User $viewer): array
     {
         // Link cũ từ trang cuộc thi (?competition=…&exam=…) chưa có scope → mở thẳng phạm vi cuộc thi.
-        if (! is_string($scope) || ! isset(self::SCOPES[$scope])) {
+        if (! is_string($scope) || (! isset(self::SCOPES[$scope]) && ! isset(self::LEGACY_SCOPES[$scope]))) {
             $scope = $competitionId !== null ? self::SCOPE_CONTEST : self::SCOPE_ALL;
         }
 
         $data = match ($scope) {
+            self::SCOPE_VIOLATIONS => $this->violationsScope(),
             self::SCOPE_CONTEST => $this->contestScope($competitionId, $examId, $viewer),
             self::SCOPE_CLASS => $this->classScope($classId, $viewer),
             default => $this->globalScope($scope, $viewer),
@@ -106,7 +121,8 @@ class LeaderboardService
         return [
             'scope' => $scope,
             'scopes' => self::SCOPES,
-            'scopeLabel' => self::SCOPES[$scope],
+            'scopeLabel' => self::SCOPES[$scope] ?? self::LEGACY_SCOPES[$scope],
+            'violations' => $data['violations'] ?? [],
             'rows' => $rows,
             'hero' => [
                 'students' => $data['totalStudents'] ?? count($rows),
@@ -180,8 +196,10 @@ class LeaderboardService
         $now = Carbon::now();
         $from = $scope === self::SCOPE_MONTH ? $now->copy()->startOfMonth() : null;
 
-        $current = $this->rank($this->metrics($from, null, null));
-        $previous = $this->rank($this->metrics($from, $now->copy()->subDays(self::MOVEMENT_DAYS), null))->pluck('rank', 'uid')->all();
+        // SỬA 12/11 — tài khoản đang bị khóa không có mặt trên bảng; điểm bị trừ do vi phạm được trừ thẳng vào tổng điểm.
+        $current = $this->rank($this->applyPenalties($this->metrics($from, null, null), $from, $now));
+        $before = $now->copy()->subDays(self::MOVEMENT_DAYS);
+        $previous = $this->rank($this->applyPenalties($this->metrics($from, $before, null), $from, $before))->pluck('rank', 'uid')->all();
 
         return [
             'rows' => $this->decorate($current->take(self::DISPLAY_LIMIT), $previous, true),
@@ -462,6 +480,126 @@ class LeaderboardService
     }
 
     // ───────────────────────────── Tính số liệu & xếp hạng ─────────────────────────────
+
+    // ─────────────────────────────── Tài khoản vi phạm ───────────────────────────────
+
+    /** Xóa bảng nhớ tạm của Toàn thời gian / Tháng này — gọi sau khi admin xử phạt / mở khóa / hủy hình phạt. */
+    public static function forgetCache(): void
+    {
+        foreach ([self::SCOPE_ALL, self::SCOPE_MONTH] as $scope) {
+            Cache::forget('leaderboard:'.self::CACHE_VERSION.':'.$scope);
+        }
+    }
+
+    private static function penaltiesReady(): bool
+    {
+        static $ready = null;
+
+        return $ready ??= Schema::hasTable('leaderboard_penalties');
+    }
+
+    /**
+     * Bỏ tài khoản đang bị khóa (tại thời điểm $at) và trừ điểm phạt vào tổng điểm.
+     * Bảng Tháng này chỉ trừ các hình phạt phát sinh trong tháng.
+     */
+    private function applyPenalties(Collection $metrics, ?Carbon $from, Carbon $at): Collection
+    {
+        if ($metrics->isEmpty() || ! self::penaltiesReady()) {
+            return $metrics;
+        }
+
+        $locked = array_flip(LeaderboardPenalty::query()->locked($at)->pluck('user_id')->map(fn ($id) => (int) $id)->all());
+        $deductions = LeaderboardPenalty::query()->effective()
+            ->where('locked_at', '<=', $at)
+            ->when($from, fn ($q) => $q->where('locked_at', '>=', $from))
+            ->where('points_deducted', '>', 0)
+            ->groupBy('user_id')
+            ->selectRaw('user_id, SUM(points_deducted) as pts')
+            ->pluck('pts', 'user_id')
+            ->all();
+
+        if ($locked === [] && $deductions === []) {
+            return $metrics;
+        }
+
+        return $metrics
+            ->reject(fn ($m) => isset($locked[(int) $m->uid]))
+            ->map(function ($m) use ($deductions) {
+                $minus = (float) ($deductions[(int) $m->uid] ?? 0);
+                if ($minus > 0) {
+                    $m = clone $m;
+                    $m->points = max(0, round((float) $m->points - $minus, 2));
+                }
+
+                return $m;
+            })
+            ->values();
+    }
+
+    /**
+     * Tổng điểm xếp hạng hiện tại (Toàn thời gian, đã trừ các hình phạt cũ) + danh hiệu của 1 tài khoản — dùng khi admin
+     * xử phạt để ghi "Điểm khi khóa" (điểm TRƯỚC khi áp mức trừ lần này).
+     *
+     * @return array{score: float, badge: string}
+     */
+    public function standingFor(int $userId): array
+    {
+        $m = $this->metrics(null, null, [$userId], [], false)->first();
+        $points = (float) ($m->points ?? 0);
+        if (self::penaltiesReady()) {
+            $points -= (float) LeaderboardPenalty::query()->effective()->where('user_id', $userId)->sum('points_deducted');
+        }
+
+        return ['score' => max(0, round($points, 2)), 'badge' => $this->tier((int) ($m->solved ?? 0))];
+    }
+
+    /** Tab "Tài khoản vi phạm": các tài khoản ĐANG bị khóa, mới khóa trước. */
+    private function violationsScope(): array
+    {
+        $rows = [];
+        if (self::penaltiesReady()) {
+            $now = Carbon::now();
+            $rows = LeaderboardPenalty::query()->locked($now)
+                ->with('user:id,name,province,avatar_path')
+                ->orderByDesc('locked_at')->orderByDesc('id')
+                ->limit(self::DISPLAY_LIMIT)
+                ->get()
+                ->map(function (LeaderboardPenalty $p) {
+                    $hidden = $p->hide_name || $p->user === null;
+                    $tz = 'Asia/Ho_Chi_Minh';
+
+                    return [
+                        'id' => $p->id,
+                        'name' => $hidden ? $p->accountCode() : (string) $p->user->name,
+                        'named' => ! $hidden,
+                        'initials' => $hidden ? '' : $this->initials((string) $p->user->name),
+                        'avatar' => $hidden ? null : \App\Services\Account\AvatarService::url($p->user->avatar_path),
+                        'sub' => $hidden ? null : ($p->user->province ?: null),
+                        'badge' => $p->badge_at_lock ?: 'Newbie',
+                        'scoreAtLock' => $p->score_at_lock,
+                        'lockedAt' => $p->locked_at->copy()->setTimezone($tz)->format('H:i d/m/Y'),
+                        'lockedTs' => $p->locked_at->getTimestamp(),
+                        'reason' => $p->reason,
+                        'lockLabel' => $p->lockLabel(),
+                        'lockDays' => $p->lock_days ?: 100000,
+                        'points' => (float) $p->points_deducted,
+                        'tokens' => (int) $p->tokens_deducted,
+                        'unlockAt' => $p->unlock_at?->copy()->setTimezone($tz)->format('H:i d/m/Y'),
+                        'unlockTs' => $p->unlock_at?->getTimestamp() ?? PHP_INT_MAX,
+                    ];
+                })->all();
+        }
+
+        return [
+            'rows' => [],
+            'violations' => $rows,
+            'totalStudents' => 0,
+            'totalSolved' => 0,
+            'namesLocked' => false,
+            'rule' => 'Danh sách tài khoản đang bị khóa khỏi bảng xếp hạng do vi phạm quy chế. Hết hạn khóa, tài khoản tự trở lại bảng xếp hạng; điểm đã trừ không được hoàn lại.',
+            'updatedAt' => Carbon::now()->toIso8601String(),
+        ];
+    }
 
     /**
      * Gộp theo học sinh: mỗi (học sinh, câu hỏi) lấy điểm cao nhất + cờ "đã giải", rồi cộng lại.

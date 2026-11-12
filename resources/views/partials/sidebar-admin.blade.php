@@ -43,7 +43,7 @@
          */
         ['label' => 'Giáo viên & chuyên gia', 'route' => 'admin.featured-teachers.index', 'icon' => 'badge-check'],
         ['label' => 'Câu chuyện đồng hành', 'route' => 'admin.testimonials.index', 'icon' => 'heart', 'also' => ['admin.testimonials.create', 'admin.testimonials.edit']],
-        ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => 'bar-chart-3'],
+        ['label' => 'Bảng xếp hạng', 'route' => 'admin.ranking.index', 'icon' => 'bar-chart-3', 'also' => ['admin.ranking.show', 'admin.ranking.violations.index']],
         ['label' => 'Báo cáo', 'route' => 'admin.reports.index', 'icon' => 'scroll-text'],
         ['label' => 'Cấu hình', 'route' => 'admin.settings.index', 'icon' => 'settings', 'superAdminOnly' => true],
         ['label' => 'Tài khoản', 'route' => 'admin.profile.show', 'icon' => 'user-cog', 'editorOk' => true],

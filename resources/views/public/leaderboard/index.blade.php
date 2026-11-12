@@ -1,7 +1,7 @@
 @extends('layouts.guest')
 
 @section('title', 'Bảng xếp hạng học sinh')
-@section('meta-description', 'Bảng xếp hạng học sinh Ôn Thi 360 — theo tổng điểm, số bài đã giải, tỷ lệ đúng và chuỗi luyện tập; xem theo toàn thời gian, tháng này, cuộc thi gần nhất hoặc lớp của bạn.')
+@section('meta-description', 'Bảng xếp hạng học sinh Ôn Thi 360 — theo tổng điểm, số bài đã giải, tỷ lệ đúng và chuỗi luyện tập; xem theo toàn thời gian, tháng này và danh sách tài khoản vi phạm.')
 
 @section('content')
 {{-- ═══════════════ [LEADERBOARD] MÀN BẢNG XẾP HẠNG ═══════════════
@@ -772,6 +772,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                     <a href="{{ $scopeUrl($key) }}" aria-pressed="{{ $scope === $key ? 'true' : 'false' }}">{{ $label }}</a>
                 @endforeach
             </div>
+            @if ($scope !== 'violations')
             <div class="lbx-filter-tools">
                 <label class="lbx-search">
                     <x-lucide name="search" />
@@ -793,6 +794,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                     </select>
                 </label>
             </div>
+            @endif
         </section>
 
         {{-- Chọn cuộc thi / kỳ thi (phạm vi cuộc thi) --}}
@@ -912,6 +914,10 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
     @endif
     </div>
 
+    {{-- ══════ TÀI KHOẢN VI PHẠM — SỬA 12/11 (thay 2 tab Cuộc thi gần nhất / Lớp của tôi) ══════ --}}
+    @if ($scope === 'violations')
+        @include('public.leaderboard._violations', ['violations' => $violations ?? []])
+    @else
     {{-- ══════ THỨ HẠNG HỌC SINH ══════ --}}
     <section class="lb-board" aria-labelledby="lb-board-title">
         <div class="lb-board-heading lbx-board-heading">
@@ -1069,6 +1075,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
             <span>{{ $updated ? 'Cập nhật lúc '.$updated : '' }}</span>
         </div>
     </section>
+    @endif
 </div>
 </div>
 @endsection

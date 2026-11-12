@@ -293,9 +293,18 @@
             <form method="POST" action="{{ route('admin.content.tags.store') }}" class="flex flex-wrap items-center gap-3">
                 @csrf
                 <input type="text" name="name" required maxlength="120" placeholder="VD: Đại số, Hình học, Dao động cơ..."
-                       class="apx-input apx-input--grow" style="min-width:220px">
+                       value="{{ old('name') }}" class="apx-input apx-input--grow" style="min-width:220px">
+                {{-- SỬA 12/11 (khách: "tag chuyên đề theo loại: lập trình và thủ công — trước khi thêm cho chọn loại") --}}
+                <select name="kind" required class="apx-input" style="width:auto;min-width:170px" aria-label="Loại tag">
+                    <option value="" disabled @selected(! old('kind'))>— Chọn loại tag —</option>
+                    @foreach (\App\Models\Tag::KINDS as $kv => $kl)
+                        <option value="{{ $kv }}" @selected(old('kind') === $kv)>{{ $kl }}</option>
+                    @endforeach
+                </select>
                 <button type="submit" class="acx-btn acx-btn--primary">Thêm tag</button>
             </form>
+            @error('kind')<p style="margin-top:8px;font-size:12px;color:#e11d48">{{ $message }}</p>@enderror
+            @error('name')<p style="margin-top:8px;font-size:12px;color:#e11d48">{{ $message }}</p>@enderror
         </div>
 
         <section class="acx-panel" style="margin-top:16px">
@@ -311,24 +320,52 @@
                            placeholder="Lọc theo tên tag… (VD: chu kỳ, số nguyên tố)">
                     <button type="button" class="acx-clear" id="atgClear" aria-label="Xoá ô lọc"><x-lucide name="x" class="h-4 w-4" /></button>
                 </label>
+                {{-- SỬA 12/11 — lọc theo loại tag --}}
+                <select id="atgKind" class="apx-input" style="width:auto;min-width:170px" aria-label="Lọc theo loại tag">
+                    <option value="">Tất cả loại</option>
+                    @foreach (\App\Models\Tag::KINDS as $kv => $kl)
+                        <option value="{{ $kv }}">{{ $kl }}</option>
+                    @endforeach
+                    <option value="none">Chưa phân loại</option>
+                </select>
             </div>
             <div class="akx-sub" style="padding-top:0"><span><b id="atgCount">{{ $resultTotal }}</b> kết quả · {{ $activeTabLabel }}</span></div>
             <div data-pg="tags" data-unit="tag">
                 @forelse ($tags as $t)
-                    <div class="apx-item" data-pg-item data-search="{{ $t['name'] }}" style="padding:12px 20px" x-data="{ editing: false }">
-                        <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex items-center gap-2" x-show="editing" x-cloak>
+                    <div class="apx-item" data-pg-item data-search="{{ $t['name'] }}" data-kind="{{ $t['kind'] ?? 'none' }}" style="padding:12px 20px" x-data="{ editing: false }">
+                        <form method="POST" action="{{ route('admin.content.tags.update', $t['id']) }}" class="flex-1 flex flex-wrap items-center gap-2" x-show="editing" x-cloak>
                             @csrf
                             @method('PUT')
                             <input type="text" name="name" value="{{ $t['name'] }}" required maxlength="120" class="apx-input apx-input--grow">
+                            {{-- SỬA 12/11 — sửa tag cho đổi cả loại --}}
+                            <select name="kind" required class="apx-input" style="width:auto;min-width:150px" aria-label="Loại tag">
+                                <option value="" disabled @selected(empty($t['kind']))>— Chọn loại —</option>
+                                @foreach (\App\Models\Tag::KINDS as $kv => $kl)
+                                    <option value="{{ $kv }}" @selected(($t['kind'] ?? null) === $kv)>{{ $kl }}</option>
+                                @endforeach
+                            </select>
                             <button type="submit" class="akx-lnk">Lưu</button>
                             <button type="button" @click="editing = false" class="akx-lnk akx-lnk--mute">Huỷ</button>
                         </form>
                         <div class="apx-item__main" x-show="!editing">
                             <p class="apx-item__title">{{ $t['name'] }}</p>
-                            <p class="apx-item__sub">{{ $t['questionsCount'] }} câu hỏi đang dùng</p>
+                            <p class="apx-item__sub">
+                                {{-- SỬA 12/11 — cột Loại trong danh sách --}}
+                                @php
+                                    $kindStyle = match ($t['kind'] ?? null) {
+                                        'coding' => 'background:#e0f2fe;color:#0369a1;border-color:#bae6fd',
+                                        'manual' => 'background:#fef3c7;color:#92400e;border-color:#fde68a',
+                                        default => 'background:#f1f5f9;color:#64748b;border-color:#e2e8f0',
+                                    };
+                                @endphp
+                                <span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;margin-right:6px;border:1px solid;border-radius:999px;font-size:11px;font-weight:700;{{ $kindStyle }}">
+                                    <x-lucide :name="($t['kind'] ?? null) === 'coding' ? 'code' : (($t['kind'] ?? null) === 'manual' ? 'pen-line' : 'tag')" style="width:11px;height:11px" />{{ $t['kindLabel'] ?? 'Chưa phân loại' }}
+                                </span>
+                                {{ $t['questionsCount'] }} câu hỏi đang dùng
+                            </p>
                         </div>
                         <div class="apx-item__side" x-show="!editing">
-                            <button type="button" @click="editing = true" class="acx-link">Đổi tên</button>
+                            <button type="button" @click="editing = true" class="acx-link">Sửa</button>
                             <form method="POST" action="{{ route('admin.content.tags.destroy', $t['id']) }}" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -356,6 +393,7 @@
                     var clear = document.getElementById('atgClear');
                     var count = document.getElementById('atgCount');
                     var empty = document.getElementById('atgEmpty');
+                    var kindSel = document.getElementById('atgKind'); // SỬA 12/11 — lọc theo loại tag
                     var rows = Array.prototype.slice.call(box.querySelectorAll('[data-pg-item]'));
                     var total = rows.length;
                     function norm(s) {
@@ -364,17 +402,18 @@
                     }
                     rows.forEach(function (el) { el._s = norm(el.dataset.search); });
                     function apply() {
-                        var term = norm(q.value), hits = 0;
+                        var term = norm(q.value), kind = kindSel ? kindSel.value : '', hits = 0;
                         rows.forEach(function (el) {
-                            if (!term || el._s.indexOf(term) !== -1) { el.setAttribute('data-pg-item', ''); hits++; }
+                            if ((!term || el._s.indexOf(term) !== -1) && (!kind || el.dataset.kind === kind)) { el.setAttribute('data-pg-item', ''); hits++; }
                             else { el.removeAttribute('data-pg-item'); el.hidden = true; }
                         });
                         window.akxRepage && window.akxRepage('tags');
-                        count.textContent = term ? hits : total;
+                        count.textContent = (term || kind) ? hits : total;
                         if (empty) empty.hidden = hits !== 0;
                         if (clear) clear.classList.toggle('is-on', q.value !== '');
                     }
                     q.addEventListener('input', apply);
+                    if (kindSel) kindSel.addEventListener('change', apply);
                     if (clear) clear.addEventListener('click', function () { q.value = ''; apply(); q.focus(); });
                 });
             </script>

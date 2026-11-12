@@ -430,7 +430,7 @@ class ContentService
             // dùng cho bao nhiêu câu hỏi trước khi admin lỡ tay xoá (xem tagDestroy() bên dưới,
             // xoá KHÔNG chặn dù đang dùng — chỉ là nhãn, không phải nội dung theo 6.2).
             $tags = $this->tags->query()->withCount('questions')->orderBy('name')->get()
-                ->map(fn (Tag $t) => ['id' => $t->id, 'name' => $t->name, 'questionsCount' => $t->questions_count])
+                ->map(fn (Tag $t) => ['id' => $t->id, 'name' => $t->name, 'questionsCount' => $t->questions_count, 'kind' => $t->kind, 'kindLabel' => $t->kindLabel()])
                 ->all();
         } else {
             $rows = $this->materials->latestWithProduct(50)->map(function ($m) {
@@ -524,9 +524,16 @@ class ContentService
      * để tự khớp/không tạo trùng nếu admin lỡ gõ lại đúng tên đã có (không phân biệt hoa/
      * thường, xem TagRepository::findOrCreateByName()).
      */
-    public function tagStore(string $name): Tag
+    public function tagStore(string $name, ?string $kind = null): Tag
     {
-        return $this->tags->findOrCreateByName($name);
+        $tag = $this->tags->findOrCreateByName($name);
+
+        // SỬA 12/11 — loại tag (Lập trình / Thủ công). Gõ lại đúng tên tag đã có thì cập nhật luôn loại theo lựa chọn mới.
+        if ($kind !== null && $tag->kind !== $kind && \Illuminate\Support\Facades\Schema::hasColumn('tags', 'kind')) {
+            $tag = $this->tags->update($tag, ['kind' => $kind]);
+        }
+
+        return $tag;
     }
 
     /**
@@ -536,7 +543,7 @@ class ContentService
      *
      * @throws ValidationException nếu tên mới trùng 1 tag KHÁC đã có sẵn.
      */
-    public function tagUpdate(Tag $tag, string $name): Tag
+    public function tagUpdate(Tag $tag, string $name, ?string $kind = null): Tag
     {
         $name = trim($name);
         $existing = Tag::where('name', $name)->where('id', '!=', $tag->id)->first();
@@ -545,7 +552,12 @@ class ContentService
             throw ValidationException::withMessages(['name' => 'Đã có tag khác trùng tên này — gộp bằng cách xoá 1 trong 2 thay vì đổi tên trùng.']);
         }
 
-        return $this->tags->update($tag, ['name' => $name]);
+        $fields = ['name' => $name];
+        if ($kind !== null && \Illuminate\Support\Facades\Schema::hasColumn('tags', 'kind')) {
+            $fields['kind'] = $kind; // SỬA 12/11 — sửa tag cho đổi cả loại
+        }
+
+        return $this->tags->update($tag, $fields);
     }
 
     /**

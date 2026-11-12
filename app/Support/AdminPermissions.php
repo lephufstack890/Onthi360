@@ -103,7 +103,8 @@ final class AdminPermissions
             'routes' => ['admin.testimonials.'], 'home' => 'admin.testimonials.index',
         ],
         'ranking' => [
-            'label' => 'Bảng xếp hạng', 'actions' => ['view'], 'hint' => '',
+            // SỬA 12/11 — thêm thao tác để phân quyền xử phạt tài khoản vi phạm (ranking.violations.*).
+            'label' => 'Bảng xếp hạng', 'actions' => ['view', 'create', 'update', 'delete'], 'hint' => 'Thêm / sửa / xoá = xử phạt, mở khóa, hủy hình phạt tài khoản vi phạm',
             'routes' => ['admin.ranking.'], 'home' => 'admin.ranking.index',
         ],
         'reports' => [
