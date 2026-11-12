@@ -366,7 +366,7 @@ class UserService
             $status = 'Đã xóa';
             $tone = 'danger';
         } elseif ($u->status === 'suspended') {
-            $status = 'Đã khóa'; // SỬA 12/11 — đổi "Tạm khóa" → "Đã khóa"
+            $status = 'Đã khóa';
             $tone = 'danger';
         }
 
