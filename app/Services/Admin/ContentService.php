@@ -2947,10 +2947,13 @@ class ContentService
         // của câu hỏi, xem storeZipAssets()). Mỗi lần admin xoá một bài tập sản phẩm là bỏ lại
         // một đống tệp mồ côi trên đĩa. Giờ xoá nguyên thư mục của câu hỏi, xem
         // forgetQuestionFiles().
-        $this->forgetQuestionFiles($exercise);
-
-        $exercise->tags()->detach();
-        $exercise->forceDelete();
+        // SỬA 12/11 (khách: "xoá nhiều bài thì lỗi 500") — NGUYÊN NHÂN: bài đã có học sinh làm / đang nằm trong đề / có bài mẫu
+        // thì forceDelete() thẳng bị CSDL chặn (khoá ngoại attempt_answers, assessment_items…) → lỗi 500. Giờ xoá qua ĐÚNG
+        // questionDestroy(): dọn bài làm, câu trong đề, bài mẫu, tiến độ, thẻ rồi mới xoá câu + tệp (cùng 1 giao dịch).
+        if (\App\Support\ProductExerciseLinks::supported()) {
+            \App\Models\ProductExerciseLink::query()->where('question_id', $exercise->id)->delete(); // liên kết "dùng chung" tới bài này
+        }
+        $this->questionDestroy($exercise);
     }
 
     /**
