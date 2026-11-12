@@ -116,8 +116,11 @@
 .vpx-revoke { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border: 1px dashed #fecdd3; border-radius: 14px; background: #fff8f8; }
 .vpx-revoke input { flex: 1 1 260px; }
 .vpx-empty { padding: 56px 20px; text-align: center; }
-.vpx-empty span { display: inline-grid; place-items: center; width: 60px; height: 60px; margin-bottom: 12px; border-radius: 18px; background: #ecfdf5; color: #059669; }
+.vpx-empty > span { display: inline-grid; place-items: center; width: 60px; height: 60px; margin-bottom: 12px; border-radius: 18px; background: #ecfdf5; color: #059669; }
 .vpx-empty h3 { font-size: 15px; font-weight: 800; color: #0f172a; }
+.vpx-cta { display: inline-flex; align-items: center; gap: 7px; margin-top: 16px; padding: 10px 18px; border: 1px solid #fecdd3; border-radius: 12px; background: #fff1f2; color: #e11d48; font-size: 13px; font-weight: 700; transition: background .15s, box-shadow .15s; }
+.vpx-cta:hover { background: #ffe4e6; box-shadow: 0 4px 12px rgba(225, 29, 72, .12); }
+.vpx-cta svg { width: 15px; height: 15px; }
 .vpx-empty p { margin-top: 4px; font-size: 12.5px; color: #64748b; }
 .vpx-help { display: flex; gap: 10px; padding: 12px 18px; border-top: 1px solid #eef3f8; background: #f8fbfe; font-size: 11.5px; line-height: 1.6; color: #64748b; }
 .vpx-help svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 2px; color: #3b82f6; }
@@ -126,11 +129,11 @@
 .vpx-mask { position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 42, .4); backdrop-filter: blur(2px); }
 .vpx-drawer { animation: vpxIn .2s ease-out; position: fixed; z-index: 61; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(480px, 100vw); background: #fff; box-shadow: -18px 0 48px rgba(15, 23, 42, .18); }
 .vpx-drawer__hd { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid #eef3f8; }
-.vpx-drawer__hd span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #fff1f2; color: #e11d48; }
+.vpx-drawer__hd > span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #fff1f2; color: #e11d48; }
 .vpx-drawer__hd h2 { font-size: 16px; font-weight: 800; color: #0f172a; }
 .vpx-drawer__hd p { font-size: 11.5px; color: #64748b; }
-.vpx-drawer__hd button { margin-left: auto; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #64748b; }
-.vpx-drawer__hd button:hover { background: #f1f5f9; }
+.vpx-drawer__hd > button { margin-left: auto; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #64748b; }
+.vpx-drawer__hd > button:hover { background: #f1f5f9; }
 .vpx-drawer__bd { flex: 1; overflow-y: auto; padding: 18px 20px; display: grid; gap: 16px; align-content: start; }
 .vpx-drawer__ft { display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid #eef3f8; background: #f8fbfe; }
 .vpx-drawer__ft > * { flex: 1; }
@@ -304,7 +307,7 @@
                 <span><x-lucide name="shield-check" class="h-7 w-7" /></span>
                 <h3>{{ $filter === 'locked' ? 'Không có tài khoản nào đang bị khóa' : 'Chưa xử phạt tài khoản nào' }}</h3>
                 <p>Khi phát hiện gian lận, bấm “Xử phạt tài khoản” để khóa và trừ điểm / token.</p>
-                <x-ws.btn type="button" variant="primary" icon="plus" class="mt-4" x-on:click="formOpen = true">Xử phạt tài khoản</x-ws.btn>
+                <button type="button" class="vpx-cta" @click="formOpen = true"><x-lucide name="plus" /> Xử phạt tài khoản</button>
             </div>
         @endforelse
 

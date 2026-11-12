@@ -45,7 +45,7 @@ class LeaderboardPenaltyService
             return ['penalties' => collect(), 'filter' => $filter, 'ready' => false, 'counts' => ['locked' => 0, 'all' => 0, 'tokens' => 0]];
         }
 
-        $query = LeaderboardPenalty::query()->with(['user:id,name,email,phone,token_balance', 'creator:id,name'])
+        $query = LeaderboardPenalty::query()->with(['user:id,name,email,phone,token_balance,avatar_path', 'creator:id,name'])
             ->orderByDesc('locked_at')->orderByDesc('id');
         if ($filter === 'locked') {
             $query->currentlyLocked();
