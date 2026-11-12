@@ -4,6 +4,67 @@
 @section('page-title', 'Tài khoản vi phạm')
 
 @section('content')
+<style>
+.vp-pick { position: relative; }
+.vp-pick__box { display: flex; width: 100%; min-height: 46px; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; text-align: left; transition: border-color .15s, box-shadow .15s; }
+.vp-pick__box:hover { border-color: #bfdbfe; }
+.vp-pick__box.is-open, .vp-pick__box:focus-visible { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px #dbeafe; }
+.vp-pick__val { display: flex; flex: 1; min-width: 0; align-items: center; gap: 9px; }
+.vp-pick__val img, .vp-pick__opt img { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; object-fit: cover; background: #eef4f8; }
+.vp-pick__val b, .vp-pick__opt b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; color: #1e293b; }
+.vp-pick__val small, .vp-pick__opt small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #94a3b8; }
+.vp-pick__ph { flex: 1; font-size: 14px; color: #94a3b8; }
+.vp-pick__x { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: #94a3b8; }
+.vp-pick__x:hover { background: #f1f5f9; color: #e11d48; }
+.vp-pick__drop { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 6px); overflow: hidden; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; box-shadow: 0 12px 32px rgba(15, 52, 96, .14); }
+.vp-pick__search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 0 10px; border: 1px solid #e2e8f0; border-radius: 10px; }
+.vp-pick__search input { flex: 1; min-width: 0; height: 36px; border: 0; outline: none; box-shadow: none; padding: 0; font-size: 13px; background: transparent; }
+.vp-pick__list { max-height: 260px; overflow-y: auto; padding: 0 6px 6px; }
+.vp-pick__opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 10px; cursor: pointer; }
+.vp-pick__opt.is-active { background: #eff6ff; }
+.vp-pick__opt.is-sel b { color: #1d4ed8; }
+.vp-pick__lock { flex: 0 0 auto; padding: 2px 7px; border-radius: 999px; background: #fff1f2; color: #e11d48; font-size: 10px; font-weight: 700; }
+.vp-pick__note { padding: 12px 8px; text-align: center; font-size: 12px; color: #94a3b8; }
+</style>
+<script>
+    /* SỬA 12/11 — ô chọn 1 tài khoản kiểu Select2 (Alpine): mở ra là có danh sách, gõ để tìm (chờ 250ms), ↑ ↓ Enter để chọn. */
+    window.onthiAccountPick = function (url, initial) {
+        return {
+            url, selected: initial, open: false, q: '', items: [], active: 0, loading: false, error: '', timer: null, seq: 0,
+            toggle() { this.open ? this.close() : this.show(); },
+            show() {
+                this.open = true;
+                this.$nextTick(() => this.$refs.q && this.$refs.q.focus());
+                if (!this.items.length) this.fetch();
+            },
+            close() { this.open = false; },
+            clear() { this.selected = null; },
+            search() { clearTimeout(this.timer); this.timer = setTimeout(() => this.fetch(), 250); },
+            async fetch() {
+                const seq = ++this.seq;
+                this.loading = true; this.error = '';
+                try {
+                    const res = await fetch(this.url + '?q=' + encodeURIComponent(this.q.trim()), { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                    if (!res.ok) throw new Error();
+                    const data = await res.json();
+                    if (seq !== this.seq) return;
+                    this.items = data.items || []; this.active = 0;
+                } catch (e) {
+                    if (seq === this.seq) this.error = 'Không tải được danh sách, thử lại sau.';
+                } finally {
+                    if (seq === this.seq) this.loading = false;
+                }
+            },
+            move(d) { if (this.items.length) this.active = (this.active + d + this.items.length) % this.items.length; },
+            pick(it) { if (!it) return; this.selected = it; this.close(); },
+        };
+    };
+    /* Không cho gửi form khi chưa chọn tài khoản. */
+    document.addEventListener('submit', function (e) {
+        var f = e.target, acc = f.querySelector && f.querySelector('.vp-pick input[name="account"]');
+        if (acc && !acc.value) { e.preventDefault(); alert('Hãy chọn tài khoản cần xử phạt.'); }
+    }, true);
+</script>
 {{-- SỬA 12/11 (khách: "trong admin thì có thể config để trừng phạt, khi trừng phạt thì nó hiển thị ra danh sách của tab đó") —
      xử phạt tài khoản trên bảng xếp hạng. Tài khoản đang khóa hiện ở tab "Tài khoản vi phạm" của trang Bảng xếp hạng công khai,
      đồng thời bị gỡ khỏi bảng Toàn thời gian / Tháng này tới khi hết hạn khóa. Xem App\Services\Admin\LeaderboardPenaltyService. --}}
@@ -50,8 +111,45 @@
         <form method="POST" action="{{ route('admin.ranking.violations.store') }}" class="space-y-3.5"
               x-data="{ preset: @js($isPreset ? $oldReason : '__other'), custom: @js($isPreset ? '' : $oldReason) }">
             @csrf
-            <x-ws.field label="Tài khoản" name="account" required hint="Nhập ID, email hoặc số điện thoại của tài khoản.">
-                <input id="account" name="account" type="text" class="admin-input" required value="{{ old('account') }}" placeholder="VD: 1024 hoặc hocsinh@gmail.com">
+            {{-- SỬA 12/11 (khách: "chọn tài khoản dạng select2, search để chọn, không cho nhập") — ô chọn có tìm kiếm,
+                 gợi ý lấy từ admin.ranking.violations.accounts; gửi đi là ID tài khoản (input ẩn). --}}
+            <x-ws.field label="Tài khoản" name="account" required hint="Bấm để chọn — gõ tên, email, SĐT hoặc ID để tìm học sinh.">
+                <div class="vp-pick" x-data="onthiAccountPick(@js(route('admin.ranking.violations.accounts')), @js(old('account') ? ['id' => old('account'), 'name' => old('account_label', '#'.old('account')), 'meta' => ''] : null))"
+                     @click.outside="close()" @keydown.escape.prevent="close()">
+                    <input type="hidden" name="account" :value="selected ? selected.id : ''">
+                    <input type="hidden" name="account_label" :value="selected ? selected.name : ''">
+                    <button type="button" id="account" class="vp-pick__box" :class="{ 'is-open': open }" @click="toggle()" :aria-expanded="open" aria-haspopup="listbox">
+                        <template x-if="selected">
+                            <span class="vp-pick__val">
+                                <img :src="selected.avatar" alt="" x-show="selected.avatar">
+                                <span class="min-w-0"><b x-text="selected.name"></b><small x-text="selected.meta"></small></span>
+                            </span>
+                        </template>
+                        <span class="vp-pick__ph" x-show="!selected">— Chọn tài khoản —</span>
+                        <span class="vp-pick__x" x-show="selected" @click.stop="clear()" role="button" aria-label="Bỏ chọn"><x-lucide name="x" class="h-3.5 w-3.5" /></span>
+                        <x-lucide name="chevron-down" class="h-4 w-4 shrink-0 text-slate-400" />
+                    </button>
+                    <div class="vp-pick__drop" x-show="open" x-cloak x-transition.opacity.duration.100ms>
+                        <label class="vp-pick__search">
+                            <x-lucide name="search" class="h-4 w-4 text-slate-400" />
+                            <input type="text" x-ref="q" x-model="q" @input="search()" autocomplete="off" placeholder="Tìm theo tên, email, SĐT, ID…"
+                                   @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter.prevent="pick(items[active])">
+                        </label>
+                        <ul class="vp-pick__list" role="listbox">
+                            <li class="vp-pick__note" x-show="loading">Đang tìm…</li>
+                            <li class="vp-pick__note" x-show="!loading && error" x-text="error"></li>
+                            <li class="vp-pick__note" x-show="!loading && !error && items.length === 0">Không tìm thấy học sinh phù hợp</li>
+                            <template x-for="(it, i) in items" :key="it.id">
+                                <li role="option" class="vp-pick__opt" :class="{ 'is-active': i === active, 'is-sel': selected && selected.id == it.id }"
+                                    @mouseenter="active = i" @click="pick(it)" :aria-selected="selected && selected.id == it.id">
+                                    <img :src="it.avatar" alt="" x-show="it.avatar">
+                                    <span class="min-w-0 flex-1"><b x-text="it.name"></b><small x-text="it.meta"></small></span>
+                                    <span class="vp-pick__lock" x-show="it.locked">Đang khóa</span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
             </x-ws.field>
 
             <x-ws.field label="Lý do khóa" name="reason" required>
