@@ -95,7 +95,7 @@
     .oi-topic-pick { cursor: pointer; font-family: inherit; text-align: left; transition: background-color .12s, border-color .12s, color .12s; }
     .oi-topic-chip.oi-topic-pick { font-size: 12px; font-weight: 600; line-height: 1.5; }
     .oi-topic-sub.oi-topic-pick { font-size: 11px; font-weight: 600; line-height: 1.5; }
-    .oi-topic-pick:hover { border-color: #2D7FA3 !important; background: #DDF1F6 !important; color: #126F91 !important; text-decoration: underline; text-underline-offset: 2px; }
+    .oi-topic-pick:hover { border-color: #2D7FA3 !important; background: #DDF1F6 !important; color: #126F91 !important; text-decoration: none; } /* SỬA 12/11 — bỏ gạch chân khi rê chuột */
     .oi-topic-pick:focus-visible { outline: 2px solid #2D7FA3; outline-offset: 1px; }
 
     /* SỬA 8/10 — nút sắp xếp ở đầu cột (PracticeSortButton của source mới). */
@@ -180,6 +180,9 @@
 
     // Dải chuyên đề: "Tất cả" + các chuyên đề có thật trong kho (tối đa 12 chuyên đề đầu).
     $topicChipIcons = ['route', 'git-branch', 'database', 'calculator', 'route', 'text-cursor-input'];
+    // SỬA 16/11 — nút "Sửa tag" + popup chỉ cho admin có quyền Ngân hàng nội dung › Sửa.
+    $canEditTopicTags = rescue(fn () => \App\Support\AdminPermissions::can(auth()->user(), 'content', 'update'), false, false)
+        && \Illuminate\Support\Facades\Route::has('admin.content.questions.topic-tags');
 
     // Hàng dữ liệu đưa sang Alpine để lọc/phân trang ngay tại chỗ.
     $problemRows = [];
@@ -761,6 +764,17 @@
                             <span class="oi-mono">Mã: {{ $prob['code'] }}</span>
                             <span class="oi-type-chip" aria-label="Dạng bài: {{ $prob['typeLabel'] }}">{{ $prob['typeLabel'] }}</span>
                             <span class="oi-mono" style="display:inline-flex;align-items:center;gap:.5rem"><span aria-hidden="true">•</span><span>{{ $prob['timeLimit'] }} / {{ $prob['memoryLimit'] }}</span></span>
+                            {{-- SỬA 16/11 — nút "Sửa tag" (chỉ admin có quyền Ngân hàng nội dung › Sửa) → popup partials.practice-topic-tag-editor. --}}
+                            @if ($canEditTopicTags)
+                                @php
+                                    $tteIds = array_values($prob['tagIds'] ?? []);
+                                    $tteNames = array_values($prob['topicLabels'] ?? []);
+                                    $tteTagsOfProb = [];
+                                    foreach ($tteIds as $ti => $tid) { $tteTagsOfProb[] = ['id' => (int) $tid, 'name' => (string) ($tteNames[$ti] ?? '')]; }
+                                @endphp
+                                <button type="button" class="oi-tagedit-btn" title="Sửa chuyên đề của bài (chỉ admin thấy)"
+                                        @click.stop="$dispatch('topic-tag-edit', @js(['id' => (int) $prob['id'], 'title' => (string) $prob['title'], 'code' => (string) $prob['code'], 'tags' => $tteTagsOfProb]))">{{ $oiIcon('pencil') }}Sửa tag</button>
+                            @endif
                         </div>
                     </div>
 
@@ -1382,6 +1396,11 @@
             </div>
         @endif
     </div>
+
+    {{-- SỬA 16/11 — popup sửa chuyên đề + tag chính (chỉ admin). --}}
+    @if ($canEditTopicTags)
+        @include('partials.practice-topic-tag-editor')
+    @endif
 
     {{-- SỬA 7/10 — popup Giao bài / Giao đề (chỉ dựng cho giáo viên + admin). --}}
     @if ($assignScope['canAssign'])

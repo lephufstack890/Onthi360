@@ -85,6 +85,7 @@ use App\Http\Controllers\Admin\ProductExerciseBulkController as AdminProductExer
 use App\Http\Controllers\Admin\ProductExercisePickController as AdminProductExercisePickController; // SỬA 27/10 — lấy từ bài có sẵn
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\LeaderboardPenaltyController as AdminLeaderboardPenaltyController;
+use App\Http\Controllers\Admin\QuestionTopicTagController as AdminQuestionTopicTagController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\MaterialReadController as AdminMaterialReadController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
@@ -978,6 +979,9 @@ Route::middleware(['auth'])->group(function () {
         // tên khỏi trang vinh danh (unfeature), KHÔNG xoá hồ sơ/tài khoản giáo viên.
         Route::put('featured-teachers/{featuredTeacher}', [AdminFeaturedTeacherController::class, 'update'])->name('featured-teachers.update');
         Route::post('featured-teachers/{featuredTeacher}/unfeature', [AdminFeaturedTeacherController::class, 'unfeature'])->name('featured-teachers.unfeature');
+        // SỬA 16/11 — nút "Sửa tag" trên từng bài ở trang Luyện tập (chỉ admin): cập nhật tag + chọn tag chính.
+        Route::post('content/questions/{question}/topic-tags', [AdminQuestionTopicTagController::class, 'update'])
+            ->whereNumber('question')->name('content.questions.topic-tags');
         Route::get('ranking', [AdminRankingController::class, 'index'])->name('ranking.index');
         // SỬA 12/11 — xử phạt tài khoản vi phạm (hiện ở tab "Tài khoản vi phạm" của trang Bảng xếp hạng công khai).
         Route::get('ranking/violations', [AdminLeaderboardPenaltyController::class, 'index'])->name('ranking.violations.index');

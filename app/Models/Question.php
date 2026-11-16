@@ -154,7 +154,40 @@ class Question extends Model
     /** SỬA 19/8 (Giai đoạn 6) — chuyên đề/tag gắn cho câu hỏi, xem App\Models\Tag. */
     public function tags(): BelongsToMany
     {
-        return $this->belongsToMany(Tag::class, 'question_tag');
+        $relation = $this->belongsToMany(Tag::class, 'question_tag');
+        // SỬA 16/11 — kèm cờ "tag chính" (question_tag.is_primary) khi đã chạy migration 2025_01_01_001500.
+        if (self::tagPrimaryReady()) {
+            $relation->withPivot('is_primary');
+        }
+
+        return $relation;
+    }
+
+    /** SỬA 16/11 — bảng nối đã có cột is_primary chưa (kiểm 1 lần mỗi request). */
+    public static function tagPrimaryReady(): bool
+    {
+        static $ready = null;
+        if ($ready === null) {
+            try {
+                $ready = \Illuminate\Support\Facades\Schema::hasColumn('question_tag', 'is_primary');
+            } catch (\Throwable $e) {
+                $ready = false;
+            }
+        }
+
+        return $ready;
+    }
+
+    /**
+     * SỬA 16/11 — danh sách tag đã xếp: TAG CHÍNH đứng đầu, còn lại giữ thứ tự cũ. Nơi hiển thị lấy phần tử đầu làm chuyên đề
+     * chính (chip to), các phần tử sau là chuyên đề phụ (chip nhỏ).
+     */
+    public function orderedTags(): \Illuminate\Support\Collection
+    {
+        return $this->tags
+            ->values()
+            ->sortBy(fn ($t, $i) => [(int) ! ($t->pivot->is_primary ?? false), $i])
+            ->values();
     }
 
     /**

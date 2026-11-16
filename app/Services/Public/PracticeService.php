@@ -48,7 +48,8 @@ class PracticeService
      * trong đề luyện tập. Không đổi số thì sau khi lên mã mới, bản cũ trong cache vẫn được
      * phục vụ cho tới khi hết 60 giây — khách mở trang ngay sẽ tưởng chưa sửa gì.
      */
-    private const CACHE_VERSION = 'v9'; // SỬA 12/11 — practiceTags kèm 'kind' (loại tag) // SỬA 23/10 — thêm nhóm Cuộc thi "Tuyển sinh vào lớp 10" (ExamCategory); v7: topicLabels
+    private const CACHE_VERSION = 'v10'; // SỬA 16/11 — tag chính đứng đầu (question_tag.is_primary)
+    // (v9)  // SỬA 12/11 — practiceTags kèm 'kind' (loại tag) // SỬA 23/10 — thêm nhóm Cuộc thi "Tuyển sinh vào lớp 10" (ExamCategory); v7: topicLabels
 
     /**
      * SỬA 10/10 (khách: "đăng 62 bài mà trang Luyện tập chỉ hiện 60") — trần cứng cũ là 60 câu / 30 đề nên
@@ -597,10 +598,11 @@ class PracticeService
                 'title' => $q->title,
                 'typeKey' => $q->type instanceof QuestionType ? $q->type->value : (string) $q->type,
                 'typeLabel' => PracticeFilters::TYPE_META[$q->type instanceof QuestionType ? $q->type->value : (string) $q->type]['label'] ?? 'Câu hỏi',
-                'tagIds' => $q->tags->pluck('id')->all(),
-                'topicLabel' => $q->tags->first()?->name ?? 'Chưa gắn chuyên đề',
+                // SỬA 16/11 — tag chính (admin chọn ở nút "Sửa tag") đứng đầu → chip to; còn lại là chip phụ.
+                'tagIds' => $q->orderedTags()->pluck('id')->all(),
+                'topicLabel' => $q->orderedTags()->first()?->name ?? 'Chưa gắn chuyên đề',
                 // SỬA 16/10 (khách: "cột Chuyên đề mới hiện 1 chuyên đề chính, hiện thêm các chuyên đề còn lại") — đủ tên tag.
-                'topicLabels' => $q->tags->pluck('name')->values()->all(),
+                'topicLabels' => $q->orderedTags()->pluck('name')->values()->all(),
                 'difficulty' => $difficultyKey,
                 'difficultyLevel' => QuestionDifficulty::stars($difficultyKey),
                 'difficultyLabel' => QuestionDifficulty::label($difficultyKey),
@@ -819,6 +821,14 @@ class PracticeService
             // SỬA 3/11 — NHÓM MÃ ĐỀ: [] = đề không có mã đề (trang hiện như cũ). Xem App\Services\ExamVariantService.
             'variants' => \App\Services\ExamVariantService::forViewer($exam, $viewer),
         ];
+    }
+
+    /** SỬA 16/11 — xoá bản nhớ tạm danh sách bài + băng chuyên đề (sửa tag ở trang Luyện tập thì hiện ngay). */
+    public static function forgetProblemCache(): void
+    {
+        foreach (['practice:problems:', 'practice:filters:', 'practice:problem-count:'] as $key) {
+            Cache::forget($key.self::CACHE_VERSION);
+        }
     }
 
     /** SỬA 3/11 — xoá bản nhớ tạm danh sách đề (gắn / gỡ mã đề thì danh sách đổi ngay). */
