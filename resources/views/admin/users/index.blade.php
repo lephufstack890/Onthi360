@@ -20,6 +20,21 @@
                 default => '',
             };
         };
+        // SỬA 12/11 (khách: "thêm 1 tab hiển thị học sinh đã khóa") — tab "Đã khóa". UserService mới đã tự thêm tab + lọc; nếu
+        // máy chủ còn UserService cũ thì dựng tab + lọc ngay tại đây (chỉ cần file view này là có tab).
+        $isLockedUser = fn ($x) => ! ($x['trashed'] ?? false) && (($x['locked'] ?? false) || ! empty($x['lock']));
+        if (! collect($tabs)->contains(fn ($t) => ($t['label'] ?? '') === 'Đã khóa')) {
+            if ($tab === 'locked') {
+                $users = array_values(array_filter($users, $isLockedUser));
+                $total = count($users);
+            }
+            $lockedTab = ['label' => 'Đã khóa', 'href' => route('admin.users.index', ['tab' => 'locked']), 'active' => $tab === 'locked'];
+            if (in_array($tab, ['all', 'locked'], true)) {
+                $lockedTab['count'] = count(array_filter($users, $isLockedUser));
+            }
+            $pos = collect($tabs)->search(fn ($t) => ($t['label'] ?? '') === 'Đã xóa');
+            array_splice($tabs, $pos === false ? count($tabs) : $pos, 0, [$lockedTab]);
+        }
         $statusOptions = collect($users)->map(fn ($x) => (! ($x['trashed'] ?? false) && (($x['locked'] ?? false) || ! empty($x['lock']))) ? 'Đã khóa' : $x['status'])->unique()->values();
     @endphp
 

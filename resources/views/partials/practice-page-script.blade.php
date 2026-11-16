@@ -47,7 +47,9 @@
             activeTab: 'coding',
             selectedTopic: 'all',      // 'all' hoặc id chuyên đề
             topicMeta: {},
-            generalTagIds: [],         // SỬA 12/11 — id tag Phổ thông + tag gắn trên Bài phổ thông             // SỬA 12/11 — id chuyên đề → { kind, counts } (đổ từ partials/practice-catalog)
+            generalTagIds: [],
+            codingPrimaryIds: [],      // SỬA 16/11 — id tag đang là TAG CHÍNH của ≥ 1 bài lập trình
+            generalPrimaryIds: [],     // SỬA 16/11 — id tag đang là TAG CHÍNH của ≥ 1 bài phổ thông         // SỬA 12/11 — id tag Phổ thông + tag gắn trên Bài phổ thông             // SỬA 12/11 — id chuyên đề → { kind, counts } (đổ từ partials/practice-catalog)
             selectedDifficulty: 'all',
             selectedExamType: 'all',
             // SỬA 12/10 — ô lọc "Khối": 'all' | 'thcs' | 'thpt' | 'khac'.
@@ -290,6 +292,13 @@
              * hỏi thuộc dạng đó. Mục "Bài được giao" không lọc theo dạng nên hiện mọi chuyên đề.
              */
             topicFits(id, kind, counts) {
+                id = Number(id);
+                // SỬA 16/11 — lọc theo TAG CHÍNH: chỉ hiện tag đang là tag chính của ít nhất 1 bài thuộc dạng đang xem.
+                if (this.codingPrimaryIds.length || this.generalPrimaryIds.length) {
+                    if (this.problemScope === 'assigned' || this.activeTab === 'all') return this.codingPrimaryIds.includes(id) || this.generalPrimaryIds.includes(id);
+                    if (this.activeTab === 'general') return this.generalPrimaryIds.includes(id);
+                    return this.codingPrimaryIds.includes(id) && kind !== 'general';
+                }
                 if (this.problemScope === 'assigned' || this.activeTab === 'all') return true;
                 const want = this.activeTab === 'general' ? 'general' : 'coding';
                 if (want === 'general' && this.generalTagIds.includes(Number(id))) return true;
@@ -350,7 +359,8 @@
                     // giao dạng nào cũng phải thấy (ô chọn dạng bài cũng ẩn ở mục đó).
                     const matchTab = assignedView || this.activeTab === 'all'
                         || (this.activeTab === 'general' ? p.type !== 'coding' : p.type === this.activeTab);
-                    const matchTopic = this.selectedTopic === 'all' || p.tagIds.includes(this.selectedTopic);
+                    // SỬA 16/11 (khách: "bấm tag nào thì chỉ lọc bài có TAG CHÍNH là tag đó") — tag chính = phần tử đầu tagIds.
+                    const matchTopic = this.selectedTopic === 'all' || Number(p.tagIds[0]) === Number(this.selectedTopic);
                     const matchDiff = this.selectedDifficulty === 'all' || p.difficulty === this.selectedDifficulty;
                     // SỬA 12/11 — p.search có cả tên chuyên đề + bản không dấu; so cả q gốc lẫn q bỏ dấu.
                     const matchSearch = !q || p.search.includes(q) || (qPlain !== q && p.search.includes(qPlain));

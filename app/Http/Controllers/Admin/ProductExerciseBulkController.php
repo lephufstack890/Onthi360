@@ -73,16 +73,26 @@ class ProductExerciseBulkController extends Controller
 
         @set_time_limit(300);
 
-        $exercises = Question::query()->where('product_id', $product->id)->whereIn('id', $data['ids'])->get();
-        // SỬA 12/11 — 1 bài lỗi không được làm hỏng cả lượt xoá (trước đây ném lỗi 500): ghi log, đếm, báo lại.
+        // SỬA 12/11 (log máy chủ: "Allowed memory size of 536870912 bytes exhausted") — trước đây ->get() kéo NGUYÊN dòng của cả
+        // 87 bài một lúc, mỗi bài có grading_config chứa hàng trăm test case (~40MB/bài) → tràn 512MB → lỗi 500.
+        // Giờ chỉ lấy id, rồi nạp TỪNG bài với các cột nhẹ (KHÔNG kéo grading_config) — xoá chỉ cần id / mã / điểm / metadata (đường dẫn tệp).
+        $lightCols = ['id', 'code', 'points', 'metadata', 'product_id'];
+        $exerciseIds = Question::query()->where('product_id', $product->id)->whereIn('id', $data['ids'])->pluck('id')->all();
+        $exercises = collect();
         $failed = [];
-        foreach ($exercises as $exercise) {
+        foreach ($exerciseIds as $exerciseId) {
+            $exercise = Question::query()->select($lightCols)->find($exerciseId);
+            if ($exercise === null) {
+                continue;
+            }
+            $exercises->push($exercise->only(['id', 'code']));
             try {
                 $content->productExerciseDestroy($exercise);
             } catch (\Throwable $e) {
                 report($e);
                 $failed[] = $exercise->code ?: ('#'.$exercise->id);
             }
+            unset($exercise);
         }
 
         // SỬA 27/10 — bài DÙNG CHUNG được chọn:
@@ -95,7 +105,11 @@ class ProductExerciseBulkController extends Controller
             $linkedIds = \App\Models\ProductExerciseLink::query()->where('product_id', $product->id)->whereIn('question_id', $data['ids'])
                 ->pluck('question_id')->map(fn ($id) => (int) $id)->all();
             if ($linkedIds !== [] && $request->boolean('xoa_ca_bai_goc')) {
-                foreach (Question::query()->whereIn('id', $linkedIds)->get() as $original) {
+                foreach ($linkedIds as $originalId) {
+                    $original = Question::query()->select($lightCols)->find($originalId); // từng bài, cột nhẹ (xem trên)
+                    if ($original === null) {
+                        continue;
+                    }
                     try {
                         $content->productExerciseDestroy($original);
                         $deletedOriginals++;
@@ -110,7 +124,7 @@ class ProductExerciseBulkController extends Controller
         }
 
         $parts = array_filter([
-            ($exercises->count() - count($failed)) > 0 ? 'xoá '.($exercises->count() - count(array_intersect($failed, $exercises->map(fn ($x) => $x->code ?: ('#'.$x->id))->all()))).' bài tập' : null,
+            ($deletedOwn = $exercises->count() - count(array_intersect($failed, $exercises->map(fn ($x) => $x['code'] ?: ('#'.$x['id']))->all()))) > 0 ? 'xoá '.$deletedOwn.' bài tập' : null,
             $deletedOriginals > 0 ? 'xoá hẳn '.$deletedOriginals.' bài dùng chung (cả bài gốc)' : null,
             $unlinked > 0 ? 'gỡ '.$unlinked.' bài dùng chung' : null,
         ]);

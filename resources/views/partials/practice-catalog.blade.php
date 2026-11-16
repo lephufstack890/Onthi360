@@ -595,7 +595,15 @@
                 $chipTags = array_merge($practiceTags, $__extraTags);
                 $__generalIdsAll = $__generalIds->merge(collect($chipTags)->where('kind', 'general')->pluck('id'))->unique()->values()->all();
             @endphp
-            <span x-init="topicMeta = @js(collect($chipTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all()); generalTagIds = @js($__generalIdsAll)" hidden></span>
+            @php
+                // SỬA 16/11 (khách: "bấm tag nào thì chỉ lọc các bài có TAG CHÍNH là tag đó") — băng chuyên đề chỉ hiện tag đang là
+                // TAG CHÍNH của ít nhất 1 bài (bấm vào luôn ra bài), tách theo dạng: Lập trình / Phổ thông.
+                $__firstTag = fn ($row) => isset($row['tagIds'][0]) ? (int) $row['tagIds'][0] : null;
+                $__codingPrimary = collect($problems)->filter(fn ($p) => ($p['typeKey'] ?? '') === 'coding')->map($__firstTag)->filter()->unique()->values()->all();
+                $__generalPrimary = collect($problems)->filter(fn ($p) => ($p['typeKey'] ?? '') !== 'coding')->map($__firstTag)
+                    ->merge(collect($gstRows)->map($__firstTag))->filter()->unique()->values()->all();
+            @endphp
+            <span x-init="topicMeta = @js(collect($chipTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all()); generalTagIds = @js($__generalIdsAll); codingPrimaryIds = @js($__codingPrimary); generalPrimaryIds = @js($__generalPrimary)" hidden></span>
             @foreach ($chipTags as $i => $tag)
                 @php $icon = $topicChipIcons[$i % count($topicChipIcons)]; @endphp
                 <button type="button" @click="setTopic({{ $tag['id'] }})" :aria-pressed="selectedTopic === {{ $tag['id'] }}"

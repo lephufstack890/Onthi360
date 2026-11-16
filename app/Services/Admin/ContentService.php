@@ -360,8 +360,9 @@ class ContentService
                     // SỬA 28/10 — cột Input/Output (null = không phải câu Lập trình).
                     'io' => $q->ioInfo(),
                     // SỬA 12/11 — cột Tag chuyên đề.
+                    // SỬA 16/11 — tag chính (question_tag.is_primary) đứng đầu, như trang Luyện tập.
                     'tags' => $q->relationLoaded('tags')
-                        ? $q->tags->sortBy('name')->map(fn ($t) => ['name' => (string) $t->name, 'kind' => $t->kind ?? null])->values()->all()
+                        ? $q->orderedTags()->map(fn ($t) => ['name' => (string) $t->name, 'kind' => $t->kind ?? null])->values()->all()
                         : [],
                     'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
                     'status' => $label,

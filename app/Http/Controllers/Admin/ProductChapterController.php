@@ -37,6 +37,8 @@ class ProductChapterController extends Controller
         return response()->json([
             'ok' => true,
             'message' => $message,
+            // SỬA 12/11 — thời gian MÁY CHỦ xử lý (tính từ lúc PHP nhận xong request), để biết chậm do mạng tải lên hay do máy chủ.
+            'serverMs' => (int) round((microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)))) * 1000),
             'count' => count($chapters),
             'html' => view('admin.products.partials.chapters-list', [
                 'product' => $product,

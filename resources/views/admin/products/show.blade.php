@@ -512,12 +512,17 @@
                     xhr.setRequestHeader('Accept', 'application/json');
                     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                     form.classList.add('is-busy');
-                    progress(hasFile ? 'Đang tải PDF lên…' : 'Đang lưu…', hasFile ? 0 : null);
+                    var t0 = Date.now(), tUp = null;
+                    var sizeMb = hasFile ? (file.files[0].size / 1048576) : 0;
+                    progress(hasFile ? 'Đang tải PDF lên (' + sizeMb.toFixed(1) + ' MB)…' : 'Đang lưu…', hasFile ? 0 : null);
                     if (hasFile) {
                         xhr.upload.onprogress = function (ev) {
                             if (!ev.lengthComputable) return;
                             var pct = Math.min(100, Math.round(ev.loaded / ev.total * 100));
-                            progress(pct >= 100 ? 'Đang lưu tệp…' : 'Đang tải PDF lên…', pct);
+                            if (pct >= 100 && tUp === null) tUp = Date.now();
+                            var secs = (Date.now() - t0) / 1000;
+                            var speed = secs > 0.5 ? ' · ' + (ev.loaded / 1048576 / secs).toFixed(1) + ' MB/s' : '';
+                            progress(pct >= 100 ? 'Máy chủ đang lưu tệp…' : 'Đang tải PDF lên (' + sizeMb.toFixed(1) + ' MB' + speed + ')…', pct);
                         };
                     }
                     xhr.onload = function () {
@@ -534,7 +539,13 @@
                             try { if (card && window.Alpine) Alpine.$data(card).editing = null; } catch (err) {}
                             if (form.closest('.apx-add')) form.reset();
                             document.querySelectorAll('[data-apx-chapter-stale]').forEach(function (el) { el.hidden = false; });
-                            notify('success', res.message || 'Đã lưu.');
+                            // SỬA 12/11 — kèm thời gian để chẩn đoán chậm: tải lên (mạng) / máy chủ xử lý / tổng.
+                            var total = ((Date.now() - t0) / 1000).toFixed(1);
+                            var up = tUp ? ((tUp - t0) / 1000).toFixed(1) : null;
+                            var sv = res.serverMs != null ? (res.serverMs / 1000).toFixed(1) : null;
+                            var timing = ' (' + total + ' giây' + (up ? ' — tải lên ' + up + ' giây' : '') + (sv ? ', máy chủ ' + sv + ' giây' : '') + ')';
+                            notify('success', (res.message || 'Đã lưu.') + timing);
+                            try { console.info('[chương] tổng', total, 's · tải lên', up, 's · máy chủ', sv, 's · tệp', sizeMb.toFixed(1), 'MB'); } catch (err) {}
                             return;
                         }
                         if (xhr.status === 419) { notify('error', 'Phiên làm việc đã hết hạn — tải lại trang rồi thử lại.'); return; }

@@ -26,7 +26,7 @@
                 const topic = this.selectedTopic, diff = this.selectedDifficulty;
                 return this.gstRows.filter((r) =>
                     (!q || r.search.includes(q) || r.search.includes(qPlain))
-                    && (topic === 'all' || topic === undefined || r.tagIds.includes(Number(topic)))
+                    && (topic === 'all' || topic === undefined || Number(r.tagIds[0]) === Number(topic)) /* SỬA 16/11 — chỉ khớp TAG CHÍNH */
                     && (diff === 'all' || diff === undefined || r.difficulty === diff)
                     && (!this.onlyUndone || !r.done)).map((r) => r.id);
             },
