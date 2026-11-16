@@ -742,6 +742,11 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
    bảng màu với cột Danh hiệu (Chuyên gia / Cao thủ…), cùng cỡ, cùng bo góc; dòng tiêu đề cột cao + thoáng hơn. */
 .lb-skill-badge, .lb-table .lbx-title-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; line-height: 1; }
 .lb-student-name { align-items: center; gap: 7px; }
+/* SỬA 16/11 (khách: "nếu mà tên dài quá thì ... giúp tôi") — tên dài cắt bằng dấu "…", rê chuột xem tên đầy đủ. */
+.lbx-card h3, .lbx-card .lbx-sub { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbx-card { min-width: 0; }
+.lb-student-name > button { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .lb-student-name > button { max-width: 150px; } }
 .lb-table thead { background: #f5f8fb; }
 .lb-table th { padding-block: 15px !important; font-size: 10.5px; letter-spacing: .07em; color: #3f5b70; }
 .lb-table td.lbx-title-cell { vertical-align: middle; }
@@ -879,9 +884,9 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                             </span>
                             <span class="lbx-ava-rank" x-text="p.rank"></span>
                         </div>
-                        <h3 x-text="display(p)"></h3>
+                        <h3 x-text="display(p)" :title="display(p)"></h3>
                         <span class="lbx-title-chip" x-show="p.rank === 1" :class="titleClass(p)" x-text="titleVi(p)"></span>
-                        <p class="lbx-sub" x-show="p.rank !== 1" x-text="p.sub"></p>
+                        <p class="lbx-sub" x-show="p.rank !== 1" x-text="p.sub" :title="p.sub"></p>
                         <div class="lbx-card-foot">
                             <div class="lbx-score"><strong x-text="fmt(p.score)"></strong><span>điểm</span></div>
                             <div class="lbx-stats" x-show="p.rank !== 1">
@@ -976,7 +981,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                                             </span>
                                             <div class="lb-student-info">
                                                 <div class="lb-student-name">
-                                                    <button type="button" :aria-expanded="expanded === p.rank" :aria-controls="'lb-detail-' + p.rank" @click="toggle(p.rank)" x-text="display(p)"></button>
+                                                    <button type="button" :aria-expanded="expanded === p.rank" :aria-controls="'lb-detail-' + p.rank" @click="toggle(p.rank)" x-text="display(p)" :title="display(p)"></button>
                                                     <span class="lb-you" x-show="p.isYou">Bạn</span>
                                                     <span class="lb-skill-badge" :class="titleClass(p)" x-text="titleVi(p)"></span>
                                                 </div>
