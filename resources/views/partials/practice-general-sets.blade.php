@@ -76,11 +76,10 @@
                         </span>
                     </div>
 
-                    <div class="mt-1.5">
+                    {{-- SỬA 16/11 (khách: "cho 4 cái này thành 1 hàng") — Tỉnh/thành · Khu vực · Giao bài · Nhật ký nộp bài chung MỘT hàng. --}}
+                    <div class="oi-act-row mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
                         @include('partials.practice-content-location', ['province' => $set['provinceLabel'], 'region' => $set['regionLabel']])
-                    </div>
 
-                    <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
                         @if ($assignScope['canAssignExam'] ?? $assignScope['canAssign'])
                             <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $set['title'] }}"
                                     @click.stop="openAssign('exam', {{ $set['id'] }}, @js($set['title']), @js($set['code'] ?: '#'.$set['id']))">
@@ -93,11 +92,12 @@
                                 {{ $oiIcon('clipboard-list', 'h-3 w-3') }}Nhật ký nộp bài
                             </a>
                         @endauth
+                        <span class="oi-act-break" aria-hidden="true"></span>
                         <span class="flex min-w-0 items-center gap-1 truncate">
                             {{ $oiIcon('sparkles', 'h-3 w-3 shrink-0 text-[#3B9374]') }}
                             <span class="truncate">Nguồn: Kho luyện tập Ôn Thi 360</span>
                         </span>
-                    </p>
+                    </div>
 
                     <div class="oi-code-line">
                         <span class="oi-mono">Mã: {{ $set['code'] ?: '#'.$set['id'] }}</span>

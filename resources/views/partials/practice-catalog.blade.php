@@ -45,6 +45,10 @@
 @php $showMyHistoryButton = $showMyHistoryButton ?? true; @endphp
 
 <style>
+    /* SỬA 16/11 — 4 nhãn Tỉnh/thành · Khu vực · Giao bài · Nhật ký chung 1 hàng; Nguồn xuống dòng riêng. */
+    .oi-act-row { row-gap: 4px; }
+    .oi-act-row > .oi-loc { display: contents; }
+    .oi-act-row > .oi-act-break { flex-basis: 100%; height: 0; }
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
@@ -735,14 +739,10 @@
                         </div>
 
                         {{-- SỬA 7/10 — Tỉnh/thành + Khu vực ngay dưới tên bài, như ContentLocation.jsx (mt-1.5). --}}
-                        <div class="mt-1.5">
+                        {{-- SỬA 16/11 (khách: "cho 4 cái này thành 1 hàng") — Tỉnh/thành · Khu vực · Giao bài · Nhật ký nộp bài chung MỘT hàng. --}}
+                        <div class="oi-act-row mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
                             @include('partials.practice-content-location', ['province' => $prob['locProvince'] ?? null, 'region' => $prob['regionLabel'] ?? null])
-                        </div>
 
-                        {{-- SỬA 7/10 (khách: giao diện giáo viên chưa giống source mới) — theo PracticePage.jsx
-                             dòng "QuickAssignButton · Nhật ký nộp bài · Nguồn · thông tin lượt giao" nằm CHUNG
-                             MỘT HÀNG dưới tên bài, không đặt cạnh tên bài. --}}
-                        <p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[#2F7F67]">
                             @if ($assignScope['canAssignProblem'] ?? $assignScope['canAssign'])
                                 <button type="button" class="oi-assign-chip" aria-haspopup="dialog" aria-label="Giao bài: {{ $prob['title'] }}"
                                         @click.stop="openAssign('problem', {{ $prob['id'] }}, @js($prob['title']), @js($prob['code']))">
@@ -755,6 +755,7 @@
                                     {{ $oiIcon('clipboard-list', 'h-3 w-3') }}Nhật ký nộp bài
                                 </a>
                             @endauth
+                            <span class="oi-act-break" aria-hidden="true"></span>
                             <span class="flex min-w-0 items-center gap-1 truncate">
                                 {{ $oiIcon('sparkles', 'h-3 w-3 shrink-0 text-[#3B9374]') }}
                                 {{-- SỬA 10/10 — hiện ô Nguồn nhập tay; chưa nhập thì mặc định "Kho luyện tập Ôn Thi 360". --}}
@@ -766,7 +767,7 @@
                                     <span class="{{ $asg['overdue'] ? 'is-overdue' : '' }}">{{ $oiIcon('calendar-days') }}Hạn {{ $asg['deadline'] }}{{ $asg['overdue'] ? ' · Quá hạn' : '' }}</span>
                                 </span>
                             @endif
-                        </p>
+                        </div>
 
                         {{-- SỬA 8/10 (khách: "dạng bài cho sát bên mã") — nhãn dạng bài đứng ngay sau "Mã: …" như source mới. --}}
                         <div class="oi-code-line">
