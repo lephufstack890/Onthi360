@@ -47,7 +47,8 @@ class ExamZipImportService
 
         try {
             $this->assertExamCodeFree($p['exam']['exam_code']);
-            $type = $this->resolveType($p['exam']['type']);
+            // SỬA 16/11 (khách: "upload ZIP đề thì mặc định là loại Luyện tập") — admin nhập gói nào cũng ra đề Luyện tập.
+            $type = 'practice';
 
             $assessment = DB::transaction(function () use ($admin, $p, $type) {
                 $files = $p['files'];
@@ -55,8 +56,9 @@ class ExamZipImportService
                 // bằng loại đã kiểm tra hợp lệ ở trên.
                 $assessment = $this->content->assessmentStore($admin, array_replace($p['exam'], [
                     'type' => $type,
-                    'preview_pdf' => $files['preview'] ?? null,
-                    'guide_pdf' => $files['guide'] ?? null,
+                    // SỬA 16/11 — không có xem-truoc.pdf / huong-dan.pdf riêng thì lấy luôn đề (de.pdf) / lời giải (loi-giai.pdf).
+                    'preview_pdf' => $files['preview'] ?? $files['pdf'] ?? null,
+                    'guide_pdf' => $files['guide'] ?? $files['solution'] ?? null,
                     'sample_pdf' => $files['sample'] ?? null,
                 ]), $files['cover'] ?? null);
 
@@ -83,8 +85,16 @@ class ExamZipImportService
     private function importPracticeForAdmin(User $admin, UploadedFile $zip): array
     {
         $p = ExamZipPackage::parsePractice($zip);
-        // SỬA 20/10 — gói câu hỏi rời khai "type": "exam" -> đề Đề thi câu hỏi rời (cùng cách nhập với Luyện tập).
-        $type = ExamZipPackage::declaredType($zip);
+        // SỬA 16/11 (khách: "upload ZIP đề thì mặc định là loại Luyện tập") — luôn tạo đề Luyện tập (bỏ "type": "exam" cũ).
+        $type = 'practice';
+
+        // SỬA 16/11 (khách: "tự nhập luôn bản hiển thị xem trước (là cái đề) + tệp PDF hướng dẫn (là cái lời giải)") —
+        // ưu tiên tệp riêng trong gói (xem-truoc.pdf / huong-dan.pdf) → tệp chung de.pdf / loi-giai.pdf → ghép statement.pdf /
+        // solution.pdf của từng câu theo thứ tự câu.
+        $p['files']['preview'] ??= $p['files']['pdf']
+            ?? ExamZipPackage::mergeQuestionPdfs($p['questions'], 'statement.pdf', $p['tmpDir'], 'xem-truoc.pdf');
+        $p['files']['guide'] ??= $p['files']['solution']
+            ?? ExamZipPackage::mergeQuestionPdfs($p['questions'], 'solution.pdf', $p['tmpDir'], 'huong-dan.pdf');
 
         try {
             $this->assertExamCodeFree($p['exam']['exam_code']);

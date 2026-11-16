@@ -453,6 +453,69 @@ class ExamZipPackage
         return ['exam' => $exam, 'files' => $files, 'questions' => $questions, 'summary' => $ordered, 'tmpDir' => $tmpDir];
     }
 
+    /**
+     * SỬA 16/11 (khách: "nhập ZIP đề thì tự nhập luôn bản hiển thị xem trước (= đề) + tệp PDF hướng dẫn (= lời giải)") —
+     * ghép tệp PDF cùng tên của từng câu (statement.pdf = đề, solution.pdf = lời giải) theo đúng thứ tự câu thành 1 tệp.
+     * Chỉ có 1 câu có tệp thì dùng thẳng tệp đó. Ghép lỗi (PDF nén kiểu bộ đọc FPDI miễn phí không đọc được…) → dùng tệp
+     * của câu đầu tiên có tệp, để đề vẫn có bản xem trước / hướng dẫn. Không câu nào có tệp → null.
+     *
+     * @param  array<int, array{no:int, zip:UploadedFile}>  $questions
+     */
+    public static function mergeQuestionPdfs(array $questions, string $entry, string $tmpDir, string $outName): ?UploadedFile
+    {
+        $parts = [];
+        foreach ($questions as $q) {
+            $qz = new ZipArchive();
+            if ($qz->open($q['zip']->getRealPath()) !== true) {
+                continue;
+            }
+            $raw = $qz->getFromName($entry);
+            if ($raw === false) {
+                // Gói câu có thể bọc thêm 1 thư mục con.
+                for ($i = 0; $i < $qz->numFiles; $i++) {
+                    $name = (string) $qz->getNameIndex($i);
+                    if (preg_match('#^[^/]+/'.preg_quote($entry, '#').'$#i', $name) && ! str_starts_with($name, '__MACOSX/')) {
+                        $raw = $qz->getFromIndex($i);
+                        break;
+                    }
+                }
+            }
+            $qz->close();
+            if (is_string($raw) && $raw !== '' && str_starts_with(ltrim(substr($raw, 0, 1024)), '%PDF')) {
+                $path = $tmpDir.'/part-'.pathinfo($entry, PATHINFO_FILENAME).'-'.$q['no'].'.pdf';
+                file_put_contents($path, $raw);
+                $parts[] = $path;
+            }
+        }
+
+        if ($parts === []) {
+            return null;
+        }
+        $out = $tmpDir.'/'.$outName;
+        if (count($parts) === 1) {
+            copy($parts[0], $out);
+        } else {
+            try {
+                $pdf = new \setasign\Fpdi\Fpdi();
+                foreach ($parts as $part) {
+                    $pages = $pdf->setSourceFile($part);
+                    for ($n = 1; $n <= $pages; $n++) {
+                        $tpl = $pdf->importPage($n);
+                        $size = $pdf->getTemplateSize($tpl);
+                        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                        $pdf->useTemplate($tpl);
+                    }
+                }
+                $pdf->Output('F', $out);
+            } catch (\Throwable $e) {
+                report($e);
+                copy($parts[0], $out);
+            }
+        }
+
+        return is_file($out) && filesize($out) > 0 ? new UploadedFile($out, $outName, 'application/pdf', null, true) : null;
+    }
+
     /** Dòng tóm tắt cho đề Luyện tập: "12 Trắc nghiệm · 2 Đúng/Sai · … · 2 Lập trình". */
     public static function practiceSummaryText(array $summary): string
     {

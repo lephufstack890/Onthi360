@@ -72,10 +72,12 @@
         <div>
             @if ($eziMode === 'admin')
                 <h2>Nhập đề từ gói ZIP</h2>
-                <p><b>Đề Luyện tập</b> (mặc định): mỗi câu là 1 thư mục theo <b>đúng mẫu câu hỏi MAU-CAU-HOI</b> — hệ thống
+                {{-- SỬA 16/11 (khách: "bỏ mẫu đề thi PDF; upload ZIP mặc định loại Luyện tập; tự nhập luôn bản xem trước (đề) + PDF
+                     hướng dẫn (lời giải)") --}}
+                <p>Gói ZIP luôn tạo <b>đề Luyện tập</b>: mỗi câu là 1 thư mục theo <b>đúng mẫu câu hỏi MAU-CAU-HOI</b> — hệ thống
                     <b>tự nhận dạng</b> từng câu theo <code>content.type</code>, thêm cả câu vào Kho câu hỏi (đủ đề, đáp án, lời giải, bộ test)
-                    và gắn vào đề dạng câu hỏi rời. Muốn tạo <b>Đề thi</b> (cùng cách, chỉ khác loại) thì ghi <code>"type": "exam"</code> trong exam.json;
-                    gói đề PDF cũ (de.pdf + đáp án trong exam.json, không có thư mục câu) vẫn nhập thành đề PDF.</p>
+                    và gắn vào đề dạng câu hỏi rời. <b>Bản xem trước</b> (đề) và <b>PDF hướng dẫn</b> (lời giải) của đề được nhập tự động —
+                    ghép từ <code>statement.pdf</code> / <code>solution.pdf</code> của các câu (hoặc lấy <code>de.pdf</code> / <code>loi-giai.pdf</code> nếu gói có sẵn).</p>
             @else
                 <h2>Nhập đề PDF từ gói ZIP</h2>
                 <p>1 gói gồm đề PDF + đáp án + bài lập trình. Mỗi câu trong <code>exam.json</code> tự khai <code>type</code> — hệ thống
@@ -122,7 +124,6 @@
         <button type="button" class="ezi-btn" x-show="name && ! busy" x-cloak @click="clear()">Chọn file khác</button>
         @if ($eziMode === 'admin')
             <a href="{{ asset('templates/mau-de-luyen-tap.zip') }}" download="MAU-DE-LUYEN-TAP.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Mẫu đề Luyện tập</a>
-            <a href="{{ asset('templates/mau-de-thi-pdf.zip') }}" download="MAU-DE-THI-PDF.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Mẫu đề thi PDF</a>
         @else
             <a href="{{ asset('templates/mau-de-thi-pdf.zip') }}" download="MAU-DE-THI-PDF.zip" class="ezi-btn ezi-btn--tpl"><x-lucide name="download" /> Tải file mẫu</a>
         @endif
