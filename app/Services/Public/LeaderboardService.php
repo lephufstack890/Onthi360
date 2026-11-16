@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Schema;
  *                    điểm gốc của câu). Không cộng dồn các lần nộp lại → không thể "cày điểm" bằng cách nộp lặp.
  *  · Tỷ lệ đúng    : bài đã giải / số câu khác nhau đã được chấm.
  *  · Chuỗi luyện tập: số ngày LIÊN TIẾP (giờ Việt Nam) có nộp bài, tính tới hôm nay hoặc hôm qua.
- *  · Danh hiệu     : theo tổng số bài đã giải TOÀN THỜI GIAN (Newbie → Grandmaster), không đổi theo phạm vi.
+ *  · Danh hiệu     : theo TỔNG ĐIỂM toàn thời gian đã trừ phạt (Tân binh 50 → Ảo trình 6400), không đổi theo phạm vi.
  *  · Biến động hạng: so với thứ hạng cùng phạm vi cách đây 7 ngày; chưa có mặt hồi đó = trung tính.
  *  · Đồng hạng     : xét lần lượt tổng điểm → số bài giải → tỷ lệ đúng → ai đạt thành tích sớm hơn.
  *  · Cuộc thi      : lấy thẳng bảng xếp hạng chính thức (leaderboard_entries) của cuộc thi/kỳ thi đã công bố.
@@ -79,17 +79,25 @@ class LeaderboardService
     /** Bảng tính nặng (gộp toàn bộ lượt làm) nên nhớ tạm — tăng khi đổi cách tính để bỏ cache cũ. */
     private const CACHE_TTL = 300;
 
-    private const CACHE_VERSION = 'v2';
+    private const CACHE_VERSION = 'v3'; // SỬA 15/11 — đổi danh hiệu theo điểm
 
-    /** [số bài đã giải tối thiểu, danh hiệu] — từ cao xuống thấp. */
+    /**
+     * SỬA 15/11 (khách: "Tân binh 50 điểm ... Ao trình 6400 ... dựa theo số điểm") — danh hiệu theo TỔNG ĐIỂM toàn thời gian
+     * (đã trừ điểm phạt), không còn theo số bài đã giải. [điểm tối thiểu, danh hiệu] — từ cao xuống thấp.
+     */
     private const TIERS = [
-        [100, 'Grandmaster'],
-        [60, 'Master'],
-        [30, 'Expert'],
-        [10, 'Specialist'],
-        [3, 'Pupil'],
-        [0, 'Newbie'],
+        [6400, 'Ảo trình'],
+        [3200, 'Thách đấu'],
+        [1600, 'Huyền thoại'],
+        [800, 'Bậc thầy'],
+        [400, 'Chuyên gia'],
+        [200, 'Cao thủ'],
+        [100, 'Học viên'],
+        [50, 'Tân binh'],
     ];
+
+    /** Dưới 50 điểm: chưa đạt danh hiệu nào. */
+    private const NO_TIER = 'Chưa có danh hiệu';
 
     private const ANONYMOUS_LABEL = 'Học sinh';
 
@@ -571,7 +579,9 @@ class LeaderboardService
             $points -= (float) LeaderboardPenalty::query()->effective()->where('user_id', $userId)->sum('points_deducted');
         }
 
-        return ['score' => max(0, round($points, 2)), 'badge' => $this->tier((int) ($m->solved ?? 0))];
+        $score = max(0, round($points, 2));
+
+        return ['score' => $score, 'badge' => $this->tier($score)];
     }
 
     /** Tab "Tài khoản vi phạm": các tài khoản ĐANG bị khóa, mới khóa trước. */
@@ -617,7 +627,7 @@ class LeaderboardService
                         'initials' => $hidden ? '' : $this->initials((string) $p->user->name),
                         'avatar' => ($hidden || $p->hide_avatar) ? asset('assets/user-avatar.png') : (\App\Services\Account\AvatarService::url($p->user->avatar_path) ?? asset('assets/user-avatar.png')),
                         'sub' => $hidden ? null : ($p->user->province ?: null),
-                        'badge' => $p->badge_at_lock ?: 'Newbie',
+                        'badge' => $p->badge_at_lock ?: self::NO_TIER,
                         'scoreAtLock' => $p->score_at_lock,
                         'lockedAt' => $p->locked_at->copy()->setTimezone($tz)->format('H:i d/m/Y'),
                         'lockedTs' => $p->locked_at->getTimestamp(),
@@ -740,12 +750,13 @@ class LeaderboardService
         $named = (bool) $named;
 
         $lifetime = $this->metrics(null, null, $uids, [], false)->keyBy(fn ($m) => (int) $m->uid);
+        $lifetimeMinus = $this->lifetimeDeductions($uids); // SỬA 15/11 — danh hiệu theo tổng điểm đã trừ phạt
         $streaks = $this->streaks($uids);
         $contests = $this->contestCounts($uids);
         $users = $named ? User::query()->whereIn('id', $uids)->get(['id', 'name', 'province'])->keyBy('id') : collect();
 
-        return $ranked->map(function ($r) use ($previousRanks, $named, $lifetime, $streaks, $contests, $users, $withMovement) {
-            $solvedAllTime = (int) ($lifetime->get($r->uid)->solved ?? $r->solved);
+        return $ranked->map(function ($r) use ($previousRanks, $named, $lifetime, $lifetimeMinus, $streaks, $contests, $users, $withMovement) {
+            $pointsAllTime = max(0, (float) ($lifetime->get($r->uid)->points ?? $r->points) - (float) ($lifetimeMinus[$r->uid] ?? 0));
             $streak = $streaks[$r->uid] ?? ['current' => 0, 'best' => 0];
             $user = $users->get($r->uid);
             $name = $named && $user ? (string) $user->name : self::ANONYMOUS_LABEL.' #'.$r->rank;
@@ -767,7 +778,7 @@ class LeaderboardService
                 'initials' => $named && $user ? $this->initials((string) $user->name) : '',
                 'sub' => $province ?? ($r->attempted.' bài đã thử'),
                 'attempted' => (int) $r->attempted, // SỬA 6/11 — dòng phụ "Tỉnh • N bài đã thử" ở giao diện mới
-                'badge' => $this->tier($solvedAllTime),
+                'badge' => $this->tier($pointsAllTime),
                 'movement' => $movement,
                 'score' => $r->points,
                 'ac' => $r->solved,
@@ -833,15 +844,43 @@ class LeaderboardService
         return ['rank' => $ranks[$viewer->id][0], 'score' => $ranks[$viewer->id][1], 'total' => count($ranks)];
     }
 
-    private function tier(int $solved): string
+    private function tier(float $points): string
     {
         foreach (self::TIERS as [$min, $label]) {
-            if ($solved >= $min) {
+            if ($points >= $min) {
                 return $label;
             }
         }
 
-        return 'Newbie';
+        return self::NO_TIER;
+    }
+
+    /**
+     * Tổng điểm phạt (mọi thời điểm) theo tài khoản — để tính danh hiệu theo điểm thực còn lại.
+     *
+     * @param  array<int, int>  $uids
+     * @return array<int, float>
+     */
+    private function lifetimeDeductions(array $uids): array
+    {
+        if ($uids === [] || ! self::penaltiesReady()) {
+            return [];
+        }
+
+        try {
+            return LeaderboardPenalty::query()->effective()
+                ->whereIn('user_id', $uids)
+                ->where('points_deducted', '>', 0)
+                ->groupBy('user_id')
+                ->selectRaw('user_id, SUM(points_deducted) as pts')
+                ->pluck('pts', 'user_id')
+                ->map(fn ($v) => (float) $v)
+                ->all();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
     }
 
     private function initials(string $name): string

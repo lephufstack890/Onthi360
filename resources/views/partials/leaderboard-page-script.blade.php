@@ -1,4 +1,5 @@
 <script>
+    var LB_TITLES = window.LB_TITLES = { 'Ảo trình': ['ẢO TRÌNH', 'god'], 'Thách đấu': ['THÁCH ĐẤU', 'chal'], 'Huyền thoại': ['HUYỀN THOẠI', 'legend'], 'Bậc thầy': ['BẬC THẦY', 'master'], 'Chuyên gia': ['CHUYÊN GIA', 'expert'], 'Cao thủ': ['CAO THỦ', 'pro'], 'Học viên': ['HỌC VIÊN', 'pupil'], 'Tân binh': ['TÂN BINH', 'rookie'], Grandmaster: ['HUYỀN THOẠI', 'legend'], Master: ['BẬC THẦY', 'master'], Expert: ['CHUYÊN GIA', 'expert'], Specialist: ['CAO THỦ', 'pro'], Pupil: ['HỌC VIÊN', 'pupil'], Newbie: ['TÂN BINH', 'rookie'] };
     /*
      * SỬA 8/10 — bảng xếp hạng dựng lại theo LeaderboardPage.jsx: state React (query, anonymous, page, pageSize,
      * expandedRank) chuyển sang Alpine. Danh sách hàng do máy chủ tính sẵn (LeaderboardService), ở đây chỉ lo
@@ -36,7 +37,7 @@
             avatarClass(p) { return this.isAnon(p) ? '' : 'lb-avatar-initials lb-avatar-tone-' + (p.rank % 3); },
             badgeClass(p) {
                 if (p.rank === 1) return 'is-gold';
-                return (p.badge === 'Specialist' || p.badge === 'Expert') ? 'is-green' : '';
+                return ['Cao thủ', 'Chuyên gia', 'Specialist', 'Expert'].includes(p.badge) ? 'is-green' : '';
             },
             rowClass(p) {
                 return ['lb-row', p.rank <= 3 ? 'lb-row-rank-' + p.rank : '', p.rank % 2 === 0 ? 'is-alternate' : '',
@@ -55,19 +56,16 @@
                 return [...new Set(this.rows.filter((p) => this.hasProvince(p)).map((p) => p.sub))].sort((a, b) => a.localeCompare(b, 'vi'));
             },
             get titleOptions() {
-                const order = ['HUYỀN THOẠI', 'BẬC THẦY', 'CHUYÊN GIA', 'CAO THỦ', 'HỌC VIÊN', 'TÂN BINH'];
+                const order = ['ẢO TRÌNH', 'THÁCH ĐẤU', 'HUYỀN THOẠI', 'BẬC THẦY', 'CHUYÊN GIA', 'CAO THỦ', 'HỌC VIÊN', 'TÂN BINH', 'CHƯA CÓ DANH HIỆU'];
                 const have = new Set(this.rows.map((p) => this.titleVi(p)));
                 return order.filter((t) => have.has(t)).concat([...have].filter((t) => !order.includes(t)));
             },
             get podium() { return this.rows.slice(0, 3); },
             // SỬA 6/11 — giao diện mới: thứ tự hiển thị 2 · 1 · 3; danh hiệu tiếng Việt; dòng phụ "Tỉnh • N bài đã thử".
             get podiumOrdered() { const p = this.podium; return p.length === 3 ? [p[1], p[0], p[2]] : p; },
-            titleVi(p) {
-                return ({ Grandmaster: 'HUYỀN THOẠI', Master: 'BẬC THẦY', Expert: 'CHUYÊN GIA', Specialist: 'CAO THỦ', Pupil: 'HỌC VIÊN', Newbie: 'TÂN BINH' })[p.badge] || String(p.badge || '').toUpperCase();
-            },
-            titleClass(p) {
-                return 'lbx-t-' + (({ Grandmaster: 'legend', Master: 'master', Expert: 'expert', Specialist: 'pro', Pupil: 'pupil' })[p.badge] || 'new');
-            },
+            // SỬA 15/11 (khách: "Tân binh 50 điểm ... Ao trình 6400") — danh hiệu theo điểm; vẫn hiểu nhãn tiếng Anh cũ (bản ghi phạt cũ).
+            titleVi(p) { return (LB_TITLES[p.badge] || [String(p.badge || '').toUpperCase()])[0]; },
+            titleClass(p) { return 'lbx-t-' + ((LB_TITLES[p.badge] || [0, 'new'])[1]); },
             hasProvince(p) { return !!p.sub && !/bài đã thử$/.test(p.sub); },
             subLine(p) {
                 const tried = p.attempted != null ? p.attempted + ' bài đã thử' : '';

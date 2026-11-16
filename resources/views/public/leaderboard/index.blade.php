@@ -435,6 +435,10 @@ body:has(.leaderboard-view) { background-color: #eef5fa; }
 .lbx-t-pro { background: linear-gradient(90deg, #dcfce7, #d1fae5); color: #047857; }
 .lbx-t-pupil { background: #e0f2fe; color: #0369a1; }
 .lbx-t-new { background: #f1f5f9; color: #64748b; }
+/* SỬA 15/11 — danh hiệu mới theo điểm */
+.lbx-t-god { background: linear-gradient(90deg, #f0abfc, #a78bfa, #60a5fa); color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.18); }
+.lbx-t-chal { background: linear-gradient(90deg, #fecaca, #f87171); color: #7f1d1d; }
+.lbx-t-rookie { background: #ecfeff; color: #0e7490; }
 
 /* Bảng thứ hạng */
 .lb-board { background: #fff; border-color: #e3ecf3; border-radius: 18px; }
@@ -974,7 +978,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                                                 <div class="lb-student-name">
                                                     <button type="button" :aria-expanded="expanded === p.rank" :aria-controls="'lb-detail-' + p.rank" @click="toggle(p.rank)" x-text="display(p)"></button>
                                                     <span class="lb-you" x-show="p.isYou">Bạn</span>
-                                                    <span class="lb-skill-badge" :class="titleClass(p)" x-text="p.badge"></span>
+                                                    <span class="lb-skill-badge" :class="titleClass(p)" x-text="titleVi(p)"></span>
                                                 </div>
                                                 <p class="lbx-sub-line"><x-lucide name="map-pin" x-show="hasProvince(p)" /><span x-text="subLine(p)"></span></p>
                                             </div>
