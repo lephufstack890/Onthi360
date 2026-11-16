@@ -49,6 +49,8 @@
     .oi-act-row { row-gap: 4px; }
     .oi-act-row > .oi-loc { display: contents; }
     .oi-act-row > .oi-act-break { flex-basis: 100%; height: 0; }
+    /* SỬA 16/11 (khách: "nút này đừng bo tròn quá, bo như các nút bên cạnh") — Giao bài bo 8px như Nhật ký nộp bài. */
+    .oi-assign-chip { border-radius: 8px !important; }
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
