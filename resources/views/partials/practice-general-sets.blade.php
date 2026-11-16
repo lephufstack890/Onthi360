@@ -69,7 +69,7 @@
                             </span>
                         @endif
                         <a href="{{ $gstHref }}" title="{{ $set['title'] }}" @click="withReturn($event)"
-                           class="min-w-0 flex-1 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $set['title'] }}</a>
+                           class="min-w-0 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $set['title'] }}</a>
                         <span class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $set['myAttempts'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
                             {{ $set['myAttempts'] > 0 ? 'Đã làm '.$set['myAttempts'].' lần' : 'Chưa làm' }}
                         </span>

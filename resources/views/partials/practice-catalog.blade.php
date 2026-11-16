@@ -48,7 +48,7 @@
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 148px 120px 64px 100px 132px 140px;
+            grid-template-columns: minmax(0, 1fr) 176px 120px 64px 100px 132px 140px; /* SỬA 16/11 — cột Chuyên đề rộng hơn */
             align-items: center;
             gap: .625rem;
         }
@@ -63,7 +63,7 @@
 
     @media (min-width: 1280px) {
         .oi-prob-grid {
-            grid-template-columns: minmax(0, 1fr) 140px 112px 64px 120px 96px 124px 132px;
+            grid-template-columns: minmax(0, 1fr) 190px 112px 64px 120px 96px 124px 132px;
         }
 
         .oi-prob-author { display: block; }
@@ -72,12 +72,12 @@
     /* SỬA 8/10 — bảng bài tập khi ẨN cột Tỉnh thành + Tác giả: còn 6 cột (Tên · Chuyên đề · Năm · Độ khó ·
        Tỷ lệ AC · Hành động). Thêm class oi-prob-grid--lite nên thắng quy tắc 7/8 cột ở trên và ở tab Bài được giao. */
     @media (min-width: 1024px) {
-        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 148px 64px 100px 132px 140px; }
-        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 148px 64px 100px 200px 140px; }
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 210px 64px 100px 132px 140px; } /* SỬA 16/11 (khách: "cột chuyên đề rộng ra") */
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 200px 64px 100px 200px 140px; }
     }
     @media (min-width: 1280px) {
-        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 124px 132px; }
-        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 140px 64px 96px 190px 132px; }
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 240px 64px 96px 124px 132px; }
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 220px 64px 96px 190px 132px; }
     }
 
     /* SỬA 10/10 — chip Chuyên đề dài quá thì cắt "…" trong đúng cột của nó (không đè sang cột Năm). Rê chuột vẫn đọc đủ nhờ title. */
@@ -719,8 +719,9 @@
                                     {{ $oiIcon('check-circle-2', 'h-4 w-4') }}
                                 </span>
                             @endif
+                            {{-- SỬA 16/11 (khách: "đưa nhãn Đã làm N lần vào sát tên bài") — bỏ flex-1 để nhãn đứng ngay sau tên. --}}
                             <a href="{{ $openHref }}" title="{{ $prob['title'] }}" @click="withReturn($event)"
-                               class="min-w-0 flex-1 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $prob['title'] }}</a>
+                               class="min-w-0 line-clamp-2 text-left text-[14px] font-semibold leading-5 text-[#123B68] transition-colors hover:text-[#126F91] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:text-[15px]">{{ $prob['title'] }}</a>
                             <span x-show="problemScope !== 'assigned'" class="mt-0.5 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold {{ $prob['userSubmissions'] > 0 ? 'bg-[#EFF9F5] text-[#2F8A6B]' : 'bg-[#F2F6F8] text-[#607A90]' }}">
                                 {{ $prob['userSubmissions'] > 0 ? 'Đã làm '.$prob['userSubmissions'].' lần' : 'Chưa làm' }}
                             </span>
