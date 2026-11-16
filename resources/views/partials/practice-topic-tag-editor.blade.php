@@ -197,8 +197,7 @@
                     <div class="oi-topics">
                         <span class="oi-topic-chip rounded-lg border border-[#D6E3EF] bg-[#EEF4FA] px-2 py-0.5 text-[12px] font-semibold text-[#365B7A]" x-text="tag(ordered[0]).name"></span>
                         <span class="oi-topic-subs" x-show="ordered.length > 1">
-                            <template x-for="id in ordered.slice(1, 3)" :key="'pv' + id"><span class="oi-topic-sub" x-text="tag(id).name"></span></template>
-                            <span class="oi-topic-more" x-show="ordered.length > 3" x-text="'+' + (ordered.length - 3)"></span>
+                            <template x-for="id in ordered.slice(1)" :key="'pv' + id"><span class="oi-topic-sub" x-text="tag(id).name"></span></template>
                         </span>
                     </div>
                 </div>

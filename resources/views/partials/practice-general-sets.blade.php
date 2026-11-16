@@ -52,8 +52,9 @@
             @php
                 $gstHref = $canTakeDirectly ? route('student.assessment.take', $set['id']) : route('login');
                 $gstTopics = array_values(array_filter($set['topicLabels'] ?? []));
-                $gstTopicSubs = array_slice($gstTopics, 1, 2);
-                $gstTopicMore = array_slice($gstTopics, 3);
+                // SỬA 16/11 — hiện hết tag phụ, không gom "+N".
+                $gstTopicSubs = array_slice($gstTopics, 1);
+                $gstTopicMore = [];
                 $gstAvg = (int) ($set['avgPercent'] ?? 0);
             @endphp
             <div x-show="gstPos({{ $set['id'] }}) >= 0" :style="{ order: gstPos({{ $set['id'] }}) }"

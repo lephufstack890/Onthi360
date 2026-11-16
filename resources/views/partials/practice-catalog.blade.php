@@ -48,7 +48,7 @@
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 176px 120px 64px 100px 132px 140px; /* SỬA 16/11 — cột Chuyên đề rộng hơn */
+            grid-template-columns: minmax(0, 1fr) 210px 120px 64px 100px 132px 140px; /* SỬA 16/11 — cột Chuyên đề rộng hơn */
             align-items: center;
             gap: .625rem;
         }
@@ -63,7 +63,7 @@
 
     @media (min-width: 1280px) {
         .oi-prob-grid {
-            grid-template-columns: minmax(0, 1fr) 190px 112px 64px 120px 96px 124px 132px;
+            grid-template-columns: minmax(0, 1fr) 240px 112px 64px 120px 96px 124px 132px;
         }
 
         .oi-prob-author { display: block; }
@@ -72,12 +72,12 @@
     /* SỬA 8/10 — bảng bài tập khi ẨN cột Tỉnh thành + Tác giả: còn 6 cột (Tên · Chuyên đề · Năm · Độ khó ·
        Tỷ lệ AC · Hành động). Thêm class oi-prob-grid--lite nên thắng quy tắc 7/8 cột ở trên và ở tab Bài được giao. */
     @media (min-width: 1024px) {
-        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 210px 64px 100px 132px 140px; } /* SỬA 16/11 (khách: "cột chuyên đề rộng ra") */
-        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 200px 64px 100px 200px 140px; }
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 260px 64px 100px 132px 140px; } /* SỬA 16/11 (khách: "cột chuyên đề rộng ra") */
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 240px 64px 100px 200px 140px; }
     }
     @media (min-width: 1280px) {
-        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 240px 64px 96px 124px 132px; }
-        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 220px 64px 96px 190px 132px; }
+        .oi-prob-grid.oi-prob-grid--lite { grid-template-columns: minmax(0, 1fr) 320px 64px 96px 124px 132px; }
+        .oi-prob-grid.oi-prob-grid--lite.oi-prob-grid--asg { grid-template-columns: minmax(0, 1fr) 280px 64px 96px 190px 132px; }
     }
 
     /* SỬA 10/10 — chip Chuyên đề dài quá thì cắt "…" trong đúng cột của nó (không đè sang cột Năm). Rê chuột vẫn đọc đủ nhờ title. */
@@ -794,8 +794,9 @@
                             <span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#6B8295] lg:hidden">Chuyên đề</span>
                             @php
                                 $probTopics = array_values(array_filter($prob['topicLabels'] ?? []));
-                                $probTopicSubs = array_slice($probTopics, 1, 2);
-                                $probTopicMore = array_slice($probTopics, 3);
+                                // SỬA 16/11 (khách: "hiện hết tag phụ, đừng +1") — mọi tag phụ đều hiện, không gom "+N".
+                                $probTopicSubs = array_slice($probTopics, 1);
+                                $probTopicMore = [];
                                 // SỬA 12/11 (khách: "hover vào chuyên đề hiện bàn tay, bấm thì lọc theo chuyên đề đó") — tên ↔ id tag (cùng thứ tự).
                                 $probTopicIds = array_values($prob['tagIds'] ?? []);
                             @endphp
