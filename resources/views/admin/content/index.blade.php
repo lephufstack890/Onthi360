@@ -478,12 +478,26 @@
             @endif
 
             <div class="acx-scroll" @unless ($isQuestions) data-pg="rows" data-unit="kết quả" @endunless>
-                <table class="acx-table apx-up akx-table {{ $isQuestions ? 'is-q' : '' }}" @if ($isQuestions) style="min-width:1040px" @endif>
+                <style>
+                    /* SỬA 12/11 — cột Tag chuyên đề. SỬA 16/11 (khách: "tag chính và tag phụ hiển thị như ngoài trang luyện tập
+                       public") — tag chính là chip đậm ở trên, tối đa 2 tag phụ chip nhỏ bên dưới, còn lại gom "+N". */
+                    .akx-tagcell { min-width: 160px; max-width: 230px; }
+                    .akx-topics { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+                    .akx-topic-main { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                        padding: 2px 8px; border: 1px solid #D6E3EF; border-radius: 8px; background: #EEF4FA; font-size: 12px; font-weight: 600; line-height: 1.5; color: #365B7A; }
+                    .akx-topic-subs { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
+                    .akx-topic-sub, .akx-topic-more { display: inline-block; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                        padding: 1px 7px; border: 1px solid #E3ECF4; border-radius: 7px; background: #fff; font-size: 11px; font-weight: 600; line-height: 1.5; color: #5C7A93; }
+                    .akx-topic-more { border-color: #E2E8F0; background: #F1F5F9; color: #64748B; cursor: help; }
+                </style>
+                <table class="acx-table apx-up akx-table {{ $isQuestions ? 'is-q' : '' }}" @if ($isQuestions) style="min-width:1220px" @endif>
                     <caption class="acx-sr">Danh sách nội dung</caption>
                     <thead>
                         <tr>
                             <th scope="col">Nội dung / Nguồn</th>
                             <th scope="col">Phân loại</th>
+                            {{-- SỬA 12/11 (khách: "thêm 1 cột Tag chuyên đề") --}}
+                            @if ($isQuestions)<th scope="col">Tag chuyên đề</th>@endif
                             @if ($isQuestions)<th scope="col">Độ khó</th>@endif
                             {{-- SỬA 28/10 — câu Lập trình đọc từ tệp hay bàn phím (partials/question-io-cell). --}}
                             @if ($isQuestions)<th scope="col">Input/Output</th>@endif
@@ -527,6 +541,32 @@
                                         <div class="akx-k2">Năm: {{ $r['examYear'] ?? '—' }}</div>
                                     @endif
                                 </td>
+                                @if ($isQuestions)
+                                    <td class="akx-tagcell">
+                                        @php
+                                            $__tags = array_values(array_filter(array_map(fn ($tg) => $tg['name'] ?? '', $r['tags'] ?? [])));
+                                            $__subs = array_slice($__tags, 1, 2);
+                                            $__more = array_slice($__tags, 3);
+                                        @endphp
+                                        @if ($__tags === [])
+                                            <span class="akx-mute" style="font-size:12px">Chưa gắn</span>
+                                        @else
+                                            <div class="akx-topics" title="{{ implode(', ', $__tags) }}">
+                                                <span class="akx-topic-main">{{ $__tags[0] }}</span>
+                                                @if ($__subs)
+                                                    <span class="akx-topic-subs">
+                                                        @foreach ($__subs as $__sub)
+                                                            <span class="akx-topic-sub">{{ $__sub }}</span>
+                                                        @endforeach
+                                                        @if ($__more)
+                                                            <span class="akx-topic-more" title="{{ implode(', ', $__more) }}">+{{ count($__more) }}</span>
+                                                        @endif
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </td>
+                                @endif
                                 @if ($isQuestions)
                                     {{-- Chưa đặt thì hiện mờ + chú thích: giá trị đang được SUY theo điểm câu
                                          hỏi, chưa phải do người soạn chọn (xem App\Support\QuestionDifficulty). --}}
