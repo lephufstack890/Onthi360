@@ -956,7 +956,8 @@
             @endforeach
 
             {{-- Phân trang nằm NGAY TRONG khung danh sách, trên dải nền nhạt — đúng bản mẫu mới. --}}
-            <div x-show="problemTotalPages > 1" x-cloak class="border-t border-[#E7EFF3] bg-[#F4F8FB] px-3 sm:px-4">
+            {{-- SỬA 17/11 — khung danh sách là flex dọc (để đổi thứ tự bài thấy ngay): phân trang luôn đứng CUỐI. --}}
+            <div x-show="problemTotalPages > 1" x-cloak style="order:99999" class="border-t border-[#E7EFF3] bg-[#F4F8FB] px-3 sm:px-4">
                 <nav aria-label="Phân trang bài tập chuyên đề"
                      class="flex flex-col items-center justify-between gap-2 py-2 sm:flex-row">
                     <span class="text-[11px] text-[#607A90]">Trang <b class="text-[#45657D]" x-text="problemPage"></b> / <span x-text="problemTotalPages"></span></span>
