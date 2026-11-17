@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Schema;
  *                    điểm gốc của câu). Không cộng dồn các lần nộp lại → không thể "cày điểm" bằng cách nộp lặp.
  *  · Tỷ lệ đúng    : bài đã giải / số câu khác nhau đã được chấm.
  *  · Chuỗi luyện tập: số ngày LIÊN TIẾP (giờ Việt Nam) có nộp bài, tính tới hôm nay hoặc hôm qua.
- *  · Danh hiệu     : theo TỔNG ĐIỂM toàn thời gian đã trừ phạt (Tân binh 50 → Ảo trình 6400), không đổi theo phạm vi.
+ *  · Danh hiệu     : theo TỔNG ĐIỂM toàn thời gian đã trừ phạt (Tân binh 50 → Out trình 6400), không đổi theo phạm vi.
  *  · Biến động hạng: so với thứ hạng cùng phạm vi cách đây 7 ngày; chưa có mặt hồi đó = trung tính.
  *  · Đồng hạng     : xét lần lượt tổng điểm → số bài giải → tỷ lệ đúng → ai đạt thành tích sớm hơn.
  *  · Cuộc thi      : lấy thẳng bảng xếp hạng chính thức (leaderboard_entries) của cuộc thi/kỳ thi đã công bố.
@@ -79,14 +79,14 @@ class LeaderboardService
     /** Bảng tính nặng (gộp toàn bộ lượt làm) nên nhớ tạm — tăng khi đổi cách tính để bỏ cache cũ. */
     private const CACHE_TTL = 300;
 
-    private const CACHE_VERSION = 'v3'; // SỬA 15/11 — đổi danh hiệu theo điểm
+    private const CACHE_VERSION = 'v4'; // SỬA 15/11 — đổi danh hiệu theo điểm
 
     /**
      * SỬA 15/11 (khách: "Tân binh 50 điểm ... Ao trình 6400 ... dựa theo số điểm") — danh hiệu theo TỔNG ĐIỂM toàn thời gian
      * (đã trừ điểm phạt), không còn theo số bài đã giải. [điểm tối thiểu, danh hiệu] — từ cao xuống thấp.
      */
     private const TIERS = [
-        [6400, 'Ảo trình'],
+        [6400, 'Out trình'], // SỬA 17/11 — khách đổi tên thành "Out trình" (trước: Ảo trình)
         [3200, 'Thách đấu'],
         [1600, 'Huyền thoại'],
         [800, 'Bậc thầy'],

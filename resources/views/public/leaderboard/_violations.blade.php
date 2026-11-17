@@ -56,7 +56,7 @@
 <script>
     window.onthiViolationsBoard = function (rows) {
         const nf = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
-        const titles = { 'Ảo trình': ['ẢO TRÌNH', 'god'], 'Thách đấu': ['THÁCH ĐẤU', 'chal'], 'Huyền thoại': ['HUYỀN THOẠI', 'legend'], 'Bậc thầy': ['BẬC THẦY', 'master'], 'Chuyên gia': ['CHUYÊN GIA', 'expert'], 'Cao thủ': ['CAO THỦ', 'pro'], 'Học viên': ['HỌC VIÊN', 'pupil'], 'Tân binh': ['TÂN BINH', 'rookie'], Grandmaster: ['HUYỀN THOẠI', 'legend'], Master: ['BẬC THẦY', 'master'], Expert: ['CHUYÊN GIA', 'expert'], Specialist: ['CAO THỦ', 'pro'], Pupil: ['HỌC VIÊN', 'pupil'], Newbie: ['TÂN BINH', 'rookie'] }; // SỬA 15/11 — danh hiệu theo điểm
+        const titles = { 'Out trình': ['OUT TRÌNH', 'god'], 'Ảo trình': ['OUT TRÌNH', 'god'], 'Thách đấu': ['THÁCH ĐẤU', 'chal'], 'Huyền thoại': ['HUYỀN THOẠI', 'legend'], 'Bậc thầy': ['BẬC THẦY', 'master'], 'Chuyên gia': ['CHUYÊN GIA', 'expert'], 'Cao thủ': ['CAO THỦ', 'pro'], 'Học viên': ['HỌC VIÊN', 'pupil'], 'Tân binh': ['TÂN BINH', 'rookie'], Grandmaster: ['HUYỀN THOẠI', 'legend'], Master: ['BẬC THẦY', 'master'], Expert: ['CHUYÊN GIA', 'expert'], Specialist: ['CAO THỦ', 'pro'], Pupil: ['HỌC VIÊN', 'pupil'], Newbie: ['TÂN BINH', 'rookie'] }; // SỬA 15/11 — danh hiệu theo điểm
         return {
             rows: rows || [], sortKey: 'lockedTs', sortDir: -1, page: 1, pageSize: 5,
             fmt(v) { return nf.format(Number(v) || 0); },

@@ -1,5 +1,5 @@
 <script>
-    var LB_TITLES = window.LB_TITLES = { 'Ảo trình': ['ẢO TRÌNH', 'god'], 'Thách đấu': ['THÁCH ĐẤU', 'chal'], 'Huyền thoại': ['HUYỀN THOẠI', 'legend'], 'Bậc thầy': ['BẬC THẦY', 'master'], 'Chuyên gia': ['CHUYÊN GIA', 'expert'], 'Cao thủ': ['CAO THỦ', 'pro'], 'Học viên': ['HỌC VIÊN', 'pupil'], 'Tân binh': ['TÂN BINH', 'rookie'], Grandmaster: ['HUYỀN THOẠI', 'legend'], Master: ['BẬC THẦY', 'master'], Expert: ['CHUYÊN GIA', 'expert'], Specialist: ['CAO THỦ', 'pro'], Pupil: ['HỌC VIÊN', 'pupil'], Newbie: ['TÂN BINH', 'rookie'] };
+    var LB_TITLES = window.LB_TITLES = { 'Out trình': ['OUT TRÌNH', 'god'], 'Ảo trình': ['OUT TRÌNH', 'god'], 'Thách đấu': ['THÁCH ĐẤU', 'chal'], 'Huyền thoại': ['HUYỀN THOẠI', 'legend'], 'Bậc thầy': ['BẬC THẦY', 'master'], 'Chuyên gia': ['CHUYÊN GIA', 'expert'], 'Cao thủ': ['CAO THỦ', 'pro'], 'Học viên': ['HỌC VIÊN', 'pupil'], 'Tân binh': ['TÂN BINH', 'rookie'], Grandmaster: ['HUYỀN THOẠI', 'legend'], Master: ['BẬC THẦY', 'master'], Expert: ['CHUYÊN GIA', 'expert'], Specialist: ['CAO THỦ', 'pro'], Pupil: ['HỌC VIÊN', 'pupil'], Newbie: ['TÂN BINH', 'rookie'] };
     /*
      * SỬA 8/10 — bảng xếp hạng dựng lại theo LeaderboardPage.jsx: state React (query, anonymous, page, pageSize,
      * expandedRank) chuyển sang Alpine. Danh sách hàng do máy chủ tính sẵn (LeaderboardService), ở đây chỉ lo
@@ -55,10 +55,12 @@
             get provinces() {
                 return [...new Set(this.rows.filter((p) => this.hasProvince(p)).map((p) => p.sub))].sort((a, b) => a.localeCompare(b, 'vi'));
             },
+            // SỬA 17/11 (khách: "chỗ danh hiệu xổ xuống cho đầy đủ") — luôn đủ 8 danh hiệu, thấp → cao, kèm mốc điểm.
+            // SỬA 17/11 (khách: "chỗ danh hiệu xổ xuống cho đầy đủ") — luôn đủ 8 danh hiệu theo thứ tự điểm tăng dần
+            // (trước đây chỉ hiện danh hiệu đang có người đạt và trả về chuỗi trơn nên ô chọn bị trống).
             get titleOptions() {
-                const order = ['ẢO TRÌNH', 'THÁCH ĐẤU', 'HUYỀN THOẠI', 'BẬC THẦY', 'CHUYÊN GIA', 'CAO THỦ', 'HỌC VIÊN', 'TÂN BINH', 'CHƯA CÓ DANH HIỆU'];
-                const have = new Set(this.rows.map((p) => this.titleVi(p)));
-                return order.filter((t) => have.has(t)).concat([...have].filter((t) => !order.includes(t)));
+                const all = ['Tân binh', 'Học viên', 'Cao thủ', 'Chuyên gia', 'Bậc thầy', 'Huyền thoại', 'Thách đấu', 'Out trình'];
+                return all.map((label) => ({ value: label.toUpperCase(), label }));
             },
             get podium() { return this.rows.slice(0, 3); },
             // SỬA 6/11 — giao diện mới: thứ tự hiển thị 2 · 1 · 3; danh hiệu tiếng Việt; dòng phụ "Tỉnh • N bài đã thử".

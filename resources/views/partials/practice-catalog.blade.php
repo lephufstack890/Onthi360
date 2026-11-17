@@ -51,6 +51,11 @@
     .oi-act-row > .oi-act-break { flex-basis: 100%; height: 0; }
     /* SỬA 16/11 (khách: "nút này đừng bo tròn quá, bo như các nút bên cạnh") — Giao bài bo 8px như Nhật ký nộp bài. */
     .oi-assign-chip { border-radius: 8px !important; }
+    /* SỬA 17/11 — 2 nút mũi tên đổi thứ tự bài (admin). */
+    .oi-move-btns { display: inline-flex; align-items: center; gap: 4px; }
+    .oi-move-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 1px solid #D6E3EF; background: #fff; color: #365B7A; cursor: pointer; box-shadow: 0 2px 6px rgba(18,59,104,.08); transition: background .15s, color .15s, border-color .15s; }
+    .oi-move-btn:hover:not(:disabled) { background: #EEF4FA; border-color: #2D7FA3; color: #126F91; }
+    .oi-move-btn:disabled { opacity: .5; cursor: wait; }
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
@@ -307,6 +312,8 @@
         'assignUrl' => $assignScope['canAssign'] ? route('practice.assign') : '',
         'assignSearchUrl' => $assignScope['canAssign'] ? route('practice.assign.students') : '',
         'csrf' => csrf_token(),
+        // SỬA 17/11 — 2 nút mũi tên đổi thứ tự bài (chỉ admin có quyền Ngân hàng nội dung › Sửa).
+        'moveUrl' => $canEditTopicTags ? route('admin.content.questions.displayOrder', ['question' => '__ID__']) : '',
     ]) }})" class="flex flex-col gap-4 animate-fadeIn">
 
     {{-- ══════ [PRACTICE-01] HERO LUYỆN TẬP ══════ --}}
@@ -757,6 +764,16 @@
                                     {{ $oiIcon('clipboard-list', 'h-3 w-3') }}Nhật ký nộp bài
                                 </a>
                             @endauth
+                            {{-- SỬA 17/11 (khách: "thêm 2 nút mũi tên lên xuống để điều chỉnh thứ tự câu, chỉ admin thấy") —
+                                 đổi chỗ với bài liền trên / liền dưới trong danh sách đang xem (cùng dạng bài). --}}
+                            @if ($canEditTopicTags)
+                                <span x-show="problemScope !== 'assigned'" class="oi-move-btns" role="group" aria-label="Đổi thứ tự bài">
+                                    <button type="button" class="oi-move-btn" title="Đưa bài lên trên" aria-label="Đưa bài lên trên"
+                                            :disabled="movingId !== null" @click.stop="moveProblem({{ $prob['id'] }}, -1)">{{ $oiIcon('arrow-up', 'h-3.5 w-3.5') }}</button>
+                                    <button type="button" class="oi-move-btn" title="Đưa bài xuống dưới" aria-label="Đưa bài xuống dưới"
+                                            :disabled="movingId !== null" @click.stop="moveProblem({{ $prob['id'] }}, 1)">{{ $oiIcon('arrow-down', 'h-3.5 w-3.5') }}</button>
+                                </span>
+                            @endif
                             <span class="oi-act-break" aria-hidden="true"></span>
                             <span class="flex min-w-0 items-center gap-1 truncate">
                                 {{ $oiIcon('sparkles', 'h-3 w-3 shrink-0 text-[#3B9374]') }}

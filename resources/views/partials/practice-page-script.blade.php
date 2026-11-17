@@ -59,6 +59,10 @@
             // SỬA 8/10 — sắp xếp bảng bài tập theo Chuyên đề / Độ khó / Tỷ lệ AC như PracticeSortButton
             // của source mới: key rỗng = giữ thứ tự máy chủ; bấm lần 1 = tăng (Tỷ lệ AC thì giảm), bấm lại = đảo chiều.
             problemSort: { key: null, direction: 'asc' },
+            // SỬA 17/11 — đổi thứ tự bài bằng 2 nút mũi tên (admin): id bài đang lưu + số lần đổi (đưa vào khoá memo để lọc lại).
+            moveUrl: config.moveUrl || '',
+            movingId: null,
+            problemOrderRev: 0,
             // SỬA 8/10 — công tắc "Chỉ hiện bài chưa làm".
             onlyUndone: false,
             searchQuery: '',
@@ -273,6 +277,57 @@
             },
 
             setTab(v) { this.activeTab = v; this.problemPageIndex = 1; },
+
+            /*
+             * SỬA 17/11 (khách: "thêm 2 nút mũi tên lên xuống để điều chỉnh thứ tự câu, chỉ admin thấy") — đổi chỗ bài với bài
+             * LIỀN TRÊN (dir = -1) / LIỀN DƯỚI (dir = 1) trong danh sách đang xem. Máy chủ: admin.content.questions.displayOrder
+             * (mode before/after — App\Support\QuestionReorder, cùng thứ tự với trang quản trị và nút "Bài tiếp theo").
+             * Lưu xong sắp lại ngay trên trang, không tải lại.
+             */
+            async moveProblem(id, dir) {
+                const say = (type, msg) => { if (window.toast) window.toast(type, msg); else alert(msg); };
+                if (!this.moveUrl || this.movingId !== null) return;
+                if (this.problemSort.key) {
+                    say('info', 'Đang sắp xếp theo cột — bỏ sắp xếp (tải lại trang) rồi hãy đổi thứ tự bài.');
+                    return;
+                }
+                const list = this.filteredProblems;
+                const i = list.findIndex((p) => p.id === id);
+                const j = i + dir;
+                if (i < 0 || j < 0 || j >= list.length) {
+                    say('info', dir < 0 ? 'Bài này đã ở đầu danh sách.' : 'Bài này đã ở cuối danh sách.');
+                    return;
+                }
+                const other = list[j];
+                // "Xuống dưới" = đưa bài liền dưới lên trước bài này (giống máy chủ).
+                const movedId = dir < 0 ? id : other.id;
+                const beforeId = dir < 0 ? other.id : id;
+                this.movingId = id;
+                try {
+                    const res = await fetch(this.moveUrl.replace('__ID__', id), {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': this.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify(dir < 0 ? { mode: 'before', before_id: other.id } : { mode: 'after', after_id: other.id }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.ok) {
+                        const firstErr = data.errors ? Object.values(data.errors)[0] : null;
+                        throw new Error(data.message || (firstErr && firstErr[0]) || 'Không đổi được thứ tự (mã ' + res.status + ').');
+                    }
+                    const moved = this.problems.find((p) => p.id === movedId);
+                    const rest = this.problems.filter((p) => p.id !== movedId);
+                    const k = rest.findIndex((p) => p.id === beforeId);
+                    if (moved && k >= 0) {
+                        rest.splice(k, 0, moved);
+                        this.problems = Object.freeze(rest);
+                        this.problemOrderRev++;
+                    }
+                } catch (e) {
+                    say('error', e.message || 'Không đổi được thứ tự.');
+                } finally {
+                    this.movingId = null;
+                }
+            },
             setTopic(v) { this.selectedTopic = v; this.problemPageIndex = 1; },
             // SỬA 12/11 (khách: "bấm vào chuyên đề của từng bài thì lọc theo chuyên đề đó") — chọn chuyên đề, xoá ô tìm kiếm
             // (để không bị lọc chồng ra rỗng), cuộn băng chuyên đề tới thẻ đang chọn và đưa danh sách lên đầu.
@@ -340,7 +395,7 @@
                 const q = this.searchQuery.trim().toLowerCase();
                 const assignedView = this.problemScope === 'assigned';
                 const memoKey = [this.problemScope, this.problemAssignStatus, this.activeTab, this.selectedTopic, this.selectedDifficulty,
-                    q, this.onlyUndone, this.problemSort.key, this.problemSort.direction].join('\u0001');
+                    q, this.onlyUndone, this.problemSort.key, this.problemSort.direction, this.problemOrderRev].join('\u0001');
                 if (memo.problemKey === memoKey) { return memo.problemList; }
                 memo.problemKey = memoKey;
                 memo.problemList = this.computeFilteredProblems(q, assignedView);

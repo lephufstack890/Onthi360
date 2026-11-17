@@ -799,7 +799,7 @@ body:has(.leaderboard-view) { background-color: #eef4f9; }
                     <x-lucide name="trophy" />
                     <select x-model="titleFilter" aria-label="Lọc theo danh hiệu">
                         <option value="">Danh hiệu</option>
-                        <template x-for="t in titleOptions" :key="t"><option :value="t" x-text="t"></option></template>
+                        <template x-for="t in titleOptions" :key="t.value"><option :value="t.value" x-text="t.label"></option></template>
                     </select>
                 </label>
             </div>

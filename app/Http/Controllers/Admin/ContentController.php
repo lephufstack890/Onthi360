@@ -249,6 +249,10 @@ class ContentController extends Controller
             return response()->json(['ok' => false, 'message' => $result['message'] ?? 'Không đổi được thứ tự.'], 422);
         }
 
+        // SỬA 17/11 (khách: "thêm 2 nút mũi tên lên xuống để điều chỉnh thứ tự câu, chỉ admin thấy") — trang Luyện tập
+        // nhớ tạm danh sách bài; đổi thứ tự xong phải xoá để người khác tải lại thấy đúng thứ tự mới.
+        \App\Services\Public\PracticeService::forgetProblemCache();
+
         $ids = array_values(array_unique(array_merge([$question->id], array_map('intval', $data['visible_ids'] ?? []))));
 
         return response()->json(['ok' => true] + $this->contentService->displayOrderSnapshot($ids));
