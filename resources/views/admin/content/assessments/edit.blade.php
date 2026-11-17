@@ -14,6 +14,104 @@
         @include('partials.toast-flash', ['type' => 'error', 'message' => implode(' ', $errors->all())])
     @endif
 
+    {{-- SỬA 17/11 (khách: "nhập đề bằng ZIP xong nhảy ra trang Sửa để check, thiết kế nút Quản lý câu hỏi cho đẹp, click
+         là qua trang chi tiết đề") — báo nhập ZIP xong + thẻ "Câu hỏi trong đề" có nút đi thẳng tới mục câu hỏi ở trang chi tiết. --}}
+    @php
+        $aqShowUrl = route('admin.content.show', ['content' => $assessment->id, 'kind' => 'assessment']).'#assessment-items';
+        $aqItems = $assessment->items()->with('question:id,title,type,status')->get();
+        $aqPreview = $aqItems->take(6);
+        $aqDraft = $aqItems->filter(fn ($it) => $it->question && (($it->question->status->value ?? $it->question->status) !== 'published'))->count();
+    @endphp
+    @if (session('status') === 'assessment-zip-imported')
+        <div class="aq-zip-done">
+            <span class="aq-zip-ico"><x-lucide name="check-circle-2" /></span>
+            <div class="min-w-0">
+                <p class="aq-zip-title">Nhập đề từ gói ZIP thành công</p>
+                <p class="aq-zip-text">{{ session('zipImportSummary') ?: 'Đã tạo đề và các câu hỏi.' }} Hãy rà lại thông tin bên dưới, rồi bấm <strong>Quản lý câu hỏi</strong> để kiểm tra / phát hành từng câu.</p>
+            </div>
+        </div>
+    @endif
+
+    <div class="aq-card">
+        <div class="aq-head">
+            <span class="aq-ico"><x-lucide name="clipboard-list" /></span>
+            <div class="min-w-0 flex-1">
+                <p class="aq-title">Câu hỏi trong đề <span class="aq-count">{{ $aqItems->count() }}</span></p>
+                <p class="aq-sub">
+                    {{ rtrim(rtrim(number_format((float) $assessment->total_points, 2, ',', '.'), '0'), ',') }} điểm
+                    @if ($aqDraft > 0)
+                        · <span class="aq-warn">{{ $aqDraft }} câu chưa phát hành</span>
+                    @elseif ($aqItems->isNotEmpty())
+                        · <span class="aq-ok">tất cả đã phát hành</span>
+                    @endif
+                </p>
+            </div>
+            <div class="aq-actions">
+                <a href="{{ route('admin.content.assessments.items.edit', $assessment->id) }}" class="aq-btn aq-btn-ghost">
+                    <x-lucide name="pencil" />Sửa điểm từng câu
+                </a>
+                <a href="{{ $aqShowUrl }}" class="aq-btn aq-btn-primary">
+                    <x-lucide name="settings" />Quản lý câu hỏi<x-lucide name="chevron-right" />
+                </a>
+            </div>
+        </div>
+        @if ($aqPreview->isNotEmpty())
+            <ol class="aq-list">
+                @foreach ($aqPreview as $i => $it)
+                    @php($aqPub = $it->question && (($it->question->status->value ?? $it->question->status) === 'published'))
+                    <li>
+                        <a href="{{ $aqShowUrl }}" class="aq-item" title="{{ $it->question?->title }}">
+                            <span class="aq-num">{{ $i + 1 }}</span>
+                            <span class="aq-name">{{ $it->question?->title ?? 'Câu đã bị xoá' }}</span>
+                            <span class="aq-pill {{ $aqPub ? 'is-pub' : 'is-draft' }}">{{ $aqPub ? 'Đã phát hành' : 'Nháp' }}</span>
+                        </a>
+                    </li>
+                @endforeach
+            </ol>
+            @if ($aqItems->count() > $aqPreview->count())
+                <a href="{{ $aqShowUrl }}" class="aq-more">Xem tất cả {{ $aqItems->count() }} câu ›</a>
+            @endif
+        @else
+            <p class="aq-empty">Đề chưa có câu hỏi nào — bấm <strong>Quản lý câu hỏi</strong> để thêm.</p>
+        @endif
+    </div>
+
+    <style>
+        .aq-zip-done { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; border: 1px solid #bbf7d0; background: linear-gradient(90deg, #f0fdf4, #ecfeff); }
+        .aq-zip-ico { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: #16a34a; color: #fff; }
+        .aq-zip-ico svg { width: 18px; height: 18px; }
+        .aq-zip-title { font-size: 14px; font-weight: 800; color: #14532d; }
+        .aq-zip-text { margin-top: 2px; font-size: 13px; line-height: 1.5; color: #166534; }
+        .aq-card { margin-bottom: 20px; padding: 18px 20px; border-radius: 24px; border: 1px solid #dbeafe; background: linear-gradient(180deg, #f8fbff, #fff); box-shadow: 0 2px 8px rgba(0,90,180,.04); }
+        .aq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .aq-ico { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: #eff6ff; color: #2563eb; }
+        .aq-ico svg { width: 20px; height: 20px; }
+        .aq-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: #0f2b4d; }
+        .aq-count { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 7px; border-radius: 999px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 800; }
+        .aq-sub { margin-top: 2px; font-size: 13px; color: #64748b; }
+        .aq-warn { color: #b45309; font-weight: 700; }
+        .aq-ok { color: #15803d; font-weight: 700; }
+        .aq-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+        .aq-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 800; transition: background .15s, box-shadow .15s, transform .15s; }
+        .aq-btn svg { width: 16px; height: 16px; }
+        .aq-btn-primary { background: #2563eb; color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,.25); }
+        .aq-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .aq-btn-ghost { border: 1px solid #dbeafe; background: #fff; color: #1e40af; }
+        .aq-btn-ghost:hover { background: #eff6ff; }
+        .aq-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 14px; }
+        .aq-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid #e2ecf7; background: #fff; transition: border-color .15s, background .15s; }
+        .aq-item:hover { border-color: #93c5fd; background: #f8fbff; }
+        .aq-num { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 12px; font-weight: 800; }
+        .aq-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: #1e293b; }
+        .aq-pill { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+        .aq-pill.is-pub { background: #dcfce7; color: #15803d; }
+        .aq-pill.is-draft { background: #fef3c7; color: #b45309; }
+        .aq-more { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 700; color: #2563eb; }
+        .aq-more:hover { text-decoration: underline; }
+        .aq-empty { margin-top: 12px; font-size: 13px; color: #64748b; }
+        @media (max-width: 640px) { .aq-actions { width: 100%; } .aq-btn { flex: 1; justify-content: center; } }
+    </style>
+
     @if ($assessment->isPdfMode())
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
             <p class="text-[13px] text-sky-800">Đề này dùng chế độ <strong>PDF + phiếu đáp án</strong> — tải file PDF, nhập đáp án và thêm bài lập trình ở màn riêng, không phải ở đây.</p>

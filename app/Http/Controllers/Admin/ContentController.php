@@ -836,10 +836,11 @@ class ContentController extends Controller
             return redirect()->route('admin.content.assessments.create')->withErrors($e->errors());
         }
 
-        // SỬA 16/10 — đề Luyện tập (câu hỏi rời) mở trang chi tiết đề, đúng chỗ "Câu hỏi trong đề"; đề thi PDF mở "Quản lý đề PDF".
+        // SỬA 17/11 (khách: "nhập đề bằng file zip xong nhảy ra trang Sửa đề để check") — đề Luyện tập mở trang SỬA ĐỀ (có thẻ
+        // "Câu hỏi trong đề" + nút Quản lý câu hỏi đi tiếp tới trang chi tiết); đề thi PDF vẫn mở "Quản lý đề PDF".
         if (($result['mode'] ?? 'pdf') === 'practice') {
             return redirect()
-                ->to(route('admin.content.show', ['content' => $result['assessment']->id, 'kind' => 'assessment']).'#assessment-items')
+                ->route('admin.content.assessments.edit', $result['assessment']->id)
                 ->with('status', 'assessment-zip-imported')
                 ->with('zipImportSummary', $result['summary']);
         }
