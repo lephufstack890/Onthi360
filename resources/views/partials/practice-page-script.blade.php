@@ -62,6 +62,7 @@
             // SỬA 17/11 — đổi thứ tự bài bằng 2 nút mũi tên (admin): id bài đang lưu + số lần đổi (đưa vào khoá memo để lọc lại).
             moveUrl: config.moveUrl || '',
             movingId: null,
+            justMovedId: null,
             problemOrderRev: 0,
             // SỬA 8/10 — công tắc "Chỉ hiện bài chưa làm".
             onlyUndone: false,
@@ -299,10 +300,52 @@
                     return;
                 }
                 const other = list[j];
+                if (other.type !== list[i].type) {
+                    say('info', 'Hai bài khác dạng bài — thứ tự chỉ đổi được trong cùng một dạng bài.');
+                    return;
+                }
                 // "Xuống dưới" = đưa bài liền dưới lên trước bài này (giống máy chủ).
                 const movedId = dir < 0 ? id : other.id;
                 const beforeId = dir < 0 ? other.id : id;
+                const oldProblems = this.problems;
+
+                // SỬA 17/11 (khách: "click lên xuống thì thấy câu hỏi nhảy lên nhảy xuống luôn, không cần load lại") —
+                // đổi chỗ NGAY trên trang (chưa đợi máy chủ) + hiệu ứng trượt; máy chủ báo lỗi thì trả lại như cũ.
+                const applyOrder = (arr) => {
+                    const rows = () => Array.from(document.querySelectorAll('[data-pid]'));
+                    const before = new Map(rows().map((el) => [el.dataset.pid, el.getBoundingClientRect().top]));
+                    this.problems = arr;
+                    this.problemOrderRev++;
+                    const idx = this.filteredProblems.findIndex((p) => p.id === id);
+                    if (idx >= 0) this.problemPageIndex = Math.floor(idx / this.problemPageSize) + 1;
+                    this.$nextTick(() => {
+                        rows().forEach((el) => {
+                            const top0 = before.get(el.dataset.pid);
+                            if (top0 === undefined) return;
+                            const dy = top0 - el.getBoundingClientRect().top;
+                            if (Math.abs(dy) < 1 || !el.animate) return;
+                            el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'translateY(0)' }],
+                                { duration: 350, easing: 'cubic-bezier(.2,.8,.2,1)' });
+                        });
+                        const me = document.querySelector('[data-pid="' + id + '"]');
+                        if (me && me.scrollIntoView) me.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    });
+                };
+
+                const moved = this.problems.find((p) => p.id === movedId);
+                const rest = this.problems.filter((p) => p.id !== movedId);
+                const k = rest.findIndex((p) => p.id === beforeId);
+                if (!moved || k < 0) return;
+                rest.splice(k, 0, moved);
+
                 this.movingId = id;
+                this.justMovedId = null;
+                applyOrder(Object.freeze(rest));
+                this.$nextTick(() => {
+                    this.justMovedId = id;
+                    setTimeout(() => { if (this.justMovedId === id) this.justMovedId = null; }, 1400);
+                });
+
                 try {
                     const res = await fetch(this.moveUrl.replace('__ID__', id), {
                         method: 'PATCH',
@@ -314,15 +357,8 @@
                         const firstErr = data.errors ? Object.values(data.errors)[0] : null;
                         throw new Error(data.message || (firstErr && firstErr[0]) || 'Không đổi được thứ tự (mã ' + res.status + ').');
                     }
-                    const moved = this.problems.find((p) => p.id === movedId);
-                    const rest = this.problems.filter((p) => p.id !== movedId);
-                    const k = rest.findIndex((p) => p.id === beforeId);
-                    if (moved && k >= 0) {
-                        rest.splice(k, 0, moved);
-                        this.problems = Object.freeze(rest);
-                        this.problemOrderRev++;
-                    }
                 } catch (e) {
+                    applyOrder(oldProblems); // trả lại thứ tự cũ
                     say('error', e.message || 'Không đổi được thứ tự.');
                 } finally {
                     this.movingId = null;

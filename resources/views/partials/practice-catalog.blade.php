@@ -56,6 +56,9 @@
     .oi-move-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 1px solid #D6E3EF; background: #fff; color: #365B7A; cursor: pointer; box-shadow: 0 2px 6px rgba(18,59,104,.08); transition: background .15s, color .15s, border-color .15s; }
     .oi-move-btn:hover:not(:disabled) { background: #EEF4FA; border-color: #2D7FA3; color: #126F91; }
     .oi-move-btn:disabled { opacity: .5; cursor: wait; }
+    /* SỬA 17/11 — bài vừa đổi chỗ: trượt tới chỗ mới (FLIP ở moveProblem) + nháy nền xanh nhạt cho admin thấy. */
+    .oi-just-moved { position: relative; z-index: 1; animation: oiJustMoved 1.4s ease-out; }
+    @keyframes oiJustMoved { 0%, 35% { background-color: #E3F4FB; box-shadow: inset 3px 0 0 #2D7FA3; } 100% { box-shadow: inset 3px 0 0 transparent; } }
     @media (min-width: 1024px) {
         .oi-prob-grid {
             display: grid;
@@ -718,10 +721,10 @@
                 {{-- SỬA 16/10 (tối ưu tốc độ) — dòng nằm trong <template x-if>: trình duyệt KHÔNG dựng / gắn Alpine cho dòng
                      ẩn, chỉ dựng đúng các dòng của trang đang xem (problemPos = vị trí trong trang, xem practice-page-script). --}}
                 <template x-if="problemPos[{{ $prob['id'] }}] !== undefined">
-                <div :style="{ order: problemPos[{{ $prob['id'] }}] }"
+                <div data-pid="{{ $prob['id'] }}" :style="{ order: problemPos[{{ $prob['id'] }}] }"
                      {{-- Sọc chẵn/lẻ tính theo VỊ TRÍ SAU KHI LỌC, không dùng even:/odd: của CSS —
                           danh sách được sắp lại bằng thuộc tính order nên nth-child sẽ sọc sai. --}}
-                     :class="[problemPos[{{ $prob['id'] }}] % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '']"
+                     :class="[problemPos[{{ $prob['id'] }}] % 2 === 0 ? 'bg-[#FCFEFF]' : 'bg-[#F7FBFC]', problemScope === 'assigned' ? 'oi-prob-grid--asg' : '', justMovedId === {{ $prob['id'] }} ? 'oi-just-moved' : '']"
                      class="grid grid-cols-1 gap-x-2.5 gap-y-2 border-l-2 border-transparent p-2.5 transition-all hover:border-l-[#2D7FA3] hover:bg-[#F8FBFC] sm:px-4 oi-prob-grid {{ $showProblemProvinceAuthor ? '' : 'oi-prob-grid--lite' }} lg:items-center lg:gap-2.5">
 
                     {{-- Tên bài --}}
