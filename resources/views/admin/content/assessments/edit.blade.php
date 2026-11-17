@@ -47,9 +47,6 @@
                 </p>
             </div>
             <div class="aq-actions">
-                <a href="{{ route('admin.content.assessments.items.edit', $assessment->id) }}" class="aq-btn aq-btn-ghost">
-                    <x-lucide name="pencil" />Sửa điểm từng câu
-                </a>
                 <a href="{{ $aqShowUrl }}" class="aq-btn aq-btn-primary">
                     <x-lucide name="settings" />Quản lý câu hỏi<x-lucide name="chevron-right" />
                 </a>
