@@ -45,7 +45,11 @@
             // SỬA 3/11 (khách: "ô dạng bài chỉ 2 lựa chọn Lập trình / Phổ thông, mặc định Lập trình") —
             // 'coding' = bài lập trình; 'general' = Phổ thông (mọi dạng KHÔNG phải lập trình: trắc nghiệm, điền đáp án, nhiều phần…).
             activeTab: 'coding',
-            selectedTopic: 'all',      // 'all' hoặc id chuyên đề
+            selectedTopic: 'all',      // 'all' hoặc các id chuyên đề nối bằng dấu phẩy ("3,7") — SỬA 18/11: cho chọn nhiều
+            // SỬA 18/11 (khách: "thay băng chuyên đề bằng 1 cái select thật đẹp, có search, chọn nhiều") — trạng thái ô chọn.
+            topicOpen: false,
+            topicQ: '',
+            topicOptions: [],
             topicMeta: {},
             generalTagIds: [],
             codingPrimaryIds: [],      // SỬA 16/11 — id tag đang là TAG CHÍNH của ≥ 1 bài lập trình
@@ -364,17 +368,49 @@
                     this.movingId = null;
                 }
             },
-            setTopic(v) { this.selectedTopic = v; this.problemPageIndex = 1; },
+            setTopic(v) { this.selectedTopic = (v === 'all' || v === '' || v === null) ? 'all' : String(v); this.problemPageIndex = 1; },
+            // SỬA 18/11 — chọn nhiều chuyên đề: selectedTopic = "3,7"; 'all' = không lọc.
+            get topicIds() {
+                if (this.selectedTopic === 'all' || this.selectedTopic === undefined || this.selectedTopic === null) return [];
+                return String(this.selectedTopic).split(',').map(Number).filter((n) => n > 0);
+            },
+            setTopicIds(ids) {
+                const uniq = [...new Set(ids.map(Number).filter((n) => n > 0))];
+                this.selectedTopic = uniq.length ? uniq.join(',') : 'all';
+                this.problemPageIndex = 1;
+            },
+            isTopic(id) { return this.topicIds.includes(Number(id)); },
+            toggleTopic(id) {
+                id = Number(id);
+                const ids = this.topicIds;
+                this.setTopicIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+            },
+            clearTopics() { this.setTopicIds([]); },
+            selectShownTopics() { this.setTopicIds([...this.topicIds, ...this.topicShown.map((t) => t.id)]); },
+            topicNorm(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').trim(); },
+            setTopicOptions(list) {
+                this.topicOptions = (list || []).map((t) => ({ id: Number(t.id), name: String(t.name), kind: t.kind || null, counts: t.counts || {}, s: this.topicNorm(t.name) }));
+            },
+            // Chuyên đề hiện trong danh sách xổ xuống: đúng dạng đang xem (topicFits) + khớp ô tìm (không dấu).
+            get topicShown() {
+                const q = this.topicNorm(this.topicQ);
+                return this.topicOptions.filter((t) => this.topicFits(t.id, t.kind, t.counts) && (!q || t.s.includes(q)));
+            },
+            get topicChosen() {
+                return this.topicIds.map((id) => this.topicOptions.find((t) => t.id === id)).filter(Boolean);
+            },
+            openTopicSelect() {
+                this.topicOpen = !this.topicOpen;
+                if (this.topicOpen) this.$nextTick(() => { const el = this.$refs.topicSearch; if (el) el.focus(); });
+            },
             // SỬA 12/11 (khách: "bấm vào chuyên đề của từng bài thì lọc theo chuyên đề đó") — chọn chuyên đề, xoá ô tìm kiếm
             // (để không bị lọc chồng ra rỗng), cuộn băng chuyên đề tới thẻ đang chọn và đưa danh sách lên đầu.
             pickTopic(id) {
                 this.searchQuery = '';
                 this.setTopic(Number(id));
                 this.$nextTick(() => {
-                    const rail = document.querySelector('[x-ref="topicRail"]');
-                    const chip = rail && rail.querySelector('[aria-pressed="true"]');
-                    if (chip && chip.scrollIntoView) chip.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-                    if (rail && rail.getBoundingClientRect().top < 0) rail.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    const box = document.querySelector('.ots');
+                    if (box && box.getBoundingClientRect().top < 0) box.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 });
             },
             /*
@@ -403,8 +439,12 @@
             onTypeChange() {
                 this.problemPageIndex = 1;
                 if (this.selectedTopic === 'all') return;
-                const t = (this.topicMeta || {})[String(this.selectedTopic)];
-                if (t && !this.topicFits(this.selectedTopic, t.kind, t.counts)) this.selectedTopic = 'all';
+                // SỬA 18/11 — chọn nhiều: bỏ những chuyên đề không thuộc dạng mới.
+                const keep = this.topicIds.filter((id) => {
+                    const t = (this.topicMeta || {})[String(id)];
+                    return !t || this.topicFits(id, t.kind, t.counts);
+                });
+                this.setTopicIds(keep);
             },
             setDifficulty(v) { this.selectedDifficulty = v; this.problemPageIndex = 1; },
             setExamType(v) { this.selectedExamType = v; this.examPageIndex = 1; },
@@ -441,6 +481,7 @@
             computeFilteredProblems(q, assignedView) {
                 const qPlain = String(q || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 
+                const topicIds = this.topicIds; // SỬA 18/11 — chọn nhiều chuyên đề
                 const list = this.problems.filter((p) => {
                     // "Tất cả bài tập" chỉ gồm bài thuộc kho; bài chỉ có mặt vì được giao thì chỉ
                     // hiện ở "Bài được giao".
@@ -451,7 +492,7 @@
                     const matchTab = assignedView || this.activeTab === 'all'
                         || (this.activeTab === 'general' ? p.type !== 'coding' : p.type === this.activeTab);
                     // SỬA 16/11 (khách: "bấm tag nào thì chỉ lọc bài có TAG CHÍNH là tag đó") — tag chính = phần tử đầu tagIds.
-                    const matchTopic = this.selectedTopic === 'all' || Number(p.tagIds[0]) === Number(this.selectedTopic);
+                    const matchTopic = !topicIds.length || topicIds.includes(Number(p.tagIds[0]));
                     const matchDiff = this.selectedDifficulty === 'all' || p.difficulty === this.selectedDifficulty;
                     // SỬA 12/11 — p.search có cả tên chuyên đề + bản không dấu; so cả q gốc lẫn q bỏ dấu.
                     const matchSearch = !q || p.search.includes(q) || (qPlain !== q && p.search.includes(qPlain));

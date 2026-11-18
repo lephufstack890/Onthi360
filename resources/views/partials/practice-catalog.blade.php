@@ -58,6 +58,60 @@
     .oi-move-btn:disabled { opacity: .5; cursor: wait; }
     /* SỬA 17/11 — bài vừa đổi chỗ: trượt tới chỗ mới (FLIP ở moveProblem) + nháy nền xanh nhạt cho admin thấy. */
     .oi-prob-list > [data-pid] { border-top: 1px solid #E7EFF3; }
+    /* SỬA 18/11 — ô chọn nhiều chuyên đề (.ots). */
+    .ots { position: relative; z-index: 30; }
+    .ots-trigger { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px; padding: 6px 10px 6px 8px; border: 1px solid #D6E3EF; border-radius: 16px; background: #fff; text-align: left; cursor: pointer; box-shadow: 0 2px 10px rgba(28,91,121,.05); transition: border-color .15s, box-shadow .15s; }
+    .ots-trigger:hover { border-color: #B9CCDC; }
+    .ots-trigger.is-open { border-color: #2D7FA3; box-shadow: 0 0 0 4px rgba(45,127,163,.12); }
+    .ots-ico { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 11px; background: linear-gradient(135deg, #E3F4FB, #EEF4FA); color: #126F91; }
+    .ots-ico svg { width: 17px; height: 17px; }
+    .ots-label { flex-shrink: 0; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #607A90; }
+    .ots-values { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .ots-placeholder { font-size: 13px; font-weight: 700; color: #123B68; }
+    .ots-chip { display: inline-flex; max-width: 200px; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #123B68; color: #fff; font-size: 12px; font-weight: 700; animation: otsPop .16s ease-out; }
+    .ots-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ots-chip-x { display: grid; place-items: center; width: 18px; height: 18px; flex-shrink: 0; border-radius: 999px; background: rgba(255,255,255,.18); cursor: pointer; }
+    .ots-chip-x:hover { background: rgba(255,255,255,.35); }
+    .ots-chip-x svg { width: 11px; height: 11px; }
+    .ots-more { padding: 3px 9px; border-radius: 999px; background: #E3F4FB; color: #126F91; font-size: 12px; font-weight: 800; }
+    .ots-clear, .ots-caret { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 9px; color: #607A90; }
+    .ots-clear { cursor: pointer; }
+    .ots-clear:hover { background: #FDECEC; color: #C2410C; }
+    .ots-clear svg, .ots-caret svg { width: 16px; height: 16px; }
+    .ots-caret svg { transition: transform .2s; }
+    .ots-trigger.is-open .ots-caret svg { transform: rotate(180deg); }
+    .ots-panel { position: absolute; left: 0; right: 0; top: calc(100% + 8px); overflow: hidden; border: 1px solid #D6E3EF; border-radius: 18px; background: #fff; box-shadow: 0 18px 40px rgba(18,59,104,.16), 0 2px 6px rgba(18,59,104,.06); }
+    .ots-enter, .ots-leave { transition: opacity .15s ease, transform .15s ease; }
+    .ots-enter-from { opacity: 0; transform: translateY(-6px) scale(.99); }
+    .ots-enter-to { opacity: 1; transform: none; }
+    .ots-search { display: flex; align-items: center; gap: 8px; margin: 12px 12px 8px; padding: 0 10px; height: 42px; border: 1px solid #D6E3EF; border-radius: 12px; background: #F7FAFD; color: #607A90; }
+    .ots-search:focus-within { border-color: #2D7FA3; background: #fff; box-shadow: 0 0 0 3px rgba(45,127,163,.12); }
+    .ots-search > svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .ots-search input { flex: 1; min-width: 0; height: 100%; border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent; padding: 0; font-size: 13px; color: #123B68; }
+    .ots-search-x { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; color: #94A3B8; }
+    .ots-search-x:hover { background: #EEF4FA; color: #123B68; }
+    .ots-search-x svg { width: 14px; height: 14px; }
+    .ots-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 14px 8px; font-size: 12px; color: #607A90; }
+    .ots-bar b { color: #123B68; }
+    .ots-bar-actions { display: flex; gap: 4px; }
+    .ots-bar-actions button { padding: 4px 9px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #126F91; }
+    .ots-bar-actions button:hover:not(:disabled) { background: #EAF5F8; }
+    .ots-bar-actions button:disabled { color: #B6C6D4; cursor: default; }
+    .ots-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px; max-height: 300px; overflow-y: auto; padding: 4px 10px 10px; border-top: 1px solid #EEF3F8; }
+    .ots-opt { display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; text-align: left; font-size: 13px; font-weight: 600; color: #234A6B; transition: background .12s; }
+    .ots-opt:hover { background: #F2F7FB; }
+    .ots-opt.is-on { background: #EAF5F8; color: #0F4F6B; font-weight: 700; }
+    .ots-check { display: grid; place-items: center; width: 18px; height: 18px; flex-shrink: 0; border: 1.5px solid #B9CCDC; border-radius: 6px; background: #fff; color: transparent; transition: background .12s, border-color .12s; }
+    .ots-check svg { width: 12px; height: 12px; stroke-width: 3; }
+    .ots-opt.is-on .ots-check { border-color: #126F91; background: #126F91; color: #fff; }
+    .ots-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ots-empty { padding: 18px 14px 20px; text-align: center; font-size: 13px; color: #607A90; }
+    .ots-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid #EEF3F8; background: #F7FAFD; font-size: 12px; color: #607A90; }
+    .ots-foot b { color: #123B68; }
+    .ots-done { padding: 7px 16px; border-radius: 10px; background: #123B68; color: #fff; font-size: 12px; font-weight: 800; }
+    .ots-done:hover { background: #0E2F54; }
+    @keyframes otsPop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+    @media (max-width: 640px) { .ots-label { display: none; } .ots-list { grid-template-columns: 1fr; max-height: 55vh; } .ots-chip { max-width: 150px; } }
     .oi-just-moved { position: relative; z-index: 1; animation: oiJustMoved 1.4s ease-out; }
     @keyframes oiJustMoved { 0%, 35% { background-color: #E3F4FB; box-shadow: inset 3px 0 0 #2D7FA3; } 100% { box-shadow: inset 3px 0 0 transparent; } }
     @media (min-width: 1024px) {
@@ -208,9 +262,9 @@
             'tagIds' => $p['tagIds'],
             'difficulty' => $p['difficulty'],
             'status' => $p['status'],
-            // SỬA 12/11 (khách: "gõ tag chuyên đề vào ô tìm kiếm cũng phải ra bài thuộc tag đó") — tìm cả theo tên chuyên đề.
-            // + bản KHÔNG DẤU để gõ "so hoc" cũng ra "Số học".
-            'search' => (function ($t) { $t = mb_strtolower(trim($t)); return $t.' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($t)); })($p['title'].' '.$p['code'].' '.implode(' ', $p['topicLabels'] ?? [])),
+            // SỬA 18/11 (khách: "ô tìm kiếm chỉ search theo tên với mã bài thôi") — bỏ tên chuyên đề khỏi chuỗi tìm (lọc chuyên đề đã có
+            // ô chọn riêng). Vẫn kèm bản KHÔNG DẤU để gõ "tong hai so" cũng ra "Tổng hai số".
+            'search' => (function ($t) { $t = mb_strtolower(trim($t)); return $t.' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($t)); })($p['title'].' '.$p['code']),
             // SỬA 8/10 — dữ liệu để sắp xếp bảng theo Chuyên đề / Độ khó / Tỷ lệ AC.
             'titleText' => (string) $p['title'],
             // SỬA 8/10 (khách: "nút tắt/bật chưa làm") — đã làm = có ít nhất 1 lượt nộp hoặc đã AC/đang làm dở.
@@ -541,59 +595,9 @@
         </div>
 
         <div x-show="problemScope !== 'managed'" class="flex flex-col gap-4">
-        {{-- [PRACTICE-03] CHUYÊN ĐỀ — bản mẫu mới bọc băng chuyên đề thành carousel có 2 nút
-             cuộn hai bên để danh sách nhiều thẻ vẫn gọn. Cuộn bằng $refs của Alpine, không
-             thêm mã script mới. --}}
-        <div class="relative">
-            <button type="button" x-ref="topicPrev" aria-label="Cuộn chuyên đề sang trái" title="Cuộn sang trái"
-                    @click="$refs.topicRail.scrollBy({ left: -Math.max(260, $refs.topicRail.clientWidth * 0.7), behavior: 'smooth' })"
-                    class="absolute left-0 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[#D6E3EF] bg-white/95 text-[#123B68] shadow-[0_3px_10px_rgba(18,59,104,0.1)] transition hover:bg-[#EEF4FA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:grid">
-                <x-lucide name="chevron-left" class="h-4 w-4" />
-            </button>
-            {{-- SỬA 10/10 (khách: "2 nút mũi tên bấm qua lại không được, kéo qua kéo lại không được") —
-                 (1) trước đây chỉ liệt kê 12 chuyên đề đầu nên băng gần như vừa khít màn hình, không có
-                 gì để cuộn; giờ liệt kê ĐỦ. (2) Thêm KÉO BẰNG CHUỘT (điện thoại vẫn vuốt tay như cũ);
-                 vừa kéo xong không bấm nhầm vào thẻ chuyên đề dưới con trỏ. (3) Hai nút mũi tên mờ đi
-                 khi đã tới đầu/cuối và TỰ ẨN khi băng không dài hơn khung (không còn nút "bấm không ăn"). --}}
-            <div x-ref="topicRail" style="cursor:grab" class="flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar py-0.5 sm:px-9"
-                 x-init="(() => {
-                    const el = $el;
-                    let down = false, moved = false, startX = 0, startLeft = 0;
-                    const sync = () => {
-                        const prev = $refs.topicPrev, next = $refs.topicNext; // nút 'next' nằm SAU băng nên phải lấy lúc chạy, không lấy lúc khởi tạo
-                        const max = el.scrollWidth - el.clientWidth;
-                        const overflow = max > 2;
-                        [prev, next].forEach((b) => { if (b) b.style.display = overflow ? '' : 'none'; });
-                        if (prev) { prev.disabled = el.scrollLeft <= 2; prev.style.opacity = prev.disabled ? '.4' : ''; }
-                        if (next) { next.disabled = el.scrollLeft >= max - 2; next.style.opacity = next.disabled ? '.4' : ''; }
-                    };
-                    el.addEventListener('scroll', sync, { passive: true });
-                    window.addEventListener('resize', sync);
-                    if (window.ResizeObserver) new ResizeObserver(sync).observe(el);
-                    setTimeout(sync, 0); setTimeout(sync, 400);
-                    el.addEventListener('pointerdown', (e) => {
-                        if (e.pointerType !== 'mouse' || e.button !== 0) return;
-                        down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft;
-                    });
-                    window.addEventListener('pointermove', (e) => {
-                        if (!down) return;
-                        const dx = e.clientX - startX;
-                        if (!moved && Math.abs(dx) > 5) { moved = true; el.style.scrollBehavior = 'auto'; el.style.cursor = 'grabbing'; }
-                        if (moved) { el.scrollLeft = startLeft - dx; e.preventDefault(); }
-                    });
-                    const end = () => { if (!down) return; down = false; el.style.scrollBehavior = ''; el.style.cursor = 'grab'; };
-                    window.addEventListener('pointerup', end);
-                    window.addEventListener('pointercancel', end);
-                    el.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
-                 })()">
-            <button type="button" @click="setTopic('all')" :aria-pressed="selectedTopic === 'all'"
-                    class="inline-flex min-h-9 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
-                    :class="selectedTopic === 'all' ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">
-                <span class="grid h-4 w-4 place-items-center rounded-md" :class="selectedTopic === 'all' ? 'bg-white/60' : 'bg-white'">
-                    <x-lucide name="code-2" class="h-3 w-3" ::class="selectedTopic === 'all' ? 'text-[#126F91]' : 'text-[#2D7FA3]'" />
-                </span>
-                Tất cả chuyên đề
-            </button>
+        {{-- SỬA 18/11 (khách: "chỗ này thay cho tôi 1 cái select thật đẹp list tag chuyên đề, có search và cho chọn nhiều") —
+             băng thẻ chuyên đề kéo ngang được thay bằng Ô CHỌN NHIỀU: tìm không dấu, tick nhiều chuyên đề, chip đã chọn hiện ngay
+             trên ô (bấm × để bỏ). Lọc vẫn theo TAG CHÍNH; danh sách chỉ gồm chuyên đề đúng dạng đang xem (topicFits). --}}
             {{-- SỬA 12/11 — thẻ chuyên đề chỉ hiện khi đúng loại đang lọc (Lập trình / Phổ thông), xem topicFits().
                  "Phổ thông" = tag loại Phổ thông (kể cả tag chưa có bài) + tag đang gắn trên các Bài phổ thông (để bấm lọc ra bài). --}}
             @php
@@ -620,25 +624,59 @@
                 $__generalPrimary = collect($problems)->filter(fn ($p) => ($p['typeKey'] ?? '') !== 'coding')->map($__firstTag)
                     ->merge(collect($gstRows)->map($__firstTag))->filter()->unique()->values()->all();
             @endphp
-            <span x-init="topicMeta = @js(collect($chipTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all()); generalTagIds = @js($__generalIdsAll); codingPrimaryIds = @js($__codingPrimary); generalPrimaryIds = @js($__generalPrimary)" hidden></span>
-            @foreach ($chipTags as $i => $tag)
-                @php $icon = $topicChipIcons[$i % count($topicChipIcons)]; @endphp
-                <button type="button" @click="setTopic({{ $tag['id'] }})" :aria-pressed="selectedTopic === {{ $tag['id'] }}"
-                        x-show="topicFits({{ (int) $tag['id'] }}, @js($tag['kind'] ?? null), @js($tag['counts'] ?? []))"
-                        class="inline-flex min-h-9 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap"
-                        :class="selectedTopic === {{ $tag['id'] }} ? 'border-[#123B68] bg-[#123B68] text-white' : 'border-[#D6E3EF] bg-[#EEF4FA] text-[#365B7A] hover:border-[#B9CCDC] hover:bg-[#F5F8FC]'">
-                    <span class="grid h-4 w-4 place-items-center rounded-md" :class="selectedTopic === {{ $tag['id'] }} ? 'bg-white/60' : 'bg-white'">
-                        <x-lucide :name="$icon" class="h-3 w-3" ::class="selectedTopic === {{ $tag['id'] }} ? 'text-[#126F91]' : 'text-[#4C83B0]'" />
-                    </span>
-                    {{ $tag['name'] }}
-                </button>
-            @endforeach
-            </div>
-            <button type="button" x-ref="topicNext" aria-label="Cuộn chuyên đề sang phải" title="Cuộn sang phải"
-                    @click="$refs.topicRail.scrollBy({ left: Math.max(260, $refs.topicRail.clientWidth * 0.7), behavior: 'smooth' })"
-                    class="absolute right-0 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[#D6E3EF] bg-white/95 text-[#123B68] shadow-[0_3px_10px_rgba(18,59,104,0.1)] transition hover:bg-[#EEF4FA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBEAF1] sm:grid">
-                <x-lucide name="chevron-right" class="h-4 w-4" />
+            <span x-init="setTopicOptions(@js(collect($chipTags)->map(fn ($t) => ['id' => (int) $t['id'], 'name' => (string) $t['name'], 'kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []])->values()->all())); topicMeta = @js(collect($chipTags)->mapWithKeys(fn ($t) => [(string) $t['id'] => ['kind' => $t['kind'] ?? null, 'counts' => $t['counts'] ?? []]])->all()); generalTagIds = @js($__generalIdsAll); codingPrimaryIds = @js($__codingPrimary); generalPrimaryIds = @js($__generalPrimary)" hidden></span>
+        <div class="ots" @click.outside="topicOpen = false" @keydown.escape="topicOpen = false">
+            <button type="button" class="ots-trigger" :class="{ 'is-open': topicOpen, 'has-value': topicIds.length }"
+                    @click="openTopicSelect()" :aria-expanded="topicOpen ? 'true' : 'false'" aria-haspopup="listbox">
+                <span class="ots-ico"><x-lucide name="layers" /></span>
+                <span class="ots-label">Chuyên đề</span>
+                <span class="ots-values">
+                    <span class="ots-placeholder" x-show="!topicIds.length">Tất cả chuyên đề</span>
+                    <template x-for="t in topicChosen.slice(0, 5)" :key="'tc' + t.id">
+                        <span class="ots-chip">
+                            <span class="ots-chip-text" x-text="t.name"></span>
+                            <span class="ots-chip-x" role="button" tabindex="-1" title="Bỏ chọn" @click.stop="toggleTopic(t.id)"><x-lucide name="x" /></span>
+                        </span>
+                    </template>
+                    <span class="ots-more" x-show="topicChosen.length > 5" x-text="'+' + (topicChosen.length - 5)"></span>
+                </span>
+                <span class="ots-clear" x-show="topicIds.length" x-cloak role="button" title="Bỏ chọn tất cả" @click.stop="clearTopics()"><x-lucide name="x" /></span>
+                <span class="ots-caret"><x-lucide name="chevron-down" /></span>
             </button>
+
+            <div class="ots-panel" x-show="topicOpen" x-cloak
+                 x-transition:enter="ots-enter" x-transition:enter-start="ots-enter-from" x-transition:enter-end="ots-enter-to"
+                 x-transition:leave="ots-leave" x-transition:leave-start="ots-enter-to" x-transition:leave-end="ots-enter-from">
+                <div class="ots-search">
+                    <x-lucide name="search" />
+                    <input type="text" x-ref="topicSearch" x-model="topicQ" placeholder="Tìm chuyên đề…" autocomplete="off"
+                           @keydown.enter.prevent="topicShown[0] && toggleTopic(topicShown[0].id)">
+                    <button type="button" class="ots-search-x" x-show="topicQ" @click="topicQ = ''; $refs.topicSearch.focus()" title="Xoá ô tìm"><x-lucide name="x" /></button>
+                </div>
+                <div class="ots-bar">
+                    <span><b x-text="topicShown.length"></b> chuyên đề</span>
+                    <span class="ots-bar-actions">
+                        <button type="button" @click="selectShownTopics()" :disabled="!topicShown.length">Chọn tất cả</button>
+                        <button type="button" @click="clearTopics()" :disabled="!topicIds.length">Bỏ chọn</button>
+                    </span>
+                </div>
+                <ul class="ots-list" role="listbox" aria-multiselectable="true" aria-label="Chuyên đề">
+                    <template x-for="t in topicShown" :key="'to' + t.id">
+                        <li>
+                            <button type="button" role="option" class="ots-opt" :class="{ 'is-on': isTopic(t.id) }"
+                                    :aria-selected="isTopic(t.id) ? 'true' : 'false'" @click="toggleTopic(t.id)">
+                                <span class="ots-check"><x-lucide name="check" /></span>
+                                <span class="ots-name" x-text="t.name"></span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <p class="ots-empty" x-show="!topicShown.length">Không tìm thấy chuyên đề nào khớp “<span x-text="topicQ"></span>”.</p>
+                <div class="ots-foot">
+                    <span>Đã chọn <b x-text="topicIds.length"></b> chuyên đề</span>
+                    <button type="button" class="ots-done" @click="topicOpen = false">Xong</button>
+                </div>
+            </div>
         </div>
 
         {{-- [PRACTICE-04] DANH SÁCH BÀI — dựng lại theo bản mẫu MỚI (education-main/src/

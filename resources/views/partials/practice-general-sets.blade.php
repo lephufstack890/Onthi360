@@ -8,7 +8,7 @@
 @php
     // SỬA 12/11 — practice-catalog có thể đã nạp sẵn (để dựng băng chuyên đề Phổ thông) thì dùng lại, khỏi truy vấn 2 lần.
     $gstRows = $gstRows ?? app(\App\Services\Public\GeneralSetCatalogService::class)->rows(auth()->user());
-    $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => $r['search'].' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($r['search'])) /* SỬA 12/11 — tìm không dấu */, 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
+    $gstMatchData = array_map(fn ($r) => ['id' => $r['id'], 'search' => (function ($t) { $t = mb_strtolower(trim($t)); return $t.' '.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($t)); })($r['title'].' '.($r['code'] ?? '')) /* SỬA 18/11 (khách: "ô tìm chỉ theo tên với mã bài") — bỏ tên chuyên đề; vẫn tìm không dấu */, 'tagIds' => $r['tagIds'], 'difficulty' => $r['difficulty'], 'done' => $r['myAttempts'] > 0], $gstRows);
 @endphp
 <script>
     // Số bài đang hiện — để dòng "Hiển thị N bài tập" ở đầu trang đếm đúng khi chọn Phổ thông.
@@ -26,7 +26,7 @@
                 const topic = this.selectedTopic, diff = this.selectedDifficulty;
                 return this.gstRows.filter((r) =>
                     (!q || r.search.includes(q) || r.search.includes(qPlain))
-                    && (topic === 'all' || topic === undefined || Number(r.tagIds[0]) === Number(topic)) /* SỬA 16/11 — chỉ khớp TAG CHÍNH */
+                    && (topic === 'all' || topic === undefined || String(topic).split(',').map(Number).includes(Number(r.tagIds[0]))) /* SỬA 16/11 — chỉ khớp TAG CHÍNH; SỬA 18/11 — chọn nhiều */
                     && (diff === 'all' || diff === undefined || r.difficulty === diff)
                     && (!this.onlyUndone || !r.done)).map((r) => r.id);
             },
