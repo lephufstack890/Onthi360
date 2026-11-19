@@ -647,12 +647,12 @@
                                             $__tags = array_values(array_filter($r['tags'] ?? [], fn ($tg) => ($tg['name'] ?? '') !== ''));
                                             $__curTags = explode(',', (string) ($filters['tag'] ?? ''));
                                             $__tagLink = fn ($tg) => isset($tg['id']) ? $filterLink(['tag' => $tg['id'], 'page' => null]) : null;
+                                            $__m = $__tags[0] ?? null;
                                         @endphp
                                         @if ($__tags === [])
                                             <span class="akx-mute" style="font-size:12px">Chưa gắn</span>
                                         @else
                                             <div class="akx-topics">
-                                                @php($__m = $__tags[0])
                                                 <a href="{{ $__tagLink($__m) }}" class="akx-topic-main {{ in_array((string) ($__m['id'] ?? ''), $__curTags, true) ? 'akx-topic-on' : '' }}" title="Lọc theo chuyên đề “{{ $__m['name'] }}” (tag chính)">{{ $__m['name'] }}</a>
                                                 @if (count($__tags) > 1)
                                                     <span class="akx-topic-subs">

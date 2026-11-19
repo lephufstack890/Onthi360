@@ -55,7 +55,9 @@
         @if ($aqPreview->isNotEmpty())
             <ol class="aq-list">
                 @foreach ($aqPreview as $i => $it)
-                    @php($aqPub = $it->question && (($it->question->status->value ?? $it->question->status) === 'published'))
+                    @php
+                        $aqPub = $it->question && (($it->question->status->value ?? $it->question->status) === 'published');
+                    @endphp
                     <li>
                         <a href="{{ $aqShowUrl }}" class="aq-item" title="{{ $it->question?->title }}">
                             <span class="aq-num">{{ $i + 1 }}</span>
