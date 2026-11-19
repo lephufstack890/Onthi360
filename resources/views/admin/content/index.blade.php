@@ -192,7 +192,7 @@
         {{-- SỬA 19/11 (khách: "lọc theo ajax hết nha, thiết kế lại khu lọc cho đẹp") — khu lọc #akx-filters + kết quả #akx-results
              tải lại bằng AJAX (script cuối trang), không tải lại cả trang. --}}
         <section class="acx-panel akf" id="akx-filters" style="margin-top:16px" aria-label="Bộ lọc câu hỏi">
-            <div class="akf-head">
+            <div class="akf-head" data-akx-swap="head">
                 <span class="akf-title"><x-lucide name="filter" />Bộ lọc</span>
                 @php
                     $akfActive = collect($filters)->except(['in_exam', 'type', 'subject'])->filter(fn ($v) => $v !== null && $v !== '')->count();
@@ -207,7 +207,7 @@
                 @endif
             </div>
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
-            <div class="akx-pad">
+            <div class="akx-pad" data-akx-swap="subjects">
                 <div class="akx-chips">
                     <a href="{{ $filterLink(['subject' => null]) }}" class="akx-chip {{ ! ($filters['subject'] ?? null) ? 'is-on' : '' }}">Tất cả môn</a>
                     @foreach ($subjectOptions as $code => $label)
@@ -227,7 +227,7 @@
             {{-- SỬA 30/9 (khách: "dạng câu ở dưới làm tab phân chia dạng câu") — dạng câu giờ là
                  TAB, không còn là 1 ô chọn trong hàng bộ lọc. Mỗi tab in luôn số câu của dạng đó
                  để nhìn phát biết kho đang nặng dạng nào. --}}
-            <div class="akx-pad">
+            <div class="akx-pad" data-akx-swap="types">
                 <div class="akx-chips">
                     {{-- SỬA 3/11 (khách: "bỏ Trắc nghiệm / Điền khuyết / Nhiều phần, để 1 tab Phổ thông") — chỉ còn Lập trình và Phổ thông
                          (Phổ thông = mọi dạng không phải lập trình + các "Bài phổ thông", mỗi bài tính 1). --}}
@@ -275,17 +275,21 @@
                     <div class="aks-wrap" x-data="{
                             opts: @js($aksOpts),
                             sel: @js($aksSel),
-                            init0: @js(implode(',', $aksSel)),
-                            open: false, q: '', pos: '',
+                            open: false, q: '', pos: '', form: null, t: null,
+                            init() { this.form = this.$el.closest('form'); },
+                            // SỬA 19/11 (khách: "chọn là nó lọc luôn, không cần bấm Lọc") — mỗi lần tick / bỏ tick là lọc ngay.
+                            sync() { clearTimeout(this.t); this.t = setTimeout(() => { const f = this.form; if (!f) return; if (f.requestSubmit) f.requestSubmit(); else f.submit(); }, 250); },
                             norm(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').trim(); },
                             get shown() { const q = this.norm(this.q); return this.opts.filter((o) => !q || this.norm(o.name).includes(q)); },
                             get chosen() { return this.sel.filter((v) => v !== 'none').map((v) => this.opts.find((o) => o.id === v)).filter(Boolean); },
                             has(id) { return this.sel.includes(String(id)); },
-                            toggle(id) { id = String(id); this.sel = this.sel.filter((v) => v !== 'none'); this.sel = this.has(id) ? this.sel.filter((v) => v !== id) : [...this.sel, id]; },
-                            toggleNone() { this.sel = this.has('none') ? [] : ['none']; },
+                            toggle(id) { id = String(id); const on = this.has(id); this.sel = this.sel.filter((v) => v !== 'none' && v !== id); if (!on) this.sel.push(id); this.sync(); },
+                            toggleNone() { this.sel = this.has('none') ? [] : ['none']; this.sync(); },
+                            pickAll() { this.sel = [...new Set([...this.sel.filter((v) => v !== 'none'), ...this.shown.map((o) => o.id)])]; this.sync(); },
+                            clearAll() { this.sel = []; this.sync(); },
                             place() { const r = this.$refs.btn.getBoundingClientRect(); const w = Math.min(Math.max(r.width, 380), window.innerWidth - 16); const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)); this.pos = 'left:' + left + 'px;top:' + (r.bottom + 6) + 'px;width:' + w + 'px'; },
                             toggleOpen() { if (this.open) { this.close(); return; } this.place(); this.open = true; this.$nextTick(() => this.$refs.q && this.$refs.q.focus()); },
-                            close() { if (!this.open) return; this.open = false; this.q = ''; if (this.sel.join(',') !== this.init0) { this.init0 = this.sel.join(','); this.$nextTick(() => { const f = this.$root.closest('form'); if (f.requestSubmit) f.requestSubmit(); else f.submit(); }); } },
+                            close() { if (!this.open) return; this.open = false; this.q = ''; },
                          }"
                          @resize.window="open && place()" @scroll.window="open && place()">
                         <label class="akx-lbl">Chuyên đề</label>
@@ -295,7 +299,7 @@
                                 <span class="aks-ph" x-show="!sel.length">Tất cả chuyên đề</span>
                                 <span class="aks-ph" x-show="has('none')" x-cloak>Chưa gắn chuyên đề</span>
                                 <template x-for="o in chosen.slice(0, 1)" :key="'c' + o.id">
-                                    <span class="aks-chip"><span class="aks-chip-t" x-text="o.name"></span><span class="aks-chip-x" role="button" title="Bỏ chọn" @click.stop="toggle(o.id); if (!open) { open = true; close(); }">×</span></span>
+                                    <span class="aks-chip"><span class="aks-chip-t" x-text="o.name"></span><span class="aks-chip-x" role="button" title="Bỏ chọn" @click.stop="toggle(o.id)">×</span></span>
                                 </template>
                                 <span class="aks-more" x-show="chosen.length > 1" x-text="'+' + (chosen.length - 1)" x-cloak></span>
                             </span>
@@ -310,8 +314,8 @@
                                 <div class="aks-bar">
                                     <span><b x-text="shown.length"></b> chuyên đề</span>
                                     <span>
-                                        <button type="button" @click="sel = [...new Set([...sel.filter((v) => v !== 'none'), ...shown.map((o) => o.id)])]" :disabled="!shown.length">Chọn tất cả</button>
-                                        <button type="button" @click="sel = []" :disabled="!sel.length">Bỏ chọn</button>
+                                        <button type="button" @click="pickAll()" :disabled="!shown.length">Chọn tất cả</button>
+                                        <button type="button" @click="clearAll()" :disabled="!sel.length">Bỏ chọn</button>
                                     </span>
                                 </div>
                                 <ul class="aks-list" role="listbox" aria-multiselectable="true">
@@ -325,7 +329,7 @@
                                 <p class="aks-empty" x-show="!shown.length">Không có chuyên đề nào khớp.</p>
                                 <div class="aks-foot">
                                     <button type="button" class="aks-none" :class="{ 'is-on': has('none') }" @click="toggleNone()">Chưa gắn chuyên đề</button>
-                                    <button type="button" class="aks-done" @click="close()">Lọc</button>
+                                    <button type="button" class="aks-done" @click="close()">Đóng</button>
                                 </div>
                             </div>
                         </template>
@@ -913,11 +917,20 @@
                             var oldQ = document.getElementById('filter-q');
                             var focusQ = !!oldQ && document.activeElement === oldQ;
                             var qVal = oldQ ? oldQ.value : null, caret = focusQ ? oldQ.selectionStart : null;
-                            ['akx-filters', 'akx-results'].forEach(function (id) {
+                            // keepForm: lọc do chính form (ô chọn, ô tìm, ô chuyên đề đang mở) — GIỮ NGUYÊN form để không đóng ô
+                            // chuyên đề / mất chữ đang gõ; chỉ thay tiêu đề, 2 hàng chip và kết quả.
+                            var ids = opts.keepForm ? ['akx-results'] : ['akx-filters', 'akx-results'];
+                            ids.forEach(function (id) {
                                 var cur = document.getElementById(id), next = doc.getElementById(id);
                                 if (cur && next) cur.replaceWith(document.importNode(next, true));
                                 else if (cur && !next) cur.innerHTML = '';
                             });
+                            if (opts.keepForm) {
+                                document.querySelectorAll('#akx-filters [data-akx-swap]').forEach(function (cur) {
+                                    var next = doc.querySelector('#akx-filters [data-akx-swap="' + cur.getAttribute('data-akx-swap') + '"]');
+                                    if (next) cur.replaceWith(document.importNode(next, true));
+                                });
+                            }
                             if (opts.push !== false) history.pushState({ akx: 1 }, '', url);
                             var q = document.getElementById('filter-q');
                             if (q && focusQ) { q.value = qVal; q.focus(); try { q.setSelectionRange(caret, caret); } catch (e) {} }
@@ -946,20 +959,20 @@
                     if (!f.closest || !f.closest('#akx-filters') || (f.method || 'get').toLowerCase() !== 'get') return;
                     e.preventDefault();
                     clearTimeout(timer);
-                    go(formUrl(f));
+                    go(formUrl(f), { keepForm: true });
                 });
                 // Đổi ô chọn → lọc ngay; gõ ô tìm → đợi 400ms rồi lọc.
                 document.addEventListener('change', function (e) {
                     var el = e.target;
                     if (!el.closest || !el.closest('#akx-filters form') || el.tagName !== 'SELECT') return;
                     clearTimeout(timer);
-                    go(formUrl(el.form));
+                    go(formUrl(el.form), { keepForm: true });
                 });
                 document.addEventListener('input', function (e) {
                     var el = e.target;
                     if (!el || el.id !== 'filter-q' || !el.form) return;
                     clearTimeout(timer);
-                    timer = setTimeout(function () { go(formUrl(el.form)); }, 400);
+                    timer = setTimeout(function () { go(formUrl(el.form), { keepForm: true }); }, 400);
                 });
                 window.addEventListener('popstate', function () {
                     if (document.getElementById('akx-results')) go(window.location.href, { push: false });
