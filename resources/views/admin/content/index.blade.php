@@ -277,7 +277,6 @@
                             sel: @js($aksSel),
                             open: false, q: '', pos: '', form: null, t: null,
                             init() { this.form = this.$el.closest('form'); },
-                            // SỬA 19/11 (khách: "chọn là nó lọc luôn, không cần bấm Lọc") — mỗi lần tick / bỏ tick là lọc ngay.
                             sync() { clearTimeout(this.t); this.t = setTimeout(() => { const f = this.form; if (!f) return; if (f.requestSubmit) f.requestSubmit(); else f.submit(); }, 250); },
                             norm(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').trim(); },
                             get shown() { const q = this.norm(this.q); return this.opts.filter((o) => !q || this.norm(o.name).includes(q)); },
