@@ -154,7 +154,58 @@
     @endif
 
     @if ($isQuestions)
-        <section class="acx-panel" style="margin-top:16px" aria-label="Bộ lọc câu hỏi">
+
+    {{-- SỬA 19/11 — giao diện mới khu lọc (#akx-filters) + hiệu ứng tải AJAX. --}}
+    <style>
+        .akf { overflow: visible; }
+        .akf-head { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid #EEF3F8; }
+        .akf-title { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #0F2B4D; }
+        .akf-title svg { width: 18px; height: 18px; padding: 6px; box-sizing: content-box; border-radius: 10px; background: #EFF6FF; color: #2563EB; }
+        .akf-count { padding: 3px 10px; border-radius: 999px; background: #2563EB; color: #fff; font-size: 11px; font-weight: 800; }
+        .akf-spacer { flex: 1; }
+        .akf-reset { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #FECACA; border-radius: 10px; background: #FFF5F5; color: #DC2626; font-size: 12px; font-weight: 700; text-decoration: none; transition: background .15s; }
+        .akf-reset:hover { background: #FEE2E2; text-decoration: none; }
+        .akf-reset svg { width: 14px; height: 14px; }
+        .akf-loading { display: none; width: 18px; height: 18px; }
+        .akx-busy .akf-loading { display: inline-block; }
+        .akf-loading span { display: block; width: 100%; height: 100%; border: 2.5px solid #BFDBFE; border-top-color: #2563EB; border-radius: 999px; animation: akfSpin .7s linear infinite; }
+        @keyframes akfSpin { to { transform: rotate(360deg); } }
+        #akx-filters .akx-pad { padding: 14px 20px; }
+        #akx-filters .akx-chips { gap: 8px; }
+        #akx-filters .akx-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; align-items: end; }
+        #akx-filters .akx-form > div { min-width: 0 !important; }
+        #akx-filters .akx-form label, #akx-filters .akx-form .akx-lbl { display: block; margin: 0 0 6px; font-size: 11px !important; font-weight: 800 !important; letter-spacing: .05em; text-transform: uppercase; color: #64809B !important; }
+        #akx-filters select { min-height: 44px; height: 44px; border-radius: 12px; border-color: #DCEBF5; font-size: 13px; font-weight: 500; color: #334155; background-color: #fff; }
+        #akx-filters select:hover { border-color: #B9D3E6; }
+        #akx-filters .akx-grow { grid-column: 1 / -1; }
+        #akx-filters .acx-search { position: relative; }
+        #akx-filters .acx-search input { height: 48px; border-radius: 14px !important; border: 1px solid #DCEBF5 !important; background: #F8FBFE; font-size: 14px; transition: border-color .15s, box-shadow .15s, background .15s; }
+        #akx-filters .acx-search input:focus { background: #fff; border-color: #2563EB !important; box-shadow: 0 0 0 4px rgba(37,99,235,.1); outline: 0; }
+        .akf-hidden-submit { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; padding: 0; }
+        #akx-results { transition: opacity .15s; }
+        .akx-busy #akx-results { opacity: .45; pointer-events: none; }
+        .akx-topbar { position: fixed; left: 0; top: 0; z-index: 90; height: 3px; width: 0; background: linear-gradient(90deg, #60A5FA, #2563EB); box-shadow: 0 0 8px rgba(37,99,235,.5); transition: width .3s ease, opacity .3s; opacity: 0; }
+        .akx-busy .akx-topbar { width: 75%; opacity: 1; transition: width 2s cubic-bezier(.1,.7,.3,1); }
+        @media (max-width: 640px) { #akx-filters .akx-form { grid-template-columns: 1fr 1fr; } .akf-head { padding: 12px 14px; } }
+    </style>
+    <div class="akx-topbar" aria-hidden="true"></div>
+        {{-- SỬA 19/11 (khách: "lọc theo ajax hết nha, thiết kế lại khu lọc cho đẹp") — khu lọc #akx-filters + kết quả #akx-results
+             tải lại bằng AJAX (script cuối trang), không tải lại cả trang. --}}
+        <section class="acx-panel akf" id="akx-filters" style="margin-top:16px" aria-label="Bộ lọc câu hỏi">
+            <div class="akf-head">
+                <span class="akf-title"><x-lucide name="filter" />Bộ lọc</span>
+                @php
+                    $akfActive = collect($filters)->except(['in_exam', 'type', 'subject'])->filter(fn ($v) => $v !== null && $v !== '')->count();
+                @endphp
+                @if ($akfActive > 0)
+                    <span class="akf-count">{{ $akfActive }} đang bật</span>
+                @endif
+                <span class="akf-spacer"></span>
+                <span class="akf-loading" aria-hidden="true"><span></span></span>
+                @if ($hasActiveFilter)
+                    <a href="{{ route('admin.content.index', ['tab' => 'questions', 'in_exam' => $filters['in_exam'] ?? 'used']) }}" class="akf-reset"><x-lucide name="rotate-ccw" />Xoá lọc</a>
+                @endif
+            </div>
             {{-- Hàng chip: nhìn phát biết kho đang có bao nhiêu câu mỗi môn, bấm 1 phát lọc luôn. --}}
             <div class="akx-pad">
                 <div class="akx-chips">
@@ -234,7 +285,7 @@
                             toggleNone() { this.sel = this.has('none') ? [] : ['none']; },
                             place() { const r = this.$refs.btn.getBoundingClientRect(); const w = Math.min(Math.max(r.width, 380), window.innerWidth - 16); const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)); this.pos = 'left:' + left + 'px;top:' + (r.bottom + 6) + 'px;width:' + w + 'px'; },
                             toggleOpen() { if (this.open) { this.close(); return; } this.place(); this.open = true; this.$nextTick(() => this.$refs.q && this.$refs.q.focus()); },
-                            close() { if (!this.open) return; this.open = false; this.q = ''; if (this.sel.join(',') !== this.init0) this.$nextTick(() => this.$el.closest('form').submit()); },
+                            close() { if (!this.open) return; this.open = false; this.q = ''; if (this.sel.join(',') !== this.init0) { this.init0 = this.sel.join(','); this.$nextTick(() => { const f = this.$root.closest('form'); if (f.requestSubmit) f.requestSubmit(); else f.submit(); }); } },
                          }"
                          @resize.window="open && place()" @scroll.window="open && place()">
                         <label class="akx-lbl">Chuyên đề</label>
@@ -243,10 +294,10 @@
                             <span class="aks-values">
                                 <span class="aks-ph" x-show="!sel.length">Tất cả chuyên đề</span>
                                 <span class="aks-ph" x-show="has('none')" x-cloak>Chưa gắn chuyên đề</span>
-                                <template x-for="o in chosen.slice(0, 2)" :key="'c' + o.id">
+                                <template x-for="o in chosen.slice(0, 1)" :key="'c' + o.id">
                                     <span class="aks-chip"><span class="aks-chip-t" x-text="o.name"></span><span class="aks-chip-x" role="button" title="Bỏ chọn" @click.stop="toggle(o.id); if (!open) { open = true; close(); }">×</span></span>
                                 </template>
-                                <span class="aks-more" x-show="chosen.length > 2" x-text="'+' + (chosen.length - 2)" x-cloak></span>
+                                <span class="aks-more" x-show="chosen.length > 1" x-text="'+' + (chosen.length - 1)" x-cloak></span>
                             </span>
                             <svg class="aks-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
@@ -280,13 +331,13 @@
                         </template>
                     </div>
                     <style>
-                        .aks-wrap { min-width: 220px; max-width: 320px; }
-                        .aks-trigger { display: flex; width: 100%; min-height: 54px; align-items: center; gap: 8px; padding: 6px 12px 6px 16px; border: 1px solid #DCEBF5; border-radius: 16px; background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+                        .aks-wrap { min-width: 0; }
+                        .aks-trigger { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 8px; padding: 4px 10px 4px 12px; border: 1px solid #DCEBF5; border-radius: 12px; background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
                         .aks-trigger:hover { border-color: #B9D3E6; }
                         .aks-trigger.is-open { border-color: #2563EB; box-shadow: 0 0 0 4px rgba(37,99,235,.1); }
                         .aks-values { display: flex; flex: 1; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
-                        .aks-ph { font-size: 15px; font-weight: 600; color: #1E293B; white-space: nowrap; }
-                        .aks-chip { display: inline-flex; min-width: 0; max-width: 130px; align-items: center; gap: 3px; padding: 3px 4px 3px 9px; border-radius: 999px; background: #1E3A8A; color: #fff; font-size: 12px; font-weight: 700; }
+                        .aks-ph { font-size: 13px; font-weight: 500; color: #334155; white-space: nowrap; }
+                        .aks-chip { display: inline-flex; min-width: 0; max-width: 100%; align-items: center; gap: 3px; padding: 3px 4px 3px 9px; border-radius: 999px; background: #1E3A8A; color: #fff; font-size: 12px; font-weight: 700; }
                         .aks-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                         .aks-chip-x { display: grid; place-items: center; width: 17px; height: 17px; flex-shrink: 0; border-radius: 999px; background: rgba(255,255,255,.2); font-size: 13px; line-height: 1; cursor: pointer; }
                         .aks-chip-x:hover { background: rgba(255,255,255,.38); }
@@ -332,14 +383,11 @@
                         <div class="acx-search">
                             <x-lucide name="search" />
                             <input id="filter-q" name="q" type="search" value="{{ $filters['q'] ?? '' }}" maxlength="100"
-                                   placeholder="Ví dụ: ước chung, TOAN6…"
+                                   placeholder="Gõ tên hoặc mã bài — kết quả tự cập nhật (VD: ước chung, TOAN6…)" autocomplete="off"
                                    class="admin-input">
                         </div>
                     </div>
-                    <button type="submit" class="acx-btn acx-btn--primary">Lọc</button>
-                    @if ($hasActiveFilter)
-                        <a href="{{ route('admin.content.index', ['tab' => 'questions', 'in_exam' => $filters['in_exam'] ?? 'used']) }}" class="acx-btn">Xoá lọc</a>
-                    @endif
+                    <button type="submit" class="akf-hidden-submit" tabindex="-1" aria-hidden="true">Lọc</button>
                 </form>
             </div>
         </section>
@@ -555,6 +603,7 @@
             </script>
         @endpush
     @else
+        <div id="akx-results" data-page="{{ (int) ($pagination['page'] ?? 1) }}" data-last="{{ (int) ($pagination['lastPage'] ?? 1) }}" data-total="{{ (int) ($pagination['total'] ?? 0) }}">
         {{-- SỬA 8/9 (3) — tab Câu hỏi có thêm Môn/Khối (và mã câu hỏi dưới tên) để nhìn bảng là biết
              ngay câu nào chưa phân loại; SỬA 1/10 — thêm Tỉnh thành/Năm. SỬA 8/10: các thông tin này giờ gộp
              vào cùng ô theo bản mẫu (Nội dung/Nguồn, Phân loại) — không bỏ thông tin nào. --}}
@@ -795,6 +844,7 @@
             @endif
         </section>
         @endif{{-- /SỬA 3/11 ẩn bảng câu lẻ khi lọc Phổ thông --}}
+        </div>{{-- /#akx-results --}}
     @endif
 
     @if ($isQuestions)
@@ -832,6 +882,91 @@
         </div>
     @endif
 @if ($isQuestions)
+    {{-- SỬA 19/11 (khách: "lọc theo ajax hết nha") — mọi thao tác lọc (chip Môn / Dạng, ô chọn, ô tìm, chuyên đề, chip tag trong
+         bảng, phân trang, Xoá lọc) tải bằng fetch rồi thay #akx-filters + #akx-results, đổi URL bằng pushState (nút Back vẫn đúng).
+         Alpine tự khởi tạo lại phần mới; các nút thứ tự dùng ủy quyền sự kiện trên document nên vẫn chạy. Lỗi mạng → tải trang thường. --}}
+    @push('scripts')
+        <script>
+            (function () {
+                if (window.__akxAjax) return; window.__akxAjax = true;
+                var base = new URL(@js(route('admin.content.index')), window.location.href).pathname;
+                var ctrl = null, timer = null;
+
+                function sameList(href) {
+                    try { var u = new URL(href, window.location.href); return u.origin === window.location.origin && u.pathname === base && new URLSearchParams(u.search).get('tab') !== 'tags'; } catch (e) { return false; }
+                }
+                function formUrl(form) {
+                    var fd = new FormData(form), qs = new URLSearchParams();
+                    fd.forEach(function (v, k) { if (String(v) !== '') qs.append(k, v); });
+                    return form.getAttribute('action').split('?')[0] + '?' + qs.toString();
+                }
+                function go(url, opts) {
+                    opts = opts || {};
+                    if (ctrl) ctrl.abort();
+                    ctrl = window.AbortController ? new AbortController() : null;
+                    document.documentElement.classList.add('akx-busy');
+                    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' }, credentials: 'same-origin', signal: ctrl ? ctrl.signal : undefined })
+                        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            // Giữ nguyên chữ đang gõ + con trỏ trong ô tìm (người dùng có thể gõ tiếp trong lúc chờ).
+                            var oldQ = document.getElementById('filter-q');
+                            var focusQ = !!oldQ && document.activeElement === oldQ;
+                            var qVal = oldQ ? oldQ.value : null, caret = focusQ ? oldQ.selectionStart : null;
+                            ['akx-filters', 'akx-results'].forEach(function (id) {
+                                var cur = document.getElementById(id), next = doc.getElementById(id);
+                                if (cur && next) cur.replaceWith(document.importNode(next, true));
+                                else if (cur && !next) cur.innerHTML = '';
+                            });
+                            if (opts.push !== false) history.pushState({ akx: 1 }, '', url);
+                            var q = document.getElementById('filter-q');
+                            if (q && focusQ) { q.value = qVal; q.focus(); try { q.setSelectionRange(caret, caret); } catch (e) {} }
+                            if (opts.scroll) {
+                                var res = document.getElementById('akx-results');
+                                if (res && res.getBoundingClientRect().top < 0) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                            setTimeout(function () { if (window.akxOrdRefresh) window.akxOrdRefresh(); }, 0);
+                        })
+                        .catch(function (e) { if (e && e.name === 'AbortError') return; window.location.href = url; })
+                        .finally(function () { document.documentElement.classList.remove('akx-busy'); });
+                }
+                window.akxAjaxReload = function () { go(window.location.href, { push: false }); };
+
+                // Link trong khu lọc / kết quả trỏ về chính trang danh sách (chip, phân trang, chip tag, Xoá lọc).
+                document.addEventListener('click', function (e) {
+                    var a = e.target.closest && e.target.closest('#akx-filters a[href], #akx-results a[href]');
+                    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank') return;
+                    if (!sameList(a.href)) return;
+                    e.preventDefault();
+                    go(a.href, { scroll: !!a.closest('#akx-results') });
+                });
+                // Gửi form lọc (Enter, ô chuyên đề đóng lại…).
+                document.addEventListener('submit', function (e) {
+                    var f = e.target;
+                    if (!f.closest || !f.closest('#akx-filters') || (f.method || 'get').toLowerCase() !== 'get') return;
+                    e.preventDefault();
+                    clearTimeout(timer);
+                    go(formUrl(f));
+                });
+                // Đổi ô chọn → lọc ngay; gõ ô tìm → đợi 400ms rồi lọc.
+                document.addEventListener('change', function (e) {
+                    var el = e.target;
+                    if (!el.closest || !el.closest('#akx-filters form') || el.tagName !== 'SELECT') return;
+                    clearTimeout(timer);
+                    go(formUrl(el.form));
+                });
+                document.addEventListener('input', function (e) {
+                    var el = e.target;
+                    if (!el || el.id !== 'filter-q' || !el.form) return;
+                    clearTimeout(timer);
+                    timer = setTimeout(function () { go(formUrl(el.form)); }, 400);
+                });
+                window.addEventListener('popstate', function () {
+                    if (document.getElementById('akx-results')) go(window.location.href, { push: false });
+                });
+            })();
+        </script>
+    @endpush
     @push('scripts')
         <script>
             (function () {
@@ -842,7 +977,10 @@
                 var reload = document.getElementById('oiOrdReload');
                 var dirty = false; // đã gõ/bấm ＋− làm thứ tự trên màn hình lệch với danh sách
                 var pageNo = {{ (int) ($pagination['page'] ?? 1) }};
-                if (reload) reload.addEventListener('click', function () { window.location.reload(); });
+                if (reload) reload.addEventListener('click', function () { if (window.akxAjaxReload) window.akxAjaxReload(); else window.location.reload(); });
+                // SỬA 19/11 — trang/tổng số trang đọc lại từ #akx-results mỗi lần (danh sách tải bằng AJAX).
+                function pgMeta(k, d) { var m = document.getElementById('akx-results'); return m ? (parseInt(m.dataset[k], 10) || d) : d; }
+                window.akxOrdRefresh = function () { dirty = false; if (toast) toast.classList.remove('is-on'); pageNo = pgMeta('page', 1); refreshButtons(); };
 
                 function boxes() { return Array.prototype.slice.call(document.querySelectorAll('[data-ord]')); }
                 function clamp(n) { return Math.max(0, Math.min(MAX, n)); }
@@ -864,8 +1002,9 @@
                 // với danh sách (dirty) thì khoá cho tới khi bấm "Sắp xếp lại danh sách".
                 function refreshButtons() {
                     var all = boxes();
-                    var total = {{ (int) ($pagination['total'] ?? 0) }};
-                    var lastPage = {{ (int) ($pagination['lastPage'] ?? 1) }};
+                    var total = pgMeta('total', 0);
+                    var lastPage = pgMeta('last', 1);
+                    pageNo = pgMeta('page', 1);
                     all.forEach(function (box, i) {
                         var v = parseInt(box.dataset.saved, 10) || 0;
                         var btn = box.querySelector('[data-act="up"]');
