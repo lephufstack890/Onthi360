@@ -41,7 +41,8 @@ class GeneralSetBankService
             ->when(filled($search), fn ($q) => $q->where(fn ($w) => $w->where('title', 'like', '%'.$search.'%')->orWhere('exam_code', 'like', '%'.$search.'%')))
             ->when($tag === 'none', fn ($q) => $q->whereDoesntHave('items.question.tags'))
             ->when($tag !== null && $tag !== '' && $tag !== 'none',
-                fn ($q) => $q->whereHas('items.question.tags', fn ($w) => $w->where('tags.id', (int) $tag)))
+                // SỬA 19/11 — chọn nhiều chuyên đề ("3,7").
+                fn ($q) => $q->whereHas('items.question.tags', fn ($w) => $w->whereIn('tags.id', array_values(array_filter(array_map('intval', explode(',', (string) $tag)))) ?: [0])))
             ->with(['items.question', 'creator'])
             ->withCount('attempts') // SỬA 3/11 — để hộp xác nhận Xoá báo số lượt làm sẽ mất
             ->latest()

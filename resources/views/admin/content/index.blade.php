@@ -214,16 +214,114 @@
                          — ô lọc Chuyên đề (tag) quay lại hàng bộ lọc. Lọc chạy ở QuestionRepository::applyQuestionBankFilters()
                          bằng whereHas trên quan hệ nhiều-nhiều question_tag (KHÔNG join tay, tránh nhân đôi dòng khi 1 câu mang
                          nhiều tag); 'none' = câu CHƯA gắn chuyên đề nào, để dò ra mà gắn dần. --}}
-                    <div class="min-w-[160px]">
-                        <label class="akx-lbl" for="filter-tag">Chuyên đề</label>
-                        {{-- SỬA 11/11 (khách: "có search nữa nhé") — ô chọn chuyên đề gõ tìm được (partials/tag-filter-select).
-                             Vẫn là <select name="tag"> như cũ, chỉ thêm lớp giao diện: không đổi gì phía máy chủ. --}}
-                        @include('partials.tag-filter-select', [
-                            'tfsId' => 'filter-tag',
-                            'tfsOptions' => $tagOptions,
-                            'tfsValue' => $filters['tag'] ?? '',
-                        ])
+                    {{-- SỬA 19/11 (khách: "chỗ lọc theo chuyên đề với bấm vào chi tiết chuyên đề lọc như trang luyện tập public") —
+                         ô chọn NHIỀU chuyên đề có tìm (không dấu), giống trang Luyện tập; chỉ khớp TAG CHÍNH của câu
+                         (QuestionRepository::applyQuestionBankFilters). Gửi lên vẫn là tag=3,7 (hoặc 'none'); đóng ô là tự lọc. --}}
+                    @php
+                        $aksSel = array_values(array_filter(explode(',', (string) ($filters['tag'] ?? '')), fn ($v) => $v !== ''));
+                        $aksOpts = collect($tagOptions)->map(fn ($name, $id) => ['id' => (string) $id, 'name' => (string) $name])->values()->all();
+                    @endphp
+                    <div class="aks-wrap" x-data="{
+                            opts: @js($aksOpts),
+                            sel: @js($aksSel),
+                            init0: @js(implode(',', $aksSel)),
+                            open: false, q: '', pos: '',
+                            norm(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').trim(); },
+                            get shown() { const q = this.norm(this.q); return this.opts.filter((o) => !q || this.norm(o.name).includes(q)); },
+                            get chosen() { return this.sel.filter((v) => v !== 'none').map((v) => this.opts.find((o) => o.id === v)).filter(Boolean); },
+                            has(id) { return this.sel.includes(String(id)); },
+                            toggle(id) { id = String(id); this.sel = this.sel.filter((v) => v !== 'none'); this.sel = this.has(id) ? this.sel.filter((v) => v !== id) : [...this.sel, id]; },
+                            toggleNone() { this.sel = this.has('none') ? [] : ['none']; },
+                            place() { const r = this.$refs.btn.getBoundingClientRect(); const w = Math.min(Math.max(r.width, 380), window.innerWidth - 16); const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)); this.pos = 'left:' + left + 'px;top:' + (r.bottom + 6) + 'px;width:' + w + 'px'; },
+                            toggleOpen() { if (this.open) { this.close(); return; } this.place(); this.open = true; this.$nextTick(() => this.$refs.q && this.$refs.q.focus()); },
+                            close() { if (!this.open) return; this.open = false; this.q = ''; if (this.sel.join(',') !== this.init0) this.$nextTick(() => this.$el.closest('form').submit()); },
+                         }"
+                         @resize.window="open && place()" @scroll.window="open && place()">
+                        <label class="akx-lbl">Chuyên đề</label>
+                        <input type="hidden" name="tag" :value="sel.join(',')" value="{{ implode(',', $aksSel) }}">
+                        <button type="button" x-ref="btn" class="aks-trigger" :class="{ 'is-open': open }" @click="toggleOpen()" aria-haspopup="listbox" :aria-expanded="open ? 'true' : 'false'">
+                            <span class="aks-values">
+                                <span class="aks-ph" x-show="!sel.length">Tất cả chuyên đề</span>
+                                <span class="aks-ph" x-show="has('none')" x-cloak>Chưa gắn chuyên đề</span>
+                                <template x-for="o in chosen.slice(0, 2)" :key="'c' + o.id">
+                                    <span class="aks-chip"><span class="aks-chip-t" x-text="o.name"></span><span class="aks-chip-x" role="button" title="Bỏ chọn" @click.stop="toggle(o.id); if (!open) { open = true; close(); }">×</span></span>
+                                </template>
+                                <span class="aks-more" x-show="chosen.length > 2" x-text="'+' + (chosen.length - 2)" x-cloak></span>
+                            </span>
+                            <svg class="aks-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <template x-teleport="body">
+                            <div class="aks-panel" x-show="open" x-cloak :style="pos" @click.outside="if (!$refs.btn.contains($event.target)) close()">
+                                <div class="aks-search">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                                    <input type="text" x-ref="q" x-model="q" placeholder="Tìm chuyên đề…" autocomplete="off" @keydown.enter.prevent="shown[0] && toggle(shown[0].id)" @keydown.escape="close()">
+                                </div>
+                                <div class="aks-bar">
+                                    <span><b x-text="shown.length"></b> chuyên đề</span>
+                                    <span>
+                                        <button type="button" @click="sel = [...new Set([...sel.filter((v) => v !== 'none'), ...shown.map((o) => o.id)])]" :disabled="!shown.length">Chọn tất cả</button>
+                                        <button type="button" @click="sel = []" :disabled="!sel.length">Bỏ chọn</button>
+                                    </span>
+                                </div>
+                                <ul class="aks-list" role="listbox" aria-multiselectable="true">
+                                    <template x-for="o in shown" :key="'o' + o.id">
+                                        <li><button type="button" class="aks-opt" :class="{ 'is-on': has(o.id) }" @click="toggle(o.id)">
+                                            <span class="aks-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                                            <span class="aks-name" x-text="o.name"></span>
+                                        </button></li>
+                                    </template>
+                                </ul>
+                                <p class="aks-empty" x-show="!shown.length">Không có chuyên đề nào khớp.</p>
+                                <div class="aks-foot">
+                                    <button type="button" class="aks-none" :class="{ 'is-on': has('none') }" @click="toggleNone()">Chưa gắn chuyên đề</button>
+                                    <button type="button" class="aks-done" @click="close()">Lọc</button>
+                                </div>
+                            </div>
+                        </template>
                     </div>
+                    <style>
+                        .aks-wrap { min-width: 220px; max-width: 320px; }
+                        .aks-trigger { display: flex; width: 100%; min-height: 54px; align-items: center; gap: 8px; padding: 6px 12px 6px 16px; border: 1px solid #DCEBF5; border-radius: 16px; background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+                        .aks-trigger:hover { border-color: #B9D3E6; }
+                        .aks-trigger.is-open { border-color: #2563EB; box-shadow: 0 0 0 4px rgba(37,99,235,.1); }
+                        .aks-values { display: flex; flex: 1; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
+                        .aks-ph { font-size: 15px; font-weight: 600; color: #1E293B; white-space: nowrap; }
+                        .aks-chip { display: inline-flex; min-width: 0; max-width: 130px; align-items: center; gap: 3px; padding: 3px 4px 3px 9px; border-radius: 999px; background: #1E3A8A; color: #fff; font-size: 12px; font-weight: 700; }
+                        .aks-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                        .aks-chip-x { display: grid; place-items: center; width: 17px; height: 17px; flex-shrink: 0; border-radius: 999px; background: rgba(255,255,255,.2); font-size: 13px; line-height: 1; cursor: pointer; }
+                        .aks-chip-x:hover { background: rgba(255,255,255,.38); }
+                        .aks-more { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; background: #EFF6FF; color: #1D4ED8; font-size: 12px; font-weight: 800; }
+                        .aks-caret { width: 16px; height: 16px; flex-shrink: 0; color: #94A3B8; transition: transform .2s; }
+                        .aks-trigger.is-open .aks-caret { transform: rotate(180deg); }
+                        .aks-panel { position: fixed; z-index: 80; overflow: hidden; border: 1px solid #DCEBF5; border-radius: 16px; background: #fff; box-shadow: 0 18px 40px rgba(25,90,150,.18); }
+                        .aks-search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 6px; padding: 0 10px; height: 40px; border: 1px solid #DCEBF5; border-radius: 11px; background: #F8FBFE; color: #94A3B8; }
+                        .aks-search:focus-within { border-color: #2563EB; background: #fff; }
+                        .aks-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+                        .aks-search input { flex: 1; min-width: 0; height: 100%; border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent; padding: 0; font-size: 13px; color: #1E293B; }
+                        .aks-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 6px; font-size: 12px; color: #64748B; }
+                        .aks-bar b { color: #1E293B; }
+                        .aks-bar button { padding: 3px 8px; border-radius: 7px; font-size: 12px; font-weight: 700; color: #2563EB; }
+                        .aks-bar button:hover:not(:disabled) { background: #EFF6FF; }
+                        .aks-bar button:disabled { color: #CBD5E1; cursor: default; }
+                        .aks-list { list-style: none; margin: 0; padding: 4px 8px 8px; max-height: 280px; overflow-y: auto; border-top: 1px solid #F1F5F9; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 2px; }
+                        .aks-opt { display: flex; width: 100%; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 9px; text-align: left; font-size: 13px; font-weight: 600; color: #334155; }
+                        .aks-opt:hover { background: #F1F7FD; }
+                        .aks-opt.is-on { background: #EFF6FF; color: #1E40AF; font-weight: 700; }
+                        .aks-check { display: grid; place-items: center; width: 17px; height: 17px; flex-shrink: 0; border: 1.5px solid #BFD3E6; border-radius: 5px; background: #fff; color: transparent; }
+                        .aks-check svg { width: 11px; height: 11px; }
+                        .aks-opt.is-on .aks-check { border-color: #2563EB; background: #2563EB; color: #fff; }
+                        .aks-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                        .aks-empty { margin: 0; padding: 14px; text-align: center; font-size: 13px; color: #94A3B8; }
+                        .aks-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-top: 1px solid #F1F5F9; background: #F8FBFE; }
+                        .aks-none { padding: 6px 10px; border: 1px dashed #CBD5E1; border-radius: 9px; font-size: 12px; font-weight: 700; color: #64748B; }
+                        .aks-none.is-on { border-style: solid; border-color: #F59E0B; background: #FFFBEB; color: #B45309; }
+                        .aks-done { padding: 7px 18px; border-radius: 10px; background: #2563EB; color: #fff; font-size: 13px; font-weight: 800; }
+                        .aks-done:hover { background: #1D4ED8; }
+                        /* Chip chuyên đề trong bảng: bấm được để lọc (như trang Luyện tập). */
+                        a.akx-topic-main, a.akx-topic-sub { cursor: pointer; text-decoration: none; transition: filter .12s, box-shadow .12s; }
+                        a.akx-topic-main:hover, a.akx-topic-sub:hover { filter: brightness(.96); box-shadow: 0 0 0 2px rgba(37,99,235,.18); text-decoration: none; }
+                        a.akx-topic-on { box-shadow: 0 0 0 2px #2563EB; }
+                    </style>
                     @include('partials.question-province-year-filter')
                     {{-- SỬA 30/9 — "Dạng câu" đã chuyển thành DẢI TAB ở trên (khách: "dạng câu ở dưới
                          làm tab phân chia dạng câu"). Vẫn gửi kèm giá trị đang chọn để bấm "Lọc" ở
@@ -544,23 +642,23 @@
                                 @if ($isQuestions)
                                     <td class="akx-tagcell">
                                         @php
-                                            $__tags = array_values(array_filter(array_map(fn ($tg) => $tg['name'] ?? '', $r['tags'] ?? [])));
-                                            $__subs = array_slice($__tags, 1, 2);
-                                            $__more = array_slice($__tags, 3);
+                                            // SỬA 19/11 (khách: "bấm vào chuyên đề lọc như trang luyện tập public") — mỗi chip là link lọc theo tag
+                                            // đó (giữ các bộ lọc khác, về trang 1); hiện ĐỦ tag phụ như trang Luyện tập.
+                                            $__tags = array_values(array_filter($r['tags'] ?? [], fn ($tg) => ($tg['name'] ?? '') !== ''));
+                                            $__curTags = explode(',', (string) ($filters['tag'] ?? ''));
+                                            $__tagLink = fn ($tg) => isset($tg['id']) ? $filterLink(['tag' => $tg['id'], 'page' => null]) : null;
                                         @endphp
                                         @if ($__tags === [])
                                             <span class="akx-mute" style="font-size:12px">Chưa gắn</span>
                                         @else
-                                            <div class="akx-topics" title="{{ implode(', ', $__tags) }}">
-                                                <span class="akx-topic-main">{{ $__tags[0] }}</span>
-                                                @if ($__subs)
+                                            <div class="akx-topics">
+                                                @php($__m = $__tags[0])
+                                                <a href="{{ $__tagLink($__m) }}" class="akx-topic-main {{ in_array((string) ($__m['id'] ?? ''), $__curTags, true) ? 'akx-topic-on' : '' }}" title="Lọc theo chuyên đề “{{ $__m['name'] }}” (tag chính)">{{ $__m['name'] }}</a>
+                                                @if (count($__tags) > 1)
                                                     <span class="akx-topic-subs">
-                                                        @foreach ($__subs as $__sub)
-                                                            <span class="akx-topic-sub">{{ $__sub }}</span>
+                                                        @foreach (array_slice($__tags, 1) as $__sub)
+                                                            <a href="{{ $__tagLink($__sub) }}" class="akx-topic-sub {{ in_array((string) ($__sub['id'] ?? ''), $__curTags, true) ? 'akx-topic-on' : '' }}" title="Lọc theo chuyên đề “{{ $__sub['name'] }}”">{{ $__sub['name'] }}</a>
                                                         @endforeach
-                                                        @if ($__more)
-                                                            <span class="akx-topic-more" title="{{ implode(', ', $__more) }}">+{{ count($__more) }}</span>
-                                                        @endif
                                                     </span>
                                                 @endif
                                             </div>

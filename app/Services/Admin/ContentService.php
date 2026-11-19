@@ -362,7 +362,7 @@ class ContentService
                     // SỬA 12/11 — cột Tag chuyên đề.
                     // SỬA 16/11 — tag chính (question_tag.is_primary) đứng đầu, như trang Luyện tập.
                     'tags' => $q->relationLoaded('tags')
-                        ? $q->orderedTags()->map(fn ($t) => ['name' => (string) $t->name, 'kind' => $t->kind ?? null])->values()->all()
+                        ? $q->orderedTags()->map(fn ($t) => ['id' => (int) $t->id, 'name' => (string) $t->name, 'kind' => $t->kind ?? null])->values()->all() // SỬA 19/11 — kèm id để bấm chip lọc
                         : [],
                     'type' => self::QUESTION_TYPE_LABELS[$q->type->value] ?? $q->type->value,
                     'status' => $label,
@@ -1311,7 +1311,7 @@ class ContentService
             'created_by' => $admin->id,
         ]);
 
-        $question->tags()->sync($this->resolveTagIds($data));
+        $this->syncQuestionTags($question, $data); // SỬA 19/11 — kèm tag chính
 
         // SỬA 1/10 — phải gọi SAU create() vì đường dẫn tệp lấy theo $question->id.
         $this->applyManualUploads($question, $data);
@@ -1391,7 +1391,7 @@ class ContentService
 
         $updated = $this->questions->update($question, $attributes);
 
-        $updated->tags()->sync($this->resolveTagIds($data));
+        $this->syncQuestionTags($updated, $data); // SỬA 19/11 — kèm tag chính
 
         // SỬA 1/10 — tệp đính kèm nhập tay. Chạy SAU update() ở trên (update() vừa ghi
         // metadata.difficulty) và tự đọc lại metadata mới nhất để 2 bước không ghi đè nhau.
@@ -1448,7 +1448,7 @@ class ContentService
 
         // Phiên bản mới giữ NGUYÊN tag của bản gốc trừ khi form gửi kèm lựa chọn tag khác —
         // đổi nội dung câu hỏi (sửa lỗi/cập nhật) hiếm khi đổi luôn chủ đề của nó.
-        $newVersion->tags()->sync($this->resolveTagIds($data));
+        $this->syncQuestionTags($newVersion, $data); // SỬA 19/11 — kèm tag chính
 
         // SỬA 1/10 — tệp mới tải lên ở form "Tạo phiên bản mới" ghi vào thư mục của BẢN MỚI
         // (questions/{idMới}/…), không dùng chung đường dẫn với bản gốc.
@@ -1718,6 +1718,37 @@ class ContentService
      *
      * @return array<int> danh sách tag_id cuối cùng để sync() vào câu hỏi.
      */
+    /**
+     * SỬA 19/11 (khách: "khi tạo câu hỏi và cập nhật cho gắn tag chuyên đề chính luôn") — gắn tag như cũ rồi đánh dấu
+     * TAG CHÍNH (question_tag.is_primary): lấy primary_tag_id từ form nếu nằm trong các tag đã chọn; không gửi thì giữ tag
+     * chính cũ (nếu vẫn còn), không nữa thì tag đầu tiên. Xoá bộ nhớ tạm trang Luyện tập để lọc/hiển thị cập nhật ngay.
+     */
+    private function syncQuestionTags(Question $question, array $data): void
+    {
+        $ids = $this->resolveTagIds($data);
+        $oldPrimary = null;
+        if (Question::tagPrimaryReady()) {
+            $oldPrimary = DB::table('question_tag')->where('question_id', $question->id)->where('is_primary', true)->value('tag_id');
+        }
+
+        $question->tags()->sync($ids);
+
+        if (Question::tagPrimaryReady() && $ids !== []) {
+            $want = (int) ($data['primary_tag_id'] ?? 0);
+            $primary = in_array($want, $ids, true) ? $want
+                : (in_array((int) $oldPrimary, $ids, true) ? (int) $oldPrimary : $ids[0]);
+            DB::table('question_tag')->where('question_id', $question->id)->update(['is_primary' => false]);
+            DB::table('question_tag')->where('question_id', $question->id)->where('tag_id', $primary)->update(['is_primary' => true]);
+        }
+        $question->unsetRelation('tags');
+
+        try {
+            \App\Services\Public\PracticeService::forgetProblemCache();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     private function resolveTagIds(array $data): array
     {
         $tagIds = array_map('intval', $data['tag_ids'] ?? []);
@@ -2678,7 +2709,7 @@ class ContentService
             'created_by' => $admin->id,
         ]);
 
-        $question->tags()->sync($this->resolveTagIds($data));
+        $this->syncQuestionTags($question, $data); // SỬA 19/11 — kèm tag chính
 
         return $question;
     }
@@ -2817,7 +2848,7 @@ class ContentService
 
         $updated = $this->questions->update($exercise, $attributes);
 
-        $updated->tags()->sync($this->resolveTagIds($data));
+        $this->syncQuestionTags($updated, $data); // SỬA 19/11 — kèm tag chính
 
         if ($isCoding) {
             $this->applyManualUploads($updated, $data);

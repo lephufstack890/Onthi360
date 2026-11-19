@@ -419,6 +419,7 @@ class ContentController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
             'new_tags' => ['nullable', 'string', 'max:500'],
+            'primary_tag_id' => ['nullable', 'integer'], // SỬA 19/11 — tag chính (phải nằm trong tag đã chọn, xem syncQuestionTags)
         ];
     }
 

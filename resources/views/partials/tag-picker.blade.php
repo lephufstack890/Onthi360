@@ -6,6 +6,10 @@
 @php
     $tpId = 'tp'.substr(md5(uniqid('', true)), 0, 8);
     $tpSelected = collect($selected ?? [])->map(fn ($v) => (string) $v);
+    // SỬA 19/11 (khách: "khi tạo câu hỏi và cập nhật cho gắn tag chuyên đề chính luôn") — $withPrimary = true thì có thêm
+    // hàng chọn TAG CHÍNH (gửi primary_tag_id) trong số tag đang tick; $primary = id tag chính hiện tại.
+    $tpWithPrimary = (bool) ($withPrimary ?? false);
+    $tpPrimary = (string) ($primary ?? '');
 @endphp
 @once
     <style>
@@ -24,6 +28,17 @@
         .tp-chip:has(input:checked) { background: #EFF6FF; border-color: #93C5FD; color: #2563EB; font-weight: 600; }
         .tp-chip[hidden] { display: none; }
         .tp-empty { padding: 4px 2px; font-size: 12px; color: #94A3B8; }
+        /* SỬA 19/11 — hàng chọn tag chính. */
+        .tp-primary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-top: 1px solid #E7F0F7; background: #FFFBEB; }
+        .tp-primary[hidden] { display: none; }
+        .tp-primary-lbl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #92400E; white-space: nowrap; }
+        .tp-primary-lbl svg { width: 14px; height: 14px; color: #F59E0B; }
+        .tp-primary-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tp-primary-opt { padding: 3px 10px; border: 1px solid #FDE68A; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 600; color: #92400E; cursor: pointer; }
+        .tp-primary-opt:hover { border-color: #F59E0B; }
+        .tp-primary-opt.is-on { border-color: #F59E0B; background: #F59E0B; color: #fff; }
+        .tp-chip.is-primary { border-color: #F59E0B !important; box-shadow: 0 0 0 1px #F59E0B; }
+        .tp-chip.is-primary span::after { content: ' ★'; color: #F59E0B; }
     </style>
     <script>
         document.addEventListener('input', function (e) {
@@ -40,6 +55,33 @@
             var n = box.querySelectorAll('.tp-chip input:checked').length;
             box.querySelector('[data-tp-count]').textContent = n ? 'Đã chọn ' + n : '';
             box.querySelector('[data-tp-clear]').hidden = n === 0;
+            tpPrimary(box);
+        }
+        // SỬA 19/11 — hàng "Tag chính": liệt kê các tag đang tick; bấm 1 tag để đặt làm tag chính. Tag chính bị bỏ tick
+        // thì tự chuyển sang tag tick đầu tiên. Giá trị gửi lên ở input ẩn primary_tag_id.
+        function tpPrimary(box) {
+            var row = box.querySelector('[data-tp-primary]');
+            if (!row) return;
+            var input = row.querySelector('input[name="primary_tag_id"]'), wrap = row.querySelector('[data-tp-primary-opts]');
+            var checked = Array.prototype.map.call(box.querySelectorAll('.tp-chip input:checked'), function (i) {
+                return { id: i.value, name: i.closest('.tp-chip').getAttribute('title') || i.value };
+            });
+            if (!checked.some(function (c) { return c.id === input.value; })) input.value = checked.length ? checked[0].id : '';
+            wrap.innerHTML = '';
+            checked.forEach(function (c) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'tp-primary-opt' + (c.id === input.value ? ' is-on' : '');
+                b.textContent = c.name;
+                b.title = 'Đặt “' + c.name + '” làm tag chính';
+                b.addEventListener('click', function () { input.value = c.id; tpPrimary(box); });
+                wrap.appendChild(b);
+            });
+            row.hidden = checked.length === 0;
+            box.querySelectorAll('.tp-chip').forEach(function (ch) {
+                var i = ch.querySelector('input');
+                ch.classList.toggle('is-primary', !!(i && i.checked && i.value === input.value));
+            });
         }
         document.addEventListener('change', function (e) {
             var box = e.target.closest ? e.target.closest('[data-tp]') : null;
@@ -75,5 +117,12 @@
             @endforeach
             <div class="tp-empty" data-tp-empty hidden>Không có chuyên đề khớp.</div>
         </div>
+        @if ($tpWithPrimary)
+            <div class="tp-primary" data-tp-primary hidden>
+                <input type="hidden" name="primary_tag_id" value="{{ $tpSelected->contains($tpPrimary) ? $tpPrimary : $tpSelected->first() }}">
+                <span class="tp-primary-lbl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>Tag chính:</span>
+                <span class="tp-primary-opts" data-tp-primary-opts></span>
+            </div>
+        @endif
     </div>
 @endif

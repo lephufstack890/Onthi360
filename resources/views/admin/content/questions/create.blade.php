@@ -380,7 +380,7 @@
                         </div>
                         <div class="qe-field">
                             <label>Tag/Chuyên đề</label>
-                            @include('partials.tag-picker', ['tags' => $allTags, 'selected' => old('tag_ids', [])])
+                            @include('partials.tag-picker', ['tags' => $allTags, 'selected' => old('tag_ids', []), 'withPrimary' => true, 'primary' => old('primary_tag_id')]) {{-- SỬA 19/11 — chọn tag chính --}}
                             <div style="height:8px"></div>
                             <input type="text" name="new_tags" value="{{ old('new_tags') }}" maxlength="500" placeholder="Tag mới, cách nhau bằng dấu phẩy"
                                    class="admin-input">

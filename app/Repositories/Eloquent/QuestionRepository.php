@@ -232,7 +232,20 @@ class QuestionRepository extends EloquentRepository implements QuestionRepositor
         if ($tagId === 'none') {
             $query->whereDoesntHave('tags');
         } elseif ($tagId !== null && $tagId !== '') {
-            $query->whereHas('tags', fn (Builder $sub) => $sub->where('tags.id', (int) $tagId));
+            // SỬA 19/11 (khách: "lọc theo chuyên đề như trang luyện tập public") — CHỌN NHIỀU ("3,7") và chỉ khớp TAG CHÍNH
+            // (question_tag.is_primary; câu chưa đánh dấu thì tag đầu tiên — đúng Question::orderedTags(), cùng cách trang
+            // Luyện tập lọc). Lấy ứng viên có mang 1 trong các tag rồi giữ câu có tag chính thuộc danh sách.
+            $ids = array_values(array_unique(array_filter(array_map('intval', is_array($tagId) ? $tagId : explode(',', (string) $tagId)))));
+            if ($ids !== []) {
+                $primaryIds = \App\Models\Question::query()
+                    ->whereHas('tags', fn (Builder $sub) => $sub->whereIn('tags.id', $ids))
+                    ->with('tags')
+                    ->get(['id'])
+                    ->filter(fn ($q) => in_array((int) optional($q->orderedTags()->first())->id, $ids, true))
+                    ->pluck('id')
+                    ->all();
+                $query->whereIn($query->getModel()->getTable().'.id', $primaryIds !== [] ? $primaryIds : [0]);
+            }
         }
 
         /*
